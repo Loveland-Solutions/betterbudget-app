@@ -26,3 +26,5 @@ Settled decisions live in [docs/decisions](docs/decisions/). They are recorded o
 they don't get relitigated later.
 
 - [0001 — Local data store: SQLite via Drift, encrypted with SQLCipher](docs/decisions/0001-database.md)
+- [0002 — TDB statement import: target the unformatted Excel export](docs/decisions/0002-tdb-import-format.md)
+- [0003 — Ledger schema: double-entry storage, categories as accounts](docs/decisions/0003-double-entry-schema.md)

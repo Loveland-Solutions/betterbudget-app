@@ -67,7 +67,14 @@ so amounts are large integers in MNT.
 These are binding implementation constraints, not suggestions.
 
 - **Money is `INTEGER` minor units, never `REAL`.** Store a per-currency exponent
-  (MNT = 0, USD = 2). Floating-point cents is how a ledger ends up off by ₮1.
+  (**MNT = 2**, USD = 2). Floating-point cents is how a ledger ends up off by ₮1.
+
+  > **Corrected 2026-09-16.** This originally said MNT = 0, on the assumption that
+  > tögrög is effectively a zero-decimal currency since the möngö is obsolete. Real TDB
+  > statement data disproves that: balances and transaction amounts carry two decimal
+  > places, and 10 of 79 transactions in the sample had a non-zero fractional part.
+  > Storing MNT at exponent 0 would silently round real bank data on import. See
+  > [0002 — TDB statement import format](0002-tdb-import-format.md).
 - **Two kinds of date.** A transaction's calendar date is `YYYY-MM-DD` `TEXT`.
   Created/modified timestamps are epoch millis `INTEGER`. Storing a calendar date as
   a timestamp shifts it a day across timezone changes, which Mongolia at UTC+8 will
