@@ -144,16 +144,15 @@ anything in a shipped build. Stated explicitly so no telemetry is ever rationali
 
 ## Brand palette
 
-Sampled by eye from `assets/logo/` — **approximate, not yet verified against the actual
-pixels.** The logos are the Loveland Solutions company mark, not a BetterBudget product
+Measured from the pixels of `assets/logo/logo-english.png` (2026-09-16). The logos are the Loveland Solutions company mark, not a BetterBudget product
 mark.
 
-| Role | Approx. | Use |
+| Role | Hex | Use |
 | --- | --- | --- |
-| Deep navy | `#0B1B3A` | primary, text, chrome |
-| Royal blue | `#1436C8` | accent, interactive, links |
-| Gold | `#C6A063` | sparing highlight, attention states |
-| Slate grey | `#7E8898` | rules, dividers, secondary text |
+| Deep navy | `#03173E` | primary, text, chrome |
+| Royal blue | `#0342B2` | accent, interactive, links |
+| Gold | `#C9A96B` | sparing highlight, attention states |
+| Slate grey | `#707784` | rules, dividers, secondary text |
 
 Conservative and bank-like, which suits a ledger — it should read as a financial
 instrument. There is no red or green in the mark, so a restrained pair needs adding for
