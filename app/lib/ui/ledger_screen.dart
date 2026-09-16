@@ -1,0 +1,743 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../data/database.dart';
+import '../data/demo_seed.dart';
+import '../domain/forecast.dart';
+import '../domain/ledger.dart';
+import '../domain/money.dart';
+import 'balance_header.dart';
+import 'entry_row.dart';
+import 'register.dart';
+import 'theme.dart';
+
+bool get _isMac =>
+    defaultTargetPlatform == TargetPlatform.macOS ||
+    defaultTargetPlatform == TargetPlatform.iOS;
+
+class LedgerScreen extends StatefulWidget {
+  const LedgerScreen({super.key, required this.db, this.clock = DateTime.now});
+
+  final AppDatabase db;
+  final DateTime Function() clock;
+
+  @override
+  State<LedgerScreen> createState() => _LedgerScreenState();
+}
+
+class _LedgerScreenState extends State<LedgerScreen> {
+  late final Stream<LedgerData> _ledger;
+  int? _accountId;
+  var _selection = <int>{};
+  int? _anchor;
+  var _filter = RegisterFilter.all;
+  final _hoveredStatus = ValueNotifier<Cleared?>(null);
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'search');
+  late final EntryRowController _entry;
+  ({String message, VoidCallback? undo})? _toast;
+  Timer? _toastTimer;
+
+  /// Rows of the current account, by transaction id, from the latest build.
+  Map<int, RegisterRow> _rows = const {};
+
+  AppDatabase get db => widget.db;
+  DateTime get today => dateOnly(widget.clock());
+
+  @override
+  void initState() {
+    super.initState();
+    _ledger = Stream.fromFuture(seedDemoIfEmpty(db, today))
+        .asyncExpand((_) => db.watchLedger());
+    _entry = EntryRowController(
+      onSubmit: _post,
+      suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
+    );
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    _searchFocus.dispose();
+    _hoveredStatus.dispose();
+    _entry.payeeFocus.dispose();
+    _toastTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<String?> _post(EntryDraft d) async {
+    try {
+      await db.postSimple(
+        accountId: _accountId!,
+        date: d.date,
+        today: today,
+        payee: d.payee,
+        counterAccountId: d.counter.id,
+        amount: d.amount,
+      );
+      _entry.payeeNames = await db.payeeNames();
+      if (d.date.isAfter(today)) {
+        _showToast(
+          'Scheduled for ${fullDate(d.date)} · not in balances until confirmed',
+        );
+      }
+      return null;
+    } catch (e) {
+      return 'Couldn’t save: $e';
+    }
+  }
+
+  void _showToast(String message, {Future<void> Function()? undo}) {
+    _toastTimer?.cancel();
+    setState(
+      () => _toast = (
+        message: message,
+        undo: undo == null
+            ? null
+            : () async {
+                setState(() => _toast = null);
+                await undo();
+              },
+      ),
+    );
+    _toastTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _toast = null);
+    });
+  }
+
+  bool get _typing {
+    final f = FocusManager.instance.primaryFocus;
+    return f != null && f.context?.widget is EditableText;
+  }
+
+  String _plural(int n, String one) => n == 1 ? '1 $one' : '$n ${one}s';
+
+  // ---------- selection ----------
+
+  void _tapRow(int id, List<int> order) {
+    final keys = HardwareKeyboard.instance;
+    final toggle = _isMac ? keys.isMetaPressed : keys.isControlPressed;
+    setState(() {
+      if (keys.isShiftPressed && _anchor != null && order.contains(_anchor)) {
+        final a = order.indexOf(_anchor!), b = order.indexOf(id);
+        final range = order.sublist(a < b ? a : b, (a < b ? b : a) + 1);
+        _selection = {..._selection, ...range};
+        return;
+      }
+      if (toggle) {
+        _selection = _selection.contains(id)
+            ? ({..._selection}..remove(id))
+            : {..._selection, id};
+      } else {
+        _selection = _selection.length == 1 && _selection.contains(id)
+            ? {}
+            : {id};
+      }
+      _anchor = id;
+    });
+  }
+
+  void _clearSelection() => setState(() {
+    _selection = {};
+    _anchor = null;
+  });
+
+  // ---------- actions ----------
+
+  Future<void> _toggleCleared(RegisterRow r) async {
+    final next = r.cleared == Cleared.uncleared
+        ? Cleared.cleared
+        : Cleared.uncleared;
+    final previous = await db.setClearedMany({r.entryId: next});
+    if (previous.isEmpty) return;
+    _showToast(
+      '${r.payee} marked ${StatusGlyph.label(next).toLowerCase()}',
+      undo: () => db.setClearedMany(previous),
+    );
+  }
+
+  Future<void> _bulkCleared(Cleared state) async {
+    final rows = _selection
+        .map((id) => _rows[id])
+        .nonNulls
+        .where((r) => !r.scheduled);
+    final previous = await db.setClearedMany({
+      for (final r in rows) r.entryId: state,
+    });
+    final locked = rows.where((r) => r.cleared == Cleared.reconciled).length;
+    final label = StatusGlyph.label(state).toLowerCase();
+    _showToast(
+      [
+        previous.isEmpty
+            ? 'Nothing to mark $label'
+            : '${_plural(previous.length, 'transaction')} marked $label',
+        if (locked > 0) '$locked reconciled left locked',
+      ].join(' · '),
+      undo: previous.isEmpty ? null : () => db.setClearedMany(previous),
+    );
+  }
+
+  Future<void> _bulkCategorize(AccountInfo category) async {
+    final ids = _selection.toList();
+    final previous = await db.setCategoryMany(
+      transactionIds: ids,
+      accountId: _accountId!,
+      categoryId: category.id,
+    );
+    final skipped = ids.where((id) {
+      final k = _rows[id]?.kind;
+      return k != null && k != RowKind.simple;
+    }).length;
+    final accountId = _accountId!;
+    _showToast(
+      [
+        previous.isEmpty
+            ? 'Already ${category.name}'
+            : '${_plural(previous.length, 'transaction')} → ${category.name}',
+        if (skipped > 0) '${_plural(skipped, 'split or transfer')} left as is',
+      ].join(' · '),
+      undo: previous.isEmpty
+          ? null
+          : () => db.restoreCategories(previous, accountId),
+    );
+  }
+
+  Future<void> _bulkDelete() async {
+    final ids = _selection.toList();
+    if (ids.isEmpty) return;
+    await db.softDeleteMany(ids);
+    _clearSelection();
+    _showToast(
+      '${_plural(ids.length, 'transaction')} deleted',
+      undo: () async {
+        await db.restoreMany(ids);
+        if (mounted) setState(() => _selection = ids.toSet());
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    void unlessTyping(VoidCallback f) {
+      if (!_typing) f();
+    }
+
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true):
+            _entry.focus,
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            _entry.focus,
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            _searchFocus.requestFocus,
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            _searchFocus.requestFocus,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            _searchFocus.requestFocus,
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _searchFocus.requestFocus,
+        const SingleActivator(LogicalKeyboardKey.delete): () =>
+            unlessTyping(_bulkDelete),
+        const SingleActivator(LogicalKeyboardKey.backspace): () =>
+            unlessTyping(_bulkDelete),
+        // C: cleared if anything selected is uncleared, otherwise uncleared.
+        const SingleActivator(LogicalKeyboardKey.keyC): () => unlessTyping(() {
+          if (_selection.isEmpty) return;
+          final anyUncleared = _selection.any(
+            (id) => _rows[id]?.cleared == Cleared.uncleared,
+          );
+          _bulkCleared(anyUncleared ? Cleared.cleared : Cleared.uncleared);
+        }),
+        const SingleActivator(LogicalKeyboardKey.escape): _clearSelection,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: StreamBuilder<LedgerData>(
+            stream: _ledger,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return Center(
+                  child: Text(
+                    'Couldn’t open the ledger: ${snap.error}',
+                    style: onest(14, color: Mid.coral),
+                  ),
+                );
+              }
+              final data = snap.data;
+              if (data == null) return const SizedBox.shrink();
+              final accounts = data.balanceSheetAccounts;
+              if (accounts.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No accounts yet',
+                    style: onest(14, color: Mid.ink3),
+                  ),
+                );
+              }
+              final account = data.accounts[_accountId] ?? accounts.first;
+              if (_accountId != account.id) {
+                _accountId = account.id;
+                db.payeeNames().then((p) => _entry.payeeNames = p);
+              }
+              return Stack(
+                children: [
+                  Row(
+                    children: [
+                      _Sidebar(
+                        data: data,
+                        selected: account.id,
+                        onSelect: (id) => setState(() {
+                          _accountId = id;
+                          _selection = {};
+                          _anchor = null;
+                        }),
+                      ),
+                      Expanded(child: _body(data, account)),
+                    ],
+                  ),
+                  if (_toast != null)
+                    _Toast(
+                      toast: _toast!,
+                      onClose: () => setState(() => _toast = null),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _body(LedgerData data, AccountInfo account) {
+    final summary = data.summaryFor(account.id);
+    final register = data.registerFor(account.id);
+    _rows = {
+      for (final r in [...register.posted, ...register.scheduled]) r.txnId: r,
+    };
+    // Drop selected rows that no longer exist (deleted, other account).
+    _selection = _selection.where(_rows.containsKey).toSet();
+    final forecast = buildForecast(
+      working: summary.working,
+      today: today,
+      scheduled: register.scheduled,
+    );
+    final activeStatus = switch (_filter) {
+      RegisterFilter.uncleared => Cleared.uncleared,
+      RegisterFilter.cleared => Cleared.cleared,
+      RegisterFilter.reconciled => Cleared.reconciled,
+      _ => null,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                account.name,
+                style: onest(22, weight: 600, letterSpacing: -0.3),
+              ),
+              if (account.mask != null) ...[
+                const SizedBox(width: 12),
+                Text(
+                  '··${account.mask}',
+                  style: onest(13, color: Mid.ink3, tabular: true),
+                ),
+              ],
+              const Spacer(),
+              _SearchField(
+                controller: _search,
+                focusNode: _searchFocus,
+                onChanged: () => setState(() {}),
+              ),
+              const SizedBox(width: 10),
+              _PrimaryButton(
+                label: 'Add',
+                icon: Icons.add_rounded,
+                onTap: _entry.focus,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          BalanceHeader(
+            summary: summary,
+            forecast: forecast,
+            hoveredStatus: _hoveredStatus,
+            activeStatus: activeStatus,
+            onStatusTap: (s) => setState(() {
+              final f = switch (s) {
+                Cleared.uncleared => RegisterFilter.uncleared,
+                Cleared.cleared => RegisterFilter.cleared,
+                Cleared.reconciled => RegisterFilter.reconciled,
+              };
+              _filter = _filter == f ? RegisterFilter.all : f;
+            }),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: RegisterPanel(
+              posted: register.posted,
+              scheduled: register.scheduled,
+              filter: _filter,
+              search: _search.text,
+              selection: _selection,
+              hoveredStatus: _hoveredStatus,
+              categories: data.categories,
+              transferTargets: data.balanceSheetAccounts
+                  .where((a) => a.id != account.id)
+                  .toList(),
+              entryController: _entry,
+              today: today,
+              actions: RegisterActions(
+                onFilter: (f) => setState(() => _filter = f),
+                onRowTap: _tapRow,
+                onToggleCleared: _toggleCleared,
+                onConfirm: (r) async {
+                  await db.confirmScheduled(r.txnId, today);
+                  _showToast(
+                    r.date.isAfter(today)
+                        ? '${r.payee} confirmed early · posted today, ${shortDate(today)}'
+                        : '${r.payee} confirmed · ${formatMoney(r.amount)}',
+                  );
+                },
+                onSetCategory: (r, c) => db.setCategory(
+                  transactionId: r.txnId,
+                  accountId: account.id,
+                  categoryId: c.id,
+                ),
+                onBulkCategorize: _bulkCategorize,
+                onBulkCleared: _bulkCleared,
+                onBulkDelete: _bulkDelete,
+                onClearSelection: _clearSelection,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({
+    required this.data,
+    required this.selected,
+    required this.onSelect,
+  });
+  final LedgerData data;
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = data.balanceSheetAccounts;
+    final groups = <String, List<AccountInfo>>{};
+    for (final a in accounts) {
+      groups.putIfAbsent(a.group ?? 'Accounts', () => []).add(a);
+    }
+    final net = accounts.fold(0, (s, a) => s + data.balanceOf(a.id));
+
+    return Container(
+      width: 240,
+      decoration: const BoxDecoration(
+        border: Border(right: BorderSide(color: Mid.rule)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 26, 12, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+            child: Row(
+              children: [
+                const Diamond(),
+                const SizedBox(width: 12),
+                Text(
+                  'BetterBudget',
+                  style: onest(16, weight: 600, letterSpacing: -0.2),
+                ),
+              ],
+            ),
+          ),
+          for (final g in groups.entries) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(g.key, style: onest(12, color: Mid.ink3)),
+            ),
+            for (final a in g.value)
+              _AccountTile(
+                account: a,
+                balance: data.balanceOf(a.id),
+                active: a.id == selected,
+                onTap: () => onSelect(a.id),
+              ),
+            const SizedBox(height: 20),
+          ],
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Mid.rule)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Net worth', style: onest(12, color: Mid.ink3)),
+                const SizedBox(height: 4),
+                Text(
+                  '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
+                  style: onest(18, weight: 500, tabular: true),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountTile extends StatefulWidget {
+  const _AccountTile({
+    required this.account,
+    required this.balance,
+    required this.active,
+    required this.onTap,
+  });
+  final AccountInfo account;
+  final int balance;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  State<_AccountTile> createState() => _AccountTileState();
+}
+
+class _AccountTileState extends State<_AccountTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    onEnter: (_) => setState(() => _hover = true),
+    onExit: (_) => setState(() => _hover = false),
+    child: GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: widget.active
+              ? Mid.panel
+              : (_hover ? Mid.hover : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: widget.active
+              ? const Border(left: BorderSide(color: Mid.blue, width: 2))
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.account.name,
+              style: onest(13.5, color: widget.active ? Mid.ink : Mid.ink2),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${widget.balance < 0 ? '−' : ''}₮${formatWhole(widget.balance)}',
+              style: onest(
+                12.5,
+                color: widget.balance < 0 ? Mid.coral : Mid.ink3,
+                tabular: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+  });
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 280,
+    height: 36,
+    child: TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: (_) => onChanged(),
+      style: onest(13),
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Mid.panel,
+        hintText: 'Search payee, memo, amount',
+        hintStyle: onest(13, color: Mid.ink3),
+        prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Mid.ink3),
+        prefixIconConstraints: const BoxConstraints(minWidth: 36),
+        suffixIcon: controller.text.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Center(
+                  widthFactor: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Mid.raised,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isMac)
+                          const Icon(
+                            Icons.keyboard_command_key_rounded,
+                            size: 11,
+                            color: Mid.ink3,
+                          )
+                        else
+                          Text('Ctrl ', style: onest(11.5, color: Mid.ink3)),
+                        Text('K', style: onest(11.5, color: Mid.ink3)),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: Mid.ink3,
+                ),
+                onPressed: () {
+                  controller.clear();
+                  onChanged();
+                },
+              ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9),
+          borderSide: const BorderSide(color: Mid.blue, width: 1.5),
+        ),
+      ),
+    ),
+  );
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: _isMac ? '⌘N' : 'Ctrl+N',
+    child: Material(
+      color: Mid.blue,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        hoverColor: Colors.white.withValues(alpha: 0.08),
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(label, style: onest(13, weight: 500, color: Colors.white)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _Toast extends StatelessWidget {
+  const _Toast({required this.toast, required this.onClose});
+  final ({String message, VoidCallback? undo}) toast;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    bottom: 28,
+    left: 0,
+    right: 0,
+    child: Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Mid.raised,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Mid.rule),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 8, 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(toast.message, style: onest(13.5)),
+                const SizedBox(width: 12),
+                if (toast.undo != null)
+                  TextButton(
+                    onPressed: toast.undo,
+                    child: Text(
+                      'Undo',
+                      style: onest(13.5, weight: 600, color: Mid.blue),
+                    ),
+                  ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Mid.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
