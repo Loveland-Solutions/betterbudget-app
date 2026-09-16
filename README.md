@@ -19,3 +19,10 @@ The logos are in the assets/logo directory. The colors in the logo should govern
 ## Ledger
 
 This is where the transactions are imported/entered. It should be polished and professional. Let's talk through all the features that are needed before any code is written. We'll start here first, polish it, then move on to the budget. 
+
+## Technical decisions
+
+Settled decisions live in [docs/decisions](docs/decisions/). They are recorded once so
+they don't get relitigated later.
+
+- [0001 — Local data store: SQLite via Drift, encrypted with SQLCipher](docs/decisions/0001-database.md)

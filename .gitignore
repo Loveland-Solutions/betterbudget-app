@@ -1,0 +1,4 @@
+# Real bank statement exports. Never commit account-holder data — this repo has a
+# remote, and the whole premise of the app is that financial data stays local.
+# Keep working samples here for importer development; commit only redacted fixtures.
+tdb-bank-transaction-exports/
