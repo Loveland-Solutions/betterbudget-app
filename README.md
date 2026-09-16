@@ -20,7 +20,12 @@ The logos are in the assets/logo directory. The colors in the logo should govern
 
 This is where the transactions are imported/entered. It should be polished and professional. Let's talk through all the features that are needed before any code is written. We'll start here first, polish it, then move on to the budget. 
 
-## Technical decisions
+## Project documentation
+
+**[docs/STATUS.md](docs/STATUS.md) — start here.** Current phase, open questions, and
+the next step.
+
+Ledger feature scope, still in discussion: [docs/ledger-features.md](docs/ledger-features.md)
 
 Settled decisions live in [docs/decisions](docs/decisions/). They are recorded once so
 they don't get relitigated later.
