@@ -6,8 +6,20 @@ Start here if you are picking this up cold.
 
 ## Phase
 
-Pre-code. Per the README, the **ledger** is being talked through in full before anything
-is built; the budget comes after. No Flutter project has been created yet.
+**First working ledger (desktop).** The Flutter app lives in [`app/`](../app/). Visual
+direction is *Midnight* (dark); design mockups and their generator are in
+[`design/ledger/`](../design/ledger/). The budget comes after the ledger is dialed in.
+
+What works: account sidebar with balances, working/cleared/reconciled header, a
+forecast to the next scheduled income that warns before the balance goes below zero, the
+register (month groups, running balance, one signed amount column), keyboard-first entry
+with payee autocomplete, last-used category and a calculator (`12000+8500`), inline
+category edit, click-to-clear, confirm scheduled, delete with undo, search and filters.
+Seeded with synthetic demo data.
+
+Deliberately not yet: SQLCipher encryption (plain SQLite for now; the Windows spike in
+ADR 0001 comes first), creating splits/transfers beyond a simple `→ Account` category,
+import, reconcile flow, Mongolian UI strings, mobile layout.
 
 ## Settled
 

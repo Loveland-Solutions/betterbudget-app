@@ -1,0 +1,21 @@
+{
+  "pages": [
+    { "id": "ledger", "name": "Ledger · Midnight" },
+    { "id": "directions", "name": "Earlier directions" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Ledger · Midnight", "x": 0, "y": 0, "w": 1440, "h": 900, "page": "ledger" },
+    { "file": "ShortBeforePayday.dc.html", "title": "Header · short before payday", "x": 0, "y": 1040, "w": 1144, "h": 340, "page": "ledger" },
+    { "file": "PrivateBanking.dc.html", "title": "A · Private Banking", "x": 0, "y": 0, "w": 1440, "h": 900, "page": "directions" },
+    { "file": "Midnight.dc.html", "title": "B · Midnight (first draft)", "x": 1560, "y": 0, "w": 1440, "h": 900, "page": "directions" },
+    { "file": "Precision.dc.html", "title": "C · Precision", "x": 3120, "y": 0, "w": 1440, "h": 900, "page": "directions" }
+  ],
+  "annotations": [
+    { "id": "round2", "page": "ledger", "x": 1560, "y": 0, "w": 520, "text": "Round 2 — everything has a purpose.\n\nOne Amount column. Money out is plain; money in is green with a +. A transaction only moves money one way in an account, so In/Out columns were paper-checkbook leftovers.\n\nThe chart is now a forecast, not a history. From today to the next income, it steps down on each scheduled bill and names the lowest point. With no bank sync, 'will I make it to payday?' is the question only your own ledger can answer.\n\nMost days it is quiet (top). It turns coral only when the balance is going to cross zero (below), names what causes it, and points at where cover exists.\n\nAlso cut: the letter avatars (decoration) and the breadcrumb (repeated the sidebar). Added: 'Bank data through 09.15' — how stale the cleared number is, since nothing syncs." },
+    { "id": "shortnote", "page": "ledger", "x": 1224, "y": 1040, "w": 420, "text": "Same account, different scenario: a ₮2,100,000 tuition bill is scheduled for 09.30. The header catches it two weeks ahead." },
+    { "id": "dir-a", "page": "directions", "x": 0, "y": -200, "w": 1440, "text": "A · Private Banking — navy sidebar, ivory paper, Literata serif figures, gold diamond for reconciled." },
+    { "id": "dir-b", "page": "directions", "x": 1560, "y": -200, "w": 1440, "text": "B · Midnight, first draft — chosen. Kept for comparison with round 2." },
+    { "id": "dir-c", "page": "directions", "x": 3120, "y": -200, "w": 1440, "text": "C · Precision — Swiss grid, IBM Plex mono figures, 38px rows, reconciled → cleared → working chain." }
+  ],
+  "launch": { "view": "canvas", "page": "ledger" }
+}

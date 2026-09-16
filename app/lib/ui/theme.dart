@@ -1,0 +1,220 @@
+import 'package:flutter/material.dart';
+
+import '../domain/ledger.dart';
+import '../domain/money.dart';
+
+/// Midnight. Brand navy #03173E deepened for the ground; royal #0342B2 lifted
+/// to stay legible on it; gold from the mark means reconciled or scheduled.
+abstract final class Mid {
+  static const ground = Color(0xFF060D1E);
+  static const panel = Color(0xFF0B1630);
+  static const raised = Color(0xFF10204A);
+  static const rule = Color(0x12D6E0FF);
+  static const ink = Color(0xFFEEF1F8);
+  static const ink2 = Color(0xFFA3AEC6);
+  static const ink3 = Color(0xFF66728E);
+  static const blue = Color(0xFF4F7BFF);
+  static const gold = Color(0xFFD9B878);
+  static const green = Color(0xFF5CCB9A);
+  static const coral = Color(0xFFF08A8A);
+
+  static final blueWash = blue.withValues(alpha: 0.12);
+  static final blueEdge = blue.withValues(alpha: 0.35);
+  static final chip = const Color(0xFFD6E0FF).withValues(alpha: 0.06);
+  static final hover = const Color(0xFFD6E0FF).withValues(alpha: 0.035);
+}
+
+const _weights = {
+  400: FontWeight.w400,
+  500: FontWeight.w500,
+  600: FontWeight.w600,
+};
+
+/// Onest is bundled as a variable font; weight has to go through the axis.
+TextStyle onest(
+  double size, {
+  int weight = 400,
+  Color color = Mid.ink,
+  bool tabular = false,
+  double? letterSpacing,
+  double? height,
+}) => TextStyle(
+  fontFamily: 'Onest',
+  fontFamilyFallback: const ['Manrope'],
+  fontSize: size,
+  fontWeight: _weights[weight],
+  fontVariations: [FontVariation('wght', weight.toDouble())],
+  fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
+  color: color,
+  letterSpacing: letterSpacing,
+  height: height,
+);
+
+ThemeData midnightTheme() => ThemeData(
+  brightness: Brightness.dark,
+  scaffoldBackgroundColor: Mid.ground,
+  fontFamily: 'Onest',
+  colorScheme: const ColorScheme.dark(
+    primary: Mid.blue,
+    surface: Mid.panel,
+    onSurface: Mid.ink,
+    error: Mid.coral,
+  ),
+  tooltipTheme: TooltipThemeData(
+    decoration: BoxDecoration(
+      color: Mid.raised,
+      borderRadius: BorderRadius.circular(6),
+    ),
+    textStyle: onest(12, color: Mid.ink),
+    waitDuration: const Duration(milliseconds: 400),
+  ),
+  textSelectionTheme: TextSelectionThemeData(
+    cursorColor: Mid.blue,
+    selectionColor: Mid.blue.withValues(alpha: 0.35),
+  ),
+  splashFactory: NoSplash.splashFactory,
+  highlightColor: Colors.transparent,
+);
+
+/// `09.16`, for places where the year is obvious (header notes, chart).
+String shortDate(DateTime d) =>
+    '${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
+
+/// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
+/// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
+String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
+
+/// Amount with the cents quieter than the whole part.
+class Money extends StatelessWidget {
+  const Money(
+    this.minor, {
+    super.key,
+    this.size = 14.5,
+    this.weight = 400,
+    this.color = Mid.ink,
+    this.centsColor = Mid.ink3,
+    this.centsScale = 1,
+    this.sign = MoneySign.negativeOnly,
+    this.letterSpacing,
+  });
+
+  final int minor;
+  final double size;
+  final int weight;
+  final Color color;
+  final Color centsColor;
+  final double centsScale;
+  final MoneySign sign;
+  final double? letterSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    final prefix = switch (sign) {
+      MoneySign.none => '',
+      MoneySign.negativeOnly => minor < 0 ? '−' : '',
+      MoneySign.plusForPositive => minor > 0 ? '+' : (minor < 0 ? '−' : ''),
+    };
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$prefix₮${formatWhole(minor)}',
+            style: onest(
+              size,
+              weight: weight,
+              color: color,
+              tabular: true,
+              letterSpacing: letterSpacing,
+            ),
+          ),
+          TextSpan(
+            text: formatCents(minor),
+            style: onest(
+              size * centsScale,
+              weight: 400,
+              color: centsColor,
+              tabular: true,
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      softWrap: false,
+    );
+  }
+}
+
+enum MoneySign { none, negativeOnly, plusForPositive }
+
+/// Cleared state. Deliberately not circles: an empty circle beside a row reads
+/// as "select me". — uncleared · ✓ cleared · ◆ reconciled (gold, from the mark).
+class StatusGlyph extends StatelessWidget {
+  const StatusGlyph(this.status, {super.key, this.color});
+
+  final Cleared status;
+  final Color? color;
+
+  static String label(Cleared s) => switch (s) {
+    Cleared.uncleared => 'Uncleared',
+    Cleared.cleared => 'Cleared',
+    Cleared.reconciled => 'Reconciled',
+  };
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 12,
+    height: 12,
+    child: switch (status) {
+      Cleared.uncleared => Center(
+        child: Container(
+          width: 8,
+          height: 1.75,
+          decoration: BoxDecoration(
+            color: color ?? Mid.ink3,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      ),
+      Cleared.cleared => CustomPaint(painter: _CheckPainter(color ?? Mid.ink2)),
+      Cleared.reconciled => Center(
+        child: Diamond(size: 7, color: color ?? Mid.gold),
+      ),
+    },
+  );
+}
+
+class _CheckPainter extends CustomPainter {
+  _CheckPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(2.2, 6.4)
+      ..lineTo(4.9, 9.1)
+      ..lineTo(9.8, 3.2);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CheckPainter old) => old.color != color;
+}
+
+class Diamond extends StatelessWidget {
+  const Diamond({super.key, this.size = 10, this.color = Mid.gold});
+  final double size;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Transform.rotate(
+    angle: 0.785398,
+    child: Container(width: size, height: size, color: color),
+  );
+}

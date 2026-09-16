@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #060D1E; font-family: 'Onest', 'Segoe UI', system-ui, sans-serif; color: #EEF1F8; -webkit-font-smoothing: antialiased; }
+    a { color: #4F7BFF; } a:hover { color: #EEF1F8; }
+  </style>
+</helmet>
+<div style="display: flex; width: 1440px; height: 900px; overflow: hidden; background: #060D1E"><div style="width: 248px; flex-shrink: 0; display: flex; flex-direction: column; padding: 24px 12px; border-right: 1px solid rgba(214, 224, 255, 0.07)">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 4px 12px 32px">
+      <div style="width: 10px; height: 10px; background: #D9B878; transform: rotate(45deg)"></div>
+      <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #EEF1F8">BetterBudget</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: #0B1630; font-size: 14px; color: #EEF1F8"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#4F7BFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M3 3.5h10M3 8h10M3 12.5h10"></path></svg>Ledger</div><div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: transparent; font-size: 14px; color: #66728E"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><circle cx="8" cy="8" r="5.5"></circle><path d="M8 2.5V8l4 3"></path></svg>Budget</div><div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; background: transparent; font-size: 14px; color: #66728E"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M3 13V8M8 13V3M13 13V6"></path></svg>Reports</div>
+    <div style="height: 28px"></div>
+    <div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 20px">
+      <div style="font-size: 12px; color: #66728E; padding: 0 12px 8px">Cash & bank</div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 8px; background: #0B1630; box-shadow: inset 2px 0 0 #4F7BFF">
+        <div style="font-size: 13.5px; color: #EEF1F8">TDB Checking</div>
+        <div style="font-size: 12.5px; color: #66728E; font-variant-numeric: tabular-nums">₮4,182,450</div>
+      </div><div style="display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 8px; background: transparent; box-shadow: none">
+        <div style="font-size: 13.5px; color: #A3AEC6">Khan Savings</div>
+        <div style="font-size: 12.5px; color: #66728E; font-variant-numeric: tabular-nums">₮12,600,000</div>
+      </div><div style="display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 8px; background: transparent; box-shadow: none">
+        <div style="font-size: 13.5px; color: #A3AEC6">Cash wallet</div>
+        <div style="font-size: 12.5px; color: #66728E; font-variant-numeric: tabular-nums">₮86,500</div>
+      </div>
+    </div><div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 20px">
+      <div style="font-size: 12px; color: #66728E; padding: 0 12px 8px">Credit</div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 8px; background: transparent; box-shadow: none">
+        <div style="font-size: 13.5px; color: #A3AEC6">Golomt Visa</div>
+        <div style="font-size: 12.5px; color: #F08A8A; font-variant-numeric: tabular-nums">−₮640,200</div>
+      </div>
+    </div>
+    <div style="margin-top: auto; padding: 16px 12px 0; border-top: 1px solid rgba(214, 224, 255, 0.07); display: flex; flex-direction: column; gap: 4px">
+      <div style="font-size: 12px; color: #66728E">Net worth</div>
+      <div style="font-size: 18px; font-weight: 500; color: #EEF1F8; font-variant-numeric: tabular-nums">₮16,228,750</div>
+    </div>
+  </div><div style="flex-grow: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; padding: 24px 28px 28px">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #66728E">Ledger<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M6 4l4 4-4 4"></path></svg><span style="color: #A3AEC6">TDB Checking</span></div>
+      <div style="display: flex; gap: 10px">
+        <div style="display: flex; align-items: center; gap: 10px; width: 280px; height: 36px; padding: 0 12px; border-radius: 9px; background: #0B1630; font-size: 13px; color: #66728E; box-sizing: border-box"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg>Search<span style="margin-left: auto; font-size: 11.5px; padding: 2px 6px; border-radius: 5px; background: #10204A">⌘K</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9px; background: #0B1630; font-size: 13px; color: #EEF1F8"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#A3AEC6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M2.5 13.5h11"></path></svg>Import</div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9px; background: #4F7BFF; font-size: 13px; font-weight: 500; color: #FFFFFF"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M8 3v10M3 8h10"></path></svg>Add</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: stretch; justify-content: space-between; padding: 28px 32px; border-radius: 16px; background: #0B1630; border: 1px solid rgba(214, 224, 255, 0.07)">
+      <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="font-size: 13px; color: #A3AEC6">TDB Checking · Working balance</div>
+          <div style="font-size: 48px; font-weight: 500; letter-spacing: -0.03em; color: #EEF1F8; font-variant-numeric: tabular-nums; line-height: 1">₮4,182,450<span style="color: #66728E; font-size: 0.5em; letter-spacing: 0">.00</span></div>
+        </div>
+        <div style="display: flex; gap: 28px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #A3AEC6"></div>
+            <div style="font-size: 13px; color: #66728E">Cleared</div>
+            <div style="font-size: 14px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,298,850.00</div>
+          </div><div style="display: flex; align-items: center; gap: 10px">
+            <div style="width: 7px; height: 7px; background: #D9B878; transform: rotate(45deg)"></div>
+            <div style="font-size: 13px; color: #66728E">Reconciled 09.10</div>
+            <div style="font-size: 14px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮5,141,980.50</div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 12px">
+        <div style="display: flex; gap: 20px; font-size: 13px; font-variant-numeric: tabular-nums">
+          <div style="color: #66728E">September</div>
+          <div style="color: #5CCB9A">+₮2,500,000</div>
+          <div style="color: #A3AEC6">−₮1,421,741</div>
+        </div>
+        <svg width="420" height="72" viewBox="0 0 420 72" style="display: block; overflow: visible">
+    <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4F7BFF" stop-opacity="0.22"></stop><stop offset="1" stop-color="#4F7BFF" stop-opacity="0"></stop></linearGradient></defs>
+    <path d="M0.0 55.6 L38.2 63.5 L76.4 64.6 L114.5 66.0 L152.7 10.0 L190.9 14.8 L229.1 17.5 L267.3 17.7 L305.5 17.7 L343.6 28.9 L381.8 29.6 L420.0 31.5 L420 72 L0 72 Z" fill="url(#fill)"></path>
+    <path d="M0.0 55.6 L38.2 63.5 L76.4 64.6 L114.5 66.0 L152.7 10.0 L190.9 14.8 L229.1 17.5 L267.3 17.7 L305.5 17.7 L343.6 28.9 L381.8 29.6 L420.0 31.5" fill="none" stroke="#4F7BFF" stroke-width="1.75" stroke-linejoin="round"></path>
+    <circle cx="420" cy="31.4934832" r="3.5" fill="#060D1E" stroke="#EEF1F8" stroke-width="1.5"></circle>
+  </svg>
+      </div>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; border-radius: 16px; background: #0B1630; border: 1px solid rgba(214, 224, 255, 0.07); overflow: hidden; padding-bottom: 8px">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 14px 20px">
+        <div style="height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; font-size: 13px; background: #10204A; color: #EEF1F8">All</div><div style="height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; font-size: 13px; background: transparent; color: #66728E">Uncleared</div><div style="height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; font-size: 13px; background: transparent; color: #66728E">Scheduled</div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #66728E"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"></rect><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"></path></svg>Sep 2026<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#66728E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M2.5 4h11M4.5 8h7M6.5 12h3"></path></svg></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 32px; align-items: center; font-size: 12px; color: #66728E">
+        <div></div><div>Date</div><div>Payee</div><div>Category</div><div style="text-align: right">Out</div><div style="text-align: right">In</div><div style="text-align: right">Balance</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px 4px; height: 50px; border-radius: 10px; border: 1px dashed rgba(217, 184, 120, 0.35)">
+        <div style="display: flex; justify-content: center"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#D9B878" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M3 7V6a2 2 0 0 1 2-2h8M11 2l2 2-2 2M13 9v1a2 2 0 0 1-2 2H3M5 14l-2-2 2-2"></path></svg></div>
+        <div style="font-size: 13px; color: #D9B878; font-variant-numeric: tabular-nums">09 · 20</div>
+        <div style="font-size: 14px; color: #A3AEC6">Zaisan Residence <span style="color: #66728E">· Scheduled</span></div>
+        <div style="font-size: 12.5px; color: #66728E">Housing</div>
+        <div style="text-align: right; font-size: 14.5px; color: #A3AEC6; font-variant-numeric: tabular-nums">₮1,800,000<span style="color: #66728E">.00</span></div>
+        <div></div>
+        <div style="text-align: right; font-size: 13px; color: #D9B878">Confirm</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #66728E; box-sizing: border-box"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 16</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#A3AEC6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M3 8h4l3-4h3M7 8l3 4h3"></path></svg></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">Номин супермаркет</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Groceries ₮61,900 · Household ₮24,500</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: transparent; font-size: 12.5px; color: #A3AEC6">2 categories</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮86,400<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #A3AEC6; font-variant-numeric: tabular-nums">₮4,182,450<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: rgba(79, 123, 255, 0.12); box-shadow: inset 0 0 0 1px rgba(79, 123, 255, 0.35)">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #66728E; box-sizing: border-box"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 16</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">U</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">Unitel</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Postpaid · 9911-XXXX</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px 0 12px; border-radius: 8px; background: #060D1E; box-shadow: 0 0 0 1.5px #4F7BFF, 0 0 0 5px rgba(79, 123, 255, 0.18); font-size: 13px; color: #EEF1F8">Phone & internet<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#A3AEC6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M4 6l4 4 4-4"></path></svg></div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮30,000<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #A3AEC6; font-variant-numeric: tabular-nums">₮4,268,850<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; background: #A3AEC6"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 15</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#A3AEC6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; display: block"><path d="M3 5.5h10M10.5 3 13 5.5 10.5 8M13 10.5H3M5.5 8 3 10.5 5.5 13"></path></svg></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">→ Khan Savings</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Monthly savings</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: transparent; font-size: 12.5px; color: #A3AEC6">Transfer</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮500,000<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,298,850<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; background: #A3AEC6"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 15</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">T</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">TDB</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">CHARGE: 380.00 ₮</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: rgba(214, 224, 255, 0.06); font-size: 12.5px; color: #A3AEC6">Bank fees</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮380<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,798,850<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; background: #A3AEC6"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 14</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">S</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">Sakura Coffee</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">POS</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: rgba(214, 224, 255, 0.06); font-size: 12.5px; color: #A3AEC6">Dining out</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮8,000<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,799,230<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; background: #A3AEC6"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 13</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">Ш</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">Шунхлай</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Fuel · АИ-92</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: rgba(214, 224, 255, 0.06); font-size: 12.5px; color: #A3AEC6">Transport</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮120,000<span style="color: #66728E">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,807,230<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 9px; height: 9px; border-radius: 50%; background: #A3AEC6"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 12</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">E</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">E-Mart Хан-Уул</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">QPay</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: rgba(214, 224, 255, 0.06); font-size: 12.5px; color: #A3AEC6">Groceries</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮214,750<span style="color: #66728E">.50</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮4,927,230<span style="color: #66728E">.00</span></div>
+    </div><div style="display: grid; grid-template-columns: 24px 76px minmax(0, 1fr) 200px 140px 140px 160px; align-items: center; column-gap: 16px; padding: 0 20px; margin: 0 12px; height: 54px; border-radius: 10px; background: transparent; box-shadow: none">
+      <div style="display: flex; justify-content: center"><div style="width: 8px; height: 8px; background: #D9B878; transform: rotate(45deg)"></div></div>
+      <div style="font-size: 13px; color: #66728E; font-variant-numeric: tabular-nums">09 · 10</div>
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+        <div style="width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: #10204A; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #A3AEC6">A</div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+          <div style="font-size: 14.5px; font-weight: 500; color: #EEF1F8">Altan Gadas LLC</div>
+          <div style="font-size: 12.5px; color: #66728E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Цалин · September</div>
+        </div>
+      </div>
+      <div style="display: flex"><div style="height: 26px; display: flex; align-items: center; padding: 0 10px; border-radius: 13px; background: rgba(214, 224, 255, 0.06); font-size: 12.5px; color: #A3AEC6">Salary</div></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums"></div>
+      <div style="text-align: right; font-size: 14.5px; color: #5CCB9A; font-variant-numeric: tabular-nums">+₮2,500,000<span style="opacity: 0.6">.00</span></div>
+      <div style="text-align: right; font-size: 14.5px; color: #EEF1F8; font-variant-numeric: tabular-nums">₮5,141,980<span style="color: #66728E">.50</span></div>
+    </div>
+    </div>
+  </div></div>
+</x-dc>
+</body>
+</html>
