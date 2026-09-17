@@ -1159,40 +1159,35 @@ class _Sidebar extends StatelessWidget {
             later: true,
           ),
           const Spacer(),
+          // Settings, above Net worth; its icon lines up under the section
+          // icons.
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ValueListenableBuilder(
+                valueListenable: backupHealth,
+                builder: (context, health, _) => _SettingsGear(
+                  active: section == AppSection.settings,
+                  alert: health.alarmingAt(now()),
+                  onTap: () => onSection(AppSection.settings),
+                ),
+              ),
+            ),
+          ),
           Container(
-            // The gear's icon lines up under the section icons above.
-            padding: const EdgeInsets.fromLTRB(4, 16, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Mid.rule)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    ValueListenableBuilder(
-                      valueListenable: backupHealth,
-                      builder: (context, health, _) => _SettingsGear(
-                        active: section == AppSection.settings,
-                        alert: health.alarmingAt(now()),
-                        onTap: () => onSection(AppSection.settings),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Net worth', style: onest(12, color: Mid.ink3)),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
-                            style: onest(18, weight: 500, tabular: true),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Text('Net worth', style: onest(12, color: Mid.ink3)),
+                const SizedBox(height: 4),
+                Text(
+                  '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
+                  style: onest(18, weight: 500, tabular: true),
                 ),
               ],
             ),
@@ -1203,7 +1198,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// Opens Settings, left of Net worth. A coral dot says something there needs attention (the
+/// Opens Settings, above Net worth. A coral dot says something there needs attention (the
 /// daily copy is failing), since the gear is all that shows of it.
 class _SettingsGear extends StatelessWidget {
   const _SettingsGear({

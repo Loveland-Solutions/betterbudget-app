@@ -279,8 +279,9 @@ be quietly undone.
     database. **Kept: the newest 14, plus the first copy of each of the last 12
     months** (owner's call, from the review: a mistake found a month later still has
     a copy from before it). **Backups live in Settings** (owner's call: "where we'll
-    have other settings"). A gear sits left of Net worth at the bottom of the sidebar,
-    under the section icons (owner's correction: it started on the right), and opens a Settings page in the main area (option A; rejected: a menu
+    have other settings"). A gear sits at the bottom of the sidebar, just above the Net
+    worth section, lined up under the section icons (owner's corrections: it started
+    right of Net worth, then left of it), and opens a Settings page in the main area (option A; rejected: a menu
     from the gear, too small for status or later settings, and a gear beside search
     in every account's header). The page's first section, Backups, shows the daily
     copy ("Today 09:30 · on this computer"), what's kept, and two buttons. They first
