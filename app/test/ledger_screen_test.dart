@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/theme.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,7 +20,27 @@ Future<void> _loadFont(String family, String path) async {
   )..addFont(Future.value(ByteData.view(bytes.buffer)))).load();
 }
 
+/// Stands in for the system's open and save dialogs.
+class _FakeDialogs extends FileSelectorPlatform {
+  String? openPath;
+  String? savePath;
+
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async => openPath == null ? null : XFile(openPath!);
+
+  @override
+  Future<FileSaveLocation?> getSaveLocation({
+    List<XTypeGroup>? acceptedTypeGroups,
+    SaveDialogOptions options = const SaveDialogOptions(),
+  }) async => savePath == null ? null : FileSaveLocation(savePath!);
+}
+
 void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   setUpAll(() async {
     await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');
     await _loadFont('Manrope', 'assets/fonts/Manrope-Variable.ttf');
@@ -1262,6 +1285,146 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('move-to')), findsNothing);
     await tidy(tester, db);
+  });
+
+  group('backups', () {
+    testWidgets('a daily copy that keeps failing shows under Net worth', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final db = AppDatabase(NativeDatabase.memory());
+      final backups = Backups(db)
+        ..health.value = BackupHealth(
+          newest: DateTime(2026, 9, 12, 8),
+          failed: true,
+        );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: midnightTheme(),
+            home: LedgerScreen(
+              db: db,
+              backups: backups,
+              clock: () => DateTime(2026, 9, 16, 10),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Daily copy failed'), findsOneWidget);
+      expect(find.text('Back up to…'), findsOneWidget);
+      // A copy made again clears it.
+      backups.health.value = BackupHealth(newest: DateTime(2026, 9, 16, 9));
+      await tester.pump();
+      expect(find.text('Daily copy failed'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('back up, then restore that copy after a check, and undo', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final dialogs = _FakeDialogs();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      final dir = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('bb-restore'),
+      ))!;
+      final db = AppDatabase(
+        NativeDatabase(File('${dir.path}/betterbudget.sqlite')),
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: midnightTheme(),
+            home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+      });
+      await tester.pumpAndSettle();
+
+      Future<void> run(Finder f) async {
+        // File work started under the fake clock never finishes, so the
+        // tap happens outside it. Dialogs still need frames between hops.
+        await tester.runAsync(() async {
+          await tester.tap(f);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        for (var i = 0; i < 3; i++) {
+          await tester.pump();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+          );
+        }
+        await tester.pumpAndSettle();
+      }
+
+      // Cancelled dialogs do nothing.
+      await run(find.byKey(const ValueKey('back-up')));
+      await run(find.byKey(const ValueKey('restore')));
+      expect(find.byType(Dialog), findsNothing);
+
+      final saved = '${dir.path}/BetterBudget 20260916-093000.sqlite';
+      dialogs.savePath = saved;
+      await run(find.byKey(const ValueKey('back-up')));
+      expect(
+        find.text('Backed up · BetterBudget 20260916-093000.sqlite'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await settle(tester);
+      expect(find.text('Unitel'), findsNothing);
+
+      dialogs.openPath = saved;
+      await run(find.byKey(const ValueKey('restore')));
+      expect(find.text('Restore this backup?'), findsOneWidget);
+      expect(find.text('2026.09.16  09:30'), findsOneWidget);
+      expect(find.text('19 transactions · 4 accounts'), findsOneWidget);
+      expect(find.text('18 transactions · 4 accounts'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/restore_dialog.png'),
+      );
+
+      await run(find.byKey(const ValueKey('restore-confirm')));
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        find.text('Restored the copy from 2026.09.16 · what you had is saved'),
+        findsOneWidget,
+      );
+      expect(find.text('Unitel'), findsOneWidget);
+
+      await run(find.text('Undo'));
+      expect(
+        find.text('Undone · Restored the copy from 2026.09.16'),
+        findsOneWidget,
+      );
+      expect(find.text('Unitel'), findsNothing);
+
+      // The delete from before the restore can't be undone past it.
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Unitel'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Nothing to undo'), findsOneWidget);
+
+      await tidy(tester, db);
+      await tester.runAsync(() => dir.delete(recursive: true));
+    });
   });
 
   testWidgets('a future bill turns the forecast into a warning', (

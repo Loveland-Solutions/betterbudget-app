@@ -1,19 +1,78 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+
 import 'database.dart';
+
+/// How the daily copies are going, for the sidebar.
+@immutable
+class BackupHealth {
+  const BackupHealth({this.newest, this.failed = false});
+
+  /// When the newest automatic copy was made.
+  final DateTime? newest;
+
+  /// The last attempt at a daily copy threw.
+  final bool failed;
+
+  /// Worth telling the user: copies are failing and the newest is more than
+  /// two days old (or there is none). One failed hour isn't news.
+  bool alarmingAt(DateTime now) =>
+      failed &&
+      (newest == null || now.difference(newest!) > const Duration(days: 2));
+}
+
+/// A backup file picked for restore, already copied into the app's folder
+/// and upgraded to this version, with what it holds.
+class RestoreCandidate {
+  const RestoreCandidate({
+    required this.file,
+    required this.madeAt,
+    required this.transactions,
+    required this.accounts,
+  });
+
+  /// The working copy in `Backups/`. The picked file itself is never changed.
+  final File file;
+  final DateTime madeAt;
+  final int transactions;
+  final int accounts;
+}
+
+/// What a restore replaced and with what, so it can be undone and redone.
+typedef RestoreRecord = ({File before, File restored});
+
+/// A file that can't be restored, with a reason fit to show.
+class RestoreException implements Exception {
+  RestoreException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
 
 /// Backups stay on this machine: a daily copy in the app's own folder, and a
 /// copy saved wherever the user picks. Nothing is uploaded anywhere.
 class Backups {
-  Backups(this.db, {this.keep = 14});
+  Backups(this.db, {this.keep = 14, this.months = 12});
 
   final AppDatabase db;
 
-  /// Automatic copies kept, one per day the app was opened; older ones go.
+  /// Daily copies kept: the newest [keep], one per day the app was opened.
   final int keep;
 
+  /// Also kept: the first copy of each of the last [months] months, for a
+  /// mistake found long after it was made.
+  final int months;
+
+  final health = ValueNotifier(const BackupHealth());
+
   static const _prefix = 'betterbudget-';
-  static final _name = RegExp(r'^betterbudget-(\d{8})-\d{6}\.sqlite$');
+  static final _name = RegExp(r'^betterbudget-(\d{8})-(\d{6})\.sqlite$');
+  static final _stamp = RegExp(r'(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})');
+
+  /// Kept from each restore: what was replaced, and what replaced it.
+  static const _restoreKeep = 5;
 
   /// `Backups/` beside the database file, or null for an in-memory database.
   Future<Directory?> folder() async {
@@ -23,21 +82,61 @@ class Backups {
   }
 
   /// The automatic copies, newest first.
-  Future<List<File>> automatic() async {
+  Future<List<File>> automatic() async => _files(_name);
+
+  Future<List<File>> _files(RegExp pattern) async {
     final dir = await folder();
     if (dir == null || !dir.existsSync()) return const [];
-    final files =
-        dir
-            .listSync()
-            .whereType<File>()
-            .where((f) => _name.hasMatch(_basename(f.path)))
-            .toList()
-          ..sort((a, b) => _basename(b.path).compareTo(_basename(a.path)));
-    return files;
+    return dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => pattern.hasMatch(_basename(f.path)))
+        .toList()
+      ..sort((a, b) => _basename(b.path).compareTo(_basename(a.path)));
   }
 
-  /// Makes today's copy unless there already is one, then keeps only the
-  /// newest [keep]. Returns the new copy, or null when none was needed.
+  /// Which automatic copies to delete, given their names newest first: all
+  /// but the newest [keep], and the first copy of each of the newest
+  /// [months] months.
+  static List<String> expired(
+    List<String> newestFirst, {
+    required int keep,
+    required int months,
+  }) {
+    final firstOfMonth = <String, String>{};
+    for (final name in newestFirst.reversed) {
+      final month = _name.firstMatch(name)!.group(1)!.substring(0, 6);
+      firstOfMonth.putIfAbsent(month, () => name);
+    }
+    final monthly = (firstOfMonth.keys.toList()..sort()).reversed
+        .take(months)
+        .map((m) => firstOfMonth[m]!);
+    final kept = {...newestFirst.take(keep), ...monthly};
+    return [
+      for (final n in newestFirst)
+        if (!kept.contains(n)) n,
+    ];
+  }
+
+  /// The daily copy, run at launch and hourly. Never throws: a failure is
+  /// recorded in [health] for the sidebar to show.
+  Future<void> runDaily(DateTime now) async {
+    var failed = false;
+    try {
+      await automaticIfDue(now);
+    } catch (e) {
+      debugPrint('Automatic backup failed: $e');
+      failed = true;
+    }
+    final newest = (await automatic()).firstOrNull;
+    health.value = BackupHealth(
+      newest: newest == null ? null : _madeAt(newest),
+      failed: failed,
+    );
+  }
+
+  /// Makes today's copy unless there already is one, then prunes (see
+  /// [expired]). Returns the new copy, or null when none was needed.
   Future<File?> automaticIfDue(DateTime now) async {
     final dir = await folder();
     if (dir == null) return null;
@@ -49,9 +148,12 @@ class Backups {
       return null;
     }
     await dir.create(recursive: true);
-    // Leftovers from a copy cut short (the app quit mid-way) are useless.
+    // Leftovers from a copy or a restore cut short (the app quit mid-way).
     for (final f in dir.listSync().whereType<File>()) {
-      if (f.path.endsWith('.tmp')) await f.delete();
+      final name = _basename(f.path);
+      if (name.endsWith('.tmp') || name.startsWith('incoming-')) {
+        await f.delete();
+      }
     }
     // Written under a temporary name and renamed once complete, so a copy
     // cut short never passes for today's backup.
@@ -63,8 +165,20 @@ class Backups {
     } finally {
       if (temp.existsSync()) await temp.delete();
     }
-    for (final old in (await automatic()).skip(keep)) {
-      await old.delete();
+    final all = await automatic();
+    final gone = expired(
+      [for (final f in all) _basename(f.path)],
+      keep: keep,
+      months: months,
+    ).toSet();
+    for (final f in all.where((f) => gone.contains(_basename(f.path)))) {
+      await f.delete();
+    }
+    for (final kind in ['before-restore-', 'restored-']) {
+      final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.sqlite\$');
+      for (final old in (await _files(pattern)).skip(_restoreKeep)) {
+        await old.delete();
+      }
     }
     return file;
   }
@@ -87,6 +201,110 @@ class Backups {
     } finally {
       if (temp.existsSync()) await temp.delete();
     }
+  }
+
+  /// Reads a backup the user picked, without touching it or the ledger: it's
+  /// copied into `Backups/`, checked, and upgraded if it came from an older
+  /// version. Throws [RestoreException] when it can't be restored. Pass the
+  /// result to [restore], or to [discard] if the user cancels.
+  Future<RestoreCandidate> inspect(String path, DateTime now) async {
+    final dir = await folder();
+    if (dir == null) throw RestoreException('Nothing to restore into');
+    await dir.create(recursive: true);
+    final file = File('${dir.path}/incoming-${fileStamp(now)}.sqlite');
+    try {
+      await File(path).copy(file.path);
+      final header = await _header(file);
+      if (header == null ||
+          String.fromCharCodes(header.sublist(0, 15)) != 'SQLite format 3') {
+        throw RestoreException('That file isn’t a BetterBudget backup');
+      }
+      final version = ByteData.sublistView(header).getUint32(60);
+      if (version > db.schemaVersion) {
+        throw RestoreException(
+          'That backup is from a newer BetterBudget · update the app first',
+        );
+      }
+      final copy = AppDatabase(NativeDatabase(file));
+      try {
+        final check = await copy
+            .customSelect('PRAGMA quick_check')
+            .map((r) => r.data.values.first)
+            .get();
+        if (check.join() != 'ok') {
+          throw RestoreException('That backup is damaged');
+        }
+        final ledger = await copy.loadLedger();
+        if (ledger.balanceSheetAccounts.isEmpty) {
+          throw RestoreException('That backup has no accounts in it');
+        }
+        return RestoreCandidate(
+          file: file,
+          madeAt: _madeAt(File(path)),
+          transactions: ledger.txns.length,
+          accounts: ledger.balanceSheetAccounts.length,
+        );
+      } on RestoreException {
+        rethrow;
+      } catch (e) {
+        debugPrint('Backup unreadable: $e');
+        throw RestoreException('That file isn’t a BetterBudget backup');
+      } finally {
+        await copy.close();
+      }
+    } catch (_) {
+      await _deleteIncoming(dir, file);
+      rethrow;
+    }
+  }
+
+  /// The user cancelled: remove the working copy.
+  Future<void> discard(RestoreCandidate c) async {
+    final dir = await folder();
+    if (dir != null) await _deleteIncoming(dir, c.file);
+  }
+
+  /// Replaces the ledger with [c]. What was there is saved first as
+  /// `before-restore-….sqlite`, and the restored copy is kept as
+  /// `restored-….sqlite`, so the restore can be undone and redone.
+  Future<RestoreRecord> restore(RestoreCandidate c, DateTime now) async {
+    final dir = (await folder())!;
+    final stamp = fileStamp(now);
+    final before = File('${dir.path}/before-restore-$stamp.sqlite');
+    final restored = File('${dir.path}/restored-$stamp.sqlite');
+    await db.copyTo(before.path);
+    await c.file.rename(restored.path);
+    await _deleteIncoming(dir, c.file);
+    await db.replaceAllFrom(restored.path);
+    return (before: before, restored: restored);
+  }
+
+  /// The working copy, plus anything opening it left beside it (an upgrade
+  /// backup, a journal).
+  Future<void> _deleteIncoming(Directory dir, File file) async {
+    final base = _basename(file.path).replaceFirst('.sqlite', '');
+    for (final f in dir.listSync().whereType<File>()) {
+      if (_basename(f.path).startsWith(base)) await f.delete();
+    }
+  }
+
+  static Future<Uint8List?> _header(File f) async {
+    final raf = await f.open();
+    try {
+      final bytes = await raf.read(100);
+      return bytes.length < 100 ? null : bytes;
+    } finally {
+      await raf.close();
+    }
+  }
+
+  /// From the time in the file's name when it has one (every copy the app
+  /// makes does), otherwise when the file was last changed.
+  static DateTime _madeAt(File f) {
+    final m = _stamp.firstMatch(_basename(f.path));
+    if (m == null) return f.lastModifiedSync();
+    final p = [for (var i = 1; i <= 6; i++) int.parse(m.group(i)!)];
+    return DateTime(p[0], p[1], p[2], p[3], p[4], p[5]);
   }
 
   static String _basename(String path) =>

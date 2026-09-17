@@ -239,6 +239,39 @@ class AppDatabase extends _$AppDatabase {
   /// exist). Safe while the app is open: SQLite takes a snapshot.
   Future<void> copyTo(String path) => customStatement('VACUUM INTO ?', [path]);
 
+  /// Replaces every row with the rows in the database file at [path], in one
+  /// transaction, while the app keeps this connection open. The file must
+  /// already be at this schema version (open it with an [AppDatabase] first,
+  /// which upgrades it). Watchers see the new ledger straight away.
+  Future<void> replaceAllFrom(String path) async {
+    const parentsFirst = [
+      'accounts',
+      'payees',
+      'transactions',
+      'reconciliations',
+      'entries',
+    ];
+    await customStatement('ATTACH DATABASE ? AS src', [path]);
+    try {
+      await transaction(() async {
+        for (final t in parentsFirst.reversed) {
+          await customStatement('DELETE FROM main.$t');
+        }
+        for (final t in parentsFirst) {
+          final columns = (await customSelect(
+            'PRAGMA main.table_info($t)',
+          ).get()).map((r) => '"${r.read<String>('name')}"').join(', ');
+          await customStatement(
+            'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
+          );
+        }
+      });
+    } finally {
+      await customStatement('DETACH DATABASE src');
+    }
+    markTablesUpdated(allTables);
+  }
+
   // ---------- reads ----------
 
   /// Re-emits the whole ledger whenever any ledger table changes.

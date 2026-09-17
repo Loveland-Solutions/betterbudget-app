@@ -26,9 +26,18 @@ bool get _isMac =>
 enum AppSection { ledger, budget, savings }
 
 class LedgerScreen extends StatefulWidget {
-  const LedgerScreen({super.key, required this.db, this.clock = DateTime.now});
+  const LedgerScreen({
+    super.key,
+    required this.db,
+    this.clock = DateTime.now,
+    this.backups,
+  });
 
   final AppDatabase db;
+
+  /// The app's backups, whose daily copy runs from main. Tests may leave it
+  /// out; one is made for "Back up to…" and "Restore from…".
+  final Backups? backups;
   final DateTime Function() clock;
 
   @override
@@ -83,6 +92,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Map<int, RegisterRow> _rows = const {};
 
   AppDatabase get db => widget.db;
+  late final Backups _backups = widget.backups ?? Backups(db);
+
+  /// The latest ledger, for comparing a backup with what's here now.
+  LedgerData? _data;
   DateTime get today => dateOnly(widget.clock());
 
   @override
@@ -621,7 +634,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (location == null) return;
     try {
-      await Backups(db).saveTo(location.path, now);
+      await _backups.saveTo(location.path, now);
     } catch (e) {
       debugPrint('Back up failed: $e');
       _showToast('Couldn’t back up · check the drive has room and try again');
@@ -629,6 +642,78 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final name = location.path.split(RegExp(r'[/\\]')).last;
     _showToast('Backed up · $name');
+  }
+
+  /// Puts back a backup: the daily copies (the picker opens on their folder)
+  /// or one saved elsewhere. Shows what it holds against what's here, saves
+  /// what's here first, and can be undone.
+  Future<void> _restoreFrom() async {
+    final now = widget.clock();
+    final XFile? picked;
+    try {
+      picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'BetterBudget backup', extensions: ['sqlite']),
+        ],
+        initialDirectory: (await _backups.folder())?.path,
+        confirmButtonText: 'Choose',
+      );
+    } catch (e) {
+      debugPrint('Open dialog failed: $e');
+      _showToast('Couldn’t open the file dialog');
+      return;
+    }
+    if (picked == null) return;
+    final RestoreCandidate candidate;
+    try {
+      candidate = await _backups.inspect(picked.path, now);
+    } on RestoreException catch (e) {
+      _showToast(e.message);
+      return;
+    } catch (e) {
+      debugPrint('Restore check failed: $e');
+      _showToast('Couldn’t read that backup');
+      return;
+    }
+    if (!mounted) return;
+    final data = _data;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => _RestoreDialog(
+        candidate: candidate,
+        transactionsNow: data?.txns.length ?? 0,
+        accountsNow: data?.balanceSheetAccounts.length ?? 0,
+      ),
+    );
+    if (confirmed != true) {
+      await _backups.discard(candidate);
+      return;
+    }
+    final RestoreRecord done;
+    try {
+      done = await _backups.restore(candidate, now);
+    } catch (e) {
+      debugPrint('Restore failed: $e');
+      _showToast('Couldn’t restore · nothing was changed');
+      return;
+    }
+    _endReconcile();
+    if (_editing != null) _cancelEdit();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
+    // Earlier actions point at rows the restore replaced.
+    _history.clear();
+    _redo.clear();
+    final label = 'Restored the copy from ${fullDate(candidate.madeAt)}';
+    _did(
+      label,
+      undo: () => db.replaceAllFrom(done.before.path),
+      redo: () => db.replaceAllFrom(done.restored.path),
+      message: '$label · what you had is saved',
+    );
   }
 
   /// Takes back the account's latest reconcile, whenever it was done.
@@ -684,6 +769,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               }
               final data = snap.data;
               if (data == null) return const SizedBox.shrink();
+              _data = data;
               final accounts = data.balanceSheetAccounts;
               if (accounts.isEmpty) {
                 return Center(
@@ -713,6 +799,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         }),
                         selected: account.id,
                         onBackUp: _backUpTo,
+                        onRestore: _restoreFrom,
+                        backupHealth: _backups.health,
+                        now: widget.clock,
                         onSelect: (id) => setState(() {
                           if (id != _accountId) _endReconcile();
                           _section = AppSection.ledger;
@@ -930,9 +1019,15 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.onBackUp,
+    required this.onRestore,
+    required this.backupHealth,
+    required this.now,
   });
   final LedgerData data;
   final VoidCallback onBackUp;
+  final VoidCallback onRestore;
+  final ValueListenable<BackupHealth> backupHealth;
+  final DateTime Function() now;
   final AppSection section;
   final ValueChanged<AppSection> onSection;
   final int selected;
@@ -1040,34 +1135,201 @@ class _Sidebar extends StatelessWidget {
                   style: onest(18, weight: 500, tabular: true),
                 ),
                 const SizedBox(height: 14),
-                Tooltip(
-                  message:
+                // A failing daily copy is said where copies are made, as
+                // its own line: the sidebar is too narrow to share one.
+                ValueListenableBuilder(
+                  valueListenable: backupHealth,
+                  builder: (context, health, _) {
+                    if (!health.alarmingAt(now())) {
+                      return const SizedBox.shrink();
+                    }
+                    final last = health.newest;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _FooterLink(
+                        key: const ValueKey('backup-failed'),
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Daily copy failed',
+                        color: Mid.coral,
+                        tip:
+                            'The copy kept on this computer each day couldn’t '
+                            'be saved${last == null ? '' : ' (the last one is from ${fullDate(last)})'}. '
+                            'Check the disk has room, and save a copy elsewhere.',
+                        onTap: onBackUp,
+                      ),
+                    );
+                  },
+                ),
+                _FooterLink(
+                  key: const ValueKey('back-up'),
+                  icon: Icons.save_alt_rounded,
+                  label: 'Back up to…',
+                  tip:
                       'Save a copy of everything, on another drive or a USB '
-                      'stick. A copy is also kept on this computer each day.',
-                  child: Hoverable(
-                    key: const ValueKey('back-up'),
-                    onTap: onBackUp,
-                    builder: (h) => Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.save_alt_rounded,
-                          size: 14,
-                          color: h ? Mid.ink2 : Mid.ink3,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Back up to…',
-                          style: onest(12.5, color: h ? Mid.ink2 : Mid.ink3),
-                        ),
-                      ],
-                    ),
-                  ),
+                      'stick. A copy is also kept on this computer each day '
+                      'the app is open.',
+                  onTap: onBackUp,
+                ),
+                const SizedBox(height: 8),
+                _FooterLink(
+                  key: const ValueKey('restore'),
+                  icon: Icons.settings_backup_restore_rounded,
+                  label: 'Restore from…',
+                  tip:
+                      'Put back a backup. What you have now is saved first, '
+                      'and Undo brings it back.',
+                  onTap: onRestore,
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A quiet command under Net worth.
+class _FooterLink extends StatelessWidget {
+  const _FooterLink({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.tip,
+    required this.onTap,
+    this.color,
+  });
+  final IconData icon;
+  final String label;
+  final String tip;
+  final VoidCallback onTap;
+
+  /// Coral when something is wrong; otherwise quiet ink.
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tip,
+    child: Hoverable(
+      onTap: onTap,
+      builder: (h) {
+        final c = color ?? (h ? Mid.ink2 : Mid.ink3);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: c),
+            const SizedBox(width: 6),
+            Text(label, style: onest(12.5, color: c)),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+/// Asks before a restore replaces everything, with what the backup holds
+/// beside what's here now.
+class _RestoreDialog extends StatelessWidget {
+  const _RestoreDialog({
+    required this.candidate,
+    required this.transactionsNow,
+    required this.accountsNow,
+  });
+  final RestoreCandidate candidate;
+  final int transactionsNow;
+  final int accountsNow;
+
+  @override
+  Widget build(BuildContext context) {
+    final made = candidate.madeAt;
+    String two(int v) => v.toString().padLeft(2, '0');
+    String counts(int t, int a) =>
+        '$t ${t == 1 ? 'transaction' : 'transactions'} · $a ${a == 1 ? 'account' : 'accounts'}';
+    Widget line(String label, String value, {bool strong = false}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: onest(13, color: Mid.ink3)),
+          ),
+          Text(
+            value,
+            style: onest(
+              13.5,
+              color: strong ? Mid.ink : Mid.ink2,
+              tabular: true,
+            ),
+          ),
+        ],
+      ),
+    );
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Mid.rule),
+      ),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.enter): () =>
+              Navigator.of(context).pop(true),
+        },
+        child: Focus(
+          autofocus: true,
+          child: SizedBox(
+            width: 460,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Restore this backup?',
+                    style: onest(17, weight: 600, letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 16),
+                  line(
+                    'Backup from',
+                    '${fullDate(made)}  ${two(made.hour)}:${two(made.minute)}',
+                    strong: true,
+                  ),
+                  line(
+                    'It holds',
+                    counts(candidate.transactions, candidate.accounts),
+                    strong: true,
+                  ),
+                  line('Here now', counts(transactionsNow, accountsNow)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Everything here is replaced by the backup. What you have '
+                    'now is saved first, and Undo brings it back.',
+                    style: onest(13, color: Mid.ink2),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      BarButton(
+                        key: const ValueKey('restore-cancel'),
+                        label: 'Cancel',
+                        onTap: () => Navigator.of(context).pop(false),
+                      ),
+                      _PrimaryButton(
+                        key: const ValueKey('restore-confirm'),
+                        label: 'Restore',
+                        icon: Icons.settings_backup_restore_rounded,
+                        tooltip: 'Enter',
+                        onTap: () => Navigator.of(context).pop(true),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1399,14 +1661,18 @@ class _PrimaryButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onTap,
+    this.tooltip,
   });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
 
+  /// Its shortcut; ⌘N (Ctrl+N) unless given.
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: _isMac ? '⌘N' : 'Ctrl+N',
+    message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
     child: Material(
       color: Mid.gold,
       borderRadius: BorderRadius.circular(9),

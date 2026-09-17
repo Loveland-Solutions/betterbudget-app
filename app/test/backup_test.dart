@@ -57,10 +57,12 @@ void main() {
       );
     }
     final kept = await backups.automatic();
+    // The newest 3, and the first of the month.
     expect(kept.map((f) => f.path.split('/').last), [
       'betterbudget-20260920-093000.sqlite',
       'betterbudget-20260919-093000.sqlite',
       'betterbudget-20260918-093000.sqlite',
+      'betterbudget-20260916-093000.sqlite',
     ]);
   });
 
@@ -83,6 +85,156 @@ void main() {
     expect(folder.listSync().map((f) => f.path.split('/').last), [
       'betterbudget-20260916-093000.sqlite',
     ]);
+  });
+
+  test('keeps 14 daily copies and the first of each of 12 months', () {
+    // A copy every day for 400 days, newest first.
+    final start = DateTime(2025, 8, 1, 9);
+    final names = [
+      for (var d = 399; d >= 0; d--)
+        'betterbudget-${fileStamp(start.add(Duration(days: d)))}.sqlite',
+    ];
+    final gone = Backups.expired(names, keep: 14, months: 12).toSet();
+    final kept = names.where((n) => !gone.contains(n)).toList();
+    // The newest 14 days: 2026-08-22 … 2026-09-04.
+    expect(kept.take(14), names.take(14));
+    expect(kept.skip(14), [
+      for (final m in [
+        '20260801', '20260701', '20260601', '20260501', '20260401', //
+        '20260301', '20260201', '20260101', '20251201', '20251101',
+        '20251001',
+      ])
+        'betterbudget-$m-090000.sqlite',
+    ]);
+    // September's first copy is already among the newest 14.
+    expect(kept, hasLength(25));
+  });
+
+  test(
+    'a failing daily copy says so once the newest is two days old',
+    () async {
+      final backups = Backups(db);
+      await backups.runDaily(today);
+      expect(backups.health.value.failed, isFalse);
+      expect(backups.health.value.newest, DateTime(2026, 9, 16, 9, 30));
+
+      // Something where the folder should be: every copy now fails.
+      final folder = (await backups.folder())!;
+      await folder.delete(recursive: true);
+      await File(folder.path).writeAsString('in the way');
+      await backups.runDaily(today.add(const Duration(days: 1)));
+      final health = backups.health.value;
+      expect(health.failed, isTrue);
+      expect(health.newest, isNull);
+      expect(health.alarmingAt(today.add(const Duration(days: 1))), isTrue);
+      // A failure with a recent copy isn't worth a warning yet.
+      expect(
+        BackupHealth(
+          newest: today,
+          failed: true,
+        ).alarmingAt(today.add(const Duration(days: 1))),
+        isFalse,
+      );
+    },
+  );
+
+  group('restore', () {
+    Future<int> count() async => (await db.loadLedger()).txns.length;
+
+    test('puts a backup back, and the data from before can return', () async {
+      final backups = Backups(db);
+      final saved = File('${dir.path}/saved.sqlite');
+      await backups.saveTo(saved.path, today);
+      final inBackup = await count();
+
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      await db.postSimple(
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'After the backup',
+        counterAccountId: ledger.categories.first.id,
+        amount: -500000,
+      );
+      expect(await count(), inBackup + 1);
+
+      final candidate = await backups.inspect(
+        saved.path,
+        today.add(const Duration(minutes: 5)),
+      );
+      expect(candidate.transactions, inBackup);
+      expect(candidate.accounts, 4);
+      final done = await backups.restore(
+        candidate,
+        today.add(const Duration(minutes: 5)),
+      );
+      expect(await count(), inBackup);
+      expect(
+        (await db.loadLedger()).txns.where(
+          (t) => t.payee == 'After the backup',
+        ),
+        isEmpty,
+      );
+      // The picked file is untouched and nothing is left half-done.
+      expect(await transactionsIn(saved), inBackup);
+      expect(
+        (await backups.folder())!
+            .listSync()
+            .map((f) => f.path.split('/').last)
+            .where((n) => n.startsWith('incoming-')),
+        isEmpty,
+      );
+
+      await db.replaceAllFrom(done.before.path); // undo
+      expect(await count(), inBackup + 1);
+      await db.replaceAllFrom(done.restored.path); // redo
+      expect(await count(), inBackup);
+      // Every stored transaction still sums to zero.
+      final unbalanced = await db
+          .customSelect(
+            'SELECT transaction_id FROM entries GROUP BY transaction_id '
+            'HAVING SUM(amount_minor) != 0',
+          )
+          .get();
+      expect(unbalanced, isEmpty);
+    });
+
+    test('refuses what it can’t restore, and cleans up', () async {
+      final backups = Backups(db);
+      final text = File('${dir.path}/notes.sqlite')
+        ..writeAsStringSync('not a database, just long enough ' * 5);
+      await expectLater(
+        backups.inspect(text.path, today),
+        throwsA(
+          isA<RestoreException>().having(
+            (e) => e.message,
+            'message',
+            'That file isn’t a BetterBudget backup',
+          ),
+        ),
+      );
+
+      final newer = File('${dir.path}/newer.sqlite');
+      await backups.saveTo(newer.path, today);
+      final other = AppDatabase(NativeDatabase(newer));
+      await other.customStatement('PRAGMA user_version = 99');
+      await other.close();
+      await expectLater(
+        backups.inspect(newer.path, today),
+        throwsA(isA<RestoreException>()),
+      );
+
+      final fine = File('${dir.path}/fine.sqlite');
+      await backups.saveTo(fine.path, today);
+      await backups.discard(await backups.inspect(fine.path, today));
+      expect(
+        (await backups.folder())!.listSync().where(
+          (f) => f.path.split('/').last.startsWith('incoming-'),
+        ),
+        isEmpty,
+      );
+    });
   });
 
   test('an in-memory database has nothing to back up', () async {
