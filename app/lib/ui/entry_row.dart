@@ -116,6 +116,8 @@ class EntryRow extends StatefulWidget {
   final List<AccountInfo> transferTargets;
   final DateTime today;
   final EditInitial? initial;
+
+  /// Editing: Esc cancels. Adding: Esc, or leaving the row empty, closes it.
   final VoidCallback? onCancel;
 
   @override
@@ -250,6 +252,15 @@ class _EntryRowState extends State<EntryRow> {
   void _focusChanged() {
     final active = _focuses.any((f) => f.hasFocus);
     if (active != _active) setState(() => _active = active);
+    // Clicking away from a new row with nothing in it closes the row; with
+    // something typed it stays, so nothing is lost.
+    if (!active && !_editing && !widget.controller.isDirty()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_focuses.any((f) => f.hasFocus)) {
+          widget.onCancel?.call();
+        }
+      });
+    }
   }
 
   Future<bool> _prefillCategory() async {
@@ -282,6 +293,7 @@ class _EntryRowState extends State<EntryRow> {
     } else {
       _reset(keepFocus: false);
       FocusScope.of(context).unfocus();
+      widget.onCancel?.call();
     }
   }
 
@@ -367,8 +379,6 @@ class _EntryRowState extends State<EntryRow> {
       );
     } else if (_editing) {
       (text, color) = ('Esc to cancel', Mid.ink3);
-    } else if (_active && !_hasContent) {
-      (text, color) = ('+ for money in', Mid.ink3);
     } else {
       return const SizedBox.shrink();
     }
@@ -451,13 +461,13 @@ class _EntryRowState extends State<EntryRow> {
                   width: Cols.date,
                   child: FocusTraversalOrder(
                     order: const NumericFocusOrder(1),
-                    child: _Field(
+                    child: _DateField(
                       controller: _date,
                       focusNode: _dateFocus,
-                      hint: 'Date',
-                      tabular: true,
+                      today: widget.today,
                       wanted: _wants('date'),
-                      onSubmitted: (_) => _submit(),
+                      onSubmitted: _submit,
+                      onPicked: _payeeFocus.requestFocus,
                     ),
                   ),
                 ),
@@ -490,7 +500,8 @@ class _EntryRowState extends State<EntryRow> {
                           onSubmit: _submit,
                         ),
                       ),
-                      if (_editing) ...[
+                      // Adding: the memo line shows while the row is in use.
+                      if (_editing || _active || _memo.text.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         FocusTraversalOrder(
                           order: const NumericFocusOrder(2.5),
@@ -650,6 +661,294 @@ class _Field extends StatelessWidget {
     onSubmitted: onSubmitted,
     onEditingComplete: () {}, // Enter must not drop focus; _submit moves it.
   );
+}
+
+/// The date field, with a calendar under it while it has focus. Typing still
+/// works; the calendar follows what's typed.
+class _DateField extends StatefulWidget {
+  const _DateField({
+    required this.controller,
+    required this.focusNode,
+    required this.today,
+    required this.onSubmitted,
+    required this.onPicked,
+    this.wanted = false,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final DateTime today;
+  final VoidCallback onSubmitted;
+
+  /// A day was clicked: the date is filled in, move on.
+  final VoidCallback onPicked;
+  final bool wanted;
+
+  @override
+  State<_DateField> createState() => _DateFieldState();
+}
+
+class _DateFieldState extends State<_DateField> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_sync);
+    widget.controller.addListener(_typed);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_sync);
+    widget.controller.removeListener(_typed);
+    super.dispose();
+  }
+
+  void _sync() {
+    if (!mounted) return;
+    setState(() {
+      widget.focusNode.hasFocus ? _portal.show() : _portal.hide();
+    });
+  }
+
+  /// Typing after Esc brings the calendar back.
+  void _typed() {
+    if (mounted && widget.focusNode.hasFocus && !_portal.isShowing) _sync();
+  }
+
+  void _close() => setState(_portal.hide);
+
+  void _pick(DateTime day) {
+    widget.controller.value = TextEditingValue(
+      text: fullDate(day),
+      selection: TextSelection.collapsed(offset: fullDate(day).length),
+    );
+    _close();
+    widget.onPicked();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      // Esc closes the calendar first; the next Esc reaches the row.
+      bindings: {
+        if (_portal.isShowing)
+          const SingleActivator(LogicalKeyboardKey.escape): _close,
+      },
+      child: OverlayPortal(
+        controller: _portal,
+        overlayChildBuilder: (context) => CompositedTransformFollower(
+          link: _link,
+          targetAnchor: Alignment.bottomLeft,
+          offset: const Offset(0, 6),
+          child: Align(
+            alignment: Alignment.topLeft,
+            // Clicks in the calendar count as inside the field, so it keeps focus.
+            child: TextFieldTapRegion(
+              child: ListenableBuilder(
+                listenable: widget.controller,
+                builder: (context, _) => _Calendar(
+                  selected: parseEntryDate(
+                    widget.controller.text,
+                    widget.today,
+                  ),
+                  today: widget.today,
+                  onPick: _pick,
+                ),
+              ),
+            ),
+          ),
+        ),
+        child: CompositedTransformTarget(
+          link: _link,
+          child: _Field(
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            hint: 'Date',
+            tabular: true,
+            wanted: widget.wanted,
+            onSubmitted: (_) => widget.onSubmitted(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A month of days, Monday first. The selected day is filled, today is
+/// underlined, and days after today are gold because picking one schedules
+/// the transaction.
+class _Calendar extends StatefulWidget {
+  const _Calendar({
+    required this.selected,
+    required this.today,
+    required this.onPick,
+  });
+  final DateTime? selected;
+  final DateTime today;
+  final ValueChanged<DateTime> onPick;
+
+  @override
+  State<_Calendar> createState() => _CalendarState();
+}
+
+class _CalendarState extends State<_Calendar> {
+  late DateTime _month = _monthOf(widget.selected ?? widget.today);
+  DateTime? _hover;
+
+  static DateTime _monthOf(DateTime d) => DateTime(d.year, d.month);
+
+  static const _names = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July', //
+    'August', 'September', 'October', 'November', 'December',
+  ];
+
+  @override
+  void didUpdateWidget(_Calendar old) {
+    super.didUpdateWidget(old);
+    // Typing a date jumps to its month.
+    final s = widget.selected;
+    if (s != null && s != old.selected) _month = _monthOf(s);
+  }
+
+  bool _same(DateTime? a, DateTime b) =>
+      a != null && a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool _future(DateTime d) => d.isAfter(
+    DateTime(widget.today.year, widget.today.month, widget.today.day),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final lead = _month.weekday - 1; // Monday first
+    final days = DateTime(_month.year, _month.month + 1, 0).day;
+    final hint = _hover ?? widget.selected;
+
+    Widget arrow(IconData icon, int step, String tip) => Tooltip(
+      message: tip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () =>
+            setState(() => _month = DateTime(_month.year, _month.month + step)),
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Icon(icon, size: 18, color: Mid.ink2),
+        ),
+      ),
+    );
+
+    Widget day(DateTime d) {
+      final selected = _same(widget.selected, d);
+      final today = _same(widget.today, d);
+      final hovered = _same(_hover, d);
+      final color = selected
+          ? Colors.white
+          : _future(d)
+          ? Mid.gold
+          : Mid.ink;
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = d),
+        onExit: (_) => setState(() => _hover = null),
+        child: GestureDetector(
+          onTap: () => widget.onPick(d),
+          child: Container(
+            width: 34,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected
+                  ? Mid.blue
+                  : hovered
+                  ? Mid.chip
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Text(
+              '${d.day}',
+              style:
+                  onest(
+                    13,
+                    weight: today || selected ? 600 : 400,
+                    color: color,
+                    tabular: true,
+                  ).copyWith(
+                    decoration: today ? TextDecoration.underline : null,
+                    decorationColor: color,
+                    decorationThickness: 2,
+                  ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color: Mid.raised,
+      elevation: 12,
+      shadowColor: Colors.black,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        child: SizedBox(
+          width: 7 * 34,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  arrow(Icons.chevron_left_rounded, -1, 'Previous month'),
+                  Expanded(
+                    child: Text(
+                      '${_names[_month.month - 1]} ${_month.year}',
+                      textAlign: TextAlign.center,
+                      style: onest(13.5, weight: 600),
+                    ),
+                  ),
+                  arrow(Icons.chevron_right_rounded, 1, 'Next month'),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  for (final n in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        n,
+                        textAlign: TextAlign.center,
+                        style: onest(11.5, color: Mid.ink3),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                children: [
+                  for (var i = 0; i < lead; i++)
+                    const SizedBox(width: 34, height: 32),
+                  for (var d = 1; d <= days; d++)
+                    day(DateTime(_month.year, _month.month, d)),
+                ],
+              ),
+              // Explains the gold, only when it matters.
+              if (hint != null && _future(hint))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'After today · it will be scheduled',
+                    style: onest(12, color: Mid.gold),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Autocomplete<T extends Object> extends StatelessWidget {

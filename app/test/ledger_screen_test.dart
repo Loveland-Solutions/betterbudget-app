@@ -52,6 +52,12 @@ void main() {
     });
   }
 
+  /// The new-transaction row opens from the gold Add button.
+  Future<void> openEntry(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('add-transaction')));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> settle(WidgetTester tester) async {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -150,8 +156,140 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('the new-transaction row opens from Add and closes when empty', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    final payee = find.widgetWithText(TextField, 'New transaction — payee');
+    expect(payee, findsNothing);
+
+    await openEntry(tester);
+    expect(tester.widget<TextField>(payee).focusNode!.hasFocus, isTrue);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/entry_open.png'),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(payee, findsNothing);
+
+    // Clicking away closes an empty row, but not one with something typed.
+    await openEntry(tester);
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    expect(payee, findsNothing);
+    await openEntry(tester);
+    await tester.enterText(payee, 'Sak');
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Sak'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the date field opens a calendar; typing still works', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    final date = find.widgetWithText(TextField, '2026.09.16');
+    final payee = find.widgetWithText(TextField, 'New transaction — payee');
+    expect(find.text('September 2026'), findsNothing);
+
+    await tester.tap(date);
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsOneWidget);
+
+    // Future days explain that they schedule the transaction.
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.text('24')));
+    await tester.pumpAndSettle();
+    expect(find.text('After today · it will be scheduled'), findsOneWidget);
+    await expectLater(
+      find.byType(MaterialApp), // the calendar lives in the app's overlay
+      matchesGoldenFile('goldens/date_picker.png'),
+    );
+    await mouse.removePointer();
+
+    // Clicking a day fills the date and moves on to the payee.
+    await tester.tap(find.text('12'));
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsNothing);
+    expect(find.widgetWithText(TextField, '2026.09.12'), findsOneWidget);
+    expect(tester.widget<TextField>(payee).focusNode!.hasFocus, isTrue);
+
+    // Typing a date jumps the calendar to its month.
+    await tester.tap(find.widgetWithText(TextField, '2026.09.12'));
+    await tester.enterText(
+      find.widgetWithText(TextField, '2026.09.12'),
+      '2026.10.03',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('October 2026'), findsOneWidget);
+
+    // Esc closes the calendar first, and leaves the typed date alone.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('October 2026'), findsNothing);
+    expect(find.widgetWithText(TextField, '2026.10.03'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('confirming early posts today and says so', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Confirm'));
+    await settle(tester);
+    expect(
+      find.text('Zaisan Residence confirmed early · posted today, 09.16'),
+      findsOneWidget,
+    );
+    final box = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.textContaining('confirmed early'),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((box.decoration as BoxDecoration).color, Mid.gold);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_early.png'),
+    );
+    await tidy(tester, db);
+  });
+
+  testWidgets('forecast dots show their bill and open it', (tester) async {
+    final db = await pumpLedger(tester);
+    final dot = find.byKey(const ValueKey('forecast-dot-09.20'));
+    expect(find.text('Balance after'), findsNothing);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(dot));
+    await tester.pumpAndSettle();
+    expect(find.text('Balance after'), findsOneWidget);
+    expect(find.text('Rent'), findsWidgets); // the rent's memo, in the card
+    await expectLater(
+      find.byType(MaterialApp), // the card lives in the app's overlay
+      matchesGoldenFile('goldens/forecast_card.png'),
+    );
+
+    // Clicking goes to the transaction: Scheduled tab, row selected.
+    await mouse.moveTo(tester.getCenter(dot));
+    await tester.tap(dot);
+    await tester.pumpAndSettle();
+    await mouse.removePointer();
+    expect(find.text('Balance after'), findsNothing);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Nothing scheduled'), findsNothing);
+    expect(find.text('Sakura Coffee'), findsNothing); // posted rows hidden
+    await tidy(tester, db);
+  });
+
   testWidgets('uncleared money coming in shows with a plus', (tester) async {
     final db = await pumpLedger(tester);
+    await openEntry(tester);
     // An uncleared ₮500,000 deposit outweighs the ₮116,400 uncleared spending.
     await tester.enterText(
       find.widgetWithText(TextField, 'New transaction — payee'),
@@ -188,49 +326,67 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('cmd-click and shift-click select several rows', (tester) async {
+  testWidgets('clicking a row shows its actions under it', (tester) async {
     final db = await pumpLedger(tester);
+    expect(find.text('Delete'), findsNothing);
     await tester.tap(find.text('Unitel'));
     await tester.pumpAndSettle();
-    expect(find.text('1 selected'), findsOneWidget);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
-    await tester.tap(find.text('Шунхлай'));
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
-    await tester.pumpAndSettle();
-    expect(find.text('5 selected'), findsOneWidget);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
-    await tester.tap(find.text('TDB').last);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
-    await tester.pumpAndSettle();
-    expect(find.text('4 selected'), findsOneWidget);
+    // Uncleared, so only Mark cleared applies.
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.text('Mark uncleared'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Delete')).dy,
+      greaterThan(tester.getBottomLeft(find.text('Unitel')).dy),
+    );
     await expectLater(
       find.byType(LedgerScreen),
-      matchesGoldenFile('goldens/ledger_bulk.png'),
+      matchesGoldenFile('goldens/row_actions.png'),
     );
+
+    // Another row moves the actions there; one row at a time.
+    await tester.tap(find.text('Sakura Coffee'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete'), findsOneWidget);
+    expect(find.text('Mark uncleared'), findsOneWidget);
+
+    // Clicking it again, or Esc, closes them.
+    await tester.tap(find.text('Sakura Coffee'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete'), findsNothing);
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    expect(find.text('4 selected'), findsNothing);
+    expect(find.text('Delete'), findsNothing);
     await tidy(tester, db);
   });
 
-  testWidgets('delete leaves reconciled rows locked', (tester) async {
+  testWidgets('delete removes the row, but reconciled rows stay locked', (
+    tester,
+  ) async {
     final db = await pumpLedger(tester);
     await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await settle(tester);
+    expect(find.text('Unitel deleted'), findsOneWidget);
+    expect(find.text('Unitel'), findsNothing);
+
     final salary = find.text('Altan Gadas LLC', skipOffstage: false);
     await tester.ensureVisible(salary);
     await tester.pumpAndSettle();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
     await tester.tap(salary);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
     await tester.pumpAndSettle();
-    expect(find.text('2 selected'), findsOneWidget);
+    expect(find.textContaining('Reconciled · locked'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await settle(tester);
     expect(
-      find.text('1 transaction deleted · 1 reconciled left locked'),
+      find.text(
+        'Reconciled transactions are locked · they match a bank statement',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Unitel'), findsNothing);
     expect(salary, findsOneWidget);
     await tidy(tester, db);
   });
@@ -243,7 +399,8 @@ void main() {
     // A selected row is exactly when the shortcuts would steal the keys.
     await tester.tap(find.text('Unitel'));
     await tester.pumpAndSettle();
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('Mark cleared'), findsOneWidget);
+    await openEntry(tester);
 
     await tester.enterText(payee, 'Sakura');
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
@@ -252,7 +409,7 @@ void main() {
 
     expect(tester.widget<TextField>(payee).controller!.text, 'Sakur');
     expect(find.text('Unitel'), findsOneWidget); // not deleted
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('Mark cleared'), findsOneWidget); // still selected
     expect(find.textContaining('marked'), findsNothing); // C didn't clear it
 
     // Clicking a row leaves the field; then the keys act on the selection.
@@ -264,13 +421,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('Mark uncleared'), findsOneWidget);
     await tester.runAsync(() async {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('1 transaction marked uncleared'), findsOneWidget);
+    expect(find.text('Sakura Coffee marked uncleared'), findsOneWidget);
     expect(tester.widget<TextField>(payee).controller!.text, 'Sakur');
     await tidy(tester, db);
   });
@@ -296,6 +453,7 @@ void main() {
       tester,
     ) async {
       final db = await pumpLedger(tester);
+      await openEntry(tester);
       await tester.enterText(field('0.00'), '8000');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300)); // border fade-in
@@ -314,6 +472,7 @@ void main() {
       tester,
     ) async {
       final db = await pumpLedger(tester);
+      await openEntry(tester);
       await tester.enterText(field('0.00'), '8000');
       await tester.enterText(field('New transaction — payee'), 'Sakura Coffee');
       await enter(tester); // category is filled from the payee's last one
@@ -322,11 +481,17 @@ void main() {
       await tidy(tester, db);
     });
 
-    testWidgets('the Add button adds a complete row', (tester) async {
+    testWidgets('the Add button adds a complete row, memo included', (
+      tester,
+    ) async {
       final db = await pumpLedger(tester);
+      await openEntry(tester);
       await tester.enterText(field('Category'), 'Dining out');
       await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
       await tester.enterText(field('0.00'), '42000');
+      await tester.pump();
+      // The memo line shows while the row is in use.
+      await tester.enterText(field('Memo'), 'Lunch with Bat');
       await tester.pump();
       await tester.runAsync(() async {
         await tester.tap(find.widgetWithText(GestureDetector, 'Add').last);
@@ -334,6 +499,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('Modern Nomads'), findsOneWidget);
+      expect(find.text('Lunch with Bat'), findsOneWidget); // saved, row reset
       await tidy(tester, db);
     });
   });
@@ -430,6 +596,7 @@ void main() {
     tester,
   ) async {
     final db = await pumpLedger(tester);
+    await openEntry(tester);
     await tester.tap(find.widgetWithText(TextField, 'Date'));
     await tester.pump();
     await tester.enterText(find.widgetWithText(TextField, 'Date'), '09.30');

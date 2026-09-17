@@ -356,6 +356,14 @@ void main() {
       expect(f.causes, ['Tuition', 'Childcare']);
     });
 
+    test('already below zero counts as short from today', () {
+      final f = buildForecast(working: -500, today: today, scheduled: const []);
+      expect(f.isShort, isTrue);
+      expect(f.shortNow, isTrue);
+      expect(f.firstShort, DateTime(2026, 9, 16));
+      expect(f.low, -500);
+    });
+
     test('no scheduled income falls back to a 30 day horizon', () {
       final f = buildForecast(working: 100, today: today, scheduled: const []);
       expect(f.payday, isNull);

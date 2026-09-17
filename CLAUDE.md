@@ -22,8 +22,9 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   that swallowed typing, no way to edit a transaction, "not posted" wording for
   uncleared (banks show pending), a dash symbol that read as a minus sign, a separate big
   balance above the header sum, "latest cleared" date (noise), a reconciled amount (only
-  the date matters), a sidebar layout (option A chosen), bulk Delete removing reconciled
-  rows, and a chevron on sidebar sections (it promised a toggle).
+  the date matters), a sidebar layout (option A chosen), Delete removing reconciled
+  rows, a chevron on sidebar sections (it promised a toggle), an always-visible blank
+  entry row, a "+ for money in" hint, and multi-select (not wanted yet).
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.
@@ -38,8 +39,8 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
   `dart run build_runner build`), plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
-  (state, selection, bulk actions, toasts), `balance_header.dart` (key and forecast),
-  `register.dart` (rows, bulk bar, category menu), `entry_row.dart`.
+  (state, selection, row actions, toasts), `balance_header.dart` (key and forecast),
+  `register.dart` (rows, row action bar, category menu), `entry_row.dart`.
 
 ## Checks before handing work back
 
