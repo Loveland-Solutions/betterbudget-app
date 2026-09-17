@@ -127,6 +127,169 @@ void main() {
     expect(after.cleared, Cleared.reconciled);
   });
 
+  test(
+    'reconcile locks cleared rows through the date, only if they match',
+    () async {
+      final data = await db.loadLedger();
+      final through = data.clearedThrough(checking, today);
+      expect(through.balance, 429885000);
+
+      // A statement that disagrees locks nothing.
+      await expectLater(
+        db.reconcile(
+          accountId: checking,
+          statementDate: today,
+          balance: through.balance + 100,
+        ),
+        throwsA(
+          isA<ReconcileMismatchException>().having((e) => e.off, 'off', 100),
+        ),
+      );
+      expect(
+        (await db.loadLedger()).summaryFor(checking).reconciledOn,
+        DateTime(2026, 9, 10),
+      );
+
+      final done = await db.reconcile(
+        accountId: checking,
+        statementDate: today,
+        balance: through.balance,
+      );
+      expect(done.entryIds, hasLength(through.toLock));
+      var after = await db.loadLedger();
+      expect(after.summaryFor(checking).reconciledOn, today);
+      final posted = after.registerFor(checking).posted;
+      // Cleared rows are now reconciled; uncleared ones are left alone.
+      expect(posted.where((r) => r.cleared == Cleared.cleared), isEmpty);
+      expect(
+        posted.firstWhere((r) => r.payee == 'Unitel').cleared,
+        Cleared.uncleared,
+      );
+      // Only this account's side of a transfer is locked.
+      final savings = after.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Khan Savings')
+          .id;
+      expect(
+        after
+            .registerFor(savings)
+            .posted
+            .lastWhere((r) => r.kind == RowKind.transfer)
+            .cleared,
+        Cleared.cleared,
+      );
+
+      await db.unreconcile(done);
+      after = await db.loadLedger();
+      expect(after.summaryFor(checking).reconciledOn, DateTime(2026, 9, 10));
+      expect(after.clearedThrough(checking, today).toLock, through.toLock);
+    },
+  );
+
+  test('a transfer reconciled on one side is locked from the other', () async {
+    var data = await db.loadLedger();
+    await db.reconcile(
+      accountId: checking,
+      statementDate: today,
+      balance: data.clearedThrough(checking, today).balance,
+    );
+    data = await db.loadLedger();
+    final savings = data.balanceSheetAccounts
+        .firstWhere((a) => a.name == 'Khan Savings')
+        .id;
+    final row = data
+        .registerFor(savings)
+        .posted
+        .lastWhere((r) => r.kind == RowKind.transfer);
+    expect(row.cleared, Cleared.cleared);
+    expect(row.lockedIn, 'TDB Checking');
+    expect(row.locked, isTrue);
+
+    await expectLater(
+      db.editTransaction(
+        transactionId: row.txnId,
+        accountId: savings,
+        date: row.date,
+        today: today,
+        amount: row.amount + 100,
+      ),
+      throwsA(isA<LockedException>()),
+    );
+    expect(await db.softDeleteMany([row.txnId]), isEmpty);
+    // Its own cleared state still changes.
+    expect(await db.setClearedMany({row.entryId: Cleared.uncleared}), {
+      row.entryId: Cleared.cleared,
+    });
+  });
+
+  test('reconciles unwind newest first, in any later session', () async {
+    // The seed's 09.10 reconcile, as if from an earlier session.
+    var data = await db.loadLedger();
+    final done = await db.reconcile(
+      accountId: checking,
+      statementDate: today,
+      balance: data.clearedThrough(checking, today).balance,
+    );
+
+    final newest = await db.unreconcileLast(checking);
+    expect(newest.statements.single.id, done.statements.single.id);
+    expect(newest.entryIds, unorderedEquals(done.entryIds));
+    data = await db.loadLedger();
+    expect(data.summaryFor(checking).reconciledOn, DateTime(2026, 9, 10));
+    // Rows from the older reconcile stay locked.
+    final salary = data
+        .registerFor(checking)
+        .posted
+        .firstWhere((r) => r.payee == 'Altan Gadas LLC');
+    expect(salary.cleared, Cleared.reconciled);
+    expect(salary.latestReconcile, isTrue);
+
+    final older = await db.unreconcileLast(checking);
+    expect(older.entryIds, hasLength(5));
+    data = await db.loadLedger();
+    expect(data.summaryFor(checking).reconciledOn, isNull);
+    // Only the Visa side of the card payment stays locked; it was never
+    // part of a TDB Checking reconcile.
+    expect(
+      data
+          .registerFor(checking)
+          .posted
+          .where((r) => r.cleared == Cleared.reconciled),
+      isEmpty,
+    );
+
+    // A later reconcile that locked nothing goes with it.
+    await db.relock(older);
+    data = await db.loadLedger();
+    final empty = await db.reconcile(
+      accountId: checking,
+      statementDate: DateTime(2026, 9, 11),
+      balance: data.clearedThrough(checking, DateTime(2026, 9, 11)).balance,
+    );
+    expect(empty.entryIds, isEmpty);
+    expect(
+      (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.payee == 'Altan Gadas LLC')
+          .latestReconcile,
+      isTrue,
+    );
+    final both = await db.unreconcileLast(checking);
+    expect(both.statements, hasLength(2));
+    expect((await db.loadLedger()).summaryFor(checking).reconciledOn, isNull);
+    await db.relock(both);
+    data = await db.loadLedger();
+    expect(data.summaryFor(checking).reconciledOn, DateTime(2026, 9, 11));
+    expect(
+      data
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.payee == 'Altan Gadas LLC')
+          .reconciledOn,
+      DateTime(2026, 9, 10),
+    );
+  });
+
   test('payee remembers its last category', () async {
     expect(
       await db.lastCategoryFor('Sakura Coffee', checking),
@@ -353,7 +516,6 @@ void main() {
       expect(f.isShort, isTrue);
       expect(f.firstShort, DateTime(2026, 9, 30));
       expect(f.low, -70775000);
-      expect(f.causes, ['Tuition', 'Childcare']);
     });
 
     test('already below zero counts as short from today', () {

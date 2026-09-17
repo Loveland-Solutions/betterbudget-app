@@ -461,7 +461,7 @@ class _EntryRowState extends State<EntryRow> {
                   width: Cols.date,
                   child: FocusTraversalOrder(
                     order: const NumericFocusOrder(1),
-                    child: _DateField(
+                    child: DateField(
                       controller: _date,
                       focusNode: _dateFocus,
                       today: widget.today,
@@ -665,14 +665,17 @@ class _Field extends StatelessWidget {
 
 /// The date field, with a calendar under it while it has focus. Typing still
 /// works; the calendar follows what's typed.
-class _DateField extends StatefulWidget {
-  const _DateField({
+class DateField extends StatefulWidget {
+  const DateField({
+    super.key,
     required this.controller,
     required this.focusNode,
     required this.today,
     required this.onSubmitted,
     required this.onPicked,
     this.wanted = false,
+    this.allowFuture = true,
+    this.small = false,
   });
 
   final TextEditingController controller;
@@ -684,11 +687,16 @@ class _DateField extends StatefulWidget {
   final VoidCallback onPicked;
   final bool wanted;
 
+  /// False where a future date means nothing (a statement date): days after
+  /// today can't be picked.
+  final bool allowFuture;
+  final bool small;
+
   @override
-  State<_DateField> createState() => _DateFieldState();
+  State<DateField> createState() => _DateFieldState();
 }
 
-class _DateFieldState extends State<_DateField> {
+class _DateFieldState extends State<DateField> {
   final _portal = OverlayPortalController();
   final _link = LayerLink();
 
@@ -756,6 +764,7 @@ class _DateFieldState extends State<_DateField> {
                   ),
                   today: widget.today,
                   onPick: _pick,
+                  allowFuture: widget.allowFuture,
                 ),
               ),
             ),
@@ -769,6 +778,7 @@ class _DateFieldState extends State<_DateField> {
             hint: 'Date',
             tabular: true,
             wanted: widget.wanted,
+            small: widget.small,
             onSubmitted: (_) => widget.onSubmitted(),
           ),
         ),
@@ -785,10 +795,12 @@ class _Calendar extends StatefulWidget {
     required this.selected,
     required this.today,
     required this.onPick,
+    this.allowFuture = true,
   });
   final DateTime? selected;
   final DateTime today;
   final ValueChanged<DateTime> onPick;
+  final bool allowFuture;
 
   @override
   State<_Calendar> createState() => _CalendarState();
@@ -843,18 +855,21 @@ class _CalendarState extends State<_Calendar> {
     Widget day(DateTime d) {
       final selected = _same(widget.selected, d);
       final today = _same(widget.today, d);
-      final hovered = _same(_hover, d);
+      final off = !widget.allowFuture && _future(d);
+      final hovered = !off && _same(_hover, d);
       final color = selected
           ? Colors.white
+          : off
+          ? Mid.ink3.withValues(alpha: 0.5)
           : _future(d)
           ? Mid.gold
           : Mid.ink;
       return MouseRegion(
-        cursor: SystemMouseCursors.click,
+        cursor: off ? MouseCursor.defer : SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hover = d),
         onExit: (_) => setState(() => _hover = null),
         child: GestureDetector(
-          onTap: () => widget.onPick(d),
+          onTap: off ? null : () => widget.onPick(d),
           child: Container(
             width: 34,
             height: 32,
@@ -935,7 +950,7 @@ class _CalendarState extends State<_Calendar> {
                 ],
               ),
               // Explains the gold, only when it matters.
-              if (hint != null && _future(hint))
+              if (widget.allowFuture && hint != null && _future(hint))
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(

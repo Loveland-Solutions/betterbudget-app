@@ -134,6 +134,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
     );
     await spend(-6, 'Altan Gadas LLC', 'Salary', 250000000, rec, memo: 'Цалин');
     await db.addReconciliation(checking, day(-6), 514198050);
+    await db.linkReconciledEntries();
     await spend(
       -4,
       'E-Mart Хан-Уул',

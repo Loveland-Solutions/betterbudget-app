@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import 'register.dart' show BarButton;
 import 'theme.dart';
 
 class BalanceHeader extends StatelessWidget {
@@ -14,7 +16,13 @@ class BalanceHeader extends StatelessWidget {
     required this.activeStatus,
     required this.onStatusTap,
     required this.onOpenScheduled,
+    required this.onReconcile,
+    this.reconcile,
   });
+
+  /// Shown in place of the balance sum while reconciling.
+  final Widget? reconcile;
+  final VoidCallback onReconcile;
 
   /// A forecast dot was clicked: show that scheduled transaction.
   final ValueChanged<RegisterRow> onOpenScheduled;
@@ -41,12 +49,15 @@ class BalanceHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: _Balances(
-                s: summary,
-                hovered: hoveredStatus,
-                active: activeStatus,
-                onTap: onStatusTap,
-              ),
+              child:
+                  reconcile ??
+                  _Balances(
+                    s: summary,
+                    hovered: hoveredStatus,
+                    active: activeStatus,
+                    onTap: onStatusTap,
+                    onReconcile: onReconcile,
+                  ),
             ),
             const SizedBox(width: 40),
             Container(width: 1, color: Mid.rule),
@@ -68,9 +79,11 @@ class _Balances extends StatelessWidget {
     required this.hovered,
     required this.active,
     required this.onTap,
+    required this.onReconcile,
   });
 
   final AccountSummary s;
+  final VoidCallback onReconcile;
   final ValueNotifier<Cleared?> hovered;
   final Cleared? active;
   final ValueChanged<Cleared> onTap;
@@ -116,17 +129,26 @@ class _Balances extends StatelessWidget {
             ),
             _TotalLine(amount: s.working),
             const SizedBox(height: 10),
-            _StatusLine(
-              status: Cleared.reconciled,
-              amount: null,
-              // When matters here, not how much: no amount column.
-              label: s.reconciledOn == null
-                  ? 'Never reconciled'
-                  : 'Last reconciled on ${shortDate(s.reconciledOn!)}',
-              note: '',
-              hovered: hovered,
-              active: active == Cleared.reconciled,
-              onTap: () => onTap(Cleared.reconciled),
+            Row(
+              children: [
+                _StatusLine(
+                  status: Cleared.reconciled,
+                  amount: null,
+                  // When matters here, not how much: no amount column.
+                  label: s.reconciledOn == null
+                      ? 'Never reconciled'
+                      : 'Last reconciled on ${shortDate(s.reconciledOn!)}',
+                  note: '',
+                  hovered: hovered,
+                  active: active == Cleared.reconciled,
+                  onTap: () => onTap(Cleared.reconciled),
+                ),
+                BarButton(
+                  key: const ValueKey('reconcile'),
+                  label: 'Reconcile',
+                  onTap: onReconcile,
+                ),
+              ],
             ),
           ],
         ),
@@ -324,34 +346,26 @@ class ForecastPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final payday = f.payday;
     final String headline;
-    final String detail;
-    final before = payday == null
-        ? 'the next 30 days are out'
-        : payday.categoryLabel.toLowerCase();
     if (f.shortNow) {
       // Already under: say so, not a future "runs out" date. The amount is
       // the Working total beside it, so it isn't repeated.
       headline = f.low < f.startBalance
           ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
           : 'Below zero now';
-      detail = f.causes.isEmpty
-          ? 'No bills before $before'
-          : '${_joinAnd(f.causes)} ${f.causes.length == 1 ? 'lands' : 'land'} before $before.';
     } else if (f.isShort) {
       headline =
           'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
-      detail =
-          '${_joinAnd(f.causes)} ${f.causes.length == 1 ? 'lands' : 'land'} before $before.';
     } else if (f.steps.isEmpty) {
       headline = 'Nothing scheduled';
-      detail = payday == null
-          ? 'No bills or income in the next 30 days'
-          : 'No bills before ${payday.categoryLabel.toLowerCase()}';
     } else {
       headline = 'Lowest ₮${formatWhole(f.low)} on ${shortDate(f.lowDate)}';
-      detail =
-          '${f.billCount} scheduled ${f.billCount == 1 ? 'bill' : 'bills'} · ₮${formatWhole(f.billTotal)} before ${payday == null ? shortDate(f.end) : payday.categoryLabel.toLowerCase()}';
     }
+    // No payee names here: they can be any length. The count opens the list.
+    final detail = f.steps.isEmpty
+        ? payday == null
+              ? 'No bills or income in the next 30 days'
+              : 'No bills before ${shortDate(f.end)}'
+        : '${f.billCount} ${f.billCount == 1 ? 'bill' : 'bills'} · ₮${formatWhole(f.billTotal)} before ${shortDate(f.end)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,16 +387,10 @@ class ForecastPanel extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
-        Text(
-          detail,
-          style: onest(
-            13,
-            color: f.isShort ? Mid.ink2 : Mid.ink3,
-            tabular: true,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        if (f.steps.isEmpty)
+          Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
+        else
+          _BillsLink(label: detail, f: f, onOpen: onOpen),
         const SizedBox(height: 14),
         Expanded(
           child: ConstrainedBox(
@@ -395,9 +403,284 @@ class ForecastPanel extends StatelessWidget {
   }
 }
 
-String _joinAnd(List<String> xs) => xs.length <= 1
-    ? xs.join()
-    : '${xs.sublist(0, xs.length - 1).join(', ')} and ${xs.last}';
+/// The bill count under the headline. Clicking it lists every bill before
+/// the end date, with the balance after each; clicking a bill opens it.
+class _BillsLink extends StatefulWidget {
+  const _BillsLink({
+    required this.label,
+    required this.f,
+    required this.onOpen,
+  });
+  final String label;
+  final Forecast f;
+  final ValueChanged<RegisterRow> onOpen;
+
+  @override
+  State<_BillsLink> createState() => _BillsLinkState();
+}
+
+class _BillsLinkState extends State<_BillsLink> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+  bool _hover = false;
+
+  /// Where focus was before the list opened, so Esc and closing hand it back.
+  FocusNode? _returnFocus;
+  final _cardFocus = FocusNode(debugLabel: 'forecast-bills');
+
+  @override
+  void dispose() {
+    _cardFocus.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    if (_portal.isShowing) return _close();
+    _returnFocus = FocusManager.instance.primaryFocus;
+    setState(_portal.show);
+    // Autofocus won't take it from the register, so ask once it's built.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _cardFocus.requestFocus(),
+    );
+  }
+
+  void _close() {
+    if (!_portal.isShowing) return;
+    setState(_portal.hide);
+    _returnFocus?.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lit = _hover || _portal.isShowing;
+    return TapRegion(
+      groupId: _link,
+      onTapOutside: (_) => _close(),
+      child: CompositedTransformTarget(
+        link: _link,
+        child: OverlayPortal(
+          controller: _portal,
+          overlayChildBuilder: (context) => CompositedTransformFollower(
+            link: _link,
+            targetAnchor: Alignment.bottomLeft,
+            offset: const Offset(0, 10),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: TapRegion(
+                groupId: _link,
+                // Takes focus while open so Esc reaches it.
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape): _close,
+                  },
+                  child: Focus(
+                    focusNode: _cardFocus,
+                    child: _BillsCard(
+                      f: widget.f,
+                      onOpen: (r) {
+                        _close();
+                        widget.onOpen(r);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _hover = true),
+            onExit: (_) => setState(() => _hover = false),
+            child: GestureDetector(
+              key: const ValueKey('forecast-bills'),
+              onTap: _toggle,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.label,
+                    style:
+                        onest(
+                          13,
+                          color: lit
+                              ? Mid.ink
+                              : (widget.f.isShort ? Mid.ink2 : Mid.ink3),
+                          tabular: true,
+                        ).copyWith(
+                          decoration: TextDecoration.underline,
+                          decorationColor: Mid.ink3.withValues(alpha: 0.6),
+                        ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    _portal.isShowing
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: lit ? Mid.ink : Mid.ink3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every bill in the forecast, in order, and the income that ends it.
+class _BillsCard extends StatelessWidget {
+  const _BillsCard({required this.f, required this.onOpen});
+  final Forecast f;
+  final ValueChanged<RegisterRow> onOpen;
+
+  static const width = 440.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final payday = f.payday;
+    final last = f.steps.isEmpty ? f.startBalance : f.steps.last.balance;
+    return Material(
+      color: Mid.raised,
+      elevation: 12,
+      shadowColor: Colors.black,
+      borderRadius: BorderRadius.circular(10),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: width, maxHeight: 360),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Says what the two amount columns are.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Until ${shortDate(f.end)}',
+                        style: onest(12, color: Mid.ink3),
+                      ),
+                    ),
+                    Text('Balance after', style: onest(12, color: Mid.ink3)),
+                  ],
+                ),
+              ),
+              for (final s in f.steps)
+                _BillLine(
+                  row: s.row,
+                  date: s.date,
+                  balanceAfter: s.balance,
+                  onTap: () => onOpen(s.row),
+                ),
+              if (payday != null) ...[
+                Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  color: Mid.rule,
+                ),
+                _BillLine(
+                  row: payday,
+                  date: f.end,
+                  balanceAfter: last + payday.amount,
+                  onTap: () => onOpen(payday),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BillLine extends StatefulWidget {
+  const _BillLine({
+    required this.row,
+    required this.date,
+    required this.balanceAfter,
+    required this.onTap,
+  });
+  final RegisterRow row;
+  final DateTime date;
+  final int balanceAfter;
+  final VoidCallback onTap;
+
+  @override
+  State<_BillLine> createState() => _BillLineState();
+}
+
+class _BillLineState extends State<_BillLine> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.row;
+    final b = widget.balanceAfter;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        key: const ValueKey('forecast-bill-line'),
+        onTap: widget.onTap,
+        child: Container(
+          color: _hover ? Mid.chip : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 44,
+                child: Text(
+                  shortDate(widget.date),
+                  style: onest(12.5, color: Mid.ink3, tabular: true),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  r.kind == RowKind.transfer
+                      ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
+                      : r.payee,
+                  style: onest(13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 104,
+                child: Text(
+                  '${r.amount > 0 ? '+' : ''}${formatMoney(r.amount.abs(), showCents: false)}',
+                  textAlign: TextAlign.right,
+                  style: onest(
+                    13,
+                    color: r.amount > 0 ? Mid.green : Mid.ink,
+                    tabular: true,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 110,
+                child: Text(
+                  '${b < 0 ? '−' : ''}₮${formatWhole(b)}',
+                  textAlign: TextAlign.right,
+                  style: onest(
+                    12.5,
+                    color: b < 0 ? Mid.coral : Mid.ink3,
+                    tabular: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Where things sit on the chart; shared by the painter and the dot targets.
 class _ChartGeometry {
@@ -739,15 +1022,14 @@ class _ForecastPainter extends CustomPainter {
         Paint()..color = Mid.green.withValues(alpha: 0.5),
       );
     }
-    _label(canvas, 'Today', Offset(0, h + 6), Mid.ink3);
-    final endLabel = f.payday != null
-        ? '${shortDate(f.end)} ${f.payday!.categoryLabel}'
-        : shortDate(f.end);
+    // Just the dates the chart spans. The headline already says what ends it,
+    // and hovering the end date shows that income.
+    _label(canvas, shortDate(f.start), Offset(0, h + 6), Mid.ink3);
     _label(
       canvas,
-      endLabel,
+      shortDate(f.end),
       Offset(w, h + 6),
-      f.payday != null ? Mid.green : Mid.ink3,
+      Mid.ink3,
       alignRight: true,
     );
   }

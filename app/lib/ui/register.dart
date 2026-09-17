@@ -31,6 +31,7 @@ class RegisterActions {
     required this.onClearSelection,
     required this.onEdit,
     required this.onCancelEdit,
+    required this.onUnreconcile,
   });
 
   final ValueChanged<RegisterFilter> onFilter;
@@ -45,6 +46,9 @@ class RegisterActions {
   final VoidCallback onClearSelection;
   final ValueChanged<RegisterRow> onEdit;
   final VoidCallback onCancelEdit;
+
+  /// Takes back the reconcile that locked this row (the account's latest).
+  final ValueChanged<RegisterRow> onUnreconcile;
 }
 
 /// The transaction open for editing, if any.
@@ -73,7 +77,12 @@ class RegisterPanel extends StatelessWidget {
     this.adding = false,
     this.onCloseEntry,
     this.addButton,
+    this.reconcileThrough,
   });
+
+  /// Reconciling: only rows not yet reconciled, dated on or before this
+  /// statement date, so they can be ticked off against it.
+  final DateTime? reconcileThrough;
 
   /// Opens the new-transaction row; sits at the end of the tab row, above
   /// where the row opens.
@@ -122,13 +131,19 @@ class RegisterPanel extends StatelessWidget {
       RegisterFilter.reconciled => Cleared.reconciled,
       _ => null,
     };
+    final through = reconcileThrough;
     final visiblePosted = posted.reversed
-        .where((r) => status == null || r.cleared == status)
+        .where(
+          (r) => through == null
+              ? status == null || r.cleared == status
+              : r.cleared != Cleared.reconciled && !r.date.isAfter(through),
+        )
         .where(_matches)
         .toList();
     final visibleScheduled = scheduled.where(_matches).toList();
-    final showScheduled = filter == RegisterFilter.scheduled;
+    final showScheduled = through == null && filter == RegisterFilter.scheduled;
     final showNext =
+        through == null &&
         filter == RegisterFilter.all &&
         visibleScheduled.isNotEmpty &&
         search.isEmpty;
@@ -239,12 +254,17 @@ class RegisterPanel extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: _Tabs(
-                      filter: filter,
-                      uncleared: uncleared,
-                      scheduled: scheduled.length,
-                      onFilter: actions.onFilter,
-                    ),
+                    child: through != null
+                        ? Text(
+                            'Not reconciled, through ${fullDate(through)}',
+                            style: onest(13, color: Mid.ink2),
+                          )
+                        : _Tabs(
+                            filter: filter,
+                            uncleared: uncleared,
+                            scheduled: scheduled.length,
+                            onFilter: actions.onFilter,
+                          ),
                   ),
                   ?addButton,
                 ],
@@ -373,9 +393,9 @@ class _Tab extends StatelessWidget {
           children: [
             Text(label, style: onest(13, color: active ? Mid.ink : Mid.ink3)),
             if (count != null && count! > 0) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Text(
-                '$count',
+                '($count)',
                 style: onest(11.5, color: Mid.ink3, tabular: true),
               ),
             ],
@@ -408,6 +428,17 @@ class _RowActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = row;
     final locked = r.cleared == Cleared.reconciled;
+    final clearButton = r.cleared == Cleared.uncleared
+        ? BarButton(
+            label: 'Mark cleared',
+            leading: const StatusGlyph(Cleared.cleared),
+            onTap: () => actions.onToggleCleared(r),
+          )
+        : BarButton(
+            label: 'Mark uncleared',
+            leading: const StatusGlyph(Cleared.uncleared),
+            onTap: () => actions.onToggleCleared(r),
+          );
     // Taps between the buttons mustn't reach the row and deselect it.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -422,16 +453,37 @@ class _RowActions extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (locked)
+            if (locked) ...[
               Padding(
-                padding: const EdgeInsets.only(left: 10),
+                padding: const EdgeInsets.only(left: 10, right: 12),
                 child: Text(
-                  'Reconciled · locked because it matches a bank statement',
+                  r.reconciledOn == null
+                      ? 'Reconciled · locked because it matches a bank statement'
+                      : 'Reconciled on ${shortDate(r.reconciledOn!)} · locked because it matches that statement',
                   style: onest(13, color: Mid.ink3),
                 ),
-              )
-            else ...[
-              _BarButton(
+              ),
+              // Only the newest reconcile comes undone, so they unwind in
+              // order and every older lock still matches its statement.
+              if (r.latestReconcile)
+                BarButton(
+                  key: const ValueKey('unreconcile'),
+                  label: 'Undo this reconcile',
+                  onTap: () => actions.onUnreconcile(r),
+                ),
+            ]
+            // This side of a transfer can still clear; the rest is locked.
+            else if (r.lockedIn != null) ...[
+              clearButton,
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  'Locked · reconciled in ${r.lockedIn}',
+                  style: onest(13, color: Mid.ink3),
+                ),
+              ),
+            ] else ...[
+              BarButton(
                 label: 'Edit',
                 leading: const Icon(
                   Icons.edit_rounded,
@@ -444,26 +496,15 @@ class _RowActions extends StatelessWidget {
                 CategoryMenu(
                   categories: categories,
                   onPicked: (c) => actions.onSetCategory(r, c),
-                  builder: (open, toggle) => _BarButton(
+                  builder: (open, toggle) => BarButton(
                     label: 'Categorize',
                     trailing: Icons.keyboard_arrow_down_rounded,
                     active: open,
                     onTap: toggle,
                   ),
                 ),
-              if (!r.scheduled)
-                r.cleared == Cleared.uncleared
-                    ? _BarButton(
-                        label: 'Mark cleared',
-                        leading: const StatusGlyph(Cleared.cleared),
-                        onTap: () => actions.onToggleCleared(r),
-                      )
-                    : _BarButton(
-                        label: 'Mark uncleared',
-                        leading: const StatusGlyph(Cleared.uncleared),
-                        onTap: () => actions.onToggleCleared(r),
-                      ),
-              _BarButton(
+              if (!r.scheduled) clearButton,
+              BarButton(
                 label: 'Delete',
                 color: Mid.coral,
                 onTap: () => actions.onDelete(r),
@@ -488,8 +529,10 @@ class _RowActions extends StatelessWidget {
   }
 }
 
-class _BarButton extends StatelessWidget {
-  const _BarButton({
+/// An outlined button, so it reads as a button and not a label.
+class BarButton extends StatelessWidget {
+  const BarButton({
+    super.key,
     required this.label,
     required this.onTap,
     this.leading,

@@ -42,10 +42,14 @@ class EntryData {
     required this.accountId,
     required this.amount,
     this.cleared = Cleared.uncleared,
+    this.reconciliationId,
   });
 
   final int id;
   final int accountId;
+
+  /// The reconcile that locked this entry.
+  final int? reconciliationId;
 
   /// Signed minor units from the perspective of [accountId].
   final int amount;
@@ -74,11 +78,13 @@ class TxnData {
 
 class Reconciliation {
   const Reconciliation({
+    this.id = 0,
     required this.accountId,
     required this.statementDate,
     required this.balance,
   });
 
+  final int id;
   final int accountId;
   final DateTime statementDate;
   final int balance;
@@ -99,6 +105,9 @@ class RegisterRow {
     required this.categoryId,
     required this.splitLines,
     this.txnPayee,
+    this.lockedIn,
+    this.reconciledOn,
+    this.latestReconcile = false,
     this.balance = 0,
   });
 
@@ -120,7 +129,20 @@ class RegisterRow {
   /// The payee as stored. [payee] is what the row shows, which for a
   /// transfer is the other account.
   final String? txnPayee;
+
+  /// A transfer reconciled on the other account's side: this side can still
+  /// be cleared, but not edited or deleted. Names that account.
+  final String? lockedIn;
+
+  /// The statement date of the reconcile that locked this row, if known.
+  final DateTime? reconciledOn;
+
+  /// Locked by the account's most recent reconcile, which can be taken back.
+  final bool latestReconcile;
   final int balance;
+
+  /// Can't be edited or deleted, from either side.
+  bool get locked => cleared == Cleared.reconciled || lockedIn != null;
 
   bool get isIncome => kind == RowKind.simple && amount > 0;
 
@@ -138,6 +160,9 @@ class RegisterRow {
     categoryId: categoryId,
     splitLines: splitLines,
     txnPayee: txnPayee,
+    lockedIn: lockedIn,
+    reconciledOn: reconciledOn,
+    latestReconcile: latestReconcile,
     balance: b,
   );
 }
@@ -191,6 +216,34 @@ class LedgerData {
     return sum;
   }
 
+  /// [accountId]'s most recent reconcile; with [lockedRows], the most recent
+  /// that locked any, which is the one taken back first.
+  Reconciliation? latestReconciliation(
+    int accountId, {
+    bool lockedRows = false,
+  }) {
+    final used = lockedRows
+        ? {
+            for (final t in txns)
+              for (final e in t.entries)
+                if (e.reconciliationId != null) e.reconciliationId,
+          }
+        : null;
+    final recs =
+        reconciliations
+            .where(
+              (r) =>
+                  r.accountId == accountId &&
+                  (used == null || used.contains(r.id)),
+            )
+            .toList()
+          ..sort((a, b) {
+            final c = a.statementDate.compareTo(b.statementDate);
+            return c != 0 ? c : a.id.compareTo(b.id);
+          });
+    return recs.lastOrNull;
+  }
+
   AccountSummary summaryFor(int accountId) {
     var working = 0, cleared = 0, unclearedCount = 0;
     for (final t in txns) {
@@ -203,14 +256,28 @@ class LedgerData {
         }
       }
     }
-    final recs = reconciliations.where((r) => r.accountId == accountId).toList()
-      ..sort((a, b) => a.statementDate.compareTo(b.statementDate));
     return AccountSummary(
       working: working,
       cleared: cleared,
       unclearedCount: unclearedCount,
-      reconciledOn: recs.isEmpty ? null : recs.last.statementDate,
+      reconciledOn: latestReconciliation(accountId)?.statementDate,
     );
+  }
+
+  /// What the bank should show on [date] if the cleared rows are right:
+  /// cleared and reconciled entries dated on or before it.
+  ({int balance, int toLock}) clearedThrough(int accountId, DateTime date) {
+    var balance = 0, toLock = 0;
+    final through = dateOnly(date);
+    for (final t in txns) {
+      if (t.scheduled || t.date.isAfter(through)) continue;
+      for (final e in t.entries.where((e) => e.accountId == accountId)) {
+        if (e.cleared == Cleared.uncleared) continue;
+        balance += e.amount;
+        if (e.cleared == Cleared.cleared) toLock++;
+      }
+    }
+    return (balance: balance, toLock: toLock);
   }
 
   /// Posted rows oldest first with running balances, and scheduled rows
@@ -272,7 +339,14 @@ class LedgerData {
       label = '${others.length} categories';
     }
 
+    final rec = e.reconciliationId == null
+        ? null
+        : reconciliations.where((r) => r.id == e.reconciliationId).firstOrNull;
     return RegisterRow(
+      reconciledOn: rec?.statementDate,
+      latestReconcile:
+          rec != null &&
+          latestReconciliation(e.accountId, lockedRows: true)?.id == rec.id,
       txnId: t.id,
       entryId: e.id,
       date: t.date,
@@ -286,6 +360,14 @@ class LedgerData {
       categoryId: categoryId,
       splitLines: lines,
       txnPayee: t.payee,
+      lockedIn: e.cleared == Cleared.reconciled
+          ? null
+          : others
+                .where((o) => o.cleared == Cleared.reconciled)
+                .map((o) => accounts[o.accountId]!)
+                .where((a) => a.isBalanceSheet)
+                .firstOrNull
+                ?.name,
     );
   }
 }
