@@ -270,7 +270,11 @@ class _EntryRowState extends State<EntryRow> {
   /// Turns a transfer around: the `+` that means money in comes or goes.
   void _swapDirection() {
     final raw = _amount.text.trim();
-    _amount.text = raw.startsWith('+') ? raw.substring(1) : '+$raw';
+    final text = raw.startsWith('+') ? raw.substring(1) : '+$raw';
+    _amount.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
   }
 
   /// Required fields still empty, in reading order. Order of entry is the
@@ -283,7 +287,9 @@ class _EntryRowState extends State<EntryRow> {
       (name: 'payee', focus: _payeeFocus),
     if (_category.text.trim().isEmpty && !(_initial?.lockCategory ?? false))
       (name: 'category', focus: _categoryFocus),
-    if (_amount.text.trim().isEmpty && !(_initial?.lockAmount ?? false))
+    // A bare `+` (Swap before any amount) is still no amount.
+    if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
+        !(_initial?.lockAmount ?? false))
       (name: 'amount', focus: _amountFocus),
   ];
 

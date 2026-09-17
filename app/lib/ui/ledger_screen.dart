@@ -585,6 +585,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } on NotFoundException catch (e) {
       _showToast('Can’t move · ${e.message}');
       return;
+    } catch (e) {
+      debugPrint('Move failed: $e');
+      _showToast('Couldn’t move it');
+      return;
     }
     _clearSelection();
     final name = r.kind == RowKind.transfer
@@ -611,14 +615,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
         confirmButtonText: 'Back Up',
       );
     } catch (e) {
-      _showToast('Couldn’t open the save dialog: $e');
+      debugPrint('Save dialog failed: $e');
+      _showToast('Couldn’t open the save dialog');
       return;
     }
     if (location == null) return;
     try {
       await Backups(db).saveTo(location.path, now);
     } catch (e) {
-      _showToast('Couldn’t back up: $e');
+      debugPrint('Back up failed: $e');
+      _showToast('Couldn’t back up · check the drive has room and try again');
       return;
     }
     final name = location.path.split(RegExp(r'[/\\]')).last;

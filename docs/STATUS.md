@@ -11,8 +11,9 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main` (through PR #5) and nothing is
-uncommitted. Keep the pattern: branch, commit, PR, merge.
+**Git state:** `main` has everything through PR #5. Branch `ledger-findings-f-n`
+holds findings H, I, K, M and N plus fixes from their review passes (see Next step);
+not merged yet. Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -28,13 +29,15 @@ Visual direction and the register's UX rules are settled in
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
 | Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
-| Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
+| Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
 | Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today and says so) |
+| Move to | "Move to" in a row's action bar moves this account's side to another account (entered in the wrong one); it arrives uncleared there; not on reconciled rows, opening balances or adjustments, or onto a transfer's own other side (enforced in the database); undoes with its cleared state |
+| Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database, newest 14 kept, written under a temporary name and renamed once complete. "Back up to…" under Net worth saves a copy wherever the user picks. No restore yet |
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 67: money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 87: moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -50,7 +53,7 @@ scheduled items.
 - Adding, renaming or archiving **accounts and categories** (seed data only).
 - **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
-- **Backup/restore, CSV export, app lock.**
+- **Restore** from a backup, CSV export, app lock.
 - **Mongolian UI strings** (the UI is English; payees are Cyrillic), **mobile layout**,
   Windows build (scaffolded, never built), a real app icon.
 - **CI.** Nothing runs tests on pull requests.
@@ -101,7 +104,13 @@ digits, in the current account only.
 **Questions to settle:** one smart box with a syntax, or a box plus filter chips? What
 does the header's forecast show while results span several accounts?
 
-### 2. Sorting
+### 2. Cash accounts (owner, 2026-09-17: "not yet")
+
+From budget-app finding F: cash entries saved as cleared, and "Count" instead of
+Reconcile, with the difference posted to a category the user picks. Needs the account
+type from accounts management. Until then Cash wallet uses the bank flow.
+
+### 3. Sorting
 
 **Today:** newest first, fixed.
 
@@ -143,9 +152,42 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Nothing in flight.** The owner is starting a new conversation; ask what they want
-next. Candidates: the remaining review findings (F–N below), the tabled items, search
-and sorting on the roadmap, CI, the SQLCipher spike.
+**Waiting on the owner:** pick designs for **G** (stale items) and **L** (confirming a
+bill whose amount differs), and decide the backup follow-ups below. Then merge
+`ledger-findings-f-n`.
+
+**Branch `ledger-findings-f-n` (2026-09-17):** the owner said "do it" to H, I, K and
+"fix it" to M and N. 87 tests, analyze clean, checked in the macOS app (its first
+daily copy was made from the owner's file). ADR 0004 rules 17–19.
+
+- **H.** A transfer says which way it goes, with Swap.
+- **I.** Move to.
+- **K.** Daily copies and "Back up to…". **"Back up to…" hasn't been clicked through
+  in the sandboxed app yet**: the owner should save one to the Desktop and to a USB
+  stick.
+- **M.** Register, summary and reconcile lookups are worked out once per ledger
+  load (a 20,000-row register went from 5.4 s to well under 1 s).
+- **N.** The test gaps listed below, all filled.
+- **Fixed from the review passes:** a backup cut short no longer counts as the day's
+  copy; the database refuses moving opening balances and adjustments; Swap before an
+  amount still asks for one; unexpected errors show a short toast; cached register
+  lists can't be reordered.
+
+**Raised by the reviews, for the owner to decide** (budget-app expert unless marked):
+- **Restore.** Copying a backup over the data file by hand leaves the `-wal` file,
+  which can corrupt it. Recommended: "Restore from…" that backs up the current file
+  first and shows the copy's date and transaction count.
+- **A daily copy that fails says nothing.** Recommended: the Back up line reads
+  "Daily copy failed" when the newest copy is over 2 days old.
+- **Keep monthly copies too** (14 daily plus 12 monthly), for mistakes found late.
+- **Remind about copies elsewhere**: "Last copied elsewhere 41 days ago" past 30 days.
+- **Backups are unencrypted.** The SQLCipher work must re-encrypt or remove them.
+- **Moving into Cash wallet** leaves the row uncleared with no statement to clear it
+  (ties to F). **A "Show" button** on the move toast to go to the other account.
+- **Refunds typed without `+`** double-count; e.g. prefill `+` when the payee's last
+  transaction was money in.
+- (code) "Back up to…" overwriting a file can't be atomic in the sandbox; a pulled USB
+  stick leaves that file broken. Accepted and noted in `backup.dart`.
 
 **PR #5 (merged, 2026-09-17):** the owner's calls on review findings A–E, plus row
 striping. 67 tests pass, `flutter analyze` is clean, checked in the macOS app. Rules are
@@ -202,24 +244,23 @@ action in the real app hasn't been tried yet.
 From the budget-app expert, unless marked (code) for the code reviewer. Each has
 options; recommendations in brackets. A–E were decided and built (see Next step).
 
-- **F. Cash accounts go through the bank flow.** Save cash entries as cleared, and
-  "Count" instead of Reconcile, with the difference posted to a category the user picks.
-- **G. Stale items skew Working.** Overdue scheduled rows are left out; old uncleared
+- **F. Cash accounts go through the bank flow.** Owner: not yet; on the roadmap (§2).
+- **G. Stale items skew Working.** Owner likes it; design options offered. Overdue scheduled rows are left out; old uncleared
   rows are left in. Say "due 5 days ago" / "not cleared for 34 days" on the row.
-- **H. A transfer entered from the receiving account goes the wrong way.** Show the
+- **H. A transfer entered from the receiving account goes the wrong way.** Built on the branch. Show the
   direction as a sentence before Add ("₮640,200 from Golomt Visa to TDB Checking").
-- **I. Moving a transaction to another account** means deleting and retyping it.
+- **I. Moving a transaction to another account** meant deleting and retyping it. Built on the branch:
   "Move to…" in the action bar.
 - **J. Undoing a reconcile in a later session throws away the statement balance.**
   Keep undone statements and offer the old balance. Recommended: leave it for now.
-- **K. Backups beyond upgrades.** Rolling automatic copies, and a "Back up to…"
+- **K. Backups beyond upgrades.** Built on the branch: Rolling automatic copies, and a "Back up to…"
   command before any real user.
-- **L. Smaller:** Confirm always posts the scheduled amount (varying bills); no
+- **L. Smaller:** Owner: bills vary, allow changes on confirm; design options offered. Confirm always posts the scheduled amount (varying bills); no
   duplicate warning for the same payee, amount and day.
-- **M. (code) The register rebuild is slow for big files.** Every row looks up the
+- **M. (code) The register rebuild is slow for big files.** Fixed on the branch. Every row looks up the
   latest reconcile across all transactions, on every keystroke in search. Fine for demo
   data; fix before import.
-- **N. (code) Test gaps:** redo for add, edit, categorize and delete; undo for add and
+- **N. (code) Test gaps** (filled on the branch): redo for add, edit, categorize and delete; undo for add and
   categorize; switching account mid-reconcile; Ctrl+Y on Windows; liability reconcile
   (sign flip) in the database.
 

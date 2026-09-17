@@ -384,16 +384,17 @@ class LedgerData {
     posted.sort(byDate);
     scheduled.sort(byDate);
     var bal = 0, clr = 0;
-    final withBal = [
+    final withBal = List<RegisterRow>.unmodifiable([
       for (final r in posted)
         r.withBalance(
           bal += r.amount,
           clearedTotal: r.cleared == Cleared.uncleared ? clr : clr += r.amount,
         ),
-    ];
-    final projected = [
+    ]);
+    // Kept and handed out on every rebuild, so nobody may reorder them.
+    final projected = List<RegisterRow>.unmodifiable([
       for (final r in scheduled) r.withBalance(bal += r.amount),
-    ];
+    ]);
     return (posted: withBal, scheduled: projected);
   }
 

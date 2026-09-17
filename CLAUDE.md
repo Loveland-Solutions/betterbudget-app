@@ -28,7 +28,8 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   every cleared-symbol click (toasts are for saved changes; ⌘Z undoes anything), and
   an income name under the forecast's end date (both ends show plain dates), a bank
   balance prefilled with the cleared total, reconciled rows whose payee couldn't be
-  fixed, and a row hover as faint as the row stripe.
+  fixed, a row hover as faint as the row stripe, and a separate cash-account counting
+  flow (not wanted yet; on the roadmap).
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.
@@ -41,7 +42,8 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
   `forecast.dart`.
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
-  `dart run build_runner build`), plus `demo_seed.dart`.
+  `dart run build_runner build`), `backup.dart` (daily copies, "Back up to…"),
+  plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
   (state, selection, row actions, toasts), `balance_header.dart` (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`

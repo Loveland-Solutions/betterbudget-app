@@ -1211,6 +1211,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('transfer-swap')));
     await tester.pump();
     expect(find.widgetWithText(TextField, '640200'), findsOneWidget);
+
+    // Swap before any amount still needs one.
+    await tester.enterText(find.widgetWithText(TextField, '640200'), '');
+    await tester.tap(find.byKey(const ValueKey('transfer-swap')));
+    await tester.pump();
+    expect(find.text('From Golomt Visa to TDB Checking'), findsOneWidget);
+    expect(find.text('needs payee'), findsNothing); // transfers need none
+    expect(find.text('needs amount'), findsOneWidget);
     await tidy(tester, db);
   });
 

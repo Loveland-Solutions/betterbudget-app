@@ -49,8 +49,20 @@ class Backups {
       return null;
     }
     await dir.create(recursive: true);
+    // Leftovers from a copy cut short (the app quit mid-way) are useless.
+    for (final f in dir.listSync().whereType<File>()) {
+      if (f.path.endsWith('.tmp')) await f.delete();
+    }
+    // Written under a temporary name and renamed once complete, so a copy
+    // cut short never passes for today's backup.
     final file = File('${dir.path}/$_prefix${fileStamp(now)}.sqlite');
-    await db.copyTo(file.path);
+    final temp = File('${file.path}.tmp');
+    try {
+      await db.copyTo(temp.path);
+      await temp.rename(file.path);
+    } finally {
+      if (temp.existsSync()) await temp.delete();
+    }
     for (final old in (await automatic()).skip(keep)) {
       await old.delete();
     }
@@ -59,7 +71,10 @@ class Backups {
 
   /// A copy saved to [destination], replacing a file already there. SQLite
   /// writes it in the app's folder first, then it's copied over, so only
-  /// the one file the user picked is touched outside the app.
+  /// the one file the user picked is touched outside the app. The sandbox
+  /// grants only that file, not its folder, so it can't be written under
+  /// another name and renamed: a copy cut short (a USB stick pulled out)
+  /// leaves that file broken.
   Future<void> saveTo(String destination, DateTime now) async {
     final dir = await folder();
     if (dir == null) throw StateError('No database file to back up');

@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  // The copies are opened as second databases to read them back.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   final today = DateTime(2026, 9, 16, 9, 30);
   late Directory dir;
   late AppDatabase db;
@@ -68,6 +72,17 @@ void main() {
     expect(await transactionsIn(target), (await db.loadLedger()).txns.length);
     // Nothing left behind in the app's folder but the (empty) Backups folder.
     expect(Directory('${dir.path}/Backups').listSync(), isEmpty);
+  });
+
+  test('a copy cut short is cleaned up and does not count', () async {
+    final backups = Backups(db, keep: 3);
+    final folder = (await backups.folder())!..createSync();
+    File('${folder.path}/betterbudget-20260916-080000.sqlite.tmp')
+        .writeAsStringSync('half a copy');
+    expect(await backups.automaticIfDue(today), isNotNull);
+    expect(folder.listSync().map((f) => f.path.split('/').last), [
+      'betterbudget-20260916-093000.sqlite',
+    ]);
   });
 
   test('an in-memory database has nothing to back up', () async {

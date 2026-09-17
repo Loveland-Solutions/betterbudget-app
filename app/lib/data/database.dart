@@ -743,6 +743,10 @@ class AppDatabase extends _$AppDatabase {
     )..where((e) => e.transactionId.equals(transactionId))).get();
     final mine = rows.where((e) => e.accountId == fromAccountId).toList();
     if (mine.length != 1) throw NotFoundException('Not in this account');
+    // An opening balance or a reconcile adjustment belongs to its account.
+    if (rows.any((e) => types[e.accountId] == AccountType.equity)) {
+      throw LockedException('An opening balance or adjustment stays put');
+    }
     if (rows.any((e) => e.accountId == toAccountId)) {
       throw LockedException('It already moves money in that account');
     }

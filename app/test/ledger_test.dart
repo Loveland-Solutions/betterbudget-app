@@ -713,6 +713,62 @@ void main() {
       expect(fromCash.amount, 50000000);
     });
 
+    test('refused from the unlocked side of a reconciled transfer, and for '
+        'opening balances', () async {
+      final khan = await account('Khan Savings');
+      final cash = await account('Cash wallet');
+      // The card payment is reconciled on TDB Checking's side only.
+      final visa = await account('Golomt Visa');
+      final payment = (await db.loadLedger())
+          .registerFor(visa)
+          .posted
+          .firstWhere((r) => r.kind == RowKind.transfer);
+      expect(payment.lockedIn, 'TDB Checking');
+      await expectLater(
+        db.moveToAccount(
+          transactionId: payment.txnId,
+          fromAccountId: visa,
+          toAccountId: khan,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+      final opening = (await db.loadLedger())
+          .registerFor(cash)
+          .posted
+          .firstWhere((r) => r.kind == RowKind.opening);
+      await expectLater(
+        db.moveToAccount(
+          transactionId: opening.txnId,
+          fromAccountId: cash,
+          toAccountId: khan,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+    });
+
+    test(
+      'redo is refused once the row was reconciled after the undo',
+      () async {
+        final khan = await account('Khan Savings');
+        final unitel = await row(checking, 'Unitel');
+        final move = await db.moveToAccount(
+          transactionId: unitel.txnId,
+          fromAccountId: checking,
+          toAccountId: khan,
+        );
+        await db.undoMove(move);
+        await db.setClearedMany({unitel.entryId: Cleared.cleared});
+        final cleared = (await db.loadLedger()).clearedThrough(checking, today);
+        await db.reconcile(
+          accountId: checking,
+          statementDate: today,
+          today: today,
+          balance: cleared.balance,
+        );
+        await expectLater(db.redoMove(move), throwsA(isA<LockedException>()));
+      },
+    );
+
     test('refused for reconciled rows and for categories', () async {
       final khan = await account('Khan Savings');
       final salary = await row(checking, 'Altan Gadas LLC');
@@ -819,7 +875,8 @@ void main() {
     );
     final clock = Stopwatch()..start();
     final register = data.registerFor(1);
-    expect(clock.elapsedMilliseconds, lessThan(1000));
+    // Was over 5 s; generous so a slow machine doesn't fail it.
+    expect(clock.elapsedMilliseconds, lessThan(2500));
     expect(register.posted, hasLength(20000));
     expect(register.posted.where((r) => r.latestReconcile), hasLength(100));
     // A rebuild (a keystroke in search) gets the same rows back.

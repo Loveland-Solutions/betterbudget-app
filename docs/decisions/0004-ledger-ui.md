@@ -260,6 +260,27 @@ be quietly undone.
     forecast dots do nothing while a reconcile is open (the register hides scheduled
     rows then).
 
+17. **A transfer says which way it goes before it's added** (owner's call, from
+    budget-app review finding H). While the category is "→ Account", a line under
+    category and amount, level with the memo line, reads "₮640,200.00 from TDB
+    Checking to Golomt Visa", and "Swap" turns it around (it adds or removes the
+    `+`). The category reads "→ Golomt Visa" whichever way the money goes, so a
+    transfer entered from the receiving account used to go the wrong way unnoticed.
+    Editing a transfer shows the same line; on a reconciled one there's no Swap.
+18. **"Move to" fixes a transaction entered in the wrong account** (owner's call,
+    finding I). It sits in the row's action bar, after clearing, and lists the other
+    accounts. Only this account's side moves; date, amount, payee and category stay.
+    **The moved side starts uncleared**, because the other bank hasn't been checked,
+    and the toast says so ("· uncleared there until it clears"). Not offered on
+    reconciled rows (either side), opening balances, or onto a transfer's own other
+    side. ⌘Z puts it back as it was, cleared state included.
+19. **Backups stay on this machine** (owner's call, finding K). Once a day, when the
+    app opens (and hourly while it stays open), a copy goes to `Backups/` beside the
+    database; the newest 14 are kept. **"Back up to…" sits under Net worth** in the
+    sidebar and saves a copy wherever the user picks (another drive, a USB stick),
+    with a save dialog; the toast names the file. No restore command yet, and the
+    automatic copies share a disk with the data, which is why "Back up to…" exists.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer
