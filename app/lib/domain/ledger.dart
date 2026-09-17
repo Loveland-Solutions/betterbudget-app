@@ -185,6 +185,32 @@ class RegisterRow {
   );
 }
 
+/// Uncleared this long, a row says so: longer than a card hold usually
+/// lasts, so it may never have happened (cancelled, or entered twice), yet it
+/// still counts in Working.
+const staleUnclearedDays = 14;
+
+/// Whole days from [date] to [today].
+int daysBefore(DateTime date, DateTime today) =>
+    dateOnly(today).difference(dateOnly(date)).inDays;
+
+/// "not cleared for 34 days", on an uncleared row that old; otherwise null.
+String? staleNote(RegisterRow r, DateTime today) {
+  if (r.scheduled || r.cleared != Cleared.uncleared) return null;
+  final days = daysBefore(r.date, today);
+  return days >= staleUnclearedDays ? 'not cleared for $days days' : null;
+}
+
+/// "due 7 days ago" on a scheduled row past its date, which isn't in
+/// Working until it's confirmed; otherwise null.
+String? overdueNote(RegisterRow r, DateTime today) {
+  if (!r.scheduled) return null;
+  final days = daysBefore(r.date, today);
+  return days <= 0
+      ? null
+      : (days == 1 ? 'due yesterday' : 'due $days days ago');
+}
+
 enum ReconcileCause { notCleared, datedAfter, clearedEarly }
 
 typedef ReconcileHint = ({

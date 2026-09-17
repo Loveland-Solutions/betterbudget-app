@@ -709,6 +709,10 @@ class AppDatabase extends _$AppDatabase {
   /// side) and [counterAccountId] apply only to two-entry transactions; a
   /// split keeps its lines. Reconciled transactions are locked. A posted
   /// transaction moved into the future becomes scheduled.
+  ///
+  /// With [confirm], a scheduled transaction is confirmed in the same write,
+  /// with whatever amount and date it really had (bills vary). Confirming
+  /// means it happened, so the date can't be after [today].
   Future<void> editTransaction({
     required int transactionId,
     required int accountId,
@@ -718,8 +722,12 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     int? counterAccountId,
     int? amount,
+    bool confirm = false,
   }) {
     return transaction(() async {
+      if (confirm && dateOnly(date).isAfter(dateOnly(today))) {
+        throw LockedException('It can’t be confirmed on a future date');
+      }
       final header = await (select(
         transactions,
       )..where((t) => t.id.equals(transactionId))).getSingle();
@@ -755,7 +763,8 @@ class AppDatabase extends _$AppDatabase {
           payeeId: Value(await _payeeId(payee)),
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(
-            header.scheduled || dateOnly(date).isAfter(dateOnly(today)),
+            !confirm &&
+                (header.scheduled || dateOnly(date).isAfter(dateOnly(today))),
           ),
           updatedAt: Value(_now),
         ),

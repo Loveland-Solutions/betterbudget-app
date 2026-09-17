@@ -883,6 +883,85 @@ void main() {
     expect(identical(data.registerFor(1), register), isTrue);
   });
 
+  test(
+    'confirming with a different amount and date posts what happened',
+    () async {
+      final rent = (await db.loadLedger())
+          .registerFor(checking)
+          .scheduled
+          .first;
+      final before = await db.snapshot(rent.txnId);
+      await expectLater(
+        db.editTransaction(
+          transactionId: rent.txnId,
+          accountId: checking,
+          date: DateTime(2026, 9, 17),
+          today: today,
+          amount: -185000000,
+          confirm: true,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+      await db.editTransaction(
+        transactionId: rent.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 15),
+        today: today,
+        payee: rent.payee,
+        memo: rent.memo,
+        amount: -185000000,
+        confirm: true,
+      );
+      final ledger = await db.loadLedger();
+      final posted = ledger
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == rent.txnId);
+      expect(posted.amount, -185000000);
+      expect(posted.date, DateTime(2026, 9, 15));
+      expect(posted.categoryLabel, 'Housing');
+      expect(ledger.registerFor(checking).scheduled, hasLength(3));
+      await db.restoreSnapshot(before);
+      final back = (await db.loadLedger())
+          .registerFor(checking)
+          .scheduled
+          .first;
+      expect(
+        (back.txnId, back.amount, back.date),
+        (rent.txnId, -180000000, rent.date),
+      );
+    },
+  );
+
+  test('old uncleared and overdue scheduled rows get a note', () {
+    RegisterRow row(
+      DateTime date, {
+      bool scheduled = false,
+      Cleared c = Cleared.uncleared,
+    }) => RegisterRow(
+      txnId: 1,
+      entryId: 1,
+      date: date,
+      payee: 'X',
+      memo: '',
+      amount: -100,
+      cleared: c,
+      scheduled: scheduled,
+      kind: RowKind.simple,
+      categoryLabel: 'Y',
+      categoryId: 2,
+      splitLines: const [],
+    );
+    DateTime ago(int d) => today.subtract(Duration(days: d));
+    expect(staleNote(row(ago(13)), today), isNull);
+    expect(staleNote(row(ago(14)), today), 'not cleared for 14 days');
+    expect(staleNote(row(ago(40), c: Cleared.cleared), today), isNull);
+    expect(overdueNote(row(today, scheduled: true), today), isNull);
+    expect(overdueNote(row(ago(1), scheduled: true), today), 'due yesterday');
+    expect(overdueNote(row(ago(7), scheduled: true), today), 'due 7 days ago');
+    expect(overdueNote(row(ago(7)), today), isNull);
+  });
+
   group('editing', () {
     Future<RegisterRow> row(String payee) async => (await db.loadLedger())
         .registerFor(checking)

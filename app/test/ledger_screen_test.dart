@@ -259,15 +259,36 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('confirming early posts today and says so', (tester) async {
+  testWidgets('Confirm opens the bill to check its amount; early posts today', (
+    tester,
+  ) async {
     final db = await pumpLedger(tester);
+    await tester.tap(find.text('Confirm'));
+    await tester.pump();
+    await tester.pump();
+    // Dated today (it happened now), the amount selected, ready to change.
+    final focused = tester.widget<EditableText>(
+      find.byWidgetPredicate((w) => w is EditableText && w.focusNode.hasFocus),
+    );
+    expect(focused.controller.text, '1800000');
+    expect(focused.controller.selection.extentOffset, 7);
+    expect(find.widgetWithText(TextField, '2026.09.16'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget); // the row's button
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_open.png'),
+    );
+    tester.testTextInput.enterText('1850000');
+    await tester.pump();
     await tester.runAsync(() async {
-      await tester.tap(find.text('Confirm'));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
     expect(
-      find.text('Zaisan Residence confirmed early · posted today, 09.16'),
+      find.text(
+        'Zaisan Residence confirmed early · ₮1,850,000, planned ₮1,800,000 · posted today, 09.16',
+      ),
       findsOneWidget,
     );
     final box = tester.widget<Container>(
@@ -283,7 +304,8 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/confirm_early.png'),
     );
-    // Confirm can be undone like everything else: it goes back to scheduled.
+    // Confirm can be undone like everything else: back to scheduled, and
+    // back to its planned amount.
     await tester.runAsync(() async {
       await tester.tap(find.text('Undo'));
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -298,12 +320,20 @@ void main() {
     tester,
   ) async {
     final db = await pumpLedger(tester);
+    await tester.tap(find.text('Confirm'));
+    await tester.pump();
+    await tester.pump();
     await tester.runAsync(() async {
-      await tester.tap(find.text('Confirm'));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    expect(find.textContaining('Zaisan Residence confirmed'), findsOneWidget);
+    expect(
+      find.text(
+        'Zaisan Residence confirmed early · ₮1,800,000 · posted today, 09.16',
+      ),
+      findsOneWidget,
+    );
 
     // A quiet change after it: the confirm toast is still up.
     await tester.tap(
@@ -1463,6 +1493,55 @@ void main() {
       await tidy(tester, db);
       await tester.runAsync(() => dir.delete(recursive: true));
     });
+  });
+
+  testWidgets('old items say why Working may be off', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      // Uncleared for 34 days, and a bill 7 days past due, not confirmed.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 8, 13),
+        today: DateTime(2026, 9, 16),
+        payee: 'Skytel',
+        counterAccountId: phone,
+        amount: -2500000,
+        memo: 'Prepaid',
+      );
+      await db.postTransaction(
+        date: DateTime(2026, 9, 9),
+        payee: 'Mobicom',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+          (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/overdue_row.png'),
+    );
+    // Unitel is from today: no note. Skytel is old enough to question.
+    final skytel = find.text('Skytel', skipOffstage: false);
+    await tester.ensureVisible(skytel);
+    await tester.pumpAndSettle();
+    expect(find.text(' · not cleared for 34 days'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stale-note')), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/stale_rows.png'),
+    );
+    await tidy(tester, db);
   });
 
   testWidgets('a future bill turns the forecast into a warning', (

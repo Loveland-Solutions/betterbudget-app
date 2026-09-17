@@ -46,25 +46,31 @@ class EntryRowController {
 
 /// What an existing transaction starts as when opened for editing.
 class EditInitial {
-  EditInitial.fromRow(RegisterRow r, {this.focus = EditField.payee})
-    : date = r.date,
-      payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
-      memo = r.memo,
-      category = switch (r.kind) {
-        RowKind.transfer => '→ ${r.payee}',
-        _ => r.categoryLabel,
-      },
-      amount = r.amount,
-      locked = r.locked,
-      lockDate = r.locked,
-      // A reconciled transfer can't move to another account; a reconciled
-      // simple row can still change category.
-      lockCategory =
-          r.kind == RowKind.split ||
-          r.kind == RowKind.opening ||
-          (r.locked && r.kind == RowKind.transfer),
-      lockAmount = r.kind == RowKind.split || r.locked,
-      payeeOptional = r.kind != RowKind.simple;
+  /// With [confirmingOn], the row opens to confirm a scheduled transaction:
+  /// dated that day (confirming means it happened), saved with Confirm.
+  EditInitial.fromRow(
+    RegisterRow r, {
+    this.focus = EditField.payee,
+    DateTime? confirmingOn,
+  }) : date = confirmingOn ?? r.date,
+       confirming = confirmingOn != null,
+       payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
+       memo = r.memo,
+       category = switch (r.kind) {
+         RowKind.transfer => '→ ${r.payee}',
+         _ => r.categoryLabel,
+       },
+       amount = r.amount,
+       locked = r.locked,
+       lockDate = r.locked,
+       // A reconciled transfer can't move to another account; a reconciled
+       // simple row can still change category.
+       lockCategory =
+           r.kind == RowKind.split ||
+           r.kind == RowKind.opening ||
+           (r.locked && r.kind == RowKind.transfer),
+       lockAmount = r.kind == RowKind.split || r.locked,
+       payeeOptional = r.kind != RowKind.simple;
 
   final DateTime date;
   final String payee;
@@ -80,6 +86,9 @@ class EditInitial {
   final bool lockAmount;
   final bool payeeOptional;
   final EditField focus;
+
+  /// Saving confirms a scheduled transaction.
+  final bool confirming;
 }
 
 /// `09.16`, `9.16`, `2026.09.16` or `2026-09-16`. Null when not a real date.
@@ -532,6 +541,8 @@ class _EntryRowState extends State<EntryRow> {
                             wanted: _wants('date'),
                             onSubmitted: _submit,
                             onPicked: _payeeFocus.requestFocus,
+                            // Confirming means it happened: no future days.
+                            allowFuture: !(initial?.confirming ?? false),
                           ),
                         ),
                 ),
@@ -660,7 +671,9 @@ class _EntryRowState extends State<EntryRow> {
                               if (_hasContent || _active) ...[
                                 const SizedBox(width: 10),
                                 _AddButton(
-                                  label: _editing ? 'Save' : 'Add',
+                                  label: _initial?.confirming ?? false
+                                      ? 'Confirm'
+                                      : (_editing ? 'Save' : 'Add'),
                                   ready: _missing.isEmpty && _error == null,
                                   onTap: _submit,
                                 ),

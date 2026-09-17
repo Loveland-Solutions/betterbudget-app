@@ -381,18 +381,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   // ---------- editing ----------
 
-  void _startEdit(int id, EditField field) {
+  /// With [confirming], a scheduled row opens to be confirmed: dated today,
+  /// the amount selected (bills vary), and Enter confirms.
+  void _startEdit(int id, EditField field, {bool confirming = false}) {
     final row = _rows[id];
     if (row == null) return;
     // Reconciled rows open too: payee, memo and category can still change.
     final controller = EntryRowController(
-      onSubmit: (draft) => _saveEdit(row, draft),
+      onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
       suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
     )..payeeNames = _entry.payeeNames;
     setState(() {
-      _editing = (txnId: id, focus: field, controller: controller);
+      _editing = (
+        txnId: id,
+        focus: field,
+        controller: controller,
+        confirming: confirming,
+      );
       _selected = id;
     });
+  }
+
+  void _startConfirm(RegisterRow r) {
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showToast('Save with Enter, or press Esc to discard your changes');
+        return;
+      }
+      _cancelEdit();
+    }
+    _startEdit(r.txnId, EditField.amount, confirming: true);
   }
 
   void _cancelEdit() {
@@ -406,7 +424,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  Future<String?> _saveEdit(RegisterRow row, EntryDraft d) async {
+  Future<String?> _saveEdit(
+    RegisterRow row,
+    EntryDraft d, {
+    bool confirming = false,
+  }) async {
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
     try {
@@ -419,6 +441,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         memo: d.memo,
         counterAccountId: d.counter?.id,
         amount: d.amount,
+        confirm: confirming,
       );
       after = await db.snapshot(row.txnId);
     } on LockedException catch (e) {
@@ -428,9 +451,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
+    final name = d.payee.isEmpty ? row.payee : d.payee;
+    if (confirming) {
+      String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
+      final amount = d.amount ?? row.amount;
+      final early = row.date.isAfter(today);
+      _did(
+        '$name confirmed',
+        undo: () => db.restoreSnapshot(before),
+        redo: () => db.restoreSnapshot(after),
+        message:
+            '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
+            // The planned amount, when it wasn't what happened.
+            '${amount == row.amount ? '' : ', planned ${money(row.amount)}'}'
+            '${d.date == today ? (early ? ' · posted today, ${shortDate(today)}' : '') : ' · posted ${shortDate(d.date)}'}',
+      );
+      return null;
+    }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
     _did(
-      '${d.payee.isEmpty ? row.payee : d.payee} edited',
+      '$name edited',
       undo: () => db.restoreSnapshot(before),
       redo: () => db.restoreSnapshot(after),
       message: nowScheduled
@@ -990,19 +1030,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onFilter: (f) => setState(() => _filter = f),
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
-                onConfirm: (r) async {
-                  final before = await db.snapshot(r.txnId);
-                  await db.confirmScheduled(r.txnId, today);
-                  final after = await db.snapshot(r.txnId);
-                  _did(
-                    '${r.payee} confirmed',
-                    undo: () => db.restoreSnapshot(before),
-                    redo: () => db.restoreSnapshot(after),
-                    message: r.date.isAfter(today)
-                        ? '${r.payee} confirmed early · posted today, ${shortDate(today)}'
-                        : '${r.payee} confirmed · ${formatMoney(r.amount)}',
-                  );
-                },
+                onConfirm: _startConfirm,
                 onSetCategory: (r, c) async {
                   final previous = await db.setCategoryMany(
                     transactionIds: [r.txnId],

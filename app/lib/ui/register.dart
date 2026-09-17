@@ -60,6 +60,9 @@ typedef RegisterEditing = ({
   int txnId,
   EditField focus,
   EntryRowController controller,
+
+  /// Opened from Confirm: dated today, amount selected, and saving confirms.
+  bool confirming,
 });
 
 class RegisterPanel extends StatelessWidget {
@@ -182,7 +185,11 @@ class RegisterPanel extends StatelessWidget {
         transferTargets: transferTargets,
         today: today,
         accountName: accountName,
-        initial: EditInitial.fromRow(r, focus: e.focus),
+        initial: EditInitial.fromRow(
+          r,
+          focus: e.focus,
+          confirmingOn: e.confirming ? today : null,
+        ),
         onCancel: actions.onCancelEdit,
       );
     }
@@ -202,6 +209,7 @@ class RegisterPanel extends StatelessWidget {
             editor(r) ??
                 _ScheduledRow(
                   row: r,
+                  today: today,
                   onConfirm: () => actions.onConfirm(r),
                   extra: null,
                   bar: bar(r),
@@ -219,6 +227,7 @@ class RegisterPanel extends StatelessWidget {
             editor(next) ??
                 _ScheduledRow(
                   row: next,
+                  today: today,
                   onConfirm: () => actions.onConfirm(next),
                   extra: visibleScheduled.length > 1
                       ? 'next of ${visibleScheduled.length} scheduled'
@@ -244,6 +253,7 @@ class RegisterPanel extends StatelessWidget {
             editor(r) ??
                 _PostedRow(
                   row: r,
+                  today: today,
                   owed: owed,
                   striped: i.isOdd,
                   reconciling: through != null,
@@ -692,6 +702,7 @@ class _HeaderRow extends StatelessWidget {
 class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
+    required this.today,
     required this.owed,
     required this.striped,
     required this.reconciling,
@@ -704,6 +715,7 @@ class _PostedRow extends StatelessWidget {
   });
 
   final RegisterRow row;
+  final DateTime today;
   final bool owed;
 
   /// Every other row is tinted, to tell transactions apart at a glance.
@@ -733,6 +745,7 @@ class _PostedRow extends StatelessWidget {
               .map((l) => '${l.name} ₮${formatWhole(l.amount)}')
               .join(' · ')
         : r.memo;
+    final stale = staleNote(r, today);
     final statusTip = switch (r.cleared) {
       Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
       Cleared.cleared =>
@@ -847,16 +860,32 @@ class _PostedRow extends StatelessWidget {
                                 ],
                               ],
                             ),
-                            if (memo.isNotEmpty) ...[
+                            if (memo.isNotEmpty || stale != null) ...[
                               const SizedBox(height: 2),
-                              GestureDetector(
-                                onTap: () => onTap(EditField.memo),
-                                child: Text(
-                                  memo,
-                                  style: onest(12.5, color: Mid.ink3),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              Row(
+                                children: [
+                                  if (memo.isNotEmpty)
+                                    Flexible(
+                                      child: GestureDetector(
+                                        onTap: () => onTap(EditField.memo),
+                                        child: Text(
+                                          memo,
+                                          style: onest(12.5, color: Mid.ink3),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
+                                  // Brighter than the memo: it's why Working
+                                  // may be lower than it should be.
+                                  if (stale != null)
+                                    Text(
+                                      '${memo.isEmpty ? '' : ' · '}$stale',
+                                      key: const ValueKey('stale-note'),
+                                      style: onest(12.5, color: Mid.ink2),
+                                      maxLines: 1,
+                                    ),
+                                ],
                               ),
                             ],
                           ],
@@ -946,6 +975,7 @@ class _PostedRow extends StatelessWidget {
 class _ScheduledRow extends StatelessWidget {
   const _ScheduledRow({
     required this.row,
+    required this.today,
     required this.onConfirm,
     required this.extra,
     required this.bar,
@@ -954,6 +984,7 @@ class _ScheduledRow extends StatelessWidget {
   });
 
   final RegisterRow row;
+  final DateTime today;
   final VoidCallback onConfirm;
   final String? extra;
   final VoidCallback? onMore;
@@ -969,6 +1000,7 @@ class _ScheduledRow extends StatelessWidget {
     final label = r.kind == RowKind.transfer
         ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
         : r.payee;
+    final overdue = overdueNote(r, today);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Hoverable(
@@ -1023,7 +1055,20 @@ class _ScheduledRow extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (extra != null) ...[
+                            // Past its date and not confirmed: it isn't in
+                            // Working, though it probably happened.
+                            if (overdue != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '· $overdue',
+                                key: const ValueKey('overdue-note'),
+                                style: onest(14, color: Mid.gold),
+                              ),
+                            ],
+                            // The overdue note takes the place of "next of
+                            // N scheduled", which the Scheduled tab also
+                            // counts, so the payee keeps its room.
+                            if (extra != null && overdue == null) ...[
                               const SizedBox(width: 8),
                               Hoverable(
                                 onTap: onMore,
