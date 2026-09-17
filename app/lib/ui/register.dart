@@ -32,6 +32,7 @@ class RegisterActions {
     required this.onEdit,
     required this.onCancelEdit,
     required this.onUnreconcile,
+    required this.onMove,
   });
 
   final ValueChanged<RegisterFilter> onFilter;
@@ -49,6 +50,9 @@ class RegisterActions {
 
   /// Takes back the reconcile that locked this row (the account's latest).
   final ValueChanged<RegisterRow> onUnreconcile;
+
+  /// Moves the row's side to another account (entered in the wrong one).
+  final void Function(RegisterRow row, AccountInfo account) onMove;
 }
 
 /// The transaction open for editing, if any.
@@ -79,7 +83,11 @@ class RegisterPanel extends StatelessWidget {
     this.addButton,
     this.reconcileThrough,
     this.owed = false,
+    this.accountName,
   });
+
+  /// The account shown, so a transfer being entered can say which way it goes.
+  final String? accountName;
 
   /// A credit account: the Balance column shows what's owed, positive, and
   /// is never coral.
@@ -156,7 +164,12 @@ class RegisterPanel extends StatelessWidget {
     void tap(int id, [EditField field = EditField.payee]) =>
         actions.onRowTap(id, field);
     Widget? bar(RegisterRow r) => selected == r.txnId
-        ? _RowActions(row: r, categories: categories, actions: actions)
+        ? _RowActions(
+            row: r,
+            categories: categories,
+            accounts: transferTargets,
+            actions: actions,
+          )
         : null;
 
     Widget? editor(RegisterRow r) {
@@ -168,6 +181,7 @@ class RegisterPanel extends StatelessWidget {
         categories: categories,
         transferTargets: transferTargets,
         today: today,
+        accountName: accountName,
         initial: EditInitial.fromRow(r, focus: e.focus),
         onCancel: actions.onCancelEdit,
       );
@@ -296,6 +310,7 @@ class RegisterPanel extends StatelessWidget {
                     categories: categories,
                     transferTargets: transferTargets,
                     today: today,
+                    accountName: accountName,
                     onCancel: onCloseEntry,
                   )
                 : const SizedBox(width: double.infinity),
@@ -425,16 +440,20 @@ class _Tab extends StatelessWidget {
 /// The clicked row's actions, attached under it. Only what applies to this
 /// row shows: one of Mark cleared / Mark uncleared, no Categorize on splits
 /// and transfers. Reconciled rows keep Edit and Categorize (payee, memo and
-/// category aren't on a statement) but not Delete or clearing.
+/// category aren't on a statement) but not Move, Delete or clearing.
 class _RowActions extends StatelessWidget {
   const _RowActions({
     required this.row,
     required this.categories,
+    required this.accounts,
     required this.actions,
   });
 
   final RegisterRow row;
   final List<AccountInfo> categories;
+
+  /// The other accounts, for Move to.
+  final List<AccountInfo> accounts;
   final RegisterActions actions;
 
   @override
@@ -469,6 +488,24 @@ class _RowActions extends StatelessWidget {
             leading: const StatusGlyph(Cleared.uncleared),
             onTap: () => actions.onToggleCleared(r),
           );
+    // A transfer can't move onto its own other side; an opening balance
+    // belongs to its account.
+    final targets = accounts
+        .where((a) => !(r.kind == RowKind.transfer && a.name == r.payee))
+        .toList();
+    final move = r.kind != RowKind.opening && targets.isNotEmpty
+        ? CategoryMenu(
+            categories: targets,
+            onPicked: (a) => actions.onMove(r, a),
+            builder: (open, toggle) => BarButton(
+              key: const ValueKey('move-to'),
+              label: 'Move to',
+              trailing: Icons.keyboard_arrow_down_rounded,
+              active: open,
+              onTap: toggle,
+            ),
+          )
+        : null;
     // Taps between the buttons mustn't reach the row and deselect it.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -519,6 +556,7 @@ class _RowActions extends StatelessWidget {
               edit,
               ?categorize,
               if (!r.scheduled) clearButton,
+              ?move,
               BarButton(
                 label: 'Delete',
                 color: Mid.coral,
@@ -1128,7 +1166,8 @@ class _CategoryChip extends StatelessWidget {
   );
 }
 
-/// A category list that opens in place. No modal.
+/// A list of categories (or accounts, for Move to) that opens in place.
+/// No modal.
 class CategoryMenu extends StatelessWidget {
   const CategoryMenu({
     super.key,

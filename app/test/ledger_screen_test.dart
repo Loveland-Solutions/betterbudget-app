@@ -958,6 +958,304 @@ void main() {
     await tidy(tester, db);
   });
 
+  /// Ctrl (or ⌘ with [meta]) plus [key], outside the fake clock.
+  Future<void> chord(
+    WidgetTester tester,
+    LogicalKeyboardKey key, {
+    bool shift = false,
+    bool meta = false,
+  }) => tester.runAsync(() async {
+    final mod = meta
+        ? LogicalKeyboardKey.metaLeft
+        : LogicalKeyboardKey.controlLeft;
+    await tester.sendKeyDownEvent(mod);
+    if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(key);
+    if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(mod);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  });
+
+  /// A tap whose handler writes to the database. Menu items act a frame
+  /// after the tap, so pump before letting the write run.
+  Future<void> tapAndWait(WidgetTester tester, Finder f) async {
+    await tester.tap(f);
+    await tester.pump();
+    await tester.pump();
+    await settle(tester);
+    await settle(tester);
+  }
+
+  final payeeCell = find.byWidgetPredicate(
+    (w) => w is Text && w.data == 'Sakura Coffee' && w.style?.fontSize == 14.5,
+  );
+
+  group('undo and redo, action by action', () {
+    testWidgets('add: undo removes it, redo brings it back', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Modern Nomads',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Dining out',
+      );
+      await tester.enterText(find.widgetWithText(TextField, '0.00'), '42000');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.text('Modern Nomads'), findsOneWidget);
+      // Leave the row (⌘Z there undoes typing), then undo from the register.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Undone · Modern Nomads added'), findsOneWidget);
+      expect(find.text('Modern Nomads'), findsNothing);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Redone · Modern Nomads added'), findsOneWidget);
+      expect(find.text('Modern Nomads'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('edit: redo puts the change back', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      await tester.pump();
+      tester.testTextInput.enterText('Unitel LLC');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.text('Changes saved'), findsOneWidget);
+      expect(find.text('Unitel LLC'), findsOneWidget);
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Unitel'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Redone · Unitel LLC edited'), findsOneWidget);
+      expect(find.text('Unitel LLC'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('categorize: undo and redo', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      // The menu item, not E-Mart's Groceries chip in the register.
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Groceries'),
+        ),
+      );
+      expect(find.text('Unitel → Groceries'), findsOneWidget);
+      Future<String> category() async => (await tester.runAsync(
+        () async => (await db.loadLedger())
+            .registerFor(1)
+            .posted
+            .firstWhere((r) => r.payee == 'Unitel')
+            .categoryLabel,
+      ))!;
+      expect(await category(), 'Groceries');
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Undone · Unitel → Groceries'), findsOneWidget);
+      expect(await category(), 'Phone & internet');
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Redone · Unitel → Groceries'), findsOneWidget);
+      expect(await category(), 'Groceries');
+      await tidy(tester, db);
+    });
+
+    testWidgets('delete: redo deletes it again', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await settle(tester);
+      expect(find.text('Unitel'), findsNothing);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Unitel'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Redone · Unitel deleted'), findsOneWidget);
+      expect(find.text('Unitel'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    Future<void> clearSakura(WidgetTester tester) async {
+      await tester.tap(payeeCell);
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.text('Mark cleared'), findsOneWidget);
+    }
+
+    testWidgets(
+      'Windows: Ctrl+Z undoes and Ctrl+Y redoes',
+      variant: TargetPlatformVariant.only(TargetPlatform.windows),
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await clearSakura(tester);
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        expect(find.text('Mark uncleared'), findsOneWidget);
+        await chord(tester, LogicalKeyboardKey.keyY);
+        await settle(tester);
+        expect(
+          find.text('Redone · Sakura Coffee marked uncleared'),
+          findsOneWidget,
+        );
+        expect(find.text('Mark cleared'), findsOneWidget);
+        await tidy(tester, db);
+      },
+    );
+
+    testWidgets(
+      'Mac: ⌘Z undoes and ⌘⇧Z redoes; Ctrl+Z is left alone',
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await clearSakura(tester);
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        expect(find.text('Mark cleared'), findsOneWidget);
+        await chord(tester, LogicalKeyboardKey.keyZ, meta: true);
+        await settle(tester);
+        expect(find.text('Mark uncleared'), findsOneWidget);
+        await chord(tester, LogicalKeyboardKey.keyZ, meta: true, shift: true);
+        await settle(tester);
+        expect(find.text('Mark cleared'), findsOneWidget);
+        await tidy(tester, db);
+      },
+    );
+  });
+
+  testWidgets('switching account mid-reconcile ends the reconcile', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('reconcile-balance')),
+      '4268850',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Statement date'), findsOneWidget);
+
+    await tester.tap(find.text('Khan Savings').first); // the sidebar
+    await tester.pumpAndSettle();
+    expect(find.text('Statement date'), findsNothing);
+    expect(find.textContaining('Not reconciled, through'), findsNothing);
+    // Nothing was locked, and going back starts fresh.
+    await tester.tap(find.text('TDB Checking').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a transfer says which way it goes before it is added', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Golomt Visa',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '0.00'), '640200');
+    await tester.pump();
+    expect(
+      find.text('₮640,200.00 from TDB Checking to Golomt Visa'),
+      findsOneWidget,
+    );
+    // Entered from the account the money lands in, Swap turns it around.
+    await tester.tap(find.byKey(const ValueKey('transfer-swap')));
+    await tester.pump();
+    expect(
+      find.text('₮640,200.00 from Golomt Visa to TDB Checking'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextField, '+640200'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/entry_transfer.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('transfer-swap')));
+    await tester.pump();
+    expect(find.widgetWithText(TextField, '640200'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Move to puts a row in another account, and undoes', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(payeeCell);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('move-to')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp), // the menu lives in the overlay
+      matchesGoldenFile('goldens/move_to.png'),
+    );
+    await tapAndWait(tester, find.text('Cash wallet').last);
+    expect(
+      find.text(
+        'Sakura Coffee moved to Cash wallet · uncleared there until it clears',
+      ),
+      findsOneWidget,
+    );
+    expect(payeeCell, findsNothing);
+
+    await tester.tap(find.text('Cash wallet').first);
+    await tester.pumpAndSettle();
+    expect(payeeCell, findsOneWidget);
+    await tester.tap(find.text('TDB Checking').first);
+    await tester.pumpAndSettle();
+    await tapAndWait(tester, find.text('Undo'));
+    expect(payeeCell, findsOneWidget);
+    await tester.tap(payeeCell);
+    await tester.pumpAndSettle();
+    expect(find.text('Mark uncleared'), findsOneWidget); // cleared, as before
+
+    // Reconciled rows can't move.
+    final salary = find.text('Altan Gadas LLC', skipOffstage: false);
+    await tester.ensureVisible(salary);
+    await tester.pumpAndSettle();
+    await tester.tap(salary);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('move-to')), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('a future bill turns the forecast into a warning', (
     tester,
   ) async {

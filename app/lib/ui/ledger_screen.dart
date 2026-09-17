@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../domain/forecast.dart';
@@ -567,6 +569,62 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Moves a row entered in the wrong account. It leaves this register, so
+  /// the toast names where it went.
+  Future<void> _move(RegisterRow r, AccountInfo from, AccountInfo to) async {
+    final MoveRecord done;
+    try {
+      done = await db.moveToAccount(
+        transactionId: r.txnId,
+        fromAccountId: from.id,
+        toAccountId: to.id,
+      );
+    } on LockedException catch (e) {
+      _showToast('Can’t move · ${e.message}');
+      return;
+    } on NotFoundException catch (e) {
+      _showToast('Can’t move · ${e.message}');
+      return;
+    }
+    _clearSelection();
+    final name = r.kind == RowKind.transfer
+        ? 'Transfer ${r.amount < 0 ? 'to' : 'from'} ${r.payee}'
+        : r.payee;
+    _did(
+      '$name moved to ${to.name}',
+      undo: () => db.undoMove(done),
+      redo: () => db.redoMove(done),
+      message:
+          '$name moved to ${to.name}'
+          '${r.cleared == Cleared.uncleared ? '' : ' · uncleared there until it clears'}',
+    );
+  }
+
+  /// Saves a copy of everything where the user picks: another drive, a USB
+  /// stick. The daily automatic copies stay on this disk.
+  Future<void> _backUpTo() async {
+    final now = widget.clock();
+    final FileSaveLocation? location;
+    try {
+      location = await getSaveLocation(
+        suggestedName: 'BetterBudget ${fullDate(now)}.sqlite',
+        confirmButtonText: 'Back Up',
+      );
+    } catch (e) {
+      _showToast('Couldn’t open the save dialog: $e');
+      return;
+    }
+    if (location == null) return;
+    try {
+      await Backups(db).saveTo(location.path, now);
+    } catch (e) {
+      _showToast('Couldn’t back up: $e');
+      return;
+    }
+    final name = location.path.split(RegExp(r'[/\\]')).last;
+    _showToast('Backed up · $name');
+  }
+
   /// Takes back the account's latest reconcile, whenever it was done.
   Future<void> _unreconcile(AccountInfo account) async {
     final ReconcileRecord done;
@@ -648,6 +706,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           _editing = null;
                         }),
                         selected: account.id,
+                        onBackUp: _backUpTo,
                         onSelect: (id) => setState(() {
                           if (id != _accountId) _endReconcile();
                           _section = AppSection.ledger;
@@ -763,6 +822,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           Expanded(
             child: RegisterPanel(
               owed: account.isOwed,
+              accountName: account.name,
               posted: register.posted,
               scheduled: register.scheduled,
               reconcileThrough: _reconcile == null
@@ -836,6 +896,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onEdit: (r) => _startEdit(r.txnId, EditField.payee),
                 onCancelEdit: _cancelEdit,
                 onUnreconcile: (_) => _unreconcile(account),
+                onMove: (r, to) => _move(r, account, to),
               ),
             ),
           ),
@@ -862,8 +923,10 @@ class _Sidebar extends StatelessWidget {
     required this.onSection,
     required this.selected,
     required this.onSelect,
+    required this.onBackUp,
   });
   final LedgerData data;
+  final VoidCallback onBackUp;
   final AppSection section;
   final ValueChanged<AppSection> onSection;
   final int selected;
@@ -969,6 +1032,31 @@ class _Sidebar extends StatelessWidget {
                 Text(
                   '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
                   style: onest(18, weight: 500, tabular: true),
+                ),
+                const SizedBox(height: 14),
+                Tooltip(
+                  message:
+                      'Save a copy of everything, on another drive or a USB '
+                      'stick. A copy is also kept on this computer each day.',
+                  child: Hoverable(
+                    key: const ValueKey('back-up'),
+                    onTap: onBackUp,
+                    builder: (h) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.save_alt_rounded,
+                          size: 14,
+                          color: h ? Mid.ink2 : Mid.ink3,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Back up to…',
+                          style: onest(12.5, color: h ? Mid.ink2 : Mid.ink3),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

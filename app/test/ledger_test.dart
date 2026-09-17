@@ -645,6 +645,187 @@ void main() {
     );
   });
 
+  group('moving to another account', () {
+    Future<int> account(String name) async => (await db.loadLedger())
+        .balanceSheetAccounts
+        .firstWhere((a) => a.name == name)
+        .id;
+    Future<RegisterRow> row(int account, String payee) async =>
+        (await db.loadLedger())
+            .registerFor(account)
+            .posted
+            .firstWhere((r) => r.payee == payee);
+
+    test('moves one side, uncleared there; undo and redo', () async {
+      final khan = await account('Khan Savings');
+      final sakura = await row(checking, 'Sakura Coffee'); // cleared
+      final before = (await db.loadLedger()).summaryFor(khan).working;
+      final move = await db.moveToAccount(
+        transactionId: sakura.txnId,
+        fromAccountId: checking,
+        toAccountId: khan,
+      );
+      var data = await db.loadLedger();
+      expect(
+        data.registerFor(checking).posted.map((r) => r.payee),
+        isNot(contains('Sakura Coffee')),
+      );
+      final moved = await row(khan, 'Sakura Coffee');
+      expect(moved.cleared, Cleared.uncleared);
+      expect(moved.categoryLabel, 'Dining out');
+      expect(moved.date, sakura.date);
+      expect(data.summaryFor(khan).working, before - 800000);
+
+      await db.undoMove(move);
+      data = await db.loadLedger();
+      expect((await row(checking, 'Sakura Coffee')).cleared, Cleared.cleared);
+      expect(data.summaryFor(khan).working, before);
+
+      await db.redoMove(move);
+      expect((await row(khan, 'Sakura Coffee')).cleared, Cleared.uncleared);
+      // Undo is refused once it's somewhere else than the move left it.
+      await db.undoMove(move);
+      await expectLater(db.undoMove(move), throwsA(isA<LockedException>()));
+    });
+
+    test('a transfer moves its side, but not onto its other side', () async {
+      final khan = await account('Khan Savings');
+      final cash = await account('Cash wallet');
+      final transfer = await row(checking, 'Khan Savings');
+      await expectLater(
+        db.moveToAccount(
+          transactionId: transfer.txnId,
+          fromAccountId: checking,
+          toAccountId: khan,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+      await db.moveToAccount(
+        transactionId: transfer.txnId,
+        fromAccountId: checking,
+        toAccountId: cash,
+      );
+      final fromCash = (await db.loadLedger())
+          .registerFor(khan)
+          .posted
+          .firstWhere((r) => r.txnId == transfer.txnId);
+      expect(fromCash.payee, 'Cash wallet');
+      expect(fromCash.amount, 50000000);
+    });
+
+    test('refused for reconciled rows and for categories', () async {
+      final khan = await account('Khan Savings');
+      final salary = await row(checking, 'Altan Gadas LLC');
+      await expectLater(
+        db.moveToAccount(
+          transactionId: salary.txnId,
+          fromAccountId: checking,
+          toAccountId: khan,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+      final unitel = await row(checking, 'Unitel');
+      await expectLater(
+        db.moveToAccount(
+          transactionId: unitel.txnId,
+          fromAccountId: checking,
+          toAccountId: await categoryId('Groceries'),
+        ),
+        throwsA(isA<NotFoundException>()),
+      );
+    });
+  });
+
+  test(
+    'a card reconciles against what is owed, as a negative balance',
+    () async {
+      final visa = (await db.loadLedger()).balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+      // The bank says ₮640,200 owed; typed positive, stored as the card's -.
+      await expectLater(
+        db.reconcile(
+          accountId: visa,
+          statementDate: today,
+          today: today,
+          balance: 64020000,
+        ),
+        throwsA(
+          isA<ReconcileMismatchException>().having(
+            (e) => e.off,
+            'off',
+            128040000,
+          ),
+        ),
+      );
+      // Owing ₮650,200: ₮10,000 more owed, so the adjustment adds to the debt.
+      final done = await db.reconcile(
+        accountId: visa,
+        statementDate: today,
+        today: today,
+        balance: -65020000,
+        adjust: true,
+      );
+      final data = await db.loadLedger();
+      expect(data.summaryFor(visa).cleared, -65020000);
+      final adjustment = data
+          .registerFor(visa)
+          .posted
+          .firstWhere((r) => r.txnId == done.adjustmentTxnId);
+      expect(adjustment.amount, -1000000);
+      expect(adjustment.cleared, Cleared.reconciled);
+      await db.unreconcile(done);
+      expect((await db.loadLedger()).summaryFor(visa).cleared, -64020000);
+    },
+  );
+
+  test('a big register is built once per account, quickly', () {
+    // 20,000 rows with a reconcile every 100: every row once looked up the
+    // newest reconcile across the whole ledger.
+    final accounts = [
+      const AccountInfo(id: 1, name: 'Checking', type: AccountType.asset),
+      const AccountInfo(id: 2, name: 'Food', type: AccountType.expense),
+    ];
+    final txns = [
+      for (var i = 0; i < 20000; i++)
+        TxnData(
+          id: i + 1,
+          date: DateTime(2020).add(Duration(days: i ~/ 10)),
+          payee: 'Shop $i',
+          entries: [
+            EntryData(
+              id: 2 * i + 1,
+              accountId: 1,
+              amount: -1000,
+              cleared: i < 19000 ? Cleared.reconciled : Cleared.cleared,
+              reconciliationId: i < 19000 ? i ~/ 100 + 1 : null,
+            ),
+            EntryData(id: 2 * i + 2, accountId: 2, amount: 1000),
+          ],
+        ),
+    ];
+    final data = LedgerData(
+      accounts: accounts,
+      txns: txns,
+      reconciliations: [
+        for (var r = 0; r < 190; r++)
+          Reconciliation(
+            id: r + 1,
+            accountId: 1,
+            statementDate: DateTime(2020).add(Duration(days: r * 10 + 9)),
+            balance: 0,
+          ),
+      ],
+    );
+    final clock = Stopwatch()..start();
+    final register = data.registerFor(1);
+    expect(clock.elapsedMilliseconds, lessThan(1000));
+    expect(register.posted, hasLength(20000));
+    expect(register.posted.where((r) => r.latestReconcile), hasLength(100));
+    // A rebuild (a keystroke in search) gets the same rows back.
+    expect(identical(data.registerFor(1), register), isTrue);
+  });
+
   group('editing', () {
     Future<RegisterRow> row(String payee) async => (await db.loadLedger())
         .registerFor(checking)

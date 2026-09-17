@@ -90,7 +90,6 @@ String shortDate(DateTime d) =>
     '${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
 
 /// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
-/// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
 String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
 
 /// Amount with the cents quieter than the whole part.
