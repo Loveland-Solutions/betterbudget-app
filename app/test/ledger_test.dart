@@ -139,6 +139,7 @@ void main() {
         db.reconcile(
           accountId: checking,
           statementDate: today,
+          today: today,
           balance: through.balance + 100,
         ),
         throwsA(
@@ -153,6 +154,7 @@ void main() {
       final done = await db.reconcile(
         accountId: checking,
         statementDate: today,
+        today: today,
         balance: through.balance,
       );
       expect(done.entryIds, hasLength(through.toLock));
@@ -190,6 +192,7 @@ void main() {
     await db.reconcile(
       accountId: checking,
       statementDate: today,
+      today: today,
       balance: data.clearedThrough(checking, today).balance,
     );
     data = await db.loadLedger();
@@ -227,6 +230,7 @@ void main() {
     final done = await db.reconcile(
       accountId: checking,
       statementDate: today,
+      today: today,
       balance: data.clearedThrough(checking, today).balance,
     );
 
@@ -247,8 +251,7 @@ void main() {
     expect(older.entryIds, hasLength(5));
     data = await db.loadLedger();
     expect(data.summaryFor(checking).reconciledOn, isNull);
-    // Only the Visa side of the card payment stays locked; it was never
-    // part of a TDB Checking reconcile.
+    // Nothing stays locked: the seed's other sides were never reconciled.
     expect(
       data
           .registerFor(checking)
@@ -263,6 +266,7 @@ void main() {
     final empty = await db.reconcile(
       accountId: checking,
       statementDate: DateTime(2026, 9, 11),
+      today: today,
       balance: data.clearedThrough(checking, DateTime(2026, 9, 11)).balance,
     );
     expect(empty.entryIds, isEmpty);
@@ -289,6 +293,130 @@ void main() {
       DateTime(2026, 9, 10),
     );
   });
+
+  test('a row looks locked exactly when the database refuses it', () async {
+    Future<void> check() async {
+      final data = await db.loadLedger();
+      for (final account in data.balanceSheetAccounts) {
+        final reg = data.registerFor(account.id);
+        for (final r in [...reg.posted, ...reg.scheduled]) {
+          Object? error;
+          try {
+            await db.transaction(() async {
+              await db.editTransaction(
+                transactionId: r.txnId,
+                accountId: account.id,
+                date: r.date,
+                today: today,
+                payee: r.txnPayee,
+                memo: r.memo,
+              );
+              // Only probing: roll the edit back.
+              throw const _Rollback();
+            });
+          } catch (e) {
+            error = e;
+          }
+          expect(
+            error is LockedException,
+            r.locked,
+            reason: '${account.name} · ${r.payee} ${r.date}',
+          );
+        }
+      }
+    }
+
+    // Only account sides are reconciled, and each by a statement.
+    final stray = await db
+        .customSelect(
+          'SELECT e.id FROM entries e JOIN accounts a ON a.id = e.account_id '
+          'WHERE e.cleared = ${Cleared.reconciled.index} AND '
+          "(a.type NOT IN ('asset', 'liability') OR e.reconciliation_id IS NULL)",
+        )
+        .get();
+    expect(stray, isEmpty);
+    await check();
+    await db.unreconcileLast(checking);
+    await check();
+    final data = await db.loadLedger();
+    for (final a in data.balanceSheetAccounts) {
+      expect(data.registerFor(a.id).posted.where((r) => r.locked), isEmpty);
+    }
+  });
+
+  test('the database refuses statement dates out of order', () async {
+    final data = await db.loadLedger();
+    await expectLater(
+      db.reconcile(
+        accountId: checking,
+        statementDate: today.add(const Duration(days: 1)),
+        today: today,
+        balance: data.clearedThrough(checking, today).balance,
+      ),
+      throwsA(isA<ReconcileDateException>()),
+    );
+    // The seed's last statement is 09.10.
+    await expectLater(
+      db.reconcile(
+        accountId: checking,
+        statementDate: DateTime(2026, 9, 9),
+        today: today,
+        balance: data.clearedThrough(checking, DateTime(2026, 9, 9)).balance,
+      ),
+      throwsA(
+        isA<ReconcileDateException>().having(
+          (e) => e.message,
+          'message',
+          'Already reconciled through 09.10',
+        ),
+      ),
+    );
+  });
+
+  test(
+    'restoring a snapshot keeps later clears, and refuses a locked row',
+    () async {
+      final reg = (await db.loadLedger()).registerFor(checking);
+      final unitel = reg.posted.firstWhere((r) => r.payee == 'Unitel');
+      final before = await db.snapshot(unitel.txnId);
+      await db.editTransaction(
+        transactionId: unitel.txnId,
+        accountId: checking,
+        date: unitel.date,
+        today: today,
+        payee: 'Mobicom',
+        amount: -3500000,
+      );
+      await db.setClearedMany({unitel.entryId: Cleared.cleared});
+      await db.restoreSnapshot(before);
+      var row = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == unitel.txnId);
+      expect(row.payee, 'Unitel');
+      expect(row.amount, -3000000);
+      expect(row.cleared, Cleared.cleared);
+
+      final after = await db.snapshot(unitel.txnId);
+      await db.reconcile(
+        accountId: checking,
+        statementDate: today,
+        today: today,
+        balance: (await db.loadLedger())
+            .clearedThrough(checking, today)
+            .balance,
+      );
+      await expectLater(
+        db.restoreSnapshot(after),
+        throwsA(isA<LockedException>()),
+      );
+      row = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == unitel.txnId);
+      expect(row.cleared, Cleared.reconciled);
+    },
+  );
 
   test('payee remembers its last category', () async {
     expect(
@@ -533,4 +661,8 @@ void main() {
       expect(f.isShort, isFalse);
     });
   });
+}
+
+class _Rollback implements Exception {
+  const _Rollback();
 }

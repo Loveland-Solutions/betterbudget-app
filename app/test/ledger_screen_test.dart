@@ -270,6 +270,55 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a toast can only undo while its action is the newest', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Confirm'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.textContaining('Zaisan Residence confirmed'), findsOneWidget);
+
+    // A quiet change after it: the confirm toast is still up.
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text && w.data == 'Sakura Coffee' && w.style?.fontSize == 14.5,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Mark cleared'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Undo the newer changes first · Ctrl+Z'), findsOneWidget);
+    // Neither change was touched.
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.textContaining('next of 4 scheduled'), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('forecast dots do nothing while reconciling', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('forecast-dot-09.20')));
+    await tester.pumpAndSettle();
+    expect(find.text('Finish or cancel the reconcile first'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('forecast dots show their bill and open it', (tester) async {
     final db = await pumpLedger(tester);
     final dot = find.byKey(const ValueKey('forecast-dot-09.20'));

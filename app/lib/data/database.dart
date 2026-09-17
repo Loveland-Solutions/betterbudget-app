@@ -90,6 +90,15 @@ class ReconcileMismatchException implements Exception {
   String toString() => 'Off by $off';
 }
 
+/// A statement date the reconcile can't take: after today, or before the
+/// account's last statement (reconciles unwind newest first).
+class ReconcileDateException implements Exception {
+  ReconcileDateException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 /// One reconcile's statement.
 typedef Statement = ({int id, String date, int balance});
 
@@ -149,15 +158,21 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.addColumn(entries, entries.reconciliationId);
-        await linkReconciledEntries();
-      }
+      await _backupBeforeUpgrade(from);
+      // Drift doesn't wrap upgrades; a failure halfway must leave the old
+      // version intact so the next launch can try again.
+      await transaction(() async {
+        if (from < 2) {
+          await m.addColumn(entries, entries.reconciliationId);
+          await linkReconciledEntries();
+        }
+        if (from < 3) await repairReconciledEntries();
+      });
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -166,6 +181,29 @@ class AppDatabase extends _$AppDatabase {
   );
 
   int get _now => DateTime.now().millisecondsSinceEpoch;
+
+  /// Copies the database next to itself before a schema upgrade, e.g.
+  /// `betterbudget.before-v3-20260917-153000.sqlite`. In-memory databases
+  /// (tests) have no file and are skipped. VACUUM INTO can't run inside a
+  /// transaction, so this comes first.
+  Future<void> _backupBeforeUpgrade(int from) async {
+    final main = await customSelect('PRAGMA database_list').get();
+    final path = main
+        .where((r) => r.read<String>('name') == 'main')
+        .map((r) => r.read<String>('file'))
+        .firstOrNull;
+    if (path == null || path.isEmpty) return;
+    final n = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final stamp =
+        '${n.year}${two(n.month)}${two(n.day)}-${two(n.hour)}${two(n.minute)}${two(n.second)}';
+    final base = path.endsWith('.sqlite')
+        ? path.substring(0, path.length - '.sqlite'.length)
+        : path;
+    await customStatement('VACUUM INTO ?', [
+      '$base.before-v$schemaVersion-from-v$from-$stamp.sqlite',
+    ]);
+  }
 
   // ---------- reads ----------
 
@@ -428,17 +466,23 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Undo for [setCategoryMany].
-  Future<void> restoreCategories(Map<int, int> previous, int accountId) =>
-      transaction(() async {
-        for (final e in previous.entries) {
-          await setCategoryMany(
-            transactionIds: [e.key],
-            accountId: accountId,
-            categoryId: e.value,
-          );
-        }
-      });
+  /// Undo for [setCategoryMany]. Returns what it changed, as that does.
+  Future<Map<int, int>> restoreCategories(
+    Map<int, int> previous,
+    int accountId,
+  ) => transaction(() async {
+    final changed = <int, int>{};
+    for (final e in previous.entries) {
+      changed.addAll(
+        await setCategoryMany(
+          transactionIds: [e.key],
+          accountId: accountId,
+          categoryId: e.value,
+        ),
+      );
+    }
+    return changed;
+  });
 
   /// Soft deletes many transactions. Reconciled ones are locked, so they are
   /// skipped. Returns the ids actually deleted, for undo.
@@ -452,18 +496,24 @@ class AppDatabase extends _$AppDatabase {
         return ids;
       });
 
-  /// Transactions with any reconciled entry: they match a bank statement.
+  /// Transactions with a reconciled account-side entry: they match a bank
+  /// statement. Only asset and liability entries are ever reconciled.
   Future<Set<int>> _reconciledAmong(Iterable<int> transactionIds) async {
     final rows =
-        await (selectOnly(entries)
+        await (selectOnly(entries).join([
+                innerJoin(accounts, accounts.id.equalsExp(entries.accountId)),
+              ])
               ..addColumns([entries.transactionId])
               ..where(
                 entries.transactionId.isIn(transactionIds) &
-                    entries.cleared.equalsValue(Cleared.reconciled),
+                    entries.cleared.equalsValue(Cleared.reconciled) &
+                    accounts.type.isInValues(_reconcilable),
               ))
             .get();
     return {for (final r in rows) r.read(entries.transactionId)!};
   }
+
+  static const _reconcilable = [AccountType.asset, AccountType.liability];
 
   Future<void> restoreMany(Iterable<int> transactionIds) =>
       (update(transactions)..where((t) => t.id.isIn(transactionIds))).write(
@@ -499,7 +549,14 @@ class AppDatabase extends _$AppDatabase {
     )..where((e) => e.transactionId.equals(transactionId))).get(),
   );
 
+  /// Puts back what an edit or a confirm changed: the header, and each
+  /// entry's account and amount. Cleared state is left as it is now, since
+  /// neither changes it and later clicks must survive. Refuses a transaction
+  /// that has been reconciled since.
   Future<void> restoreSnapshot(TxnSnapshot s) => transaction(() async {
+    if ((await _reconciledAmong([s.header.id])).isNotEmpty) {
+      throw LockedException('Reconciled transactions are locked');
+    }
     await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
       TransactionsCompanion(
         date: Value(s.header.date),
@@ -515,8 +572,6 @@ class AppDatabase extends _$AppDatabase {
         EntriesCompanion(
           accountId: Value(e.accountId),
           amountMinor: Value(e.amountMinor),
-          cleared: Value(e.cleared),
-          reconciliationId: Value(e.reconciliationId),
         ),
       );
     }
@@ -550,7 +605,7 @@ class AppDatabase extends _$AppDatabase {
       if (mine == null) throw NotFoundException('Not in this account');
       // Any reconciled side locks the whole transaction, as delete does: a
       // transfer edited from its other account would change the locked side.
-      if (rows.any((e) => e.cleared == Cleared.reconciled)) {
+      if ((await _reconciledAmong([transactionId])).isNotEmpty) {
         throw LockedException('Reconciled transactions are locked');
       }
 
@@ -637,12 +692,28 @@ class AppDatabase extends _$AppDatabase {
   /// Locks [accountId]'s cleared entries dated on or before [statementDate]
   /// and records the statement. Refuses unless the cleared balance through
   /// that date equals [balance]. Returns what [unreconcile] and [relock] need.
+  /// The date can't be after [today] or before the account's last statement.
   Future<ReconcileRecord> reconcile({
     required int accountId,
     required DateTime statementDate,
+    required DateTime today,
     required int balance,
   }) => transaction(() async {
     final through = dateKey(dateOnly(statementDate));
+    if (dateOnly(statementDate).isAfter(dateOnly(today))) {
+      throw ReconcileDateException('The statement can’t be after today');
+    }
+    final last =
+        await (selectOnly(reconciliations)
+              ..addColumns([reconciliations.statementDate.max()])
+              ..where(reconciliations.accountId.equals(accountId)))
+            .map((r) => r.read(reconciliations.statementDate.max()))
+            .getSingle();
+    if (last != null && through.compareTo(last) < 0) {
+      throw ReconcileDateException(
+        'Already reconciled through ${last.substring(5).replaceAll('-', '.')}',
+      );
+    }
     final rows = await customSelect(
       'SELECT e.id, e.amount_minor, e.cleared FROM entries e '
       'JOIN transactions t ON t.id = e.transaction_id '
@@ -768,6 +839,24 @@ class AppDatabase extends _$AppDatabase {
     'ORDER BY r.statement_date, r.id LIMIT 1) '
     'WHERE cleared = ${Cleared.reconciled.index} AND reconciliation_id IS NULL',
   );
+
+  /// Only asset and liability entries are reconciled, and each by a
+  /// statement. Data from before v3 (the demo seed included) also marked
+  /// category and opening-balance sides, and some account sides with no
+  /// statement; those locks could never be taken back, so they go back to
+  /// cleared.
+  Future<void> repairReconciledEntries() async {
+    final rec = Cleared.reconciled.index, clr = Cleared.cleared.index;
+    await customStatement(
+      'UPDATE entries SET cleared = $clr, reconciliation_id = NULL '
+      'WHERE cleared = $rec AND account_id NOT IN '
+      "(SELECT id FROM accounts WHERE type IN ('asset', 'liability'))",
+    );
+    await customStatement(
+      'UPDATE entries SET cleared = $clr '
+      'WHERE cleared = $rec AND reconciliation_id IS NULL',
+    );
+  }
 
   Future<int?> _payeeId(String? name) async {
     final n = name?.trim();
