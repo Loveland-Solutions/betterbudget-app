@@ -13,8 +13,11 @@ class BalanceHeader extends StatelessWidget {
     required this.hoveredStatus,
     required this.activeStatus,
     required this.onStatusTap,
+    required this.onOpenScheduled,
   });
 
+  /// A forecast dot was clicked: show that scheduled transaction.
+  final ValueChanged<RegisterRow> onOpenScheduled;
   final AccountSummary summary;
   final Forecast forecast;
 
@@ -48,7 +51,10 @@ class BalanceHeader extends StatelessWidget {
             const SizedBox(width: 40),
             Container(width: 1, color: Mid.rule),
             const SizedBox(width: 40),
-            SizedBox(width: 440, child: ForecastPanel(forecast)),
+            SizedBox(
+              width: 440,
+              child: ForecastPanel(forecast, onOpen: onOpenScheduled),
+            ),
           ],
         ),
       ),
@@ -310,19 +316,32 @@ class _StatusLine extends StatelessWidget {
 
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
-  const ForecastPanel(this.f, {super.key});
+  const ForecastPanel(this.f, {super.key, required this.onOpen});
   final Forecast f;
+  final ValueChanged<RegisterRow> onOpen;
 
   @override
   Widget build(BuildContext context) {
     final payday = f.payday;
     final String headline;
     final String detail;
-    if (f.isShort) {
+    final before = payday == null
+        ? 'the next 30 days are out'
+        : payday.categoryLabel.toLowerCase();
+    if (f.shortNow) {
+      // Already under: say so, not a future "runs out" date. The amount is
+      // the Working total beside it, so it isn't repeated.
+      headline = f.low < f.startBalance
+          ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
+          : 'Below zero now';
+      detail = f.causes.isEmpty
+          ? 'No bills before $before'
+          : '${_joinAnd(f.causes)} ${f.causes.length == 1 ? 'lands' : 'land'} before $before.';
+    } else if (f.isShort) {
       headline =
           'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
       detail =
-          '${_joinAnd(f.causes)} ${f.causes.length == 1 ? 'lands' : 'land'} before ${payday == null ? 'the next 30 days are out' : payday.categoryLabel.toLowerCase()}.';
+          '${_joinAnd(f.causes)} ${f.causes.length == 1 ? 'lands' : 'land'} before $before.';
     } else if (f.steps.isEmpty) {
       headline = 'Nothing scheduled';
       detail = payday == null
@@ -368,10 +387,7 @@ class ForecastPanel extends StatelessWidget {
         Expanded(
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 96),
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _ForecastPainter(f),
-            ),
+            child: _ForecastChart(f: f, onOpen: onOpen),
           ),
         ),
       ],
@@ -383,22 +399,269 @@ String _joinAnd(List<String> xs) => xs.length <= 1
     ? xs.join()
     : '${xs.sublist(0, xs.length - 1).join(', ')} and ${xs.last}';
 
+/// Where things sit on the chart; shared by the painter and the dot targets.
+class _ChartGeometry {
+  _ChartGeometry(this.f, Size size)
+    : w = size.width - _rightGutter,
+      h = size.height - _labelBand {
+    final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
+    _hi = values.reduce((a, b) => a > b ? a : b).clamp(1, 1 << 62);
+    _lo = values.reduce((a, b) => a < b ? a : b).clamp(-(1 << 62), 0);
+  }
+
+  static const _labelBand = 20.0, _rightGutter = 24.0;
+  final Forecast f;
+  final double w, h;
+  late final int _hi, _lo;
+
+  double x(DateTime d) =>
+      (d.difference(f.start).inDays /
+          f.end.difference(f.start).inDays.clamp(1, 1000)) *
+      w;
+  double y(int v) => 6 + (1 - (v - _lo) / (_hi - _lo)) * (h - 12);
+}
+
+/// Bills that land on the same day share one dot.
+List<List<ForecastStep>> _days(Forecast f) {
+  final byDay = <DateTime, List<ForecastStep>>{};
+  for (final s in f.steps) {
+    byDay.putIfAbsent(s.date, () => []).add(s);
+  }
+  return byDay.values.toList();
+}
+
+/// The chart plus what makes it useful: hover a dot to see the bill, click
+/// it to go to that transaction.
+class _ForecastChart extends StatelessWidget {
+  const _ForecastChart({required this.f, required this.onOpen});
+  final Forecast f;
+  final ValueChanged<RegisterRow> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = _days(f);
+    final payday = f.payday;
+    final last = f.steps.isEmpty ? f.startBalance : f.steps.last.balance;
+    return CustomMultiChildLayout(
+      delegate: _ChartLayout(f, days),
+      children: [
+        LayoutId(
+          id: 'paint',
+          child: CustomPaint(painter: _ForecastPainter(f)),
+        ),
+        for (var i = 0; i < days.length; i++)
+          LayoutId(
+            key: ValueKey('forecast-dot-${shortDate(days[i].first.date)}'),
+            id: 'dot$i',
+            child: _DotTarget(
+              lines: [
+                for (final s in days[i]) (row: s.row, balanceAfter: s.balance),
+              ],
+              onOpen: onOpen,
+            ),
+          ),
+        if (payday != null)
+          LayoutId(
+            key: const ValueKey('forecast-payday'),
+            id: 'payday',
+            child: _DotTarget(
+              lines: [(row: payday, balanceAfter: last + payday.amount)],
+              onOpen: onOpen,
+              alignRight: true,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Puts each dot's hover target over the dot the painter draws.
+class _ChartLayout extends MultiChildLayoutDelegate {
+  _ChartLayout(this.f, this.days);
+  final Forecast f;
+  final List<List<ForecastStep>> days;
+
+  @override
+  void performLayout(Size size) {
+    layoutChild('paint', BoxConstraints.tight(size));
+    positionChild('paint', Offset.zero);
+    final g = _ChartGeometry(f, size);
+    const dot = 22.0;
+    for (var i = 0; i < days.length; i++) {
+      layoutChild('dot$i', BoxConstraints.tight(const Size(dot, dot)));
+      positionChild(
+        'dot$i',
+        Offset(g.x(days[i].first.date), g.y(days[i].last.balance)) -
+            const Offset(dot / 2, dot / 2),
+      );
+    }
+    if (hasChild('payday')) {
+      const label = Size(120, _ChartGeometry._labelBand);
+      layoutChild('payday', BoxConstraints.tight(label));
+      positionChild('payday', Offset(g.w - label.width, g.h));
+    }
+  }
+
+  @override
+  bool shouldRelayout(_ChartLayout old) => old.f != f;
+}
+
+class _DotTarget extends StatefulWidget {
+  const _DotTarget({
+    required this.lines,
+    required this.onOpen,
+    this.alignRight = false,
+  });
+  final List<({RegisterRow row, int balanceAfter})> lines;
+  final ValueChanged<RegisterRow> onOpen;
+  final bool alignRight;
+
+  @override
+  State<_DotTarget> createState() => _DotTargetState();
+}
+
+class _DotTargetState extends State<_DotTarget> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _link,
+      child: OverlayPortal(
+        controller: _portal,
+        overlayChildBuilder: (context) => CompositedTransformFollower(
+          link: _link,
+          showWhenUnlinked: false,
+          targetAnchor: widget.alignRight
+              ? Alignment.bottomRight
+              : Alignment.bottomCenter,
+          offset: Offset(
+            widget.alignRight ? -_BillCard.width : -_BillCard.width / 2,
+            6,
+          ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: IgnorePointer(child: _BillCard(lines: widget.lines)),
+          ),
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(_portal.show),
+          onExit: (_) => setState(_portal.hide),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              setState(_portal.hide);
+              widget.onOpen(widget.lines.first.row);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What a forecast dot stands for.
+class _BillCard extends StatelessWidget {
+  const _BillCard({required this.lines});
+  static const width = 300.0;
+  final List<({RegisterRow row, int balanceAfter})> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final last = lines.last;
+    return Material(
+      color: Mid.raised,
+      elevation: 12,
+      shadowColor: Colors.black,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: width,
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              shortDate(last.row.date),
+              style: onest(12, color: Mid.ink3, tabular: true),
+            ),
+            const SizedBox(height: 4),
+            for (final l in lines) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l.row.kind == RowKind.transfer
+                              ? '${l.row.amount < 0 ? 'To' : 'From'} ${l.row.payee}'
+                              : l.row.payee,
+                          style: onest(13.5, weight: 500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          l.row.memo.isNotEmpty
+                              ? l.row.memo
+                              : l.row.categoryLabel,
+                          style: onest(12, color: Mid.ink3),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    // As the register shows it: money out plain, in with +.
+                    '${l.row.amount > 0 ? '+' : ''}${formatMoney(l.row.amount.abs())}',
+                    style: onest(
+                      13.5,
+                      color: l.row.amount > 0 ? Mid.green : Mid.ink,
+                      tabular: true,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+            ],
+            Container(height: 1, color: Mid.rule),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text('Balance after', style: onest(12, color: Mid.ink3)),
+                const Spacer(),
+                Text(
+                  '${last.balanceAfter < 0 ? '−' : ''}₮${formatWhole(last.balanceAfter)}',
+                  style: onest(
+                    12.5,
+                    color: last.balanceAfter < 0 ? Mid.coral : Mid.ink2,
+                    tabular: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ForecastPainter extends CustomPainter {
   _ForecastPainter(this.f);
   final Forecast f;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const labelBand = 20.0, rightGutter = 24.0;
-    final w = size.width - rightGutter;
-    final h = size.height - labelBand;
-    final spanDays = f.end.difference(f.start).inDays.clamp(1, 1000);
+    final g = _ChartGeometry(f, size);
+    final w = g.w, h = g.h;
+    final x = g.x, y = g.y;
     final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
-    final hi = values.reduce((a, b) => a > b ? a : b).clamp(1, 1 << 62);
-    final lo = values.reduce((a, b) => a < b ? a : b).clamp(-(1 << 62), 0);
-
-    double x(DateTime d) => (d.difference(f.start).inDays / spanDays) * w;
-    double y(int v) => 6 + (1 - (v - lo) / (hi - lo)) * (h - 12);
 
     // Balance only changes on the day a bill lands, so draw steps, not curves.
     final path = Path()..moveTo(0, y(f.startBalance));

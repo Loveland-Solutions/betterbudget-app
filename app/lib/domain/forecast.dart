@@ -22,13 +22,14 @@ class Forecast {
   /// Payday when one is scheduled, otherwise the fallback horizon.
   final DateTime end;
 
-  /// Balance after each bill, in date order.
-  final List<({DateTime date, int balance, String label})> steps;
+  /// Balance after each bill, in date order, with the bill that caused it.
+  final List<ForecastStep> steps;
   final RegisterRow? payday;
   final int low;
   final DateTime lowDate;
 
-  /// First day the balance goes below zero, if it does before [end].
+  /// First day the balance is below zero, if it is before [end]. Today when
+  /// the account is already under.
   final DateTime? firstShort;
 
   /// Bills from [firstShort] on: what pushes the account under.
@@ -36,8 +37,18 @@ class Forecast {
   final int billTotal;
 
   bool get isShort => firstShort != null;
+
+  /// Below zero before any scheduled bill lands.
+  bool get shortNow => startBalance < 0;
   int get billCount => steps.length;
 }
+
+typedef ForecastStep = ({
+  DateTime date,
+  int balance,
+  String label,
+  RegisterRow row,
+});
 
 const _fallbackHorizon = Duration(days: 30);
 const _paydayLookahead = Duration(days: 45);
@@ -59,8 +70,8 @@ Forecast buildForecast({
 
   var bal = working, low = working, billTotal = 0;
   var lowDate = start;
-  DateTime? firstShort;
-  final steps = <({DateTime date, int balance, String label})>[];
+  DateTime? firstShort = working < 0 ? start : null;
+  final steps = <ForecastStep>[];
   final causes = <String>[];
 
   // Bills landing on payday itself count before the income: conservative.
@@ -69,7 +80,7 @@ Forecast buildForecast({
     bal += r.amount;
     billTotal -= r.amount;
     final label = r.kind == RowKind.transfer ? r.payee : r.categoryLabel;
-    steps.add((date: when(r), balance: bal, label: label));
+    steps.add((date: when(r), balance: bal, label: label, row: r));
     if (bal < low) {
       low = bal;
       lowDate = when(r);

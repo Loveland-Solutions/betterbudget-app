@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/ledger.dart';
@@ -7,10 +6,6 @@ import 'entry_row.dart';
 import 'theme.dart';
 
 enum RegisterFilter { all, uncleared, cleared, reconciled, scheduled }
-
-bool get _isMac =>
-    defaultTargetPlatform == TargetPlatform.macOS ||
-    defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Column layout shared by the header, entry row and every register row.
 abstract final class Cols {
@@ -32,27 +27,23 @@ class RegisterActions {
     required this.onToggleCleared,
     required this.onConfirm,
     required this.onSetCategory,
-    required this.onBulkCategorize,
-    required this.onBulkCleared,
-    required this.onBulkDelete,
+    required this.onDelete,
     required this.onClearSelection,
-    required this.onEditSelected,
+    required this.onEdit,
     required this.onCancelEdit,
   });
 
   final ValueChanged<RegisterFilter> onFilter;
 
-  /// [order] is the visible row order, for Shift-click ranges. [field] is the
-  /// cell clicked, so a double-click opens the editor with the cursor there.
-  final void Function(int txnId, List<int> order, EditField field) onRowTap;
+  /// [field] is the cell clicked, so a double-click opens the editor with the
+  /// cursor there.
+  final void Function(int txnId, EditField field) onRowTap;
   final ValueChanged<RegisterRow> onToggleCleared;
   final ValueChanged<RegisterRow> onConfirm;
   final void Function(RegisterRow row, AccountInfo category) onSetCategory;
-  final ValueChanged<AccountInfo> onBulkCategorize;
-  final ValueChanged<Cleared> onBulkCleared;
-  final VoidCallback onBulkDelete;
+  final ValueChanged<RegisterRow> onDelete;
   final VoidCallback onClearSelection;
-  final VoidCallback onEditSelected;
+  final ValueChanged<RegisterRow> onEdit;
   final VoidCallback onCancelEdit;
 }
 
@@ -70,7 +61,8 @@ class RegisterPanel extends StatelessWidget {
     required this.scheduled,
     required this.filter,
     required this.search,
-    required this.selection,
+    required this.selected,
+    this.selectedKey,
     required this.hoveredStatus,
     required this.categories,
     required this.transferTargets,
@@ -78,14 +70,28 @@ class RegisterPanel extends StatelessWidget {
     required this.today,
     required this.actions,
     this.editing,
+    this.adding = false,
+    this.onCloseEntry,
+    this.addButton,
   });
+
+  /// Opens the new-transaction row; sits at the end of the tab row, above
+  /// where the row opens.
+  final Widget? addButton;
+
+  /// The new-transaction row is open (from Add or ⌘N).
+  final bool adding;
+  final VoidCallback? onCloseEntry;
 
   final RegisterEditing? editing;
   final List<RegisterRow> posted;
   final List<RegisterRow> scheduled;
   final RegisterFilter filter;
   final String search;
-  final Set<int> selection;
+  final int? selected;
+
+  /// Put on the selected row so the screen can scroll it into view.
+  final Key? selectedKey;
   final ValueNotifier<Cleared?> hoveredStatus;
   final List<AccountInfo> categories;
   final List<AccountInfo> transferTargets;
@@ -127,13 +133,11 @@ class RegisterPanel extends StatelessWidget {
         visibleScheduled.isNotEmpty &&
         search.isEmpty;
 
-    final order = [
-      if (showScheduled) ...visibleScheduled.map((r) => r.txnId),
-      if (showNext) visibleScheduled.first.txnId,
-      if (!showScheduled) ...visiblePosted.map((r) => r.txnId),
-    ];
     void tap(int id, [EditField field = EditField.payee]) =>
-        actions.onRowTap(id, order, field);
+        actions.onRowTap(id, field);
+    Widget? bar(RegisterRow r) => selected == r.txnId
+        ? _RowActions(row: r, categories: categories, actions: actions)
+        : null;
 
     Widget? editor(RegisterRow r) {
       final e = editing;
@@ -149,36 +153,47 @@ class RegisterPanel extends StatelessWidget {
       );
     }
 
+    Widget keyed(RegisterRow r, Widget row) =>
+        r.txnId == selected && selectedKey != null
+        ? KeyedSubtree(key: selectedKey, child: row)
+        : row;
+
     final children = <Widget>[];
     if (showScheduled) {
       if (visibleScheduled.isEmpty) children.add(_empty('Nothing scheduled'));
       for (final r in visibleScheduled) {
         children.add(
-          editor(r) ??
-              _ScheduledRow(
-                row: r,
-                onConfirm: () => actions.onConfirm(r),
-                extra: null,
-                selected: selection.contains(r.txnId),
-                onTap: () => tap(r.txnId),
-              ),
+          keyed(
+            r,
+            editor(r) ??
+                _ScheduledRow(
+                  row: r,
+                  onConfirm: () => actions.onConfirm(r),
+                  extra: null,
+                  bar: bar(r),
+                  onTap: () => tap(r.txnId),
+                ),
+          ),
         );
       }
     } else {
       if (showNext) {
         final next = visibleScheduled.first;
         children.add(
-          editor(next) ??
-              _ScheduledRow(
-                row: next,
-                onConfirm: () => actions.onConfirm(next),
-                extra: visibleScheduled.length > 1
-                    ? 'next of ${visibleScheduled.length} scheduled'
-                    : 'scheduled',
-                onMore: () => actions.onFilter(RegisterFilter.scheduled),
-                selected: selection.contains(next.txnId),
-                onTap: () => tap(next.txnId),
-              ),
+          keyed(
+            next,
+            editor(next) ??
+                _ScheduledRow(
+                  row: next,
+                  onConfirm: () => actions.onConfirm(next),
+                  extra: visibleScheduled.length > 1
+                      ? 'next of ${visibleScheduled.length} scheduled'
+                      : 'scheduled',
+                  onMore: () => actions.onFilter(RegisterFilter.scheduled),
+                  bar: bar(next),
+                  onTap: () => tap(next.txnId),
+                ),
+          ),
         );
       }
       if (visiblePosted.isEmpty) {
@@ -190,16 +205,19 @@ class RegisterPanel extends StatelessWidget {
       }
       for (final r in visiblePosted) {
         children.add(
-          editor(r) ??
-              _PostedRow(
-                row: r,
-                selected: selection.contains(r.txnId),
-                onTap: (field) => tap(r.txnId, field),
-                onToggleCleared: () => actions.onToggleCleared(r),
-                categories: categories,
-                onSetCategory: (c) => actions.onSetCategory(r, c),
-                hoveredStatus: hoveredStatus,
-              ),
+          keyed(
+            r,
+            editor(r) ??
+                _PostedRow(
+                  row: r,
+                  bar: bar(r),
+                  onTap: (field) => tap(r.txnId, field),
+                  onToggleCleared: () => actions.onToggleCleared(r),
+                  categories: categories,
+                  onSetCategory: (c) => actions.onSetCategory(r, c),
+                  hoveredStatus: hoveredStatus,
+                ),
+          ),
         );
       }
     }
@@ -218,26 +236,37 @@ class RegisterPanel extends StatelessWidget {
             height: 52,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: selection.isEmpty
-                  ? _Tabs(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _Tabs(
                       filter: filter,
                       uncleared: uncleared,
                       scheduled: scheduled.length,
                       onFilter: actions.onFilter,
-                    )
-                  : _BulkBar(
-                      count: selection.length,
-                      categories: categories,
-                      actions: actions,
                     ),
+                  ),
+                  ?addButton,
+                ],
+              ),
             ),
           ),
           const _HeaderRow(),
-          EntryRow(
-            controller: entryController,
-            categories: categories,
-            transferTargets: transferTargets,
-            today: today,
+          AnimatedSize(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: adding
+                ? EntryRow(
+                    controller: entryController,
+                    categories: categories,
+                    transferTargets: transferTargets,
+                    today: today,
+                    onCancel: onCloseEntry,
+                  )
+                : const SizedBox(width: double.infinity),
           ),
           Expanded(
             child: ListView(
@@ -361,86 +390,100 @@ class _Tab extends StatelessWidget {
   );
 }
 
-/// Replaces the tabs while rows are selected. Shows up on a single selection
-/// too, so the bulk actions (and how to select more) are discoverable.
-class _BulkBar extends StatelessWidget {
-  const _BulkBar({
-    required this.count,
+/// The clicked row's actions, attached under it. Only what applies to this
+/// row shows: one of Mark cleared / Mark uncleared, no Categorize on splits
+/// and transfers, and nothing but a lock note on reconciled rows.
+class _RowActions extends StatelessWidget {
+  const _RowActions({
+    required this.row,
     required this.categories,
     required this.actions,
   });
 
-  final int count;
+  final RegisterRow row;
   final List<AccountInfo> categories;
   final RegisterActions actions;
 
   @override
   Widget build(BuildContext context) {
-    final mod = _isMac ? '⌘' : 'Ctrl';
-    return Row(
-      children: [
-        Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Mid.blueWash,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            '$count selected',
-            style: onest(13, weight: 500, color: Mid.ink, tabular: true),
-          ),
+    final r = row;
+    final locked = r.cleared == Cleared.reconciled;
+    // Taps between the buttons mustn't reach the row and deselect it.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {},
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.fromLTRB(
+          Cols.status + Cols.gap - 10,
+          0,
+          0,
+          4,
         ),
-        const SizedBox(width: 12),
-        if (count == 1)
-          _BarButton(
-            label: 'Edit',
-            leading: const Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
-            onTap: actions.onEditSelected,
-          ),
-        CategoryMenu(
-          categories: categories,
-          onPicked: actions.onBulkCategorize,
-          builder: (open, toggle) => _BarButton(
-            label: 'Categorize',
-            trailing: Icons.keyboard_arrow_down_rounded,
-            active: open,
-            onTap: toggle,
-          ),
+        child: Row(
+          children: [
+            if (locked)
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Text(
+                  'Reconciled · locked because it matches a bank statement',
+                  style: onest(13, color: Mid.ink3),
+                ),
+              )
+            else ...[
+              _BarButton(
+                label: 'Edit',
+                leading: const Icon(
+                  Icons.edit_rounded,
+                  size: 13,
+                  color: Mid.ink3,
+                ),
+                onTap: () => actions.onEdit(r),
+              ),
+              if (r.kind == RowKind.simple)
+                CategoryMenu(
+                  categories: categories,
+                  onPicked: (c) => actions.onSetCategory(r, c),
+                  builder: (open, toggle) => _BarButton(
+                    label: 'Categorize',
+                    trailing: Icons.keyboard_arrow_down_rounded,
+                    active: open,
+                    onTap: toggle,
+                  ),
+                ),
+              if (!r.scheduled)
+                r.cleared == Cleared.uncleared
+                    ? _BarButton(
+                        label: 'Mark cleared',
+                        leading: const StatusGlyph(Cleared.cleared),
+                        onTap: () => actions.onToggleCleared(r),
+                      )
+                    : _BarButton(
+                        label: 'Mark uncleared',
+                        leading: const StatusGlyph(Cleared.uncleared),
+                        onTap: () => actions.onToggleCleared(r),
+                      ),
+              _BarButton(
+                label: 'Delete',
+                color: Mid.coral,
+                onTap: () => actions.onDelete(r),
+              ),
+            ],
+            const Spacer(),
+            Hoverable(
+              onTap: actions.onClearSelection,
+              builder: (h) => Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: h ? Mid.ink : Mid.ink3,
+                ),
+              ),
+            ),
+          ],
         ),
-        _BarButton(
-          label: 'Mark cleared',
-          leading: const StatusGlyph(Cleared.cleared),
-          onTap: () => actions.onBulkCleared(Cleared.cleared),
-        ),
-        _BarButton(
-          label: 'Mark uncleared',
-          leading: const StatusGlyph(Cleared.uncleared),
-          onTap: () => actions.onBulkCleared(Cleared.uncleared),
-        ),
-        _BarButton(
-          label: 'Delete',
-          color: Mid.coral,
-          onTap: actions.onBulkDelete,
-        ),
-        const Spacer(),
-        Text(
-          count == 1
-              ? 'Double-click or Enter to edit · $mod-click to select more'
-              : 'Esc to clear',
-          style: onest(12, color: Mid.ink3),
-        ),
-        const SizedBox(width: 8),
-        Hoverable(
-          onTap: actions.onClearSelection,
-          builder: (h) => Icon(
-            Icons.close_rounded,
-            size: 16,
-            color: h ? Mid.ink : Mid.ink3,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -464,7 +507,7 @@ class _BarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 4),
+    padding: const EdgeInsets.only(right: 8),
     child: Hoverable(
       onTap: onTap,
       builder: (hover) => Container(
@@ -473,6 +516,12 @@ class _BarButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: hover || active ? Mid.raised : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
+          // Outlined so each reads as a button, not a label.
+          border: Border.all(
+            color: (color == Mid.ink2 ? Mid.ink2 : color).withValues(
+              alpha: hover || active ? 0.6 : 0.3,
+            ),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -544,7 +593,7 @@ class _HeaderRow extends StatelessWidget {
 class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
-    required this.selected,
+    required this.bar,
     required this.onTap,
     required this.onToggleCleared,
     required this.categories,
@@ -553,7 +602,9 @@ class _PostedRow extends StatelessWidget {
   });
 
   final RegisterRow row;
-  final bool selected;
+
+  /// The row's actions, attached under it while it's selected.
+  final Widget? bar;
 
   /// Which cell was clicked, so a double-click edits that field.
   final ValueChanged<EditField> onTap;
@@ -564,6 +615,7 @@ class _PostedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selected = bar != null;
     final r = row;
     final memo = r.kind == RowKind.split && r.memo.isEmpty
         ? r.splitLines
@@ -589,7 +641,6 @@ class _PostedRow extends StatelessWidget {
         child: Hoverable(
           onTap: () => onTap(EditField.payee),
           builder: (hover) => Container(
-            height: 52,
             padding: Cols.inset,
             decoration: BoxDecoration(
               color: selected
@@ -600,153 +651,163 @@ class _PostedRow extends StatelessWidget {
                 color: selected ? Mid.blueEdge : Colors.transparent,
               ),
             ),
-            child: Row(
+            child: Column(
               children: [
                 SizedBox(
-                  width: Cols.status,
-                  child: MouseRegion(
-                    onEnter: (_) => hoveredStatus.value = r.cleared,
-                    onExit: (_) {
-                      if (hoveredStatus.value == r.cleared) {
-                        hoveredStatus.value = null;
-                      }
-                    },
-                    child: Tooltip(
-                      message: statusTip,
-                      child: Hoverable(
-                        onTap: r.cleared == Cleared.reconciled
-                            ? null
-                            : onToggleCleared,
-                        builder: (h) => Container(
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: h && r.cleared != Cleared.reconciled
-                                ? Mid.raised
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Center(child: StatusGlyph(r.cleared)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                _Cell(
-                  width: Cols.date,
-                  onTap: () => onTap(EditField.date),
-                  child: Text(
-                    fullDate(r.date),
-                    style: onest(13, color: Mid.ink3, tabular: true),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  height: 52,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          if (r.kind == RowKind.transfer) ...[
-                            Text(
-                              r.amount < 0 ? 'To' : 'From',
-                              style: onest(14.5, color: Mid.ink3),
+                      SizedBox(
+                        width: Cols.status,
+                        child: MouseRegion(
+                          onEnter: (_) => hoveredStatus.value = r.cleared,
+                          onExit: (_) {
+                            if (hoveredStatus.value == r.cleared) {
+                              hoveredStatus.value = null;
+                            }
+                          },
+                          child: Tooltip(
+                            message: statusTip,
+                            child: Hoverable(
+                              onTap: r.cleared == Cleared.reconciled
+                                  ? null
+                                  : onToggleCleared,
+                              builder: (h) => Container(
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: h && r.cleared != Cleared.reconciled
+                                      ? Mid.raised
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Center(child: StatusGlyph(r.cleared)),
+                              ),
                             ),
-                            const SizedBox(width: 6),
-                          ],
-                          Flexible(
-                            child: Text(
-                              r.payee,
-                              style: onest(14.5, weight: 500),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (r.kind == RowKind.transfer ||
-                              r.kind == RowKind.split) ...[
-                            const SizedBox(width: 8),
-                            Icon(
-                              r.kind == RowKind.transfer
-                                  ? Icons.swap_horiz_rounded
-                                  : Icons.call_split_rounded,
-                              size: 14,
-                              color: Mid.ink3,
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (memo.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        GestureDetector(
-                          onTap: () => onTap(EditField.memo),
-                          child: Text(
-                            memo,
-                            style: onest(12.5, color: Mid.ink3),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      _Cell(
+                        width: Cols.date,
+                        onTap: () => onTap(EditField.date),
+                        child: Text(
+                          fullDate(r.date),
+                          style: onest(13, color: Mid.ink3, tabular: true),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (r.kind == RowKind.transfer) ...[
+                                  Text(
+                                    r.amount < 0 ? 'To' : 'From',
+                                    style: onest(14.5, color: Mid.ink3),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Flexible(
+                                  child: Text(
+                                    r.payee,
+                                    style: onest(14.5, weight: 500),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (r.kind == RowKind.transfer ||
+                                    r.kind == RowKind.split) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    r.kind == RowKind.transfer
+                                        ? Icons.swap_horiz_rounded
+                                        : Icons.call_split_rounded,
+                                    size: 14,
+                                    color: Mid.ink3,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (memo.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              GestureDetector(
+                                onTap: () => onTap(EditField.memo),
+                                child: Text(
+                                  memo,
+                                  style: onest(12.5, color: Mid.ink3),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.category,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: r.kind == RowKind.simple
+                              ? CategoryMenu(
+                                  categories: categories,
+                                  current: r.categoryLabel,
+                                  onPicked: onSetCategory,
+                                  builder: (open, toggle) => _CategoryChip(
+                                    label: r.categoryLabel,
+                                    open: open,
+                                    onTap: toggle,
+                                  ),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  child: Text(
+                                    r.categoryLabel,
+                                    style: onest(12.5, color: Mid.ink3),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      _Cell(
+                        width: Cols.amount,
+                        onTap: () => onTap(EditField.amount),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: r.amount > 0
+                              ? Money(
+                                  r.amount,
+                                  color: Mid.green,
+                                  centsColor: Mid.green.withValues(alpha: 0.6),
+                                  sign: MoneySign.plusForPositive,
+                                )
+                              : Money(r.amount, sign: MoneySign.none),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.balance,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Money(
+                            r.balance,
+                            color: r.balance < 0
+                                ? Mid.coral
+                                : (r.cleared == Cleared.uncleared
+                                      ? Mid.ink2
+                                      : Mid.ink),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.category,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: r.kind == RowKind.simple
-                        ? CategoryMenu(
-                            categories: categories,
-                            current: r.categoryLabel,
-                            onPicked: onSetCategory,
-                            builder: (open, toggle) => _CategoryChip(
-                              label: r.categoryLabel,
-                              open: open,
-                              onTap: toggle,
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              r.categoryLabel,
-                              style: onest(12.5, color: Mid.ink3),
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                _Cell(
-                  width: Cols.amount,
-                  onTap: () => onTap(EditField.amount),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: r.amount > 0
-                        ? Money(
-                            r.amount,
-                            color: Mid.green,
-                            centsColor: Mid.green.withValues(alpha: 0.6),
-                            sign: MoneySign.plusForPositive,
-                          )
-                        : Money(r.amount, sign: MoneySign.none),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.balance,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Money(
-                      r.balance,
-                      color: r.balance < 0
-                          ? Mid.coral
-                          : (r.cleared == Cleared.uncleared
-                                ? Mid.ink2
-                                : Mid.ink),
-                    ),
-                  ),
-                ),
+                ?bar,
               ],
             ),
           ),
@@ -761,7 +822,7 @@ class _ScheduledRow extends StatelessWidget {
     required this.row,
     required this.onConfirm,
     required this.extra,
-    required this.selected,
+    required this.bar,
     required this.onTap,
     this.onMore,
   });
@@ -770,11 +831,14 @@ class _ScheduledRow extends StatelessWidget {
   final VoidCallback onConfirm;
   final String? extra;
   final VoidCallback? onMore;
-  final bool selected;
+
+  /// The row's actions, attached under it while it's selected.
+  final Widget? bar;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final selected = bar != null;
     final r = row;
     final label = r.kind == RowKind.transfer
         ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
@@ -790,119 +854,127 @@ class _ScheduledRow extends StatelessWidget {
                 : Mid.gold.withValues(alpha: hover ? 0.55 : 0.35),
           ),
           child: Container(
-            height: 46,
             padding: Cols.inset,
             decoration: BoxDecoration(
               color: selected ? Mid.blueWash : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
+            child: Column(
               children: [
-                const SizedBox(
-                  width: Cols.status,
-                  child: Tooltip(
-                    message: 'Scheduled — not in any balance until confirmed',
-                    child: Icon(
-                      Icons.event_repeat_rounded,
-                      size: 14,
-                      color: Mid.gold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
                 SizedBox(
-                  width: Cols.date,
-                  child: Text(
-                    fullDate(r.date),
-                    style: onest(13, color: Mid.gold, tabular: true),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                Expanded(
+                  height: 46,
                   child: Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          label,
-                          style: onest(14, color: Mid.ink2),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      const SizedBox(
+                        width: Cols.status,
+                        child: Tooltip(
+                          message:
+                              'Scheduled — not in any balance until confirmed',
+                          child: Icon(
+                            Icons.event_repeat_rounded,
+                            size: 14,
+                            color: Mid.gold,
+                          ),
                         ),
                       ),
-                      if (extra != null) ...[
-                        const SizedBox(width: 8),
-                        Hoverable(
-                          onTap: onMore,
-                          builder: (h) => Text(
-                            '· $extra',
-                            style: onest(14, color: Mid.ink3).copyWith(
-                              decoration: onMore != null && h
-                                  ? TextDecoration.underline
-                                  : null,
-                              decorationColor: Mid.ink3,
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.date,
+                        child: Text(
+                          fullDate(r.date),
+                          style: onest(13, color: Mid.gold, tabular: true),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                label,
+                                style: onest(14, color: Mid.ink2),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (extra != null) ...[
+                              const SizedBox(width: 8),
+                              Hoverable(
+                                onTap: onMore,
+                                builder: (h) => Text(
+                                  '· $extra',
+                                  style: onest(14, color: Mid.ink3).copyWith(
+                                    decoration: onMore != null && h
+                                        ? TextDecoration.underline
+                                        : null,
+                                    decorationColor: Mid.ink3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.category,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            r.categoryLabel,
+                            style: onest(12.5, color: Mid.ink3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.amount,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: r.amount > 0
+                              ? Money(
+                                  r.amount,
+                                  color: Mid.green,
+                                  centsColor: Mid.green.withValues(alpha: 0.6),
+                                  sign: MoneySign.plusForPositive,
+                                )
+                              : Money(
+                                  r.amount,
+                                  color: Mid.ink2,
+                                  sign: MoneySign.none,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.balance,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Hoverable(
+                            onTap: onConfirm,
+                            builder: (h) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: h
+                                    ? Mid.gold.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Confirm',
+                                style: onest(13, weight: 500, color: Mid.gold),
+                              ),
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.category,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      r.categoryLabel,
-                      style: onest(12.5, color: Mid.ink3),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.amount,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: r.amount > 0
-                        ? Money(
-                            r.amount,
-                            color: Mid.green,
-                            centsColor: Mid.green.withValues(alpha: 0.6),
-                            sign: MoneySign.plusForPositive,
-                          )
-                        : Money(
-                            r.amount,
-                            color: Mid.ink2,
-                            sign: MoneySign.none,
-                          ),
-                  ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.balance,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Hoverable(
-                      onTap: onConfirm,
-                      builder: (h) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: h
-                              ? Mid.gold.withValues(alpha: 0.12)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Confirm',
-                          style: onest(13, weight: 500, color: Mid.gold),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                ?bar,
               ],
             ),
           ),
