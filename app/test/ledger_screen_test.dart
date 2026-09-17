@@ -1314,12 +1314,24 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
-      expect(find.text('Daily copy failed'), findsOneWidget);
-      expect(find.text('Back up to…'), findsOneWidget);
+      // The sidebar shows only a dot on the gear; Settings says what's wrong.
+      expect(find.byKey(const ValueKey('settings-alert')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('backup-failed')), findsOneWidget);
+      expect(
+        find.textContaining('the last one is from 2026.09.12 08:00'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/settings_failing.png'),
+      );
       // A copy made again clears it.
       backups.health.value = BackupHealth(newest: DateTime(2026, 9, 16, 9));
       await tester.pump();
-      expect(find.text('Daily copy failed'), findsNothing);
+      expect(find.byKey(const ValueKey('settings-alert')), findsNothing);
+      expect(find.text('Today 09:00 · on this computer'), findsOneWidget);
       await tidy(tester, db);
     });
 
@@ -1367,6 +1379,15 @@ void main() {
         await tester.pumpAndSettle();
       }
 
+      Future<bool> unitel() async => (await tester.runAsync(
+        () async =>
+            (await db.loadLedger()).txns.any((t) => t.payee == 'Unitel'),
+      ))!;
+
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.text('Backups'), findsOneWidget);
+
       // Cancelled dialogs do nothing.
       await run(find.byKey(const ValueKey('back-up')));
       await run(find.byKey(const ValueKey('restore')));
@@ -1380,18 +1401,23 @@ void main() {
         findsOneWidget,
       );
 
+      // Delete Unitel in the ledger after the backup, then back to Settings.
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Unitel'));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.delete);
       await settle(tester);
-      expect(find.text('Unitel'), findsNothing);
+      expect(await unitel(), isFalse);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
 
       dialogs.openPath = saved;
       // Cancel first: nothing changes, and the working copy goes.
       await run(find.byKey(const ValueKey('restore')));
       await run(find.byKey(const ValueKey('restore-cancel')));
       expect(find.byType(Dialog), findsNothing);
-      expect(find.text('Unitel'), findsNothing);
+      expect(await unitel(), isFalse);
       expect(
         Directory('${dir.path}/Backups')
             .listSync()
@@ -1415,19 +1441,19 @@ void main() {
         find.text('Restored the copy from 2026.09.16 · what you had is saved'),
         findsOneWidget,
       );
-      expect(find.text('Unitel'), findsOneWidget);
+      expect(await unitel(), isTrue);
 
       await run(find.text('Undo'));
       expect(
         find.text('Undone · Restored the copy from 2026.09.16'),
         findsOneWidget,
       );
-      expect(find.text('Unitel'), findsNothing);
+      expect(await unitel(), isFalse);
 
       // The delete from before the restore can't be undone past it.
       await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
       await settle(tester);
-      expect(find.text('Unitel'), findsOneWidget);
+      expect(await unitel(), isTrue);
       await chord(tester, LogicalKeyboardKey.keyZ);
       await settle(tester);
       await chord(tester, LogicalKeyboardKey.keyZ);

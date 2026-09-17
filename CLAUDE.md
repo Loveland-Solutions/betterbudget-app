@@ -42,12 +42,16 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
   `forecast.dart`.
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
-  `dart run build_runner build`), `backup.dart` (daily copies, "Back up to…"),
+  `dart run build_runner build`), `backup.dart` (daily copies, back up, restore),
   plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
-  (state, selection, row actions, toasts), `balance_header.dart` (key, forecast chart and bill list),
+  (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
+  (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`
   (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel).
+- Widget tests stand in for the macOS open and save dialogs with a fake
+  `FileSelectorPlatform` (see the "backups" group); taps that start file work go
+  inside `tester.runAsync`.
   `ledger_screen.dart` also holds the session undo/redo history (`_did`, `_undo`,
   `_redoLast`): every new action must record both an undo and a redo.
 

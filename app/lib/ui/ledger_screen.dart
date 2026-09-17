@@ -22,8 +22,9 @@ bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Top-level sections. Budget and Savings are placeholders; "Savings" is a
-/// working name until the section is defined.
-enum AppSection { ledger, budget, savings }
+/// working name until the section is defined. Settings opens from the gear
+/// under Net worth, not from a section header.
+enum AppSection { ledger, budget, savings, settings }
 
 class LedgerScreen extends StatefulWidget {
   const LedgerScreen({
@@ -828,8 +829,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           _editing = null;
                         }),
                         selected: account.id,
-                        onBackUp: _backUpTo,
-                        onRestore: _restoreFrom,
                         backupHealth: _backups.health,
                         now: widget.clock,
                         onSelect: (id) => setState(() {
@@ -840,9 +839,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         }),
                       ),
                       Expanded(
-                        child: _section == AppSection.ledger
-                            ? _body(data, account)
-                            : _PlaceholderSection(section: _section),
+                        child: switch (_section) {
+                          AppSection.ledger => _body(data, account),
+                          AppSection.settings => _SettingsPage(
+                            health: _backups.health,
+                            now: widget.clock,
+                            onBackUp: _backUpTo,
+                            onRestore: _restoreFrom,
+                          ),
+                          _ => _PlaceholderSection(section: _section),
+                        },
                       ),
                     ],
                   ),
@@ -1055,14 +1061,10 @@ class _Sidebar extends StatelessWidget {
     required this.onSection,
     required this.selected,
     required this.onSelect,
-    required this.onBackUp,
-    required this.onRestore,
     required this.backupHealth,
     required this.now,
   });
   final LedgerData data;
-  final VoidCallback onBackUp;
-  final VoidCallback onRestore;
   final ValueListenable<BackupHealth> backupHealth;
   final DateTime Function() now;
   final AppSection section;
@@ -1165,57 +1167,31 @@ class _Sidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Net worth', style: onest(12, color: Mid.ink3)),
-                const SizedBox(height: 4),
-                Text(
-                  '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
-                  style: onest(18, weight: 500, tabular: true),
-                ),
-                const SizedBox(height: 14),
-                // A failing daily copy is said where copies are made, as
-                // its own line: the sidebar is too narrow to share one.
-                ValueListenableBuilder(
-                  valueListenable: backupHealth,
-                  builder: (context, health, _) {
-                    if (!health.alarmingAt(now())) {
-                      return const SizedBox.shrink();
-                    }
-                    final last = health.newest;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _FooterLink(
-                        key: const ValueKey('backup-failed'),
-                        icon: Icons.warning_amber_rounded,
-                        label: 'Daily copy failed',
-                        color: Mid.coral,
-                        tip:
-                            'The copy kept on this computer each day couldn’t '
-                            'be saved${last == null ? '' : ' (the last one is from ${fullDate(last)})'}. '
-                            'Check the disk has room, and save a copy elsewhere.',
-                        onTap: onBackUp,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Net worth', style: onest(12, color: Mid.ink3)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
+                            style: onest(18, weight: 500, tabular: true),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-                _FooterLink(
-                  key: const ValueKey('back-up'),
-                  icon: Icons.save_alt_rounded,
-                  label: 'Back up to…',
-                  tip:
-                      'Save a copy of everything, on another drive or a USB '
-                      'stick. A copy is also kept on this computer each day '
-                      'the app is open.',
-                  onTap: onBackUp,
-                ),
-                const SizedBox(height: 8),
-                _FooterLink(
-                  key: const ValueKey('restore'),
-                  icon: Icons.settings_backup_restore_rounded,
-                  label: 'Restore from…',
-                  tip:
-                      'Put back a backup. What you have now is saved first, '
-                      'and Undo brings it back.',
-                  onTap: onRestore,
+                    ),
+                    ValueListenableBuilder(
+                      valueListenable: backupHealth,
+                      builder: (context, health, _) => _SettingsGear(
+                        active: section == AppSection.settings,
+                        alert: health.alarmingAt(now()),
+                        onTap: () => onSection(AppSection.settings),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1226,42 +1202,205 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// A quiet command under Net worth.
-class _FooterLink extends StatelessWidget {
-  const _FooterLink({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.tip,
+/// Opens Settings. A coral dot says something there needs attention (the
+/// daily copy is failing), since the gear is all that shows of it.
+class _SettingsGear extends StatelessWidget {
+  const _SettingsGear({
+    required this.active,
+    required this.alert,
     required this.onTap,
-    this.color,
   });
-  final IconData icon;
-  final String label;
-  final String tip;
+  final bool active;
+  final bool alert;
   final VoidCallback onTap;
-
-  /// Coral when something is wrong; otherwise quiet ink.
-  final Color? color;
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: tip,
+    message: alert ? 'Settings · the daily copy is failing' : 'Settings',
     child: Hoverable(
+      key: const ValueKey('settings'),
       onTap: onTap,
-      builder: (h) {
-        final c = color ?? (h ? Mid.ink2 : Mid.ink3);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+      builder: (h) => Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: active ? Mid.panel : (h ? Mid.hover : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Icon(icon, size: 14, color: c),
-            const SizedBox(width: 6),
-            Text(label, style: onest(12.5, color: c)),
+            Icon(
+              Icons.settings_outlined,
+              size: 18,
+              color: active ? Mid.blue : (h ? Mid.ink2 : Mid.ink3),
+            ),
+            if (alert)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  key: const ValueKey('settings-alert'),
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Mid.coral,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
           ],
-        );
-      },
+        ),
+      ),
     ),
   );
+}
+
+/// Settings, one section per kind. Backups is the first.
+class _SettingsPage extends StatelessWidget {
+  const _SettingsPage({
+    required this.health,
+    required this.now,
+    required this.onBackUp,
+    required this.onRestore,
+  });
+  final ValueListenable<BackupHealth> health;
+  final DateTime Function() now;
+  final VoidCallback onBackUp;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget line(String label, Widget value) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: onest(13.5, color: Mid.ink3)),
+          ),
+          Expanded(child: value),
+        ],
+      ),
+    );
+    String when(DateTime t) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      final today = dateOnly(now());
+      final day = dateOnly(t) == today
+          ? 'Today'
+          : dateOnly(t) == today.subtract(const Duration(days: 1))
+          ? 'Yesterday'
+          : fullDate(t);
+      return '$day ${two(t.hour)}:${two(t.minute)}';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // As tall as an account's title row (it has search), so the
+              // title doesn't jump when switching.
+              SizedBox(
+                height: 36,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Settings',
+                    style: onest(22, weight: 600, letterSpacing: -0.3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                decoration: BoxDecoration(
+                  color: Mid.panel,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Mid.rule),
+                ),
+                child: ValueListenableBuilder(
+                  valueListenable: health,
+                  builder: (context, h, _) {
+                    final failing = h.alarmingAt(now());
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Backups', style: onest(16, weight: 600)),
+                        const SizedBox(height: 16),
+                        line(
+                          'Daily copy',
+                          failing
+                              ? Text(
+                                  'Failing${h.newest == null ? '' : ' · the last one is from ${when(h.newest!)}'}. '
+                                  'Check the disk has room, and back up to another drive.',
+                                  key: const ValueKey('backup-failed'),
+                                  style: onest(13.5, color: Mid.coral),
+                                )
+                              : Text(
+                                  h.newest == null
+                                      ? 'None yet · one is made each day the app is open'
+                                      : '${when(h.newest!)} · on this computer',
+                                  style: onest(13.5, color: Mid.ink),
+                                ),
+                        ),
+                        line(
+                          'Kept',
+                          Text(
+                            'The newest 14, plus the first of each month for a year',
+                            style: onest(13.5, color: Mid.ink2),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            BarButton(
+                              key: const ValueKey('back-up'),
+                              label: 'Back up to…',
+                              leading: const Icon(
+                                Icons.save_alt_rounded,
+                                size: 14,
+                                color: Mid.ink3,
+                              ),
+                              onTap: onBackUp,
+                            ),
+                            BarButton(
+                              key: const ValueKey('restore'),
+                              label: 'Restore from…',
+                              leading: const Icon(
+                                Icons.settings_backup_restore_rounded,
+                                size: 14,
+                                color: Mid.ink3,
+                              ),
+                              onTap: onRestore,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'The daily copies are on this computer, so they won’t '
+                          'help if it’s lost or breaks: back up to another drive '
+                          'or a USB stick now and then. Restoring saves what you '
+                          'have first, and Undo brings it back.',
+                          style: onest(13, color: Mid.ink3),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Asks before a restore replaces everything, with what the backup holds
