@@ -2,6 +2,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/forecast.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1037,6 +1038,20 @@ void main() {
         ),
         isNull,
       );
+    },
+  );
+
+  test(
+    'confirm dates late money in today; late bills keep their due date',
+    () async {
+      final scheduled = (await db.loadLedger()).registerFor(checking).scheduled;
+      final rent = scheduled.first; // 09.20
+      final salary = scheduled.last; // 10.10
+      final later = DateTime(2026, 10, 12);
+      expect(EditInitial.fromRow(salary, confirmingOn: later).date, later);
+      expect(EditInitial.fromRow(rent, confirmingOn: later).date, rent.date);
+      // Not due yet: today, either way.
+      expect(EditInitial.fromRow(rent, confirmingOn: today).date, today);
     },
   );
 

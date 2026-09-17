@@ -80,10 +80,15 @@ be quietly undone.
    from review finding 1 on PR #6). A salary or refund due today or earlier and not
    confirmed is left out; the forecast runs to the next salary not yet due, or 30 days.
    The small label above the headline says so in gold, with the amount and how late:
-   "Next 30 days · ₮2,500,000 2 days late · not counted" ("due today"; several: "2 late
-   · ₮2,650,000 not counted"). The amount, not a name or a date: it says whether the
-   warning would clear if the money came, and "10.10" beside amounts read as money
-   (owner's call, from its review). Clicking the note opens that row (the first, when
+   "Next 30 days · +₮2,500,000 in, 2 days late · not counted" ("in, due today"; several:
+   "+₮2,650,000 in, 2 not arrived · not counted"). The amount, not a name or a date: it
+   says whether the warning would clear if the money came, and "10.10" beside amounts
+   read as money (owner's call, from its review); "+… in" because late bills use the
+   same gold (owner's call). Only the amount part shrinks, so "not counted" always
+   shows. **On payday the warning is conditional** (owner's call): "Runs out 10.15
+   unless ₮2,500,000 due today comes". The bill list marks bills and transfers past due
+   and counted as today ("· due 3 days ago"), so money the user forgot to move doesn't
+   look covered (owner's call). Clicking the note opens that row (the first, when
    several), like a dot, so it can be confirmed. **Salary due today waits too** (owner's
    call): on payday morning it may still be late, and ending the forecast there hid
    rent due in two days. **A late transfer between the user's own accounts counts** on
@@ -190,10 +195,12 @@ be quietly undone.
     **Confirm opens the bill to check its amount** (owner's call, option A of three,
     from review finding L: "some bills are hard to predict"). It turns the row into
     the editor with the amount selected (after its `+`, so typing the figure can't
-    turn money in into money out). **A bill not due yet is dated today; an overdue one
-    keeps its due date**, since a standing order or auto-pay left then, and a
-    statement will show it then (both review passes: dating it today moved it silently
-    and broke the next reconcile); Enter (or the row's Confirm
+    turn money in into money out). **A bill not due yet is dated today; an overdue bill
+    or transfer keeps its due date**, since a standing order or auto-pay left then, and
+    a statement will show it then (both review passes: dating it today moved it
+    silently and broke the next reconcile). **Overdue money in is dated today** (owner's
+    call): late means it didn't come on its date, and dating a late salary back put
+    money in the balance before it arrived; Enter (or the row's Confirm
     button) confirms whatever it says, so a bill that matched costs one keystroke. The
     date can be changed to the day it really went out, but not to a future day (the
     calendar greys them). When the amount changed, the toast names the plan:
@@ -205,7 +212,9 @@ be quietly undone.
     **Money in confirmed short can stay owed** (owner's call, after a committee of three:
     household money, design, ledger integrity). When a salary or refund is
     confirmed below plan, a line under the amount reads "₮1,250,000 less than planned:
-    (•) Still owed, due 10.10 ( ) Paid in full". **Still owed is chosen**, so Enter keeps
+    (•) Still owed, due 10.10 ( ) Paid in full". **Still owed is chosen when more than a tenth is
+    missing** (owner's call; otherwise Paid in full, since take-home pay and refunds
+    after an exchange rate move vary a little), so Enter keeps
     the rest scheduled on the planned date (payee, memo and category as confirmed) in
     the same write. Past that date it's late, so rule 2 leaves it out of the forecast and names
     it. A remainder nobody wanted is visible and one Delete away; a forgotten one would

@@ -365,13 +365,14 @@ class _LateNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = late.fold(0, (s, r) => s + r.amount);
+    // "+… in" says which way it goes: late bills use the same gold.
     final String what;
     if (late.length > 1) {
-      what = '${late.length} late · ₮${formatWhole(total)}';
+      what = '+₮${formatWhole(total)} in, ${late.length} not arrived';
     } else {
       final days = daysBefore(late.single.date, today);
       what =
-          '₮${formatWhole(total)} ${days == 0 ? 'due today' : '$days ${days == 1 ? 'day' : 'days'} late'}';
+          '+₮${formatWhole(total)} in, ${days == 0 ? 'due today' : '$days ${days == 1 ? 'day' : 'days'} late'}';
     }
     return Hoverable(
       key: const ValueKey('forecast-late'),
@@ -433,15 +434,26 @@ class ForecastPanel extends StatelessWidget {
           ? 'No charges or payments in the next 30 days'
           : '${parts.join(' · ')} before ${shortDate(f.end)}';
     } else {
+      // Money due today that hasn't landed: on payday the warning is
+      // conditional, not news.
+      final dueToday = f.late
+          .where((r) => !r.date.isBefore(f.start))
+          .fold(0, (s, r) => s + r.amount);
+      final unless = dueToday > 0
+          ? ' unless ₮${formatWhole(dueToday)} due today comes'
+          : null;
       if (f.shortNow) {
         // Already under: say so, not a future "runs out" date. The amount is
         // the Working total beside it, so it isn't repeated.
-        headline = f.low < f.startBalance
+        headline = unless != null
+            ? 'Below zero now$unless'
+            : f.low < f.startBalance
             ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
             : 'Below zero now';
       } else if (f.isShort) {
-        headline =
-            'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
+        headline = unless != null
+            ? 'Runs out ${shortDate(f.firstShort!)}$unless'
+            : 'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
       } else if (f.steps.isEmpty) {
         headline = 'Nothing scheduled';
       } else {
@@ -733,6 +745,7 @@ class _BillLineState extends State<_BillLine> {
   Widget build(BuildContext context) {
     final r = widget.row;
     final b = widget.balanceAfter;
+    final overdue = overdueNote(r, widget.date);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -753,13 +766,27 @@ class _BillLineState extends State<_BillLine> {
                 ),
               ),
               Expanded(
-                child: Text(
-                  r.kind == RowKind.transfer
-                      ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
-                      : r.payee,
-                  style: onest(13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        r.kind == RowKind.transfer
+                            ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
+                            : r.payee,
+                        style: onest(13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Past due and counted as today: a transfer not made yet,
+                    // or a bill not confirmed.
+                    if (overdue != null)
+                      Text(
+                        ' · $overdue',
+                        style: onest(12.5, color: Mid.gold),
+                        maxLines: 1,
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),

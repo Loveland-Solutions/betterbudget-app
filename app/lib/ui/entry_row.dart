@@ -53,13 +53,17 @@ class EntryRowController {
 class EditInitial {
   /// With [confirmingOn] (today), the row opens to confirm a scheduled
   /// transaction, saved with Confirm. One not due yet is dated today, since
-  /// confirming means it happened; an overdue one keeps its due date, which
-  /// is when a standing order or auto-pay really left.
+  /// confirming means it happened. An overdue bill or transfer keeps its due
+  /// date, when a standing order or auto-pay really left; overdue money in
+  /// (a late salary) is dated today, since late means it didn't come then.
   EditInitial.fromRow(
     RegisterRow r, {
     this.focus = EditField.payee,
     DateTime? confirmingOn,
-  }) : date = confirmingOn != null && r.date.isAfter(confirmingOn)
+  }) : date =
+           confirmingOn != null &&
+               (r.date.isAfter(confirmingOn) ||
+                   (r.amount > 0 && r.kind != RowKind.transfer))
            ? confirmingOn
            : r.date,
        plannedDate = r.date,
@@ -193,9 +197,15 @@ class _EntryRowState extends State<EntryRow> {
   String? _error;
   bool _busy = false;
 
-  /// Confirming short money in: the rest is still owed (the default) or it
-  /// was paid in full.
-  bool _keepOwed = true;
+  /// Confirming short money in: the rest is still owed, or it was paid in
+  /// full. Null until chosen.
+  bool? _keepOwedChoice;
+
+  /// Still owed when more than a tenth is missing (half a salary); paid in
+  /// full for small differences (deductions, a refund after the exchange rate
+  /// moved), which would otherwise leave remainders nobody is owed.
+  bool _keepOwedFor(int short) =>
+      _keepOwedChoice ?? short * 10 > (_initial?.amount ?? 0);
   bool _active = false;
 
   FocusNode get _payeeFocus => widget.controller.payeeFocus;
@@ -471,7 +481,7 @@ class _EntryRowState extends State<EntryRow> {
             ? null
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
-        keepOwed: _shortBy != null && _keepOwed,
+        keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
       ),
     );
     if (!mounted) return;
@@ -740,8 +750,8 @@ class _EntryRowState extends State<EntryRow> {
                       _OwedLine(
                         short: shortBy,
                         due: initial!.plannedDate,
-                        keep: _keepOwed,
-                        onChanged: (v) => setState(() => _keepOwed = v),
+                        keep: _keepOwedFor(shortBy),
+                        onChanged: (v) => setState(() => _keepOwedChoice = v),
                       ),
                     if (transferLine != null)
                       _TransferLine(
@@ -762,8 +772,9 @@ class _EntryRowState extends State<EntryRow> {
 }
 
 /// Money in confirmed short: is the rest still owed? Under the category and
-/// amount, level with the memo line, only while it applies. "Still owed"
-/// is chosen, so a forgotten remainder stays visible.
+/// amount, level with the memo line, only while it applies. "Still owed" is
+/// chosen when more than a tenth is missing, so a forgotten remainder stays
+/// visible; "Paid in full" for small differences.
 class _OwedLine extends StatelessWidget {
   const _OwedLine({
     required this.short,

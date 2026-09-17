@@ -36,7 +36,7 @@ Visual direction and the register's UX rules are settled in
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 102: late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 104: payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -176,22 +176,12 @@ lose a day across daylight saving; the unused `confirmScheduled` is gone.
   Fixed from the last review passes: no "Still owed" for transfers (it depended on
   which account you confirmed from); the remainder takes the payee and memo as
   confirmed; "not counted" never gets cut off; the choices don't take Enter.
-  **Raised, for the owner:**
-  - **Late money in is confirmed on its planned date**, as bills are. A salary due 10.10
-    that lands 10.12 posts on 10.10, so the balance shows it two days early and a
-    reconcile through 10.11 won't match. Recommended: money in (not transfers) past due
-    opens dated today; the toast already says "posted 10.12".
-  - **A late transfer counts with no note**, so money the user forgot to move looks
-    covered. Recommended: mark it in the bill list ("+₮1,000,000 in · due 3 days ago").
-  - **Note wording:** say which way the money goes, since late bills use the same gold
-    ("+₮2,500,000 in, 2 days late · not counted"); and "2 late" when one is due today.
-  - **"Still owed" for small differences** (pay varies with deductions; a foreign refund
-    comes back lower after the exchange rate): Enter keeps a ₮42,700 remainder that sits
-    in the header. Recommended: choose "Still owed" only when short by more than 10%.
-  - **Coral on most paydays:** with salary due today not counted and next month's salary
-    not yet scheduled (recurring isn't built), the forecast warns until the salary is
-    confirmed. Options: headline "Runs out 10.12 unless ₮2,500,000 due today comes", or
-    revisit with recurring.
+  Then, on the owner's calls: late money in confirms dated today; the bill list marks
+  past-due items counted as today; the note reads "+₮2,500,000 in, 2 days late · not
+  counted"; "Still owed" is chosen only when more than a tenth is missing (Paid in full
+  dismisses it while confirming; Delete on the row later); on payday "Runs out 10.15
+  unless ₮2,500,000 due today comes". These last changes didn't get their own review
+  passes (they came from the previous ones).
 - **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
   card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
   before the last statement ("· not on the 09.10 statement"); days only for accounts
