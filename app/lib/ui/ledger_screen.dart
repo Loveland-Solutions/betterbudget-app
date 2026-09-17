@@ -361,10 +361,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startEdit(int id, EditField field) {
     final row = _rows[id];
     if (row == null) return;
-    if (row.locked) {
-      _showToast(_lockMessage(row));
-      return;
-    }
+    // Reconciled rows open too: payee, memo and category can still change.
     final controller = EntryRowController(
       onSubmit: (draft) => _saveEdit(row, draft),
       suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
@@ -433,9 +430,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _reconcile?.dispose();
     final session = ReconcileSession(
       accountId: account.id,
-      owed: account.type == AccountType.liability,
+      owed: account.isOwed,
       today: today,
-      clearedToday: data.clearedThrough(account.id, today).balance,
     );
     // The register shows rows through the statement date as it's typed.
     session.date.addListener(() {
@@ -445,6 +441,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _reconcile = session;
       _selected = null;
       _adding = false;
+    });
+    // The register holds focus, so the field's autofocus wouldn't take it.
+    // The bank's number is what comes next.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_reconcile == session) session.balanceFocus.requestFocus();
     });
   }
 
@@ -469,16 +470,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ? 'Already reconciled through ${shortDate(last)}'
         : null;
     final cleared = data.clearedThrough(s.accountId, date ?? today);
+    final statement = s.statementBalance;
     return (
       date: date,
       dateProblem: problem,
-      statement: s.statementBalance,
+      statement: statement,
       cleared: cleared.balance,
       toLock: cleared.toLock,
+      hint: date == null || statement == null
+          ? null
+          : data.reconcileHint(s.accountId, date, statement - cleared.balance),
     );
   }
 
-  Future<void> _lockReconcile(AccountInfo account, ReconcileCheck c) async {
+  /// With [adjust], a difference is posted as a "Reconcile adjustment" first.
+  Future<void> _lockReconcile(
+    AccountInfo account,
+    ReconcileCheck c, {
+    bool adjust = false,
+  }) async {
     final s = _reconcile;
     if (s == null || _locking || c.date == null || c.statement == null) return;
     final ReconcileRecord done;
@@ -489,6 +499,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         statementDate: c.date!,
         today: today,
         balance: c.statement!,
+        adjust: adjust,
       );
     } on ReconcileMismatchException {
       _showToast('The cleared rows changed · check the difference again');
@@ -500,14 +511,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _locking = false;
     }
     _endReconcile();
-    final n = done.entryIds.length;
+    final n = done.entryIds.length - (done.adjustmentTxnId == null ? 0 : 1);
+    final off = c.statement! - c.cleared;
+    final shownOff = account.isOwed ? -off : off;
     _did(
       '${account.name} reconciled through ${shortDate(c.date!)}',
       undo: () => db.unreconcile(done),
       redo: () => db.relock(done),
       message:
           '${account.name} reconciled through ${shortDate(c.date!)}'
-          '${n == 0 ? '' : ' · $n locked'}',
+          '${n == 0 ? '' : ' · $n locked'}'
+          '${done.adjustmentTxnId == null ? '' : ' · ${formatMoney(shownOff.abs(), showCents: off % 100 != 0)} adjustment added'}',
     );
   }
 
@@ -532,8 +546,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   String _lockMessage(RegisterRow r) => r.lockedIn != null
-      ? 'Locked · this transfer is reconciled in ${r.lockedIn}'
-      : 'Reconciled transactions are locked · they match a bank statement';
+      ? 'Can’t delete · this transfer is reconciled in ${r.lockedIn}'
+      : 'Can’t delete · it matches a bank statement';
 
   Future<void> _delete(RegisterRow r) async {
     final deleted = await db.softDeleteMany([r.txnId]);
@@ -677,6 +691,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       working: summary.working,
       today: today,
       scheduled: register.scheduled,
+      owed: account.isOwed,
     );
     final activeStatus = switch (_filter) {
       RegisterFilter.uncleared => Cleared.uncleared,
@@ -713,6 +728,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
           const SizedBox(height: 20),
           BalanceHeader(
+            owed: account.isOwed,
             summary: summary,
             forecast: forecast,
             hoveredStatus: _hoveredStatus,
@@ -727,6 +743,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     check: () => _reconcileCheck(data, summary),
                     onLock: () =>
                         _lockReconcile(account, _reconcileCheck(data, summary)),
+                    onAdjust: () => _lockReconcile(
+                      account,
+                      _reconcileCheck(data, summary),
+                      adjust: true,
+                    ),
                     onCancel: _endReconcile,
                   ),
             onStatusTap: (s) => setState(() {
@@ -741,6 +762,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           const SizedBox(height: 20),
           Expanded(
             child: RegisterPanel(
+              owed: account.isOwed,
               posted: register.posted,
               scheduled: register.scheduled,
               reconcileThrough: _reconcile == null
@@ -1174,10 +1196,16 @@ class _AccountTileState extends State<_AccountTile> {
             ),
             const SizedBox(height: 2),
             Text(
-              '${widget.balance < 0 ? '−' : ''}₮${formatWhole(widget.balance)}',
+              // A card shows what's owed, positive, as the bank does; owing
+              // isn't a warning.
+              widget.account.isOwed
+                  ? '${widget.balance > 0 ? '−' : ''}₮${formatWhole(widget.balance)} owed'
+                  : '${widget.balance < 0 ? '−' : ''}₮${formatWhole(widget.balance)}',
               style: onest(
                 12.5,
-                color: widget.balance < 0 ? Mid.coral : Mid.ink3,
+                color: !widget.account.isOwed && widget.balance < 0
+                    ? Mid.coral
+                    : Mid.ink3,
                 tabular: true,
               ),
             ),

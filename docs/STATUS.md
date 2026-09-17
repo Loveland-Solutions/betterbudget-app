@@ -11,8 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main`, most recently reconcile, undo/redo and
-the review fixes (PR #4). Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #5) and nothing is
+uncommitted. Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -25,16 +25,16 @@ Visual direction and the register's UX rules are settled in
 | --- | --- |
 | Storage | Drift/SQLite (schema version 3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v3-from-v2-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget and Savings are placeholders ("Later", "Not built yet" page). Net worth pinned at the bottom |
-| Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; the lines double as the symbol key (hover highlights, click filters) |
-| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
-| Register | Full dates, running balance, one signed amount column, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
+| Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
+| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
+| Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
 | Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
-| Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows are locked; moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today and says so) |
+| Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today and says so) |
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
-| Reconcile | Reconcile button in the header: statement date, bank balance (starts at the cleared total), cleared here, off by; the register narrows to unreconciled rows through that date; Lock is enabled only at zero and locks those cleared rows. Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
+| Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 60: money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile, 13 golden screenshots |
+| Tests | 67: money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -143,10 +143,35 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**PR #4 is merged**: reconcile, taking reconciles back, transfer locks, session
-undo/redo, the forecast bill list, and fixes from the two review passes. `flutter
-analyze` is clean, all 60 tests pass, and it runs in the macOS app. The transactions
-page is wrapped apart from the logged findings below, which the owner will pick from.
+**Nothing in flight.** The owner is starting a new conversation; ask what they want
+next. Candidates: the remaining review findings (F–N below), the tabled items, search
+and sorting on the roadmap, CI, the SQLCipher spike.
+
+**PR #5 (merged, 2026-09-17):** the owner's calls on review findings A–E, plus row
+striping. 67 tests pass, `flutter analyze` is clean, checked in the macOS app. Rules are
+in ADR 0004 (2, 4, 6, 8, 16).
+
+- **A. Bank balance starts empty** with the cursor in it, so a reconcile needs the
+  bank's number typed. "Not the “available” balance" beside it.
+- **B. Off by won't reach zero.** Direction ("Bank is lower"), a hint naming the one row
+  that matches the difference, a Cleared balance column while reconciling, and "Add
+  ₮X adjustment and lock", which posts a "Reconcile adjustment" against the equity
+  account "Balance adjustments" (created on first use) and undoes with the reconcile.
+  An adjustment left behind by undoing a reconcile in a later session stays as a cleared
+  row the user can delete.
+- **C. Credit cards show what's owed**, positive, never coral: header, register,
+  sidebar and a card forecast ("₮0 owed after 09.25").
+- **D. Reconciled rows edit payee, memo and category**; date, amount and accounts stay
+  locked (in the database too), and Delete stays off.
+- **E. The forecast counts scheduled money in** (transfers, refunds) as steps up, and
+  only income-category rows end it. The owner's data file has its 10.10 salary filed
+  under Dining out, so that account shows "Next 30 days" with the salary as money in.
+- **Row striping (owner's request).** Every other posted row is tinted `Mid.stripe`
+  (blue at 4.5%); hover on register rows is `Mid.rowHover` (pale at 8%), because the
+  old hover matched the stripe (owner's correction). Scheduled rows aren't striped.
+
+PR #4 (merged): reconcile, taking reconciles back, transfer locks, session undo/redo,
+the forecast bill list, and fixes from the two review passes.
 
 ⌘Z and ⌘⇧Z reach the app: the macOS Edit menu's Undo and Redo stay disabled (no
 responder handles them), and ⌘Z undid typing in the entry row. Undoing a register
@@ -175,25 +200,8 @@ action in the real app hasn't been tried yet.
 ### Review findings logged for the owner to decide later
 
 From the budget-app expert, unless marked (code) for the code reviewer. Each has
-options; recommendations in brackets.
+options; recommendations in brackets. A–E were decided and built (see Next step).
 
-- **A. Reconcile can lock without the bank's number being typed.** Bank balance
-  starts filled with the cleared total, so Reconcile then Enter locks everything. Start
-  the field empty [recommended], or keep the prefill but keep Lock off until the field is typed in.
-- **B. Off by won't reach zero** (the open question). Stay strict and add finding aids,
-  or also allow a labeled "Add ₮X adjustment and lock" against a non-spending
-  "Balance adjustments" account [both]. Finding aids: which way it's off ("bank is
-  lower"), a matching-row hint, and a cleared-only running balance while reconciling to
-  compare with the statement's Үлдэгдэл. Label which bank balance to type (not "available").
-- **C. Credit cards read as emergencies.** Golomt Visa is coral and "Below zero now".
-  Show what's owed as a positive number in normal ink, with a card-specific forecast
-  [recommended], or keep signs, drop coral and hide the forecast.
-- **D. Reconciled rows and categories.** (Both reviewers.) The chip still changes the
-  category while the bar says "locked". Allow category, payee and memo, and lock only
-  date, amount and account [recommended], or lock everything.
-- **E. The forecast ignores scheduled transfers in**, and any scheduled inflow (even a
-  refund) ends it as if it were payday. Let transfers and other inflows step the line
-  up, and let only income-category rows end it [recommended].
 - **F. Cash accounts go through the bank flow.** Save cash entries as cleared, and
   "Count" instead of Reconcile, with the difference posted to a category the user picks.
 - **G. Stale items skew Working.** Overdue scheduled rows are left out; old uncleared
@@ -217,8 +225,8 @@ options; recommendations in brackets.
 
 Also noted as now blocking something: **splits** (a receipt typed as two rows won't
 match the bank's one line, which affects the matching-row hint and import), and
-**accounts with opening balances** (no real user can start from nothing; F and C need
-the account type).
+**accounts with opening balances** (no real user can start from nothing; F needs the
+account type, and C relies on it).
 
 **Tabled for their own fresh conversations**, one each (owner's call):
 1. Creating and editing splits.

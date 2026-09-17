@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
+import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/native.dart';
@@ -465,14 +466,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
-    expect(find.textContaining('locked because it matches'), findsOneWidget);
+    expect(find.textContaining('date and amount locked'), findsOneWidget);
     expect(find.text('Delete'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await settle(tester);
     expect(
-      find.text(
-        'Reconciled transactions are locked · they match a bank statement',
-      ),
+      find.text('Can’t delete · it matches a bank statement'),
       findsOneWidget,
     );
     expect(salary, findsOneWidget);
@@ -688,7 +687,9 @@ void main() {
       await tidy(tester, db);
     });
 
-    testWidgets('reconciled rows explain that they are locked', (tester) async {
+    testWidgets('a reconciled row edits its payee; date and amount stay', (
+      tester,
+    ) async {
       final db = await pumpLedger(tester);
       await tester.enterText(
         find.widgetWithText(TextField, 'Search payee, memo, amount'),
@@ -699,11 +700,30 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.text('Altan Gadas LLC'));
       await tester.pumpAndSettle();
-      expect(find.text('Save'), findsNothing);
-      expect(
-        find.textContaining('Reconciled transactions are locked'),
-        findsOneWidget,
+      expect(find.text('Save'), findsOneWidget);
+      // Date and amount show as text; payee, memo and category are fields.
+      final fields = find.descendant(
+        of: find.byWidgetPredicate(
+          (w) =>
+              w.key is ValueKey &&
+              '${(w.key as ValueKey).value}'.startsWith('edit-'),
+        ),
+        matching: find.byType(EditableText),
       );
+      expect(fields, findsNWidgets(3));
+      expect(find.text('2026.09.10'), findsOneWidget);
+      // The double-clicked payee has the cursor. (A name that isn't a
+      // suggestion, so Enter saves instead of picking one.)
+      tester.testTextInput.enterText('Алтан Гадас');
+      await tester.pump();
+      await save(tester);
+      expect(find.text('Changes saved'), findsOneWidget);
+      final saved = await tester.runAsync(
+        () async =>
+            (await db.loadLedger()).txns.where((t) => t.payee == 'Алтан Гадас'),
+      );
+      expect(saved, hasLength(1));
+      expect(saved!.single.entries.first.cleared, Cleared.reconciled);
       await tidy(tester, db);
     });
   });
@@ -713,9 +733,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('reconcile')));
     await tester.pumpAndSettle();
 
-    // Starts from what's cleared here, so a matching statement is one click.
-    expect(find.text('Matches'), findsOneWidget);
+    // Starts empty, with the cursor there: the number comes from the statement.
+    expect(find.text('Matches'), findsNothing);
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('reconcile-balance')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+    expect(find.text('Not the “available” balance'), findsOneWidget);
     expect(find.text('Lock 5 transactions'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+    await settle(tester);
+    expect(
+      find.text('Reconcile'),
+      findsOneWidget,
+    ); // still open, nothing locked
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    expect(find.text('Last reconciled on 09.10'), findsNothing);
     // The register narrows to rows that can still be ticked off.
     expect(find.text('Not reconciled, through 2026.09.16'), findsOneWidget);
     expect(find.text('Altan Gadas LLC'), findsNothing);
@@ -726,15 +768,16 @@ void main() {
     await tester.enterText(balance, '4268850');
     await tester.pumpAndSettle();
     expect(find.text('Matches'), findsNothing);
-    expect(find.text('Clear the rows your bank shows'), findsOneWidget);
+    expect(find.text('Bank is lower'), findsOneWidget);
+    expect(
+      find.text('Unitel on 09.16 is ₮30,000 and isn’t cleared'),
+      findsOneWidget,
+    );
+    expect(find.text('Add ₮30,000 adjustment and lock'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/reconcile.png'),
     );
-    // Not matching: Lock does nothing.
-    await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
-    await settle(tester);
-    expect(find.text('Reconcile'), findsOneWidget);
 
     await tester.tap(find.text('Unitel'));
     await tester.pumpAndSettle();
@@ -767,6 +810,63 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a difference nobody can find goes in as an adjustment', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+    // ₮1,000 more at the bank than here, and no row that size.
+    await tester.enterText(
+      find.byKey(const ValueKey('reconcile-balance')),
+      '4299850',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Bank is higher'), findsOneWidget);
+    expect(find.text('Clear the rows your bank shows'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Add ₮1,000 adjustment and lock'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.text(
+        'TDB Checking reconciled through 09.16 · 5 locked · ₮1,000 adjustment added',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Reconcile adjustment'), findsOneWidget);
+    expect(find.text('Balance adjustments'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Reconcile adjustment'), findsNothing);
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a credit card shows what is owed, without warnings', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    expect(find.text('₮640,200 owed'), findsOneWidget); // sidebar
+    await tester.tap(find.text('Golomt Visa'));
+    await tester.pumpAndSettle();
+    expect(find.text('Owed'), findsWidgets); // total line and Balance column
+    expect(find.text('₮640,200.00', findRichText: true), findsWidgets);
+    expect(find.textContaining('Below zero'), findsNothing);
+    expect(find.text('₮0 owed after 09.25'), findsOneWidget);
+    expect(find.text('1 payment · ₮640,200 before 10.16'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/ledger_card.png'),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('a past reconcile can be undone from its rows, then redone', (
     tester,
   ) async {
@@ -789,9 +889,7 @@ void main() {
     await tester.tap(salary);
     await tester.pumpAndSettle();
     expect(
-      find.text(
-        'Reconciled on 09.10 · locked because it matches that statement',
-      ),
+      find.text('Reconciled on 09.10 · date and amount locked'),
       findsOneWidget,
     );
     await tester.runAsync(() async {

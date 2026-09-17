@@ -73,11 +73,27 @@ be quietly undone.
    used to that format, first read it as an amount.
    Hovering the end date still shows the income, and clicking it opens it. When the account is already
    under zero the headline says "Below zero now", not a future "runs out" date.
+   **Scheduled money coming in lifts the line** (owner's call, from the budget-app
+   review): a transfer from another account, or a refund, is a step up, and the line
+   under the headline adds it ("2 bills · ₮990,200 before 10.10 · +₮1,000,000 in").
+   **Only a row in an income category (Salary) ends the forecast.** It used to ignore
+   transfers in, so moving money from savings before rent still showed "Runs out", and any
+   scheduled money in, even a ₮5,000 refund, ended it as if it were payday.
+   **A credit card forecasts what will be owed** (owner's call): "Next 30 days",
+   "₮0 owed after 09.25", "1 payment · ₮640,200 before 10.16", a blue line, never coral
+   and never "runs out". Owing on a card is normal.
 3. **One signed amount column, not In/Out.** A transaction moves money one way in one
    account. The two-column layout is a paper-checkbook and bank-statement habit. Money
    out is plain; money in is green with a `+`.
 4. **Every row shows its full date (`YYYY.MM.DD`). No month subheadings or month
    subtotals.** The owner asked for these to be removed; don't reintroduce them.
+   **Every other posted row is tinted a faint royal blue** (`Mid.stripe`, blue at 4.5%;
+   owner's request, so transactions are easy to tell apart across the wide row). The
+   first row is plain. **Hovering a row lifts it clearly above the stripe**
+   (`Mid.rowHover`, a pale tint at 8%, laid over the stripe on tinted rows). The old
+   hover was as faint as the stripe, so a hovered plain row looked like its striped
+   neighbour (owner's correction). A selected row keeps its blue wash and outline. The dashed scheduled rows aren't striped; their
+   dashed border already sets each one apart.
 5. **Cleared-state symbols must not look like checkboxes or like math.** An empty circle
    beside a row reads as "select me", and a dash reads as a minus sign in the header's
    sum. The owner caught both. The symbols are: a small clock for uncleared (waiting to
@@ -94,6 +110,11 @@ be quietly undone.
    doesn't mean the bank hasn't seen it.** Banks often show a transaction as *pending*
    before it clears, so copy must say "not cleared yet" or "not settled", never "not
    posted" (an owner correction).
+   **On a credit card every amount is what's owed, positive**, as the bank shows it
+   (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
+   normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
+   owed". Coral on a card read as an emergency, which teaches people to ignore coral
+   where it matters. Rejected: keeping the minus signs and only dropping the coral.
 7. **Data entry works in any field order.** Enter in any field adds the transaction if
    complete, otherwise it moves to the first missing field. Started rows outline the
    required fields still empty and say "needs N more". There is a visible Add button.
@@ -109,16 +130,22 @@ be quietly undone.
 8. **One row at a time; its actions attach under it.** Clicking a row selects it and
    opens a bar inside its highlight with only what applies: Edit, Categorize (not on
    splits or transfers), Mark cleared *or* Mark uncleared, Delete, and ✕. Buttons are
-   outlined (owner's call) so they read as buttons; Delete's outline is coral. Reconciled
-   rows show "Reconciled · locked" instead. Clicking the row again, ✕ or Esc closes it;
+   outlined (owner's call) so they read as buttons; Delete's outline is coral.
+   **A reconciled row keeps Edit and Categorize, but its date and amount are locked**
+   (owner's call: "sometimes I maybe want to change the payee; changing the amount would
+   be a problem"). A statement confirms date, amount and account, not payee, memo or
+   category. The bar reads "Reconciled on 09.10 · date and amount locked"; the editor
+   shows the date and amount as plain text. A reconciled transfer can't move to another
+   account, and a category can't turn into a transfer. Delete and clearing stay off.
+   Rejected: locking everything, category chip included. Clicking the row again, ✕ or Esc closes it;
    the filter tabs stay put. Tab counts are in parentheses, "Uncleared (2)" (owner's call). No hint text: it should be obvious. **Multi-select was
    removed** (owner: not wanted now; ⌘-click, Shift-click and the bulk bar that
    replaced the tabs). It may come back with bank import, where categorizing or
    clearing a batch could be real work. Delete never removes a reconciled row (owner's
    correction: it once did), enforced in the database. **A transfer reconciled on one
    side is locked on both.** From the other account the row keeps its own ✓ or clock and
-   can still be cleared there, but its bar reads "Locked · reconciled in TDB Checking"
-   instead of Edit and Delete. Editing it from that side once changed the locked side's
+   can still be cleared there, and its payee and memo edited, but its bar reads
+   "Reconciled in TDB Checking · date and amount locked" and there's no Delete. Editing it from that side once changed the locked side's
    amount; the database now refuses.
 9. **Every action can be undone; only real changes get a toast.** **⌘Z (Ctrl+Z on
    Windows) undoes the last action**, then the one before, back through the session:
@@ -194,8 +221,24 @@ be quietly undone.
     click. The register narrows to rows not yet reconciled up to the statement date,
     labeled "Not reconciled, through …", where rows are marked cleared the usual way
     (symbol click or C). "Off by" updates live and reads "Matches" in green at zero.
-    **Lock stays disabled until the numbers match.** No adjustment transaction
-    (the owner didn't choose one, so the stricter rule is the default). The button
+    **Bank balance starts empty, with the cursor in it** (owner: "that's bad" about the
+    old prefill). It used to start at the cleared total, so Reconcile then Enter locked
+    everything without anyone reading the bank's number. Next to the empty field: "Not
+    the “available” balance" (bank apps show one that takes off pending holds and won't
+    match). **Lock stays disabled until the numbers match.** When they don't, the panel
+    helps find why: "Bank is lower" or "Bank is higher" (opposite causes), and a line
+    naming the one row whose amount is exactly the difference, if exactly one is ("Unitel
+    on 09.16 is ₮30,000 and isn't cleared", "… cleared here · not at the bank yet?",
+    "… dated 09.18, after the statement"); otherwise "Clear the rows your bank shows".
+    While reconciling, the last column is **Cleared balance**, a running total of cleared
+    rows only, to compare line by line with the statement; uncleared rows show none.
+    **A difference nobody can find goes in as a named adjustment** (owner's call). In
+    place of the disabled Lock, an outlined (not gold) "Add ₮30,000 adjustment and lock"
+    posts one cleared "Reconcile adjustment" row on the statement date against a
+    "Balance adjustments" account (equity, like opening balances, so never spending), and
+    locks it with the rest. Its toast says "· ₮30,000 adjustment added", and Undo removes
+    the adjustment with the locks. Rejected: staying strict with only the finding aids
+    (people would make up a spending row to force a match). The button
     names how many rows it locks. Locking marks this account's cleared entries up to
     the date reconciled, records the statement, and offers Undo. The other side of a
     transfer isn't locked. Esc cancels (after closing the calendar). A date before the
