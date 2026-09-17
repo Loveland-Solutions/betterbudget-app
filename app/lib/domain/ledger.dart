@@ -192,7 +192,12 @@ const staleUnclearedDays = 14;
 
 /// Whole days from [date] to [today].
 int daysBefore(DateTime date, DateTime today) =>
-    dateOnly(today).difference(dateOnly(date)).inDays;
+    // In UTC: across a daylight-saving change local days are 23 or 25 hours.
+    DateTime.utc(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
 
 /// "not cleared for 34 days", on an uncleared row that old; otherwise null.
 String? staleNote(RegisterRow r, DateTime today) {

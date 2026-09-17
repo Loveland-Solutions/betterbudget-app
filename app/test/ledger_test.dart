@@ -631,18 +631,10 @@ void main() {
     expect((await db.loadLedger()).summaryFor(checking).working, 418245000);
   });
 
-  test('confirming early posts today, not on the future due date', () async {
-    final scheduled = (await db.loadLedger()).registerFor(checking).scheduled;
-    final rent = scheduled.first; // due 09.20
-    final salary = scheduled.last; // due 10.10
-    await db.confirmScheduled(rent.txnId, today);
-    await db.confirmScheduled(salary.txnId, DateTime(2026, 10, 12));
-    final posted = (await db.loadLedger()).registerFor(checking).posted;
-    expect(posted.firstWhere((r) => r.txnId == rent.txnId).date, today);
-    expect(
-      posted.firstWhere((r) => r.txnId == salary.txnId).date,
-      DateTime(2026, 10, 10),
-    );
+  test('a daylight-saving change doesn\'t shorten a count of days', () {
+    // 23-hour and 25-hour local days still count as one each.
+    expect(daysBefore(DateTime(2026, 3, 8), DateTime(2026, 3, 22)), 14);
+    expect(daysBefore(DateTime(2026, 10, 25), DateTime(2026, 11, 8)), 14);
   });
 
   group('moving to another account', () {
@@ -952,7 +944,7 @@ void main() {
       categoryId: 2,
       splitLines: const [],
     );
-    DateTime ago(int d) => today.subtract(Duration(days: d));
+    DateTime ago(int d) => DateTime(today.year, today.month, today.day - d);
     expect(staleNote(row(ago(13)), today), isNull);
     expect(staleNote(row(ago(14)), today), 'not cleared for 14 days');
     expect(staleNote(row(ago(40), c: Cleared.cleared), today), isNull);

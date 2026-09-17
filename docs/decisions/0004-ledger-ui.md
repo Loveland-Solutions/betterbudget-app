@@ -170,11 +170,16 @@ be quietly undone.
     Residence confirmed early · ₮1,800,000 · posted today, 09.16").
     **Confirm opens the bill to check its amount** (owner's call, option A of three,
     from review finding L: "some bills are hard to predict"). It turns the row into
-    the editor, dated today, with the amount selected; Enter (or the row's Confirm
+    the editor with the amount selected (after its `+`, so typing the figure can't
+    turn money in into money out). **A bill not due yet is dated today; an overdue one
+    keeps its due date**, since a standing order or auto-pay left then, and a
+    statement will show it then (both review passes: dating it today moved it silently
+    and broke the next reconcile); Enter (or the row's Confirm
     button) confirms whatever it says, so a bill that matched costs one keystroke. The
     date can be changed to the day it really went out, but not to a future day (the
     calendar greys them). When the amount changed, the toast names the plan:
-    "Electricity confirmed · ₮64,210, planned ₮60,000". Esc leaves it scheduled.
+    "Electricity confirmed · ₮64,210, planned ₮60,000", and when the date isn't the
+    planned one it says so ("· posted 09.12"). Esc leaves it scheduled.
     Rejected: posting at once with "Change amount" in the toast (B), easy to miss for
     bills that usually vary, and marking some scheduled items "amount varies" (C), a
     setting to maintain.

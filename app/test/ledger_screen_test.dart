@@ -1531,6 +1531,7 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/overdue_row.png'),
     );
+
     // Unitel is from today: no note. Skytel is old enough to question.
     final skytel = find.text('Skytel', skipOffstage: false);
     await tester.ensureVisible(skytel);
@@ -1541,6 +1542,26 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/stale_rows.png'),
     );
+
+    // Confirming it keeps its due date, when auto-pay really left.
+    await tester.drag(find.text('Skytel'), const Offset(0, 2000));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.widgetWithText(TextField, '2026.09.09'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Mobicom confirmed · ₮40,000'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('· due 7 days ago'), findsOneWidget);
     await tidy(tester, db);
   });
 

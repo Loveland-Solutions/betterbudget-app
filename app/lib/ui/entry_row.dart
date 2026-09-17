@@ -46,13 +46,17 @@ class EntryRowController {
 
 /// What an existing transaction starts as when opened for editing.
 class EditInitial {
-  /// With [confirmingOn], the row opens to confirm a scheduled transaction:
-  /// dated that day (confirming means it happened), saved with Confirm.
+  /// With [confirmingOn] (today), the row opens to confirm a scheduled
+  /// transaction, saved with Confirm. One not due yet is dated today, since
+  /// confirming means it happened; an overdue one keeps its due date, which
+  /// is when a standing order or auto-pay really left.
   EditInitial.fromRow(
     RegisterRow r, {
     this.focus = EditField.payee,
     DateTime? confirmingOn,
-  }) : date = confirmingOn ?? r.date,
+  }) : date = confirmingOn != null && r.date.isAfter(confirmingOn)
+           ? confirmingOn
+           : r.date,
        confirming = confirmingOn != null,
        payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
        memo = r.memo,
@@ -222,8 +226,12 @@ class _EntryRowState extends State<EntryRow> {
           _ => (_payeeFocus, _payee),
         };
         node.requestFocus();
+        // An amount's `+` (money in) stays out of the selection, so typing
+        // the real figure can't turn a refund or transfer in into money out.
         ctrl.selection = TextSelection(
-          baseOffset: 0,
+          baseOffset: identical(ctrl, _amount) && ctrl.text.startsWith('+')
+              ? 1
+              : 0,
           extentOffset: ctrl.text.length,
         );
       });

@@ -879,11 +879,14 @@ class _PostedRow extends StatelessWidget {
                                   // Brighter than the memo: it's why Working
                                   // may be lower than it should be.
                                   if (stale != null)
-                                    Text(
-                                      '${memo.isEmpty ? '' : ' · '}$stale',
-                                      key: const ValueKey('stale-note'),
-                                      style: onest(12.5, color: Mid.ink2),
-                                      maxLines: 1,
+                                    Flexible(
+                                      child: Text(
+                                        '${memo.isEmpty ? '' : ' · '}$stale',
+                                        key: const ValueKey('stale-note'),
+                                        style: onest(12.5, color: Mid.ink2),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                 ],
                               ),

@@ -464,7 +464,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
             '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
             // The planned amount, when it wasn't what happened.
             '${amount == row.amount ? '' : ', planned ${money(row.amount)}'}'
-            '${d.date == today ? (early ? ' · posted today, ${shortDate(today)}' : '') : ' · posted ${shortDate(d.date)}'}',
+            // The date, whenever it isn't the one planned.
+            '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}',
       );
       return null;
     }

@@ -623,26 +623,6 @@ class AppDatabase extends _$AppDatabase {
         const TransactionsCompanion(deletedAt: Value(null)),
       );
 
-  /// Posts a scheduled transaction. Confirming means "this happened", so one
-  /// confirmed ahead of its date is posted on [today], never in the future.
-  Future<void> confirmScheduled(int transactionId, DateTime today) async {
-    final t = await (select(
-      transactions,
-    )..where((t) => t.id.equals(transactionId))).getSingle();
-    final due = parseDateKey(t.date);
-    await (update(
-      transactions,
-    )..where((t) => t.id.equals(transactionId))).write(
-      TransactionsCompanion(
-        scheduled: const Value(false),
-        date: due.isAfter(dateOnly(today))
-            ? Value(dateKey(dateOnly(today)))
-            : const Value.absent(),
-        updatedAt: Value(_now),
-      ),
-    );
-  }
-
   Future<TxnSnapshot> snapshot(int transactionId) async => TxnSnapshot(
     await (select(
       transactions,
