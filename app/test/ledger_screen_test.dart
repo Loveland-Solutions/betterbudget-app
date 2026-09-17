@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
+import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -1562,6 +1564,186 @@ void main() {
     });
     await settle(tester);
     expect(find.text('· due 7 days ago'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a late salary is named and not counted', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(NativeDatabase.memory());
+    // The seed's salary is due 10.10; open the app on 10.12, before it's
+    // confirmed. Rent (09.20), the card payment and childcare are overdue too.
+    await tester.runAsync(() async {
+      await seedDemoIfEmpty(db, DateTime(2026, 9, 16));
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: midnightTheme(),
+          home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 12, 10)),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Next 30 days'), findsOneWidget);
+    // The amount and how late, not a name or a date that reads like money.
+    expect(find.text('+₮2,500,000 in, 2 days late'), findsOneWidget);
+    expect(find.text(' · not counted'), findsOneWidget);
+    expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
+    // Only the header: the register below isn't what this is about.
+    await expectLater(
+      find.byType(ForecastPanel),
+      matchesGoldenFile('goldens/forecast_late_income.png'),
+    );
+
+    // The bill list says which bills are past due and counted as today.
+    await tester.tap(find.byKey(const ValueKey('forecast-bills')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(' · due 22 days ago'),
+      findsOneWidget,
+    ); // rent, in the list
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // Clicking the note opens the salary, ready to confirm.
+    await tester.tap(find.byKey(const ValueKey('forecast-late')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsNothing); // Scheduled tab
+    await tidy(tester, db);
+  });
+
+  testWidgets('a salary confirmed short keeps the rest owed, undone as one', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Scheduled'));
+    await tester.pumpAndSettle();
+
+    // A bill that came in lower asks nothing.
+    await tester.tap(find.text('Confirm').first);
+    await tester.pump();
+    await tester.pump();
+    tester.testTextInput.enterText('1700000');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('owed-line')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // The salary (last scheduled) came in at half.
+    await tester.tap(find.text('Confirm').last);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('owed-line')), findsNothing); // as planned
+    tester.testTextInput.enterText('1250000');
+    await tester.pump();
+    expect(find.text('₮1,250,000 less than planned:'), findsOneWidget);
+    expect(find.text('Still owed, due 10.10'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_short.png'),
+    );
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.text(
+        'Altan Gadas LLC confirmed early · ₮1,250,000 · ₮1,250,000 still owed, due 10.10 · posted today, 09.16',
+      ),
+      findsOneWidget,
+    );
+    Future<List<int>> salaries() async => (await tester.runAsync(
+      () async => [
+        for (final r in (await db.loadLedger()).registerFor(1).scheduled)
+          if (r.payee == 'Altan Gadas LLC') r.amount,
+      ],
+    ))!;
+    expect(await salaries(), [125000000]);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(await salaries(), [250000000]);
+    // Redo brings back both halves.
+    await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
+    expect(await salaries(), [125000000]);
+    await chord(tester, LogicalKeyboardKey.keyZ);
+    await settle(tester);
+    expect(await salaries(), [250000000]);
+
+    // Paid in full: nothing kept.
+    await tester.tap(find.text('Confirm').last);
+    await tester.pump();
+    await tester.pump();
+    tester.testTextInput.enterText('2400000');
+    await tester.pump();
+    // ₮100,000 short is a small difference: Paid in full is chosen.
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: find.byKey(const ValueKey('owed-full')),
+              matching: find.byType(Icon),
+            ),
+          )
+          .icon,
+      Icons.radio_button_checked_rounded,
+    );
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Confirm').last);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.textContaining('₮2,400,000, planned ₮2,500,000'),
+      findsOneWidget,
+    );
+    expect(await salaries(), isEmpty);
+    await tidy(tester, db);
+  });
+
+  testWidgets('on payday the warning waits for the salary', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(NativeDatabase.memory());
+    // The seed's salary is due 10.10; it's 10.10 and a ₮2,000,000 bill is due
+    // on 10.15.
+    await tester.runAsync(() async {
+      await seedDemoIfEmpty(db, DateTime(2026, 9, 16));
+      final ledger = await db.loadLedger();
+      await db.postSimple(
+        accountId: ledger.balanceSheetAccounts.first.id,
+        date: DateTime(2026, 10, 15),
+        today: DateTime(2026, 10, 10),
+        payee: 'МУИС',
+        counterAccountId: ledger.categories
+            .firstWhere((c) => c.name == 'Tuition')
+            .id,
+        amount: -200000000,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: midnightTheme(),
+          home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 10, 9)),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Runs out 10.15 unless ₮2,500,000 due today comes'),
+      findsOneWidget,
+    );
+    expect(find.text('+₮2,500,000 in, due today'), findsOneWidget);
     await tidy(tester, db);
   });
 

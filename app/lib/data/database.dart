@@ -693,7 +693,13 @@ class AppDatabase extends _$AppDatabase {
   /// With [confirm], a scheduled transaction is confirmed in the same write,
   /// with whatever amount and date it really had (bills vary). Confirming
   /// means it happened, so the date can't be after [today].
-  Future<void> editTransaction({
+  ///
+  /// With [keepOwed] as well, money in that came short (half a salary) leaves
+  /// the rest scheduled on the planned date, in the same write, with the
+  /// payee, memo and other side as confirmed. Never for a transfer between
+  /// the user's own accounts: moving less is their own decision. Returns that
+  /// remainder's id, or null.
+  Future<int?> editTransaction({
     required int transactionId,
     required int accountId,
     required DateTime date,
@@ -703,6 +709,7 @@ class AppDatabase extends _$AppDatabase {
     int? counterAccountId,
     int? amount,
     bool confirm = false,
+    bool keepOwed = false,
   }) {
     return transaction(() async {
       if (confirm && dateOnly(date).isAfter(dateOnly(today))) {
@@ -769,6 +776,39 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       await _assertBalanced(transactionId);
+
+      final planned = mine.amountMinor;
+      final came = amount ?? planned;
+      final others = rows.where((e) => e.id != mine.id).toList();
+      if (!confirm ||
+          !keepOwed ||
+          !header.scheduled ||
+          others.length != 1 ||
+          planned <= 0 ||
+          came <= 0 ||
+          came >= planned) {
+        return null;
+      }
+      final other = counterAccountId ?? others.single.accountId;
+      if (_reconcilable.contains((await _accountTypes())[other])) return null;
+      return postTransaction(
+        date: parseDateKey(header.date),
+        payee: payee,
+        memo: memo,
+        scheduled: true,
+        lines: [
+          (
+            accountId: accountId,
+            amount: planned - came,
+            cleared: Cleared.uncleared,
+          ),
+          (
+            accountId: other,
+            amount: came - planned,
+            cleared: Cleared.uncleared,
+          ),
+        ],
+      );
     });
   }
 

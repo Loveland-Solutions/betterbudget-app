@@ -33,6 +33,11 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.
+- Once they've made a call, don't re-ask it. Review findings that refine it (wording,
+  defaults, edge cases) are yours to decide along the lines they gave; report them
+  briefly. Ask only about new features or new ways money is counted or shown, two or
+  three at a time. Run the review passes once per feature, not again on their own
+  follow-ups (owner, 2026-09-17: "you keep asking me the same five questions").
 - If they must run something themselves (for example `sudo`), give them one copy-paste
   line and say why.
 

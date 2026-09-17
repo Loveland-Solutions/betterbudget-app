@@ -431,8 +431,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }) async {
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
+    final int? owedId;
     try {
-      await db.editTransaction(
+      owedId = await db.editTransaction(
         transactionId: row.txnId,
         accountId: _accountId!,
         date: d.date,
@@ -442,13 +443,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
         counterAccountId: d.counter?.id,
         amount: d.amount,
         confirm: confirming,
+        keepOwed: d.keepOwed,
       );
-      after = await db.snapshot(row.txnId);
     } on LockedException catch (e) {
       return e.message;
     } catch (e) {
       return 'Couldn’t save: $e';
     }
+    // Saved: from here a failure mustn't read as "couldn't save".
+    after = await db.snapshot(row.txnId);
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
     final name = d.payee.isEmpty ? row.payee : d.payee;
@@ -458,12 +461,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final early = row.date.isAfter(today);
       _did(
         '$name confirmed',
-        undo: () => db.restoreSnapshot(before),
-        redo: () => db.restoreSnapshot(after),
+        // One action: the confirm and any rest still owed come and go
+        // together.
+        undo: () => db.transaction(() async {
+          await db.restoreSnapshot(before);
+          if (owedId case final id?) {
+            _expect((await db.softDeleteMany([id])).length == 1);
+          }
+        }),
+        redo: () => db.transaction(() async {
+          await db.restoreSnapshot(after);
+          if (owedId case final id?) await db.restoreMany([id]);
+        }),
         message:
             '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
-            // The planned amount, when it wasn't what happened.
-            '${amount == row.amount ? '' : ', planned ${money(row.amount)}'}'
+            // What's still owed, or else the plan when it wasn't what happened.
+            '${owedId != null
+                ? ' · ${money(row.amount - amount)} still owed, due ${shortDate(row.date)}'
+                : amount == row.amount
+                ? ''
+                : ', planned ${money(row.amount)}'}'
             // The date, whenever it isn't the one planned.
             '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}',
       );

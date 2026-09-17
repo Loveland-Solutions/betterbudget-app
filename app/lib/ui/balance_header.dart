@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
-import 'register.dart' show BarButton;
+import 'register.dart' show BarButton, Hoverable;
 import 'theme.dart';
 
 class BalanceHeader extends StatelessWidget {
@@ -347,6 +347,62 @@ class _StatusLine extends StatelessWidget {
   }
 }
 
+/// "· ₮2,500,000 2 days late · not counted": money in the forecast leaves
+/// out until it's confirmed. The amount, not a name: it says whether the
+/// warning would clear if the money came, and names can be any length.
+/// Clicking it opens that row (the first, when several), like a dot, since
+/// confirming it is how it gets counted.
+class _LateNote extends StatelessWidget {
+  const _LateNote({
+    required this.late,
+    required this.today,
+    required this.onOpen,
+  });
+  final List<RegisterRow> late;
+  final DateTime today;
+  final ValueChanged<RegisterRow> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = late.fold(0, (s, r) => s + r.amount);
+    // "+… in" says which way it goes: late bills use the same gold.
+    final String what;
+    if (late.length > 1) {
+      what = '+₮${formatWhole(total)} in, ${late.length} not arrived';
+    } else {
+      final days = daysBefore(late.single.date, today);
+      what =
+          '+₮${formatWhole(total)} in, ${days == 0 ? 'due today' : '$days ${days == 1 ? 'day' : 'days'} late'}';
+    }
+    return Hoverable(
+      key: const ValueKey('forecast-late'),
+      onTap: () => onOpen(late.first),
+      builder: (h) {
+        final style = onest(12, color: Mid.gold, tabular: true).copyWith(
+          decoration: h ? TextDecoration.underline : null,
+          decorationColor: Mid.gold,
+        );
+        // Only the amount part shrinks: "not counted" explains the warning.
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(' · ', style: onest(12, color: Mid.ink3)),
+            Flexible(
+              child: Text(
+                what,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(' · not counted', style: style, maxLines: 1),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
   const ForecastPanel(this.f, {super.key, required this.onOpen});
@@ -378,15 +434,26 @@ class ForecastPanel extends StatelessWidget {
           ? 'No charges or payments in the next 30 days'
           : '${parts.join(' · ')} before ${shortDate(f.end)}';
     } else {
+      // Money due today that hasn't landed: on payday the warning is
+      // conditional, not news.
+      final dueToday = f.late
+          .where((r) => !r.date.isBefore(f.start))
+          .fold(0, (s, r) => s + r.amount);
+      final unless = dueToday > 0
+          ? ' unless ₮${formatWhole(dueToday)} due today comes'
+          : null;
       if (f.shortNow) {
         // Already under: say so, not a future "runs out" date. The amount is
         // the Working total beside it, so it isn't repeated.
-        headline = f.low < f.startBalance
+        headline = unless != null
+            ? 'Below zero now$unless'
+            : f.low < f.startBalance
             ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
             : 'Below zero now';
       } else if (f.isShort) {
-        headline =
-            'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
+        headline = unless != null
+            ? 'Runs out ${shortDate(f.firstShort!)}$unless'
+            : 'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
       } else if (f.steps.isEmpty) {
         headline = 'Nothing scheduled';
       } else {
@@ -407,12 +474,24 @@ class ForecastPanel extends StatelessWidget {
             ].join(' · ');
     }
 
+    // Late money in, named so a warning without it makes sense.
+    final late = f.late;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          payday == null ? 'Next 30 days' : 'Until next income',
-          style: onest(12, color: Mid.ink3),
+        Row(
+          key: const ValueKey('forecast-horizon'),
+          children: [
+            Text(
+              payday == null ? 'Next 30 days' : 'Until next income',
+              style: onest(12, color: Mid.ink3),
+            ),
+            if (late.isNotEmpty)
+              Flexible(
+                child: _LateNote(late: late, today: f.start, onOpen: onOpen),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -666,6 +745,7 @@ class _BillLineState extends State<_BillLine> {
   Widget build(BuildContext context) {
     final r = widget.row;
     final b = widget.balanceAfter;
+    final overdue = overdueNote(r, widget.date);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -686,13 +766,27 @@ class _BillLineState extends State<_BillLine> {
                 ),
               ),
               Expanded(
-                child: Text(
-                  r.kind == RowKind.transfer
-                      ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
-                      : r.payee,
-                  style: onest(13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        r.kind == RowKind.transfer
+                            ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
+                            : r.payee,
+                        style: onest(13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Past due and counted as today: a transfer not made yet,
+                    // or a bill not confirmed.
+                    if (overdue != null)
+                      Text(
+                        ' · $overdue',
+                        style: onest(12.5, color: Mid.gold),
+                        maxLines: 1,
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),

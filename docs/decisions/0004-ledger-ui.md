@@ -76,6 +76,30 @@ be quietly undone.
    **Scheduled money coming in lifts the line** (owner's call, from the budget-app
    review): a transfer from another account, or a refund, is a step up, and the line
    under the headline adds it ("2 bills · ₮990,200 before 10.10 · +₮1,000,000 in").
+   **Late money in isn't counted until it arrives** (owner's call, option A of three,
+   from review finding 1 on PR #6). A salary or refund due today or earlier and not
+   confirmed is left out; the forecast runs to the next salary not yet due, or 30 days.
+   The small label above the headline says so in gold, with the amount and how late:
+   "Next 30 days · +₮2,500,000 in, 2 days late · not counted" ("in, due today"; several:
+   "+₮2,650,000 in, 2 not arrived · not counted"). The amount, not a name or a date: it
+   says whether the warning would clear if the money came, and "10.10" beside amounts
+   read as money (owner's call, from its review); "+… in" because late bills use the
+   same gold (owner's call). Only the amount part shrinks, so "not counted" always
+   shows. **On payday the warning is conditional** (owner's call): "Runs out 10.15
+   unless ₮2,500,000 due today comes". The bill list marks bills and transfers past due
+   and counted as today ("· due 3 days ago"), so money the user forgot to move doesn't
+   look covered (owner's call). Clicking the note opens that row (the first, when
+   several), like a dot, so it can be confirmed. **Salary due today waits too** (owner's
+   call): on payday morning it may still be late, and ending the forecast there hid
+   rent due in two days. **A late transfer between the user's own accounts counts** on
+   both sides, as due today (owner's call): leaving it out of the receiving account
+   while the sending one still took it off put the money in neither. Before, a late
+   salary counted as arriving today and ended the forecast there, so next week's rent
+   vanished from it just when pay was late. Late bills still count, as due today.
+   Confirming the money when it lands brings it back. A card is unchanged, since owing
+   never warns. Rejected: counting it as today but running on past it (B), which says
+   you're fine while rent bounces if pay is later still, and a second dashed line for
+   "if it arrives today" (C), one more thing to explain.
    **Only a row in an income category (Salary) ends the forecast.** It used to ignore
    transfers in, so moving money from savings before rent still showed "Runs out", and any
    scheduled money in, even a ₮5,000 refund, ended it as if it were payday.
@@ -171,10 +195,12 @@ be quietly undone.
     **Confirm opens the bill to check its amount** (owner's call, option A of three,
     from review finding L: "some bills are hard to predict"). It turns the row into
     the editor with the amount selected (after its `+`, so typing the figure can't
-    turn money in into money out). **A bill not due yet is dated today; an overdue one
-    keeps its due date**, since a standing order or auto-pay left then, and a
-    statement will show it then (both review passes: dating it today moved it silently
-    and broke the next reconcile); Enter (or the row's Confirm
+    turn money in into money out). **A bill not due yet is dated today; an overdue bill
+    or transfer keeps its due date**, since a standing order or auto-pay left then, and
+    a statement will show it then (both review passes: dating it today moved it
+    silently and broke the next reconcile). **Overdue money in is dated today** (owner's
+    call): late means it didn't come on its date, and dating a late salary back put
+    money in the balance before it arrived; Enter (or the row's Confirm
     button) confirms whatever it says, so a bill that matched costs one keystroke. The
     date can be changed to the day it really went out, but not to a future day (the
     calendar greys them). When the amount changed, the toast names the plan:
@@ -183,6 +209,25 @@ be quietly undone.
     Rejected: posting at once with "Change amount" in the toast (B), easy to miss for
     bills that usually vary, and marking some scheduled items "amount varies" (C), a
     setting to maintain.
+    **Money in confirmed short can stay owed** (owner's call, after a committee of three:
+    household money, design, ledger integrity). When a salary or refund is
+    confirmed below plan, a line under the amount reads "₮1,250,000 less than planned:
+    (•) Still owed, due 10.10 ( ) Paid in full". **Still owed is chosen when more than a tenth is
+    missing** (owner's call; otherwise Paid in full, since take-home pay and refunds
+    after an exchange rate move vary a little), so Enter keeps
+    the rest scheduled on the planned date (payee, memo and category as confirmed) in
+    the same write. Past that date it's late, so rule 2 leaves it out of the forecast and names
+    it. A remainder nobody wanted is visible and one Delete away; a forgotten one would
+    vanish. The toast says "· ₮1,250,000 still owed, due 10.10", and one Undo puts back
+    the single planned row. Bills never see the line: one that came in lower owes
+    nothing more. Nor do transfers between the user's own accounts: moving less is
+    their own decision, and a kept remainder would count in the forecast (late
+    transfers count) as money that was never going to move (both review passes). Wording was the owner's pick ("Rest still coming" was disliked;
+    rejected: "Expect the rest / That's all", "Keep ₮X scheduled / Drop it"). Rejected
+    designs: a toast action (toasts are missed), keeping the rest automatically (varying
+    income would leave a remainder every month), "Paid in full" as the default (a
+    forgotten remainder disappears), and waiting for recurring schedules (they make next
+    month's salary, not this month's shortfall).
 11. **A future-dated manual entry is scheduled**, not posted. It shows in the forecast
     and in Scheduled but in no balance until confirmed. The same applies when an edit
     moves a posted transaction into the future.

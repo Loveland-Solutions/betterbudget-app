@@ -11,8 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main` (through PR #6, findings F–N, backups and
-Settings) and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #8: late money in, still owed)
+and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -26,7 +26,7 @@ Visual direction and the register's UX rules are settled in
 | Storage | Drift/SQLite (schema version 3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v3-from-v2-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget and Savings are placeholders ("Later", "Not built yet" page). Net worth pinned at the bottom |
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
-| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
+| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. Money in due today or earlier and not confirmed isn't counted (the header says so in gold and opens it); on payday "Runs out 10.15 unless ₮2,500,000 due today comes". A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
 | Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
 | Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, Confirm on a scheduled row opens it dated today with the amount selected, so a bill that varied is confirmed as it really was |
@@ -36,7 +36,7 @@ Visual direction and the register's UX rules are settled in
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 98: confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 104: payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -153,10 +153,29 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Nothing in flight.** PR #6 merged 2026-09-17. Next: ask the owner. Open decisions
-are listed just below (late salary in the forecast, a better "not cleared" note,
-duplicate on confirm, several overdue bills), then the backup items further down, the
-tabled list, and search and sorting on the roadmap.
+**Nothing in flight.** PR #8 merged 2026-09-17. Next: ask the owner what they want.
+Open items, roughly by value: a "not cleared" note based on the last statement,
+a duplicate check on Confirm, several overdue bills in All (all below), backup
+reminders (further down), the tabled list, and search and sorting on the roadmap.
+
+**How to work with the owner (their correction, 2026-09-17):** don't re-ask decisions
+they've made. Decide review follow-ups along their reasoning and report them briefly;
+ask only about new features or new ways money is counted or shown. See CLAUDE.md.
+
+**PR #8 (merged, 2026-09-17): late money in and short salaries.** ADR 0004 rules 2
+and 10. 104 tests, analyze clean, checked in the macOS app.
+- Money in (salary, refund) due today or earlier and not confirmed isn't counted in
+  the forecast; it runs to the next salary or 30 days. The header says "+₮2,500,000
+  in, 2 days late · not counted" and clicking it opens the row. On payday: "Runs out
+  10.15 unless ₮2,500,000 due today comes". Late transfers between own accounts count
+  on both sides, as due today; the bill list marks past-due items "· due 3 days ago".
+- Confirming: late money in is dated today; late bills and transfers keep their due
+  date. Money in confirmed short (not transfers) offers "Still owed, due 10.10" or
+  "Paid in full"; Still owed is chosen when more than a tenth is missing, and keeps the
+  rest scheduled on the planned date in the same write, undone as one action. Decided
+  after a committee of three (household, design, ledger integrity).
+- The last round of follow-ups (confirm date, bill list mark, "+ in" wording, still
+  owed by size, payday headline) didn't get its own review passes.
 
 **PR #6 (merged):** the owner chose option A for G (notes on old rows) and L (Confirm
 opens the bill to check its amount); ADR 0004 rules 10 and 20. Settings gear labelled
@@ -164,11 +183,8 @@ opens the bill to check its amount); ADR 0004 rules 10 and 20. Settings gear lab
 confirms on its due date; the amount opens selected after its `+`; day counts don't
 lose a day across daylight saving; the unused `confirmScheduled` is gone.
 
-**Raised by the G and L reviews, for the owner to decide:**
-- **A late salary cuts the forecast off at today** (existed before): payday overdue
-  means `end = today`, so rent next week isn't counted. Recommended: don't count an
-  overdue income as arrived; run to the next income or 30 days, and say "Salary due 2
-  days ago, not counted".
+**Still open from the G and L reviews:**
+- ~~A late salary cuts the forecast off at today.~~ Built in PR #8 (see above).
 - **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
   card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
   before the last statement ("· not on the 09.10 statement"); days only for accounts

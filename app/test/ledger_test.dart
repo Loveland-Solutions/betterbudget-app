@@ -2,6 +2,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/forecast.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -925,6 +926,135 @@ void main() {
     },
   );
 
+  test(
+    'money in confirmed short can keep the rest owed; bills never',
+    () async {
+      Future<RegisterRow> scheduled(String payee) async =>
+          (await db.loadLedger())
+              .registerFor(checking)
+              .scheduled
+              .firstWhere((r) => r.payee == payee);
+      final salary = await scheduled('Altan Gadas LLC'); // +₮2,500,000, 10.10
+      final owedId = await db.editTransaction(
+        transactionId: salary.txnId,
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'Altan Gadas LLC',
+        memo: salary.memo,
+        amount: 125000000,
+        confirm: true,
+        keepOwed: true,
+      );
+      expect(owedId, isNotNull);
+      final ledger = await db.loadLedger();
+      final owed = ledger
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == owedId);
+      expect(owed.amount, 125000000);
+      expect(owed.date, DateTime(2026, 10, 10));
+      expect(owed.categoryLabel, 'Salary');
+      expect(owed.payee, 'Altan Gadas LLC');
+      expect(owed.memo, salary.memo);
+      expect(
+        ledger
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.txnId == salary.txnId)
+            .amount,
+        125000000,
+      );
+      expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+
+      // Kept with the payee as corrected while confirming.
+      expect(owed.txnPayee, 'Altan Gadas LLC');
+
+      // A transfer moved short is the user's own call: nothing kept.
+      final savings = ledger.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Khan Savings')
+          .id;
+      final moveIn = await db.postTransaction(
+        date: DateTime(2026, 9, 20),
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: 100000000, cleared: Cleared.uncleared),
+          (accountId: savings, amount: -100000000, cleared: Cleared.uncleared),
+        ],
+      );
+      expect(
+        await db.editTransaction(
+          transactionId: moveIn,
+          accountId: checking,
+          date: today,
+          today: today,
+          amount: 50000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
+
+      // Not short: nothing kept.
+      final refund = await db.postTransaction(
+        date: DateTime(2026, 9, 18),
+        payee: 'Nomin',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: 3000000, cleared: Cleared.uncleared),
+          (
+            accountId: await categoryId('Clothing'),
+            amount: -3000000,
+            cleared: Cleared.uncleared,
+          ),
+        ],
+      );
+      expect(
+        await db.editTransaction(
+          transactionId: refund,
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: 'Nomin',
+          amount: 3000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
+
+      // A bill that came in lower owes nothing more, even if asked.
+      final rent = await scheduled('Zaisan Residence');
+      expect(
+        await db.editTransaction(
+          transactionId: rent.txnId,
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: rent.payee,
+          amount: -170000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'confirm dates late money in today; late bills keep their due date',
+    () async {
+      final scheduled = (await db.loadLedger()).registerFor(checking).scheduled;
+      final rent = scheduled.first; // 09.20
+      final salary = scheduled.last; // 10.10
+      final later = DateTime(2026, 10, 12);
+      expect(EditInitial.fromRow(salary, confirmingOn: later).date, later);
+      expect(EditInitial.fromRow(rent, confirmingOn: later).date, rent.date);
+      // Not due yet: today, either way.
+      expect(EditInitial.fromRow(rent, confirmingOn: today).date, today);
+    },
+  );
+
   test('old uncleared and overdue scheduled rows get a note', () {
     RegisterRow row(
       DateTime date, {
@@ -1172,6 +1302,115 @@ void main() {
       expect(f.startBalance, 64020000); // owed, positive
       expect(f.inTotal, 64020000); // the scheduled payment
       expect(f.endBalance, 0);
+    });
+
+    test('a late salary is not counted; the forecast runs on past it', () {
+      RegisterRow row(
+        DateTime date,
+        int amount,
+        String category, {
+        bool income = false,
+      }) => RegisterRow(
+        txnId: date.day + amount.abs() % 97,
+        entryId: 1,
+        date: date,
+        payee: 'P',
+        memo: '',
+        amount: amount,
+        cleared: Cleared.uncleared,
+        scheduled: true,
+        kind: RowKind.simple,
+        categoryLabel: category,
+        categoryId: 1,
+        splitLines: const [],
+        incomeCategory: income,
+      );
+      // Today 09.16. Salary was due 09.14; rent 09.20; next salary 10.14.
+      final lateSalary = row(
+        DateTime(2026, 9, 14),
+        250000000,
+        'Salary',
+        income: true,
+      );
+      final lateRefund = row(DateTime(2026, 9, 10), 500000, 'Clothing');
+      final lateBill = row(DateTime(2026, 9, 12), -3000000, 'Phone');
+      final rent = row(DateTime(2026, 9, 20), -180000000, 'Housing');
+      final nextSalary = row(
+        DateTime(2026, 10, 14),
+        250000000,
+        'Salary',
+        income: true,
+      );
+      final f = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateRefund, lateBill, lateSalary, rent, nextSalary],
+      );
+      expect(f.late, [lateRefund, lateSalary]);
+      expect(f.inTotal, 0); // the late refund doesn't lift the line
+      expect(f.payday, same(nextSalary));
+      expect(f.end, DateTime(2026, 10, 14));
+      // The late bill counts today; rent counts; no late money in.
+      expect(f.steps.map((s) => s.row), [lateBill, rent]);
+      expect(f.firstShort, DateTime(2026, 9, 20));
+      expect(f.low, 38200000 - 3000000 - 180000000);
+
+      // With no later salary: 30 days out, still without the late one.
+      final alone = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateSalary, rent],
+      );
+      expect(alone.payday, isNull);
+      expect(alone.end, DateTime(2026, 10, 16));
+      expect(alone.isShort, isTrue);
+
+      // Salary due today waits too: on payday morning it may still be late,
+      // and rent in four days must still show.
+      final dueToday = row(today, 250000000, 'Salary', income: true);
+      final onPayday = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [dueToday, rent, nextSalary],
+      );
+      expect(onPayday.late, [dueToday]);
+      expect(onPayday.payday, same(nextSalary));
+      expect(onPayday.steps.map((s) => s.row), [rent]);
+
+      // A late transfer in from savings is the user's own doing: it counts,
+      // as due today, the same as on the savings side.
+      final lateTransfer = RegisterRow(
+        txnId: 99,
+        entryId: 99,
+        date: DateTime(2026, 9, 12),
+        payee: 'Khan Savings',
+        memo: '',
+        amount: 100000000,
+        cleared: Cleared.uncleared,
+        scheduled: true,
+        kind: RowKind.transfer,
+        categoryLabel: 'Transfer',
+        categoryId: null,
+        splitLines: const [],
+      );
+      final moved = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateTransfer, rent],
+      );
+      expect(moved.late, isEmpty);
+      expect(moved.steps.first.date, today);
+      expect(moved.inTotal, 100000000);
+
+      // A card doesn't warn, so a late payment to it still counts.
+      final card = buildForecast(
+        working: -64020000,
+        today: today,
+        scheduled: [row(DateTime(2026, 9, 14), 64020000, 'Transfer')],
+        owed: true,
+      );
+      expect(card.late, isEmpty);
+      expect(card.endBalance, 0);
     });
 
     test('no scheduled income falls back to a 30 day horizon', () {
