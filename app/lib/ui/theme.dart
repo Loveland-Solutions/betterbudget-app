@@ -146,8 +146,9 @@ class Money extends StatelessWidget {
 
 enum MoneySign { none, negativeOnly, plusForPositive }
 
-/// Cleared state. Deliberately not circles: an empty circle beside a row reads
-/// as "select me". — uncleared · ✓ cleared · ◆ reconciled (gold, from the mark).
+/// Cleared state: clock = uncleared (waiting to clear) · ✓ cleared ·
+/// ◆ reconciled (gold, from the mark). Not an empty circle, which reads as a
+/// checkbox, and not a dash, which reads as a minus in the header's sum.
 class StatusGlyph extends StatelessWidget {
   const StatusGlyph(this.status, {super.key, this.color});
 
@@ -165,15 +166,8 @@ class StatusGlyph extends StatelessWidget {
     width: 12,
     height: 12,
     child: switch (status) {
-      Cleared.uncleared => Center(
-        child: Container(
-          width: 8,
-          height: 1.75,
-          decoration: BoxDecoration(
-            color: color ?? Mid.ink3,
-            borderRadius: BorderRadius.circular(1),
-          ),
-        ),
+      Cleared.uncleared => CustomPaint(
+        painter: _ClockPainter(color ?? Mid.ink3),
       ),
       Cleared.cleared => CustomPaint(painter: _CheckPainter(color ?? Mid.ink2)),
       Cleared.reconciled => Center(
@@ -181,6 +175,32 @@ class StatusGlyph extends StatelessWidget {
       ),
     },
   );
+}
+
+class _ClockPainter extends CustomPainter {
+  _ClockPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    final c = size.center(Offset.zero);
+    canvas.drawCircle(c, 5, paint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(c.dx, c.dy - 2.8)
+        ..lineTo(c.dx, c.dy)
+        ..lineTo(c.dx + 2.2, c.dy + 1.3),
+      paint..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ClockPainter old) => old.color != color;
 }
 
 class _CheckPainter extends CustomPainter {

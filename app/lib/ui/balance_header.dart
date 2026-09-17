@@ -74,53 +74,50 @@ class _Balances extends StatelessWidget {
     final n = s.unclearedCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Written as a sum, so the header teaches why working and cleared
+        // differ, and doubles as the key to the register's symbols.
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Working balance', style: onest(12, color: Mid.ink3)),
-            const SizedBox(height: 10),
-            Money(
-              s.working,
-              size: 52,
-              weight: 500,
-              letterSpacing: -1.5,
-              centsScale: 0.5,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // The key to the register's symbols, with the money each state holds.
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _StatusLine(
-              status: Cleared.uncleared,
-              amount: s.uncleared,
-              note: n == 0
-                  ? 'Everything has reached the bank'
-                  : '$n ${n == 1 ? 'transaction' : 'transactions'} the bank hasn’t posted',
-              hovered: hovered,
-              active: active == Cleared.uncleared,
-              onTap: () => onTap(Cleared.uncleared),
-            ),
             _StatusLine(
               status: Cleared.cleared,
               amount: s.cleared,
-              note: s.bankDataThrough == null
-                  ? 'Nothing cleared yet'
-                  : 'Bank data through ${shortDate(s.bankDataThrough!)}',
+              note: '',
               hovered: hovered,
               active: active == Cleared.cleared,
               onTap: () => onTap(Cleared.cleared),
             ),
             _StatusLine(
+              status: Cleared.uncleared,
+              amount: s.uncleared,
+              signed: true,
+              note: n == 0 ? 'Everything has cleared' : '$n not cleared yet',
+              hovered: hovered,
+              active: active == Cleared.uncleared,
+              onTap: () => onTap(Cleared.uncleared),
+            ),
+            Container(
+              width: _Line.amountWidth,
+              height: 1,
+              margin: const EdgeInsets.only(
+                left: _Line.amountLeft,
+                top: 2,
+                bottom: 4,
+              ),
+              color: Mid.ink3.withValues(alpha: 0.45),
+            ),
+            _TotalLine(amount: s.working),
+            const SizedBox(height: 10),
+            _StatusLine(
               status: Cleared.reconciled,
-              amount: s.reconciled,
-              note: s.reconciledOn == null
+              amount: null,
+              // When matters here, not how much: no amount column.
+              label: s.reconciledOn == null
                   ? 'Never reconciled'
-                  : 'Matched to statement of ${shortDate(s.reconciledOn!)}',
+                  : 'Last reconciled on ${shortDate(s.reconciledOn!)}',
+              note: '',
               hovered: hovered,
               active: active == Cleared.reconciled,
               onTap: () => onTap(Cleared.reconciled),
@@ -132,6 +129,104 @@ class _Balances extends StatelessWidget {
   }
 }
 
+/// One line of the balance sum: symbol, name, amount, meaning. Amounts are
+/// right-aligned with their sign, so the lines add up like a receipt.
+class _Line extends StatelessWidget {
+  const _Line({
+    required this.glyph,
+    required this.label,
+    required this.amount,
+    required this.note,
+    required this.lit,
+    this.signed = false,
+  });
+
+  static const _glyph = 16.0, _gap = 6.0, _label = 84.0, _amount = 200.0;
+
+  /// Where the amount column sits, for the rule drawn above the total.
+  static const amountLeft = _glyph + _gap + _label;
+  static const amountWidth = _amount;
+
+  final Widget glyph;
+  final String label;
+  final int? amount;
+  final String note;
+  final bool lit;
+
+  /// Show `+` on positive amounts too (the uncleared line can go either way).
+  final bool signed;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SizedBox(
+        width: _glyph,
+        child: Center(child: glyph),
+      ),
+      const SizedBox(width: _gap),
+      SizedBox(
+        width: _label,
+        child: Text(label, style: onest(13, color: lit ? Mid.ink : Mid.ink3)),
+      ),
+      SizedBox(
+        width: _amount,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: amount == null
+              ? Text('—', style: onest(13, color: Mid.ink3))
+              : Money(
+                  amount!,
+                  size: 13,
+                  color: Mid.ink,
+                  centsColor: Mid.ink,
+                  sign: signed
+                      ? MoneySign.plusForPositive
+                      : MoneySign.negativeOnly,
+                ),
+        ),
+      ),
+      const SizedBox(width: 24),
+      Flexible(
+        child: Text(
+          note,
+          style: onest(13, color: lit ? Mid.ink2 : Mid.ink3),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  );
+}
+
+/// The answer to the sum: the working balance, and the header's one big number.
+class _TotalLine extends StatelessWidget {
+  const _TotalLine({required this.amount});
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _Line.amountLeft + _Line.amountWidth,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        const SizedBox(width: _Line._glyph + _Line._gap),
+        Text('Working', style: onest(13, weight: 500)),
+        const Spacer(),
+        Money(
+          amount,
+          size: 30,
+          weight: 500,
+          letterSpacing: -0.6,
+          centsScale: 0.55,
+          color: amount < 0 ? Mid.coral : Mid.ink,
+        ),
+      ],
+    ),
+  );
+}
+
 class _StatusLine extends StatelessWidget {
   const _StatusLine({
     required this.status,
@@ -140,10 +235,16 @@ class _StatusLine extends StatelessWidget {
     required this.hovered,
     required this.active,
     required this.onTap,
+    this.signed = false,
+    this.label,
   });
 
   final Cleared status;
-  final int amount;
+  final bool signed;
+
+  /// Replaces the name-and-amount columns with one line of text.
+  final String? label;
+  final int? amount;
   final String note;
   final ValueNotifier<Cleared?> hovered;
   final bool active;
@@ -163,56 +264,42 @@ class _StatusLine extends StatelessWidget {
           },
           child: GestureDetector(
             onTap: onTap,
-            child: Transform.translate(
-              offset: const Offset(-10, 0),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: lit ? Mid.raised : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      child: Center(
-                        child: StatusGlyph(
-                          status,
-                          color: lit && status == Cleared.cleared
-                              ? Mid.ink
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 84,
-                      child: Text(
-                        StatusGlyph.label(status),
-                        style: onest(13, color: lit ? Mid.ink : Mid.ink3),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 140,
-                      child: Money(
-                        amount,
-                        size: 13,
-                        color: Mid.ink,
-                        centsColor: Mid.ink,
-                      ),
-                    ),
-                    Text(
-                      note,
-                      style: onest(13, color: lit ? Mid.ink2 : Mid.ink3),
-                    ),
-                  ],
-                ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              transform: Matrix4.translationValues(-10, 0, 0),
+              padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+              decoration: BoxDecoration(
+                color: lit ? Mid.raised : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: label != null
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: _Line._glyph,
+                          child: Center(child: StatusGlyph(status)),
+                        ),
+                        const SizedBox(width: _Line._gap),
+                        Text(
+                          label!,
+                          style: onest(13, color: lit ? Mid.ink : Mid.ink3),
+                        ),
+                      ],
+                    )
+                  : _Line(
+                      signed: signed,
+                      glyph: StatusGlyph(
+                        status,
+                        color: lit && status == Cleared.cleared
+                            ? Mid.ink
+                            : null,
+                      ),
+                      label: StatusGlyph.label(status),
+                      amount: amount,
+                      note: note,
+                      lit: lit,
+                    ),
             ),
           ),
         );

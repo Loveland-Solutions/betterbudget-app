@@ -1,8 +1,23 @@
 # Ledger — feature scope
 
-**Status: in discussion, not decided.** Per the README, the ledger is talked through in
-full before any code is written. This file is the working map. Settled items graduate to
-[docs/decisions](decisions/).
+**Status: working map.** A first desktop ledger is built (see [STATUS.md](STATUS.md)).
+Settled items graduate to [docs/decisions](decisions/); UI rules are in
+[ADR 0004](decisions/0004-ledger-ui.md), which wins wherever this file and it differ.
+
+### Built so far (2026-09-16)
+
+| Section | State |
+| --- | --- |
+| A. Core record | Built: double-entry, integer minor units, soft delete, transfers. Splits are displayed but can't be created yet. No tags or attachments. |
+| B. Manual entry | Built: keyboard-first any-order row, payee autocomplete with last category, calculator. Not yet: templates, recurring, duplicate-last, mobile keypad. |
+| C. Import | Not started. |
+| D. Register | Built: running balance, filters and search, inline category edit, multi-select bulk edit, cleared/reconciled symbols, working/cleared/reconciled header. **Changed:** no month grouping or subtotals (ADR 0004). Editing opens the row in place with all fields (ADR 0004 rule 12). Not yet: sorting by column (roadmap). |
+| E. Reconciliation | Data only: reconciled state and locking (no edit, clear or delete, including in bulk). No reconcile flow yet. |
+| F. Payees, categories, rules | Payees table only. No merge, category tree or rules. |
+| G. Search | Basic search across payee, memo, category and amount, current account only. Full search is on the roadmap. |
+| H. Safety | Undo for deletes, edits, category and cleared changes, and bulk actions. No encryption, app lock, backup or export. |
+| I. Localisation | Cyrillic renders (fonts checked for ₮, Ө, Ү); YYYY.MM.DD dates. UI strings are English only. |
+| J. Cross-platform | Desktop (macOS) only so far. |
 
 ---
 
@@ -54,10 +69,12 @@ This is where "polished and professional" gets tested.
 
 - Checkbook-register layout: dense rows, tabular figures (critical at 7 digits), running
   balance column.
-- Sort by any column; filter bar always present.
+- Sort by any column; filter bar always present. **On the roadmap**, see
+  [STATUS.md](STATUS.md#2-sorting).
 - Inline editing — click the cell, change it, move on. No modal for a typo.
 - Multi-select with bulk edit (recategorise 40 rows at once) and bulk delete.
-- Group/collapse by month with subtotals.
+- ~~Group/collapse by month with subtotals.~~ Dropped at the owner's request: every row
+  shows its full date instead (ADR 0004).
 - Distinct visual states for uncleared / cleared / reconciled, and for pending or
   future-dated rows, which are excluded from the cleared balance.
 - Compact glyphs for attachment, split, and transfer.
@@ -87,6 +104,9 @@ when its own statement arrives ([ADR 0003](decisions/0003-double-entry-schema.md
   numbers, embedded fee notes.
 
 ## G. Search
+
+**On the roadmap.** Scope and open design questions are in
+[STATUS.md](STATUS.md#1-search).
 
 - Instant full-text across payee, memo, amount and notes. Cyrillic-aware.
 - Structured filters: date range, amount range, account, category, cleared status, tag,
@@ -144,7 +164,9 @@ anything in a shipped build. Stated explicitly so no telemetry is ever rationali
 
 ## Brand palette
 
-Measured from the pixels of `assets/logo/logo-english.png` (2026-09-16). The logos are the Loveland Solutions company mark, not a BetterBudget product
+Measured from the pixels of `assets/logo/logo-english.png` (2026-09-16). How the app
+adapts these for the dark Midnight theme is in [ADR 0004](decisions/0004-ledger-ui.md).
+The logos are the Loveland Solutions company mark, not a BetterBudget product
 mark.
 
 | Role | Hex | Use |

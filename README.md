@@ -22,10 +22,12 @@ This is where the transactions are imported/entered. It should be polished and p
 
 ## Project documentation
 
-**[docs/STATUS.md](docs/STATUS.md) — start here.** Current phase, open questions, and
-the next step.
+**[docs/STATUS.md](docs/STATUS.md) — start here.** What's built, what isn't, open
+questions, and local setup. AI sessions also read [CLAUDE.md](CLAUDE.md).
 
-Ledger feature scope, still in discussion: [docs/ledger-features.md](docs/ledger-features.md)
+- The app: [app/](app/) ([how to run and test it](app/README.md))
+- Ledger feature map, with what's built marked: [docs/ledger-features.md](docs/ledger-features.md)
+- Design mockups: [design/ledger/](design/ledger/)
 
 Settled decisions live in [docs/decisions](docs/decisions/). They are recorded once so
 they don't get relitigated later.
@@ -33,3 +35,4 @@ they don't get relitigated later.
 - [0001 — Local data store: SQLite via Drift, encrypted with SQLCipher](docs/decisions/0001-database.md)
 - [0002 — TDB statement import: target the unformatted Excel export](docs/decisions/0002-tdb-import-format.md)
 - [0003 — Ledger schema: double-entry storage, categories as accounts](docs/decisions/0003-double-entry-schema.md)
+- [0004 — Ledger UI: Midnight, and the rules the register follows](docs/decisions/0004-ledger-ui.md)
