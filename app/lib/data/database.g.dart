@@ -1250,477 +1250,6 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   }
 }
 
-class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $EntriesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
-    'transactionId',
-  );
-  @override
-  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
-    'transaction_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES transactions (id)',
-    ),
-  );
-  static const VerificationMeta _accountIdMeta = const VerificationMeta(
-    'accountId',
-  );
-  @override
-  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
-    'account_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES accounts (id)',
-    ),
-  );
-  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
-    'amountMinor',
-  );
-  @override
-  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
-    'amount_minor',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _currencyMeta = const VerificationMeta(
-    'currency',
-  );
-  @override
-  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
-    'currency',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('MNT'),
-  );
-  static const VerificationMeta _rateMeta = const VerificationMeta('rate');
-  @override
-  late final GeneratedColumn<String> rate = GeneratedColumn<String>(
-    'rate',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<Cleared, int> cleared =
-      GeneratedColumn<int>(
-        'cleared',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: true,
-      ).withConverter<Cleared>($EntriesTable.$convertercleared);
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    transactionId,
-    accountId,
-    amountMinor,
-    currency,
-    rate,
-    cleared,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'entries';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<EntryRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('transaction_id')) {
-      context.handle(
-        _transactionIdMeta,
-        transactionId.isAcceptableOrUnknown(
-          data['transaction_id']!,
-          _transactionIdMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_transactionIdMeta);
-    }
-    if (data.containsKey('account_id')) {
-      context.handle(
-        _accountIdMeta,
-        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_accountIdMeta);
-    }
-    if (data.containsKey('amount_minor')) {
-      context.handle(
-        _amountMinorMeta,
-        amountMinor.isAcceptableOrUnknown(
-          data['amount_minor']!,
-          _amountMinorMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_amountMinorMeta);
-    }
-    if (data.containsKey('currency')) {
-      context.handle(
-        _currencyMeta,
-        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
-      );
-    }
-    if (data.containsKey('rate')) {
-      context.handle(
-        _rateMeta,
-        rate.isAcceptableOrUnknown(data['rate']!, _rateMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  EntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return EntryRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      transactionId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}transaction_id'],
-      )!,
-      accountId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}account_id'],
-      )!,
-      amountMinor: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}amount_minor'],
-      )!,
-      currency: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}currency'],
-      )!,
-      rate: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}rate'],
-      ),
-      cleared: $EntriesTable.$convertercleared.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}cleared'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $EntriesTable createAlias(String alias) {
-    return $EntriesTable(attachedDatabase, alias);
-  }
-
-  static JsonTypeConverter2<Cleared, int, int> $convertercleared =
-      const EnumIndexConverter<Cleared>(Cleared.values);
-}
-
-class EntryRow extends DataClass implements Insertable<EntryRow> {
-  final int id;
-  final int transactionId;
-  final int accountId;
-  final int amountMinor;
-  final String currency;
-
-  /// Decimal string from the statement's Ханш column; not money, not REAL.
-  final String? rate;
-  final Cleared cleared;
-  const EntryRow({
-    required this.id,
-    required this.transactionId,
-    required this.accountId,
-    required this.amountMinor,
-    required this.currency,
-    this.rate,
-    required this.cleared,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['transaction_id'] = Variable<int>(transactionId);
-    map['account_id'] = Variable<int>(accountId);
-    map['amount_minor'] = Variable<int>(amountMinor);
-    map['currency'] = Variable<String>(currency);
-    if (!nullToAbsent || rate != null) {
-      map['rate'] = Variable<String>(rate);
-    }
-    {
-      map['cleared'] = Variable<int>(
-        $EntriesTable.$convertercleared.toSql(cleared),
-      );
-    }
-    return map;
-  }
-
-  EntriesCompanion toCompanion(bool nullToAbsent) {
-    return EntriesCompanion(
-      id: Value(id),
-      transactionId: Value(transactionId),
-      accountId: Value(accountId),
-      amountMinor: Value(amountMinor),
-      currency: Value(currency),
-      rate: rate == null && nullToAbsent ? const Value.absent() : Value(rate),
-      cleared: Value(cleared),
-    );
-  }
-
-  factory EntryRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return EntryRow(
-      id: serializer.fromJson<int>(json['id']),
-      transactionId: serializer.fromJson<int>(json['transactionId']),
-      accountId: serializer.fromJson<int>(json['accountId']),
-      amountMinor: serializer.fromJson<int>(json['amountMinor']),
-      currency: serializer.fromJson<String>(json['currency']),
-      rate: serializer.fromJson<String?>(json['rate']),
-      cleared: $EntriesTable.$convertercleared.fromJson(
-        serializer.fromJson<int>(json['cleared']),
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'transactionId': serializer.toJson<int>(transactionId),
-      'accountId': serializer.toJson<int>(accountId),
-      'amountMinor': serializer.toJson<int>(amountMinor),
-      'currency': serializer.toJson<String>(currency),
-      'rate': serializer.toJson<String?>(rate),
-      'cleared': serializer.toJson<int>(
-        $EntriesTable.$convertercleared.toJson(cleared),
-      ),
-    };
-  }
-
-  EntryRow copyWith({
-    int? id,
-    int? transactionId,
-    int? accountId,
-    int? amountMinor,
-    String? currency,
-    Value<String?> rate = const Value.absent(),
-    Cleared? cleared,
-  }) => EntryRow(
-    id: id ?? this.id,
-    transactionId: transactionId ?? this.transactionId,
-    accountId: accountId ?? this.accountId,
-    amountMinor: amountMinor ?? this.amountMinor,
-    currency: currency ?? this.currency,
-    rate: rate.present ? rate.value : this.rate,
-    cleared: cleared ?? this.cleared,
-  );
-  EntryRow copyWithCompanion(EntriesCompanion data) {
-    return EntryRow(
-      id: data.id.present ? data.id.value : this.id,
-      transactionId: data.transactionId.present
-          ? data.transactionId.value
-          : this.transactionId,
-      accountId: data.accountId.present ? data.accountId.value : this.accountId,
-      amountMinor: data.amountMinor.present
-          ? data.amountMinor.value
-          : this.amountMinor,
-      currency: data.currency.present ? data.currency.value : this.currency,
-      rate: data.rate.present ? data.rate.value : this.rate,
-      cleared: data.cleared.present ? data.cleared.value : this.cleared,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('EntryRow(')
-          ..write('id: $id, ')
-          ..write('transactionId: $transactionId, ')
-          ..write('accountId: $accountId, ')
-          ..write('amountMinor: $amountMinor, ')
-          ..write('currency: $currency, ')
-          ..write('rate: $rate, ')
-          ..write('cleared: $cleared')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    transactionId,
-    accountId,
-    amountMinor,
-    currency,
-    rate,
-    cleared,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is EntryRow &&
-          other.id == this.id &&
-          other.transactionId == this.transactionId &&
-          other.accountId == this.accountId &&
-          other.amountMinor == this.amountMinor &&
-          other.currency == this.currency &&
-          other.rate == this.rate &&
-          other.cleared == this.cleared);
-}
-
-class EntriesCompanion extends UpdateCompanion<EntryRow> {
-  final Value<int> id;
-  final Value<int> transactionId;
-  final Value<int> accountId;
-  final Value<int> amountMinor;
-  final Value<String> currency;
-  final Value<String?> rate;
-  final Value<Cleared> cleared;
-  const EntriesCompanion({
-    this.id = const Value.absent(),
-    this.transactionId = const Value.absent(),
-    this.accountId = const Value.absent(),
-    this.amountMinor = const Value.absent(),
-    this.currency = const Value.absent(),
-    this.rate = const Value.absent(),
-    this.cleared = const Value.absent(),
-  });
-  EntriesCompanion.insert({
-    this.id = const Value.absent(),
-    required int transactionId,
-    required int accountId,
-    required int amountMinor,
-    this.currency = const Value.absent(),
-    this.rate = const Value.absent(),
-    required Cleared cleared,
-  }) : transactionId = Value(transactionId),
-       accountId = Value(accountId),
-       amountMinor = Value(amountMinor),
-       cleared = Value(cleared);
-  static Insertable<EntryRow> custom({
-    Expression<int>? id,
-    Expression<int>? transactionId,
-    Expression<int>? accountId,
-    Expression<int>? amountMinor,
-    Expression<String>? currency,
-    Expression<String>? rate,
-    Expression<int>? cleared,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (transactionId != null) 'transaction_id': transactionId,
-      if (accountId != null) 'account_id': accountId,
-      if (amountMinor != null) 'amount_minor': amountMinor,
-      if (currency != null) 'currency': currency,
-      if (rate != null) 'rate': rate,
-      if (cleared != null) 'cleared': cleared,
-    });
-  }
-
-  EntriesCompanion copyWith({
-    Value<int>? id,
-    Value<int>? transactionId,
-    Value<int>? accountId,
-    Value<int>? amountMinor,
-    Value<String>? currency,
-    Value<String?>? rate,
-    Value<Cleared>? cleared,
-  }) {
-    return EntriesCompanion(
-      id: id ?? this.id,
-      transactionId: transactionId ?? this.transactionId,
-      accountId: accountId ?? this.accountId,
-      amountMinor: amountMinor ?? this.amountMinor,
-      currency: currency ?? this.currency,
-      rate: rate ?? this.rate,
-      cleared: cleared ?? this.cleared,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (transactionId.present) {
-      map['transaction_id'] = Variable<int>(transactionId.value);
-    }
-    if (accountId.present) {
-      map['account_id'] = Variable<int>(accountId.value);
-    }
-    if (amountMinor.present) {
-      map['amount_minor'] = Variable<int>(amountMinor.value);
-    }
-    if (currency.present) {
-      map['currency'] = Variable<String>(currency.value);
-    }
-    if (rate.present) {
-      map['rate'] = Variable<String>(rate.value);
-    }
-    if (cleared.present) {
-      map['cleared'] = Variable<int>(
-        $EntriesTable.$convertercleared.toSql(cleared.value),
-      );
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('EntriesCompanion(')
-          ..write('id: $id, ')
-          ..write('transactionId: $transactionId, ')
-          ..write('accountId: $accountId, ')
-          ..write('amountMinor: $amountMinor, ')
-          ..write('currency: $currency, ')
-          ..write('rate: $rate, ')
-          ..write('cleared: $cleared')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $ReconciliationsTable extends Reconciliations
     with TableInfo<$ReconciliationsTable, ReconciliationRow> {
   @override
@@ -2098,16 +1627,548 @@ class ReconciliationsCompanion extends UpdateCompanion<ReconciliationRow> {
   }
 }
 
+class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
+    'transactionId',
+  );
+  @override
+  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
+    'transaction_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES transactions (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('MNT'),
+  );
+  static const VerificationMeta _rateMeta = const VerificationMeta('rate');
+  @override
+  late final GeneratedColumn<String> rate = GeneratedColumn<String>(
+    'rate',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Cleared, int> cleared =
+      GeneratedColumn<int>(
+        'cleared',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<Cleared>($EntriesTable.$convertercleared);
+  static const VerificationMeta _reconciliationIdMeta = const VerificationMeta(
+    'reconciliationId',
+  );
+  @override
+  late final GeneratedColumn<int> reconciliationId = GeneratedColumn<int>(
+    'reconciliation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES reconciliations (id)',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    transactionId,
+    accountId,
+    amountMinor,
+    currency,
+    rate,
+    cleared,
+    reconciliationId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+        _transactionIdMeta,
+        transactionId.isAcceptableOrUnknown(
+          data['transaction_id']!,
+          _transactionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transactionIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
+    if (data.containsKey('rate')) {
+      context.handle(
+        _rateMeta,
+        rate.isAcceptableOrUnknown(data['rate']!, _rateMeta),
+      );
+    }
+    if (data.containsKey('reconciliation_id')) {
+      context.handle(
+        _reconciliationIdMeta,
+        reconciliationId.isAcceptableOrUnknown(
+          data['reconciliation_id']!,
+          _reconciliationIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EntryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      transactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}transaction_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}account_id'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
+      rate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rate'],
+      ),
+      cleared: $EntriesTable.$convertercleared.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}cleared'],
+        )!,
+      ),
+      reconciliationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reconciliation_id'],
+      ),
+    );
+  }
+
+  @override
+  $EntriesTable createAlias(String alias) {
+    return $EntriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<Cleared, int, int> $convertercleared =
+      const EnumIndexConverter<Cleared>(Cleared.values);
+}
+
+class EntryRow extends DataClass implements Insertable<EntryRow> {
+  final int id;
+  final int transactionId;
+  final int accountId;
+  final int amountMinor;
+  final String currency;
+
+  /// Decimal string from the statement's Ханш column; not money, not REAL.
+  final String? rate;
+  final Cleared cleared;
+
+  /// The reconcile that locked this entry, so it can be taken back later.
+  final int? reconciliationId;
+  const EntryRow({
+    required this.id,
+    required this.transactionId,
+    required this.accountId,
+    required this.amountMinor,
+    required this.currency,
+    this.rate,
+    required this.cleared,
+    this.reconciliationId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['transaction_id'] = Variable<int>(transactionId);
+    map['account_id'] = Variable<int>(accountId);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || rate != null) {
+      map['rate'] = Variable<String>(rate);
+    }
+    {
+      map['cleared'] = Variable<int>(
+        $EntriesTable.$convertercleared.toSql(cleared),
+      );
+    }
+    if (!nullToAbsent || reconciliationId != null) {
+      map['reconciliation_id'] = Variable<int>(reconciliationId);
+    }
+    return map;
+  }
+
+  EntriesCompanion toCompanion(bool nullToAbsent) {
+    return EntriesCompanion(
+      id: Value(id),
+      transactionId: Value(transactionId),
+      accountId: Value(accountId),
+      amountMinor: Value(amountMinor),
+      currency: Value(currency),
+      rate: rate == null && nullToAbsent ? const Value.absent() : Value(rate),
+      cleared: Value(cleared),
+      reconciliationId: reconciliationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reconciliationId),
+    );
+  }
+
+  factory EntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EntryRow(
+      id: serializer.fromJson<int>(json['id']),
+      transactionId: serializer.fromJson<int>(json['transactionId']),
+      accountId: serializer.fromJson<int>(json['accountId']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      currency: serializer.fromJson<String>(json['currency']),
+      rate: serializer.fromJson<String?>(json['rate']),
+      cleared: $EntriesTable.$convertercleared.fromJson(
+        serializer.fromJson<int>(json['cleared']),
+      ),
+      reconciliationId: serializer.fromJson<int?>(json['reconciliationId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'transactionId': serializer.toJson<int>(transactionId),
+      'accountId': serializer.toJson<int>(accountId),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'currency': serializer.toJson<String>(currency),
+      'rate': serializer.toJson<String?>(rate),
+      'cleared': serializer.toJson<int>(
+        $EntriesTable.$convertercleared.toJson(cleared),
+      ),
+      'reconciliationId': serializer.toJson<int?>(reconciliationId),
+    };
+  }
+
+  EntryRow copyWith({
+    int? id,
+    int? transactionId,
+    int? accountId,
+    int? amountMinor,
+    String? currency,
+    Value<String?> rate = const Value.absent(),
+    Cleared? cleared,
+    Value<int?> reconciliationId = const Value.absent(),
+  }) => EntryRow(
+    id: id ?? this.id,
+    transactionId: transactionId ?? this.transactionId,
+    accountId: accountId ?? this.accountId,
+    amountMinor: amountMinor ?? this.amountMinor,
+    currency: currency ?? this.currency,
+    rate: rate.present ? rate.value : this.rate,
+    cleared: cleared ?? this.cleared,
+    reconciliationId: reconciliationId.present
+        ? reconciliationId.value
+        : this.reconciliationId,
+  );
+  EntryRow copyWithCompanion(EntriesCompanion data) {
+    return EntryRow(
+      id: data.id.present ? data.id.value : this.id,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      rate: data.rate.present ? data.rate.value : this.rate,
+      cleared: data.cleared.present ? data.cleared.value : this.cleared,
+      reconciliationId: data.reconciliationId.present
+          ? data.reconciliationId.value
+          : this.reconciliationId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EntryRow(')
+          ..write('id: $id, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currency: $currency, ')
+          ..write('rate: $rate, ')
+          ..write('cleared: $cleared, ')
+          ..write('reconciliationId: $reconciliationId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    transactionId,
+    accountId,
+    amountMinor,
+    currency,
+    rate,
+    cleared,
+    reconciliationId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EntryRow &&
+          other.id == this.id &&
+          other.transactionId == this.transactionId &&
+          other.accountId == this.accountId &&
+          other.amountMinor == this.amountMinor &&
+          other.currency == this.currency &&
+          other.rate == this.rate &&
+          other.cleared == this.cleared &&
+          other.reconciliationId == this.reconciliationId);
+}
+
+class EntriesCompanion extends UpdateCompanion<EntryRow> {
+  final Value<int> id;
+  final Value<int> transactionId;
+  final Value<int> accountId;
+  final Value<int> amountMinor;
+  final Value<String> currency;
+  final Value<String?> rate;
+  final Value<Cleared> cleared;
+  final Value<int?> reconciliationId;
+  const EntriesCompanion({
+    this.id = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.rate = const Value.absent(),
+    this.cleared = const Value.absent(),
+    this.reconciliationId = const Value.absent(),
+  });
+  EntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required int transactionId,
+    required int accountId,
+    required int amountMinor,
+    this.currency = const Value.absent(),
+    this.rate = const Value.absent(),
+    required Cleared cleared,
+    this.reconciliationId = const Value.absent(),
+  }) : transactionId = Value(transactionId),
+       accountId = Value(accountId),
+       amountMinor = Value(amountMinor),
+       cleared = Value(cleared);
+  static Insertable<EntryRow> custom({
+    Expression<int>? id,
+    Expression<int>? transactionId,
+    Expression<int>? accountId,
+    Expression<int>? amountMinor,
+    Expression<String>? currency,
+    Expression<String>? rate,
+    Expression<int>? cleared,
+    Expression<int>? reconciliationId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (accountId != null) 'account_id': accountId,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (currency != null) 'currency': currency,
+      if (rate != null) 'rate': rate,
+      if (cleared != null) 'cleared': cleared,
+      if (reconciliationId != null) 'reconciliation_id': reconciliationId,
+    });
+  }
+
+  EntriesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? transactionId,
+    Value<int>? accountId,
+    Value<int>? amountMinor,
+    Value<String>? currency,
+    Value<String?>? rate,
+    Value<Cleared>? cleared,
+    Value<int?>? reconciliationId,
+  }) {
+    return EntriesCompanion(
+      id: id ?? this.id,
+      transactionId: transactionId ?? this.transactionId,
+      accountId: accountId ?? this.accountId,
+      amountMinor: amountMinor ?? this.amountMinor,
+      currency: currency ?? this.currency,
+      rate: rate ?? this.rate,
+      cleared: cleared ?? this.cleared,
+      reconciliationId: reconciliationId ?? this.reconciliationId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<int>(transactionId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (rate.present) {
+      map['rate'] = Variable<String>(rate.value);
+    }
+    if (cleared.present) {
+      map['cleared'] = Variable<int>(
+        $EntriesTable.$convertercleared.toSql(cleared.value),
+      );
+    }
+    if (reconciliationId.present) {
+      map['reconciliation_id'] = Variable<int>(reconciliationId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currency: $currency, ')
+          ..write('rate: $rate, ')
+          ..write('cleared: $cleared, ')
+          ..write('reconciliationId: $reconciliationId')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $PayeesTable payees = $PayeesTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
-  late final $EntriesTable entries = $EntriesTable(this);
   late final $ReconciliationsTable reconciliations = $ReconciliationsTable(
     this,
   );
+  late final $EntriesTable entries = $EntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2116,8 +2177,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     accounts,
     payees,
     transactions,
-    entries,
     reconciliations,
+    entries,
   ];
 }
 
@@ -2146,25 +2207,6 @@ final class $$AccountsTableReferences
     extends BaseReferences<_$AppDatabase, $AccountsTable, Account> {
   $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$EntriesTable, List<EntryRow>> _entriesRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.entries,
-    aliasName: 'accounts__id__entries__account_id',
-  );
-
-  $$EntriesTableProcessedTableManager get entriesRefs {
-    final manager = $$EntriesTableTableManager(
-      $_db,
-      $_db.entries,
-    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
   static MultiTypedResultKey<$ReconciliationsTable, List<ReconciliationRow>>
   _reconciliationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.reconciliations,
@@ -2180,6 +2222,25 @@ final class $$AccountsTableReferences
     final cache = $_typedResult.readTableOrNull(
       _reconciliationsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$EntriesTable, List<EntryRow>> _entriesRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.entries,
+    aliasName: 'accounts__id__entries__account_id',
+  );
+
+  $$EntriesTableProcessedTableManager get entriesRefs {
+    final manager = $$EntriesTableTableManager(
+      $_db,
+      $_db.entries,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2236,31 +2297,6 @@ class $$AccountsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  Expression<bool> entriesRefs(
-    Expression<bool> Function($$EntriesTableFilterComposer f) f,
-  ) {
-    final $$EntriesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.entries,
-      getReferencedColumn: (t) => t.accountId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$EntriesTableFilterComposer(
-            $db: $db,
-            $table: $db.entries,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
   Expression<bool> reconciliationsRefs(
     Expression<bool> Function($$ReconciliationsTableFilterComposer f) f,
   ) {
@@ -2277,6 +2313,31 @@ class $$AccountsTableFilterComposer
           }) => $$ReconciliationsTableFilterComposer(
             $db: $db,
             $table: $db.reconciliations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> entriesRefs(
+    Expression<bool> Function($$EntriesTableFilterComposer f) f,
+  ) {
+    final $$EntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.entries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -2374,31 +2435,6 @@ class $$AccountsTableAnnotationComposer
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
-  Expression<T> entriesRefs<T extends Object>(
-    Expression<T> Function($$EntriesTableAnnotationComposer a) f,
-  ) {
-    final $$EntriesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.entries,
-      getReferencedColumn: (t) => t.accountId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$EntriesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.entries,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
   Expression<T> reconciliationsRefs<T extends Object>(
     Expression<T> Function($$ReconciliationsTableAnnotationComposer a) f,
   ) {
@@ -2423,6 +2459,31 @@ class $$AccountsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> entriesRefs<T extends Object>(
+    Expression<T> Function($$EntriesTableAnnotationComposer a) f,
+  ) {
+    final $$EntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AccountsTableTableManager
@@ -2438,7 +2499,7 @@ class $$AccountsTableTableManager
           $$AccountsTableUpdateCompanionBuilder,
           (Account, $$AccountsTableReferences),
           Account,
-          PrefetchHooks Function({bool entriesRefs, bool reconciliationsRefs})
+          PrefetchHooks Function({bool reconciliationsRefs, bool entriesRefs})
         > {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
     : super(
@@ -2500,37 +2561,16 @@ class $$AccountsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({entriesRefs = false, reconciliationsRefs = false}) {
+              ({reconciliationsRefs = false, entriesRefs = false}) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
-                    if (entriesRefs) db.entries,
                     if (reconciliationsRefs) db.reconciliations,
+                    if (entriesRefs) db.entries,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
-                      if (entriesRefs)
-                        await $_getPrefetchedData<
-                          Account,
-                          $AccountsTable,
-                          EntryRow
-                        >(
-                          currentTable: table,
-                          referencedTable: $$AccountsTableReferences
-                              ._entriesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AccountsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).entriesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.accountId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                       if (reconciliationsRefs)
                         await $_getPrefetchedData<
                           Account,
@@ -2546,6 +2586,27 @@ class $$AccountsTableTableManager
                                 table,
                                 p0,
                               ).reconciliationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (entriesRefs)
+                        await $_getPrefetchedData<
+                          Account,
+                          $AccountsTable,
+                          EntryRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._entriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).entriesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.accountId == item.id,
@@ -2572,7 +2633,7 @@ typedef $$AccountsTableProcessedTableManager =
       $$AccountsTableUpdateCompanionBuilder,
       (Account, $$AccountsTableReferences),
       Account,
-      PrefetchHooks Function({bool entriesRefs, bool reconciliationsRefs})
+      PrefetchHooks Function({bool reconciliationsRefs, bool entriesRefs})
     >;
 typedef $$PayeesTableCreateCompanionBuilder = PayeesCompanion Function({
   Value<int> id,
@@ -3277,438 +3338,6 @@ typedef $$TransactionsTableProcessedTableManager =
       TransactionRow,
       PrefetchHooks Function({bool payeeId, bool entriesRefs})
     >;
-typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
-  Value<int> id,
-  required int transactionId,
-  required int accountId,
-  required int amountMinor,
-  Value<String> currency,
-  Value<String?> rate,
-  required Cleared cleared,
-});
-typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
-  Value<int> id,
-  Value<int> transactionId,
-  Value<int> accountId,
-  Value<int> amountMinor,
-  Value<String> currency,
-  Value<String?> rate,
-  Value<Cleared> cleared,
-});
-
-final class $$EntriesTableReferences
-    extends BaseReferences<_$AppDatabase, $EntriesTable, EntryRow> {
-  $$EntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $TransactionsTable _transactionIdTable(_$AppDatabase db) =>
-      db.transactions.createAlias('entries__transaction_id__transactions__id');
-
-  $$TransactionsTableProcessedTableManager get transactionId {
-    final $_column = $_itemColumn<int>('transaction_id')!;
-
-    final manager = $$TransactionsTableTableManager(
-      $_db,
-      $_db.transactions,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_transactionIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $AccountsTable _accountIdTable(_$AppDatabase db) =>
-      db.accounts.createAlias('entries__account_id__accounts__id');
-
-  $$AccountsTableProcessedTableManager get accountId {
-    final $_column = $_itemColumn<int>('account_id')!;
-
-    final manager = $$AccountsTableTableManager(
-      $_db,
-      $_db.accounts,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$EntriesTableFilterComposer
-    extends Composer<_$AppDatabase, $EntriesTable> {
-  $$EntriesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get amountMinor => $composableBuilder(
-    column: $table.amountMinor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get rate => $composableBuilder(
-    column: $table.rate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<Cleared, Cleared, int> get cleared =>
-      $composableBuilder(
-        column: $table.cleared,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  $$TransactionsTableFilterComposer get transactionId {
-    final $$TransactionsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.transactionId,
-      referencedTable: $db.transactions,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TransactionsTableFilterComposer(
-            $db: $db,
-            $table: $db.transactions,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AccountsTableFilterComposer get accountId {
-    final $$AccountsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.accountId,
-      referencedTable: $db.accounts,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AccountsTableFilterComposer(
-            $db: $db,
-            $table: $db.accounts,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$EntriesTableOrderingComposer
-    extends Composer<_$AppDatabase, $EntriesTable> {
-  $$EntriesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get amountMinor => $composableBuilder(
-    column: $table.amountMinor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rate => $composableBuilder(
-    column: $table.rate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get cleared => $composableBuilder(
-    column: $table.cleared,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$TransactionsTableOrderingComposer get transactionId {
-    final $$TransactionsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.transactionId,
-      referencedTable: $db.transactions,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TransactionsTableOrderingComposer(
-            $db: $db,
-            $table: $db.transactions,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AccountsTableOrderingComposer get accountId {
-    final $$AccountsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.accountId,
-      referencedTable: $db.accounts,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AccountsTableOrderingComposer(
-            $db: $db,
-            $table: $db.accounts,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$EntriesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $EntriesTable> {
-  $$EntriesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<int> get amountMinor => $composableBuilder(
-    column: $table.amountMinor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get currency =>
-      $composableBuilder(column: $table.currency, builder: (column) => column);
-
-  GeneratedColumn<String> get rate =>
-      $composableBuilder(column: $table.rate, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<Cleared, int> get cleared =>
-      $composableBuilder(column: $table.cleared, builder: (column) => column);
-
-  $$TransactionsTableAnnotationComposer get transactionId {
-    final $$TransactionsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.transactionId,
-      referencedTable: $db.transactions,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TransactionsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.transactions,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AccountsTableAnnotationComposer get accountId {
-    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.accountId,
-      referencedTable: $db.accounts,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AccountsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.accounts,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$EntriesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $EntriesTable,
-          EntryRow,
-          $$EntriesTableFilterComposer,
-          $$EntriesTableOrderingComposer,
-          $$EntriesTableAnnotationComposer,
-          $$EntriesTableCreateCompanionBuilder,
-          $$EntriesTableUpdateCompanionBuilder,
-          (EntryRow, $$EntriesTableReferences),
-          EntryRow,
-          PrefetchHooks Function({bool transactionId, bool accountId})
-        > {
-  $$EntriesTableTableManager(_$AppDatabase db, $EntriesTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$EntriesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$EntriesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$EntriesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<int> transactionId = const Value.absent(),
-                Value<int> accountId = const Value.absent(),
-                Value<int> amountMinor = const Value.absent(),
-                Value<String> currency = const Value.absent(),
-                Value<String?> rate = const Value.absent(),
-                Value<Cleared> cleared = const Value.absent(),
-              }) => EntriesCompanion(
-                id: id,
-                transactionId: transactionId,
-                accountId: accountId,
-                amountMinor: amountMinor,
-                currency: currency,
-                rate: rate,
-                cleared: cleared,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required int transactionId,
-                required int accountId,
-                required int amountMinor,
-                Value<String> currency = const Value.absent(),
-                Value<String?> rate = const Value.absent(),
-                required Cleared cleared,
-              }) => EntriesCompanion.insert(
-                id: id,
-                transactionId: transactionId,
-                accountId: accountId,
-                amountMinor: amountMinor,
-                currency: currency,
-                rate: rate,
-                cleared: cleared,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$EntriesTable, EntryRow>(table),
-                  $$EntriesTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({transactionId = false, accountId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (transactionId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.transactionId,
-                        referencedTable: $$EntriesTableReferences
-                            ._transactionIdTable(db),
-                        referencedColumn: $$EntriesTableReferences
-                            ._transactionIdTable(db)
-                            .id,
-                      ) as T;
-                    }
-                    if (accountId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.accountId,
-                        referencedTable: $$EntriesTableReferences
-                            ._accountIdTable(db),
-                        referencedColumn: $$EntriesTableReferences
-                            ._accountIdTable(db)
-                            .id,
-                      ) as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$EntriesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $EntriesTable,
-      EntryRow,
-      $$EntriesTableFilterComposer,
-      $$EntriesTableOrderingComposer,
-      $$EntriesTableAnnotationComposer,
-      $$EntriesTableCreateCompanionBuilder,
-      $$EntriesTableUpdateCompanionBuilder,
-      (EntryRow, $$EntriesTableReferences),
-      EntryRow,
-      PrefetchHooks Function({bool transactionId, bool accountId})
-    >;
 typedef $$ReconciliationsTableCreateCompanionBuilder =
     ReconciliationsCompanion Function({
       Value<int> id,
@@ -3753,6 +3382,25 @@ final class $$ReconciliationsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$EntriesTable, List<EntryRow>> _entriesRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.entries,
+    aliasName: 'reconciliations__id__entries__reconciliation_id',
+  );
+
+  $$EntriesTableProcessedTableManager get entriesRefs {
+    final manager = $$EntriesTableTableManager(
+      $_db,
+      $_db.entries,
+    ).filter((f) => f.reconciliationId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_entriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -3807,6 +3455,31 @@ class $$ReconciliationsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> entriesRefs(
+    Expression<bool> Function($$EntriesTableFilterComposer f) f,
+  ) {
+    final $$EntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.reconciliationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -3910,6 +3583,31 @@ class $$ReconciliationsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> entriesRefs<T extends Object>(
+    Expression<T> Function($$EntriesTableAnnotationComposer a) f,
+  ) {
+    final $$EntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.entries,
+      getReferencedColumn: (t) => t.reconciliationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ReconciliationsTableTableManager
@@ -3925,7 +3623,7 @@ class $$ReconciliationsTableTableManager
           $$ReconciliationsTableUpdateCompanionBuilder,
           (ReconciliationRow, $$ReconciliationsTableReferences),
           ReconciliationRow,
-          PrefetchHooks Function({bool accountId})
+          PrefetchHooks Function({bool accountId, bool entriesRefs})
         > {
   $$ReconciliationsTableTableManager(
     _$AppDatabase db,
@@ -3976,10 +3674,10 @@ class $$ReconciliationsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({accountId = false}) {
+          prefetchHooksCallback: ({accountId = false, entriesRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [],
+              explicitlyWatchedTables: [if (entriesRefs) db.entries],
               addJoins:
                   <
                     T extends TableManagerState<
@@ -4011,7 +3709,29 @@ class $$ReconciliationsTableTableManager
                     return state;
                   },
               getPrefetchedDataCallback: (items) async {
-                return [];
+                return [
+                  if (entriesRefs)
+                    await $_getPrefetchedData<
+                      ReconciliationRow,
+                      $ReconciliationsTable,
+                      EntryRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ReconciliationsTableReferences
+                          ._entriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ReconciliationsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).entriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.reconciliationId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
               },
             );
           },
@@ -4031,7 +3751,556 @@ typedef $$ReconciliationsTableProcessedTableManager =
       $$ReconciliationsTableUpdateCompanionBuilder,
       (ReconciliationRow, $$ReconciliationsTableReferences),
       ReconciliationRow,
-      PrefetchHooks Function({bool accountId})
+      PrefetchHooks Function({bool accountId, bool entriesRefs})
+    >;
+typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
+  Value<int> id,
+  required int transactionId,
+  required int accountId,
+  required int amountMinor,
+  Value<String> currency,
+  Value<String?> rate,
+  required Cleared cleared,
+  Value<int?> reconciliationId,
+});
+typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
+  Value<int> id,
+  Value<int> transactionId,
+  Value<int> accountId,
+  Value<int> amountMinor,
+  Value<String> currency,
+  Value<String?> rate,
+  Value<Cleared> cleared,
+  Value<int?> reconciliationId,
+});
+
+final class $$EntriesTableReferences
+    extends BaseReferences<_$AppDatabase, $EntriesTable, EntryRow> {
+  $$EntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TransactionsTable _transactionIdTable(_$AppDatabase db) =>
+      db.transactions.createAlias('entries__transaction_id__transactions__id');
+
+  $$TransactionsTableProcessedTableManager get transactionId {
+    final $_column = $_itemColumn<int>('transaction_id')!;
+
+    final manager = $$TransactionsTableTableManager(
+      $_db,
+      $_db.transactions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transactionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('entries__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<int>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ReconciliationsTable _reconciliationIdTable(_$AppDatabase db) => db
+      .reconciliations
+      .createAlias('entries__reconciliation_id__reconciliations__id');
+
+  $$ReconciliationsTableProcessedTableManager? get reconciliationId {
+    final $_column = $_itemColumn<int>('reconciliation_id');
+    if ($_column == null) return null;
+    final manager = $$ReconciliationsTableTableManager(
+      $_db,
+      $_db.reconciliations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_reconciliationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$EntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $EntriesTable> {
+  $$EntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rate => $composableBuilder(
+    column: $table.rate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<Cleared, Cleared, int> get cleared =>
+      $composableBuilder(
+        column: $table.cleared,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$TransactionsTableFilterComposer get transactionId {
+    final $$TransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transactionId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReconciliationsTableFilterComposer get reconciliationId {
+    final $$ReconciliationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.reconciliationId,
+      referencedTable: $db.reconciliations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReconciliationsTableFilterComposer(
+            $db: $db,
+            $table: $db.reconciliations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$EntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $EntriesTable> {
+  $$EntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rate => $composableBuilder(
+    column: $table.rate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cleared => $composableBuilder(
+    column: $table.cleared,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TransactionsTableOrderingComposer get transactionId {
+    final $$TransactionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transactionId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReconciliationsTableOrderingComposer get reconciliationId {
+    final $$ReconciliationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.reconciliationId,
+      referencedTable: $db.reconciliations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReconciliationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.reconciliations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$EntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EntriesTable> {
+  $$EntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<String> get rate =>
+      $composableBuilder(column: $table.rate, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Cleared, int> get cleared =>
+      $composableBuilder(column: $table.cleared, builder: (column) => column);
+
+  $$TransactionsTableAnnotationComposer get transactionId {
+    final $$TransactionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transactionId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReconciliationsTableAnnotationComposer get reconciliationId {
+    final $$ReconciliationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.reconciliationId,
+      referencedTable: $db.reconciliations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReconciliationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reconciliations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$EntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EntriesTable,
+          EntryRow,
+          $$EntriesTableFilterComposer,
+          $$EntriesTableOrderingComposer,
+          $$EntriesTableAnnotationComposer,
+          $$EntriesTableCreateCompanionBuilder,
+          $$EntriesTableUpdateCompanionBuilder,
+          (EntryRow, $$EntriesTableReferences),
+          EntryRow,
+          PrefetchHooks Function({
+            bool transactionId,
+            bool accountId,
+            bool reconciliationId,
+          })
+        > {
+  $$EntriesTableTableManager(_$AppDatabase db, $EntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> transactionId = const Value.absent(),
+                Value<int> accountId = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String?> rate = const Value.absent(),
+                Value<Cleared> cleared = const Value.absent(),
+                Value<int?> reconciliationId = const Value.absent(),
+              }) => EntriesCompanion(
+                id: id,
+                transactionId: transactionId,
+                accountId: accountId,
+                amountMinor: amountMinor,
+                currency: currency,
+                rate: rate,
+                cleared: cleared,
+                reconciliationId: reconciliationId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int transactionId,
+                required int accountId,
+                required int amountMinor,
+                Value<String> currency = const Value.absent(),
+                Value<String?> rate = const Value.absent(),
+                required Cleared cleared,
+                Value<int?> reconciliationId = const Value.absent(),
+              }) => EntriesCompanion.insert(
+                id: id,
+                transactionId: transactionId,
+                accountId: accountId,
+                amountMinor: amountMinor,
+                currency: currency,
+                rate: rate,
+                cleared: cleared,
+                reconciliationId: reconciliationId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$EntriesTable, EntryRow>(table),
+                  $$EntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                transactionId = false,
+                accountId = false,
+                reconciliationId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (transactionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.transactionId,
+                            referencedTable: $$EntriesTableReferences
+                                ._transactionIdTable(db),
+                            referencedColumn: $$EntriesTableReferences
+                                ._transactionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (accountId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.accountId,
+                            referencedTable: $$EntriesTableReferences
+                                ._accountIdTable(db),
+                            referencedColumn: $$EntriesTableReferences
+                                ._accountIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (reconciliationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.reconciliationId,
+                            referencedTable: $$EntriesTableReferences
+                                ._reconciliationIdTable(db),
+                            referencedColumn: $$EntriesTableReferences
+                                ._reconciliationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$EntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EntriesTable,
+      EntryRow,
+      $$EntriesTableFilterComposer,
+      $$EntriesTableOrderingComposer,
+      $$EntriesTableAnnotationComposer,
+      $$EntriesTableCreateCompanionBuilder,
+      $$EntriesTableUpdateCompanionBuilder,
+      (EntryRow, $$EntriesTableReferences),
+      EntryRow,
+      PrefetchHooks Function({
+        bool transactionId,
+        bool accountId,
+        bool reconciliationId,
+      })
     >;
 
 class $AppDatabaseManager {
@@ -4043,8 +4312,8 @@ class $AppDatabaseManager {
       $$PayeesTableTableManager(_db, _db.payees);
   $$TransactionsTableTableManager get transactions =>
       $$TransactionsTableTableManager(_db, _db.transactions);
-  $$EntriesTableTableManager get entries =>
-      $$EntriesTableTableManager(_db, _db.entries);
   $$ReconciliationsTableTableManager get reconciliations =>
       $$ReconciliationsTableTableManager(_db, _db.reconciliations);
+  $$EntriesTableTableManager get entries =>
+      $$EntriesTableTableManager(_db, _db.entries);
 }

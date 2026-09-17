@@ -52,14 +52,26 @@ be quietly undone.
    placeholders by the owner; see rule 14.)
 2. **The header's chart is a forecast, not history.** It runs from today to the next
    scheduled income, steps down on each scheduled bill, and names the lowest point. It
-   turns coral only when the balance will go below zero, and says which bills cause it.
+   turns coral only when the balance will go below zero. **The line under the headline
+   never names payees** (owner's correction: names can be any length, and several bills
+   won't fit). It reads "3 bills · ₮2,790,200 before 10.10". Clicking it opens a list of
+   every bill before that date, then the income that ends it, each with date, payee,
+   amount and the balance after it (coral below zero). Clicking a bill opens it, like
+   a dot; Esc or clicking outside closes the list. Rejected: naming the two biggest bills
+   plus "and N more" (A), and naming the bill that tips it under (C).
    With no bank sync, "will I make it to payday?" is the question only the user's own
    ledger can answer. **It makes no suggestions about savings or moving money.** The
    owner said savings come later. **Each dot is a way into its bill** (owner's request):
    hovering shows a card with date, payee, memo or category, amount and the balance
    after (bills on the same day share a dot and a card); clicking the dot, or the payday
    label, switches the register to Scheduled and selects that transaction. No link
-   inside the card, since the dot itself is the click. When the account is already
+   inside the card, since the dot itself is the click. **The chart's ends are labeled
+   with plain dates** ("09.17" … "10.10"), so it's clear what span it covers. They
+   replaced "Today" and "10.10 Salary" (owner's correction: the end label was unclear,
+   and the income's name added nothing the headline doesn't already say). Short dates
+   are month.day, as in YYYY.MM.DD, so "10.10" is 10 October; the owner, still getting
+   used to that format, first read it as an amount.
+   Hovering the end date still shows the income, and clicking it opens it. When the account is already
    under zero the headline says "Below zero now", not a future "runs out" date.
 3. **One signed amount column, not In/Out.** A transaction moves money one way in one
    account. The two-column layout is a paper-checkbook and bank-statement habit. Money
@@ -99,15 +111,33 @@ be quietly undone.
    splits or transfers), Mark cleared *or* Mark uncleared, Delete, and ✕. Buttons are
    outlined (owner's call) so they read as buttons; Delete's outline is coral. Reconciled
    rows show "Reconciled · locked" instead. Clicking the row again, ✕ or Esc closes it;
-   the filter tabs stay put. No hint text: it should be obvious. **Multi-select was
+   the filter tabs stay put. Tab counts are in parentheses, "Uncleared (2)" (owner's call). No hint text: it should be obvious. **Multi-select was
    removed** (owner: not wanted now; ⌘-click, Shift-click and the bulk bar that
    replaced the tabs). It may come back with bank import, where categorizing or
    clearing a batch could be real work. Delete never removes a reconciled row (owner's
-   correction: it once did), enforced in the database.
-9. **Actions confirm themselves with undo.** A toast names what happened ("Unitel
-   marked cleared · Undo"). **Toasts are gold with dark text** (owner's call) so they
-   get noticed; the dark toast they replaced was easy to miss. Undo is bold and
-   underlined.
+   correction: it once did), enforced in the database. **A transfer reconciled on one
+   side is locked on both.** From the other account the row keeps its own ✓ or clock and
+   can still be cleared there, but its bar reads "Locked · reconciled in TDB Checking"
+   instead of Edit and Delete. Editing it from that side once changed the locked side's
+   amount; the database now refuses.
+9. **Every action can be undone; only real changes get a toast.** **⌘Z (Ctrl+Z on
+   Windows) undoes the last action**, then the one before, back through the session:
+   add, edit, categorize, clear or unclear, delete, confirm, reconcile (owner's call).
+   In a text field it undoes typing instead (rule 13). An undo says what it undid
+   ("Undone · Unitel marked cleared"), because it may change a row that isn't in view.
+   **Toasts appear only when a record was changed and saved or removed** (edit,
+   categorize, delete, confirm, reconcile), with an Undo button for that one action.
+   **A toast's Undo works only while its action is still the newest.** Otherwise it says
+   "Undo the newer changes first · ⌘Z": undoing an older action out of order once wiped
+   a later clear without saying so (code review, 2026-09-17). An undo the database
+   refuses says "Couldn't undo … it changed since" instead of pretending it worked.
+   **Clearing a row is quiet** (owner's correction: a toast on every symbol click was
+   noise, especially while reconciling). The symbol changing is the confirmation.
+   Adding stays quiet too, because the row appears. **Toasts are gold with dark
+   text** (owner's call) so they get noticed; the dark toast they replaced was easy to
+   miss. Undo is bold and underlined. **⌘⇧Z redoes** (Ctrl+Y or Ctrl+Shift+Z on
+   Windows), and any new action clears what could be redone. The history lasts for the
+   session and isn't saved.
 10. **Confirming a scheduled item means it happened now.** Confirming before its due
     date posts it today, never on a future date, and the toast says so ("Zaisan
     Residence confirmed early · posted today, 09.16").
@@ -154,12 +184,44 @@ be quietly undone.
     Today/Yesterday buttons under the calendar (B), since the field already starts on
     today, and Flutter's modal date picker dialog (C), which looks stock, blocks
     typing and pulls you out of the row.
+16. **Reconcile happens in the header (option A of three considered).** An outlined
+    Reconcile button sits beside "Last reconciled on…". The reconciled line itself
+    still filters, like the other key lines. The balance sum is replaced by
+    Statement date (today by default; the calendar can't pick future days), Bank
+    balance ("Bank says you owe" on credit accounts, entered as a positive number),
+    Cleared here, and **Off by**. The forecast stays beside it. Bank balance starts
+    filled with the cleared total, so if it already matches, reconciling takes one
+    click. The register narrows to rows not yet reconciled up to the statement date,
+    labeled "Not reconciled, through …", where rows are marked cleared the usual way
+    (symbol click or C). "Off by" updates live and reads "Matches" in green at zero.
+    **Lock stays disabled until the numbers match.** No adjustment transaction
+    (the owner didn't choose one, so the stricter rule is the default). The button
+    names how many rows it locks. Locking marks this account's cleared entries up to
+    the date reconciled, records the statement, and offers Undo. The other side of a
+    transfer isn't locked. Esc cancels (after closing the calendar). A date before the
+    last reconciliation or after today is refused with a reason. Rejected: a yes/no
+    "does your bank show X?" first step (B), which invites clicking Yes without
+    checking, and waiting for bank import (C). Import can reuse the "Off by" line.
+    **A reconcile can be taken back at any time, not just this session** (owner's
+    call). A locked row's bar says "Reconciled on 09.10 · locked because it matches
+    that statement". Rows locked by the account's newest reconcile also get **Undo this
+    reconcile**, which puts that reconcile's rows back to cleared. Reconciles come
+    undone newest first, so every lock left in place still matches its statement.
+    Later reconciles that locked nothing go with it. The toast has Undo, and ⌘Z / ⌘⇧Z
+    work too. Each entry stores the reconcile that locked it (schema version 2);
+    older data was linked to the first statement dated on or after each row. **Only
+    an account's own side is ever reconciled**, and always by a statement. Older data
+    also locked category, opening-balance and statement-less sides, which made rows
+    look unlocked but refuse edits, or stay locked forever. Schema version 3 puts those
+    back to cleared. The database also refuses statement dates out of order, and
+    forecast dots do nothing while a reconcile is open (the register hides scheduled
+    rows then).
 
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer
   ([ledger-features.md §J](../ledger-features.md)). These rules are written for desktop;
-  mobile must honor 1–7 and 9–14 in its own form.
+  mobile must honor 1–7 and 9–16 in its own form.
 - A light theme is not planned. Midnight is a stance; revisit only if users ask.
 - The 1440×900 window shows about five transactions under the header. Collapsing the
   header on scroll is an open idea, not a decision.

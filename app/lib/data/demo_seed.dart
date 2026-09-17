@@ -70,19 +70,23 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
     const unc = Cleared.uncleared,
         clr = Cleared.cleared,
         rec = Cleared.reconciled;
+    // Only an account's own side is ever reconciled, and only by a statement:
+    // the other side of a locked row (category, opening balance, the other
+    // account of a transfer) stays cleared.
+    Cleared other(Cleared c) => c == rec ? clr : c;
 
-    Future<void> open(int account, int amount, int offset) =>
+    Future<void> open(int account, int amount, int offset, Cleared c) =>
         db.postTransaction(
           date: day(offset),
           lines: [
-            (accountId: account, amount: amount, cleared: rec),
-            (accountId: opening, amount: -amount, cleared: rec),
+            (accountId: account, amount: amount, cleared: c),
+            (accountId: opening, amount: -amount, cleared: other(c)),
           ],
         );
-    await open(checking, 310419100, -15);
-    await open(savings, 1210000000, -15);
-    await open(cash, 8650000, -15);
-    await open(visa, -99020000, -15);
+    await open(checking, 310419100, -15, rec);
+    await open(savings, 1210000000, -15, clr);
+    await open(cash, 8650000, -15, clr);
+    await open(visa, -99020000, -15, clr);
 
     Future<void> spend(
       int offset,
@@ -97,7 +101,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       memo: memo,
       lines: [
         (accountId: checking, amount: amount, cleared: c),
-        (accountId: cat[category]!, amount: -amount, cleared: c),
+        (accountId: cat[category]!, amount: -amount, cleared: other(c)),
       ],
     );
     Future<void> transfer(
@@ -111,7 +115,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       memo: memo,
       lines: [
         (accountId: checking, amount: -amount, cleared: c),
-        (accountId: to, amount: amount, cleared: c),
+        (accountId: to, amount: amount, cleared: other(c)),
       ],
     );
 
@@ -134,6 +138,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
     );
     await spend(-6, 'Altan Gadas LLC', 'Salary', 250000000, rec, memo: 'Цалин');
     await db.addReconciliation(checking, day(-6), 514198050);
+    await db.linkReconciledEntries();
     await spend(
       -4,
       'E-Mart Хан-Уул',

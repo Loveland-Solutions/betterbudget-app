@@ -11,6 +11,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
+import 'reconcile.dart';
 import 'register.dart';
 import 'theme.dart';
 
@@ -55,6 +56,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
   bool _adding = false;
   ({String message, VoidCallback? undo})? _toast;
 
+  /// Everything undoable done this session, oldest first. ⌘Z / Ctrl+Z undoes
+  /// the newest; a toast's Undo works only while its action is the newest.
+  final _history = <_Undoable>[];
+
+  /// Undone actions, newest last. ⌘⇧Z (Ctrl+Y on Windows) redoes them; any
+  /// new action clears it.
+  final _redo = <_Undoable>[];
+
+  /// A reconcile in progress, if any.
+  ReconcileSession? _reconcile;
+
+  /// Lock was pressed and the write hasn't returned; a second click waits.
+  bool _locking = false;
+
   /// The transaction open in the inline editor, if any.
   RegisterEditing? _editing;
 
@@ -87,12 +102,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
+    _reconcile?.dispose();
     super.dispose();
   }
 
   Future<String?> _post(EntryDraft d) async {
     try {
-      await db.postSimple(
+      final id = await db.postSimple(
         accountId: _accountId!,
         date: d.date,
         today: today,
@@ -103,6 +119,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
       );
       _entry.payeeNames = await db.payeeNames();
+      _did(
+        '${d.payee} added',
+        undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
+        redo: () => db.restoreMany([id]),
+        toast: false,
+      );
       if (d.date.isAfter(today)) {
         _showToast(
           'Scheduled for ${fullDate(d.date)} · not in balances until confirmed',
@@ -112,6 +134,77 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       return 'Couldn’t save: $e';
     }
+  }
+
+  /// Records an undoable action. Toasts are for saved changes and deletes;
+  /// quick clicks like clearing a row stay quiet and rely on ⌘Z.
+  void _did(
+    String label, {
+    required Future<void> Function() undo,
+    required Future<void> Function() redo,
+    bool toast = true,
+    String? message,
+  }) {
+    final action = _Undoable(label, undo, redo);
+    _history.add(action);
+    _redo.clear();
+    if (toast) {
+      _showToast(
+        message ?? label,
+        undo: () async {
+          // Undo runs newest first, so an older toast can't jump the queue:
+          // restoring its state would silently wipe the newer changes.
+          if (!identical(_history.lastOrNull, action)) {
+            _showToast(
+              'Undo the newer changes first · ${_isMac ? '⌘Z' : 'Ctrl+Z'}',
+            );
+            return;
+          }
+          await _undo();
+        },
+      );
+    }
+  }
+
+  /// Throws when a database write changed less than undo or redo expected,
+  /// usually because the row was locked or changed since.
+  void _expect(bool ok) {
+    if (!ok) throw StateError('changed since');
+  }
+
+  /// Undoes the newest action.
+  Future<void> _undo() async {
+    final a = _history.lastOrNull;
+    if (a == null) {
+      _showToast('Nothing to undo');
+      return;
+    }
+    _history.removeLast();
+    try {
+      await a.undo();
+    } catch (e) {
+      _showToast('Couldn’t undo “${a.label}” · it changed since');
+      return;
+    }
+    _redo.add(a);
+    _showToast('Undone · ${a.label}');
+  }
+
+  Future<void> _redoLast() async {
+    final a = _redo.lastOrNull;
+    if (a == null) {
+      _showToast('Nothing to redo');
+      return;
+    }
+    _redo.removeLast();
+    try {
+      await a.redo();
+    } catch (e) {
+      _showToast('Couldn’t redo “${a.label}” · it changed since');
+      return;
+    }
+    _history.add(a);
+    _showToast('Redone · ${a.label}');
   }
 
   void _showToast(String message, {Future<void> Function()? undo}) {
@@ -148,6 +241,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return KeyEventResult.ignored;
     }
     final keys = HardwareKeyboard.instance;
+    // ⌘Z / Ctrl+Z undoes the last action and ⌘⇧Z (Ctrl+Y or Ctrl+Shift+Z)
+    // redoes it, except in a text field, where they act on typing.
+    final command = _isMac ? keys.isMetaPressed : keys.isControlPressed;
+    final z = event.logicalKey == LogicalKeyboardKey.keyZ;
+    final undo = command && z && !keys.isShiftPressed;
+    final redo =
+        command &&
+        ((z && keys.isShiftPressed) ||
+            (!_isMac && event.logicalKey == LogicalKeyboardKey.keyY));
+    if (undo || redo) {
+      if (_typing) return KeyEventResult.ignored;
+      if (event is KeyDownEvent) undo ? _undo() : _redoLast();
+      return KeyEventResult.handled;
+    }
     if (_typing ||
         keys.isMetaPressed ||
         keys.isControlPressed ||
@@ -208,6 +315,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// From a forecast dot: show that scheduled transaction, selected.
   void _openScheduled(RegisterRow r) {
+    // The register hides scheduled rows while reconciling, and keys would act
+    // on a row nobody can see.
+    if (_reconcile != null) {
+      _showToast('Finish or cancel the reconcile first');
+      return;
+    }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
         _showToast('Save with Enter, or press Esc to discard your changes');
@@ -248,10 +361,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startEdit(int id, EditField field) {
     final row = _rows[id];
     if (row == null) return;
-    if (row.cleared == Cleared.reconciled) {
-      _showToast(
-        'Reconciled transactions are locked · they match a bank statement',
-      );
+    if (row.locked) {
+      _showToast(_lockMessage(row));
       return;
     }
     final controller = EntryRowController(
@@ -277,6 +388,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Future<String?> _saveEdit(RegisterRow row, EntryDraft d) async {
     final before = await db.snapshot(row.txnId);
+    final TxnSnapshot after;
     try {
       await db.editTransaction(
         transactionId: row.txnId,
@@ -288,6 +400,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         counterAccountId: d.counter?.id,
         amount: d.amount,
       );
+      after = await db.snapshot(row.txnId);
     } on LockedException catch (e) {
       return e.message;
     } catch (e) {
@@ -296,13 +409,106 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
-    _showToast(
-      nowScheduled
+    _did(
+      '${d.payee.isEmpty ? row.payee : d.payee} edited',
+      undo: () => db.restoreSnapshot(before),
+      redo: () => db.restoreSnapshot(after),
+      message: nowScheduled
           ? 'Moved to ${fullDate(d.date)} · now scheduled, out of balances until confirmed'
           : 'Changes saved',
-      undo: () => db.restoreSnapshot(before),
     );
     return null;
+  }
+
+  // ---------- reconcile ----------
+
+  void _startReconcile(LedgerData data, AccountInfo account) {
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showToast('Save with Enter, or press Esc to discard your changes');
+        return;
+      }
+      _cancelEdit();
+    }
+    _reconcile?.dispose();
+    final session = ReconcileSession(
+      accountId: account.id,
+      owed: account.type == AccountType.liability,
+      today: today,
+      clearedToday: data.clearedThrough(account.id, today).balance,
+    );
+    // The register shows rows through the statement date as it's typed.
+    session.date.addListener(() {
+      if (mounted && _reconcile == session) setState(() {});
+    });
+    setState(() {
+      _reconcile = session;
+      _selected = null;
+      _adding = false;
+    });
+  }
+
+  void _endReconcile() {
+    final s = _reconcile;
+    if (s == null) return;
+    setState(() => _reconcile = null);
+    _registerFocus.requestFocus();
+    // The panel's fields still hold the controllers until this frame ends.
+    WidgetsBinding.instance.addPostFrameCallback((_) => s.dispose());
+  }
+
+  ReconcileCheck _reconcileCheck(LedgerData data, AccountSummary summary) {
+    final s = _reconcile!;
+    final date = parseEntryDate(s.date.text, today);
+    final last = summary.reconciledOn;
+    final problem = date == null
+        ? 'Type a date like ${shortDate(today)}'
+        : date.isAfter(today)
+        ? 'The statement can’t be after today'
+        : last != null && date.isBefore(last)
+        ? 'Already reconciled through ${shortDate(last)}'
+        : null;
+    final cleared = data.clearedThrough(s.accountId, date ?? today);
+    return (
+      date: date,
+      dateProblem: problem,
+      statement: s.statementBalance,
+      cleared: cleared.balance,
+      toLock: cleared.toLock,
+    );
+  }
+
+  Future<void> _lockReconcile(AccountInfo account, ReconcileCheck c) async {
+    final s = _reconcile;
+    if (s == null || _locking || c.date == null || c.statement == null) return;
+    final ReconcileRecord done;
+    _locking = true;
+    try {
+      done = await db.reconcile(
+        accountId: s.accountId,
+        statementDate: c.date!,
+        today: today,
+        balance: c.statement!,
+      );
+    } on ReconcileMismatchException {
+      _showToast('The cleared rows changed · check the difference again');
+      return;
+    } on ReconcileDateException catch (e) {
+      _showToast(e.message);
+      return;
+    } finally {
+      _locking = false;
+    }
+    _endReconcile();
+    final n = done.entryIds.length;
+    _did(
+      '${account.name} reconciled through ${shortDate(c.date!)}',
+      undo: () => db.unreconcile(done),
+      redo: () => db.relock(done),
+      message:
+          '${account.name} reconciled through ${shortDate(c.date!)}'
+          '${n == 0 ? '' : ' · $n locked'}',
+    );
   }
 
   // ---------- actions ----------
@@ -313,27 +519,56 @@ class _LedgerScreenState extends State<LedgerScreen> {
         : Cleared.uncleared;
     final previous = await db.setClearedMany({r.entryId: next});
     if (previous.isEmpty) return;
-    _showToast(
+    // The symbol changing is the confirmation; no toast.
+    _did(
       '${r.payee} marked ${StatusGlyph.label(next).toLowerCase()}',
-      undo: () => db.setClearedMany(previous),
+      undo: () async => _expect(
+        (await db.setClearedMany(previous)).length == previous.length,
+      ),
+      redo: () async =>
+          _expect((await db.setClearedMany({r.entryId: next})).length == 1),
+      toast: false,
     );
   }
+
+  String _lockMessage(RegisterRow r) => r.lockedIn != null
+      ? 'Locked · this transfer is reconciled in ${r.lockedIn}'
+      : 'Reconciled transactions are locked · they match a bank statement';
 
   Future<void> _delete(RegisterRow r) async {
     final deleted = await db.softDeleteMany([r.txnId]);
     if (deleted.isEmpty) {
-      _showToast(
-        'Reconciled transactions are locked · they match a bank statement',
-      );
+      _showToast(_lockMessage(r));
       return;
     }
     _clearSelection();
-    _showToast(
+    _did(
       '${r.payee} deleted',
       undo: () async {
         await db.restoreMany(deleted);
         if (mounted) setState(() => _selected = r.txnId);
       },
+      redo: () async =>
+          _expect((await db.softDeleteMany(deleted)).length == deleted.length),
+    );
+  }
+
+  /// Takes back the account's latest reconcile, whenever it was done.
+  Future<void> _unreconcile(AccountInfo account) async {
+    final ReconcileRecord done;
+    try {
+      done = await db.unreconcileLast(account.id);
+    } on NotFoundException {
+      return;
+    }
+    final n = done.entryIds.length;
+    _did(
+      'Reconcile of ${shortDate(done.date)} undone',
+      undo: () => db.relock(done),
+      redo: () => db.unreconcile(done),
+      message:
+          'Reconcile of ${shortDate(done.date)} undone'
+          '${n == 0 ? '' : ' · $n ${n == 1 ? 'row' : 'rows'} back to cleared'}',
     );
   }
 
@@ -393,12 +628,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         data: data,
                         section: _section,
                         onSection: (sec) => setState(() {
+                          if (sec != _section) _endReconcile();
                           _section = sec;
                           _selected = null;
                           _editing = null;
                         }),
                         selected: account.id,
                         onSelect: (id) => setState(() {
+                          if (id != _accountId) _endReconcile();
                           _section = AppSection.ledger;
                           _accountId = id;
                           _selected = null;
@@ -481,6 +718,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
             hoveredStatus: _hoveredStatus,
             activeStatus: activeStatus,
             onOpenScheduled: _openScheduled,
+            onReconcile: () => _startReconcile(data, account),
+            reconcile: _reconcile == null
+                ? null
+                : ReconcilePanel(
+                    session: _reconcile!,
+                    today: today,
+                    check: () => _reconcileCheck(data, summary),
+                    onLock: () =>
+                        _lockReconcile(account, _reconcileCheck(data, summary)),
+                    onCancel: _endReconcile,
+                  ),
             onStatusTap: (s) => setState(() {
               final f = switch (s) {
                 Cleared.uncleared => RegisterFilter.uncleared,
@@ -495,6 +743,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
             child: RegisterPanel(
               posted: register.posted,
               scheduled: register.scheduled,
+              reconcileThrough: _reconcile == null
+                  ? null
+                  : parseEntryDate(_reconcile!.date.text, today) ?? today,
               filter: _filter,
               search: _search.text,
               selected: _selected,
@@ -520,9 +771,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
                 onConfirm: (r) async {
+                  final before = await db.snapshot(r.txnId);
                   await db.confirmScheduled(r.txnId, today);
-                  _showToast(
-                    r.date.isAfter(today)
+                  final after = await db.snapshot(r.txnId);
+                  _did(
+                    '${r.payee} confirmed',
+                    undo: () => db.restoreSnapshot(before),
+                    redo: () => db.restoreSnapshot(after),
+                    message: r.date.isAfter(today)
                         ? '${r.payee} confirmed early · posted today, ${shortDate(today)}'
                         : '${r.payee} confirmed · ${formatMoney(r.amount)}',
                   );
@@ -534,15 +790,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     categoryId: c.id,
                   );
                   if (previous.isEmpty) return;
-                  _showToast(
+                  _did(
                     '${r.payee} → ${c.name}',
-                    undo: () => db.restoreCategories(previous, account.id),
+                    undo: () async => _expect(
+                      (await db.restoreCategories(
+                            previous,
+                            account.id,
+                          )).length ==
+                          previous.length,
+                    ),
+                    redo: () async => _expect(
+                      (await db.setCategoryMany(
+                            transactionIds: [r.txnId],
+                            accountId: account.id,
+                            categoryId: c.id,
+                          )).length ==
+                          1,
+                    ),
                   );
                 },
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
                 onEdit: (r) => _startEdit(r.txnId, EditField.payee),
                 onCancelEdit: _cancelEdit,
+                onUnreconcile: (_) => _unreconcile(account),
               ),
             ),
           ),
@@ -550,6 +821,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
     );
   }
+}
+
+/// A class, not a record: a toast checks its action is still the newest by
+/// identity, which records don't have.
+class _Undoable {
+  _Undoable(this.label, this.undo, this.redo);
+  final String label;
+  final Future<void> Function() undo;
+  final Future<void> Function() redo;
 }
 
 /// One sidebar: the section you're in expands, the others collapse to a line.

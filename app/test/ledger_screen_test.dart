@@ -237,7 +237,10 @@ void main() {
 
   testWidgets('confirming early posts today and says so', (tester) async {
     final db = await pumpLedger(tester);
-    await tester.tap(find.text('Confirm'));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Confirm'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
     await settle(tester);
     expect(
       find.text('Zaisan Residence confirmed early · posted today, 09.16'),
@@ -256,6 +259,63 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/confirm_early.png'),
     );
+    // Confirm can be undone like everything else: it goes back to scheduled.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Undone · Zaisan Residence confirmed'), findsOneWidget);
+    expect(find.textContaining('next of 4 scheduled'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a toast can only undo while its action is the newest', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Confirm'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.textContaining('Zaisan Residence confirmed'), findsOneWidget);
+
+    // A quiet change after it: the confirm toast is still up.
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text && w.data == 'Sakura Coffee' && w.style?.fontSize == 14.5,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Mark cleared'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Undo the newer changes first · Ctrl+Z'), findsOneWidget);
+    // Neither change was touched.
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.textContaining('next of 4 scheduled'), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('forecast dots do nothing while reconciling', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('forecast-dot-09.20')));
+    await tester.pumpAndSettle();
+    expect(find.text('Finish or cancel the reconcile first'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -284,6 +344,34 @@ void main() {
     expect(find.text('Edit'), findsOneWidget);
     expect(find.text('Nothing scheduled'), findsNothing);
     expect(find.text('Sakura Coffee'), findsNothing); // posted rows hidden
+    await tidy(tester, db);
+  });
+
+  testWidgets('the bill count lists every bill before payday', (tester) async {
+    final db = await pumpLedger(tester);
+    final link = find.byKey(const ValueKey('forecast-bills'));
+    expect(find.text('3 bills · ₮2,790,200 before 10.10'), findsOneWidget);
+    await tester.tap(link);
+    await tester.pumpAndSettle();
+    // Each bill with the balance after it, then the income that ends it.
+    expect(find.text('Zaisan Residence'), findsNWidgets(2));
+    expect(find.text('+₮2,500,000'), findsOneWidget);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/forecast_bills.png'),
+    );
+
+    // Esc closes it; clicking a bill opens that transaction.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('+₮2,500,000'), findsNothing);
+    await tester.tap(link);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('forecast-bill-line')).first);
+    await tester.pumpAndSettle();
+    expect(find.text('+₮2,500,000'), findsNothing);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -377,7 +465,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Reconciled · locked'), findsOneWidget);
+    expect(find.textContaining('locked because it matches'), findsOneWidget);
     expect(find.text('Delete'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await settle(tester);
@@ -427,8 +515,36 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('Sakura Coffee marked uncleared'), findsOneWidget);
+    // Clearing is quiet: the symbol changing is the confirmation.
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.textContaining('marked'), findsNothing);
     expect(tester.widget<TextField>(payee).controller!.text, 'Sakur');
+
+    // Ctrl+Z (⌘Z on a Mac) undoes it.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Undone · Sakura Coffee marked uncleared'),
+      findsOneWidget,
+    );
+    expect(find.text('Mark uncleared'), findsOneWidget);
+
+    // In a text field it undoes typing, not the ledger.
+    await tester.tap(payee);
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing to undo'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -590,6 +706,158 @@ void main() {
       );
       await tidy(tester, db);
     });
+  });
+
+  testWidgets('reconcile: match the statement, then lock', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+
+    // Starts from what's cleared here, so a matching statement is one click.
+    expect(find.text('Matches'), findsOneWidget);
+    expect(find.text('Lock 5 transactions'), findsOneWidget);
+    // The register narrows to rows that can still be ticked off.
+    expect(find.text('Not reconciled, through 2026.09.16'), findsOneWidget);
+    expect(find.text('Altan Gadas LLC'), findsNothing);
+    expect(find.text('Unitel'), findsOneWidget);
+
+    // The bank shows ₮30,000 less: Unitel has cleared there.
+    final balance = find.byKey(const ValueKey('reconcile-balance'));
+    await tester.enterText(balance, '4268850');
+    await tester.pumpAndSettle();
+    expect(find.text('Matches'), findsNothing);
+    expect(find.text('Clear the rows your bank shows'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/reconcile.png'),
+    );
+    // Not matching: Lock does nothing.
+    await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+    await settle(tester);
+    expect(find.text('Reconcile'), findsOneWidget);
+
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Matches'), findsOneWidget);
+    expect(find.text('Lock 6 transactions'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.text('TDB Checking reconciled through 09.16 · 6 locked'),
+      findsOneWidget,
+    );
+    expect(find.text('Last reconciled on 09.16'), findsOneWidget);
+    expect(find.text('1 not cleared yet'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a past reconcile can be undone from its rows, then redone', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    Future<void> chord(LogicalKeyboardKey key, {bool shift = false}) =>
+        tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          if (shift) {
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+          }
+          await tester.sendKeyEvent(key);
+          if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+
+    final salary = find.text('Altan Gadas LLC', skipOffstage: false);
+    await tester.ensureVisible(salary);
+    await tester.pumpAndSettle();
+    await tester.tap(salary);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Reconciled on 09.10 · locked because it matches that statement',
+      ),
+      findsOneWidget,
+    );
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('unreconcile')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.text('Reconcile of 09.10 undone · 5 rows back to cleared'),
+      findsOneWidget,
+    );
+    expect(find.text('Never reconciled'), findsOneWidget);
+
+    await chord(LogicalKeyboardKey.keyZ);
+    await settle(tester);
+    expect(find.text('Undone · Reconcile of 09.10 undone'), findsOneWidget);
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+
+    await chord(LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
+    expect(find.text('Redone · Reconcile of 09.10 undone'), findsOneWidget);
+    expect(find.text('Never reconciled'), findsOneWidget);
+
+    // Ctrl+Y redoes too, once something has been undone.
+    await chord(LogicalKeyboardKey.keyZ);
+    await settle(tester);
+    await chord(LogicalKeyboardKey.keyY);
+    await settle(tester);
+    expect(find.text('Never reconciled'), findsOneWidget);
+    await chord(LogicalKeyboardKey.keyY);
+    await settle(tester);
+    expect(find.text('Nothing to redo'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('reconcile: Esc cancels, and a future date is refused', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('reconcile')));
+    await tester.pumpAndSettle();
+    final date = find.descendant(
+      of: find.byKey(const ValueKey('reconcile-date')),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(date, '09.20');
+    await tester.pumpAndSettle();
+    expect(find.text('The statement can’t be after today'), findsOneWidget);
+    await tester.enterText(date, '09.05');
+    await tester.pumpAndSettle();
+    expect(find.text('Already reconciled through 09.10'), findsOneWidget);
+    await tester.enterText(date, '09.12');
+    await tester.pumpAndSettle();
+    expect(find.text('Not reconciled, through 2026.09.12'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsNothing);
+
+    // Esc closes the date's calendar first, then cancels.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Statement date'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Statement date'), findsNothing);
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsOneWidget);
+    await tidy(tester, db);
   });
 
   testWidgets('a future bill turns the forecast into a warning', (

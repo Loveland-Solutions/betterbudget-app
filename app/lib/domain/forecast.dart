@@ -12,7 +12,6 @@ class Forecast {
     required this.low,
     required this.lowDate,
     required this.firstShort,
-    required this.causes,
     required this.billTotal,
   });
 
@@ -32,8 +31,6 @@ class Forecast {
   /// the account is already under.
   final DateTime? firstShort;
 
-  /// Bills from [firstShort] on: what pushes the account under.
-  final List<String> causes;
   final int billTotal;
 
   bool get isShort => firstShort != null;
@@ -72,7 +69,6 @@ Forecast buildForecast({
   var lowDate = start;
   DateTime? firstShort = working < 0 ? start : null;
   final steps = <ForecastStep>[];
-  final causes = <String>[];
 
   // Bills landing on payday itself count before the income: conservative.
   for (final r in scheduled) {
@@ -86,7 +82,6 @@ Forecast buildForecast({
       lowDate = when(r);
     }
     if (bal < 0 && firstShort == null) firstShort = when(r);
-    if (firstShort != null && !causes.contains(label)) causes.add(label);
   }
 
   return Forecast(
@@ -98,7 +93,6 @@ Forecast buildForecast({
     low: low,
     lowDate: lowDate,
     firstShort: firstShort,
-    causes: causes,
     billTotal: billTotal,
   );
 }

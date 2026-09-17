@@ -12,10 +12,10 @@ Settled items graduate to [docs/decisions](decisions/); UI rules are in
 | B. Manual entry | Built: keyboard-first any-order row, payee autocomplete with last category, calculator. Not yet: templates, recurring, duplicate-last, mobile keypad. |
 | C. Import | Not started. |
 | D. Register | Built: running balance, filters and search, inline category edit, an action bar under the clicked row (multi-select removed for now), cleared/reconciled symbols, working/cleared/reconciled header. **Changed:** no month grouping or subtotals (ADR 0004). Editing opens the row in place with all fields (ADR 0004 rule 12). Not yet: sorting by column (roadmap). |
-| E. Reconciliation | Data only: reconciled state and locking (no edit, clear or delete). No reconcile flow yet. |
+| E. Reconciliation | Built: reconcile against a statement date and balance in the header, lock only at zero, locking (no edit, clear or delete, on either side of a transfer), take back the newest reconcile any time (ADR 0004 rule 16). Not yet: adjustment when it won't match, cash wallet count. |
 | F. Payees, categories, rules | Payees table only. No merge, category tree or rules. |
 | G. Search | Basic search across payee, memo, category and amount, current account only. Full search is on the roadmap. |
-| H. Safety | Undo for deletes, edits, category and cleared changes. No encryption, app lock, backup or export. |
+| H. Safety | Session undo and redo (⌘Z / ⌘⇧Z) for every ledger action, including reconcile. No encryption, app lock, backup or export. |
 | I. Localisation | Cyrillic renders (fonts checked for ₮, Ө, Ү); YYYY.MM.DD dates. UI strings are English only. |
 | J. Cross-platform | Desktop (macOS) only so far. |
 
