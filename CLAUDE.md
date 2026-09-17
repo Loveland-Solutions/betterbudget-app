@@ -27,8 +27,8 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   entry row, a "+ for money in" hint, multi-select (not wanted yet), a toast on
   every cleared-symbol click (toasts are for saved changes; ⌘Z undoes anything), and
   an income name under the forecast's end date (both ends show plain dates), a bank
-  balance prefilled with the cleared total, and reconciled rows whose payee couldn't be
-  fixed.
+  balance prefilled with the cleared total, reconciled rows whose payee couldn't be
+  fixed, and a row hover as faint as the row stripe.
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.
