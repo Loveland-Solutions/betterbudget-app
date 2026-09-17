@@ -1174,6 +1174,77 @@ void main() {
       expect(f.endBalance, 0);
     });
 
+    test('a late salary is not counted; the forecast runs on past it', () {
+      RegisterRow row(
+        DateTime date,
+        int amount,
+        String category, {
+        bool income = false,
+      }) => RegisterRow(
+        txnId: date.day + amount.abs() % 97,
+        entryId: 1,
+        date: date,
+        payee: 'P',
+        memo: '',
+        amount: amount,
+        cleared: Cleared.uncleared,
+        scheduled: true,
+        kind: RowKind.simple,
+        categoryLabel: category,
+        categoryId: 1,
+        splitLines: const [],
+        incomeCategory: income,
+      );
+      // Today 09.16. Salary was due 09.14; rent 09.20; next salary 10.14.
+      final lateSalary = row(
+        DateTime(2026, 9, 14),
+        250000000,
+        'Salary',
+        income: true,
+      );
+      final lateRefund = row(DateTime(2026, 9, 10), 500000, 'Clothing');
+      final lateBill = row(DateTime(2026, 9, 12), -3000000, 'Phone');
+      final rent = row(DateTime(2026, 9, 20), -180000000, 'Housing');
+      final nextSalary = row(
+        DateTime(2026, 10, 14),
+        250000000,
+        'Salary',
+        income: true,
+      );
+      final f = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateRefund, lateBill, lateSalary, rent, nextSalary],
+      );
+      expect(f.late, [lateRefund, lateSalary]);
+      expect(f.payday, same(nextSalary));
+      expect(f.end, DateTime(2026, 10, 14));
+      // The late bill counts today; rent counts; no late money in.
+      expect(f.steps.map((s) => s.row), [lateBill, rent]);
+      expect(f.firstShort, DateTime(2026, 9, 20));
+      expect(f.low, 38200000 - 3000000 - 180000000);
+
+      // With no later salary: 30 days out, still without the late one.
+      final alone = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateSalary, rent],
+      );
+      expect(alone.payday, isNull);
+      expect(alone.end, DateTime(2026, 10, 16));
+      expect(alone.isShort, isTrue);
+
+      // A card doesn't warn, so a late payment to it still counts.
+      final card = buildForecast(
+        working: -64020000,
+        today: today,
+        scheduled: [row(DateTime(2026, 9, 14), 64020000, 'Transfer')],
+        owed: true,
+      );
+      expect(card.late, isEmpty);
+      expect(card.endBalance, 0);
+    });
+
     test('no scheduled income falls back to a 30 day horizon', () {
       final f = buildForecast(working: 100, today: today, scheduled: const []);
       expect(f.payday, isNull);

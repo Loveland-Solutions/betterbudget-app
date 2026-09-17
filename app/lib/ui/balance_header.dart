@@ -347,6 +347,12 @@ class _StatusLine extends StatelessWidget {
   }
 }
 
+/// A short name for money coming in: its category (Salary), or where a
+/// transfer comes from. Payees can be any length.
+String _moneyInName(RegisterRow r) => r.kind == RowKind.transfer
+    ? 'Transfer from ${r.payee}'
+    : (r.categoryLabel.isEmpty ? r.payee : r.categoryLabel);
+
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
   const ForecastPanel(this.f, {super.key, required this.onOpen});
@@ -407,12 +413,34 @@ class ForecastPanel extends StatelessWidget {
             ].join(' · ');
     }
 
+    // Late money in, named so a warning without it makes sense.
+    final late = f.late;
+    final lateNote = late.isEmpty
+        ? null
+        : late.length == 1
+        ? '${_moneyInName(late.single)} due ${shortDate(late.single.date)} isn’t counted'
+        : '${late.length} late payments in aren’t counted';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          payday == null ? 'Next 30 days' : 'Until next income',
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: payday == null ? 'Next 30 days' : 'Until next income',
+              ),
+              if (lateNote != null)
+                TextSpan(
+                  text: ' · $lateNote',
+                  style: onest(12, color: Mid.gold),
+                ),
+            ],
+          ),
+          key: const ValueKey('forecast-horizon'),
           style: onest(12, color: Mid.ink3),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
         Text(

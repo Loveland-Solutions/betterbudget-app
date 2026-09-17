@@ -18,6 +18,7 @@ class Forecast {
     required this.billTotal,
     required this.billCount,
     required this.inTotal,
+    this.late = const [],
     this.owed = false,
   });
 
@@ -48,6 +49,12 @@ class Forecast {
   /// account, refunds.
   final int inTotal;
 
+  /// Money in past its date and not confirmed (a late salary, a transfer
+  /// that didn't come): left out until it arrives, so a forecast never leans
+  /// on money that may be late again. Bills past their date still count, as
+  /// due today.
+  final List<RegisterRow> late;
+
   final bool owed;
 
   bool get isShort => firstShort != null;
@@ -76,13 +83,24 @@ Forecast buildForecast({
   bool owed = false,
 }) {
   final start = dateOnly(today);
-  // Overdue scheduled items still have to happen; treat them as today.
+  // Overdue bills still have to be paid; treat them as due today.
   DateTime when(RegisterRow r) => r.date.isBefore(start) ? start : r.date;
 
-  // A card has no payday: it looks 30 days out.
+  // Late money in isn't counted until it's confirmed. (On a card, owing is
+  // never a warning, so a late payment still counts.)
+  final late = owed
+      ? const <RegisterRow>[]
+      : [
+          for (final r in scheduled)
+            if (r.amount > 0 && r.date.isBefore(start)) r,
+        ];
+  final counted = scheduled.where((r) => !late.contains(r));
+
+  // A card has no payday: it looks 30 days out. A late salary isn't payday:
+  // the forecast runs on to the next one.
   final payday = owed
       ? null
-      : scheduled
+      : counted
             .where(
               (r) =>
                   r.isIncome && !when(r).isAfter(start.add(_paydayLookahead)),
@@ -99,7 +117,7 @@ Forecast buildForecast({
   final steps = <ForecastStep>[];
 
   // Bills landing on payday itself count before the income: conservative.
-  for (final r in scheduled) {
+  for (final r in counted) {
     if (identical(r, payday) || when(r).isAfter(end)) continue;
     bal += r.amount;
     if (r.amount < 0) {
@@ -129,6 +147,7 @@ Forecast buildForecast({
     billTotal: billTotal,
     billCount: billCount,
     inTotal: inTotal,
+    late: late,
     owed: owed,
   );
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
+import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/theme.dart';
@@ -1562,6 +1563,40 @@ void main() {
     });
     await settle(tester);
     expect(find.text('· due 7 days ago'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a late salary is named and not counted', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(NativeDatabase.memory());
+    // The seed's salary is due 10.10; open the app on 10.12, before it's
+    // confirmed. Rent (09.20), the card payment and childcare are overdue too.
+    await tester.runAsync(() async {
+      await seedDemoIfEmpty(db, DateTime(2026, 9, 16));
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: midnightTheme(),
+          home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 12, 10)),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Next 30 days · Salary due 10.10 isn’t counted',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/forecast_late_income.png'),
+    );
     await tidy(tester, db);
   });
 
