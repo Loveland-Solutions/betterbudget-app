@@ -185,6 +185,37 @@ class RegisterRow {
   );
 }
 
+/// Uncleared this long, a row says so: longer than a card hold usually
+/// lasts, so it may never have happened (cancelled, or entered twice), yet it
+/// still counts in Working.
+const staleUnclearedDays = 14;
+
+/// Whole days from [date] to [today].
+int daysBefore(DateTime date, DateTime today) =>
+    // In UTC: across a daylight-saving change local days are 23 or 25 hours.
+    DateTime.utc(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
+
+/// "not cleared for 34 days", on an uncleared row that old; otherwise null.
+String? staleNote(RegisterRow r, DateTime today) {
+  if (r.scheduled || r.cleared != Cleared.uncleared) return null;
+  final days = daysBefore(r.date, today);
+  return days >= staleUnclearedDays ? 'not cleared for $days days' : null;
+}
+
+/// "due 7 days ago" on a scheduled row past its date, which isn't in
+/// Working until it's confirmed; otherwise null.
+String? overdueNote(RegisterRow r, DateTime today) {
+  if (!r.scheduled) return null;
+  final days = daysBefore(r.date, today);
+  return days <= 0
+      ? null
+      : (days == 1 ? 'due yesterday' : 'due $days days ago');
+}
+
 enum ReconcileCause { notCleared, datedAfter, clearedEarly }
 
 typedef ReconcileHint = ({
@@ -232,7 +263,26 @@ class LedgerData {
       accounts.values.where((a) => a.isCategory).toList()
         ..sort((a, b) => a.name.compareTo(b.name));
 
-  int balanceOf(int accountId) {
+  // LedgerData is rebuilt on every database change and never mutated, so
+  // what the screen asks for on each rebuild (every keystroke in search) is
+  // worked out once per account and kept.
+  final _balances = <int, int>{};
+  final _summaries = <int, AccountSummary>{};
+  final _registers =
+      <int, ({List<RegisterRow> posted, List<RegisterRow> scheduled})>{};
+  final _latest = <(int, bool), Reconciliation?>{};
+  late final Map<int, Reconciliation> _reconciliationsById = {
+    for (final r in reconciliations) r.id: r,
+  };
+
+  /// Reconciles that locked at least one entry.
+  late final Set<int> _usedReconciliations = {
+    for (final t in txns)
+      for (final e in t.entries)
+        if (e.reconciliationId != null) e.reconciliationId!,
+  };
+
+  int balanceOf(int accountId) => _balances.putIfAbsent(accountId, () {
     var sum = 0;
     for (final t in txns) {
       if (t.scheduled) continue;
@@ -241,27 +291,20 @@ class LedgerData {
       }
     }
     return sum;
-  }
+  });
 
   /// [accountId]'s most recent reconcile; with [lockedRows], the most recent
   /// that locked any, which is the one taken back first.
   Reconciliation? latestReconciliation(
     int accountId, {
     bool lockedRows = false,
-  }) {
-    final used = lockedRows
-        ? {
-            for (final t in txns)
-              for (final e in t.entries)
-                if (e.reconciliationId != null) e.reconciliationId,
-          }
-        : null;
+  }) => _latest.putIfAbsent((accountId, lockedRows), () {
     final recs =
         reconciliations
             .where(
               (r) =>
                   r.accountId == accountId &&
-                  (used == null || used.contains(r.id)),
+                  (!lockedRows || _usedReconciliations.contains(r.id)),
             )
             .toList()
           ..sort((a, b) {
@@ -269,9 +312,12 @@ class LedgerData {
             return c != 0 ? c : a.id.compareTo(b.id);
           });
     return recs.lastOrNull;
-  }
+  });
 
-  AccountSummary summaryFor(int accountId) {
+  AccountSummary summaryFor(int accountId) =>
+      _summaries.putIfAbsent(accountId, () => _summary(accountId));
+
+  AccountSummary _summary(int accountId) {
     var working = 0, cleared = 0, unclearedCount = 0;
     for (final t in txns) {
       if (t.scheduled) continue;
@@ -349,6 +395,10 @@ class LedgerData {
   /// soonest first (their balance is projected on from the working balance).
   ({List<RegisterRow> posted, List<RegisterRow> scheduled}) registerFor(
     int accountId,
+  ) => _registers.putIfAbsent(accountId, () => _register(accountId));
+
+  ({List<RegisterRow> posted, List<RegisterRow> scheduled}) _register(
+    int accountId,
   ) {
     final posted = <RegisterRow>[];
     final scheduled = <RegisterRow>[];
@@ -365,16 +415,17 @@ class LedgerData {
     posted.sort(byDate);
     scheduled.sort(byDate);
     var bal = 0, clr = 0;
-    final withBal = [
+    final withBal = List<RegisterRow>.unmodifiable([
       for (final r in posted)
         r.withBalance(
           bal += r.amount,
           clearedTotal: r.cleared == Cleared.uncleared ? clr : clr += r.amount,
         ),
-    ];
-    final projected = [
+    ]);
+    // Kept and handed out on every rebuild, so nobody may reorder them.
+    final projected = List<RegisterRow>.unmodifiable([
       for (final r in scheduled) r.withBalance(bal += r.amount),
-    ];
+    ]);
     return (posted: withBal, scheduled: projected);
   }
 
@@ -412,9 +463,7 @@ class LedgerData {
       label = '${others.length} categories';
     }
 
-    final rec = e.reconciliationId == null
-        ? null
-        : reconciliations.where((r) => r.id == e.reconciliationId).firstOrNull;
+    final rec = _reconciliationsById[e.reconciliationId];
     return RegisterRow(
       reconciledOn: rec?.statementDate,
       latestReconcile:

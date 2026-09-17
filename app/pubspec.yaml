@@ -38,6 +38,7 @@ dependencies:
   drift_flutter: ^0.3.1
   path_provider: ^2.1.6
   intl: ^0.20.3
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,7 @@ dev_dependencies:
   drift_dev: ^2.35.0
   build_runner: ^2.16.1
   sqlite3: ^3.5.2
+  file_selector_platform_interface: ^2.7.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

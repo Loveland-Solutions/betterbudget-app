@@ -46,25 +46,35 @@ class EntryRowController {
 
 /// What an existing transaction starts as when opened for editing.
 class EditInitial {
-  EditInitial.fromRow(RegisterRow r, {this.focus = EditField.payee})
-    : date = r.date,
-      payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
-      memo = r.memo,
-      category = switch (r.kind) {
-        RowKind.transfer => '→ ${r.payee}',
-        _ => r.categoryLabel,
-      },
-      amount = r.amount,
-      locked = r.locked,
-      lockDate = r.locked,
-      // A reconciled transfer can't move to another account; a reconciled
-      // simple row can still change category.
-      lockCategory =
-          r.kind == RowKind.split ||
-          r.kind == RowKind.opening ||
-          (r.locked && r.kind == RowKind.transfer),
-      lockAmount = r.kind == RowKind.split || r.locked,
-      payeeOptional = r.kind != RowKind.simple;
+  /// With [confirmingOn] (today), the row opens to confirm a scheduled
+  /// transaction, saved with Confirm. One not due yet is dated today, since
+  /// confirming means it happened; an overdue one keeps its due date, which
+  /// is when a standing order or auto-pay really left.
+  EditInitial.fromRow(
+    RegisterRow r, {
+    this.focus = EditField.payee,
+    DateTime? confirmingOn,
+  }) : date = confirmingOn != null && r.date.isAfter(confirmingOn)
+           ? confirmingOn
+           : r.date,
+       confirming = confirmingOn != null,
+       payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
+       memo = r.memo,
+       category = switch (r.kind) {
+         RowKind.transfer => '→ ${r.payee}',
+         _ => r.categoryLabel,
+       },
+       amount = r.amount,
+       locked = r.locked,
+       lockDate = r.locked,
+       // A reconciled transfer can't move to another account; a reconciled
+       // simple row can still change category.
+       lockCategory =
+           r.kind == RowKind.split ||
+           r.kind == RowKind.opening ||
+           (r.locked && r.kind == RowKind.transfer),
+       lockAmount = r.kind == RowKind.split || r.locked,
+       payeeOptional = r.kind != RowKind.simple;
 
   final DateTime date;
   final String payee;
@@ -80,6 +90,9 @@ class EditInitial {
   final bool lockAmount;
   final bool payeeOptional;
   final EditField focus;
+
+  /// Saving confirms a scheduled transaction.
+  final bool confirming;
 }
 
 /// `09.16`, `9.16`, `2026.09.16` or `2026-09-16`. Null when not a real date.
@@ -121,7 +134,11 @@ class EntryRow extends StatefulWidget {
     required this.today,
     this.initial,
     this.onCancel,
+    this.accountName,
   });
+
+  /// The register's account, so a transfer can say which way it goes.
+  final String? accountName;
 
   final EntryRowController controller;
   final List<AccountInfo> categories;
@@ -209,8 +226,12 @@ class _EntryRowState extends State<EntryRow> {
           _ => (_payeeFocus, _payee),
         };
         node.requestFocus();
+        // An amount's `+` (money in) stays out of the selection, so typing
+        // the real figure can't turn a refund or transfer in into money out.
         ctrl.selection = TextSelection(
-          baseOffset: 0,
+          baseOffset: identical(ctrl, _amount) && ctrl.text.startsWith('+')
+              ? 1
+              : 0,
           extentOffset: ctrl.text.length,
         );
       });
@@ -233,6 +254,46 @@ class _EntryRowState extends State<EntryRow> {
 
   bool get _isTransfer => _category.text.trim().startsWith('→');
 
+  /// A transfer spelled out before it's added: "₮640,200.00 from TDB
+  /// Checking to Golomt Visa". The category reads "→ Golomt Visa" either way,
+  /// and only a `+` on the amount turns it around, which is easy to miss
+  /// when entering it from the receiving account.
+  String? get _transferLine {
+    final here = widget.accountName;
+    if (here == null || !_isTransfer) return null;
+    final q = _category.text.trim().toLowerCase();
+    final other = widget.transferTargets
+        .where((a) => '→ ${a.name}'.toLowerCase() == q)
+        .firstOrNull;
+    if (other == null) return null;
+    final raw = _amount.text.trim();
+    final initial = _initial;
+    final int? amount;
+    if (initial != null && initial.lockAmount) {
+      amount = initial.amount;
+    } else {
+      final parsed = parseAmount(raw.replaceFirst(RegExp(r'^\+'), ''));
+      amount = parsed == null || parsed == 0
+          ? null
+          : (raw.startsWith('+') ? parsed.abs() : -parsed.abs());
+    }
+    final inflow = amount == null ? raw.startsWith('+') : amount > 0;
+    final (from, to) = inflow ? (other.name, here) : (here, other.name);
+    return amount == null
+        ? 'From $from to $to'
+        : '${formatMoney(amount.abs())} from $from to $to';
+  }
+
+  /// Turns a transfer around: the `+` that means money in comes or goes.
+  void _swapDirection() {
+    final raw = _amount.text.trim();
+    final text = raw.startsWith('+') ? raw.substring(1) : '+$raw';
+    _amount.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   /// Required fields still empty, in reading order. Order of entry is the
   /// user's choice; this only decides where Enter sends them next.
   List<({String name, FocusNode focus})> get _missing => [
@@ -243,7 +304,9 @@ class _EntryRowState extends State<EntryRow> {
       (name: 'payee', focus: _payeeFocus),
     if (_category.text.trim().isEmpty && !(_initial?.lockCategory ?? false))
       (name: 'category', focus: _categoryFocus),
-    if (_amount.text.trim().isEmpty && !(_initial?.lockAmount ?? false))
+    // A bare `+` (Swap before any amount) is still no amount.
+    if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
+        !(_initial?.lockAmount ?? false))
       (name: 'amount', focus: _amountFocus),
   ];
 
@@ -433,6 +496,7 @@ class _EntryRowState extends State<EntryRow> {
         preview != null && RegExp(r'\d[+\-*/×]').hasMatch(_amount.text);
     final initial = _initial;
     final lit = _active || _editing;
+    final transferLine = _transferLine;
 
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
@@ -485,6 +549,8 @@ class _EntryRowState extends State<EntryRow> {
                             wanted: _wants('date'),
                             onSubmitted: _submit,
                             onPicked: _payeeFocus.requestFocus,
+                            // Confirming means it happened: no future days.
+                            allowFuture: !(initial?.confirming ?? false),
                           ),
                         ),
                 ),
@@ -535,84 +601,104 @@ class _EntryRowState extends State<EntryRow> {
                   ),
                 ),
                 const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.category,
-                  child: initial != null && initial.lockCategory
-                      ? _locked(
-                          initial.category,
-                          tip:
-                              initial.locked && initial.category.startsWith('→')
-                              ? _reconciledTip
-                              : 'Editing split lines isn’t built yet',
-                        )
-                      : FocusTraversalOrder(
-                          order: const NumericFocusOrder(3),
-                          child:
-                              _Autocomplete<
-                                ({String label, AccountInfo account})
-                              >(
-                                controller: _category,
-                                focusNode: _categoryFocus,
-                                hint: 'Category',
-                                wanted: _wants('category'),
-                                options: (q) => _counterOptions.where(
-                                  (o) => o.label.toLowerCase().contains(
-                                    q.toLowerCase(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: Cols.category,
+                          child: initial != null && initial.lockCategory
+                              ? _locked(
+                                  initial.category,
+                                  tip:
+                                      initial.locked &&
+                                          initial.category.startsWith('→')
+                                      ? _reconciledTip
+                                      : 'Editing split lines isn’t built yet',
+                                )
+                              : FocusTraversalOrder(
+                                  order: const NumericFocusOrder(3),
+                                  child:
+                                      _Autocomplete<
+                                        ({String label, AccountInfo account})
+                                      >(
+                                        controller: _category,
+                                        focusNode: _categoryFocus,
+                                        hint: 'Category',
+                                        wanted: _wants('category'),
+                                        options: (q) => _counterOptions.where(
+                                          (o) => o.label.toLowerCase().contains(
+                                            q.toLowerCase(),
+                                          ),
+                                        ),
+                                        label: (o) => o.label,
+                                        onSelected: (_) =>
+                                            _amountFocus.requestFocus(),
+                                        onSubmit: _submit,
+                                      ),
+                                ),
+                        ),
+                        const SizedBox(width: Cols.gap),
+                        SizedBox(
+                          width: Cols.amount,
+                          child: initial != null && initial.lockAmount
+                              ? Align(
+                                  alignment: Alignment.centerRight,
+                                  child: _locked(
+                                    // As the register shows it: out plain, in with +.
+                                    initial.amount > 0
+                                        ? '+${formatMoney(initial.amount)}'
+                                        : formatMoney(initial.amount.abs()),
+                                    tip: initial.locked
+                                        ? _reconciledTip
+                                        : 'A split’s total follows its lines',
+                                  ),
+                                )
+                              : FocusTraversalOrder(
+                                  order: const NumericFocusOrder(4),
+                                  child: _Field(
+                                    controller: _amount,
+                                    focusNode: _amountFocus,
+                                    hint: '0.00',
+                                    tabular: true,
+                                    align: TextAlign.right,
+                                    wanted: _wants('amount'),
+                                    onSubmitted: (_) => _submit(),
                                   ),
                                 ),
-                                label: (o) => o.label,
-                                onSelected: (_) => _amountFocus.requestFocus(),
-                                onSubmit: _submit,
-                              ),
                         ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.amount,
-                  child: initial != null && initial.lockAmount
-                      ? Align(
-                          alignment: Alignment.centerRight,
-                          child: _locked(
-                            // As the register shows it: out plain, in with +.
-                            initial.amount > 0
-                                ? '+${formatMoney(initial.amount)}'
-                                : formatMoney(initial.amount.abs()),
-                            tip: initial.locked
-                                ? _reconciledTip
-                                : 'A split’s total follows its lines',
+                        const SizedBox(width: Cols.gap),
+                        SizedBox(
+                          width: Cols.balance,
+                          height: 34,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Flexible(child: _note(preview, showsMath)),
+                              if (_hasContent || _active) ...[
+                                const SizedBox(width: 10),
+                                _AddButton(
+                                  label: _initial?.confirming ?? false
+                                      ? 'Confirm'
+                                      : (_editing ? 'Save' : 'Add'),
+                                  ready: _missing.isEmpty && _error == null,
+                                  onTap: _submit,
+                                ),
+                              ],
+                            ],
                           ),
-                        )
-                      : FocusTraversalOrder(
-                          order: const NumericFocusOrder(4),
-                          child: _Field(
-                            controller: _amount,
-                            focusNode: _amountFocus,
-                            hint: '0.00',
-                            tabular: true,
-                            align: TextAlign.right,
-                            wanted: _wants('amount'),
-                            onSubmitted: (_) => _submit(),
-                          ),
-                        ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.balance,
-                  height: 34,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Flexible(child: _note(preview, showsMath)),
-                      if (_hasContent || _active) ...[
-                        const SizedBox(width: 10),
-                        _AddButton(
-                          label: _editing ? 'Save' : 'Add',
-                          ready: _missing.isEmpty && _error == null,
-                          onTap: _submit,
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                    if (transferLine != null)
+                      _TransferLine(
+                        text: transferLine,
+                        onSwap: initial != null && initial.lockAmount
+                            ? null
+                            : _swapDirection,
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -621,6 +707,52 @@ class _EntryRowState extends State<EntryRow> {
       ),
     );
   }
+}
+
+/// Which way a transfer goes, under its category and amount, lined up with
+/// the memo line. Swap turns it around.
+class _TransferLine extends StatelessWidget {
+  const _TransferLine({required this.text, this.onSwap});
+  final String text;
+  final VoidCallback? onSwap;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('transfer-line'),
+    width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
+    height: 30,
+    margin: const EdgeInsets.only(top: 6),
+    padding: const EdgeInsets.only(left: 10),
+    child: Row(
+      children: [
+        const Icon(Icons.swap_horiz_rounded, size: 14, color: Mid.ink3),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            style: onest(12.5, color: Mid.ink2, tabular: true),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (onSwap != null) ...[
+          const SizedBox(width: 10),
+          Tooltip(
+            message: 'Turn it around',
+            child: InkWell(
+              key: const ValueKey('transfer-swap'),
+              onTap: onSwap,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text('Swap', style: onest(12.5, color: Mid.blue)),
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// [wanted]: the row has been started and this required field is still empty.

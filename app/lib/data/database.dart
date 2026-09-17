@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
@@ -132,11 +133,34 @@ class TxnSnapshot {
   final List<EntryRow> entries;
 }
 
+/// What [AppDatabase.moveToAccount] changed: one entry's account, and its
+/// cleared state before the move.
+class MoveRecord {
+  const MoveRecord({
+    required this.entryId,
+    required this.transactionId,
+    required this.fromAccountId,
+    required this.toAccountId,
+    required this.cleared,
+  });
+  final int entryId;
+  final int transactionId;
+  final int fromAccountId;
+  final int toAccountId;
+  final Cleared cleared;
+}
+
 class NotFoundException implements Exception {
   NotFoundException(this.message);
   final String message;
   @override
   String toString() => message;
+}
+
+/// `20260917-153000`, for backup file names.
+String fileStamp(DateTime n) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${n.year}${two(n.month)}${two(n.day)}-${two(n.hour)}${two(n.minute)}${two(n.second)}';
 }
 
 String dateKey(DateTime d) =>
@@ -188,26 +212,93 @@ class AppDatabase extends _$AppDatabase {
   int get _now => DateTime.now().millisecondsSinceEpoch;
 
   /// Copies the database next to itself before a schema upgrade, e.g.
-  /// `betterbudget.before-v3-20260917-153000.sqlite`. In-memory databases
-  /// (tests) have no file and are skipped. VACUUM INTO can't run inside a
-  /// transaction, so this comes first.
+  /// `betterbudget.before-v3-from-v2-20260917-153000.sqlite`. In-memory
+  /// databases (tests) have no file and are skipped. VACUUM INTO can't run
+  /// inside a transaction, so this comes first.
   Future<void> _backupBeforeUpgrade(int from) async {
-    final main = await customSelect('PRAGMA database_list').get();
-    final path = main
-        .where((r) => r.read<String>('name') == 'main')
-        .map((r) => r.read<String>('file'))
-        .firstOrNull;
-    if (path == null || path.isEmpty) return;
-    final n = DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final stamp =
-        '${n.year}${two(n.month)}${two(n.day)}-${two(n.hour)}${two(n.minute)}${two(n.second)}';
+    final path = await filePath();
+    if (path == null) return;
     final base = path.endsWith('.sqlite')
         ? path.substring(0, path.length - '.sqlite'.length)
         : path;
-    await customStatement('VACUUM INTO ?', [
-      '$base.before-v$schemaVersion-from-v$from-$stamp.sqlite',
-    ]);
+    await copyTo(
+      '$base.before-v$schemaVersion-from-v$from-${fileStamp(DateTime.now())}.sqlite',
+    );
+  }
+
+  /// The database file, or null for an in-memory database.
+  Future<String?> filePath() async {
+    final rows = await customSelect('PRAGMA database_list').get();
+    final path = rows
+        .where((r) => r.read<String>('name') == 'main')
+        .map((r) => r.read<String>('file'))
+        .firstOrNull;
+    return path == null || path.isEmpty ? null : path;
+  }
+
+  /// A consistent copy of everything, written to [path] (which must not
+  /// exist). Safe while the app is open: SQLite takes a snapshot.
+  Future<void> copyTo(String path) => customStatement('VACUUM INTO ?', [path]);
+
+  /// Transactions that don't sum to zero or have fewer than two entries.
+  /// Every write refuses to leave one (ADR 0003); a restored file must too.
+  static const unbalancedSql =
+      'SELECT transaction_id FROM entries GROUP BY transaction_id '
+      'HAVING SUM(amount_minor) != 0 OR COUNT(*) < 2';
+
+  /// Replaces every row with the rows in the database file at [path], in one
+  /// transaction, while the app keeps this connection open. The file must
+  /// already be at this schema version (open it with an [AppDatabase] first,
+  /// which upgrades it). A file whose rows break a reference or leave a
+  /// transaction unbalanced is refused and nothing changes. Watchers see the
+  /// new ledger straight away.
+  Future<void> replaceAllFrom(String path) async {
+    const parentsFirst = [
+      'accounts',
+      'payees',
+      'transactions',
+      'reconciliations',
+      'entries',
+    ];
+    // A table added to the schema must be added here, or a restore drops it.
+    assert(
+      {for (final t in allTables) t.actualTableName}
+              .containsAll(parentsFirst) &&
+          allTables.length == parentsFirst.length,
+      'replaceAllFrom is missing a table',
+    );
+    await customStatement('ATTACH DATABASE ? AS src', [path]);
+    try {
+      await transaction(() async {
+        for (final t in parentsFirst.reversed) {
+          await customStatement('DELETE FROM main.$t');
+        }
+        for (final t in parentsFirst) {
+          final columns = (await customSelect(
+            'PRAGMA main.table_info($t)',
+          ).get()).map((r) => '"${r.read<String>('name')}"').join(', ');
+          await customStatement(
+            'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
+          );
+        }
+        final unbalanced = await customSelect(unbalancedSql).get();
+        if (unbalanced.isNotEmpty) {
+          throw UnbalancedTransactionException(
+            unbalanced.first.read<int>('transaction_id'),
+            0,
+          );
+        }
+      });
+    } finally {
+      try {
+        await customStatement('DETACH DATABASE src');
+      } catch (e) {
+        // The replace has committed or rolled back by now; a failure to
+        // detach mustn't report a restore that happened as one that didn't.
+        debugPrint('Detach after restore failed: $e');
+      }
+      markTablesUpdated(allTables);
+    }
   }
 
   // ---------- reads ----------
@@ -532,26 +623,6 @@ class AppDatabase extends _$AppDatabase {
         const TransactionsCompanion(deletedAt: Value(null)),
       );
 
-  /// Posts a scheduled transaction. Confirming means "this happened", so one
-  /// confirmed ahead of its date is posted on [today], never in the future.
-  Future<void> confirmScheduled(int transactionId, DateTime today) async {
-    final t = await (select(
-      transactions,
-    )..where((t) => t.id.equals(transactionId))).getSingle();
-    final due = parseDateKey(t.date);
-    await (update(
-      transactions,
-    )..where((t) => t.id.equals(transactionId))).write(
-      TransactionsCompanion(
-        scheduled: const Value(false),
-        date: due.isAfter(dateOnly(today))
-            ? Value(dateKey(dateOnly(today)))
-            : const Value.absent(),
-        updatedAt: Value(_now),
-      ),
-    );
-  }
-
   Future<TxnSnapshot> snapshot(int transactionId) async => TxnSnapshot(
     await (select(
       transactions,
@@ -618,6 +689,10 @@ class AppDatabase extends _$AppDatabase {
   /// side) and [counterAccountId] apply only to two-entry transactions; a
   /// split keeps its lines. Reconciled transactions are locked. A posted
   /// transaction moved into the future becomes scheduled.
+  ///
+  /// With [confirm], a scheduled transaction is confirmed in the same write,
+  /// with whatever amount and date it really had (bills vary). Confirming
+  /// means it happened, so the date can't be after [today].
   Future<void> editTransaction({
     required int transactionId,
     required int accountId,
@@ -627,8 +702,12 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     int? counterAccountId,
     int? amount,
+    bool confirm = false,
   }) {
     return transaction(() async {
+      if (confirm && dateOnly(date).isAfter(dateOnly(today))) {
+        throw LockedException('It can’t be confirmed on a future date');
+      }
       final header = await (select(
         transactions,
       )..where((t) => t.id.equals(transactionId))).getSingle();
@@ -664,7 +743,8 @@ class AppDatabase extends _$AppDatabase {
           payeeId: Value(await _payeeId(payee)),
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(
-            header.scheduled || dateOnly(date).isAfter(dateOnly(today)),
+            !confirm &&
+                (header.scheduled || dateOnly(date).isAfter(dateOnly(today))),
           ),
           updatedAt: Value(_now),
         ),
@@ -691,6 +771,87 @@ class AppDatabase extends _$AppDatabase {
       await _assertBalanced(transactionId);
     });
   }
+
+  /// Moves [transactionId]'s side in [fromAccountId] to [toAccountId], for a
+  /// transaction entered in the wrong account. The money, date and other side
+  /// stay; the moved side starts uncleared, since the other bank hasn't been
+  /// checked. A transfer can't move onto its own other side, and reconciled
+  /// transactions are locked. Returns what [undoMove] needs.
+  Future<MoveRecord> moveToAccount({
+    required int transactionId,
+    required int fromAccountId,
+    required int toAccountId,
+  }) => transaction(() async {
+    final types = await _accountTypes();
+    if (!_reconcilable.contains(types[toAccountId])) {
+      throw NotFoundException('Not an account');
+    }
+    if ((await _reconciledAmong([transactionId])).isNotEmpty) {
+      throw LockedException(_lockedMessage);
+    }
+    final rows = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(transactionId))).get();
+    final mine = rows.where((e) => e.accountId == fromAccountId).toList();
+    if (mine.length != 1) throw NotFoundException('Not in this account');
+    // An opening balance or a reconcile adjustment belongs to its account.
+    if (rows.any((e) => types[e.accountId] == AccountType.equity)) {
+      throw LockedException('An opening balance or adjustment stays put');
+    }
+    if (rows.any((e) => e.accountId == toAccountId)) {
+      throw LockedException('It already moves money in that account');
+    }
+    final record = MoveRecord(
+      entryId: mine.single.id,
+      transactionId: transactionId,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      cleared: mine.single.cleared,
+    );
+    await _setEntryAccount(record.entryId, toAccountId, Cleared.uncleared);
+    await _touch(transactionId);
+    return record;
+  });
+
+  /// Undo for [moveToAccount]: back to the first account, cleared as it was.
+  /// Refused if the entry has been locked or moved again since.
+  Future<void> undoMove(MoveRecord m) => _replayMove(
+    m,
+    expectAt: m.toAccountId,
+    moveTo: m.fromAccountId,
+    cleared: m.cleared,
+  );
+
+  /// Redo for [moveToAccount].
+  Future<void> redoMove(MoveRecord m) => _replayMove(
+    m,
+    expectAt: m.fromAccountId,
+    moveTo: m.toAccountId,
+    cleared: Cleared.uncleared,
+  );
+
+  Future<void> _replayMove(
+    MoveRecord m, {
+    required int expectAt,
+    required int moveTo,
+    required Cleared cleared,
+  }) => transaction(() async {
+    final e = await (select(
+      entries,
+    )..where((x) => x.id.equals(m.entryId))).getSingleOrNull();
+    if (e == null ||
+        e.accountId != expectAt ||
+        (await _reconciledAmong([m.transactionId])).isNotEmpty) {
+      throw LockedException('It changed since');
+    }
+    await _setEntryAccount(m.entryId, moveTo, cleared);
+    await _touch(m.transactionId);
+  });
+
+  Future<void> _setEntryAccount(int entryId, int accountId, Cleared cleared) =>
+      (update(entries)..where((e) => e.id.equals(entryId))).write(
+        EntriesCompanion(accountId: Value(accountId), cleared: Value(cleared)),
+      );
 
   /// Soft delete: nothing disappears until purged, which makes undo trivial.
   /// Reconciled transactions are locked and throw [LockedException].

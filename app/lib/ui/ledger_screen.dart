@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../domain/forecast.dart';
@@ -20,13 +22,23 @@ bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Top-level sections. Budget and Savings are placeholders; "Savings" is a
-/// working name until the section is defined.
-enum AppSection { ledger, budget, savings }
+/// working name until the section is defined. Settings opens from the gear
+/// under Net worth, not from a section header.
+enum AppSection { ledger, budget, savings, settings }
 
 class LedgerScreen extends StatefulWidget {
-  const LedgerScreen({super.key, required this.db, this.clock = DateTime.now});
+  const LedgerScreen({
+    super.key,
+    required this.db,
+    this.clock = DateTime.now,
+    this.backups,
+  });
 
   final AppDatabase db;
+
+  /// The app's backups, whose daily copy runs from main. Tests may leave it
+  /// out; one is made for "Back up to…" and "Restore from…".
+  final Backups? backups;
   final DateTime Function() clock;
 
   @override
@@ -70,6 +82,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Lock was pressed and the write hasn't returned; a second click waits.
   bool _locking = false;
 
+  /// A restore (or its undo or redo) is replacing everything. Input is
+  /// blocked: anything saved meanwhile would land in neither copy.
+  bool _restoring = false;
+
   /// The transaction open in the inline editor, if any.
   RegisterEditing? _editing;
 
@@ -81,6 +97,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Map<int, RegisterRow> _rows = const {};
 
   AppDatabase get db => widget.db;
+  late final Backups _backups = widget.backups ?? Backups(db);
+
+  /// The latest ledger, for comparing a backup with what's here now.
+  LedgerData? _data;
   DateTime get today => dateOnly(widget.clock());
 
   @override
@@ -174,6 +194,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Undoes the newest action.
   Future<void> _undo() async {
+    if (_restoring) return;
     final a = _history.lastOrNull;
     if (a == null) {
       _showToast('Nothing to undo');
@@ -191,6 +212,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _redoLast() async {
+    if (_restoring) return;
     final a = _redo.lastOrNull;
     if (a == null) {
       _showToast('Nothing to redo');
@@ -250,6 +272,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         command &&
         ((z && keys.isShiftPressed) ||
             (!_isMac && event.logicalKey == LogicalKeyboardKey.keyY));
+    if (_restoring) return KeyEventResult.handled;
     if (undo || redo) {
       if (_typing) return KeyEventResult.ignored;
       if (event is KeyDownEvent) undo ? _undo() : _redoLast();
@@ -358,18 +381,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   // ---------- editing ----------
 
-  void _startEdit(int id, EditField field) {
+  /// With [confirming], a scheduled row opens to be confirmed: dated today,
+  /// the amount selected (bills vary), and Enter confirms.
+  void _startEdit(int id, EditField field, {bool confirming = false}) {
     final row = _rows[id];
     if (row == null) return;
     // Reconciled rows open too: payee, memo and category can still change.
     final controller = EntryRowController(
-      onSubmit: (draft) => _saveEdit(row, draft),
+      onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
       suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
     )..payeeNames = _entry.payeeNames;
     setState(() {
-      _editing = (txnId: id, focus: field, controller: controller);
+      _editing = (
+        txnId: id,
+        focus: field,
+        controller: controller,
+        confirming: confirming,
+      );
       _selected = id;
     });
+  }
+
+  void _startConfirm(RegisterRow r) {
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showToast('Save with Enter, or press Esc to discard your changes');
+        return;
+      }
+      _cancelEdit();
+    }
+    _startEdit(r.txnId, EditField.amount, confirming: true);
   }
 
   void _cancelEdit() {
@@ -383,7 +424,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  Future<String?> _saveEdit(RegisterRow row, EntryDraft d) async {
+  Future<String?> _saveEdit(
+    RegisterRow row,
+    EntryDraft d, {
+    bool confirming = false,
+  }) async {
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
     try {
@@ -396,6 +441,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         memo: d.memo,
         counterAccountId: d.counter?.id,
         amount: d.amount,
+        confirm: confirming,
       );
       after = await db.snapshot(row.txnId);
     } on LockedException catch (e) {
@@ -405,9 +451,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
+    final name = d.payee.isEmpty ? row.payee : d.payee;
+    if (confirming) {
+      String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
+      final amount = d.amount ?? row.amount;
+      final early = row.date.isAfter(today);
+      _did(
+        '$name confirmed',
+        undo: () => db.restoreSnapshot(before),
+        redo: () => db.restoreSnapshot(after),
+        message:
+            '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
+            // The planned amount, when it wasn't what happened.
+            '${amount == row.amount ? '' : ', planned ${money(row.amount)}'}'
+            // The date, whenever it isn't the one planned.
+            '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}',
+      );
+      return null;
+    }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
     _did(
-      '${d.payee.isEmpty ? row.payee : d.payee} edited',
+      '$name edited',
       undo: () => db.restoreSnapshot(before),
       redo: () => db.restoreSnapshot(after),
       message: nowScheduled
@@ -567,6 +631,163 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Moves a row entered in the wrong account. It leaves this register, so
+  /// the toast names where it went.
+  Future<void> _move(RegisterRow r, AccountInfo from, AccountInfo to) async {
+    final MoveRecord done;
+    try {
+      done = await db.moveToAccount(
+        transactionId: r.txnId,
+        fromAccountId: from.id,
+        toAccountId: to.id,
+      );
+    } on LockedException catch (e) {
+      _showToast('Can’t move · ${e.message}');
+      return;
+    } on NotFoundException catch (e) {
+      _showToast('Can’t move · ${e.message}');
+      return;
+    } catch (e) {
+      debugPrint('Move failed: $e');
+      _showToast('Couldn’t move it');
+      return;
+    }
+    _clearSelection();
+    final name = r.kind == RowKind.transfer
+        ? 'Transfer ${r.amount < 0 ? 'to' : 'from'} ${r.payee}'
+        : r.payee;
+    _did(
+      '$name moved to ${to.name}',
+      undo: () => db.undoMove(done),
+      redo: () => db.redoMove(done),
+      message:
+          '$name moved to ${to.name}'
+          '${r.cleared == Cleared.uncleared ? '' : ' · uncleared there until it clears'}',
+    );
+  }
+
+  /// Saves a copy of everything where the user picks: another drive, a USB
+  /// stick. The daily automatic copies stay on this disk.
+  Future<void> _backUpTo() async {
+    final now = widget.clock();
+    final FileSaveLocation? location;
+    try {
+      location = await getSaveLocation(
+        suggestedName: 'BetterBudget ${fullDate(now)}.sqlite',
+        confirmButtonText: 'Back Up',
+      );
+    } catch (e) {
+      debugPrint('Save dialog failed: $e');
+      _showToast('Couldn’t open the save dialog');
+      return;
+    }
+    if (location == null) return;
+    try {
+      await _backups.saveTo(location.path, now);
+    } catch (e) {
+      debugPrint('Back up failed: $e');
+      _showToast('Couldn’t back up · check the drive has room and try again');
+      return;
+    }
+    final name = location.path.split(RegExp(r'[/\\]')).last;
+    _showToast('Backed up · $name');
+  }
+
+  /// Puts back a backup: the daily copies (the picker opens on their folder)
+  /// or one saved elsewhere. Shows what it holds against what's here, saves
+  /// what's here first, and can be undone.
+  Future<void> _restoreFrom() async {
+    if (_restoring) return;
+    // A restore replaces the rows an open edit or reconcile points at.
+    if (_editing?.controller.isDirty() ?? false) {
+      _showToast('Save with Enter, or press Esc to discard your changes');
+      return;
+    }
+    _cancelEdit();
+    _endReconcile();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
+    final now = widget.clock();
+    final XFile? picked;
+    try {
+      picked = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'BetterBudget backup', extensions: ['sqlite']),
+        ],
+        initialDirectory: (await _backups.folder())?.path,
+        confirmButtonText: 'Choose',
+      );
+    } catch (e) {
+      debugPrint('Open dialog failed: $e');
+      _showToast('Couldn’t open the file dialog');
+      return;
+    }
+    if (picked == null) return;
+    final RestoreCandidate candidate;
+    try {
+      candidate = await _backups.inspect(picked.path, now);
+    } on RestoreException catch (e) {
+      _showToast(e.message);
+      return;
+    } catch (e) {
+      debugPrint('Restore check failed: $e');
+      _showToast('Couldn’t read that backup');
+      return;
+    }
+    if (!mounted) return;
+    final data = _data;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => _RestoreDialog(
+        candidate: candidate,
+        transactionsNow: data?.txns.length ?? 0,
+        accountsNow: data?.balanceSheetAccounts.length ?? 0,
+      ),
+    );
+    if (confirmed != true) {
+      await _backups.discard(candidate);
+      return;
+    }
+    final RestoreRecord done;
+    try {
+      done = await _whileRestoring(() => _backups.restore(candidate, now));
+    } catch (e) {
+      debugPrint('Restore failed: $e');
+      _showToast('Couldn’t restore · nothing was changed');
+      return;
+    }
+    if (!mounted) return;
+    // Earlier actions point at rows the restore replaced.
+    _history.clear();
+    _redo.clear();
+    final label = 'Restored the copy from ${fullDate(candidate.madeAt)}';
+    _did(
+      label,
+      undo: () => _whileRestoring(
+        () => _backups.replaceWith(done.before, widget.clock()),
+      ),
+      redo: () => _whileRestoring(
+        () => _backups.replaceWith(done.restored, widget.clock()),
+      ),
+      message: '$label · what you had is saved',
+    );
+  }
+
+  /// Runs a whole-ledger replace with input blocked, then refreshes what the
+  /// entry row suggests, since the payees changed with everything else.
+  Future<T> _whileRestoring<T>(Future<T> Function() replace) async {
+    setState(() => _restoring = true);
+    try {
+      return await replace();
+    } finally {
+      if (mounted) setState(() => _restoring = false);
+      _entry.payeeNames = await db.payeeNames();
+    }
+  }
+
   /// Takes back the account's latest reconcile, whenever it was done.
   Future<void> _unreconcile(AccountInfo account) async {
     final ReconcileRecord done;
@@ -620,6 +841,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               }
               final data = snap.data;
               if (data == null) return const SizedBox.shrink();
+              _data = data;
               final accounts = data.balanceSheetAccounts;
               if (accounts.isEmpty) {
                 return Center(
@@ -648,6 +870,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           _editing = null;
                         }),
                         selected: account.id,
+                        backupHealth: _backups.health,
+                        now: widget.clock,
                         onSelect: (id) => setState(() {
                           if (id != _accountId) _endReconcile();
                           _section = AppSection.ledger;
@@ -656,12 +880,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         }),
                       ),
                       Expanded(
-                        child: _section == AppSection.ledger
-                            ? _body(data, account)
-                            : _PlaceholderSection(section: _section),
+                        child: switch (_section) {
+                          AppSection.ledger => _body(data, account),
+                          AppSection.settings => _SettingsPage(
+                            health: _backups.health,
+                            now: widget.clock,
+                            onBackUp: _backUpTo,
+                            onRestore: _restoreFrom,
+                          ),
+                          _ => _PlaceholderSection(section: _section),
+                        },
                       ),
                     ],
                   ),
+                  if (_restoring)
+                    const Positioned.fill(
+                      child: ModalBarrier(
+                        dismissible: false,
+                        color: Color(0x66000000),
+                      ),
+                    ),
                   if (_toast != null)
                     _Toast(
                       toast: _toast!,
@@ -763,6 +1001,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           Expanded(
             child: RegisterPanel(
               owed: account.isOwed,
+              accountName: account.name,
               posted: register.posted,
               scheduled: register.scheduled,
               reconcileThrough: _reconcile == null
@@ -792,19 +1031,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onFilter: (f) => setState(() => _filter = f),
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
-                onConfirm: (r) async {
-                  final before = await db.snapshot(r.txnId);
-                  await db.confirmScheduled(r.txnId, today);
-                  final after = await db.snapshot(r.txnId);
-                  _did(
-                    '${r.payee} confirmed',
-                    undo: () => db.restoreSnapshot(before),
-                    redo: () => db.restoreSnapshot(after),
-                    message: r.date.isAfter(today)
-                        ? '${r.payee} confirmed early · posted today, ${shortDate(today)}'
-                        : '${r.payee} confirmed · ${formatMoney(r.amount)}',
-                  );
-                },
+                onConfirm: _startConfirm,
                 onSetCategory: (r, c) async {
                   final previous = await db.setCategoryMany(
                     transactionIds: [r.txnId],
@@ -836,6 +1063,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onEdit: (r) => _startEdit(r.txnId, EditField.payee),
                 onCancelEdit: _cancelEdit,
                 onUnreconcile: (_) => _unreconcile(account),
+                onMove: (r, to) => _move(r, account, to),
               ),
             ),
           ),
@@ -862,8 +1090,12 @@ class _Sidebar extends StatelessWidget {
     required this.onSection,
     required this.selected,
     required this.onSelect,
+    required this.backupHealth,
+    required this.now,
   });
   final LedgerData data;
+  final ValueListenable<BackupHealth> backupHealth;
+  final DateTime Function() now;
   final AppSection section;
   final ValueChanged<AppSection> onSection;
   final int selected;
@@ -956,6 +1188,20 @@ class _Sidebar extends StatelessWidget {
             later: true,
           ),
           const Spacer(),
+          // Settings, above Net worth, laid out like a section header so its
+          // icon and label line up with theirs.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            // Full width, like the section headers, so hover fills the row.
+            child: ValueListenableBuilder(
+              valueListenable: backupHealth,
+              builder: (context, health, _) => _SettingsGear(
+                active: section == AppSection.settings,
+                alert: health.alarmingAt(now()),
+                onTap: () => onSection(AppSection.settings),
+              ),
+            ),
+          ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
             decoration: const BoxDecoration(
@@ -974,6 +1220,329 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Opens Settings, above Net worth. A coral dot says something there needs attention (the
+/// daily copy is failing), since the gear is all that shows of it.
+class _SettingsGear extends StatelessWidget {
+  const _SettingsGear({
+    required this.active,
+    required this.alert,
+    required this.onTap,
+  });
+  final bool active;
+  final bool alert;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    // Only worth a tooltip when the dot needs explaining.
+    message: alert ? 'The daily copy is failing' : '',
+    child: Hoverable(
+      key: const ValueKey('settings'),
+      onTap: onTap,
+      builder: (h) => Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: h && !active ? Mid.hover : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  Icons.settings_outlined,
+                  size: 16,
+                  color: active ? Mid.blue : Mid.ink3,
+                ),
+                if (alert)
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: Container(
+                      key: const ValueKey('settings-alert'),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Mid.coral,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Settings',
+              style: onest(
+                14,
+                weight: active ? 600 : 500,
+                color: active ? Mid.ink : Mid.ink2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Settings, one section per kind. Backups is the first.
+class _SettingsPage extends StatelessWidget {
+  const _SettingsPage({
+    required this.health,
+    required this.now,
+    required this.onBackUp,
+    required this.onRestore,
+  });
+  final ValueListenable<BackupHealth> health;
+  final DateTime Function() now;
+  final VoidCallback onBackUp;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget line(String label, Widget value) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: onest(13.5, color: Mid.ink3)),
+          ),
+          Expanded(child: value),
+        ],
+      ),
+    );
+    String when(DateTime t) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      final today = dateOnly(now());
+      final day = dateOnly(t) == today
+          ? 'Today'
+          : dateOnly(t) == today.subtract(const Duration(days: 1))
+          ? 'Yesterday'
+          : fullDate(t);
+      return '$day ${two(t.hour)}:${two(t.minute)}';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // As tall as an account's title row (it has search), so the
+              // title doesn't jump when switching.
+              SizedBox(
+                height: 36,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Settings',
+                    style: onest(22, weight: 600, letterSpacing: -0.3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                decoration: BoxDecoration(
+                  color: Mid.panel,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Mid.rule),
+                ),
+                child: ValueListenableBuilder(
+                  valueListenable: health,
+                  builder: (context, h, _) {
+                    final failing = h.alarmingAt(now());
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Backups', style: onest(16, weight: 600)),
+                        const SizedBox(height: 16),
+                        line(
+                          'Daily copy',
+                          failing
+                              ? Text(
+                                  'Failing${h.newest == null ? '' : ' · the last one is from ${when(h.newest!)}'}. '
+                                  'Check the disk has room, and back up to another drive.',
+                                  key: const ValueKey('backup-failed'),
+                                  style: onest(13.5, color: Mid.coral),
+                                )
+                              : Text(
+                                  h.newest == null
+                                      ? 'None yet · one is made each day the app is open'
+                                      : '${when(h.newest!)} · on this computer',
+                                  style: onest(13.5, color: Mid.ink),
+                                ),
+                        ),
+                        line(
+                          'Kept',
+                          Text(
+                            'The newest 14, plus the first of each month for a year',
+                            style: onest(13.5, color: Mid.ink2),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            BarButton(
+                              key: const ValueKey('back-up'),
+                              label: 'Back up to…',
+                              leading: const Icon(
+                                Icons.save_alt_rounded,
+                                size: 14,
+                                color: Mid.ink3,
+                              ),
+                              onTap: onBackUp,
+                            ),
+                            BarButton(
+                              key: const ValueKey('restore'),
+                              label: 'Restore from…',
+                              leading: const Icon(
+                                Icons.settings_backup_restore_rounded,
+                                size: 14,
+                                color: Mid.ink3,
+                              ),
+                              onTap: onRestore,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'The daily copies are on this computer, so they won’t '
+                          'help if it’s lost or breaks: back up to another drive '
+                          'or a USB stick now and then. Restoring saves what you '
+                          'have first, and Undo brings it back.',
+                          style: onest(13, color: Mid.ink3),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Asks before a restore replaces everything, with what the backup holds
+/// beside what's here now.
+class _RestoreDialog extends StatelessWidget {
+  const _RestoreDialog({
+    required this.candidate,
+    required this.transactionsNow,
+    required this.accountsNow,
+  });
+  final RestoreCandidate candidate;
+  final int transactionsNow;
+  final int accountsNow;
+
+  @override
+  Widget build(BuildContext context) {
+    final made = candidate.madeAt;
+    String two(int v) => v.toString().padLeft(2, '0');
+    String counts(int t, int a) =>
+        '$t ${t == 1 ? 'transaction' : 'transactions'} · $a ${a == 1 ? 'account' : 'accounts'}';
+    Widget line(String label, String value, {bool strong = false}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: onest(13, color: Mid.ink3)),
+          ),
+          Text(
+            value,
+            style: onest(
+              13.5,
+              color: strong ? Mid.ink : Mid.ink2,
+              tabular: true,
+            ),
+          ),
+        ],
+      ),
+    );
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Mid.rule),
+      ),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.enter): () =>
+              Navigator.of(context).pop(true),
+        },
+        child: Focus(
+          autofocus: true,
+          child: SizedBox(
+            width: 460,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Restore this backup?',
+                    style: onest(17, weight: 600, letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 16),
+                  line(
+                    'Backup from',
+                    '${fullDate(made)}  ${two(made.hour)}:${two(made.minute)}',
+                    strong: true,
+                  ),
+                  line(
+                    'It holds',
+                    counts(candidate.transactions, candidate.accounts),
+                    strong: true,
+                  ),
+                  line('Here now', counts(transactionsNow, accountsNow)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Everything here is replaced by the backup. What you have '
+                    'now is saved first, and Undo brings it back.',
+                    style: onest(13, color: Mid.ink2),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      BarButton(
+                        key: const ValueKey('restore-cancel'),
+                        label: 'Cancel',
+                        onTap: () => Navigator.of(context).pop(false),
+                      ),
+                      _PrimaryButton(
+                        key: const ValueKey('restore-confirm'),
+                        label: 'Restore',
+                        icon: Icons.settings_backup_restore_rounded,
+                        tooltip: 'Enter',
+                        onTap: () => Navigator.of(context).pop(true),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1305,14 +1874,18 @@ class _PrimaryButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onTap,
+    this.tooltip,
   });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
 
+  /// Its shortcut; ⌘N (Ctrl+N) unless given.
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: _isMac ? '⌘N' : 'Ctrl+N',
+    message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
     child: Material(
       color: Mid.gold,
       borderRadius: BorderRadius.circular(9),

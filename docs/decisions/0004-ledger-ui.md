@@ -167,7 +167,22 @@ be quietly undone.
    session and isn't saved.
 10. **Confirming a scheduled item means it happened now.** Confirming before its due
     date posts it today, never on a future date, and the toast says so ("Zaisan
-    Residence confirmed early · posted today, 09.16").
+    Residence confirmed early · ₮1,800,000 · posted today, 09.16").
+    **Confirm opens the bill to check its amount** (owner's call, option A of three,
+    from review finding L: "some bills are hard to predict"). It turns the row into
+    the editor with the amount selected (after its `+`, so typing the figure can't
+    turn money in into money out). **A bill not due yet is dated today; an overdue one
+    keeps its due date**, since a standing order or auto-pay left then, and a
+    statement will show it then (both review passes: dating it today moved it silently
+    and broke the next reconcile); Enter (or the row's Confirm
+    button) confirms whatever it says, so a bill that matched costs one keystroke. The
+    date can be changed to the day it really went out, but not to a future day (the
+    calendar greys them). When the amount changed, the toast names the plan:
+    "Electricity confirmed · ₮64,210, planned ₮60,000", and when the date isn't the
+    planned one it says so ("· posted 09.12"). Esc leaves it scheduled.
+    Rejected: posting at once with "Change amount" in the toast (B), easy to miss for
+    bills that usually vary, and marking some scheduled items "amount varies" (C), a
+    setting to maintain.
 11. **A future-dated manual entry is scheduled**, not posted. It shows in the forecast
     and in Scheduled but in no balance until confirmed. The same applies when an edit
     moves a posted transaction into the future.
@@ -259,6 +274,60 @@ be quietly undone.
     back to cleared. The database also refuses statement dates out of order, and
     forecast dots do nothing while a reconcile is open (the register hides scheduled
     rows then).
+
+17. **A transfer says which way it goes before it's added** (owner's call, from
+    budget-app review finding H). While the category is "→ Account", a line under
+    category and amount, level with the memo line, reads "₮640,200.00 from TDB
+    Checking to Golomt Visa", and "Swap" turns it around (it adds or removes the
+    `+`). The category reads "→ Golomt Visa" whichever way the money goes, so a
+    transfer entered from the receiving account used to go the wrong way unnoticed.
+    Editing a transfer shows the same line; on a reconciled one there's no Swap.
+18. **"Move to" fixes a transaction entered in the wrong account** (owner's call,
+    finding I). It sits in the row's action bar, after clearing, and lists the other
+    accounts. Only this account's side moves; date, amount, payee and category stay.
+    **The moved side starts uncleared**, because the other bank hasn't been checked,
+    and the toast says so ("· uncleared there until it clears"). Not offered on
+    reconciled rows (either side), opening balances, or onto a transfer's own other
+    side. ⌘Z puts it back as it was, cleared state included.
+19. **Backups stay on this machine** (owner's call, finding K). Once a day, when the
+    app opens (and hourly while it stays open), a copy goes to `Backups/` beside the
+    database. **Kept: the newest 14, plus the first copy of each of the last 12
+    months** (owner's call, from the review: a mistake found a month later still has
+    a copy from before it). **Backups live in Settings** (owner's call: "where we'll
+    have other settings"). A gear labelled "Settings" sits at the bottom of the sidebar, just above the Net
+    worth section, lined up under the section icons (owner's corrections: it started
+    right of Net worth, then left of it, and got its label), and opens a Settings page in the main area (option A; rejected: a menu
+    from the gear, too small for status or later settings, and a gear beside search
+    in every account's header). The page's first section, Backups, shows the daily
+    copy ("Today 09:30 · on this computer"), what's kept, and two buttons. They first
+    sat as links under Net worth. **"Back up to…"** saves a copy wherever the user
+    picks (another drive, a USB stick); the toast names the file. The automatic copies
+    share a disk with the data, which is why it exists. **"Restore from…"** sits beside
+    it (owner's call). The picker opens on the daily
+    copies. Nothing is replaced until a dialog shows the backup's date and time, what
+    it holds and what's here now ("19 transactions · 4 accounts"); Enter or Restore
+    confirms. What's here is saved first, the toast says so, and Undo (or ⌘Z) brings it
+    back. A restore clears the earlier undo history, since those actions point at rows
+    it replaced. A backup from an older version is upgraded on the way in; one from a
+    newer version, a damaged file, or a file that isn't a BetterBudget backup is
+    refused with a reason. Rejected: copying a file over the data by hand, which can
+    corrupt it (SQLite's `-wal` file stays behind). **A failing daily copy says so**
+    (owner's call), once the newest copy is over two days old; a single failed hour
+    stays quiet. The gear gets a coral dot, and Settings says "Failing · the last one
+    is from …" in coral.
+    Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
+
+20. **Old items say on the row why Working may be off** (owner's call, option A of
+    three, from review finding G). Working leaves out scheduled rows and keeps
+    uncleared ones, so two kinds of old row skew it without a word. **A scheduled row
+    past its date** says "· due 7 days ago" in gold after the payee, in place of "next
+    of N scheduled" (the Scheduled tab counts them). It isn't in Working until
+    confirmed, though it probably happened; the forecast already counts it as due today.
+    **An uncleared row 14 days old or more** says "· not cleared for 34 days" after its
+    memo, a shade brighter than the memo. Card holds usually drop within that, so it
+    may never have happened (cancelled, or entered twice) yet still lowers Working.
+    Nothing changes Working by age on its own. Rejected: a header line that filters to
+    these rows (B), and both (C).
 
 ## Consequences
 
