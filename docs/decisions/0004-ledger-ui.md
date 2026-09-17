@@ -167,7 +167,17 @@ be quietly undone.
    session and isn't saved.
 10. **Confirming a scheduled item means it happened now.** Confirming before its due
     date posts it today, never on a future date, and the toast says so ("Zaisan
-    Residence confirmed early · posted today, 09.16").
+    Residence confirmed early · ₮1,800,000 · posted today, 09.16").
+    **Confirm opens the bill to check its amount** (owner's call, option A of three,
+    from review finding L: "some bills are hard to predict"). It turns the row into
+    the editor, dated today, with the amount selected; Enter (or the row's Confirm
+    button) confirms whatever it says, so a bill that matched costs one keystroke. The
+    date can be changed to the day it really went out, but not to a future day (the
+    calendar greys them). When the amount changed, the toast names the plan:
+    "Electricity confirmed · ₮64,210, planned ₮60,000". Esc leaves it scheduled.
+    Rejected: posting at once with "Change amount" in the toast (B), easy to miss for
+    bills that usually vary, and marking some scheduled items "amount varies" (C), a
+    setting to maintain.
 11. **A future-dated manual entry is scheduled**, not posted. It shows in the forecast
     and in Scheduled but in no balance until confirmed. The same applies when an edit
     moves a posted transaction into the future.
@@ -279,9 +289,9 @@ be quietly undone.
     database. **Kept: the newest 14, plus the first copy of each of the last 12
     months** (owner's call, from the review: a mistake found a month later still has
     a copy from before it). **Backups live in Settings** (owner's call: "where we'll
-    have other settings"). A gear sits at the bottom of the sidebar, just above the Net
+    have other settings"). A gear labelled "Settings" sits at the bottom of the sidebar, just above the Net
     worth section, lined up under the section icons (owner's corrections: it started
-    right of Net worth, then left of it), and opens a Settings page in the main area (option A; rejected: a menu
+    right of Net worth, then left of it, and got its label), and opens a Settings page in the main area (option A; rejected: a menu
     from the gear, too small for status or later settings, and a gear beside search
     in every account's header). The page's first section, Backups, shows the daily
     copy ("Today 09:30 · on this computer"), what's kept, and two buttons. They first
@@ -301,6 +311,18 @@ be quietly undone.
     stays quiet. The gear gets a coral dot, and Settings says "Failing · the last one
     is from …" in coral.
     Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
+
+20. **Old items say on the row why Working may be off** (owner's call, option A of
+    three, from review finding G). Working leaves out scheduled rows and keeps
+    uncleared ones, so two kinds of old row skew it without a word. **A scheduled row
+    past its date** says "· due 7 days ago" in gold after the payee, in place of "next
+    of N scheduled" (the Scheduled tab counts them). It isn't in Working until
+    confirmed, though it probably happened; the forecast already counts it as due today.
+    **An uncleared row 14 days old or more** says "· not cleared for 34 days" after its
+    memo, a shade brighter than the memo. Card holds usually drop within that, so it
+    may never have happened (cancelled, or entered twice) yet still lowers Working.
+    Nothing changes Working by age on its own. Rejected: a header line that filters to
+    these rows (B), and both (C).
 
 ## Consequences
 

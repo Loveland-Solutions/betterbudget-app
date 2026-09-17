@@ -1187,19 +1187,17 @@ class _Sidebar extends StatelessWidget {
             later: true,
           ),
           const Spacer(),
-          // Settings, above Net worth; its icon lines up under the section
-          // icons.
+          // Settings, above Net worth, laid out like a section header so its
+          // icon and label line up with theirs.
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ValueListenableBuilder(
-                valueListenable: backupHealth,
-                builder: (context, health, _) => _SettingsGear(
-                  active: section == AppSection.settings,
-                  alert: health.alarmingAt(now()),
-                  onTap: () => onSection(AppSection.settings),
-                ),
+            padding: const EdgeInsets.only(bottom: 10),
+            // Full width, like the section headers, so hover fills the row.
+            child: ValueListenableBuilder(
+              valueListenable: backupHealth,
+              builder: (context, health, _) => _SettingsGear(
+                active: section == AppSection.settings,
+                alert: health.alarmingAt(now()),
+                onTap: () => onSection(AppSection.settings),
               ),
             ),
           ),
@@ -1240,39 +1238,53 @@ class _SettingsGear extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: alert ? 'Settings · the daily copy is failing' : 'Settings',
+    // Only worth a tooltip when the dot needs explaining.
+    message: alert ? 'The daily copy is failing' : '',
     child: Hoverable(
       key: const ValueKey('settings'),
       onTap: onTap,
       builder: (h) => Container(
-        width: 32,
-        height: 32,
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: active ? Mid.panel : (h ? Mid.hover : Colors.transparent),
+          color: h && !active ? Mid.hover : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Stack(
-          alignment: Alignment.center,
+        child: Row(
           children: [
-            Icon(
-              Icons.settings_outlined,
-              size: 18,
-              color: active ? Mid.blue : (h ? Mid.ink2 : Mid.ink3),
-            ),
-            if (alert)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  key: const ValueKey('settings-alert'),
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: Mid.coral,
-                    shape: BoxShape.circle,
-                  ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  Icons.settings_outlined,
+                  size: 16,
+                  color: active ? Mid.blue : Mid.ink3,
                 ),
+                if (alert)
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: Container(
+                      key: const ValueKey('settings-alert'),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Mid.coral,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Settings',
+              style: onest(
+                14,
+                weight: active ? 600 : 500,
+                color: active ? Mid.ink : Mid.ink2,
               ),
+            ),
           ],
         ),
       ),
