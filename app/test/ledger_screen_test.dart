@@ -162,6 +162,28 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('reduced motion opens a row into the editor instantly', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    await tester.pump();
+    final row = find.ancestor(
+      of: find.text('Save'),
+      matching: find.byType(SmoothHeight),
+    );
+    final now = tester.getSize(row).height;
+    await tester.pumpAndSettle();
+    expect(tester.getSize(row).height, now);
+    await tidy(tester, db);
+  });
+
   testWidgets('reduced motion opens sections instantly', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);

@@ -319,12 +319,10 @@ class RegisterPanel extends StatelessWidget {
                 ? 'Cleared balance'
                 : (owed ? 'Owed' : 'Balance'),
           ),
-          AnimatedSize(
+          SmoothHeight(
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 160),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
             child: adding
                 ? EntryRow(
                     controller: entryController,
@@ -1324,10 +1322,13 @@ class _SmoothHeightBox extends SingleChildRenderObjectWidget {
       _RenderSmoothHeight(controller);
 }
 
+/// Only for rows in a scrolling list: intrinsic and dry sizes come from the
+/// child, since lists never ask for them.
 class _RenderSmoothHeight extends RenderProxyBox {
   _RenderSmoothHeight(this.controller);
   final AnimationController controller;
-  double? _from, _to;
+  double? _from, _to, _width;
+  final _clip = LayerHandle<ClipRectLayer>();
 
   /// A new target is set and the animation starts after this frame.
   bool _starting = false;
@@ -1335,8 +1336,10 @@ class _RenderSmoothHeight extends RenderProxyBox {
   /// The height shown this frame.
   double get _height {
     if (_starting) return _from!;
+    // Exactly the target once done, or a rounding error would clip for good.
+    if (controller.value == 1) return _to!;
     final t = Curves.easeOutCubic.transform(controller.value);
-    return _from! + (_to! - _from!) * t;
+    return _from! * (1 - t) + _to! * t;
   }
 
   @override
@@ -1354,9 +1357,12 @@ class _RenderSmoothHeight extends RenderProxyBox {
   @override
   void performLayout() {
     final child = this.child!;
-    child.layout(constraints.loosen(), parentUsesSize: true);
+    child.layout(constraints.copyWith(minHeight: 0), parentUsesSize: true);
     final target = child.size.height;
-    if (_to == null || controller.duration == Duration.zero) {
+    // A new width (the window resized) snaps: only opening and closing ease.
+    final resized = _width != null && _width != constraints.maxWidth;
+    _width = constraints.maxWidth;
+    if (_to == null || resized || controller.duration == Duration.zero) {
       _from = _to = target;
     } else if (target != _to) {
       // Start from what's on screen now, even mid-animation.
@@ -1377,15 +1383,23 @@ class _RenderSmoothHeight extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     if (_height >= child!.size.height) {
+      _clip.layer = null;
       super.paint(context, offset);
     } else {
-      context.pushClipRect(
+      _clip.layer = context.pushClipRect(
         needsCompositing,
         offset,
         Offset.zero & size,
         super.paint,
+        oldLayer: _clip.layer,
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
   }
 }
 
