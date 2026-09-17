@@ -365,38 +365,39 @@ class _LateNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = late.fold(0, (s, r) => s + r.amount);
-    final String text;
+    final String what;
     if (late.length > 1) {
-      text = '${late.length} late · ₮${formatWhole(total)} not counted';
+      what = '${late.length} late · ₮${formatWhole(total)}';
     } else {
       final days = daysBefore(late.single.date, today);
-      final when = days == 0
-          ? 'due today'
-          : '$days ${days == 1 ? 'day' : 'days'} late';
-      text = '₮${formatWhole(total)} $when · not counted';
+      what =
+          '₮${formatWhole(total)} ${days == 0 ? 'due today' : '$days ${days == 1 ? 'day' : 'days'} late'}';
     }
     return Hoverable(
       key: const ValueKey('forecast-late'),
       onTap: () => onOpen(late.first),
-      builder: (h) => Text.rich(
-        TextSpan(
+      builder: (h) {
+        final style = onest(12, color: Mid.gold, tabular: true).copyWith(
+          decoration: h ? TextDecoration.underline : null,
+          decorationColor: Mid.gold,
+        );
+        // Only the amount part shrinks: "not counted" explains the warning.
+        return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextSpan(
-              text: ' · ',
-              style: onest(12, color: Mid.ink3),
-            ),
-            TextSpan(
-              text: text,
-              style: onest(12, color: Mid.gold, tabular: true).copyWith(
-                decoration: h ? TextDecoration.underline : null,
-                decorationColor: Mid.gold,
+            Text(' · ', style: onest(12, color: Mid.ink3)),
+            Flexible(
+              child: Text(
+                what,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            Text(' · not counted', style: style, maxLines: 1),
           ],
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+        );
+      },
     );
   }
 }

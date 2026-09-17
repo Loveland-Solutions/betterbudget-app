@@ -445,12 +445,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         confirm: confirming,
         keepOwed: d.keepOwed,
       );
-      after = await db.snapshot(row.txnId);
     } on LockedException catch (e) {
       return e.message;
     } catch (e) {
       return 'Couldn’t save: $e';
     }
+    // Saved: from here a failure mustn't read as "couldn't save".
+    after = await db.snapshot(row.txnId);
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
     final name = d.payee.isEmpty ? row.payee : d.payee;

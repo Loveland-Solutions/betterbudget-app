@@ -297,8 +297,9 @@ class _EntryRowState extends State<EntryRow> {
         : '${formatMoney(amount.abs())} from $from to $to';
   }
 
-  /// Confirming money in below plan: how much is missing. Null otherwise, and
-  /// never for bills (one that came in lower owes nothing more).
+  /// Confirming money in below plan: how much is missing. Null otherwise:
+  /// never for bills (one that came in lower owes nothing more) or transfers
+  /// (moving less is the user's own decision).
   int? get _shortBy {
     final initial = _initial;
     if (initial == null ||
@@ -316,7 +317,13 @@ class _EntryRowState extends State<EntryRow> {
         .firstOrNull;
     final inflow =
         raw.startsWith('+') || counter?.account.type == AccountType.income;
-    if (parsed == null || parsed <= 0 || !inflow) return null;
+    if (parsed == null ||
+        parsed <= 0 ||
+        !inflow ||
+        _isTransfer ||
+        (counter?.account.isBalanceSheet ?? false)) {
+      return null;
+    }
     return parsed < initial.amount ? initial.amount - parsed : null;
   }
 
@@ -775,6 +782,9 @@ class _OwedLine extends StatelessWidget {
       final on = keep == value;
       return InkWell(
         key: key,
+        // Out of Tab order: Enter in any field confirms, and a focused
+        // choice would take Enter for itself.
+        canRequestFocus: false,
         onTap: () => onChanged(value),
         borderRadius: BorderRadius.circular(6),
         child: Padding(

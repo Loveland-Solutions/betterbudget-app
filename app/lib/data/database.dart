@@ -695,8 +695,10 @@ class AppDatabase extends _$AppDatabase {
   /// means it happened, so the date can't be after [today].
   ///
   /// With [keepOwed] as well, money in that came short (half a salary) leaves
-  /// the rest scheduled on the planned date, in the same write: same payee,
-  /// memo and other side. Returns that remainder's id, or null.
+  /// the rest scheduled on the planned date, in the same write, with the
+  /// payee, memo and other side as confirmed. Never for a transfer between
+  /// the user's own accounts: moving less is their own decision. Returns that
+  /// remainder's id, or null.
   Future<int?> editTransaction({
     required int transactionId,
     required int accountId,
@@ -787,15 +789,12 @@ class AppDatabase extends _$AppDatabase {
           came >= planned) {
         return null;
       }
-      final payeeName = header.payeeId == null
-          ? null
-          : (await (select(
-              payees,
-            )..where((p) => p.id.equals(header.payeeId!))).getSingle()).name;
+      final other = counterAccountId ?? others.single.accountId;
+      if (_reconcilable.contains((await _accountTypes())[other])) return null;
       return postTransaction(
         date: parseDateKey(header.date),
-        payee: payeeName,
-        memo: header.memo,
+        payee: payee,
+        memo: memo,
         scheduled: true,
         lines: [
           (
@@ -804,7 +803,7 @@ class AppDatabase extends _$AppDatabase {
             cleared: Cleared.uncleared,
           ),
           (
-            accountId: counterAccountId ?? others.single.accountId,
+            accountId: other,
             amount: came - planned,
             cleared: Cleared.uncleared,
           ),

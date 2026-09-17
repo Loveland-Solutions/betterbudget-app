@@ -939,7 +939,7 @@ void main() {
         accountId: checking,
         date: today,
         today: today,
-        payee: salary.payee,
+        payee: 'Altan Gadas LLC',
         memo: salary.memo,
         amount: 125000000,
         confirm: true,
@@ -965,6 +965,62 @@ void main() {
         125000000,
       );
       expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+
+      // Kept with the payee as corrected while confirming.
+      expect(owed.txnPayee, 'Altan Gadas LLC');
+
+      // A transfer moved short is the user's own call: nothing kept.
+      final savings = ledger.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Khan Savings')
+          .id;
+      final moveIn = await db.postTransaction(
+        date: DateTime(2026, 9, 20),
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: 100000000, cleared: Cleared.uncleared),
+          (accountId: savings, amount: -100000000, cleared: Cleared.uncleared),
+        ],
+      );
+      expect(
+        await db.editTransaction(
+          transactionId: moveIn,
+          accountId: checking,
+          date: today,
+          today: today,
+          amount: 50000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
+
+      // Not short: nothing kept.
+      final refund = await db.postTransaction(
+        date: DateTime(2026, 9, 18),
+        payee: 'Nomin',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: 3000000, cleared: Cleared.uncleared),
+          (
+            accountId: await categoryId('Clothing'),
+            amount: -3000000,
+            cleared: Cleared.uncleared,
+          ),
+        ],
+      );
+      expect(
+        await db.editTransaction(
+          transactionId: refund,
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: 'Nomin',
+          amount: 3000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
 
       // A bill that came in lower owes nothing more, even if asked.
       final rent = await scheduled('Zaisan Residence');

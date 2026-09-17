@@ -1588,10 +1588,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Next 30 days'), findsOneWidget);
     // The amount and how late, not a name or a date that reads like money.
-    expect(
-      find.text(' · ₮2,500,000 2 days late · not counted', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.text('₮2,500,000 2 days late'), findsOneWidget);
+    expect(find.text(' · not counted'), findsOneWidget);
     expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
     // Only the header: the register below isn't what this is about.
     await expectLater(
@@ -1660,6 +1658,13 @@ void main() {
       await tester.tap(find.text('Undo'));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
+    await settle(tester);
+    expect(await salaries(), [250000000]);
+    // Redo brings back both halves.
+    await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
+    expect(await salaries(), [125000000]);
+    await chord(tester, LogicalKeyboardKey.keyZ);
     await settle(tester);
     expect(await salaries(), [250000000]);
 

@@ -173,6 +173,25 @@ lose a day across daylight saving; the unused `confirmScheduled` is gone.
   - **A salary paid short:** built after a committee of three. Confirming money in
     below plan offers "Still owed, due 10.10" (chosen) or "Paid in full"; ADR 0004
     rule 10.
+  Fixed from the last review passes: no "Still owed" for transfers (it depended on
+  which account you confirmed from); the remainder takes the payee and memo as
+  confirmed; "not counted" never gets cut off; the choices don't take Enter.
+  **Raised, for the owner:**
+  - **Late money in is confirmed on its planned date**, as bills are. A salary due 10.10
+    that lands 10.12 posts on 10.10, so the balance shows it two days early and a
+    reconcile through 10.11 won't match. Recommended: money in (not transfers) past due
+    opens dated today; the toast already says "posted 10.12".
+  - **A late transfer counts with no note**, so money the user forgot to move looks
+    covered. Recommended: mark it in the bill list ("+₮1,000,000 in · due 3 days ago").
+  - **Note wording:** say which way the money goes, since late bills use the same gold
+    ("+₮2,500,000 in, 2 days late · not counted"); and "2 late" when one is due today.
+  - **"Still owed" for small differences** (pay varies with deductions; a foreign refund
+    comes back lower after the exchange rate): Enter keeps a ₮42,700 remainder that sits
+    in the header. Recommended: choose "Still owed" only when short by more than 10%.
+  - **Coral on most paydays:** with salary due today not counted and next month's salary
+    not yet scheduled (recurring isn't built), the forecast warns until the salary is
+    confirmed. Options: headline "Runs out 10.12 unless ₮2,500,000 due today comes", or
+    revisit with recurring.
 - **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
   card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
   before the last statement ("· not on the 09.10 statement"); days only for accounts

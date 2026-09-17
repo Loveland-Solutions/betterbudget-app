@@ -203,15 +203,17 @@ be quietly undone.
     bills that usually vary, and marking some scheduled items "amount varies" (C), a
     setting to maintain.
     **Money in confirmed short can stay owed** (owner's call, after a committee of three:
-    household money, design, ledger integrity). When a salary, refund or transfer in is
+    household money, design, ledger integrity). When a salary or refund is
     confirmed below plan, a line under the amount reads "₮1,250,000 less than planned:
     (•) Still owed, due 10.10 ( ) Paid in full". **Still owed is chosen**, so Enter keeps
-    the rest scheduled on the planned date (same payee, memo and other side) in the same
-    write. Past that date it's late, so rule 2 leaves it out of the forecast and names
+    the rest scheduled on the planned date (payee, memo and category as confirmed) in
+    the same write. Past that date it's late, so rule 2 leaves it out of the forecast and names
     it. A remainder nobody wanted is visible and one Delete away; a forgotten one would
     vanish. The toast says "· ₮1,250,000 still owed, due 10.10", and one Undo puts back
     the single planned row. Bills never see the line: one that came in lower owes
-    nothing more. Wording was the owner's pick ("Rest still coming" was disliked;
+    nothing more. Nor do transfers between the user's own accounts: moving less is
+    their own decision, and a kept remainder would count in the forecast (late
+    transfers count) as money that was never going to move (both review passes). Wording was the owner's pick ("Rest still coming" was disliked;
     rejected: "Expect the rest / That's all", "Keep ₮X scheduled / Drop it"). Rejected
     designs: a toast action (toasts are missed), keeping the rest automatically (varying
     income would leave a remainder every month), "Paid in full" as the default (a
