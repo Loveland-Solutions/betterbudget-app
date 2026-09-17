@@ -128,7 +128,13 @@ class Backups {
       debugPrint('Automatic backup failed: $e');
       failed = true;
     }
-    final newest = (await automatic()).firstOrNull;
+    File? newest;
+    try {
+      newest = (await automatic()).firstOrNull;
+    } catch (e) {
+      debugPrint('Listing backups failed: $e');
+      failed = true;
+    }
     health.value = BackupHealth(
       newest: newest == null ? null : _madeAt(newest),
       failed: failed,
@@ -149,11 +155,14 @@ class Backups {
     }
     await dir.create(recursive: true);
     // Leftovers from a copy or a restore cut short (the app quit mid-way).
+    // A backup picked in the last hour may still be waiting in the dialog.
     for (final f in dir.listSync().whereType<File>()) {
       final name = _basename(f.path);
-      if (name.endsWith('.tmp') || name.startsWith('incoming-')) {
-        await f.delete();
-      }
+      final stale =
+          name.endsWith('.tmp') ||
+          (name.startsWith('incoming-') &&
+              now.difference(f.lastModifiedSync()) > const Duration(hours: 1));
+      if (stale) await f.delete();
     }
     // Written under a temporary name and renamed once complete, so a copy
     // cut short never passes for today's backup.
@@ -225,13 +234,22 @@ class Backups {
           'That backup is from a newer BetterBudget · update the app first',
         );
       }
-      final copy = AppDatabase(NativeDatabase(file));
+      // Off the UI isolate: a big or odd file mustn't freeze the app.
+      final copy = AppDatabase(NativeDatabase.createInBackground(file));
       try {
         final check = await copy
             .customSelect('PRAGMA quick_check')
             .map((r) => r.data.values.first)
             .get();
-        if (check.join() != 'ok') {
+        final brokenLinks = await copy
+            .customSelect('PRAGMA foreign_key_check')
+            .get();
+        final unbalanced = await copy
+            .customSelect(AppDatabase.unbalancedSql)
+            .get();
+        if (check.join() != 'ok' ||
+            brokenLinks.isNotEmpty ||
+            unbalanced.isNotEmpty) {
           throw RestoreException('That backup is damaged');
         }
         final ledger = await copy.loadLedger();
@@ -269,14 +287,32 @@ class Backups {
   /// `restored-….sqlite`, so the restore can be undone and redone.
   Future<RestoreRecord> restore(RestoreCandidate c, DateTime now) async {
     final dir = (await folder())!;
-    final stamp = fileStamp(now);
-    final before = File('${dir.path}/before-restore-$stamp.sqlite');
-    final restored = File('${dir.path}/restored-$stamp.sqlite');
+    final before = _unused(dir, 'before-restore-', now);
     await db.copyTo(before.path);
+    final restored = _unused(dir, 'restored-', now);
     await c.file.rename(restored.path);
     await _deleteIncoming(dir, c.file);
     await db.replaceAllFrom(restored.path);
     return (before: before, restored: restored);
+  }
+
+  /// Undo and redo of a restore: puts [file] back, saving what's here first
+  /// (as another `before-restore-…`), since anything done after the restore
+  /// that couldn't be undone would otherwise be in no file at all.
+  Future<void> replaceWith(File file, DateTime now) async {
+    final dir = (await folder())!;
+    await db.copyTo(_unused(dir, 'before-restore-', now).path);
+    await db.replaceAllFrom(file.path);
+  }
+
+  /// `<prefix><stamp>.sqlite`, a second later if that name is taken.
+  static File _unused(Directory dir, String prefix, DateTime now) {
+    var at = now;
+    while (true) {
+      final f = File('${dir.path}/$prefix${fileStamp(at)}.sqlite');
+      if (!f.existsSync()) return f;
+      at = at.add(const Duration(seconds: 1));
+    }
   }
 
   /// The working copy, plus anything opening it left beside it (an upgrade

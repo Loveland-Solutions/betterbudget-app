@@ -200,6 +200,81 @@ void main() {
       expect(unbalanced, isEmpty);
     });
 
+    test(
+      'refuses a damaged backup, and a failed replace changes nothing',
+      () async {
+        final backups = Backups(db);
+        Future<File> tampered(String name, String sql) async {
+          final f = File('${dir.path}/$name.sqlite');
+          await backups.saveTo(f.path, today);
+          final other = AppDatabase(NativeDatabase(f));
+          await other.customStatement('PRAGMA foreign_keys = OFF');
+          await other.customStatement(sql);
+          await other.close();
+          return f;
+        }
+
+        final unbalanced = await tampered(
+          'unbalanced',
+          'UPDATE entries SET amount_minor = amount_minor + 777 '
+              'WHERE id = (SELECT MIN(id) FROM entries)',
+        );
+        final orphan = await tampered(
+          'orphan',
+          'UPDATE entries SET account_id = 9999 '
+              'WHERE id = (SELECT MIN(id) FROM entries)',
+        );
+        for (final f in [unbalanced, orphan]) {
+          await expectLater(
+            backups.inspect(f.path, today),
+            throwsA(
+              isA<RestoreException>().having(
+                (e) => e.message,
+                'message',
+                'That backup is damaged',
+              ),
+            ),
+          );
+        }
+
+        // Past the check (a file changed after it), the replace still refuses
+        // and rolls back whole.
+        final before = await count();
+        await expectLater(
+          db.replaceAllFrom(unbalanced.path),
+          throwsA(isA<UnbalancedTransactionException>()),
+        );
+        await expectLater(db.replaceAllFrom(orphan.path), throwsA(anything));
+        expect(await count(), before);
+        expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+        // Still writable, and detached.
+        await db.customStatement('UPDATE accounts SET sort_order = sort_order');
+      },
+    );
+
+    test('undoing a restore saves what is there first', () async {
+      final backups = Backups(db);
+      final saved = File('${dir.path}/saved.sqlite');
+      await backups.saveTo(saved.path, today);
+      final done = await backups.restore(
+        await backups.inspect(saved.path, today),
+        today,
+      );
+      await backups.replaceWith(done.before, today);
+      final saves =
+          (await backups.folder())!
+              .listSync()
+              .map((f) => f.path.split('/').last)
+              .where((n) => n.startsWith('before-restore-'))
+              .toList()
+            ..sort();
+      // The same second twice: the second name moves on a second.
+      expect(saves, [
+        'before-restore-20260916-093000.sqlite',
+        'before-restore-20260916-093001.sqlite',
+      ]);
+    });
+
     test('refuses what it can’t restore, and cleans up', () async {
       final backups = Backups(db);
       final text = File('${dir.path}/notes.sqlite')

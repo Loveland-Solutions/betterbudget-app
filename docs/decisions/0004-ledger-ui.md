@@ -276,10 +276,23 @@ be quietly undone.
     side. ⌘Z puts it back as it was, cleared state included.
 19. **Backups stay on this machine** (owner's call, finding K). Once a day, when the
     app opens (and hourly while it stays open), a copy goes to `Backups/` beside the
-    database; the newest 14 are kept. **"Back up to…" sits under Net worth** in the
-    sidebar and saves a copy wherever the user picks (another drive, a USB stick),
-    with a save dialog; the toast names the file. No restore command yet, and the
-    automatic copies share a disk with the data, which is why "Back up to…" exists.
+    database. **Kept: the newest 14, plus the first copy of each of the last 12
+    months** (owner's call, from the review: a mistake found a month later still has
+    a copy from before it). **"Back up to…" sits under Net worth** in the sidebar and
+    saves a copy wherever the user picks (another drive, a USB stick); the toast names
+    the file. The automatic copies share a disk with the data, which is why it exists.
+    **"Restore from…" sits under it** (owner's call). The picker opens on the daily
+    copies. Nothing is replaced until a dialog shows the backup's date and time, what
+    it holds and what's here now ("19 transactions · 4 accounts"); Enter or Restore
+    confirms. What's here is saved first, the toast says so, and Undo (or ⌘Z) brings it
+    back. A restore clears the earlier undo history, since those actions point at rows
+    it replaced. A backup from an older version is upgraded on the way in; one from a
+    newer version, a damaged file, or a file that isn't a BetterBudget backup is
+    refused with a reason. Rejected: copying a file over the data by hand, which can
+    corrupt it (SQLite's `-wal` file stays behind). **A failing daily copy says so**
+    (owner's call): "Daily copy failed" in coral, on its own line above "Back up to…",
+    once the newest copy is over two days old; a single failed hour stays quiet.
+    Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
 
 ## Consequences
 

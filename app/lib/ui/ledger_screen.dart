@@ -81,6 +81,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Lock was pressed and the write hasn't returned; a second click waits.
   bool _locking = false;
 
+  /// A restore (or its undo or redo) is replacing everything. Input is
+  /// blocked: anything saved meanwhile would land in neither copy.
+  bool _restoring = false;
+
   /// The transaction open in the inline editor, if any.
   RegisterEditing? _editing;
 
@@ -189,6 +193,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Undoes the newest action.
   Future<void> _undo() async {
+    if (_restoring) return;
     final a = _history.lastOrNull;
     if (a == null) {
       _showToast('Nothing to undo');
@@ -206,6 +211,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _redoLast() async {
+    if (_restoring) return;
     final a = _redo.lastOrNull;
     if (a == null) {
       _showToast('Nothing to redo');
@@ -265,6 +271,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         command &&
         ((z && keys.isShiftPressed) ||
             (!_isMac && event.logicalKey == LogicalKeyboardKey.keyY));
+    if (_restoring) return KeyEventResult.handled;
     if (undo || redo) {
       if (_typing) return KeyEventResult.ignored;
       if (event is KeyDownEvent) undo ? _undo() : _redoLast();
@@ -648,6 +655,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// or one saved elsewhere. Shows what it holds against what's here, saves
   /// what's here first, and can be undone.
   Future<void> _restoreFrom() async {
+    if (_restoring) return;
+    // A restore replaces the rows an open edit or reconcile points at.
+    if (_editing?.controller.isDirty() ?? false) {
+      _showToast('Save with Enter, or press Esc to discard your changes');
+      return;
+    }
+    _cancelEdit();
+    _endReconcile();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
     final now = widget.clock();
     final XFile? picked;
     try {
@@ -692,28 +711,39 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final RestoreRecord done;
     try {
-      done = await _backups.restore(candidate, now);
+      done = await _whileRestoring(() => _backups.restore(candidate, now));
     } catch (e) {
       debugPrint('Restore failed: $e');
       _showToast('Couldn’t restore · nothing was changed');
       return;
     }
-    _endReconcile();
-    if (_editing != null) _cancelEdit();
-    setState(() {
-      _selected = null;
-      _adding = false;
-    });
+    if (!mounted) return;
     // Earlier actions point at rows the restore replaced.
     _history.clear();
     _redo.clear();
     final label = 'Restored the copy from ${fullDate(candidate.madeAt)}';
     _did(
       label,
-      undo: () => db.replaceAllFrom(done.before.path),
-      redo: () => db.replaceAllFrom(done.restored.path),
+      undo: () => _whileRestoring(
+        () => _backups.replaceWith(done.before, widget.clock()),
+      ),
+      redo: () => _whileRestoring(
+        () => _backups.replaceWith(done.restored, widget.clock()),
+      ),
       message: '$label · what you had is saved',
     );
+  }
+
+  /// Runs a whole-ledger replace with input blocked, then refreshes what the
+  /// entry row suggests, since the payees changed with everything else.
+  Future<T> _whileRestoring<T>(Future<T> Function() replace) async {
+    setState(() => _restoring = true);
+    try {
+      return await replace();
+    } finally {
+      if (mounted) setState(() => _restoring = false);
+      _entry.payeeNames = await db.payeeNames();
+    }
   }
 
   /// Takes back the account's latest reconcile, whenever it was done.
@@ -816,6 +846,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       ),
                     ],
                   ),
+                  if (_restoring)
+                    const Positioned.fill(
+                      child: ModalBarrier(
+                        dismissible: false,
+                        color: Color(0x66000000),
+                      ),
+                    ),
                   if (_toast != null)
                     _Toast(
                       toast: _toast!,

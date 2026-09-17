@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
@@ -239,10 +240,18 @@ class AppDatabase extends _$AppDatabase {
   /// exist). Safe while the app is open: SQLite takes a snapshot.
   Future<void> copyTo(String path) => customStatement('VACUUM INTO ?', [path]);
 
+  /// Transactions that don't sum to zero or have fewer than two entries.
+  /// Every write refuses to leave one (ADR 0003); a restored file must too.
+  static const unbalancedSql =
+      'SELECT transaction_id FROM entries GROUP BY transaction_id '
+      'HAVING SUM(amount_minor) != 0 OR COUNT(*) < 2';
+
   /// Replaces every row with the rows in the database file at [path], in one
   /// transaction, while the app keeps this connection open. The file must
   /// already be at this schema version (open it with an [AppDatabase] first,
-  /// which upgrades it). Watchers see the new ledger straight away.
+  /// which upgrades it). A file whose rows break a reference or leave a
+  /// transaction unbalanced is refused and nothing changes. Watchers see the
+  /// new ledger straight away.
   Future<void> replaceAllFrom(String path) async {
     const parentsFirst = [
       'accounts',
@@ -251,6 +260,13 @@ class AppDatabase extends _$AppDatabase {
       'reconciliations',
       'entries',
     ];
+    // A table added to the schema must be added here, or a restore drops it.
+    assert(
+      {for (final t in allTables) t.actualTableName}
+              .containsAll(parentsFirst) &&
+          allTables.length == parentsFirst.length,
+      'replaceAllFrom is missing a table',
+    );
     await customStatement('ATTACH DATABASE ? AS src', [path]);
     try {
       await transaction(() async {
@@ -265,11 +281,24 @@ class AppDatabase extends _$AppDatabase {
             'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
           );
         }
+        final unbalanced = await customSelect(unbalancedSql).get();
+        if (unbalanced.isNotEmpty) {
+          throw UnbalancedTransactionException(
+            unbalanced.first.read<int>('transaction_id'),
+            0,
+          );
+        }
       });
     } finally {
-      await customStatement('DETACH DATABASE src');
+      try {
+        await customStatement('DETACH DATABASE src');
+      } catch (e) {
+        // The replace has committed or rolled back by now; a failure to
+        // detach mustn't report a restore that happened as one that didn't.
+        debugPrint('Detach after restore failed: $e');
+      }
+      markTablesUpdated(allTables);
     }
-    markTablesUpdated(allTables);
   }
 
   // ---------- reads ----------

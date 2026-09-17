@@ -32,12 +32,12 @@ Visual direction and the register's UX rules are settled in
 | Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
 | Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today and says so) |
 | Move to | "Move to" in a row's action bar moves this account's side to another account (entered in the wrong one); it arrives uncleared there; not on reconciled rows, opening balances or adjustments, or onto a transfer's own other side (enforced in the database); undoes with its cleared state |
-| Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database, newest 14 kept, written under a temporary name and renamed once complete. "Back up to…" under Net worth saves a copy wherever the user picks. No restore yet |
+| Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database: newest 14 plus the first of each of 12 months, written under a temporary name and renamed once complete. "Daily copy failed" in coral when copies stop. "Back up to…" saves a copy anywhere. "Restore from…" checks the file, shows what it holds against what's here, saves what's here first and can be undone |
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 87: moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 95: restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -45,7 +45,9 @@ scheduled items.
 
 ### Not built yet
 
-- **Encryption.** Plain SQLite for now. ADR 0001 requires SQLCipher; do the Windows spike
+- **Encryption.** Plain SQLite for now, and so are the backups in `Backups/` and any
+  saved with "Back up to…": the SQLCipher work must encrypt or remove the old copies,
+  and check that `VACUUM INTO` keeps the key (owner agreed, 2026-09-17). ADR 0001 requires SQLCipher; do the Windows spike
   first. `package:sqlite3` supports `hooks: user_defines: sqlite3: source: sqlcipher` (or
   `sqlite3mc`) in `pubspec.yaml`.
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
@@ -53,7 +55,7 @@ scheduled items.
 - Adding, renaming or archiving **accounts and categories** (seed data only).
 - **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
-- **Restore** from a backup, CSV export, app lock.
+- CSV export, app lock.
 - **Mongolian UI strings** (the UI is English; payees are Cyrillic), **mobile layout**,
   Windows build (scaffolded, never built), a real app icon.
 - **CI.** Nothing runs tests on pull requests.
@@ -152,9 +154,10 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Waiting on the owner:** pick designs for **G** (stale items) and **L** (confirming a
-bill whose amount differs), and decide the backup follow-ups below. Then merge
-`ledger-findings-f-n`.
+**Waiting on the owner:** pick designs for **G** (stale items, options A/B/C) and **L**
+(confirming a bill whose amount differs, options A/B/C), then merge
+`ledger-findings-f-n`. The owner said yes to restore, the failed-copy warning, monthly
+copies and the encryption note; all built.
 
 **Branch `ledger-findings-f-n` (2026-09-17):** the owner said "do it" to H, I, K and
 "fix it" to M and N. 87 tests, analyze clean, checked in the macOS app (its first
@@ -173,15 +176,19 @@ daily copy was made from the owner's file). ADR 0004 rules 17–19.
   amount still asks for one; unexpected errors show a short toast; cached register
   lists can't be reordered.
 
-**Raised by the reviews, for the owner to decide** (budget-app expert unless marked):
-- **Restore.** Copying a backup over the data file by hand leaves the `-wal` file,
-  which can corrupt it. Recommended: "Restore from…" that backs up the current file
-  first and shows the copy's date and transaction count.
-- **A daily copy that fails says nothing.** Recommended: the Back up line reads
-  "Daily copy failed" when the newest copy is over 2 days old.
-- **Keep monthly copies too** (14 daily plus 12 monthly), for mistakes found late.
+- **Then, on the owner's yes:** "Restore from…", "Daily copy failed", and monthly
+  copies (ADR 0004 rule 19). 95 tests. Fixed from its code review: a backup with
+  unbalanced transactions or broken references is refused (and the replace itself
+  refuses and rolls back); input is blocked while a restore runs, and an open edit or
+  reconcile closes first; undoing or redoing a restore saves what's there first; a
+  backup waiting in the dialog isn't swept by the daily copy; the check runs off the UI
+  thread. Not done (low): the newest 5 `before-restore` files are kept, not the
+  oldest; Enter confirms the restore dialog.
+- **Not yet tried in the real app:** "Back up to…" and "Restore from…" through the
+  macOS dialogs. The tests use a stand-in dialog.
+
+**Raised by the reviews, not decided yet** (budget-app expert unless marked):
 - **Remind about copies elsewhere**: "Last copied elsewhere 41 days ago" past 30 days.
-- **Backups are unencrypted.** The SQLCipher work must re-encrypt or remove them.
 - **Moving into Cash wallet** leaves the row uncleared with no statement to clear it
   (ties to F). **A "Show" button** on the move toast to go to the other account.
 - **Refunds typed without `+`** double-count; e.g. prefill `+` when the payee's last

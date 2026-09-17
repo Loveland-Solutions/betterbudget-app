@@ -1387,6 +1387,18 @@ void main() {
       expect(find.text('Unitel'), findsNothing);
 
       dialogs.openPath = saved;
+      // Cancel first: nothing changes, and the working copy goes.
+      await run(find.byKey(const ValueKey('restore')));
+      await run(find.byKey(const ValueKey('restore-cancel')));
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Unitel'), findsNothing);
+      expect(
+        Directory('${dir.path}/Backups')
+            .listSync()
+            .where((f) => f.path.split('/').last.startsWith('incoming-')),
+        isEmpty,
+      );
+
       await run(find.byKey(const ValueKey('restore')));
       expect(find.text('Restore this backup?'), findsOneWidget);
       expect(find.text('2026.09.16  09:30'), findsOneWidget);
