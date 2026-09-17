@@ -22,6 +22,10 @@ abstract final class Mid {
   static final blueEdge = blue.withValues(alpha: 0.35);
   static final chip = const Color(0xFFD6E0FF).withValues(alpha: 0.06);
   static final hover = const Color(0xFFD6E0FF).withValues(alpha: 0.035);
+
+  /// Every other register row: a faint lift of the royal blue, so the eye
+  /// can follow a transaction across the wide row.
+  static final stripe = blue.withValues(alpha: 0.045);
 }
 
 const _weights = {

@@ -223,7 +223,7 @@ class RegisterPanel extends StatelessWidget {
           ),
         );
       }
-      for (final r in visiblePosted) {
+      for (final (i, r) in visiblePosted.indexed) {
         children.add(
           keyed(
             r,
@@ -231,6 +231,7 @@ class RegisterPanel extends StatelessWidget {
                 _PostedRow(
                   row: r,
                   owed: owed,
+                  striped: i.isOdd,
                   reconciling: through != null,
                   bar: bar(r),
                   onTap: (field) => tap(r.txnId, field),
@@ -654,6 +655,7 @@ class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
     required this.owed,
+    required this.striped,
     required this.reconciling,
     required this.bar,
     required this.onTap,
@@ -665,6 +667,9 @@ class _PostedRow extends StatelessWidget {
 
   final RegisterRow row;
   final bool owed;
+
+  /// Every other row is tinted, to tell transactions apart at a glance.
+  final bool striped;
 
   /// While reconciling, the Balance column runs over cleared rows only, to
   /// compare line by line with the statement's running balance. Uncleared
@@ -712,9 +717,13 @@ class _PostedRow extends StatelessWidget {
           builder: (hover) => Container(
             padding: Cols.inset,
             decoration: BoxDecoration(
+              // Hover lays over the stripe, so it still shows on tinted rows.
               color: selected
                   ? Mid.blueWash
-                  : (hover ? Mid.hover : Colors.transparent),
+                  : Color.alphaBlend(
+                      hover ? Mid.hover : Colors.transparent,
+                      striped ? Mid.stripe : Colors.transparent,
+                    ),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: selected ? Mid.blueEdge : Colors.transparent,
