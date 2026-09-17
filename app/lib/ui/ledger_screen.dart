@@ -1160,7 +1160,8 @@ class _Sidebar extends StatelessWidget {
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+            // The gear's icon lines up under the section icons above.
+            padding: const EdgeInsets.fromLTRB(4, 16, 12, 0),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Mid.rule)),
             ),
@@ -1168,8 +1169,16 @@ class _Sidebar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    ValueListenableBuilder(
+                      valueListenable: backupHealth,
+                      builder: (context, health, _) => _SettingsGear(
+                        active: section == AppSection.settings,
+                        alert: health.alarmingAt(now()),
+                        onTap: () => onSection(AppSection.settings),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1183,14 +1192,6 @@ class _Sidebar extends StatelessWidget {
                         ],
                       ),
                     ),
-                    ValueListenableBuilder(
-                      valueListenable: backupHealth,
-                      builder: (context, health, _) => _SettingsGear(
-                        active: section == AppSection.settings,
-                        alert: health.alarmingAt(now()),
-                        onTap: () => onSection(AppSection.settings),
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -1202,7 +1203,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// Opens Settings. A coral dot says something there needs attention (the
+/// Opens Settings, left of Net worth. A coral dot says something there needs attention (the
 /// daily copy is failing), since the gear is all that shows of it.
 class _SettingsGear extends StatelessWidget {
   const _SettingsGear({
