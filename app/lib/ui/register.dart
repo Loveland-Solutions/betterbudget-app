@@ -721,7 +721,7 @@ class _PostedRow extends StatelessWidget {
               color: selected
                   ? Mid.blueWash
                   : Color.alphaBlend(
-                      hover ? Mid.hover : Colors.transparent,
+                      hover ? Mid.rowHover : Colors.transparent,
                       striped ? Mid.stripe : Colors.transparent,
                     ),
               borderRadius: BorderRadius.circular(10),

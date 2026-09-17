@@ -89,8 +89,10 @@ be quietly undone.
    subtotals.** The owner asked for these to be removed; don't reintroduce them.
    **Every other posted row is tinted a faint royal blue** (`Mid.stripe`, blue at 4.5%;
    owner's request, so transactions are easy to tell apart across the wide row). The
-   first row is plain. Hover lays over the stripe so it still shows, and a selected row
-   keeps its blue wash and outline. The dashed scheduled rows aren't striped; their
+   first row is plain. **Hovering a row lifts it clearly above the stripe**
+   (`Mid.rowHover`, a pale tint at 8%, laid over the stripe on tinted rows). The old
+   hover was as faint as the stripe, so a hovered plain row looked like its striped
+   neighbour (owner's correction). A selected row keeps its blue wash and outline. The dashed scheduled rows aren't striped; their
    dashed border already sets each one apart.
 5. **Cleared-state symbols must not look like checkboxes or like math.** An empty circle
    beside a row reads as "select me", and a dash reads as a minus sign in the header's

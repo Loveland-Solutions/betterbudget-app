@@ -26,6 +26,11 @@ abstract final class Mid {
   /// Every other register row: a faint lift of the royal blue, so the eye
   /// can follow a transaction across the wide row.
   static final stripe = blue.withValues(alpha: 0.045);
+
+  /// A register row under the pointer: clearly lighter than [stripe], so
+  /// hovering never looks like the row next door. Below the selected row's
+  /// [blueWash] and outline.
+  static final rowHover = const Color(0xFFD6E0FF).withValues(alpha: 0.08);
 }
 
 const _weights = {
