@@ -127,6 +127,10 @@ be quietly undone.
    ("Undone · Unitel marked cleared"), because it may change a row that isn't in view.
    **Toasts appear only when a record was changed and saved or removed** (edit,
    categorize, delete, confirm, reconcile), with an Undo button for that one action.
+   **A toast's Undo works only while its action is still the newest.** Otherwise it says
+   "Undo the newer changes first · ⌘Z": undoing an older action out of order once wiped
+   a later clear without saying so (code review, 2026-09-17). An undo the database
+   refuses says "Couldn't undo … it changed since" instead of pretending it worked.
    **Clearing a row is quiet** (owner's correction: a toast on every symbol click was
    noise, especially while reconciling). The symbol changing is the confirmation.
    Adding stays quiet too, because the row appears. **Toasts are gold with dark
@@ -205,7 +209,13 @@ be quietly undone.
     undone newest first, so every lock left in place still matches its statement.
     Later reconciles that locked nothing go with it. The toast has Undo, and ⌘Z / ⌘⇧Z
     work too. Each entry stores the reconcile that locked it (schema version 2);
-    older data was linked to the first statement dated on or after each row.
+    older data was linked to the first statement dated on or after each row. **Only
+    an account's own side is ever reconciled**, and always by a statement. Older data
+    also locked category, opening-balance and statement-less sides, which made rows
+    look unlocked but refuse edits, or stay locked forever. Schema version 3 puts those
+    back to cleared. The database also refuses statement dates out of order, and
+    forecast dots do nothing while a reconcile is open (the register hides scheduled
+    rows then).
 
 ## Consequences
 
