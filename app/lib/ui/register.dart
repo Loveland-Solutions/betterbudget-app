@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -194,10 +196,19 @@ class RegisterPanel extends StatelessWidget {
       );
     }
 
-    Widget keyed(RegisterRow r, Widget row) =>
-        r.txnId == selected && selectedKey != null
-        ? KeyedSubtree(key: selectedKey, child: row)
-        : row;
+    // A row opening into the editor (or its action bar) grows smoothly, and
+    // shrinks back when it closes. Keyed by transaction so the animation
+    // follows the row, not its place in the list.
+    final grow = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
+    Widget keyed(RegisterRow r, Widget row) => SmoothHeight(
+      key: ValueKey('row-${r.txnId}'),
+      duration: grow,
+      child: r.txnId == selected && selectedKey != null
+          ? KeyedSubtree(key: selectedKey, child: row)
+          : row,
+    );
 
     final children = <Widget>[];
     if (showScheduled) {
@@ -1263,6 +1274,118 @@ class CategoryMenu extends StatelessWidget {
       builder: (context, menu, _) =>
           builder(menu.isOpen, () => menu.isOpen ? menu.close() : menu.open()),
     );
+  }
+}
+
+/// Eases its height to its child's whenever the child's height changes, from
+/// wherever it is at that moment. Flutter's AnimatedSize snaps instead when
+/// the size changes again mid-animation, which is exactly a double-click: the
+/// first click opens the action bar, the second opens the editor.
+class SmoothHeight extends StatefulWidget {
+  const SmoothHeight({super.key, required this.duration, required this.child});
+  final Duration duration;
+  final Widget child;
+
+  @override
+  State<SmoothHeight> createState() => _SmoothHeightState();
+}
+
+class _SmoothHeightState extends State<SmoothHeight>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+    value: 1,
+  );
+
+  @override
+  void didUpdateWidget(SmoothHeight old) {
+    super.didUpdateWidget(old);
+    _controller.duration = widget.duration;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _SmoothHeightBox(controller: _controller, child: widget.child);
+}
+
+class _SmoothHeightBox extends SingleChildRenderObjectWidget {
+  const _SmoothHeightBox({required this.controller, super.child});
+  final AnimationController controller;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSmoothHeight(controller);
+}
+
+class _RenderSmoothHeight extends RenderProxyBox {
+  _RenderSmoothHeight(this.controller);
+  final AnimationController controller;
+  double? _from, _to;
+
+  /// A new target is set and the animation starts after this frame.
+  bool _starting = false;
+
+  /// The height shown this frame.
+  double get _height {
+    if (_starting) return _from!;
+    final t = Curves.easeOutCubic.transform(controller.value);
+    return _from! + (_to! - _from!) * t;
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    controller.addListener(markNeedsLayout);
+  }
+
+  @override
+  void detach() {
+    controller.removeListener(markNeedsLayout);
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child!;
+    child.layout(constraints.loosen(), parentUsesSize: true);
+    final target = child.size.height;
+    if (_to == null || controller.duration == Duration.zero) {
+      _from = _to = target;
+    } else if (target != _to) {
+      // Start from what's on screen now, even mid-animation.
+      _from = _height;
+      _to = target;
+      // Not during layout: the controller's listener would ask for another.
+      if (!_starting) {
+        _starting = true;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          _starting = false;
+          if (attached) controller.forward(from: 0);
+        });
+      }
+    }
+    size = constraints.constrain(Size(child.size.width, _height));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (_height >= child!.size.height) {
+      super.paint(context, offset);
+    } else {
+      context.pushClipRect(
+        needsCompositing,
+        offset,
+        Offset.zero & size,
+        super.paint,
+      );
+    }
   }
 }
 

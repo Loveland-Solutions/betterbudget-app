@@ -6,6 +6,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
+import 'package:betterbudget/ui/register.dart' show SmoothHeight;
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -276,6 +277,9 @@ void main() {
     expect(focused.controller.selection.extentOffset, 7);
     expect(find.widgetWithText(TextField, '2026.09.16'), findsOneWidget);
     expect(find.text('Confirm'), findsOneWidget); // the row's button
+    await tester.pump(
+      const Duration(milliseconds: 200),
+    ); // row finishes growing
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/confirm_open.png'),
@@ -696,6 +700,7 @@ void main() {
         await tester.pump();
         await tester.pump();
         expect(find.text('Save'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 200)); // done growing
         await expectLater(
           find.byType(LedgerScreen),
           matchesGoldenFile('goldens/edit_row.png'),
@@ -723,6 +728,48 @@ void main() {
         await tidy(tester, db);
       },
     );
+
+    testWidgets('a row opening into the editor grows, then shrinks back', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      Finder rowOf(String text) => find.ancestor(
+        of: find.text(text),
+        matching: find.byType(SmoothHeight),
+      );
+      final closed = tester.getSize(rowOf('Unitel')).height;
+
+      // A double-click: the first click opens the action bar, the second the
+      // editor, mid-way. It still eases the whole way.
+      await tester.tap(find.text('Unitel'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('Unitel'));
+      await tester.pump();
+      await tester.pump();
+      final heights = <double>[];
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 30));
+        heights.add(tester.getSize(rowOf('Save')).height);
+      }
+      await tester.pumpAndSettle();
+      final open = tester.getSize(rowOf('Save')).height;
+      expect(heights.first, greaterThan(closed));
+      expect(heights.first, lessThan(open));
+      for (var i = 1; i < heights.length; i++) {
+        expect(heights[i], greaterThanOrEqualTo(heights[i - 1]));
+      }
+      expect(heights.last, open);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final shrinking = tester.getSize(rowOf('Unitel')).height;
+      expect(shrinking, lessThan(open));
+      expect(shrinking, greaterThan(closed));
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
 
     testWidgets('Enter on a selected row opens it; Esc cancels', (
       tester,
@@ -1641,6 +1688,9 @@ void main() {
     await tester.pump();
     expect(find.text('₮1,250,000 less than planned:'), findsOneWidget);
     expect(find.text('Still owed, due 10.10'), findsOneWidget);
+    await tester.pump(
+      const Duration(milliseconds: 200),
+    ); // row finishes growing
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/confirm_short.png'),
