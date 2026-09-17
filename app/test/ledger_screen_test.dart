@@ -1587,8 +1587,11 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(find.text('Next 30 days'), findsOneWidget);
-    expect(find.text('Salary'), findsWidgets);
-    expect(find.text(' due 10.10 isn’t counted'), findsOneWidget);
+    // The amount and how late, not a name or a date that reads like money.
+    expect(
+      find.text(' · ₮2,500,000 2 days late · not counted', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
     // Only the header: the register below isn't what this is about.
     await expectLater(

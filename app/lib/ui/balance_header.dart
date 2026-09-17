@@ -347,56 +347,56 @@ class _StatusLine extends StatelessWidget {
   }
 }
 
-/// A short name for money coming in: its category (Salary), or where a
-/// transfer comes from. Payees can be any length.
-String _moneyInName(RegisterRow r) => r.kind == RowKind.transfer
-    ? 'Transfer from ${r.payee}'
-    : (r.categoryLabel.isEmpty ? r.payee : r.categoryLabel);
-
-/// "· Salary due 10.10 isn't counted": late money in the forecast leaves out.
+/// "· ₮2,500,000 2 days late · not counted": money in the forecast leaves
+/// out until it's confirmed. The amount, not a name: it says whether the
+/// warning would clear if the money came, and names can be any length.
 /// Clicking it opens that row (the first, when several), like a dot, since
-/// confirming it is how it gets counted. Only the name shrinks, so "isn't
-/// counted" always shows.
+/// confirming it is how it gets counted.
 class _LateNote extends StatelessWidget {
-  const _LateNote({required this.late, required this.onOpen});
+  const _LateNote({
+    required this.late,
+    required this.today,
+    required this.onOpen,
+  });
   final List<RegisterRow> late;
+  final DateTime today;
   final ValueChanged<RegisterRow> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final one = late.length == 1;
+    final total = late.fold(0, (s, r) => s + r.amount);
+    final String text;
+    if (late.length > 1) {
+      text = '${late.length} late · ₮${formatWhole(total)} not counted';
+    } else {
+      final days = daysBefore(late.single.date, today);
+      final when = days == 0
+          ? 'due today'
+          : '$days ${days == 1 ? 'day' : 'days'} late';
+      text = '₮${formatWhole(total)} $when · not counted';
+    }
     return Hoverable(
       key: const ValueKey('forecast-late'),
       onTap: () => onOpen(late.first),
-      builder: (h) {
-        TextStyle style() => onest(12, color: Mid.gold).copyWith(
-          decoration: h ? TextDecoration.underline : null,
-          decorationColor: Mid.gold,
-        );
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+      builder: (h) => Text.rich(
+        TextSpan(
           children: [
-            Text(' · ', style: onest(12, color: Mid.ink3)),
-            Flexible(
-              child: Text(
-                one
-                    ? _moneyInName(late.single)
-                    : '${late.length} late payments in',
-                style: style(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            TextSpan(
+              text: ' · ',
+              style: onest(12, color: Mid.ink3),
+            ),
+            TextSpan(
+              text: text,
+              style: onest(12, color: Mid.gold, tabular: true).copyWith(
+                decoration: h ? TextDecoration.underline : null,
+                decorationColor: Mid.gold,
               ),
             ),
-            Text(
-              one
-                  ? ' due ${shortDate(late.single.date)} isn’t counted'
-                  : ' aren’t counted',
-              style: style(),
-              maxLines: 1,
-            ),
           ],
-        );
-      },
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }
@@ -476,7 +476,7 @@ class ForecastPanel extends StatelessWidget {
             ),
             if (late.isNotEmpty)
               Flexible(
-                child: _LateNote(late: late, onOpen: onOpen),
+                child: _LateNote(late: late, today: f.start, onOpen: onOpen),
               ),
           ],
         ),

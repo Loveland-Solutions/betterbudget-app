@@ -1235,15 +1235,42 @@ void main() {
       expect(alone.end, DateTime(2026, 10, 16));
       expect(alone.isShort, isTrue);
 
-      // Income dated today isn't late: it's payday.
+      // Salary due today waits too: on payday morning it may still be late,
+      // and rent in four days must still show.
       final dueToday = row(today, 250000000, 'Salary', income: true);
       final onPayday = buildForecast(
         working: 38200000,
         today: today,
-        scheduled: [dueToday, rent],
+        scheduled: [dueToday, rent, nextSalary],
       );
-      expect(onPayday.late, isEmpty);
-      expect(onPayday.payday, same(dueToday));
+      expect(onPayday.late, [dueToday]);
+      expect(onPayday.payday, same(nextSalary));
+      expect(onPayday.steps.map((s) => s.row), [rent]);
+
+      // A late transfer in from savings is the user's own doing: it counts,
+      // as due today, the same as on the savings side.
+      final lateTransfer = RegisterRow(
+        txnId: 99,
+        entryId: 99,
+        date: DateTime(2026, 9, 12),
+        payee: 'Khan Savings',
+        memo: '',
+        amount: 100000000,
+        cleared: Cleared.uncleared,
+        scheduled: true,
+        kind: RowKind.transfer,
+        categoryLabel: 'Transfer',
+        categoryId: null,
+        splitLines: const [],
+      );
+      final moved = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [lateTransfer, rent],
+      );
+      expect(moved.late, isEmpty);
+      expect(moved.steps.first.date, today);
+      expect(moved.inTotal, 100000000);
 
       // A card doesn't warn, so a late payment to it still counts.
       final card = buildForecast(

@@ -49,10 +49,11 @@ class Forecast {
   /// account, refunds. Late money in isn't in it (see [late]).
   final int inTotal;
 
-  /// Money in past its date and not confirmed (a late salary, a transfer
-  /// that didn't come): left out until it arrives, so a forecast never leans
-  /// on money that may be late again. Bills past their date still count, as
-  /// due today.
+  /// Money in due today or earlier and not confirmed (a late salary, a
+  /// refund that hasn't come): left out until it arrives, so a forecast never
+  /// leans on money that may be late again. Bills past their date still
+  /// count, as due today, and so do transfers between the user's own
+  /// accounts, which count on both sides.
   final List<RegisterRow> late;
 
   final bool owed;
@@ -86,11 +87,18 @@ Forecast buildForecast({
   // Overdue bills still have to be paid; treat them as due today.
   DateTime when(RegisterRow r) => r.date.isBefore(start) ? start : r.date;
 
-  // Late money in isn't counted until it's confirmed. (On a card, owing is
+  // Money in due today or earlier isn't counted until it's confirmed: a
+  // salary on payday morning may still be late. A transfer is the user's
+  // own doing and counts on both sides, as due today. (On a card, owing is
   // never a warning, so a late payment still counts.)
   final late = <RegisterRow>[], counted = <RegisterRow>[];
   for (final r in scheduled) {
-    (!owed && r.amount > 0 && r.date.isBefore(start) ? late : counted).add(r);
+    final waiting =
+        !owed &&
+        r.amount > 0 &&
+        r.kind != RowKind.transfer &&
+        !r.date.isAfter(start);
+    (waiting ? late : counted).add(r);
   }
 
   // A card has no payday: it looks 30 days out. A late salary isn't payday:
