@@ -36,12 +36,15 @@ class RegisterActions {
     required this.onBulkCleared,
     required this.onBulkDelete,
     required this.onClearSelection,
+    required this.onEditSelected,
+    required this.onCancelEdit,
   });
 
   final ValueChanged<RegisterFilter> onFilter;
 
-  /// [order] is the visible row order, for Shift-click ranges.
-  final void Function(int txnId, List<int> order) onRowTap;
+  /// [order] is the visible row order, for Shift-click ranges. [field] is the
+  /// cell clicked, so a double-click opens the editor with the cursor there.
+  final void Function(int txnId, List<int> order, EditField field) onRowTap;
   final ValueChanged<RegisterRow> onToggleCleared;
   final ValueChanged<RegisterRow> onConfirm;
   final void Function(RegisterRow row, AccountInfo category) onSetCategory;
@@ -49,7 +52,16 @@ class RegisterActions {
   final ValueChanged<Cleared> onBulkCleared;
   final VoidCallback onBulkDelete;
   final VoidCallback onClearSelection;
+  final VoidCallback onEditSelected;
+  final VoidCallback onCancelEdit;
 }
+
+/// The transaction open for editing, if any.
+typedef RegisterEditing = ({
+  int txnId,
+  EditField focus,
+  EntryRowController controller,
+});
 
 class RegisterPanel extends StatelessWidget {
   const RegisterPanel({
@@ -65,8 +77,10 @@ class RegisterPanel extends StatelessWidget {
     required this.entryController,
     required this.today,
     required this.actions,
+    this.editing,
   });
 
+  final RegisterEditing? editing;
   final List<RegisterRow> posted;
   final List<RegisterRow> scheduled;
   final RegisterFilter filter;
@@ -118,36 +132,53 @@ class RegisterPanel extends StatelessWidget {
       if (showNext) visibleScheduled.first.txnId,
       if (!showScheduled) ...visiblePosted.map((r) => r.txnId),
     ];
-    void tap(int id) => actions.onRowTap(id, order);
+    void tap(int id, [EditField field = EditField.payee]) =>
+        actions.onRowTap(id, order, field);
+
+    Widget? editor(RegisterRow r) {
+      final e = editing;
+      if (e == null || e.txnId != r.txnId) return null;
+      return EntryRow(
+        key: ValueKey('edit-${r.txnId}'),
+        controller: e.controller,
+        categories: categories,
+        transferTargets: transferTargets,
+        today: today,
+        initial: EditInitial.fromRow(r, focus: e.focus),
+        onCancel: actions.onCancelEdit,
+      );
+    }
 
     final children = <Widget>[];
     if (showScheduled) {
       if (visibleScheduled.isEmpty) children.add(_empty('Nothing scheduled'));
       for (final r in visibleScheduled) {
         children.add(
-          _ScheduledRow(
-            row: r,
-            onConfirm: () => actions.onConfirm(r),
-            extra: null,
-            selected: selection.contains(r.txnId),
-            onTap: () => tap(r.txnId),
-          ),
+          editor(r) ??
+              _ScheduledRow(
+                row: r,
+                onConfirm: () => actions.onConfirm(r),
+                extra: null,
+                selected: selection.contains(r.txnId),
+                onTap: () => tap(r.txnId),
+              ),
         );
       }
     } else {
       if (showNext) {
         final next = visibleScheduled.first;
         children.add(
-          _ScheduledRow(
-            row: next,
-            onConfirm: () => actions.onConfirm(next),
-            extra: visibleScheduled.length > 1
-                ? 'next of ${visibleScheduled.length} scheduled'
-                : 'scheduled',
-            onMore: () => actions.onFilter(RegisterFilter.scheduled),
-            selected: selection.contains(next.txnId),
-            onTap: () => tap(next.txnId),
-          ),
+          editor(next) ??
+              _ScheduledRow(
+                row: next,
+                onConfirm: () => actions.onConfirm(next),
+                extra: visibleScheduled.length > 1
+                    ? 'next of ${visibleScheduled.length} scheduled'
+                    : 'scheduled',
+                onMore: () => actions.onFilter(RegisterFilter.scheduled),
+                selected: selection.contains(next.txnId),
+                onTap: () => tap(next.txnId),
+              ),
         );
       }
       if (visiblePosted.isEmpty) {
@@ -159,15 +190,16 @@ class RegisterPanel extends StatelessWidget {
       }
       for (final r in visiblePosted) {
         children.add(
-          _PostedRow(
-            row: r,
-            selected: selection.contains(r.txnId),
-            onTap: () => tap(r.txnId),
-            onToggleCleared: () => actions.onToggleCleared(r),
-            categories: categories,
-            onSetCategory: (c) => actions.onSetCategory(r, c),
-            hoveredStatus: hoveredStatus,
-          ),
+          editor(r) ??
+              _PostedRow(
+                row: r,
+                selected: selection.contains(r.txnId),
+                onTap: (field) => tap(r.txnId, field),
+                onToggleCleared: () => actions.onToggleCleared(r),
+                categories: categories,
+                onSetCategory: (c) => actions.onSetCategory(r, c),
+                hoveredStatus: hoveredStatus,
+              ),
         );
       }
     }
@@ -361,6 +393,12 @@ class _BulkBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+        if (count == 1)
+          _BarButton(
+            label: 'Edit',
+            leading: const Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
+            onTap: actions.onEditSelected,
+          ),
         CategoryMenu(
           categories: categories,
           onPicked: actions.onBulkCategorize,
@@ -389,7 +427,7 @@ class _BulkBar extends StatelessWidget {
         const Spacer(),
         Text(
           count == 1
-              ? '$mod-click or Shift-click to select more · Esc to clear'
+              ? 'Double-click or Enter to edit · $mod-click to select more'
               : 'Esc to clear',
           style: onest(12, color: Mid.ink3),
         ),
@@ -516,7 +554,9 @@ class _PostedRow extends StatelessWidget {
 
   final RegisterRow row;
   final bool selected;
-  final VoidCallback onTap;
+
+  /// Which cell was clicked, so a double-click edits that field.
+  final ValueChanged<EditField> onTap;
   final VoidCallback onToggleCleared;
   final List<AccountInfo> categories;
   final ValueChanged<AccountInfo> onSetCategory;
@@ -531,9 +571,9 @@ class _PostedRow extends StatelessWidget {
               .join(' · ')
         : r.memo;
     final statusTip = switch (r.cleared) {
-      Cleared.uncleared =>
-        'Uncleared — the bank hasn’t posted it. Click when it has.',
-      Cleared.cleared => 'Cleared — the bank has posted it. Click to undo.',
+      Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+      Cleared.cleared =>
+        'Cleared — settled at the bank. Click to mark uncleared.',
       Cleared.reconciled => 'Reconciled — matched to a statement and locked.',
     };
 
@@ -547,7 +587,7 @@ class _PostedRow extends StatelessWidget {
       child: Padding(
         padding: Cols.outer,
         child: Hoverable(
-          onTap: onTap,
+          onTap: () => onTap(EditField.payee),
           builder: (hover) => Container(
             height: 52,
             padding: Cols.inset,
@@ -592,8 +632,9 @@ class _PostedRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: Cols.gap),
-                SizedBox(
+                _Cell(
                   width: Cols.date,
+                  onTap: () => onTap(EditField.date),
                   child: Text(
                     fullDate(r.date),
                     style: onest(13, color: Mid.ink3, tabular: true),
@@ -637,11 +678,14 @@ class _PostedRow extends StatelessWidget {
                       ),
                       if (memo.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text(
-                          memo,
-                          style: onest(12.5, color: Mid.ink3),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        GestureDetector(
+                          onTap: () => onTap(EditField.memo),
+                          child: Text(
+                            memo,
+                            style: onest(12.5, color: Mid.ink3),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ],
@@ -673,8 +717,9 @@ class _PostedRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: Cols.gap),
-                SizedBox(
+                _Cell(
                   width: Cols.amount,
+                  onTap: () => onTap(EditField.amount),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: r.amount > 0
@@ -1023,4 +1068,24 @@ class _DashedBorder extends CustomPainter {
 
   @override
   bool shouldRepaint(_DashedBorder old) => old.color != color;
+}
+
+/// A register cell that reports its own click, so a double-click can open the
+/// editor on the matching field.
+class _Cell extends StatelessWidget {
+  const _Cell({required this.width, required this.onTap, required this.child});
+  final double width;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: SizedBox(
+      width: width,
+      height: 52,
+      child: Align(alignment: Alignment.centerLeft, child: child),
+    ),
+  );
 }

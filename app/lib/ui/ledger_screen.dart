@@ -18,6 +18,10 @@ bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
     defaultTargetPlatform == TargetPlatform.iOS;
 
+/// Top-level sections. Budget and Savings are placeholders; "Savings" is a
+/// working name until the section is defined.
+enum AppSection { ledger, budget, savings }
+
 class LedgerScreen extends StatefulWidget {
   const LedgerScreen({super.key, required this.db, this.clock = DateTime.now});
 
@@ -30,6 +34,7 @@ class LedgerScreen extends StatefulWidget {
 
 class _LedgerScreenState extends State<LedgerScreen> {
   late final Stream<LedgerData> _ledger;
+  var _section = AppSection.ledger;
   int? _accountId;
   var _selection = <int>{};
   int? _anchor;
@@ -37,8 +42,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
   final _hoveredStatus = ValueNotifier<Cleared?>(null);
   final _search = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'search');
+
+  /// Holds keyboard focus for the register, so row shortcuts reach [_onKey].
+  final _registerFocus = FocusNode(debugLabel: 'register');
   late final EntryRowController _entry;
   ({String message, VoidCallback? undo})? _toast;
+
+  /// The transaction open in the inline editor, if any.
+  RegisterEditing? _editing;
+
+  /// Last row click, to recognise a double-click without delaying single ones.
+  ({int id, DateTime at})? _lastTap;
   Timer? _toastTimer;
 
   /// Rows of the current account, by transaction id, from the latest build.
@@ -62,6 +76,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void dispose() {
     _search.dispose();
     _searchFocus.dispose();
+    _registerFocus.dispose();
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
@@ -75,8 +90,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         date: d.date,
         today: today,
         payee: d.payee,
-        counterAccountId: d.counter.id,
-        amount: d.amount,
+        // The new-transaction row always supplies both.
+        counterAccountId: d.counter!.id,
+        amount: d.amount!,
       );
       _entry.payeeNames = await db.payeeNames();
       if (d.date.isAfter(today)) {
@@ -108,18 +124,86 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  /// True while a text field has focus. The focus node's own widget is the
+  /// Focus inside EditableText, so look up the tree rather than at it.
   bool get _typing {
-    final f = FocusManager.instance.primaryFocus;
-    return f != null && f.context?.widget is EditableText;
+    final context = FocusManager.instance.primaryFocus?.context;
+    return context != null &&
+        (context.widget is EditableText ||
+            context.findAncestorWidgetOfExactType<EditableText>() != null);
+  }
+
+  /// Single keys that act on selected rows. They must never be claimed while
+  /// typing: returning `ignored` passes the key on to the text field.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final keys = HardwareKeyboard.instance;
+    if (_typing ||
+        keys.isMetaPressed ||
+        keys.isControlPressed ||
+        keys.isAltPressed) {
+      return KeyEventResult.ignored;
+    }
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.delete || LogicalKeyboardKey.backspace:
+        if (_selection.isEmpty) return KeyEventResult.ignored;
+        _bulkDelete();
+      // C: cleared if anything selected is uncleared, otherwise uncleared.
+      case LogicalKeyboardKey.keyC:
+        if (_selection.isEmpty || event is KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        final anyUncleared = _selection.any(
+          (id) => _rows[id]?.cleared == Cleared.uncleared,
+        );
+        _bulkCleared(anyUncleared ? Cleared.cleared : Cleared.uncleared);
+      case LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter:
+        if (_selection.length != 1 || _editing != null) {
+          return KeyEventResult.ignored;
+        }
+        _startEdit(_selection.single, EditField.payee);
+      case LogicalKeyboardKey.escape:
+        if (_selection.isEmpty) return KeyEventResult.ignored;
+        _clearSelection();
+      default:
+        return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
   }
 
   String _plural(int n, String one) => n == 1 ? '1 $one' : '$n ${one}s';
 
   // ---------- selection ----------
 
-  void _tapRow(int id, List<int> order) {
+  void _tapRow(int id, List<int> order, EditField field) {
     final keys = HardwareKeyboard.instance;
     final toggle = _isMac ? keys.isMetaPressed : keys.isControlPressed;
+    final plain = !toggle && !keys.isShiftPressed;
+
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showToast('Save with Enter, or press Esc to discard your changes');
+        return;
+      }
+      _cancelEdit();
+    }
+
+    final now = DateTime.now();
+    final last = _lastTap;
+    if (plain &&
+        last != null &&
+        last.id == id &&
+        now.difference(last.at) < const Duration(milliseconds: 450)) {
+      _lastTap = null;
+      _startEdit(id, field);
+      return;
+    }
+    _lastTap = (id: id, at: now);
+
+    // Clicking a row leaves any text field, so Delete and C act on rows.
+    _registerFocus.requestFocus();
     setState(() {
       if (keys.isShiftPressed && _anchor != null && order.contains(_anchor)) {
         final a = order.indexOf(_anchor!), b = order.indexOf(id);
@@ -144,6 +228,75 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _selection = {};
     _anchor = null;
   });
+
+  void _newEntry() {
+    if (_section == AppSection.ledger) return _entry.focus();
+    setState(() => _section = AppSection.ledger);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _entry.focus());
+  }
+
+  // ---------- editing ----------
+
+  void _startEdit(int id, EditField field) {
+    final row = _rows[id];
+    if (row == null) return;
+    if (row.cleared == Cleared.reconciled) {
+      _showToast(
+        'Reconciled transactions are locked · they match a bank statement',
+      );
+      return;
+    }
+    final controller = EntryRowController(
+      onSubmit: (draft) => _saveEdit(row, draft),
+      suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
+    )..payeeNames = _entry.payeeNames;
+    setState(() {
+      _editing = (txnId: id, focus: field, controller: controller);
+      _selection = {id};
+      _anchor = id;
+    });
+  }
+
+  void _cancelEdit() {
+    final editing = _editing;
+    if (editing == null) return;
+    setState(() => _editing = null);
+    _registerFocus.requestFocus();
+    // The row's widgets still hold the focus node until this frame ends.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => editing.controller.payeeFocus.dispose(),
+    );
+  }
+
+  Future<String?> _saveEdit(RegisterRow row, EntryDraft d) async {
+    final before = await db.snapshot(row.txnId);
+    try {
+      await db.editTransaction(
+        transactionId: row.txnId,
+        accountId: _accountId!,
+        date: d.date,
+        today: today,
+        payee: d.payee,
+        memo: d.memo,
+        counterAccountId: d.counter?.id,
+        amount: d.amount,
+      );
+    } on LockedException catch (e) {
+      return e.message;
+    } catch (e) {
+      return 'Couldn’t save: $e';
+    }
+    _entry.payeeNames = await db.payeeNames();
+    _cancelEdit();
+    final nowScheduled = !row.scheduled && d.date.isAfter(today);
+    _showToast(
+      nowScheduled
+          ? 'Moved to ${fullDate(d.date)} · now scheduled, out of balances until confirmed'
+          : 'Changes saved',
+      undo: () => db.restoreSnapshot(before),
+    );
+    return null;
+  }
 
   // ---------- actions ----------
 
@@ -206,31 +359,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _bulkDelete() async {
-    final ids = _selection.toList();
-    if (ids.isEmpty) return;
-    await db.softDeleteMany(ids);
-    _clearSelection();
+    final selected = _selection.toList();
+    if (selected.isEmpty) return;
+    final ids = await db.softDeleteMany(selected);
+    final locked = selected.length - ids.length;
+    if (ids.isNotEmpty) _clearSelection();
     _showToast(
-      '${_plural(ids.length, 'transaction')} deleted',
-      undo: () async {
-        await db.restoreMany(ids);
-        if (mounted) setState(() => _selection = ids.toSet());
-      },
+      [
+        ids.isEmpty
+            ? 'Reconciled transactions are locked · they match a bank statement'
+            : '${_plural(ids.length, 'transaction')} deleted',
+        if (ids.isNotEmpty && locked > 0) '$locked reconciled left locked',
+      ].join(' · '),
+      undo: ids.isEmpty
+          ? null
+          : () async {
+              await db.restoreMany(ids);
+              if (mounted) setState(() => _selection = selected.toSet());
+            },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    void unlessTyping(VoidCallback f) {
-      if (!_typing) f();
-    }
-
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyN, meta: true):
-            _entry.focus,
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true): _newEntry,
         const SingleActivator(LogicalKeyboardKey.keyN, control: true):
-            _entry.focus,
+            _newEntry,
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
             _searchFocus.requestFocus,
         const SingleActivator(LogicalKeyboardKey.keyK, control: true):
@@ -239,22 +395,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
             _searchFocus.requestFocus,
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
             _searchFocus.requestFocus,
-        const SingleActivator(LogicalKeyboardKey.delete): () =>
-            unlessTyping(_bulkDelete),
-        const SingleActivator(LogicalKeyboardKey.backspace): () =>
-            unlessTyping(_bulkDelete),
-        // C: cleared if anything selected is uncleared, otherwise uncleared.
-        const SingleActivator(LogicalKeyboardKey.keyC): () => unlessTyping(() {
-          if (_selection.isEmpty) return;
-          final anyUncleared = _selection.any(
-            (id) => _rows[id]?.cleared == Cleared.uncleared,
-          );
-          _bulkCleared(anyUncleared ? Cleared.cleared : Cleared.uncleared);
-        }),
-        const SingleActivator(LogicalKeyboardKey.escape): _clearSelection,
       },
       child: Focus(
+        focusNode: _registerFocus,
         autofocus: true,
+        onKeyEvent: _onKey,
         child: Scaffold(
           body: StreamBuilder<LedgerData>(
             stream: _ledger,
@@ -289,14 +434,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     children: [
                       _Sidebar(
                         data: data,
+                        section: _section,
+                        onSection: (sec) => setState(() {
+                          _section = sec;
+                          _selection = {};
+                          _anchor = null;
+                          _editing = null;
+                        }),
                         selected: account.id,
                         onSelect: (id) => setState(() {
+                          _section = AppSection.ledger;
                           _accountId = id;
                           _selection = {};
                           _anchor = null;
                         }),
                       ),
-                      Expanded(child: _body(data, account)),
+                      Expanded(
+                        child: _section == AppSection.ledger
+                            ? _body(data, account)
+                            : _PlaceholderSection(section: _section),
+                      ),
                     ],
                   ),
                   if (_toast != null)
@@ -321,6 +478,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     };
     // Drop selected rows that no longer exist (deleted, other account).
     _selection = _selection.where(_rows.containsKey).toSet();
+    if (_editing != null && !_rows.containsKey(_editing!.txnId)) {
+      _editing = null;
+    }
     final forecast = buildForecast(
       working: summary.working,
       today: today,
@@ -388,6 +548,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               filter: _filter,
               search: _search.text,
               selection: _selection,
+              editing: _editing,
               hoveredStatus: _hoveredStatus,
               categories: data.categories,
               transferTargets: data.balanceSheetAccounts
@@ -407,15 +568,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         : '${r.payee} confirmed · ${formatMoney(r.amount)}',
                   );
                 },
-                onSetCategory: (r, c) => db.setCategory(
-                  transactionId: r.txnId,
-                  accountId: account.id,
-                  categoryId: c.id,
-                ),
+                onSetCategory: (r, c) async {
+                  final previous = await db.setCategoryMany(
+                    transactionIds: [r.txnId],
+                    accountId: account.id,
+                    categoryId: c.id,
+                  );
+                  if (previous.isEmpty) return;
+                  _showToast(
+                    '${r.payee} → ${c.name}',
+                    undo: () => db.restoreCategories(previous, account.id),
+                  );
+                },
                 onBulkCategorize: _bulkCategorize,
                 onBulkCleared: _bulkCleared,
                 onBulkDelete: _bulkDelete,
                 onClearSelection: _clearSelection,
+                onEditSelected: () {
+                  if (_selection.length == 1) {
+                    _startEdit(_selection.single, EditField.payee);
+                  }
+                },
+                onCancelEdit: _cancelEdit,
               ),
             ),
           ),
@@ -425,13 +599,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 }
 
+/// One sidebar: the section you're in expands, the others collapse to a line.
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.data,
+    required this.section,
+    required this.onSection,
     required this.selected,
     required this.onSelect,
   });
   final LedgerData data;
+  final AppSection section;
+  final ValueChanged<AppSection> onSection;
   final int selected;
   final ValueChanged<int> onSelect;
 
@@ -444,6 +623,19 @@ class _Sidebar extends StatelessWidget {
     }
     final net = accounts.fold(0, (s, a) => s + data.balanceOf(a.id));
 
+    Widget header(
+      AppSection sec,
+      IconData icon,
+      String label, {
+      bool later = false,
+    }) => _SectionHeader(
+      icon: icon,
+      label: label,
+      expanded: section == sec,
+      later: later,
+      onTap: () => onSection(sec),
+    );
+
     return Container(
       width: 240,
       decoration: const BoxDecoration(
@@ -454,7 +646,7 @@ class _Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
             child: Row(
               children: [
                 const Diamond(),
@@ -466,20 +658,48 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          for (final g in groups.entries) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Text(g.key, style: onest(12, color: Mid.ink3)),
-            ),
-            for (final a in g.value)
-              _AccountTile(
-                account: a,
-                balance: data.balanceOf(a.id),
-                active: a.id == selected,
-                onTap: () => onSelect(a.id),
-              ),
-            const SizedBox(height: 20),
-          ],
+          header(
+            AppSection.ledger,
+            Icons.format_list_bulleted_rounded,
+            'Ledger',
+          ),
+          _Spill(
+            open: section == AppSection.ledger,
+            children: [
+              const SizedBox(height: 10),
+              for (final g in groups.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
+                  child: Text(g.key, style: onest(12, color: Mid.ink3)),
+                ),
+                for (final a in g.value)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 26),
+                    child: _AccountTile(
+                      account: a,
+                      balance: data.balanceOf(a.id),
+                      active: a.id == selected,
+                      onTap: () => onSelect(a.id),
+                    ),
+                  ),
+                const SizedBox(height: 14),
+              ],
+            ],
+          ),
+          const SizedBox(height: 2),
+          header(
+            AppSection.budget,
+            Icons.pie_chart_outline_rounded,
+            'Budget',
+            later: true,
+          ),
+          const SizedBox(height: 2),
+          header(
+            AppSection.savings,
+            Icons.savings_outlined,
+            'Savings',
+            later: true,
+          ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
@@ -497,6 +717,176 @@ class _Sidebar extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatefulWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.label,
+    required this.expanded,
+    required this.later,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool expanded;
+
+  /// A placeholder section that isn't built yet.
+  final bool later;
+  final VoidCallback onTap;
+
+  @override
+  State<_SectionHeader> createState() => _SectionHeaderState();
+}
+
+class _SectionHeaderState extends State<_SectionHeader> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = widget.expanded;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: _hover && !on ? Mid.hover : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 16, color: on ? Mid.blue : Mid.ink3),
+              const SizedBox(width: 10),
+              Text(
+                widget.label,
+                style: onest(
+                  14,
+                  weight: on ? 600 : 500,
+                  color: on ? Mid.ink : Mid.ink2,
+                ),
+              ),
+              const Spacer(),
+              if (widget.later)
+                Text('Later', style: onest(11.5, color: Mid.ink3)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A section's contents: opening makes room smoothly while the children
+/// spill down one after another; closing plays it back quicker.
+class _Spill extends StatefulWidget {
+  const _Spill({required this.open, required this.children});
+  final bool open;
+  final List<Widget> children;
+
+  static const openTime = Duration(milliseconds: 360);
+  static const closeTime = Duration(milliseconds: 200);
+
+  @override
+  State<_Spill> createState() => _SpillState();
+}
+
+class _SpillState extends State<_Spill> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: _Spill.openTime,
+    reverseDuration: _Spill.closeTime,
+    value: widget.open ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_Spill old) {
+    super.didUpdateWidget(old);
+    if (old.open == widget.open) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.value = widget.open ? 1 : 0;
+    } else if (widget.open) {
+      _c.forward();
+    } else {
+      _c.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        if (_c.isDismissed) return const SizedBox.shrink();
+        final n = widget.children.length;
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.topCenter,
+            heightFactor: Curves.easeOutCubic.transform(_c.value),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < n; i++)
+                  _item(widget.children[i], i / n * 0.55),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Each child fades in and drops a few pixels into place, starting a
+  /// little after the one above it.
+  Widget _item(Widget child, double start) {
+    final t = Curves.easeOut.transform(
+      ((_c.value - start) / 0.45).clamp(0.0, 1.0),
+    );
+    if (t == 1) return child;
+    return Opacity(
+      opacity: t,
+      child: Transform.translate(offset: Offset(0, -8 * (1 - t)), child: child),
+    );
+  }
+}
+
+/// Stands in for Budget and Savings until they're designed.
+class _PlaceholderSection extends StatelessWidget {
+  const _PlaceholderSection({required this.section});
+  final AppSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, name) = switch (section) {
+      AppSection.budget => (Icons.pie_chart_outline_rounded, 'Budget'),
+      _ => (Icons.savings_outlined, 'Savings'),
+    };
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 32, color: Mid.ink3),
+          const SizedBox(height: 14),
+          Text(name, style: onest(22, weight: 600, letterSpacing: -0.3)),
+          const SizedBox(height: 6),
+          Text(
+            'Not built yet. The ledger comes first.',
+            style: onest(14, color: Mid.ink3),
           ),
         ],
       ),

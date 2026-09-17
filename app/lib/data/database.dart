@@ -70,6 +70,20 @@ class UnbalancedTransactionException implements Exception {
   String toString() => 'Transaction $transactionId sums to $sum, not 0';
 }
 
+class LockedException implements Exception {
+  LockedException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+/// Everything needed to put a transaction back exactly as it was (undo).
+class TxnSnapshot {
+  const TxnSnapshot(this.header, this.entries);
+  final TransactionRow header;
+  final List<EntryRow> entries;
+}
+
 class NotFoundException implements Exception {
   NotFoundException(this.message);
   final String message;
@@ -384,10 +398,30 @@ class AppDatabase extends _$AppDatabase {
         }
       });
 
-  Future<void> softDeleteMany(Iterable<int> transactionIds) =>
-      (update(transactions)..where((t) => t.id.isIn(transactionIds))).write(
-        TransactionsCompanion(deletedAt: Value(_now)),
-      );
+  /// Soft deletes many transactions. Reconciled ones are locked, so they are
+  /// skipped. Returns the ids actually deleted, for undo.
+  Future<List<int>> softDeleteMany(Iterable<int> transactionIds) =>
+      transaction(() async {
+        final locked = await _reconciledAmong(transactionIds);
+        final ids = transactionIds.where((id) => !locked.contains(id)).toList();
+        await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+          TransactionsCompanion(deletedAt: Value(_now)),
+        );
+        return ids;
+      });
+
+  /// Transactions with any reconciled entry: they match a bank statement.
+  Future<Set<int>> _reconciledAmong(Iterable<int> transactionIds) async {
+    final rows =
+        await (selectOnly(entries)
+              ..addColumns([entries.transactionId])
+              ..where(
+                entries.transactionId.isIn(transactionIds) &
+                    entries.cleared.equalsValue(Cleared.reconciled),
+              ))
+            .get();
+    return {for (final r in rows) r.read(entries.transactionId)!};
+  }
 
   Future<void> restoreMany(Iterable<int> transactionIds) =>
       (update(transactions)..where((t) => t.id.isIn(transactionIds))).write(
@@ -414,11 +448,110 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  /// Soft delete: nothing disappears until purged, which makes undo trivial.
-  Future<void> softDelete(int transactionId) =>
-      (update(transactions)..where((t) => t.id.equals(transactionId))).write(
-        TransactionsCompanion(deletedAt: Value(_now)),
+  Future<TxnSnapshot> snapshot(int transactionId) async => TxnSnapshot(
+    await (select(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).getSingle(),
+    await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(transactionId))).get(),
+  );
+
+  Future<void> restoreSnapshot(TxnSnapshot s) => transaction(() async {
+    await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
+      TransactionsCompanion(
+        date: Value(s.header.date),
+        payeeId: Value(s.header.payeeId),
+        memo: Value(s.header.memo),
+        scheduled: Value(s.header.scheduled),
+        deletedAt: Value(s.header.deletedAt),
+        updatedAt: Value(_now),
+      ),
+    );
+    for (final e in s.entries) {
+      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+        EntriesCompanion(
+          accountId: Value(e.accountId),
+          amountMinor: Value(e.amountMinor),
+          cleared: Value(e.cleared),
+        ),
       );
+    }
+    await _assertBalanced(s.header.id);
+  });
+
+  /// Edits a transaction as seen from [accountId]'s register.
+  ///
+  /// Date, payee and memo always apply. [amount] (signed, from [accountId]'s
+  /// side) and [counterAccountId] apply only to two-entry transactions; a
+  /// split keeps its lines. Reconciled transactions are locked. A posted
+  /// transaction moved into the future becomes scheduled.
+  Future<void> editTransaction({
+    required int transactionId,
+    required int accountId,
+    required DateTime date,
+    required DateTime today,
+    String? payee,
+    String? memo,
+    int? counterAccountId,
+    int? amount,
+  }) {
+    return transaction(() async {
+      final header = await (select(
+        transactions,
+      )..where((t) => t.id.equals(transactionId))).getSingle();
+      final rows = await (select(
+        entries,
+      )..where((e) => e.transactionId.equals(transactionId))).get();
+      final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
+      if (mine == null) throw NotFoundException('Not in this account');
+      if (mine.cleared == Cleared.reconciled) {
+        throw LockedException('Reconciled transactions are locked');
+      }
+
+      await (update(
+        transactions,
+      )..where((t) => t.id.equals(transactionId))).write(
+        TransactionsCompanion(
+          date: Value(dateKey(date)),
+          payeeId: Value(await _payeeId(payee)),
+          memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
+          scheduled: Value(
+            header.scheduled || dateOnly(date).isAfter(dateOnly(today)),
+          ),
+          updatedAt: Value(_now),
+        ),
+      );
+
+      if (amount != null || counterAccountId != null) {
+        final others = rows.where((e) => e.id != mine.id).toList();
+        if (others.length != 1) {
+          throw NotFoundException('Split lines can’t be edited yet');
+        }
+        final newAmount = amount ?? mine.amountMinor;
+        await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+          EntriesCompanion(amountMinor: Value(newAmount)),
+        );
+        await (update(
+          entries,
+        )..where((e) => e.id.equals(others.single.id))).write(
+          EntriesCompanion(
+            accountId: Value(counterAccountId ?? others.single.accountId),
+            amountMinor: Value(-newAmount),
+          ),
+        );
+      }
+      await _assertBalanced(transactionId);
+    });
+  }
+
+  /// Soft delete: nothing disappears until purged, which makes undo trivial.
+  /// Reconciled transactions are locked and throw [LockedException].
+  Future<void> softDelete(int transactionId) async {
+    if (await softDeleteMany([transactionId]) case []) {
+      throw LockedException('Reconciled transactions are locked');
+    }
+  }
 
   Future<void> restore(int transactionId) =>
       (update(transactions)..where((t) => t.id.equals(transactionId))).write(

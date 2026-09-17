@@ -98,6 +98,7 @@ class RegisterRow {
     required this.categoryLabel,
     required this.categoryId,
     required this.splitLines,
+    this.txnPayee,
     this.balance = 0,
   });
 
@@ -115,6 +116,10 @@ class RegisterRow {
   /// Set only for simple rows, where the category can be edited inline.
   final int? categoryId;
   final List<({String name, int amount})> splitLines;
+
+  /// The payee as stored. [payee] is what the row shows, which for a
+  /// transfer is the other account.
+  final String? txnPayee;
   final int balance;
 
   bool get isIncome => kind == RowKind.simple && amount > 0;
@@ -132,6 +137,7 @@ class RegisterRow {
     categoryLabel: categoryLabel,
     categoryId: categoryId,
     splitLines: splitLines,
+    txnPayee: txnPayee,
     balance: b,
   );
 }
@@ -140,23 +146,19 @@ class AccountSummary {
   const AccountSummary({
     required this.working,
     required this.cleared,
-    required this.reconciled,
     this.unclearedCount = 0,
     this.reconciledOn,
-    this.bankDataThrough,
   });
 
   final int working;
   final int cleared;
-  final int reconciled;
   final int unclearedCount;
 
-  /// What the bank hasn't seen yet: why working and cleared differ.
+  /// Not settled at the bank yet: why working and cleared differ.
   int get uncleared => working - cleared;
-  final DateTime? reconciledOn;
 
-  /// Latest date of any cleared entry: how current the cleared number is.
-  final DateTime? bankDataThrough;
+  /// Date of the last statement reconciled against.
+  final DateTime? reconciledOn;
 }
 
 class LedgerData {
@@ -190,8 +192,7 @@ class LedgerData {
   }
 
   AccountSummary summaryFor(int accountId) {
-    var working = 0, cleared = 0, reconciled = 0, unclearedCount = 0;
-    DateTime? through;
+    var working = 0, cleared = 0, unclearedCount = 0;
     for (final t in txns) {
       if (t.scheduled) continue;
       for (final e in t.entries.where((e) => e.accountId == accountId)) {
@@ -199,9 +200,7 @@ class LedgerData {
         if (e.cleared == Cleared.uncleared) unclearedCount++;
         if (e.cleared != Cleared.uncleared) {
           cleared += e.amount;
-          if (through == null || t.date.isAfter(through)) through = t.date;
         }
-        if (e.cleared == Cleared.reconciled) reconciled += e.amount;
       }
     }
     final recs = reconciliations.where((r) => r.accountId == accountId).toList()
@@ -209,10 +208,8 @@ class LedgerData {
     return AccountSummary(
       working: working,
       cleared: cleared,
-      reconciled: reconciled,
       unclearedCount: unclearedCount,
       reconciledOn: recs.isEmpty ? null : recs.last.statementDate,
-      bankDataThrough: through,
     );
   }
 
@@ -288,6 +285,7 @@ class LedgerData {
       categoryLabel: label,
       categoryId: categoryId,
       splitLines: lines,
+      txnPayee: t.payee,
     );
   }
 }

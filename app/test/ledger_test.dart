@@ -35,9 +35,7 @@ void main() {
     final s = (await db.loadLedger()).summaryFor(checking);
     expect(s.working, 418245000);
     expect(s.cleared, 429885000);
-    expect(s.reconciled, 514198050);
     expect(s.reconciledOn, DateTime(2026, 9, 10));
-    expect(s.bankDataThrough, DateTime(2026, 9, 15));
   });
 
   test('register: running balance, transfers and splits', () async {
@@ -184,6 +182,22 @@ void main() {
     },
   );
 
+  test('delete skips reconciled transactions', () async {
+    final reg = (await db.loadLedger()).registerFor(checking).posted;
+    final unitel = reg.firstWhere((r) => r.payee == 'Unitel');
+    final salary = reg.firstWhere((r) => r.payee == 'Altan Gadas LLC');
+    expect(await db.softDeleteMany([unitel.txnId, salary.txnId]), [
+      unitel.txnId,
+    ]);
+    await expectLater(
+      db.softDelete(salary.txnId),
+      throwsA(isA<LockedException>()),
+    );
+    final left = (await db.loadLedger()).registerFor(checking).posted;
+    expect(left.map((r) => r.payee), contains('Altan Gadas LLC'));
+    expect(left.map((r) => r.payee), isNot(contains('Unitel')));
+  });
+
   test('bulk delete and restore', () async {
     final ids = (await db.loadLedger())
         .registerFor(checking)
@@ -212,6 +226,98 @@ void main() {
       posted.firstWhere((r) => r.txnId == salary.txnId).date,
       DateTime(2026, 10, 10),
     );
+  });
+
+  group('editing', () {
+    Future<RegisterRow> row(String payee) async => (await db.loadLedger())
+        .registerFor(checking)
+        .posted
+        .firstWhere((r) => r.payee == payee);
+
+    test('changes every field of a simple transaction, and undoes', () async {
+      final unitel = await row('Unitel');
+      final before = await db.snapshot(unitel.txnId);
+      await db.editTransaction(
+        transactionId: unitel.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 15),
+        today: today,
+        payee: 'Mobicom',
+        memo: 'Prepaid',
+        counterAccountId: await categoryId('Utilities'),
+        amount: -3500000,
+      );
+      final edited = await row('Mobicom');
+      expect(edited.date, DateTime(2026, 9, 15));
+      expect(edited.memo, 'Prepaid');
+      expect(edited.categoryLabel, 'Utilities');
+      expect(
+        (await db.loadLedger()).summaryFor(checking).working,
+        418245000 - 500000,
+      );
+
+      await db.restoreSnapshot(before);
+      final restored = await row('Unitel');
+      expect(restored.amount, -3000000);
+      expect(restored.categoryLabel, 'Phone & internet');
+    });
+
+    test('a split keeps its lines when only its header changes', () async {
+      final split = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.kind == RowKind.split);
+      await db.editTransaction(
+        transactionId: split.txnId,
+        accountId: checking,
+        date: split.date,
+        today: today,
+        payee: 'Nomin',
+        memo: 'Weekly shop',
+      );
+      final after = await row('Nomin');
+      expect(after.splitLines.length, 2);
+      expect(after.amount, -8640000);
+      await expectLater(
+        db.editTransaction(
+          transactionId: split.txnId,
+          accountId: checking,
+          date: split.date,
+          today: today,
+          payee: 'Nomin',
+          amount: -1,
+        ),
+        throwsA(isA<NotFoundException>()),
+      );
+    });
+
+    test('reconciled transactions are locked', () async {
+      final salary = await row('Altan Gadas LLC');
+      await expectLater(
+        db.editTransaction(
+          transactionId: salary.txnId,
+          accountId: checking,
+          date: salary.date,
+          today: today,
+          payee: 'X',
+          amount: 1,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+    });
+
+    test('moving a posted transaction into the future schedules it', () async {
+      final coffee = await row('Sakura Coffee');
+      await db.editTransaction(
+        transactionId: coffee.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 30),
+        today: today,
+        payee: 'Sakura Coffee',
+      );
+      final reg = (await db.loadLedger()).registerFor(checking);
+      expect(reg.scheduled.any((r) => r.txnId == coffee.txnId), isTrue);
+    });
   });
 
   group('forecast', () {
