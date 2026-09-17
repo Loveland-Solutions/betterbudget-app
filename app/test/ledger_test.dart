@@ -925,6 +925,65 @@ void main() {
     },
   );
 
+  test(
+    'money in confirmed short can keep the rest owed; bills never',
+    () async {
+      Future<RegisterRow> scheduled(String payee) async =>
+          (await db.loadLedger())
+              .registerFor(checking)
+              .scheduled
+              .firstWhere((r) => r.payee == payee);
+      final salary = await scheduled('Altan Gadas LLC'); // +₮2,500,000, 10.10
+      final owedId = await db.editTransaction(
+        transactionId: salary.txnId,
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: salary.payee,
+        memo: salary.memo,
+        amount: 125000000,
+        confirm: true,
+        keepOwed: true,
+      );
+      expect(owedId, isNotNull);
+      final ledger = await db.loadLedger();
+      final owed = ledger
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == owedId);
+      expect(owed.amount, 125000000);
+      expect(owed.date, DateTime(2026, 10, 10));
+      expect(owed.categoryLabel, 'Salary');
+      expect(owed.payee, 'Altan Gadas LLC');
+      expect(owed.memo, salary.memo);
+      expect(
+        ledger
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.txnId == salary.txnId)
+            .amount,
+        125000000,
+      );
+      expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+
+      // A bill that came in lower owes nothing more, even if asked.
+      final rent = await scheduled('Zaisan Residence');
+      expect(
+        await db.editTransaction(
+          transactionId: rent.txnId,
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: rent.payee,
+          amount: -170000000,
+          confirm: true,
+          keepOwed: true,
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('old uncleared and overdue scheduled rows get a note', () {
     RegisterRow row(
       DateTime date, {

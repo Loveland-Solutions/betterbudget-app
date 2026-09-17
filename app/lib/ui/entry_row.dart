@@ -15,7 +15,12 @@ class EntryDraft {
     required this.counter,
     required this.amount,
     this.memo,
+    this.keepOwed = false,
   });
+
+  /// Confirming money in that came short: keep the rest scheduled as still
+  /// owed.
+  final bool keepOwed;
   final DateTime date;
   final String payee;
 
@@ -57,6 +62,7 @@ class EditInitial {
   }) : date = confirmingOn != null && r.date.isAfter(confirmingOn)
            ? confirmingOn
            : r.date,
+       plannedDate = r.date,
        confirming = confirmingOn != null,
        payee = r.kind == RowKind.simple ? r.payee : (r.txnPayee ?? ''),
        memo = r.memo,
@@ -93,6 +99,9 @@ class EditInitial {
 
   /// Saving confirms a scheduled transaction.
   final bool confirming;
+
+  /// The scheduled date, where anything still owed stays.
+  final DateTime plannedDate;
 }
 
 /// `09.16`, `9.16`, `2026.09.16` or `2026-09-16`. Null when not a real date.
@@ -183,6 +192,10 @@ class _EntryRowState extends State<EntryRow> {
   final _amountFocus = FocusNode(debugLabel: 'entry-amount');
   String? _error;
   bool _busy = false;
+
+  /// Confirming short money in: the rest is still owed (the default) or it
+  /// was paid in full.
+  bool _keepOwed = true;
   bool _active = false;
 
   FocusNode get _payeeFocus => widget.controller.payeeFocus;
@@ -282,6 +295,29 @@ class _EntryRowState extends State<EntryRow> {
     return amount == null
         ? 'From $from to $to'
         : '${formatMoney(amount.abs())} from $from to $to';
+  }
+
+  /// Confirming money in below plan: how much is missing. Null otherwise, and
+  /// never for bills (one that came in lower owes nothing more).
+  int? get _shortBy {
+    final initial = _initial;
+    if (initial == null ||
+        !initial.confirming ||
+        initial.lockAmount ||
+        initial.amount <= 0) {
+      return null;
+    }
+    final raw = _amount.text.trim();
+    final parsed = parseAmount(raw.replaceFirst(RegExp(r'^\+'), ''));
+    final counter = _counterOptions
+        .where(
+          (o) => o.label.toLowerCase() == _category.text.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    final inflow =
+        raw.startsWith('+') || counter?.account.type == AccountType.income;
+    if (parsed == null || parsed <= 0 || !inflow) return null;
+    return parsed < initial.amount ? initial.amount - parsed : null;
   }
 
   /// Turns a transfer around: the `+` that means money in comes or goes.
@@ -428,6 +464,7 @@ class _EntryRowState extends State<EntryRow> {
             ? null
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
+        keepOwed: _shortBy != null && _keepOwed,
       ),
     );
     if (!mounted) return;
@@ -497,6 +534,7 @@ class _EntryRowState extends State<EntryRow> {
     final initial = _initial;
     final lit = _active || _editing;
     final transferLine = _transferLine;
+    final shortBy = _shortBy;
 
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
@@ -691,6 +729,13 @@ class _EntryRowState extends State<EntryRow> {
                         ),
                       ],
                     ),
+                    if (shortBy != null)
+                      _OwedLine(
+                        short: shortBy,
+                        due: initial!.plannedDate,
+                        keep: _keepOwed,
+                        onChanged: (v) => setState(() => _keepOwed = v),
+                      ),
                     if (transferLine != null)
                       _TransferLine(
                         text: transferLine,
@@ -704,6 +749,81 @@ class _EntryRowState extends State<EntryRow> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Money in confirmed short: is the rest still owed? Under the category and
+/// amount, level with the memo line, only while it applies. "Still owed"
+/// is chosen, so a forgotten remainder stays visible.
+class _OwedLine extends StatelessWidget {
+  const _OwedLine({
+    required this.short,
+    required this.due,
+    required this.keep,
+    required this.onChanged,
+  });
+  final int short;
+  final DateTime due;
+  final bool keep;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget choice(String label, bool value, Key key) {
+      final on = keep == value;
+      return InkWell(
+        key: key,
+        onTap: () => onChanged(value),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                on
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 14,
+                color: on ? Mid.blue : Mid.ink3,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: onest(
+                  12.5,
+                  color: on ? Mid.ink : Mid.ink2,
+                  tabular: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      key: const ValueKey('owed-line'),
+      width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
+      height: 30,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(left: 10),
+      child: Row(
+        children: [
+          Text(
+            '${formatMoney(short, showCents: short % 100 != 0)} less than planned:',
+            style: onest(12.5, color: Mid.ink2, tabular: true),
+          ),
+          const SizedBox(width: 6),
+          choice(
+            'Still owed, due ${shortDate(due)}',
+            true,
+            const ValueKey('owed-keep'),
+          ),
+          choice('Paid in full', false, const ValueKey('owed-full')),
+        ],
       ),
     );
   }

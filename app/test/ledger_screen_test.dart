@@ -1607,6 +1607,83 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a salary confirmed short keeps the rest owed, undone as one', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Scheduled'));
+    await tester.pumpAndSettle();
+
+    // A bill that came in lower asks nothing.
+    await tester.tap(find.text('Confirm').first);
+    await tester.pump();
+    await tester.pump();
+    tester.testTextInput.enterText('1700000');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('owed-line')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // The salary (last scheduled) came in at half.
+    await tester.tap(find.text('Confirm').last);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('owed-line')), findsNothing); // as planned
+    tester.testTextInput.enterText('1250000');
+    await tester.pump();
+    expect(find.text('₮1,250,000 less than planned:'), findsOneWidget);
+    expect(find.text('Still owed, due 10.10'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_short.png'),
+    );
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.text(
+        'Altan Gadas LLC confirmed early · ₮1,250,000 · ₮1,250,000 still owed, due 10.10 · posted today, 09.16',
+      ),
+      findsOneWidget,
+    );
+    Future<List<int>> salaries() async => (await tester.runAsync(
+      () async => [
+        for (final r in (await db.loadLedger()).registerFor(1).scheduled)
+          if (r.payee == 'Altan Gadas LLC') r.amount,
+      ],
+    ))!;
+    expect(await salaries(), [125000000]);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(await salaries(), [250000000]);
+
+    // Paid in full: nothing kept.
+    await tester.tap(find.text('Confirm').last);
+    await tester.pump();
+    await tester.pump();
+    tester.testTextInput.enterText('2400000');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('owed-full')));
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Confirm').last);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.textContaining('₮2,400,000, planned ₮2,500,000'),
+      findsOneWidget,
+    );
+    expect(await salaries(), isEmpty);
+    await tidy(tester, db);
+  });
+
   testWidgets('a future bill turns the forecast into a warning', (
     tester,
   ) async {

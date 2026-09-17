@@ -202,6 +202,21 @@ be quietly undone.
     Rejected: posting at once with "Change amount" in the toast (B), easy to miss for
     bills that usually vary, and marking some scheduled items "amount varies" (C), a
     setting to maintain.
+    **Money in confirmed short can stay owed** (owner's call, after a committee of three:
+    household money, design, ledger integrity). When a salary, refund or transfer in is
+    confirmed below plan, a line under the amount reads "₮1,250,000 less than planned:
+    (•) Still owed, due 10.10 ( ) Paid in full". **Still owed is chosen**, so Enter keeps
+    the rest scheduled on the planned date (same payee, memo and other side) in the same
+    write. Past that date it's late, so rule 2 leaves it out of the forecast and names
+    it. A remainder nobody wanted is visible and one Delete away; a forgotten one would
+    vanish. The toast says "· ₮1,250,000 still owed, due 10.10", and one Undo puts back
+    the single planned row. Bills never see the line: one that came in lower owes
+    nothing more. Wording was the owner's pick ("Rest still coming" was disliked;
+    rejected: "Expect the rest / That's all", "Keep ₮X scheduled / Drop it"). Rejected
+    designs: a toast action (toasts are missed), keeping the rest automatically (varying
+    income would leave a remainder every month), "Paid in full" as the default (a
+    forgotten remainder disappears), and waiting for recurring schedules (they make next
+    month's salary, not this month's shortfall).
 11. **A future-dated manual entry is scheduled**, not posted. It shows in the forecast
     and in Scheduled but in no balance until confirmed. The same applies when an edit
     moves a posted transaction into the future.
