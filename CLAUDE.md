@@ -24,7 +24,9 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   balance above the header sum, "latest cleared" date (noise), a reconciled amount (only
   the date matters), a sidebar layout (option A chosen), Delete removing reconciled
   rows, a chevron on sidebar sections (it promised a toggle), an always-visible blank
-  entry row, a "+ for money in" hint, and multi-select (not wanted yet).
+  entry row, a "+ for money in" hint, multi-select (not wanted yet), a toast on
+  every cleared-symbol click (toasts are for saved changes; ⌘Z undoes anything), and
+  an income name under the forecast's end date (both ends show plain dates).
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.
@@ -39,8 +41,22 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
   `dart run build_runner build`), plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
-  (state, selection, row actions, toasts), `balance_header.dart` (key and forecast),
-  `register.dart` (rows, row action bar, category menu), `entry_row.dart`.
+  (state, selection, row actions, toasts), `balance_header.dart` (key, forecast chart and bill list),
+  `register.dart` (rows, row action bar, category menu), `entry_row.dart`
+  (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel).
+  `ledger_screen.dart` also holds the session undo/redo history (`_did`, `_undo`,
+  `_redoLast`): every new action must record both an undo and a redo.
+
+## Two review passes before wrapping a feature or page
+
+Run both before calling a feature or page done (owner's rule), and bring the findings to
+the owner rather than fixing everything silently:
+
+1. **Code review** by the `code-reviewer` agent (`.claude/agents/code-reviewer.md`):
+   correctness, data integrity, the unbreakable rules, tests.
+2. **Budget app review** by the `budget-app-expert` agent
+   (`.claude/agents/budget-app-expert.md`): does it hold up for someone actually
+   managing money in Mongolia? It flags gaps without copying other apps' conventions.
 
 ## Checks before handing work back
 
