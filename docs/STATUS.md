@@ -11,9 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** `main` has everything through PR #5. Branch `ledger-findings-f-n`
-holds findings H, I, K, M and N plus fixes from their review passes (see Next step);
-not merged yet. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #6, findings F–N, backups and
+Settings) and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -154,12 +153,16 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Ready to merge** `ledger-findings-f-n` (owner's go-ahead pending). The owner chose
-option A for G (notes on old rows) and L (Confirm opens the bill to check its amount);
-ADR 0004 rules 10 and 20. Settings gear labelled "Settings" (owner's request). Fixed
-from the review passes on G and L: an overdue bill confirms on its due date again (it
-had silently moved to today); the amount opens selected after its `+`; day counts no
-longer lose a day across daylight saving; the unused `confirmScheduled` is gone.
+**Nothing in flight.** PR #6 merged 2026-09-17. Next: ask the owner. Open decisions
+are listed just below (late salary in the forecast, a better "not cleared" note,
+duplicate on confirm, several overdue bills), then the backup items further down, the
+tabled list, and search and sorting on the roadmap.
+
+**PR #6 (merged):** the owner chose option A for G (notes on old rows) and L (Confirm
+opens the bill to check its amount); ADR 0004 rules 10 and 20. Settings gear labelled
+"Settings" (owner's request). Fixed from the review passes on G and L: an overdue bill
+confirms on its due date; the amount opens selected after its `+`; day counts don't
+lose a day across daylight saving; the unused `confirmScheduled` is gone.
 
 **Raised by the G and L reviews, for the owner to decide:**
 - **A late salary cuts the forecast off at today** (existed before): payday overdue
@@ -179,7 +182,7 @@ longer lose a day across daylight saving; the unused `confirmScheduled` is gone.
   aren't editable yet).
 - For recurring (tabled): keep the planned amount on the schedule, not the last actual.
 
-**Branch `ledger-findings-f-n` (2026-09-17):** the owner said "do it" to H, I, K and
+**Also in PR #6 (2026-09-17):** the owner said "do it" to H, I, K and
 "fix it" to M and N. 87 tests, analyze clean, checked in the macOS app (its first
 daily copy was made from the owner's file). ADR 0004 rules 17–19.
 
