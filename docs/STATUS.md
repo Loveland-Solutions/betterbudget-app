@@ -11,9 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything through the forecast dots is merged to `main` (PR #3).
-Reconcile, undo/redo and the review fixes are on branch `ledger-reconcile-and-undo`,
-**PR #4, open and not merged yet**. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main`, most recently reconcile, undo/redo and
+the review fixes (PR #4). Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -144,10 +143,10 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**PR #4 is open** (`ledger-reconcile-and-undo`): reconcile, taking reconciles back,
-transfer locks, session undo/redo, the forecast bill list, and fixes from the two
-review passes. `flutter analyze` is clean, all 60 tests pass, and it runs in the macOS app.
-Merge it once the owner is happy.
+**PR #4 is merged**: reconcile, taking reconciles back, transfer locks, session
+undo/redo, the forecast bill list, and fixes from the two review passes. `flutter
+analyze` is clean, all 60 tests pass, and it runs in the macOS app. The transactions
+page is wrapped apart from the logged findings below, which the owner will pick from.
 
 ⌘Z and ⌘⇧Z reach the app: the macOS Edit menu's Undo and Redo stay disabled (no
 responder handles them), and ⌘Z undid typing in the entry row. Undoing a register
