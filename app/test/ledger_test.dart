@@ -303,10 +303,11 @@ void main() {
           Object? error;
           try {
             await db.transaction(() async {
+              // Moving the date is what a lock refuses.
               await db.editTransaction(
                 transactionId: r.txnId,
                 accountId: account.id,
-                date: r.date,
+                date: r.date.subtract(const Duration(days: 1)),
                 today: today,
                 payee: r.txnPayee,
                 memo: r.memo,
@@ -397,7 +398,17 @@ void main() {
       expect(row.amount, -3000000);
       expect(row.cleared, Cleared.cleared);
 
-      final after = await db.snapshot(unitel.txnId);
+      await db.editTransaction(
+        transactionId: unitel.txnId,
+        accountId: checking,
+        date: unitel.date,
+        today: today,
+        payee: 'Mobicom',
+        amount: -3500000,
+      );
+      final edited = await db.snapshot(unitel.txnId);
+      await db.restoreSnapshot(before);
+      final original = await db.snapshot(unitel.txnId);
       await db.reconcile(
         accountId: checking,
         statementDate: today,
@@ -406,17 +417,132 @@ void main() {
             .clearedThrough(checking, today)
             .balance,
       );
+      // Reconciled: an amount can't come back, but a payee can.
       await expectLater(
-        db.restoreSnapshot(after),
+        db.restoreSnapshot(edited),
         throwsA(isA<LockedException>()),
       );
+      await db.editTransaction(
+        transactionId: unitel.txnId,
+        accountId: checking,
+        date: unitel.date,
+        today: today,
+        payee: 'Unitel LLC',
+      );
+      await db.restoreSnapshot(original);
       row = (await db.loadLedger())
           .registerFor(checking)
           .posted
           .firstWhere((r) => r.txnId == unitel.txnId);
       expect(row.cleared, Cleared.reconciled);
+      expect(row.payee, 'Unitel');
+      expect(row.amount, -3000000);
     },
   );
+
+  test('the off-by hint names the one row that explains it', () async {
+    var data = await db.loadLedger();
+    final unitel = data
+        .registerFor(checking)
+        .posted
+        .firstWhere((r) => r.payee == 'Unitel');
+    // The bank is ₮30,000 lower: Unitel cleared there.
+    var hint = data.reconcileHint(checking, today, unitel.amount);
+    expect(hint?.txnId, unitel.txnId);
+    expect(hint?.cause, ReconcileCause.notCleared);
+    // Nothing that size: no guess.
+    expect(data.reconcileHint(checking, today, 123), isNull);
+
+    // Sakura Coffee cleared here but not at the bank: the bank is higher.
+    final coffee = data
+        .registerFor(checking)
+        .posted
+        .firstWhere((r) => r.payee == 'Sakura Coffee');
+    hint = data.reconcileHint(checking, today, -coffee.amount);
+    expect(hint?.cause, ReconcileCause.clearedEarly);
+
+    // A cleared row dated after the statement date isn't counted.
+    final through = coffee.date.subtract(const Duration(days: 1));
+    data = await db.loadLedger();
+    hint = data.reconcileHint(checking, through, coffee.amount);
+    expect(hint?.cause, ReconcileCause.datedAfter);
+  });
+
+  test('the cleared balance runs over cleared rows only', () async {
+    final data = await db.loadLedger();
+    final posted = data.registerFor(checking).posted;
+    expect(
+      posted.last.clearedBalance,
+      data.clearedThrough(checking, today).balance,
+    );
+    final unitel = posted.firstWhere((r) => r.payee == 'Unitel');
+    final i = posted.indexOf(unitel);
+    expect(unitel.clearedBalance, posted[i - 1].clearedBalance);
+  });
+
+  test('an adjustment makes a reconcile match, and undoes with it', () async {
+    var data = await db.loadLedger();
+    final cleared = data.clearedThrough(checking, today);
+    final done = await db.reconcile(
+      accountId: checking,
+      statementDate: today,
+      today: today,
+      balance: cleared.balance - 3000,
+      adjust: true,
+    );
+    expect(done.adjustmentTxnId, isNotNull);
+    expect(done.entryIds, hasLength(cleared.toLock + 1));
+    data = await db.loadLedger();
+    final adjustment = data
+        .registerFor(checking)
+        .posted
+        .firstWhere((r) => r.txnId == done.adjustmentTxnId);
+    expect(adjustment.payee, 'Reconcile adjustment');
+    expect(adjustment.amount, -3000);
+    expect(adjustment.cleared, Cleared.reconciled);
+    // Not spending: it sits against an equity account, not a category.
+    expect(adjustment.kind, RowKind.opening);
+    expect(adjustment.categoryLabel, 'Balance adjustments');
+    expect(
+      data.categories.map((c) => c.name),
+      isNot(contains('Balance adjustments')),
+    );
+    expect(
+      data.clearedThrough(checking, today).balance,
+      cleared.balance - 3000,
+    );
+
+    await db.unreconcile(done);
+    data = await db.loadLedger();
+    expect(
+      data
+          .registerFor(checking)
+          .posted
+          .where((r) => r.txnId == done.adjustmentTxnId),
+      isEmpty,
+    );
+    expect(data.clearedThrough(checking, today).balance, cleared.balance);
+
+    await db.relock(done);
+    data = await db.loadLedger();
+    expect(data.summaryFor(checking).reconciledOn, today);
+    expect(
+      data.clearedThrough(checking, today).balance,
+      cleared.balance - 3000,
+    );
+
+    // Without adjust, the same statement is still refused.
+    await db.unreconcile(done);
+    await expectLater(
+      db.reconcile(
+        accountId: checking,
+        statementDate: today,
+        today: today,
+        balance: cleared.balance - 3000,
+      ),
+      throwsA(isA<ReconcileMismatchException>()),
+    );
+  });
 
   test('payee remembers its last category', () async {
     expect(
@@ -582,20 +708,46 @@ void main() {
       );
     });
 
-    test('reconciled transactions are locked', () async {
-      final salary = await row('Altan Gadas LLC');
-      await expectLater(
-        db.editTransaction(
+    test(
+      'reconciled: date, amount and account locked; the rest edits',
+      () async {
+        final salary = await row('Altan Gadas LLC');
+        Future<void> edit({
+          DateTime? date,
+          int? amount,
+          int? counter,
+          String payee = 'Altan Gadas',
+        }) => db.editTransaction(
           transactionId: salary.txnId,
           accountId: checking,
-          date: salary.date,
+          date: date ?? salary.date,
           today: today,
-          payee: 'X',
-          amount: 1,
-        ),
-        throwsA(isA<LockedException>()),
-      );
-    });
+          payee: payee,
+          memo: 'Цалин 9-р сар',
+          amount: amount,
+          counterAccountId: counter,
+        );
+        final savings = (await db.loadLedger()).balanceSheetAccounts
+            .firstWhere((a) => a.name == 'Khan Savings')
+            .id;
+        for (final refused in [
+          () => edit(amount: salary.amount + 100),
+          () => edit(date: salary.date.subtract(const Duration(days: 1))),
+          () => edit(counter: savings), // would become a transfer
+        ]) {
+          await expectLater(refused(), throwsA(isA<LockedException>()));
+        }
+
+        // Payee, memo and category aren't on a statement.
+        final gifts = await categoryId('Gifts');
+        await edit(amount: salary.amount, counter: gifts);
+        final after = await row('Altan Gadas');
+        expect(after.memo, 'Цалин 9-р сар');
+        expect(after.categoryLabel, 'Gifts');
+        expect(after.amount, salary.amount);
+        expect(after.cleared, Cleared.reconciled);
+      },
+    );
 
     test('moving a posted transaction into the future schedules it', () async {
       final coffee = await row('Sakura Coffee');
@@ -652,6 +804,65 @@ void main() {
       expect(f.shortNow, isTrue);
       expect(f.firstShort, DateTime(2026, 9, 16));
       expect(f.low, -500);
+    });
+
+    test(
+      'a scheduled transfer in lifts the line; only income ends it',
+      () async {
+        final savings = (await db.loadLedger()).balanceSheetAccounts
+            .firstWhere((a) => a.name == 'Khan Savings')
+            .id;
+        // Money moved in from savings before rent, and a small refund.
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 19),
+          today: today,
+          payee: '',
+          counterAccountId: savings,
+          amount: 100000000,
+        );
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 18),
+          today: today,
+          payee: 'E-Mart',
+          counterAccountId: await categoryId('Groceries'),
+          amount: 500000,
+        );
+        final f = await forecast();
+        // The refund isn't payday: the forecast still runs to the salary.
+        expect(f.end, DateTime(2026, 10, 10));
+        expect(f.payday!.payee, 'Altan Gadas LLC');
+        expect(f.inTotal, 100500000);
+        expect(f.billCount, 3);
+        expect(f.low, 139225000 + 100500000);
+        expect(f.steps.map((s) => s.row.amount > 0), [
+          true,
+          true,
+          false,
+          false,
+          false,
+        ]);
+      },
+    );
+
+    test('a card forecasts what will be owed, never a shortfall', () async {
+      final data = await db.loadLedger();
+      final visa = data.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+      final f = buildForecast(
+        working: data.summaryFor(visa).working,
+        today: today,
+        scheduled: data.registerFor(visa).scheduled,
+        owed: true,
+      );
+      expect(f.owed, isTrue);
+      expect(f.payday, isNull);
+      expect(f.isShort, isFalse);
+      expect(f.startBalance, 64020000); // owed, positive
+      expect(f.inTotal, 64020000); // the scheduled payment
+      expect(f.endBalance, 0);
     });
 
     test('no scheduled income falls back to a 30 day horizon', () {

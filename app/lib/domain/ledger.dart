@@ -32,6 +32,10 @@ class AccountInfo {
   /// Accounts the user holds money in, as opposed to categories.
   bool get isBalanceSheet =>
       type == AccountType.asset || type == AccountType.liability;
+
+  /// A credit account: what's owed reads as a positive amount, the way the
+  /// bank shows it, and owing is never a warning.
+  bool get isOwed => type == AccountType.liability;
   bool get isCategory =>
       type == AccountType.income || type == AccountType.expense;
 }
@@ -108,7 +112,9 @@ class RegisterRow {
     this.lockedIn,
     this.reconciledOn,
     this.latestReconcile = false,
+    this.incomeCategory = false,
     this.balance = 0,
+    this.clearedBalance = 0,
   });
 
   final int txnId;
@@ -139,14 +145,24 @@ class RegisterRow {
 
   /// Locked by the account's most recent reconcile, which can be taken back.
   final bool latestReconcile;
+
+  /// The category is an income category (Salary), not a refund or transfer.
+  final bool incomeCategory;
   final int balance;
 
-  /// Can't be edited or deleted, from either side.
+  /// Running total of cleared and reconciled rows only, in date order: what a
+  /// statement's running balance should read after this row.
+  final int clearedBalance;
+
+  /// Matches a bank statement: its date, amount and accounts can't change and
+  /// it can't be deleted, from either side. Payee, memo and category still
+  /// can, since a statement doesn't confirm them.
   bool get locked => cleared == Cleared.reconciled || lockedIn != null;
 
-  bool get isIncome => kind == RowKind.simple && amount > 0;
+  /// Income that ends a forecast: money in, filed under an income category.
+  bool get isIncome => kind == RowKind.simple && amount > 0 && incomeCategory;
 
-  RegisterRow withBalance(int b) => RegisterRow(
+  RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
     txnId: txnId,
     entryId: entryId,
     date: date,
@@ -163,9 +179,20 @@ class RegisterRow {
     lockedIn: lockedIn,
     reconciledOn: reconciledOn,
     latestReconcile: latestReconcile,
+    incomeCategory: incomeCategory,
     balance: b,
+    clearedBalance: clearedTotal,
   );
 }
+
+enum ReconcileCause { notCleared, datedAfter, clearedEarly }
+
+typedef ReconcileHint = ({
+  int txnId,
+  DateTime date,
+  String payee,
+  ReconcileCause cause,
+});
 
 class AccountSummary {
   const AccountSummary({
@@ -280,6 +307,44 @@ class LedgerData {
     return (balance: balance, toLock: toLock);
   }
 
+  /// A likely cause when a statement is [off] (statement minus cleared) from
+  /// the rows cleared through [through]: one row whose amount is exactly the
+  /// difference. Null when nothing matches, or when several do.
+  ReconcileHint? reconcileHint(int accountId, DateTime through, int off) {
+    if (off == 0) return null;
+    final end = dateOnly(through);
+    final found = <ReconcileHint>[];
+    for (final t in txns) {
+      if (t.scheduled) continue;
+      for (final e in t.entries.where((e) => e.accountId == accountId)) {
+        final after = t.date.isAfter(end);
+        final ReconcileCause? cause = switch (e.cleared) {
+          // Clearing it would close the gap.
+          Cleared.uncleared when !after && e.amount == off =>
+            ReconcileCause.notCleared,
+          // Cleared, but dated after the statement, so not counted.
+          Cleared.cleared when after && e.amount == off =>
+            ReconcileCause.datedAfter,
+          // Cleared here, but not at the bank yet (or entered twice).
+          Cleared.cleared when !after && e.amount == -off =>
+            ReconcileCause.clearedEarly,
+          _ => null,
+        };
+        if (cause != null) {
+          found.add((
+            txnId: t.id,
+            date: t.date,
+            payee: _rowPayee(t, e),
+            cause: cause,
+          ));
+        }
+      }
+    }
+    return found.length == 1 ? found.single : null;
+  }
+
+  String _rowPayee(TxnData t, EntryData e) => _row(t, e).payee;
+
   /// Posted rows oldest first with running balances, and scheduled rows
   /// soonest first (their balance is projected on from the working balance).
   ({List<RegisterRow> posted, List<RegisterRow> scheduled}) registerFor(
@@ -299,8 +364,14 @@ class LedgerData {
 
     posted.sort(byDate);
     scheduled.sort(byDate);
-    var bal = 0;
-    final withBal = [for (final r in posted) r.withBalance(bal += r.amount)];
+    var bal = 0, clr = 0;
+    final withBal = [
+      for (final r in posted)
+        r.withBalance(
+          bal += r.amount,
+          clearedTotal: r.cleared == Cleared.uncleared ? clr : clr += r.amount,
+        ),
+    ];
     final projected = [
       for (final r in scheduled) r.withBalance(bal += r.amount),
     ];
@@ -312,6 +383,7 @@ class LedgerData {
     var kind = RowKind.simple;
     var payee = t.payee ?? '';
     var label = '';
+    var incomeCategory = false;
     int? categoryId;
     var lines = <({String name, int amount})>[];
 
@@ -328,6 +400,7 @@ class LedgerData {
       } else {
         label = other.name;
         categoryId = other.id;
+        incomeCategory = other.type == AccountType.income;
       }
     } else {
       kind = RowKind.split;
@@ -360,6 +433,7 @@ class LedgerData {
       categoryId: categoryId,
       splitLines: lines,
       txnPayee: t.payee,
+      incomeCategory: incomeCategory,
       lockedIn: e.cleared == Cleared.reconciled
           ? null
           : others

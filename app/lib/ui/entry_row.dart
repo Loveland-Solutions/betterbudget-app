@@ -55,8 +55,15 @@ class EditInitial {
         _ => r.categoryLabel,
       },
       amount = r.amount,
-      lockCategory = r.kind == RowKind.split || r.kind == RowKind.opening,
-      lockAmount = r.kind == RowKind.split,
+      locked = r.locked,
+      lockDate = r.locked,
+      // A reconciled transfer can't move to another account; a reconciled
+      // simple row can still change category.
+      lockCategory =
+          r.kind == RowKind.split ||
+          r.kind == RowKind.opening ||
+          (r.locked && r.kind == RowKind.transfer),
+      lockAmount = r.kind == RowKind.split || r.locked,
       payeeOptional = r.kind != RowKind.simple;
 
   final DateTime date;
@@ -64,6 +71,11 @@ class EditInitial {
   final String memo;
   final String category;
   final int amount;
+
+  /// Reconciled (here or on a transfer's other side): the date and amount
+  /// match a bank statement.
+  final bool locked;
+  final bool lockDate;
   final bool lockCategory;
   final bool lockAmount;
   final bool payeeOptional;
@@ -187,7 +199,7 @@ class _EntryRowState extends State<EntryRow> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final (node, ctrl) = switch (_initial!.focus) {
-          EditField.date => (_dateFocus, _date),
+          EditField.date when !_initial.lockDate => (_dateFocus, _date),
           EditField.memo => (_memoFocus, _memo),
           EditField.category when !_initial.lockCategory => (
             _categoryFocus,
@@ -394,6 +406,9 @@ class _EntryRowState extends State<EntryRow> {
     );
   }
 
+  static const _reconciledTip =
+      'Reconciled · this matches a bank statement, so it can’t change';
+
   Widget _locked(String text, {String? tip}) => Tooltip(
     message: tip ?? '',
     child: Container(
@@ -459,17 +474,19 @@ class _EntryRowState extends State<EntryRow> {
                 const SizedBox(width: Cols.gap),
                 SizedBox(
                   width: Cols.date,
-                  child: FocusTraversalOrder(
-                    order: const NumericFocusOrder(1),
-                    child: DateField(
-                      controller: _date,
-                      focusNode: _dateFocus,
-                      today: widget.today,
-                      wanted: _wants('date'),
-                      onSubmitted: _submit,
-                      onPicked: _payeeFocus.requestFocus,
-                    ),
-                  ),
+                  child: initial != null && initial.lockDate
+                      ? _locked(fullDate(initial.date), tip: _reconciledTip)
+                      : FocusTraversalOrder(
+                          order: const NumericFocusOrder(1),
+                          child: DateField(
+                            controller: _date,
+                            focusNode: _dateFocus,
+                            today: widget.today,
+                            wanted: _wants('date'),
+                            onSubmitted: _submit,
+                            onPicked: _payeeFocus.requestFocus,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: Cols.gap),
                 Expanded(
@@ -523,7 +540,10 @@ class _EntryRowState extends State<EntryRow> {
                   child: initial != null && initial.lockCategory
                       ? _locked(
                           initial.category,
-                          tip: 'Editing split lines isn’t built yet',
+                          tip:
+                              initial.locked && initial.category.startsWith('→')
+                              ? _reconciledTip
+                              : 'Editing split lines isn’t built yet',
                         )
                       : FocusTraversalOrder(
                           order: const NumericFocusOrder(3),
@@ -553,8 +573,13 @@ class _EntryRowState extends State<EntryRow> {
                       ? Align(
                           alignment: Alignment.centerRight,
                           child: _locked(
-                            formatMoney(initial.amount),
-                            tip: 'A split’s total follows its lines',
+                            // As the register shows it: out plain, in with +.
+                            initial.amount > 0
+                                ? '+${formatMoney(initial.amount)}'
+                                : formatMoney(initial.amount.abs()),
+                            tip: initial.locked
+                                ? _reconciledTip
+                                : 'A split’s total follows its lines',
                           ),
                         )
                       : FocusTraversalOrder(

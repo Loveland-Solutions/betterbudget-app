@@ -13,11 +13,10 @@ class ReconcileSession {
     required this.accountId,
     required this.owed,
     required DateTime today,
-    required int clearedToday,
   }) : date = TextEditingController(text: fullDate(today)),
-       balance = TextEditingController(
-         text: _editable(owed ? -clearedToday : clearedToday),
-       );
+       // Empty, never the cleared total: a reconcile is only worth anything
+       // because the number was read off the bank's statement.
+       balance = TextEditingController();
 
   final int accountId;
 
@@ -40,12 +39,6 @@ class ReconcileSession {
     dateFocus.dispose();
     balanceFocus.dispose();
   }
-
-  static String _editable(int minor) {
-    final cents = minor.abs() % 100;
-    return '${minor < 0 ? '-' : ''}${minor.abs() ~/ 100}'
-        '${cents == 0 ? '' : '.${cents.toString().padLeft(2, '0')}'}';
-  }
 }
 
 /// Where a reconcile stands for the typed date and balance.
@@ -55,6 +48,9 @@ typedef ReconcileCheck = ({
   int? statement,
   int cleared,
   int toLock,
+
+  /// One row that would explain the difference, if exactly one does.
+  ReconcileHint? hint,
 });
 
 /// Replaces the balance sum in the header while reconciling: the statement
@@ -67,6 +63,7 @@ class ReconcilePanel extends StatelessWidget {
     required this.today,
     required this.check,
     required this.onLock,
+    required this.onAdjust,
     required this.onCancel,
   });
 
@@ -74,6 +71,9 @@ class ReconcilePanel extends StatelessWidget {
   final DateTime today;
   final ReconcileCheck Function() check;
   final VoidCallback onLock;
+
+  /// Posts the difference as an adjustment, then locks.
+  final VoidCallback onAdjust;
   final VoidCallback onCancel;
 
   static const _label = 128.0, _amount = 200.0;
@@ -91,8 +91,10 @@ class ReconcilePanel extends StatelessWidget {
               ? null
               : c.statement! - c.cleared;
           final ready = off == 0 && c.dateProblem == null;
+          final canAdjust = off != null && off != 0 && c.dateProblem == null;
           // Shown the way the bank shows it.
           int bank(int v) => s.owed ? -v : v;
+          String money(int v) => formatMoney(v, showCents: v % 100 != 0);
 
           Widget line(String label, Widget value, {Widget? note}) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
@@ -191,7 +193,11 @@ class ReconcilePanel extends StatelessWidget {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: c.statement == null
+                        // Coral only for something typed that isn't a number;
+                        // empty is simply the next thing to fill in.
+                        borderSide:
+                            c.statement == null &&
+                                s.balance.text.trim().isNotEmpty
                             ? BorderSide(
                                 color: Mid.coral.withValues(alpha: 0.6),
                               )
@@ -207,6 +213,16 @@ class ReconcilePanel extends StatelessWidget {
                     ),
                   ),
                 ),
+                note: s.balance.text.trim().isEmpty
+                    ? Text(
+                        // Bank apps show an "available" balance too, which
+                        // takes off pending holds and won't match.
+                        'Not the “available” balance',
+                        style: onest(12.5, color: Mid.ink3),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : null,
               ),
               line(
                 'Cleared here',
@@ -246,15 +262,42 @@ class ReconcilePanel extends StatelessWidget {
                         color: Mid.coral,
                         centsColor: Mid.coral,
                       ),
+                // Which way it's off points at opposite causes.
                 note: off == null || off == 0
                     ? null
                     : Text(
-                        'Clear the rows your bank shows',
-                        style: onest(12.5, color: Mid.ink3),
+                        switch ((s.owed, bank(off) < 0)) {
+                          (false, true) => 'Bank is lower',
+                          (false, false) => 'Bank is higher',
+                          (true, true) => 'Bank says you owe less',
+                          (true, false) => 'Bank says you owe more',
+                        },
+                        style: onest(12.5, color: Mid.ink2),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
               ),
+              if (off != null && off != 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: _label, top: 2),
+                  child: Text(
+                    switch (c.hint) {
+                      null => 'Clear the rows your bank shows',
+                      final h => switch (h.cause) {
+                        ReconcileCause.notCleared =>
+                          '${h.payee} on ${shortDate(h.date)} is ${money(off.abs())} and isn’t cleared',
+                        ReconcileCause.datedAfter =>
+                          '${h.payee} is ${money(off.abs())} but dated ${shortDate(h.date)}, after the statement',
+                        ReconcileCause.clearedEarly =>
+                          '${h.payee} on ${shortDate(h.date)} is ${money(off.abs())} and cleared here · not at the bank yet?',
+                      },
+                    },
+                    key: const ValueKey('reconcile-hint'),
+                    style: onest(12.5, color: Mid.ink3),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.only(left: _label),
@@ -265,12 +308,23 @@ class ReconcilePanel extends StatelessWidget {
                       label: 'Cancel',
                       onTap: onCancel,
                     ),
-                    _LockButton(
-                      label: c.toLock == 0
-                          ? 'Mark reconciled'
-                          : 'Lock ${c.toLock} ${c.toLock == 1 ? 'transaction' : 'transactions'}',
-                      onTap: ready ? onLock : null,
-                    ),
+                    // Not matching: the way out is a visible, named
+                    // adjustment, not a made-up spending row. Outlined, not
+                    // gold, so finding the difference stays the first choice.
+                    if (canAdjust)
+                      BarButton(
+                        key: const ValueKey('reconcile-adjust'),
+                        label:
+                            'Add ${money(bank(off).abs())} adjustment and lock',
+                        onTap: onAdjust,
+                      )
+                    else
+                      _LockButton(
+                        label: c.toLock == 0
+                            ? 'Mark reconciled'
+                            : 'Lock ${c.toLock} ${c.toLock == 1 ? 'transaction' : 'transactions'}',
+                        onTap: ready ? onLock : null,
+                      ),
                   ],
                 ),
               ),

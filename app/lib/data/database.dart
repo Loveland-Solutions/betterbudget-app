@@ -110,8 +110,13 @@ class ReconcileRecord {
     required this.accountId,
     required this.statements,
     required this.entryIds,
+    this.adjustmentTxnId,
   });
   final int accountId;
+
+  /// The "Reconcile adjustment" posted to make the statement match, if any.
+  /// Undo removes it along with the locks; redo brings it back.
+  final int? adjustmentTxnId;
 
   /// Oldest first; the entries belong to the first.
   final List<Statement> statements;
@@ -515,6 +520,13 @@ class AppDatabase extends _$AppDatabase {
 
   static const _reconcilable = [AccountType.asset, AccountType.liability];
 
+  static const _lockedMessage =
+      'Reconciled · the date and amount match a bank statement';
+
+  Future<Map<int, AccountType>> _accountTypes() async => {
+    for (final a in await select(accounts).get()) a.id: a.type,
+  };
+
   Future<void> restoreMany(Iterable<int> transactionIds) =>
       (update(transactions)..where((t) => t.id.isIn(transactionIds))).write(
         const TransactionsCompanion(deletedAt: Value(null)),
@@ -551,11 +563,33 @@ class AppDatabase extends _$AppDatabase {
 
   /// Puts back what an edit or a confirm changed: the header, and each
   /// entry's account and amount. Cleared state is left as it is now, since
-  /// neither changes it and later clicks must survive. Refuses a transaction
-  /// that has been reconciled since.
+  /// neither changes it and later clicks must survive. On a reconciled
+  /// transaction only payee, memo and category can come back; a snapshot that
+  /// would change its date, amounts or accounts is refused.
   Future<void> restoreSnapshot(TxnSnapshot s) => transaction(() async {
     if ((await _reconciledAmong([s.header.id])).isNotEmpty) {
-      throw LockedException('Reconciled transactions are locked');
+      final now = await snapshot(s.header.id);
+      final types = await _accountTypes();
+      bool same(List<EntryRow> a, List<EntryRow> b) {
+        final byId = {for (final e in b) e.id: e};
+        return a.length == b.length &&
+            a.every((e) {
+              final o = byId[e.id];
+              if (o == null || o.amountMinor != e.amountMinor) return false;
+              // A category may change; a balance-sheet account may not.
+              final sheet =
+                  _reconcilable.contains(types[e.accountId]) ||
+                  _reconcilable.contains(types[o.accountId]);
+              return !sheet || o.accountId == e.accountId;
+            });
+      }
+
+      if (now.header.date != s.header.date ||
+          now.header.scheduled != s.header.scheduled ||
+          now.header.deletedAt != s.header.deletedAt ||
+          !same(s.entries, now.entries)) {
+        throw LockedException(_lockedMessage);
+      }
     }
     await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
       TransactionsCompanion(
@@ -603,10 +637,23 @@ class AppDatabase extends _$AppDatabase {
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
       if (mine == null) throw NotFoundException('Not in this account');
-      // Any reconciled side locks the whole transaction, as delete does: a
-      // transfer edited from its other account would change the locked side.
+      // A reconciled side locks the date, amounts and accounts of the whole
+      // transaction, as delete does: a transfer edited from its other account
+      // would change the locked side. Payee, memo and category stay editable.
       if ((await _reconciledAmong([transactionId])).isNotEmpty) {
-        throw LockedException('Reconciled transactions are locked');
+        final others = rows.where((e) => e.id != mine.id).toList();
+        final types = await _accountTypes();
+        final movesAccount =
+            counterAccountId != null &&
+            others.length == 1 &&
+            counterAccountId != others.single.accountId &&
+            (_reconcilable.contains(types[counterAccountId]) ||
+                _reconcilable.contains(types[others.single.accountId]));
+        if (dateKey(date) != header.date ||
+            (amount != null && amount != mine.amountMinor) ||
+            movesAccount) {
+          throw LockedException(_lockedMessage);
+        }
       }
 
       await (update(
@@ -649,7 +696,7 @@ class AppDatabase extends _$AppDatabase {
   /// Reconciled transactions are locked and throw [LockedException].
   Future<void> softDelete(int transactionId) async {
     if (await softDeleteMany([transactionId]) case []) {
-      throw LockedException('Reconciled transactions are locked');
+      throw LockedException(_lockedMessage);
     }
   }
 
@@ -693,11 +740,17 @@ class AppDatabase extends _$AppDatabase {
   /// and records the statement. Refuses unless the cleared balance through
   /// that date equals [balance]. Returns what [unreconcile] and [relock] need.
   /// The date can't be after [today] or before the account's last statement.
+  ///
+  /// With [adjust], a statement that doesn't match is made to: the difference
+  /// is posted as a cleared "Reconcile adjustment" on the statement date,
+  /// against the "Balance adjustments" account (not spending), and locked
+  /// with the rest.
   Future<ReconcileRecord> reconcile({
     required int accountId,
     required DateTime statementDate,
     required DateTime today,
     required int balance,
+    bool adjust = false,
   }) => transaction(() async {
     final through = dateKey(dateOnly(statementDate));
     if (dateOnly(statementDate).isAfter(dateOnly(today))) {
@@ -727,8 +780,36 @@ class AppDatabase extends _$AppDatabase {
       readsFrom: {entries, transactions},
     ).get();
     final cleared = rows.fold(0, (s, r) => s + r.read<int>('amount_minor'));
+    int? adjustmentTxnId;
+    final adjustmentIds = <int>[];
     if (cleared != balance) {
-      throw ReconcileMismatchException(balance - cleared);
+      if (!adjust) throw ReconcileMismatchException(balance - cleared);
+      adjustmentTxnId = await postTransaction(
+        date: dateOnly(statementDate),
+        payee: adjustmentPayee,
+        lines: [
+          (
+            accountId: accountId,
+            amount: balance - cleared,
+            cleared: Cleared.cleared,
+          ),
+          (
+            accountId: await _adjustmentsAccount(),
+            amount: cleared - balance,
+            cleared: Cleared.cleared,
+          ),
+        ],
+      );
+      adjustmentIds.addAll(
+        await (selectOnly(entries)
+              ..addColumns([entries.id])
+              ..where(
+                entries.transactionId.equals(adjustmentTxnId) &
+                    entries.accountId.equals(accountId),
+              ))
+            .map((r) => r.read(entries.id)!)
+            .get(),
+      );
     }
     final id = await into(reconciliations).insert(
       ReconciliationsCompanion.insert(
@@ -745,11 +826,32 @@ class AppDatabase extends _$AppDatabase {
         for (final r in rows)
           if (r.read<int>('cleared') == Cleared.cleared.index)
             r.read<int>('id'),
+        ...adjustmentIds,
       ],
+      adjustmentTxnId: adjustmentTxnId,
     );
     await _lock(record);
     return record;
   });
+
+  static const adjustmentPayee = 'Reconcile adjustment';
+  static const adjustmentsAccountName = 'Balance adjustments';
+
+  /// Equity, like opening balances: an adjustment isn't spending or income.
+  Future<int> _adjustmentsAccount() async {
+    final existing =
+        await (select(accounts)..where(
+              (a) =>
+                  a.name.equals(adjustmentsAccountName) &
+                  a.type.equalsValue(AccountType.equity),
+            ))
+            .getSingleOrNull();
+    return existing?.id ??
+        await addAccount(
+          name: adjustmentsAccountName,
+          type: AccountType.equity,
+        );
+  }
 
   /// Takes back [accountId]'s most recent reconcile that locked rows, from any
   /// session, along with any later ones that locked nothing. Its rows go back
@@ -791,7 +893,8 @@ class AppDatabase extends _$AppDatabase {
         return record;
       });
 
-  /// Undo for [reconcile]: the entries go back to cleared.
+  /// Undo for [reconcile]: the entries go back to cleared, and an adjustment
+  /// it posted is removed.
   Future<void> unreconcile(ReconcileRecord record) => transaction(() async {
     await (update(entries)..where((e) => e.id.isIn(record.entryIds))).write(
       const EntriesCompanion(
@@ -802,11 +905,15 @@ class AppDatabase extends _$AppDatabase {
     await (delete(
       reconciliations,
     )..where((r) => r.id.isIn(record.statements.map((s) => s.id)))).go();
+    if (record.adjustmentTxnId case final id?) {
+      await softDeleteMany([id]);
+    }
   });
 
   /// Redo for [reconcile], and undo for [unreconcileLast]: the same
   /// statements, and the same rows locked again.
   Future<void> relock(ReconcileRecord record) => transaction(() async {
+    if (record.adjustmentTxnId case final id?) await restoreMany([id]);
     for (final s in record.statements) {
       await into(reconciliations).insert(
         ReconciliationsCompanion.insert(

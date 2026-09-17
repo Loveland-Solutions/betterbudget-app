@@ -18,7 +18,11 @@ class BalanceHeader extends StatelessWidget {
     required this.onOpenScheduled,
     required this.onReconcile,
     this.reconcile,
+    this.owed = false,
   });
+
+  /// A credit account: every amount here is what's owed, positive.
+  final bool owed;
 
   /// Shown in place of the balance sum while reconciling.
   final Widget? reconcile;
@@ -53,6 +57,7 @@ class BalanceHeader extends StatelessWidget {
                   reconcile ??
                   _Balances(
                     s: summary,
+                    owed: owed,
                     hovered: hoveredStatus,
                     active: activeStatus,
                     onTap: onStatusTap,
@@ -80,9 +85,11 @@ class _Balances extends StatelessWidget {
     required this.active,
     required this.onTap,
     required this.onReconcile,
+    required this.owed,
   });
 
   final AccountSummary s;
+  final bool owed;
   final VoidCallback onReconcile;
   final ValueNotifier<Cleared?> hovered;
   final Cleared? active;
@@ -91,6 +98,7 @@ class _Balances extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = s.unclearedCount;
+    int shown(int v) => owed ? -v : v;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +110,7 @@ class _Balances extends StatelessWidget {
           children: [
             _StatusLine(
               status: Cleared.cleared,
-              amount: s.cleared,
+              amount: shown(s.cleared),
               note: '',
               hovered: hovered,
               active: active == Cleared.cleared,
@@ -110,7 +118,7 @@ class _Balances extends StatelessWidget {
             ),
             _StatusLine(
               status: Cleared.uncleared,
-              amount: s.uncleared,
+              amount: shown(s.uncleared),
               signed: true,
               note: n == 0 ? 'Everything has cleared' : '$n not cleared yet',
               hovered: hovered,
@@ -127,7 +135,7 @@ class _Balances extends StatelessWidget {
               ),
               color: Mid.ink3.withValues(alpha: 0.45),
             ),
-            _TotalLine(amount: s.working),
+            _TotalLine(amount: shown(s.working), owed: owed),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -229,8 +237,11 @@ class _Line extends StatelessWidget {
 
 /// The answer to the sum: the working balance, and the header's one big number.
 class _TotalLine extends StatelessWidget {
-  const _TotalLine({required this.amount});
+  const _TotalLine({required this.amount, required this.owed});
   final int amount;
+
+  /// "Owed" instead of "Working", and never coral: owing on a card is normal.
+  final bool owed;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -240,7 +251,7 @@ class _TotalLine extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       children: [
         const SizedBox(width: _Line._glyph + _Line._gap),
-        Text('Working', style: onest(13, weight: 500)),
+        Text(owed ? 'Owed' : 'Working', style: onest(13, weight: 500)),
         const Spacer(),
         Money(
           amount,
@@ -248,7 +259,7 @@ class _TotalLine extends StatelessWidget {
           weight: 500,
           letterSpacing: -0.6,
           centsScale: 0.55,
-          color: amount < 0 ? Mid.coral : Mid.ink,
+          color: !owed && amount < 0 ? Mid.coral : Mid.ink,
         ),
       ],
     ),
@@ -345,27 +356,56 @@ class ForecastPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final payday = f.payday;
+    String count(int n, String one) => '$n ${n == 1 ? one : '${one}s'}';
     final String headline;
-    if (f.shortNow) {
-      // Already under: say so, not a future "runs out" date. The amount is
-      // the Working total beside it, so it isn't repeated.
-      headline = f.low < f.startBalance
-          ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
-          : 'Below zero now';
-    } else if (f.isShort) {
-      headline =
-          'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
-    } else if (f.steps.isEmpty) {
-      headline = 'Nothing scheduled';
+    final String detail;
+    if (f.owed) {
+      // A card: what will be owed once scheduled charges and payments land.
+      final payments = f.steps.where((s) => s.row.amount > 0).length;
+      final bal = f.endBalance;
+      headline = f.steps.isEmpty
+          ? 'Nothing scheduled'
+          : bal < 0
+          ? '₮${formatWhole(bal)} in credit after ${shortDate(f.steps.last.date)}'
+          : '₮${formatWhole(bal)} owed after ${shortDate(f.steps.last.date)}';
+      final parts = [
+        if (f.billCount > 0)
+          '${count(f.billCount, 'charge')} · ₮${formatWhole(f.billTotal)}',
+        if (payments > 0)
+          '${count(payments, 'payment')} · ₮${formatWhole(f.inTotal)}',
+      ];
+      detail = f.steps.isEmpty
+          ? 'No charges or payments in the next 30 days'
+          : '${parts.join(' · ')} before ${shortDate(f.end)}';
     } else {
-      headline = 'Lowest ₮${formatWhole(f.low)} on ${shortDate(f.lowDate)}';
+      if (f.shortNow) {
+        // Already under: say so, not a future "runs out" date. The amount is
+        // the Working total beside it, so it isn't repeated.
+        headline = f.low < f.startBalance
+            ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
+            : 'Below zero now';
+      } else if (f.isShort) {
+        headline =
+            'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
+      } else if (f.steps.isEmpty) {
+        headline = 'Nothing scheduled';
+      } else {
+        headline = 'Lowest ₮${formatWhole(f.low)} on ${shortDate(f.lowDate)}';
+      }
+      // No payee names here: they can be any length. The count opens the list.
+      // Money moved in from another account, refunds: they lift the line.
+      final coming = f.inTotal > 0 ? '+₮${formatWhole(f.inTotal)} in' : null;
+      detail = f.steps.isEmpty
+          ? payday == null
+                ? 'No bills or income in the next 30 days'
+                : 'No bills before ${shortDate(f.end)}'
+          : f.billCount == 0
+          ? '$coming before ${shortDate(f.end)}'
+          : [
+              '${count(f.billCount, 'bill')} · ₮${formatWhole(f.billTotal)} before ${shortDate(f.end)}',
+              ?coming,
+            ].join(' · ');
     }
-    // No payee names here: they can be any length. The count opens the list.
-    final detail = f.steps.isEmpty
-        ? payday == null
-              ? 'No bills or income in the next 30 days'
-              : 'No bills before ${shortDate(f.end)}'
-        : '${f.billCount} ${f.billCount == 1 ? 'bill' : 'bills'} · ₮${formatWhole(f.billTotal)} before ${shortDate(f.end)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +580,7 @@ class _BillsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final payday = f.payday;
-    final last = f.steps.isEmpty ? f.startBalance : f.steps.last.balance;
+    final last = f.endBalance;
     return Material(
       color: Mid.raised,
       elevation: 12,
@@ -565,7 +605,10 @@ class _BillsCard extends StatelessWidget {
                         style: onest(12, color: Mid.ink3),
                       ),
                     ),
-                    Text('Balance after', style: onest(12, color: Mid.ink3)),
+                    Text(
+                      f.owed ? 'Owed after' : 'Balance after',
+                      style: onest(12, color: Mid.ink3),
+                    ),
                   ],
                 ),
               ),
@@ -574,6 +617,7 @@ class _BillsCard extends StatelessWidget {
                   row: s.row,
                   date: s.date,
                   balanceAfter: s.balance,
+                  owed: f.owed,
                   onTap: () => onOpen(s.row),
                 ),
               if (payday != null) ...[
@@ -603,10 +647,12 @@ class _BillLine extends StatefulWidget {
     required this.date,
     required this.balanceAfter,
     required this.onTap,
+    this.owed = false,
   });
   final RegisterRow row;
   final DateTime date;
   final int balanceAfter;
+  final bool owed;
   final VoidCallback onTap;
 
   @override
@@ -669,7 +715,7 @@ class _BillLineState extends State<_BillLine> {
                   textAlign: TextAlign.right,
                   style: onest(
                     12.5,
-                    color: b < 0 ? Mid.coral : Mid.ink3,
+                    color: !widget.owed && b < 0 ? Mid.coral : Mid.ink3,
                     tabular: true,
                   ),
                 ),
@@ -724,7 +770,7 @@ class _ForecastChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = _days(f);
     final payday = f.payday;
-    final last = f.steps.isEmpty ? f.startBalance : f.steps.last.balance;
+    final last = f.endBalance;
     return CustomMultiChildLayout(
       delegate: _ChartLayout(f, days),
       children: [
@@ -740,6 +786,7 @@ class _ForecastChart extends StatelessWidget {
               lines: [
                 for (final s in days[i]) (row: s.row, balanceAfter: s.balance),
               ],
+              owed: f.owed,
               onOpen: onOpen,
             ),
           ),
@@ -794,10 +841,12 @@ class _DotTarget extends StatefulWidget {
     required this.lines,
     required this.onOpen,
     this.alignRight = false,
+    this.owed = false,
   });
   final List<({RegisterRow row, int balanceAfter})> lines;
   final ValueChanged<RegisterRow> onOpen;
   final bool alignRight;
+  final bool owed;
 
   @override
   State<_DotTarget> createState() => _DotTargetState();
@@ -825,7 +874,9 @@ class _DotTargetState extends State<_DotTarget> {
           ),
           child: Align(
             alignment: Alignment.topLeft,
-            child: IgnorePointer(child: _BillCard(lines: widget.lines)),
+            child: IgnorePointer(
+              child: _BillCard(lines: widget.lines, owed: widget.owed),
+            ),
           ),
         ),
         child: MouseRegion(
@@ -847,9 +898,10 @@ class _DotTargetState extends State<_DotTarget> {
 
 /// What a forecast dot stands for.
 class _BillCard extends StatelessWidget {
-  const _BillCard({required this.lines});
+  const _BillCard({required this.lines, this.owed = false});
   static const width = 300.0;
   final List<({RegisterRow row, int balanceAfter})> lines;
+  final bool owed;
 
   @override
   Widget build(BuildContext context) {
@@ -916,13 +968,18 @@ class _BillCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                Text('Balance after', style: onest(12, color: Mid.ink3)),
+                Text(
+                  owed ? 'Owed after' : 'Balance after',
+                  style: onest(12, color: Mid.ink3),
+                ),
                 const Spacer(),
                 Text(
                   '${last.balanceAfter < 0 ? '−' : ''}₮${formatWhole(last.balanceAfter)}',
                   style: onest(
                     12.5,
-                    color: last.balanceAfter < 0 ? Mid.coral : Mid.ink2,
+                    color: !owed && last.balanceAfter < 0
+                        ? Mid.coral
+                        : Mid.ink2,
                     tabular: true,
                   ),
                 ),
@@ -991,14 +1048,14 @@ class _ForecastPainter extends CustomPainter {
     canvas.restore();
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h + 4));
-    canvas.drawPath(path, stroke..color = Mid.coral);
+    canvas.drawPath(path, stroke..color = f.owed ? Mid.blue : Mid.coral);
     canvas.restore();
 
     for (final s in f.steps) {
       canvas.drawCircle(
         Offset(x(s.date), y(s.balance)),
         2.5,
-        Paint()..color = s.balance < 0 ? Mid.coral : Mid.ink2,
+        Paint()..color = !f.owed && s.balance < 0 ? Mid.coral : Mid.ink2,
       );
     }
     canvas.drawCircle(

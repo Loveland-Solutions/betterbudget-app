@@ -78,7 +78,12 @@ class RegisterPanel extends StatelessWidget {
     this.onCloseEntry,
     this.addButton,
     this.reconcileThrough,
+    this.owed = false,
   });
+
+  /// A credit account: the Balance column shows what's owed, positive, and
+  /// is never coral.
+  final bool owed;
 
   /// Reconciling: only rows not yet reconciled, dated on or before this
   /// statement date, so they can be ticked off against it.
@@ -225,6 +230,8 @@ class RegisterPanel extends StatelessWidget {
             editor(r) ??
                 _PostedRow(
                   row: r,
+                  owed: owed,
+                  reconciling: through != null,
                   bar: bar(r),
                   onTap: (field) => tap(r.txnId, field),
                   onToggleCleared: () => actions.onToggleCleared(r),
@@ -271,7 +278,11 @@ class RegisterPanel extends StatelessWidget {
               ),
             ),
           ),
-          const _HeaderRow(),
+          _HeaderRow(
+            balance: through != null
+                ? 'Cleared balance'
+                : (owed ? 'Owed' : 'Balance'),
+          ),
           AnimatedSize(
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
@@ -412,7 +423,8 @@ class _Tab extends StatelessWidget {
 
 /// The clicked row's actions, attached under it. Only what applies to this
 /// row shows: one of Mark cleared / Mark uncleared, no Categorize on splits
-/// and transfers, and nothing but a lock note on reconciled rows.
+/// and transfers. Reconciled rows keep Edit and Categorize (payee, memo and
+/// category aren't on a statement) but not Delete or clearing.
 class _RowActions extends StatelessWidget {
   const _RowActions({
     required this.row,
@@ -428,6 +440,23 @@ class _RowActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = row;
     final locked = r.cleared == Cleared.reconciled;
+    final edit = BarButton(
+      label: 'Edit',
+      leading: const Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
+      onTap: () => actions.onEdit(r),
+    );
+    final categorize = r.kind == RowKind.simple
+        ? CategoryMenu(
+            categories: categories,
+            onPicked: (c) => actions.onSetCategory(r, c),
+            builder: (open, toggle) => BarButton(
+              label: 'Categorize',
+              trailing: Icons.keyboard_arrow_down_rounded,
+              active: open,
+              onTap: toggle,
+            ),
+          )
+        : null;
     final clearButton = r.cleared == Cleared.uncleared
         ? BarButton(
             label: 'Mark cleared',
@@ -454,12 +483,14 @@ class _RowActions extends StatelessWidget {
         child: Row(
           children: [
             if (locked) ...[
+              edit,
+              ?categorize,
               Padding(
-                padding: const EdgeInsets.only(left: 10, right: 12),
+                padding: const EdgeInsets.only(left: 4, right: 12),
                 child: Text(
                   r.reconciledOn == null
-                      ? 'Reconciled · locked because it matches a bank statement'
-                      : 'Reconciled on ${shortDate(r.reconciledOn!)} · locked because it matches that statement',
+                      ? 'Reconciled · date and amount locked'
+                      : 'Reconciled on ${shortDate(r.reconciledOn!)} · date and amount locked',
                   style: onest(13, color: Mid.ink3),
                 ),
               ),
@@ -474,35 +505,18 @@ class _RowActions extends StatelessWidget {
             ]
             // This side of a transfer can still clear; the rest is locked.
             else if (r.lockedIn != null) ...[
+              edit,
               clearButton,
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Text(
-                  'Locked · reconciled in ${r.lockedIn}',
+                  'Reconciled in ${r.lockedIn} · date and amount locked',
                   style: onest(13, color: Mid.ink3),
                 ),
               ),
             ] else ...[
-              BarButton(
-                label: 'Edit',
-                leading: const Icon(
-                  Icons.edit_rounded,
-                  size: 13,
-                  color: Mid.ink3,
-                ),
-                onTap: () => actions.onEdit(r),
-              ),
-              if (r.kind == RowKind.simple)
-                CategoryMenu(
-                  categories: categories,
-                  onPicked: (c) => actions.onSetCategory(r, c),
-                  builder: (open, toggle) => BarButton(
-                    label: 'Categorize',
-                    trailing: Icons.keyboard_arrow_down_rounded,
-                    active: open,
-                    onTap: toggle,
-                  ),
-                ),
+              edit,
+              ?categorize,
               if (!r.scheduled) clearButton,
               BarButton(
                 label: 'Delete',
@@ -591,7 +605,10 @@ class BarButton extends StatelessWidget {
 }
 
 class _HeaderRow extends StatelessWidget {
-  const _HeaderRow();
+  const _HeaderRow({required this.balance});
+
+  /// The last column's name: it shows cleared rows only while reconciling.
+  final String balance;
 
   @override
   Widget build(BuildContext context) {
@@ -624,7 +641,7 @@ class _HeaderRow extends StatelessWidget {
             const SizedBox(width: Cols.gap),
             SizedBox(
               width: Cols.balance,
-              child: Text('Balance', style: s, textAlign: TextAlign.right),
+              child: Text(balance, style: s, textAlign: TextAlign.right),
             ),
           ],
         ),
@@ -636,6 +653,8 @@ class _HeaderRow extends StatelessWidget {
 class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
+    required this.owed,
+    required this.reconciling,
     required this.bar,
     required this.onTap,
     required this.onToggleCleared,
@@ -645,6 +664,12 @@ class _PostedRow extends StatelessWidget {
   });
 
   final RegisterRow row;
+  final bool owed;
+
+  /// While reconciling, the Balance column runs over cleared rows only, to
+  /// compare line by line with the statement's running balance. Uncleared
+  /// rows show none.
+  final bool reconciling;
 
   /// The row's actions, attached under it while it's selected.
   final Widget? bar;
@@ -669,7 +694,8 @@ class _PostedRow extends StatelessWidget {
       Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
       Cleared.cleared =>
         'Cleared — settled at the bank. Click to mark uncleared.',
-      Cleared.reconciled => 'Reconciled — matched to a statement and locked.',
+      Cleared.reconciled =>
+        'Reconciled — matches a statement, so its date and amount are locked.',
     };
 
     return ValueListenableBuilder<Cleared?>(
@@ -837,14 +863,24 @@ class _PostedRow extends StatelessWidget {
                         width: Cols.balance,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: Money(
-                            r.balance,
-                            color: r.balance < 0
-                                ? Mid.coral
-                                : (r.cleared == Cleared.uncleared
-                                      ? Mid.ink2
-                                      : Mid.ink),
-                          ),
+                          child: reconciling && r.cleared == Cleared.uncleared
+                              ? null
+                              : Builder(
+                                  builder: (context) {
+                                    final raw = reconciling
+                                        ? r.clearedBalance
+                                        : r.balance;
+                                    final b = owed ? -raw : raw;
+                                    return Money(
+                                      b,
+                                      color: !owed && b < 0
+                                          ? Mid.coral
+                                          : (r.cleared == Cleared.uncleared
+                                                ? Mid.ink2
+                                                : Mid.ink),
+                                    );
+                                  },
+                                ),
                         ),
                       ),
                     ],
