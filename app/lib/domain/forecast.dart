@@ -46,7 +46,7 @@ class Forecast {
   final int billCount;
 
   /// Money coming in before [end] other than payday: transfers from another
-  /// account, refunds.
+  /// account, refunds. Late money in isn't in it (see [late]).
   final int inTotal;
 
   /// Money in past its date and not confirmed (a late salary, a transfer
@@ -88,13 +88,10 @@ Forecast buildForecast({
 
   // Late money in isn't counted until it's confirmed. (On a card, owing is
   // never a warning, so a late payment still counts.)
-  final late = owed
-      ? const <RegisterRow>[]
-      : [
-          for (final r in scheduled)
-            if (r.amount > 0 && r.date.isBefore(start)) r,
-        ];
-  final counted = scheduled.where((r) => !late.contains(r));
+  final late = <RegisterRow>[], counted = <RegisterRow>[];
+  for (final r in scheduled) {
+    (!owed && r.amount > 0 && r.date.isBefore(start) ? late : counted).add(r);
+  }
 
   // A card has no payday: it looks 30 days out. A late salary isn't payday:
   // the forecast runs on to the next one.

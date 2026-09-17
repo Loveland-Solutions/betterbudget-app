@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
-import 'register.dart' show BarButton;
+import 'register.dart' show BarButton, Hoverable;
 import 'theme.dart';
 
 class BalanceHeader extends StatelessWidget {
@@ -353,6 +353,54 @@ String _moneyInName(RegisterRow r) => r.kind == RowKind.transfer
     ? 'Transfer from ${r.payee}'
     : (r.categoryLabel.isEmpty ? r.payee : r.categoryLabel);
 
+/// "· Salary due 10.10 isn't counted": late money in the forecast leaves out.
+/// Clicking it opens that row (the first, when several), like a dot, since
+/// confirming it is how it gets counted. Only the name shrinks, so "isn't
+/// counted" always shows.
+class _LateNote extends StatelessWidget {
+  const _LateNote({required this.late, required this.onOpen});
+  final List<RegisterRow> late;
+  final ValueChanged<RegisterRow> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final one = late.length == 1;
+    return Hoverable(
+      key: const ValueKey('forecast-late'),
+      onTap: () => onOpen(late.first),
+      builder: (h) {
+        TextStyle style() => onest(12, color: Mid.gold).copyWith(
+          decoration: h ? TextDecoration.underline : null,
+          decorationColor: Mid.gold,
+        );
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(' · ', style: onest(12, color: Mid.ink3)),
+            Flexible(
+              child: Text(
+                one
+                    ? _moneyInName(late.single)
+                    : '${late.length} late payments in',
+                style: style(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              one
+                  ? ' due ${shortDate(late.single.date)} isn’t counted'
+                  : ' aren’t counted',
+              style: style(),
+              maxLines: 1,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
   const ForecastPanel(this.f, {super.key, required this.onOpen});
@@ -415,32 +463,22 @@ class ForecastPanel extends StatelessWidget {
 
     // Late money in, named so a warning without it makes sense.
     final late = f.late;
-    final lateNote = late.isEmpty
-        ? null
-        : late.length == 1
-        ? '${_moneyInName(late.single)} due ${shortDate(late.single.date)} isn’t counted'
-        : '${late.length} late payments in aren’t counted';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: payday == null ? 'Next 30 days' : 'Until next income',
-              ),
-              if (lateNote != null)
-                TextSpan(
-                  text: ' · $lateNote',
-                  style: onest(12, color: Mid.gold),
-                ),
-            ],
-          ),
+        Row(
           key: const ValueKey('forecast-horizon'),
-          style: onest(12, color: Mid.ink3),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          children: [
+            Text(
+              payday == null ? 'Next 30 days' : 'Until next income',
+              style: onest(12, color: Mid.ink3),
+            ),
+            if (late.isNotEmpty)
+              Flexible(
+                child: _LateNote(late: late, onOpen: onOpen),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

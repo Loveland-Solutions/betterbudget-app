@@ -76,6 +76,18 @@ be quietly undone.
    **Scheduled money coming in lifts the line** (owner's call, from the budget-app
    review): a transfer from another account, or a refund, is a step up, and the line
    under the headline adds it ("2 bills · ₮990,200 before 10.10 · +₮1,000,000 in").
+   **Late money in isn't counted until it arrives** (owner's call, option A of three,
+   from review finding 1 on PR #6). A salary, refund or transfer in that's past its
+   date and not confirmed is left out; the forecast runs to the next salary that isn't
+   late, or 30 days, and the small label above the headline says so in gold ("Next 30
+   days · Salary due 10.10 isn't counted"; several: "2 late payments in aren't
+   counted"). Clicking the note opens that row (the first, when several), like a dot, so
+   it can be confirmed; only the name shrinks, so "isn't counted" always shows. Before, a late salary counted as arriving today and ended the forecast
+   there, so next week's rent vanished from it just when pay was late. Late bills still
+   count, as due today. Confirming the money when it lands brings it back. A card is
+   unchanged, since owing never warns. Rejected: counting it as today but running on
+   past it (B), which says you're fine while rent bounces if pay is later still, and a
+   second dashed line for "if it arrives today" (C), one more thing to explain.
    **Only a row in an income category (Salary) ends the forecast.** It used to ignore
    transfers in, so moving money from savings before rent still showed "Runs out", and any
    scheduled money in, even a ₮5,000 refund, ended it as if it were payday.

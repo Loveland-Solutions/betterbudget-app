@@ -1217,6 +1217,7 @@ void main() {
         scheduled: [lateRefund, lateBill, lateSalary, rent, nextSalary],
       );
       expect(f.late, [lateRefund, lateSalary]);
+      expect(f.inTotal, 0); // the late refund doesn't lift the line
       expect(f.payday, same(nextSalary));
       expect(f.end, DateTime(2026, 10, 14));
       // The late bill counts today; rent counts; no late money in.
@@ -1233,6 +1234,16 @@ void main() {
       expect(alone.payday, isNull);
       expect(alone.end, DateTime(2026, 10, 16));
       expect(alone.isShort, isTrue);
+
+      // Income dated today isn't late: it's payday.
+      final dueToday = row(today, 250000000, 'Salary', income: true);
+      final onPayday = buildForecast(
+        working: 38200000,
+        today: today,
+        scheduled: [dueToday, rent],
+      );
+      expect(onPayday.late, isEmpty);
+      expect(onPayday.payday, same(dueToday));
 
       // A card doesn't warn, so a late payment to it still counts.
       final card = buildForecast(

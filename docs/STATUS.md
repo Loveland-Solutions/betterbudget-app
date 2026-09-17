@@ -165,10 +165,19 @@ confirms on its due date; the amount opens selected after its `+`; day counts do
 lose a day across daylight saving; the unused `confirmScheduled` is gone.
 
 **Raised by the G and L reviews, for the owner to decide:**
-- **A late salary cuts the forecast off at today** (existed before): payday overdue
-  means `end = today`, so rent next week isn't counted. Recommended: don't count an
-  overdue income as arrived; run to the next income or 30 days, and say "Salary due 2
-  days ago, not counted".
+- ~~A late salary cuts the forecast off at today.~~ Built (option A, ADR 0004 rule 2):
+  late money in isn't counted, and the header names it.
+  Raised by its reviews, for the owner:
+  - **Salary due today** still ends the forecast at today until confirmed (rent in two
+    days isn't counted that morning). Recommended: treat money in due today like late
+    money in until confirmed ("Salary due today isn't counted").
+  - **A late transfer between your own accounts** is left out of the receiving account
+    but still counted as money out of the sending one. Recommended: late transfers
+    count on both sides, as due today; only income and refunds wait.
+  - **A salary paid short** (half now, the rest later): confirming the lower amount
+    drops the rest. Option: the confirm toast offers "Keep ₮1,250,000 still due".
+  - **Wording:** match the row and give the amount instead of the name ("₮2,500,000 2
+    days late · not counted"), since "10.10" next to amounts reads like money.
 - **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
   card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
   before the last statement ("· not on the 09.10 statement"); days only for accounts

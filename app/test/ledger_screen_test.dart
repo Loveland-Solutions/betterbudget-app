@@ -4,6 +4,7 @@ import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -1585,18 +1586,21 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        'Next 30 days · Salary due 10.10 isn’t counted',
-        findRichText: true,
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Next 30 days'), findsOneWidget);
+    expect(find.text('Salary'), findsWidgets);
+    expect(find.text(' due 10.10 isn’t counted'), findsOneWidget);
     expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
+    // Only the header: the register below isn't what this is about.
     await expectLater(
-      find.byType(LedgerScreen),
+      find.byType(ForecastPanel),
       matchesGoldenFile('goldens/forecast_late_income.png'),
     );
+
+    // Clicking the note opens the salary, ready to confirm.
+    await tester.tap(find.byKey(const ValueKey('forecast-late')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsNothing); // Scheduled tab
     await tidy(tester, db);
   });
 
