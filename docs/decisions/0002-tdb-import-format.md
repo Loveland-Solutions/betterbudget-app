@@ -108,6 +108,11 @@ with blanks, same fields at columns 0, 4, 7, 11, 16, 21 (counterparty account), 
   separate transactions.
 - **Own-account transfers are identifiable** — the account holder's own name appears as
   the counterparty — which feeds transfer auto-matching.
+- **Imported transactions come in cleared** (owner's call, 2026-09-17). A bank
+  statement lists what the bank has settled, so every imported row is cleared, never
+  uncleared. Reconciled stays a separate, deliberate step. When an imported row matches
+  one the user already typed in (still uncleared), the match should mark that row
+  cleared rather than add a duplicate; how rows are matched is not designed yet.
 
 ## Deduplication key
 

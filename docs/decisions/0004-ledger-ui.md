@@ -55,7 +55,12 @@ be quietly undone.
    turns coral only when the balance will go below zero, and says which bills cause it.
    With no bank sync, "will I make it to payday?" is the question only the user's own
    ledger can answer. **It makes no suggestions about savings or moving money.** The
-   owner said savings come later.
+   owner said savings come later. **Each dot is a way into its bill** (owner's request):
+   hovering shows a card with date, payee, memo or category, amount and the balance
+   after (bills on the same day share a dot and a card); clicking the dot, or the payday
+   label, switches the register to Scheduled and selects that transaction. No link
+   inside the card, since the dot itself is the click. When the account is already
+   under zero the headline says "Below zero now", not a future "runs out" date.
 3. **One signed amount column, not In/Out.** A transaction moves money one way in one
    account. The two-column layout is a paper-checkbook and bank-statement habit. Money
    out is plain; money in is green with a `+`.
@@ -81,31 +86,44 @@ be quietly undone.
    complete, otherwise it moves to the first missing field. Started rows outline the
    required fields still empty and say "needs N more". There is a visible Add button.
    Autocomplete gets the first Enter only while a half-typed name has suggestions
-   showing.
-8. **Multi-select the desktop way, no checkbox column.** Click selects one row; ⌘-click
-   (Ctrl elsewhere) toggles; Shift-click selects a range. A bar replaces the filter tabs
-   while anything is selected, and says how to select more. Bulk categorize, mark
-   cleared/uncleared and delete all undo. Splits, transfers and reconciled rows are
-   skipped, and the message says how many. Delete never removes a reconciled row
-   (owner's correction: it once did); "1 transaction deleted · 1 reconciled left
-   locked".
+   showing. **The new-transaction row is hidden until the gold Add button (or ⌘N)
+   opens it**. Add sits at the right end of the register's tab row, just above where the
+   row opens (owner's call; it started in the page header beside search) (owner's call: the always-there blank row was clutter). It opens with the
+   cursor in Payee, stays open after each add so a batch goes quickly, and closes on
+   Esc or when you click away from it empty; with anything typed it stays. **A memo
+   line sits under Payee while the row is in use** (option A; rejected: a memo field
+   beside Add, too narrow). **No "+ for money in" hint** (owner: it only made sense in
+   retrospect); `+` before an amount still means money in.
+8. **One row at a time; its actions attach under it.** Clicking a row selects it and
+   opens a bar inside its highlight with only what applies: Edit, Categorize (not on
+   splits or transfers), Mark cleared *or* Mark uncleared, Delete, and ✕. Buttons are
+   outlined (owner's call) so they read as buttons; Delete's outline is coral. Reconciled
+   rows show "Reconciled · locked" instead. Clicking the row again, ✕ or Esc closes it;
+   the filter tabs stay put. No hint text: it should be obvious. **Multi-select was
+   removed** (owner: not wanted now; ⌘-click, Shift-click and the bulk bar that
+   replaced the tabs). It may come back with bank import, where categorizing or
+   clearing a batch could be real work. Delete never removes a reconciled row (owner's
+   correction: it once did), enforced in the database.
 9. **Actions confirm themselves with undo.** A toast names what happened ("Unitel
-   marked cleared · Undo").
+   marked cleared · Undo"). **Toasts are gold with dark text** (owner's call) so they
+   get noticed; the dark toast they replaced was easy to miss. Undo is bold and
+   underlined.
 10. **Confirming a scheduled item means it happened now.** Confirming before its due
-    date posts it today, never on a future date.
+    date posts it today, never on a future date, and the toast says so ("Zaisan
+    Residence confirmed early · posted today, 09.16").
 11. **A future-dated manual entry is scheduled**, not posted. It shows in the forecast
     and in Scheduled but in no balance until confirmed. The same applies when an edit
     moves a posted transaction into the future.
 12. **Editing happens in place, in the same row as adding.** Double-click a row (or
-    select it and press Enter, or click Edit in the selection bar) and it becomes the
+    select it and press Enter, or click Edit in its action bar) and it becomes the
     entry row, filled in, with a memo line and the cursor in the cell that was clicked.
     A single click only selects, with no delay, because double-click is detected from
     two single clicks. Enter or Save keeps the changes, Esc cancels, and Undo restores
     the whole transaction. Clicking another row with unsaved changes doesn't discard
     them; it says how to save or cancel. Reconciled rows don't open, and a message says
     why.
-13. **Plain-key shortcuts never steal typing.** Delete, C, Enter and Esc act on
-    selected rows only while no text field has focus. Clicking a row takes focus out
+13. **Plain-key shortcuts never steal typing.** Delete, C, Enter and Esc act on the
+    selected row only while no text field has focus. Clicking a row takes focus out
     of any field.
 14. **The sidebar is organized by section (option A of three considered).** Ledger,
     Budget and Savings are section headers in one sidebar. The section you're in
@@ -125,6 +143,17 @@ be quietly undone.
     toggle, where clicking an open section closes it again. Here clicking a section
     switches to it, and it stays open until you pick another. The blue icon and bold
     label already mark the current section. Accounts line up with the section label.
+15. **The date field opens a calendar under it (option A of three considered).** It
+    shows while the date field has focus, styled in Midnight, Monday first. Typing
+    still works and the calendar follows it to the typed month. Clicking a day fills
+    the date and moves to Payee; Esc closes the calendar first, and a second Esc
+    reaches the row. The selected day is filled blue and today is underlined. **Days
+    after today are gold**, because picking one schedules the transaction (rule 11);
+    hovering or selecting one says "After today · it will be scheduled". It marks
+    nothing else. The same calendar opens when editing a transaction's date. Rejected:
+    Today/Yesterday buttons under the calendar (B), since the field already starts on
+    today, and Flutter's modal date picker dialog (C), which looks stock, blocks
+    typing and pulls you out of the row.
 
 ## Consequences
 

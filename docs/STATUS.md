@@ -11,8 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything through the sidebar animation, the chevron removal and the
-reconciled-delete lock is committed and merged to `main` (PR #2). Keep the pattern:
+**Git state:** everything through the forecast dots is committed and merged to `main`
+(PR #3). Nothing is uncommitted. Keep the pattern:
 branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
@@ -27,13 +27,13 @@ Visual direction and the register's UX rules are settled in
 | Storage | Drift/SQLite, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget and Savings are placeholders ("Later", "Not built yet" page). Net worth pinned at the bottom |
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled; the lines double as the symbol key (hover highlights, click filters) |
-| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out and which bills cause it; 30-day horizon if no income is scheduled |
+| Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now") and which bills cause it; 30-day horizon if no income is scheduled. Hover a dot for the bill, click it to open that transaction |
 | Register | Full dates, running balance, one signed amount column, transfer and split glyphs, split lines in the memo; tabs All / Uncleared / Scheduled; search across payee, memo, category, amount |
-| Entry | Any field order; Enter from anywhere; Add button; missing fields outlined; payee autocomplete with last-used category; `+` for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled |
-| Editing | Double-click a row (or Enter, or Edit in the selection bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows are locked; moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today) |
-| Bulk | Click / ⌘-click / Shift-click selection; bar with Categorize, Mark cleared, Mark uncleared, Delete; keys C, Delete, Esc; all undoable. Delete skips reconciled rows and says how many it left locked (enforced in the database) |
+| Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
+| Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows are locked; moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, confirm scheduled (early confirm posts today and says so) |
+| Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc; all undoable. Reconciled rows can't be deleted (enforced in the database) |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, Esc clear (Ctrl on Windows) |
-| Tests | 41: money parsing, ledger/DB invariants, bulk ops, editing, forecast, screen flows including real key presses and sidebar sections and their animation, 7 golden screenshots |
+| Tests | 46: money parsing, ledger/DB invariants, editing, forecast, screen flows including real key presses and sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions and forecast dots, 11 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -46,7 +46,6 @@ scheduled items.
   `sqlite3mc`) in `pubspec.yaml`.
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
-- A **memo field when adding** a transaction (memo is editable only on existing ones).
 - Adding, renaming or archiving **accounts and categories** (seed data only).
 - **Import** (TDB per ADR 0002), **reconcile** flow, **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
@@ -145,11 +144,20 @@ Roughly in the order they will block something.
 
 **Nothing is in progress. Ask the owner what's next.**
 
-Most recently done and approved by the owner ("very nice"): the Ledger section spills
-open in the sidebar (`_Spill` in `app/lib/ui/ledger_screen.dart`; 360 ms open, 200 ms
-close, instant with reduced motion), section headers have no chevron, and bulk Delete
-leaves reconciled rows locked. All are recorded in ADR 0004 (rules 8 and 14). The
-deleted 09.02 card payment is restored in the owner's data file.
+Merged in PR #3, all shaped by the owner using the app (ADR 0004 rules in brackets):
+- A calendar under the date field; future days gold (15).
+- All toasts gold with dark text (9).
+- The new-transaction row is hidden until the gold Add button in the register's tab
+  row (or ⌘N) opens it; memo line when adding; "+ for money in" hint removed (7).
+- Multi-select removed; the clicked row gets an outlined action bar under it (8).
+- Forecast dots: hover card, click opens the transaction; "Below zero now" headline
+  when already negative (2).
+- Imported transactions will come in cleared (ADR 0002; import isn't built).
+
+Owner's data file: four demo rows that had been posted with future dates were put back
+to scheduled. It's all test data now, by the owner's word.
+
+Still offered: Undo on Confirm (it's the one action without Undo, against rule 9).
 
 The queue is whatever the owner picks. The [roadmap](#roadmap-ledger-before-the-budget)
 has search and sorting. Also offered and not yet answered:
