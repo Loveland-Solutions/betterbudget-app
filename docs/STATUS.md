@@ -154,9 +154,30 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Ready to merge** `ledger-findings-f-n` once the two review passes on G and L are
-brought to the owner. The owner chose option A for G (notes on old rows) and L (Confirm
-opens the bill to check its amount); ADR 0004 rules 10 and 20.
+**Ready to merge** `ledger-findings-f-n` (owner's go-ahead pending). The owner chose
+option A for G (notes on old rows) and L (Confirm opens the bill to check its amount);
+ADR 0004 rules 10 and 20. Settings gear labelled "Settings" (owner's request). Fixed
+from the review passes on G and L: an overdue bill confirms on its due date again (it
+had silently moved to today); the amount opens selected after its `+`; day counts no
+longer lose a day across daylight saving; the unused `confirmScheduled` is gone.
+
+**Raised by the G and L reviews, for the owner to decide:**
+- **A late salary cuts the forecast off at today** (existed before): payday overdue
+  means `end = today`, so rent next week isn't counted. Recommended: don't count an
+  overdue income as arrived; run to the next income or 30 days, and say "Salary due 2
+  days ago, not counted".
+- **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
+  card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
+  before the last statement ("· not on the 09.10 statement"); days only for accounts
+  never reconciled (30 on credit); none on cash until F.
+- **Confirming an overdue bill can duplicate** one already typed from the bank app.
+  Recommended: when Confirm opens, name a posted row with the same payee within 7 days
+  and offer to delete the scheduled one instead.
+- **Two overdue bills:** only the first shows in All, and "next of N" is gone.
+  Recommended: "· due 7 days ago · 2 overdue".
+- (code) **A scheduled split** confirms at its planned total only (split amounts
+  aren't editable yet).
+- For recurring (tabled): keep the planned amount on the schedule, not the last actual.
 
 **Branch `ledger-findings-f-n` (2026-09-17):** the owner said "do it" to H, I, K and
 "fix it" to M and N. 87 tests, analyze clean, checked in the macOS app (its first
