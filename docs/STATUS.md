@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-17**
+**Last updated: 2026-09-18**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -73,7 +73,7 @@ scheduled items.
 | [0001](decisions/0001-database.md) | SQLite via Drift, encrypted with SQLCipher. MNT is exponent 2. |
 | [0002](decisions/0002-tdb-import-format.md) | TDB import targets the unformatted Excel export. Column map and dedup key recorded. |
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
-| [0004](decisions/0004-ledger-ui.md) | Midnight look and 16 ledger rules: purpose, forecast, one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, early confirm, in-place editing, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header. |
+| [0004](decisions/0004-ledger-ui.md) | Midnight look and 20 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows. |
 
 Full ledger feature map, with what's built marked: [ledger-features.md](ledger-features.md).
 
@@ -134,7 +134,7 @@ Roughly in the order they will block something.
    legacy BIFF `.xls`, which has no mature Dart reader. **Check before starting a BIFF
    reader.**
 2. **What does the ledger still need before the budget?** The owner is steering this by
-   feel. Likely candidates: splits, accounts/categories management, reconcile, import,
+   feel. Likely candidates: splits, accounts/categories management, import, recurring,
    plus search and sorting on the roadmap. Ask rather than assume.
 3. **What is "Savings"?** A placeholder name in the sidebar; the owner will define it later
    (goals? savings accounts?). Relates to the budget model below.
@@ -153,185 +153,77 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Nothing in flight.** PR #9 merged 2026-09-18. Next: ask the owner what they want.
-Open items, roughly by value: a "not cleared" note based on the last statement,
-a duplicate check on Confirm, several overdue bills in All (all below), backup
-reminders (further down), the tabled list, and search and sorting on the roadmap.
+**Nothing in flight** (2026-09-18). Everything is merged through PR #9. The owner is
+starting a new conversation: ask what they want next. Don't open with a long list;
+offer two or three of the open items below with a recommendation.
 
-**How to work with the owner (their correction, 2026-09-17):** don't re-ask decisions
-they've made. Decide review follow-ups along their reasoning and report them briefly;
-ask only about new features or new ways money is counted or shown. See CLAUDE.md.
+### How to work with the owner
 
-**PR #9 (merged, 2026-09-18): rows grow smoothly** (owner's request). A row opening
-into the editor or its action bar, and the new-transaction row, ease to their new
-height (`SmoothHeight` in `register.dart`, from the current height, so a double-click
-doesn't snap). ADR 0004 rule 12. 106 tests. Code review ran; its fixes are in.
+- They use the running app, point at what feels wrong, and expect it fixed right away.
+  Rebuild and relaunch after each change, and look at a screenshot or golden before
+  saying it's done.
+- Offer two or three options with a recommendation and sketches for anything new, build
+  the one they pick, and record it in ADR 0004 with what was rejected.
+- **Don't re-ask decisions they've made** (their correction, 2026-09-17: "you keep
+  asking me the same five questions"). Decide review follow-ups along their reasoning
+  and report them briefly. Run the two review passes once per feature, not again on
+  their own follow-ups.
+- For a hard product question they may ask for "a committee": several agents with
+  different seats (household money in Mongolia, design, ledger integrity), then a
+  summary of where they agree and split.
 
-**PR #8 (merged, 2026-09-17): late money in and short salaries.** ADR 0004 rules 2
-and 10. 104 tests, analyze clean, checked in the macOS app.
-- Money in (salary, refund) due today or earlier and not confirmed isn't counted in
-  the forecast; it runs to the next salary or 30 days. The header says "+₮2,500,000
-  in, 2 days late · not counted" and clicking it opens the row. On payday: "Runs out
-  10.15 unless ₮2,500,000 due today comes". Late transfers between own accounts count
-  on both sides, as due today; the bill list marks past-due items "· due 3 days ago".
-- Confirming: late money in is dated today; late bills and transfers keep their due
-  date. Money in confirmed short (not transfers) offers "Still owed, due 10.10" or
-  "Paid in full"; Still owed is chosen when more than a tenth is missing, and keeps the
-  rest scheduled on the planned date in the same write, undone as one action. Decided
-  after a committee of three (household, design, ledger integrity).
-- The last round of follow-ups (confirm date, bill list mark, "+ in" wording, still
-  owed by size, payday headline) didn't get its own review passes.
+### Open items, roughly by value (none decided yet)
 
-**PR #6 (merged):** the owner chose option A for G (notes on old rows) and L (Confirm
-opens the bill to check its amount); ADR 0004 rules 10 and 20. Settings gear labelled
-"Settings" (owner's request). Fixed from the review passes on G and L: an overdue bill
-confirms on its due date; the amount opens selected after its `+`; day counts don't
-lose a day across daylight saving; the unused `confirmScheduled` is gone.
+1. **A better "not cleared" note.** Today any uncleared row 14+ days old says "not
+   cleared for 34 days". It's noisy for monthly reconcilers, fires on foreign card holds
+   (20–30 days) and on every cash row. Recommended: note rows dated on or before the
+   last statement ("· not on the 09.10 statement"); count days only on accounts never
+   reconciled (30 on credit); none on cash until cash accounts exist.
+2. **Duplicate check on Confirm.** Confirming an overdue bill can duplicate one already
+   typed from the bank app. Recommended: when Confirm opens, name a posted row with the
+   same payee within 7 days and offer to delete the scheduled one instead.
+3. **Several overdue bills.** In All only the first scheduled row shows, and its "due 7
+   days ago" replaces "next of N". Recommended: "· due 7 days ago · 2 overdue".
+4. **Backup reminders.** "Last copied elsewhere 41 days ago" once past 30 days (daily
+   copies share a disk with the data).
+5. **Smaller:** a "Show" button on the Move toast; prefill `+` when a payee's last
+   transaction was money in (refunds typed without it count twice); moving a row into
+   Cash wallet leaves it uncleared with no statement (ties to cash accounts).
+6. **Roadmap:** search and sorting (sections above); CI running `flutter test` on pull
+   requests; the SQLCipher spike before more data work builds on plain SQLite.
 
-**Still open from the G and L reviews:**
-- ~~A late salary cuts the forecast off at today.~~ Built in PR #8 (see above).
-- **"Not cleared" by age is noisy** for monthly reconcilers, fires on normal foreign
-  card holds (20–30 days), and on every cash row. Recommended: note rows dated on or
-  before the last statement ("· not on the 09.10 statement"); days only for accounts
-  never reconciled (30 on credit); none on cash until F.
-- **Confirming an overdue bill can duplicate** one already typed from the bank app.
-  Recommended: when Confirm opens, name a posted row with the same payee within 7 days
-  and offer to delete the scheduled one instead.
-- **Two overdue bills:** only the first shows in All, and "next of N" is gone.
-  Recommended: "· due 7 days ago · 2 overdue".
-- (code) **A scheduled split** confirms at its planned total only (split amounts
-  aren't editable yet).
-- For recurring (tabled): keep the planned amount on the schedule, not the last actual.
+**Tabled, each for its own conversation** (owner's call): creating and editing splits;
+adding, renaming and archiving accounts and categories; recurring scheduled items (keep
+the planned amount on the schedule, not the last actual; a late or short occurrence
+mustn't hide the next); an empty state and opening balance for a new account; SQLCipher
+encryption (must also encrypt or remove the backups) and TDB import (blocked on the
+export format question). Splits and accounts now block other work: a receipt typed as
+two rows won't match the bank's one line, and cash accounts need an account type.
 
-**Also in PR #6 (2026-09-17):** the owner said "do it" to H, I, K and
-"fix it" to M and N. 87 tests, analyze clean, checked in the macOS app (its first
-daily copy was made from the owner's file). ADR 0004 rules 17–19.
+**Known limits, accepted:** a scheduled split confirms at its planned total only;
+"Back up to…" overwriting a file isn't atomic in the sandbox; the newest 5
+`before-restore` copies are kept, not the oldest; undoing a reconcile in a later
+session loses the statement balance (finding J, leave for now). ⌘Z in the real app has
+been used for typing but a register undo there hasn't been tried.
 
-- **H.** A transfer says which way it goes, with Swap.
-- **I.** Move to.
-- **K.** Daily copies and "Back up to…", now in Settings.
-- **M.** Register, summary and reconcile lookups are worked out once per ledger
-  load (a 20,000-row register went from 5.4 s to well under 1 s).
-- **N.** The test gaps listed below, all filled.
-- **Fixed from the review passes:** a backup cut short no longer counts as the day's
-  copy; the database refuses moving opening balances and adjustments; Swap before an
-  amount still asks for one; unexpected errors show a short toast; cached register
-  lists can't be reordered.
+### Recent work (details in ADR 0004 and the PRs)
 
-- **Then, on the owner's yes:** "Restore from…", "Daily copy failed", and monthly
-  copies (ADR 0004 rule 19). 95 tests. Fixed from its code review: a backup with
-  unbalanced transactions or broken references is refused (and the replace itself
-  refuses and rolls back); input is blocked while a restore runs, and an open edit or
-  reconcile closes first; undoing or redoing a restore saves what's there first; a
-  backup waiting in the dialog isn't swept by the daily copy; the check runs off the UI
-  thread. Not done (low): the newest 5 `before-restore` files are kept, not the
-  oldest; Enter confirms the restore dialog.
-- **Tried in the real app by the owner (2026-09-17):** a backup and a restore through
-  the macOS dialogs.
-
-**Raised by the reviews, not decided yet** (budget-app expert unless marked):
-- **Remind about copies elsewhere**: "Last copied elsewhere 41 days ago" past 30 days.
-- **Moving into Cash wallet** leaves the row uncleared with no statement to clear it
-  (ties to F). **A "Show" button** on the move toast to go to the other account.
-- **Refunds typed without `+`** double-count; e.g. prefill `+` when the payee's last
-  transaction was money in.
-- (code) "Back up to…" overwriting a file can't be atomic in the sandbox; a pulled USB
-  stick leaves that file broken. Accepted and noted in `backup.dart`.
-
-**PR #5 (merged, 2026-09-17):** the owner's calls on review findings A–E, plus row
-striping. 67 tests pass, `flutter analyze` is clean, checked in the macOS app. Rules are
-in ADR 0004 (2, 4, 6, 8, 16).
-
-- **A. Bank balance starts empty** with the cursor in it, so a reconcile needs the
-  bank's number typed. "Not the “available” balance" beside it.
-- **B. Off by won't reach zero.** Direction ("Bank is lower"), a hint naming the one row
-  that matches the difference, a Cleared balance column while reconciling, and "Add
-  ₮X adjustment and lock", which posts a "Reconcile adjustment" against the equity
-  account "Balance adjustments" (created on first use) and undoes with the reconcile.
-  An adjustment left behind by undoing a reconcile in a later session stays as a cleared
-  row the user can delete.
-- **C. Credit cards show what's owed**, positive, never coral: header, register,
-  sidebar and a card forecast ("₮0 owed after 09.25").
-- **D. Reconciled rows edit payee, memo and category**; date, amount and accounts stay
-  locked (in the database too), and Delete stays off.
-- **E. The forecast counts scheduled money in** (transfers, refunds) as steps up, and
-  only income-category rows end it. The owner's data file has its 10.10 salary filed
-  under Dining out, so that account shows "Next 30 days" with the salary as money in.
-- **Row striping (owner's request).** Every other posted row is tinted `Mid.stripe`
-  (blue at 4.5%); hover on register rows is `Mid.rowHover` (pale at 8%), because the
-  old hover matched the stripe (owner's correction). Scheduled rows aren't striped.
-
-PR #4 (merged): reconcile, taking reconciles back, transfer locks, session undo/redo,
-the forecast bill list, and fixes from the two review passes.
-
-⌘Z and ⌘⇧Z reach the app: the macOS Edit menu's Undo and Redo stay disabled (no
-responder handles them), and ⌘Z undid typing in the entry row. Undoing a register
-action in the real app hasn't been tried yet.
-
-### Fixed from the review passes (2026-09-17, owner said fix all five)
-
-1. **Locks that didn't match.** The seed (and so every data file) also reconciled
-   category, opening-balance and statement-less sides. Rows looked unlocked but refused
-   edits, and the other accounts' opening balances were locked for good. Now only asset
-   and liability entries count, the seed only locks TDB Checking's side, and **schema
-   version 3** puts the rest back to cleared. The owner's file had 11 bad locks, now 0.
-   Its copy from before is `betterbudget.before-v3-from-v2-20260917-154104.sqlite`
-   in the app data folder.
-2. **A toast's Undo out of order** silently wiped later clears. It now works only while
-   its action is the newest. Restoring a snapshot no longer touches cleared state and
-   refuses a reconciled transaction.
-3. **Undo and redo said "Undone" when the database refused.** They now check what
-   changed and say "Couldn't undo … it changed since".
-4. **Migration safety.** The upgrade runs in one transaction, the file is copied
-   first (`VACUUM INTO`), and tests upgrade v1 and v2 files with data.
-5. **Small ones.** Forecast dots do nothing while reconciling. Starting a reconcile
-   closes the editor and the Add row. Lock can't run twice from a double-click. The
-   database refuses statement dates after today or before the last statement.
-
-### Review findings logged for the owner to decide later
-
-From the budget-app expert, unless marked (code) for the code reviewer. Each has
-options; recommendations in brackets. A–E were decided and built (see Next step).
-
-- **F. Cash accounts go through the bank flow.** Owner: not yet; on the roadmap (§2).
-- **G. Stale items skew Working.** Built on the branch (option A, ADR 0004 rule 20). Overdue scheduled rows are left out; old uncleared
-  rows are left in. Say "due 5 days ago" / "not cleared for 34 days" on the row.
-- **H. A transfer entered from the receiving account goes the wrong way.** Built on the branch. Show the
-  direction as a sentence before Add ("₮640,200 from Golomt Visa to TDB Checking").
-- **I. Moving a transaction to another account** meant deleting and retyping it. Built on the branch:
-  "Move to…" in the action bar.
-- **J. Undoing a reconcile in a later session throws away the statement balance.**
-  Keep undone statements and offer the old balance. Recommended: leave it for now.
-- **K. Backups beyond upgrades.** Built on the branch: Rolling automatic copies, and a "Back up to…"
-  command before any real user.
-- **L. Smaller:** Built on the branch: Confirm opens the bill to check its amount (option A, rule 10). Still open: Confirm always posts the scheduled amount (varying bills); no
-  duplicate warning for the same payee, amount and day.
-- **M. (code) The register rebuild is slow for big files.** Fixed on the branch. Every row looks up the
-  latest reconcile across all transactions, on every keystroke in search. Fine for demo
-  data; fix before import.
-- **N. (code) Test gaps** (filled on the branch): redo for add, edit, categorize and delete; undo for add and
-  categorize; switching account mid-reconcile; Ctrl+Y on Windows; liability reconcile
-  (sign flip) in the database.
-
-Also noted as now blocking something: **splits** (a receipt typed as two rows won't
-match the bank's one line, which affects the matching-row hint and import), and
-**accounts with opening balances** (no real user can start from nothing; F needs the
-account type, and C relies on it).
-
-**Tabled for their own fresh conversations**, one each (owner's call):
-1. Creating and editing splits.
-2. Adding, renaming and archiving accounts and categories.
-3. Recurring scheduled items.
-4. An empty state for a new account (opening balance).
-5. SQLCipher encryption and TDB import (import is blocked on the export format question).
-
-Also offered and not yet answered: CI that runs `flutter test` on pull requests; the
-SQLCipher spike before much more data work builds on plain SQLite. The
-[roadmap](#roadmap-ledger-before-the-budget) has search and sorting.
-
-Past pattern: the owner uses the running app, points at what feels wrong, and it gets
-fixed immediately. Keep that loop tight, rebuild and relaunch the app after each change,
-and look at the result (a screenshot or golden) before saying it's done.
+- **PR #9 (2026-09-18):** rows grow smoothly when opened into the editor or action bar
+  (`SmoothHeight`, rule 12).
+- **PR #8:** late money in isn't counted in the forecast and the header names it
+  ("+₮2,500,000 in, 2 days late · not counted", opens the row; on payday "Runs out
+  10.15 unless ₮2,500,000 due today comes"). Confirm: late money in is dated today;
+  money in confirmed short offers "Still owed, due 10.10" (chosen when more than a
+  tenth is missing) or "Paid in full". Rules 2 and 10.
+- **PR #6:** review findings F–N: transfer direction sentence with Swap (H), Move to
+  (I), notes on old rows (G), Confirm opens the bill with the amount selected (L),
+  faster register (M), test gaps (N); cash accounts put on the roadmap (F). Backups:
+  daily copies (14 plus one a month for a year), Back up to…, Restore from… (checked,
+  saves first, undoable), a failing copy flagged, all under a **Settings** page (gear
+  labelled "Settings" above Net worth). Rules 10, 17–20.
+- **PR #5 and earlier:** findings A–E (empty bank balance, reconcile adjustments, cards
+  shown as owed, editing reconciled rows' payee, scheduled money in), row striping,
+  reconcile, undo/redo, schema v3.
 
 ## Local setup notes
 
