@@ -11,8 +11,8 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main` (through PR #8: late money in, still owed)
-and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #9: rows grow smoothly when
+opened) and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -36,7 +36,7 @@ Visual direction and the register's UX rules are settled in
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 104: payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 106: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -153,7 +153,7 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**Nothing in flight.** PR #8 merged 2026-09-17. Next: ask the owner what they want.
+**Nothing in flight.** PR #9 merged 2026-09-18. Next: ask the owner what they want.
 Open items, roughly by value: a "not cleared" note based on the last statement,
 a duplicate check on Confirm, several overdue bills in All (all below), backup
 reminders (further down), the tabled list, and search and sorting on the roadmap.
@@ -161,6 +161,11 @@ reminders (further down), the tabled list, and search and sorting on the roadmap
 **How to work with the owner (their correction, 2026-09-17):** don't re-ask decisions
 they've made. Decide review follow-ups along their reasoning and report them briefly;
 ask only about new features or new ways money is counted or shown. See CLAUDE.md.
+
+**PR #9 (merged, 2026-09-18): rows grow smoothly** (owner's request). A row opening
+into the editor or its action bar, and the new-transaction row, ease to their new
+height (`SmoothHeight` in `register.dart`, from the current height, so a double-click
+doesn't snap). ADR 0004 rule 12. 106 tests. Code review ran; its fixes are in.
 
 **PR #8 (merged, 2026-09-17): late money in and short salaries.** ADR 0004 rules 2
 and 10. 104 tests, analyze clean, checked in the macOS app.
