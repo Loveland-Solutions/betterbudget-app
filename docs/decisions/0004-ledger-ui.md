@@ -235,7 +235,11 @@ be quietly undone.
     select it and press Enter, or click Edit in its action bar) and it becomes the
     entry row, filled in, with a memo line and the cursor in the cell that was clicked.
     A single click only selects, with no delay, because double-click is detected from
-    two single clicks. Enter or Save keeps the changes, Esc cancels, and Undo restores
+    two single clicks. **A row opening into the editor, or its action bar, grows smoothly** and
+    shrinks back when it closes (owner's request): 180 ms, ease out, from whatever
+    height it has at that moment, so a double-click (bar, then editor) eases the whole
+    way instead of jumping. The new-transaction row opens the same way (160 ms). A
+    window resize doesn't animate. Instant with the OS reduced-motion setting. Enter or Save keeps the changes, Esc cancels, and Undo restores
     the whole transaction. Clicking another row with unsaved changes doesn't discard
     them; it says how to save or cancel. Reconciled rows don't open, and a message says
     why.
