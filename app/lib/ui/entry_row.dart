@@ -16,7 +16,12 @@ class EntryDraft {
     required this.amount,
     this.memo,
     this.keepOwed = false,
+    this.newCategory,
   });
+
+  /// A category typed that doesn't exist yet: the screen creates it (income
+  /// when the amount had a `+`) and files the row under it. [counter] is null.
+  final String? newCategory;
 
   /// Confirming money in that came short: keep the rest scheduled as still
   /// owed.
@@ -218,10 +223,26 @@ class _EntryRowState extends State<EntryRow> {
     _amountFocus,
   ];
 
+  /// The "+ New category" line in the list: not an account yet.
+  static const _createId = -1;
+  ({String label, AccountInfo account}) _createOption(String name) => (
+    label: '+ New category “$name”',
+    account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
+  );
+
+  /// Every name the Category field knows, archived categories included: an
+  /// old row filed under one keeps it when edited.
   List<({String label, AccountInfo account})> get _counterOptions => [
     for (final c in widget.categories) (label: c.name, account: c),
     for (final a in widget.transferTargets) (label: '→ ${a.name}', account: a),
   ];
+
+  /// What the list offers and a payee prefills: not archived categories.
+  Iterable<({String label, AccountInfo account})> get _listOptions =>
+      _counterOptions.where((o) => !o.account.archived);
+
+  /// The "+ New category" line was picked for exactly this text.
+  String? _chosenNew;
 
   @override
   void initState() {
@@ -277,6 +298,42 @@ class _EntryRowState extends State<EntryRow> {
       _amount.text.trim().isNotEmpty;
 
   bool get _isTransfer => _category.text.trim().startsWith('→');
+
+  /// A name typed in Category that isn't one yet: saving creates it.
+  String? get _newCategory {
+    if (_initial?.lockCategory ?? false) return null;
+    final t = _category.text.trim();
+    if (t.isEmpty || t.startsWith('→')) return null;
+    final known = _counterOptions.any(
+      (o) => o.label.toLowerCase() == t.toLowerCase(),
+    );
+    return known ? null : t;
+  }
+
+  /// Why a typed name can't become a category without picking "+ New": it
+  /// starts other names ("Gro" for Groceries), or it's an account ("Golomt
+  /// Visa" meaning the transfer). Null when it can.
+  String? get _newCategoryDoubt {
+    final t = _newCategory;
+    if (t == null || _chosenNew == t) return null;
+    final q = t.toLowerCase();
+    final account = widget.transferTargets
+        .where((a) => a.name.toLowerCase() == q)
+        .firstOrNull;
+    if (account != null) return 'Did you mean “→ ${account.name}”?';
+    final near = _listOptions
+        .where((o) => o.label.toLowerCase().contains(q))
+        .map((o) => o.label)
+        .take(2)
+        .toList();
+    if (near.isEmpty) return null;
+    return '“$t” isn’t a category · pick ${near.join(' or ')}, or + New category';
+  }
+
+  /// "new income category" when the amount has a `+`: income ends forecasts.
+  String get _newCategoryNote => _amount.text.trim().startsWith('+')
+      ? 'new income category'
+      : 'new category';
 
   /// A transfer spelled out before it's added: "₮640,200.00 from TDB
   /// Checking to Golomt Visa". The category reads "→ Golomt Visa" either way,
@@ -395,7 +452,7 @@ class _EntryRowState extends State<EntryRow> {
   Future<bool> _prefillCategory() async {
     if (_category.text.isNotEmpty || _payee.text.trim().isEmpty) return false;
     final id = await widget.controller.suggestCategory(_payee.text.trim());
-    final match = _counterOptions.where((o) => o.account.id == id).firstOrNull;
+    final match = _listOptions.where((o) => o.account.id == id).firstOrNull;
     if (match == null || !mounted) return false;
     setState(() => _category.text = match.label);
     return true;
@@ -461,8 +518,10 @@ class _EntryRowState extends State<EntryRow> {
     FocusNode? fix;
     if (date == null) {
       (error, fix) = ('Date should look like 2026.09.16', _dateFocus);
-    } else if (!lockCategory && counter == null) {
-      (error, fix) = ('No category “${_category.text.trim()}”', _categoryFocus);
+    } else if (!lockCategory && counter == null && _newCategory == null) {
+      (error, fix) = ('No account “${_category.text.trim()}”', _categoryFocus);
+    } else if (!lockCategory && counter == null && _newCategoryDoubt != null) {
+      (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount && (parsed == null || parsed == 0)) {
       (error, fix) = ('Can’t read “$raw” as an amount', _amountFocus);
     }
@@ -483,6 +542,7 @@ class _EntryRowState extends State<EntryRow> {
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
+        newCategory: counter == null ? _newCategory : null,
       ),
     );
     if (!mounted) return;
@@ -500,7 +560,15 @@ class _EntryRowState extends State<EntryRow> {
     if (_error != null) {
       (text, color) = (_error!, Mid.coral);
     } else if (showsMath) {
-      (text, color) = ('= ${formatMoney(preview!)}', Mid.ink2);
+      (text, color) = (
+        // The new-category note stays in sight while the sum shows.
+        '= ${formatMoney(preview!)}'
+            '${_newCategory == null ? '' : ' · $_newCategoryNote'}',
+        Mid.ink2,
+      );
+    } else if (_newCategory != null) {
+      // Said before saving, so a typo doesn't quietly become a category.
+      (text, color) = (_newCategoryNote, Mid.gold);
     } else if (_hasContent && _missing.isNotEmpty) {
       final m = _missing;
       (text, color) = (
@@ -683,14 +751,26 @@ class _EntryRowState extends State<EntryRow> {
                                         focusNode: _categoryFocus,
                                         hint: 'Category',
                                         wanted: _wants('category'),
-                                        options: (q) => _counterOptions.where(
-                                          (o) => o.label.toLowerCase().contains(
-                                            q.toLowerCase(),
+                                        options: (q) => [
+                                          ..._listOptions.where(
+                                            (o) => o.label
+                                                .toLowerCase()
+                                                .contains(q.toLowerCase()),
                                           ),
-                                        ),
-                                        label: (o) => o.label,
-                                        onSelected: (_) =>
-                                            _amountFocus.requestFocus(),
+                                          if (_newCategory case final n?)
+                                            _createOption(n),
+                                        ],
+                                        label: (o) => o.account.id == _createId
+                                            ? o.account.name
+                                            : o.label,
+                                        optionText: (o) => o.label,
+                                        onSelected: (o) {
+                                          // Picked on purpose: no doubt left.
+                                          if (o.account.id == _createId) {
+                                            _chosenNew = o.account.name;
+                                          }
+                                          _amountFocus.requestFocus();
+                                        },
                                         onSubmit: _submit,
                                       ),
                                 ),
@@ -1275,7 +1355,11 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     required this.onSelected,
     required this.onSubmit,
     this.wanted = false,
+    this.optionText,
   });
+
+  /// How an option reads in the list, when not as it fills the field.
+  final String Function(T)? optionText;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -1304,7 +1388,12 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
         // Otherwise Enter means "add the transaction".
         final q = text.trim().toLowerCase();
         final opts = options(text);
-        final exact = opts.any((o) => label(o).toLowerCase() == q);
+        // The "+ New" line isn't a match: "Gro" + Enter picks Groceries.
+        final exact = opts.any(
+          (o) =>
+              label(o).toLowerCase() == q &&
+              (optionText == null || optionText!(o) == label(o)),
+        );
         if (q.isNotEmpty && opts.isNotEmpty && !exact) {
           onFieldSubmitted();
         } else {
@@ -1343,7 +1432,7 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                       vertical: 8,
                     ),
                     child: Text(
-                      label(list[i]),
+                      (optionText ?? label)(list[i]),
                       style: onest(
                         13,
                         color: i == highlighted ? Mid.ink : Mid.ink2,

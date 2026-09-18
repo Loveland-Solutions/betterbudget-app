@@ -24,8 +24,9 @@ Visual direction and the register's UX rules are settled in
 | Area | What works |
 | --- | --- |
 | Storage | Drift/SQLite (schema version 4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
-| Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget and Savings are placeholders ("Later", "Not built yet" page). Net worth pinned at the bottom |
+| Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings is a placeholder ("Later", "Not built yet" page). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
+| Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
 | Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. Money in due today or earlier and not confirmed isn't counted (the header says so in gold and opens it); on payday "Runs out 10.15 unless ₮2,500,000 due today comes". A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
@@ -52,7 +53,6 @@ scheduled items.
   `sqlite3mc`) in `pubspec.yaml`.
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
-- Adding, renaming or archiving **categories** (seed data only). Accounts are done (rule 21).
 - **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
 - CSV export, app lock.
@@ -74,7 +74,7 @@ scheduled items.
 | [0001](decisions/0001-database.md) | SQLite via Drift, encrypted with SQLCipher. MNT is exponent 2. |
 | [0002](decisions/0002-tdb-import-format.md) | TDB import targets the unformatted Excel export. Column map and dedup key recorded. |
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
-| [0004](decisions/0004-ledger-ui.md) | Midnight look and 21 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block). |
+| [0004](decisions/0004-ledger-ui.md) | Midnight look and 22 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen. |
 
 Full ledger feature map, with what's built marked: [ledger-features.md](ledger-features.md).
 
@@ -159,7 +159,7 @@ show the owner, build the one they pick, review, merge, tick it off here, then s
 the next. Details for each item are further down (open items, roadmap, tabled).
 
 - [x] 1. **Accounts**: add, rename, archive; a new account starts empty with an opening balance
-- [ ] 2. **Categories**: add, rename, archive
+- [x] 2. **Categories**: add, rename, archive
 - [ ] 3. **Splits**: create and edit them
 - [ ] 4. **Recurring** scheduled items
 - [ ] 5. A better **"not cleared" note**
@@ -210,7 +210,7 @@ the next. Details for each item are further down (open items, roadmap, tabled).
    requests; the SQLCipher spike before more data work builds on plain SQLite.
 
 **Tabled, each for its own conversation** (owner's call): creating and editing splits;
-adding, renaming and archiving categories; recurring scheduled items (keep
+recurring scheduled items (keep
 the planned amount on the schedule, not the last actual; a late or short occurrence
 mustn't hide the next); SQLCipher
 encryption (must also encrypt or remove the backups) and TDB import (blocked on the

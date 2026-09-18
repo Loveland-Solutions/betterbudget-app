@@ -110,11 +110,11 @@ void main() {
   testWidgets('sidebar sections: the one you are in expands', (tester) async {
     final db = await pumpLedger(tester);
     expect(find.text('Cash wallet'), findsOneWidget);
-    expect(find.text('Later'), findsNWidgets(2));
+    expect(find.text('Later'), findsOneWidget); // Savings
 
     await tester.tap(find.text('Budget'));
     await tester.pumpAndSettle();
-    expect(find.text('Not built yet. The ledger comes first.'), findsOneWidget);
+    expect(find.text('Spending'), findsOneWidget); // the categories
     expect(find.text('Cash wallet'), findsNothing); // Ledger collapsed
     await expectLater(
       find.byType(LedgerScreen),
@@ -124,7 +124,7 @@ void main() {
     await tester.tap(find.text('Ledger'));
     await tester.pumpAndSettle();
     expect(find.text('Cash wallet'), findsOneWidget);
-    expect(find.text('Not built yet. The ledger comes first.'), findsNothing);
+    expect(find.text('Spending'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -1849,6 +1849,12 @@ void main() {
       find.text('Runs out on 09.30 · up to ₮707,750 short'),
       findsOneWidget,
     );
+    // The entry row stays open with a blinking cursor; hold it steady so the
+    // capture doesn't depend on when it's taken.
+    EditableText.debugDeterministicCursor = true;
+    addTearDown(() => EditableText.debugDeterministicCursor = false);
+    // The row refocuses its payee once the save has come back.
+    await settle(tester);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/ledger_short.png'),
@@ -2086,6 +2092,265 @@ void main() {
         (a) => a.name == 'TDB Checking',
       );
       expect(checking.deleted, isTrue);
+      await tidy(tester, db);
+    });
+  });
+
+  group('categories', () {
+    Future<void> openBudget(WidgetTester tester) async {
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> categoryMenu(
+      WidgetTester tester,
+      String name,
+      String item,
+    ) async {
+      await tester.tap(find.text(name), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey(item)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the Budget screen lists categories with how they are used', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      expect(find.text('Income'), findsOneWidget);
+      expect(find.text('Salary'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('add-category')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('new-category-name')),
+        'Coffee',
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_categories.png'),
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('Coffee'), findsOneWidget);
+      expect(find.text('Coffee added'), findsOneWidget);
+      // The add row stays open for the next; the same name again adds nothing.
+      await tester.enterText(
+        find.byKey(const ValueKey('new-category-name')),
+        'coffee',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('Coffee is already a category'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+      await tester.pumpAndSettle();
+
+      // Rename in place.
+      await tester.tap(find.text('Coffee'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('category-name-field')),
+        'Coffee & tea',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('Coffee & tea'), findsOneWidget);
+
+      // Archive: out of the list, into Archived, and back.
+      await categoryMenu(tester, 'Coffee & tea', 'category-archive');
+      await settle(tester);
+      expect(find.text('Coffee & tea'), findsNothing);
+      await tester.pump(const Duration(seconds: 7)); // the toast goes
+      await tester.tap(find.byKey(const ValueKey('show-archived-categories')));
+      await tester.pumpAndSettle();
+      expect(find.text('Coffee & tea'), findsOneWidget);
+      await tapAndWait(tester, find.text('Show in menus'));
+      expect(
+        find.byKey(const ValueKey('show-archived-categories')),
+        findsNothing,
+      );
+      expect(find.text('Coffee & tea'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('deleting a category with rows moves them first; undo', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      await categoryMenu(tester, 'Dining out', 'category-delete');
+      expect(find.text('Delete Dining out?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('delete-category-into')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Groceries').last);
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/budget_delete.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
+      expect(find.text('Dining out'), findsNothing);
+      expect(
+        find.text('Dining out deleted · 1 row moved to Groceries'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dining out'), findsNothing); // Sakura Coffee's chip
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Dining out'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true); // redo
+      await settle(tester);
+      expect(find.text('Dining out'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a new name in the entry row becomes a category', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin Coffee',
+      );
+      await tester.enterText(find.widgetWithText(TextField, 'Category'), 'Cof');
+      await tester.pumpAndSettle();
+      expect(find.text('+ New category “Cof”'), findsOneWidget);
+      expect(find.text('new category'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Coffee',
+      );
+      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/entry_new_category.png'),
+      );
+      // Saving writes to the database: outside the fake clock.
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(
+        find.text('Nomin Coffee added · new category “Coffee”'),
+        findsOneWidget,
+      );
+      expect(find.text('Coffee'), findsOneWidget); // the row's chip
+
+      // One undo takes both.
+      await tapAndWait(tester, find.text('Undo'));
+      final ledger = await tester.runAsync(db.loadLedger);
+      expect(ledger!.categories.map((c) => c.name), isNot(contains('Coffee')));
+      expect(find.text('Nomin Coffee'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('typing part of a name and Enter picks it, not a new one', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      final category = find.widgetWithText(TextField, 'Category');
+      await tester.enterText(category, 'Gro');
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(category).controller!.text, 'Groceries');
+      await tidy(tester, db);
+    });
+
+    testWidgets('renaming onto another name offers the merge', (tester) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      await tester.tap(find.text('Gifts'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('category-name-field')),
+        'entertainment',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('Merge Gifts into Entertainment?'), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
+      expect(find.text('Gifts'), findsNothing);
+      expect(find.text('Gifts merged into Entertainment'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('editing a row in an archived category keeps it', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      final before = await tester.runAsync(db.loadLedger);
+      final dining = before!.categories.firstWhere(
+        (c) => c.name == 'Dining out',
+      );
+      await tester.runAsync(() => db.setArchived(dining.id, true));
+      await settle(tester);
+      await tester.tap(payeeCell);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(payeeCell);
+      await tester.pumpAndSettle();
+      // Its own category isn't "new".
+      expect(find.text('new category'), findsNothing);
+      await tester.enterText(find.widgetWithText(TextField, 'POS'), 'Latte');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      final after = await tester.runAsync(db.loadLedger);
+      expect(after!.knownCategories, hasLength(before.knownCategories.length));
+      final row = after
+          .registerFor(after.openAccounts.first.id)
+          .posted
+          .firstWhere((r) => r.payee == 'Sakura Coffee');
+      expect(row.memo, 'Latte');
+      expect(row.categoryId, dining.id);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a half-typed name from another field is not a new category', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin',
+      );
+      final category = find.widgetWithText(TextField, 'Category');
+      await tester.enterText(category, 'Gro');
+      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(
+        find.text('“Gro” isn’t a category · pick Groceries, or + New category'),
+        findsOneWidget,
+      );
+      // An account's name means the transfer.
+      await tester.enterText(category, 'Golomt Visa');
+      await tester.enterText(find.widgetWithText(TextField, '6500'), '7000');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.text('Did you mean “→ Golomt Visa”?'), findsOneWidget);
+      final ledger = await tester.runAsync(db.loadLedger);
+      expect(
+        ledger!.categories.map((c) => c.name),
+        isNot(anyOf(contains('Gro'), contains('Golomt Visa'))),
+      );
       await tidy(tester, db);
     });
   });

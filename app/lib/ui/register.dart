@@ -1253,7 +1253,7 @@ class CategoryMenu extends StatelessWidget {
       ),
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
-        for (final c in categories)
+        for (final c in categories.where((c) => !c.archived))
           MenuItemButton(
             onPressed: () => onPicked(c),
             style: ButtonStyle(

@@ -432,6 +432,55 @@ be quietly undone.
     - Undo of adding an account only works while it is still empty.
     - The database refuses new rows in a deleted account.
 
+22. **Categories are managed on the Budget screen** (owner's call). Categories belong
+    to both the ledger and the budget, and one place should own them. The Budget
+    screen is where every category will be a line, so its first version is just the
+    list. It is grouped Spending and Income, and each category shows "42 rows · last
+    09.12 · 1 scheduled", which is what decides whether to keep, merge or archive it.
+    There are **no ₮ amounts yet**; the budget model (envelopes or targets, still open)
+    adds its columns to these rows. Budget no longer says "Later". Rejected, and
+    first recommended: a Categories page under Ledger, which would have become a second
+    place once the budget came; and a top-level Categories section, for the same
+    reason. **Add category** opens an inline row (name, Spending or Income; income ends
+    a forecast, like payday). **Click a name to rename it**; ⋯ or a right-click gives
+    Rename, Change to income / spending, Archive and Delete…, like accounts (rule 21).
+    **Archive** needs no dialog, since nothing is lost: the category leaves the menus
+    and the entry row, and its rows keep its name. "Show archived (n)" lists archived
+    categories with "Show in menus". **Delete with rows asks where they go** ("1 row is
+    filed under it. It moves to: [Groceries]"), then merges. The rows are moved, not
+    lost, so this isn't a block. Deleted rows move too, so undoing their delete
+    later finds a live category. An empty category just goes, with ⌘Z.
+    **A new category can be made while typing a transaction.** In the entry row, a
+    name that isn't a category shows "+ New category 'Coffee'" in the list and a gold
+    "new category" note, so a typo is visible before saving. Saving makes it (income
+    if the amount had `+`), and the toast says "Nomin Coffee added · new category
+    'Coffee'". One ⌘Z takes both back. "Gro" plus Enter still picks Groceries: the
+    "+ New" line never counts as a match.
+    **From the reviews** (decided along the lines above):
+    - An archived category's name is still known. Editing or confirming one of its
+      rows keeps it; only the lists leave it out. The first build treated it as new
+      and quietly made a second one.
+    - A typed name becomes a category only when that's clearly meant: "+ New" was
+      picked, or the name looks like nothing else. If it's part of another name,
+      saving from another field says "'Gro' isn't a category · pick Groceries, or +
+      New category". If it's an account's name, it says "Did you mean '→ Golomt
+      Visa'?". This protects against slips; it doesn't refuse anything, since "+ New"
+      is always there.
+    - The note says "new income category" when the amount has `+`, and it stays
+      beside a calculator sum.
+    - The category and its row are one write, and one undo takes both.
+    - No duplicates: adding a name that exists (any case) says so. If it's archived,
+      it comes back instead. Renaming onto another category's name offers "Merge
+      Gifts into Entertainment?", the same operation as delete-with-move.
+    - Delete counts deleted rows too, so undoing their delete later finds a category.
+      The dialog says how many are scheduled, and when moving between spending and
+      income it says what changes.
+    - A split merged into its own other line shows the category twice. Balances are
+      right; accepted until splits can be edited.
+    - The Add category row stays open for the next one. Dates from another year show
+      in full. Names sort ignoring case.
+    - The database refuses category actions on anything that isn't a live category.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

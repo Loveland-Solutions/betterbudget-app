@@ -1623,6 +1623,83 @@ void main() {
       );
     });
   });
+
+  group('categories', () {
+    test(
+      'delete moves every row, deleted ones too; undo moves them back',
+      () async {
+        final dining = await categoryId('Dining out');
+        final groceries = await categoryId('Groceries');
+        final before = await db.loadLedger();
+        final sakura = before
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.payee == 'Sakura Coffee');
+        await db.softDelete(sakura.txnId);
+        final done = await db.deleteCategory(dining, into: groceries);
+        expect(done.entryIds, isNotEmpty);
+        await db.restore(sakura.txnId); // an old delete undone later
+        var data = await db.loadLedger();
+        expect(data.categories.map((c) => c.id), isNot(contains(dining)));
+        expect(
+          data
+              .registerFor(checking)
+              .posted
+              .firstWhere((r) => r.txnId == sakura.txnId)
+              .categoryLabel,
+          'Groceries',
+        );
+        expect(
+          data.summaryFor(checking).working,
+          before.summaryFor(checking).working,
+        );
+
+        await db.undeleteCategory(done);
+        data = await db.loadLedger();
+        expect(
+          data
+              .registerFor(checking)
+              .posted
+              .firstWhere((r) => r.txnId == sakura.txnId)
+              .categoryLabel,
+          'Dining out',
+        );
+      },
+    );
+
+    test('without a target, only an empty category can go', () async {
+      final dining = await categoryId('Dining out');
+      await expectLater(
+        db.deleteCategory(dining),
+        throwsA(isA<LockedException>()),
+      );
+      final tuition = await categoryId('Tuition');
+      await db.deleteCategory(tuition);
+      expect(
+        (await db.loadLedger()).categories.map((c) => c.name),
+        isNot(contains('Tuition')),
+      );
+    });
+
+    test(
+      'archived categories leave the menus, their rows keep the name',
+      () async {
+        final dining = await categoryId('Dining out');
+        await db.setArchived(dining, true);
+        final data = await db.loadLedger();
+        expect(data.categories.map((c) => c.id), isNot(contains(dining)));
+        expect(data.archivedCategories.single.id, dining);
+        expect(
+          data
+              .registerFor(checking)
+              .posted
+              .firstWhere((r) => r.payee == 'Sakura Coffee')
+              .categoryLabel,
+          'Dining out',
+        );
+      },
+    );
+  });
 }
 
 class _Rollback implements Exception {

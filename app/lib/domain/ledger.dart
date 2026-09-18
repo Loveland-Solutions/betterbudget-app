@@ -48,6 +48,7 @@ class AccountInfo {
   /// A credit account: what's owed reads as a positive amount, the way the
   /// bank shows it, and owing is never a warning.
   bool get isOwed => type == AccountType.liability;
+  bool get isIncome => type == AccountType.income;
   bool get isCategory =>
       type == AccountType.income || type == AccountType.expense;
 }
@@ -262,6 +263,8 @@ class AccountSummary {
   final DateTime? reconciledOn;
 }
 
+typedef CategoryUsage = ({int rows, int scheduled, DateTime? last});
+
 typedef AccountDeletePreview = ({
   /// Rows that go with the account, and how many of those were reconciled.
   int rows,
@@ -273,6 +276,10 @@ typedef AccountDeletePreview = ({
   /// Scheduled transfers that stay on another account's forecast, by date.
   List<({String on, DateTime date})> keptScheduled,
 });
+
+/// Case-insensitive, so "coffee" sits beside "Coffee" and a duplicate shows.
+int _byName(AccountInfo a, AccountInfo b) =>
+    a.name.toLowerCase().compareTo(b.name.toLowerCase());
 
 class LedgerData {
   LedgerData({
@@ -297,9 +304,49 @@ class LedgerData {
   List<AccountInfo> get archivedAccounts =>
       balanceSheetAccounts.where((a) => a.archived).toList();
 
+  /// Categories in use: the menus and the entry row.
   List<AccountInfo> get categories =>
-      accounts.values.where((a) => a.isCategory).toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+      accounts.values
+          .where((a) => a.isCategory && !a.archived && !a.deleted)
+          .toList()
+        ..sort(_byName);
+
+  /// Every category a row can still be filed under, archived included: the
+  /// entry row knows them all and lists only [categories].
+  List<AccountInfo> get knownCategories => [
+    ...categories,
+    ...archivedCategories,
+  ];
+
+  List<AccountInfo> get archivedCategories =>
+      accounts.values
+          .where((a) => a.isCategory && a.archived && !a.deleted)
+          .toList()
+        ..sort(_byName);
+
+  /// How many live rows use each category (posted, and scheduled apart),
+  /// and the latest posted date: what decides whether to keep, merge or
+  /// archive it.
+  late final Map<int, CategoryUsage> categoryUsage = () {
+    final out = <int, CategoryUsage>{};
+    for (final t in txns) {
+      for (final id in {
+        for (final e in t.entries)
+          if (accounts[e.accountId]!.isCategory) e.accountId,
+      }) {
+        final u = out[id] ?? (rows: 0, scheduled: 0, last: null);
+        final last = u.last;
+        out[id] = t.scheduled
+            ? (rows: u.rows, scheduled: u.scheduled + 1, last: last)
+            : (
+                rows: u.rows + 1,
+                scheduled: u.scheduled,
+                last: last != null && !t.date.isAfter(last) ? last : t.date,
+              );
+      }
+    }
+    return out;
+  }();
 
   /// What deleting [accountId] takes with it, worked out the way the
   /// database does it: every row that is only its own goes; a transfer with

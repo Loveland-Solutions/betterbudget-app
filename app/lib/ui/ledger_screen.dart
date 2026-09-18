@@ -18,6 +18,7 @@ import 'register.dart';
 import 'theme.dart';
 
 part 'accounts.dart';
+part 'budget.dart';
 
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
@@ -144,26 +145,72 @@ class _LedgerScreenState extends State<LedgerScreen> {
     super.dispose();
   }
 
+  /// A category typed that didn't exist yet is made in the same write as
+  /// the row: income when the money comes in ([fallback] is the row's own
+  /// amount when this one can't change, e.g. reconciled).
+  Future<int?> _makeCategory(EntryDraft d, {int fallback = 0}) async {
+    final name = d.newCategory;
+    if (name == null) return null;
+    return db.createCategory(name, income: (d.amount ?? fallback) > 0);
+  }
+
+  /// Wraps an undo and redo so a category made with the row goes and comes
+  /// back with it: one ⌘Z for both.
+  ({Future<void> Function() undo, Future<void> Function() redo}) _alsoCategory(
+    int? made,
+    Future<void> Function() undo,
+    Future<void> Function() redo,
+  ) => made == null
+      ? (undo: undo, redo: redo)
+      : (
+          // Each in one write: a half-done undo would leave the row gone and
+          // the category behind, or the reverse.
+          undo: () => db.transaction(() async {
+            await undo();
+            _expect(await db.deleteEmptyAccount(made));
+          }),
+          redo: () => db.transaction(() async {
+            await db.undeleteAccount(DeletedAccount(made, const []));
+            await redo();
+          }),
+        );
+
   Future<String?> _post(EntryDraft d) async {
+    int? made;
     try {
-      final id = await db.postSimple(
-        accountId: _accountId!,
-        date: d.date,
-        today: today,
-        payee: d.payee,
-        // The new-transaction row always supplies both.
-        counterAccountId: d.counter!.id,
-        amount: d.amount!,
-        memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
-      );
+      late final int id;
+      // One write: a crash between them can't leave an empty category.
+      await db.transaction(() async {
+        made = await _makeCategory(d);
+        id = await db.postSimple(
+          accountId: _accountId!,
+          date: d.date,
+          today: today,
+          payee: d.payee,
+          // The new-transaction row always supplies one or the other.
+          counterAccountId: made ?? d.counter!.id,
+          amount: d.amount!,
+          memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
+        );
+      });
       _entry.payeeNames = await db.payeeNames();
+      final pair = _alsoCategory(
+        made,
+        () async => _expect((await db.softDeleteMany([id])).length == 1),
+        () => db.restoreMany([id]),
+      );
       _did(
         '${d.payee} added',
-        undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
-        redo: () => db.restoreMany([id]),
-        toast: false,
+        undo: pair.undo,
+        redo: pair.redo,
+        toast: made != null,
+        message: made == null
+            ? null
+            : '${d.payee} added · new ${d.amount! > 0 ? 'income ' : ''}'
+                  'category “${d.newCategory}”'
+                  '${d.date.isAfter(today) ? ' · scheduled for ${fullDate(d.date)}' : ''}',
       );
-      if (d.date.isAfter(today)) {
+      if (made == null && d.date.isAfter(today)) {
         _showToast(
           'Scheduled for ${fullDate(d.date)} · not in balances until confirmed',
         );
@@ -450,19 +497,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
     final int? owedId;
+    int? made;
     try {
-      owedId = await db.editTransaction(
-        transactionId: row.txnId,
-        accountId: _accountId!,
-        date: d.date,
-        today: today,
-        payee: d.payee,
-        memo: d.memo,
-        counterAccountId: d.counter?.id,
-        amount: d.amount,
-        confirm: confirming,
-        keepOwed: d.keepOwed,
-      );
+      owedId = await db.transaction(() async {
+        made = await _makeCategory(d, fallback: row.amount);
+        return db.editTransaction(
+          transactionId: row.txnId,
+          accountId: _accountId!,
+          date: d.date,
+          today: today,
+          payee: d.payee,
+          memo: d.memo,
+          counterAccountId: made ?? d.counter?.id,
+          amount: d.amount,
+          confirm: confirming,
+          keepOwed: d.keepOwed,
+        );
+      });
     } on LockedException catch (e) {
       return e.message;
     } catch (e) {
@@ -477,20 +528,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
       String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
       final amount = d.amount ?? row.amount;
       final early = row.date.isAfter(today);
-      _did(
-        '$name confirmed',
+      final pair = _alsoCategory(
+        made,
         // One action: the confirm and any rest still owed come and go
         // together.
-        undo: () => db.transaction(() async {
+        () => db.transaction(() async {
           await db.restoreSnapshot(before);
           if (owedId case final id?) {
             _expect((await db.softDeleteMany([id])).length == 1);
           }
         }),
-        redo: () => db.transaction(() async {
+        () => db.transaction(() async {
           await db.restoreSnapshot(after);
           if (owedId case final id?) await db.restoreMany([id]);
         }),
+      );
+      _did(
+        '$name confirmed',
+        undo: pair.undo,
+        redo: pair.redo,
         message:
             '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
             // What's still owed, or else the plan when it wasn't what happened.
@@ -505,12 +561,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return null;
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
+    final pair = _alsoCategory(
+      made,
+      () => db.restoreSnapshot(before),
+      () => db.restoreSnapshot(after),
+    );
     _did(
       '$name edited',
-      undo: () => db.restoreSnapshot(before),
-      redo: () => db.restoreSnapshot(after),
+      undo: pair.undo,
+      redo: pair.redo,
       message: nowScheduled
           ? 'Moved to ${fullDate(d.date)} · now scheduled, out of balances until confirmed'
+          : made != null
+          ? 'Changes saved · new category “${d.newCategory}”'
           : 'Changes saved',
     );
     return null;
@@ -777,13 +840,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   /// Runs an account write; a failure says so instead of vanishing.
-  Future<bool> _accountWrite(Future<void> Function() write) async {
+  Future<bool> _accountWrite(
+    Future<void> Function() write, {
+    String what = 'account',
+  }) async {
     try {
       await write();
       return mounted;
     } catch (e) {
-      debugPrint('Account change failed: $e');
-      if (mounted) _showToast('Couldn’t change the account');
+      debugPrint('Change to $what failed: $e');
+      if (mounted) _showToast('Couldn’t change the $what');
       return false;
     }
   }
@@ -797,6 +863,164 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _editing = null;
       _adding = false;
     });
+  }
+
+  // ---------- categories ----------
+
+  _CategoryActions _categoryActions(LedgerData data, AccountInfo c) =>
+      _CategoryActions(
+        rename: (name) => _renameCategory(data, c, name),
+        changeKind: () => _changeCategoryKind(c),
+        archive: () => _archiveCategory(c, true),
+        delete: () => _deleteCategory(data, c),
+      );
+
+  /// A category already called [name], ignoring case, archived included.
+  AccountInfo? _categoryNamed(LedgerData data, String name, {int? except}) =>
+      data.knownCategories
+          .where(
+            (c) => c.id != except && c.name.toLowerCase() == name.toLowerCase(),
+          )
+          .firstOrNull;
+
+  /// A name that's already taken makes nothing new: an archived one comes
+  /// back instead, so there's never two of it.
+  Future<void> _createCategory(String name, bool income) async {
+    final data = _data;
+    final existing = data == null ? null : _categoryNamed(data, name);
+    if (existing != null) {
+      if (existing.archived) return _archiveCategory(existing, false);
+      _showToast('${existing.name} is already a category');
+      return;
+    }
+    late int id;
+    if (!await _accountWrite(
+      () async => id = await db.createCategory(name, income: income),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      '$name added',
+      undo: () async => _expect(await db.deleteEmptyAccount(id)),
+      redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
+    );
+  }
+
+  /// Renaming onto another category's name is what merging looks like, so
+  /// it offers that (the same as Delete with rows moving there).
+  Future<void> _renameCategory(
+    LedgerData data,
+    AccountInfo c,
+    String name,
+  ) async {
+    final other = _categoryNamed(data, name, except: c.id);
+    if (other != null) return _deleteCategory(data, c, into: other);
+    final old = c.name;
+    if (!await _accountWrite(
+      () => db.renameAccount(c.id, name),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      'Renamed $old to $name',
+      undo: () => db.renameAccount(c.id, old),
+      redo: () => db.renameAccount(c.id, name),
+    );
+  }
+
+  Future<void> _changeCategoryKind(AccountInfo c) async {
+    final old = c.type;
+    final next = c.isIncome ? AccountType.expense : AccountType.income;
+    if (!await _accountWrite(
+      () => db.setCategoryType(c.id, next),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      '${c.name} is now ${next == AccountType.income ? 'income' : 'spending'}',
+      message: next == AccountType.income
+          ? '${c.name} is now income · it ends forecasts, like payday'
+          : null,
+      undo: () => db.setCategoryType(c.id, old),
+      redo: () => db.setCategoryType(c.id, next),
+    );
+  }
+
+  /// Nothing is lost by archiving a category, so no dialog: its rows keep
+  /// its name, and it leaves the menus.
+  Future<void> _archiveCategory(AccountInfo c, bool archived) async {
+    if (!await _accountWrite(
+      () => db.setArchived(c.id, archived),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      archived ? '${c.name} archived' : '${c.name} back in the menus',
+      message: archived
+          ? '${c.name} archived · its rows keep it; new rows can’t pick it'
+          : null,
+      undo: () => db.setArchived(c.id, !archived),
+      redo: () => db.setArchived(c.id, archived),
+    );
+  }
+
+  /// With no rows at all it just goes. With rows (deleted ones count: undoing
+  /// their delete must find a category), they need a new home: the dialog
+  /// asks where, and the delete is a merge. [into] preselects it (a rename
+  /// onto another name).
+  Future<void> _deleteCategory(
+    LedgerData data,
+    AccountInfo c, {
+    AccountInfo? into,
+  }) async {
+    final u = data.categoryUsage[c.id];
+    final merging = into != null;
+    final int anyRows;
+    try {
+      anyRows = await db.categoryEntryCount(c.id);
+    } catch (e) {
+      debugPrint('Counting rows failed: $e');
+      _showToast('Couldn’t change the category');
+      return;
+    }
+    if (!mounted) return;
+    if (anyRows > 0 || into != null) {
+      into = await showDialog<AccountInfo>(
+        context: context,
+        builder: (_) => _DeleteCategoryDialog(
+          category: c,
+          usage: u,
+          into: into,
+          targets: data.categories.where((t) => t.id != c.id).toList(),
+        ),
+      );
+      if (into == null || !mounted) return;
+    }
+    final target = into;
+    late DeletedCategory done;
+    if (!await _accountWrite(
+      () async => done = await db.deleteCategory(c.id, into: target?.id),
+      what: 'category',
+    )) {
+      return;
+    }
+    final moved = (u?.rows ?? 0) + (u?.scheduled ?? 0);
+    _did(
+      '${c.name} deleted',
+      message: target == null || (!merging && moved == 0)
+          ? '${c.name} deleted'
+          : merging
+          ? '${c.name} merged into ${target.name}'
+                '${moved == 0 ? '' : ' · $moved ${moved == 1 ? 'row' : 'rows'} moved'}'
+          : '${c.name} deleted · $moved ${moved == 1 ? 'row' : 'rows'} '
+                'moved to ${target.name}',
+      undo: () => db.undeleteCategory(done),
+      redo: () async => done = await db.deleteCategory(c.id, into: target?.id),
+    );
   }
 
   _AccountActions _actionsFor(LedgerData data, AccountInfo account) =>
@@ -1175,6 +1399,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                     onUnarchive: (a) => _setArchived(a, false),
                                   ),
                           ),
+                          AppSection.budget => _BudgetPage(
+                            data: data,
+                            actionsFor: (c) => _categoryActions(data, c),
+                            onCreate: _createCategory,
+                            onUnarchive: (c) => _archiveCategory(c, false),
+                          ),
                           _ => _PlaceholderSection(section: _section),
                         },
                       ),
@@ -1322,7 +1552,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 selectedKey: _selectedKey,
                 editing: _editing,
                 hoveredStatus: _hoveredStatus,
-                categories: data.categories,
+                // Archived too, so an old row keeps its category when
+                // edited; menus and lists leave them out.
+                categories: data.knownCategories,
                 transferTargets: data.openAccounts
                     .where((a) => a.id != account.id)
                     .toList(),
@@ -1503,12 +1735,7 @@ class _Sidebar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
-          header(
-            AppSection.budget,
-            Icons.pie_chart_outline_rounded,
-            'Budget',
-            later: true,
-          ),
+          header(AppSection.budget, Icons.pie_chart_outline_rounded, 'Budget'),
           const SizedBox(height: 2),
           header(
             AppSection.savings,
