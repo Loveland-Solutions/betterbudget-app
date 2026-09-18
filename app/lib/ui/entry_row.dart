@@ -82,7 +82,8 @@ class EditInitial {
        lockCategory =
            r.kind == RowKind.split ||
            r.kind == RowKind.opening ||
-           (r.locked && r.kind == RowKind.transfer),
+           (r.locked && r.kind == RowKind.transfer) ||
+           r.otherClosed,
        lockAmount = r.kind == RowKind.split || r.locked,
        payeeOptional = r.kind != RowKind.simple;
 

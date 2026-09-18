@@ -1855,4 +1855,204 @@ void main() {
     );
     await tidy(tester, db);
   });
+
+  group('accounts', () {
+    Future<void> menu(WidgetTester tester, String item) async {
+      await tester.tap(find.byKey(const ValueKey('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey(item)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('add a card, answer what is owed, and it starts there', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('add-account')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('new-account-name')),
+        'Khan Visa',
+      );
+      await tester.tap(find.byKey(const ValueKey('kind-liability')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/account_new.png'),
+      );
+      await tapAndWait(
+        tester,
+        find.byKey(const ValueKey('new-account-create')),
+      );
+
+      expect(find.text('What do you owe on it today?'), findsOneWidget);
+      expect(
+        find.text(
+          'What you’ve used, not the available limit · empty starts at ₮0',
+        ),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('start-balance')),
+        '500000',
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/account_start.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
+      expect(find.text('₮500,000 owed'), findsOneWidget); // sidebar
+      expect(find.text('Opening balance'), findsOneWidget);
+      // Only what hasn't settled is left to type, so the entry row is open.
+      expect(
+        find.text(
+          'Started at ₮500,000 owed · add only what hasn’t settled yet',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        findsOneWidget,
+      );
+
+      // Undo takes the balance back, then ⌘Z the account.
+      await tapAndWait(tester, find.text('Undo'));
+      expect(find.text('What do you owe on it today?'), findsOneWidget);
+      await tester.tap(find.text('What do you owe on it today?'));
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Khan Visa'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('empty starts at ₮0 with the entry row open', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('add-account')));
+      await tester.pumpAndSettle();
+      await tapAndWait(
+        tester,
+        find.byKey(const ValueKey('new-account-create')),
+      );
+      expect(find.text('New account'), findsWidgets);
+      await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
+      expect(find.byKey(const ValueKey('account-start')), findsNothing);
+      expect(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('click the name to rename it', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('account-name')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('account-name-field')),
+        'TDB Salary',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('TDB Salary'), findsNWidgets(2)); // title, sidebar
+      await tapAndWait(tester, find.text('Undo'));
+      expect(find.text('TDB Salary'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('archive says what it leaves; Settings brings it back', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await menu(tester, 'menu-archive');
+      expect(find.textContaining('₮4,182,450 is still in it'), findsOneWidget);
+      expect(
+        find.textContaining('3 scheduled rows (Zaisan Residence 09.20'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          '1 scheduled transfer stays on the other account’s forecast '
+          '(Golomt Visa 09.25)',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/account_archive.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
+      // Gone from the sidebar; the next account opens; net worth unchanged.
+      expect(find.text('₮4,182,450'), findsNothing);
+      expect(find.text('Khan Savings'), findsNWidgets(2)); // title, sidebar
+      expect(find.text('₮16,228,750'), findsOneWidget);
+      expect(find.text('incl. ₮4,182,450 in archived'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.text('Archived accounts'), findsOneWidget);
+      await tapAndWait(tester, find.textContaining('Show in sidebar'));
+      expect(find.text('₮4,182,450'), findsOneWidget);
+      expect(find.text('TDB Checking'), findsNWidgets(2)); // title, sidebar
+      await tidy(tester, db);
+    });
+
+    testWidgets('delete says what goes and what stays, then does it', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await menu(tester, 'menu-delete');
+      expect(find.text('Delete TDB Checking?'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Its transfers stay on the other accounts as “TDB Checking (deleted)”: '
+          '2 on Golomt Visa, 1 on Khan Savings.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'This deletes the account and its 13 rows, 4 of them reconciled.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Net worth goes down by ₮4,182,450'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/account_delete.png'),
+      );
+      // Enter doesn't delete: the dialog is read, then clicked.
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      expect(find.text('Delete TDB Checking?'), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
+
+      expect(find.text('TDB Checking deleted'), findsOneWidget);
+      expect(find.text('Undo'), findsNothing); // final, as it said
+      await tester.tap(find.text('Khan Savings').first);
+      await tester.pumpAndSettle();
+      expect(find.text('TDB Checking (deleted)'), findsWidgets);
+
+      // ⌘Z still works, as for everything this session.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('TDB Checking'), findsWidgets);
+      expect(find.text('TDB Checking (deleted)'), findsNothing);
+
+      // Redo deletes it again, with the same rows.
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('TDB Checking (deleted)'), findsWidgets);
+      final ledger = await tester.runAsync(db.loadLedger);
+      final checking = ledger!.accounts.values.firstWhere(
+        (a) => a.name == 'TDB Checking',
+      );
+      expect(checking.deleted, isTrue);
+      await tidy(tester, db);
+    });
+  });
 }

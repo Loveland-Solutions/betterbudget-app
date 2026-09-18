@@ -17,6 +17,8 @@ import 'reconcile.dart';
 import 'register.dart';
 import 'theme.dart';
 
+part 'accounts.dart';
+
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
     defaultTargetPlatform == TargetPlatform.iOS;
@@ -66,6 +68,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// The new-transaction row is open. It opens from Add or ⌘N.
   bool _adding = false;
+
+  /// The new-account form is showing instead of an account.
+  bool _newAccount = false;
+
+  /// Empty accounts started at ₮0 this session: they show the register, not
+  /// the balance question.
+  final _startedEmpty = <int>{};
+
+  /// Just added, and maybe not in the latest snapshot yet: stays chosen until
+  /// it arrives. Any other account missing from a snapshot (a restore) gives
+  /// way to the first open one.
+  int? _pendingAccountId;
   ({String message, VoidCallback? undo})? _toast;
 
   /// Everything undoable done this session, oldest first. ⌘Z / Ctrl+Z undoes
@@ -683,6 +697,220 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  // ---------- accounts ----------
+
+  void _openNewAccount() => setState(() {
+    _endReconcile();
+    _section = AppSection.ledger;
+    _newAccount = true;
+    _selected = null;
+    _editing = null;
+    _adding = false;
+  });
+
+  Future<void> _createAccount(String name, AccountType type) async {
+    final int id;
+    try {
+      id = await db.createAccount(name: name, type: type);
+    } catch (e) {
+      debugPrint('Add account failed: $e');
+      _showToast('Couldn’t add the account');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _newAccount = false;
+      _accountId = id;
+      _pendingAccountId = id;
+    });
+    // The account appearing is the confirmation; ⌘Z takes it away again, but
+    // only while it's still empty: undo never deletes rows unasked.
+    _did(
+      '$name added',
+      undo: () async => _expect(await db.deleteEmptyAccount(id)),
+      redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
+      toast: false,
+    );
+  }
+
+  /// The balance question answered. Empty posts nothing: the account starts
+  /// at ₮0 with the entry row open.
+  Future<void> _startAccount(
+    AccountInfo account,
+    int? typed,
+    DateTime date,
+  ) async {
+    if (typed == null || typed == 0) {
+      _startedEmpty.add(account.id);
+      _newEntry();
+      return;
+    }
+    // A card's balance is typed as what's owed, positive, as the bank shows it.
+    final balance = account.isOwed ? -typed : typed;
+    final int id;
+    try {
+      id = await db.postOpeningBalance(
+        accountId: account.id,
+        date: date,
+        balance: balance,
+      );
+    } catch (e) {
+      debugPrint('Opening balance failed: $e');
+      _showToast('Couldn’t save the balance');
+      return;
+    }
+    // The bank's number already holds everything settled, so what's left to
+    // type is what hasn't: the entry row opens, and the toast says so.
+    _newEntry();
+    _did(
+      'Opening balance',
+      undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
+      redo: () => db.restoreMany([id]),
+      message:
+          'Started at ${_money(typed)}${account.isOwed ? ' owed' : ''} · '
+          'add only what hasn’t settled yet',
+    );
+  }
+
+  /// Runs an account write; a failure says so instead of vanishing.
+  Future<bool> _accountWrite(Future<void> Function() write) async {
+    try {
+      await write();
+      return mounted;
+    } catch (e) {
+      debugPrint('Account change failed: $e');
+      if (mounted) _showToast('Couldn’t change the account');
+      return false;
+    }
+  }
+
+  /// The open row, editor and entry row belong to the account leaving view.
+  void _leaveAccount(AccountInfo account) {
+    if (_accountId != account.id) return;
+    _endReconcile();
+    setState(() {
+      _selected = null;
+      _editing = null;
+      _adding = false;
+    });
+  }
+
+  Future<void> _rename(AccountInfo account, String name) async {
+    final old = account.name;
+    if (!await _accountWrite(() => db.renameAccount(account.id, name))) return;
+    _did(
+      'Renamed $old to $name',
+      undo: () => db.renameAccount(account.id, old),
+      redo: () => db.renameAccount(account.id, name),
+    );
+  }
+
+  Future<void> _changeKind(AccountInfo account) async {
+    final old = account.type;
+    final next = account.isOwed ? AccountType.asset : AccountType.liability;
+    var flipped = false;
+    if (!await _accountWrite(
+      () async => flipped = await db.setAccountType(account.id, next),
+    )) {
+      return;
+    }
+    final kind = next == AccountType.liability
+        ? 'card or loan'
+        : 'bank account';
+    _did(
+      '${account.name} is now a $kind',
+      message: flipped
+          ? '${account.name} is now a $kind · its opening balance flipped with it'
+          : null,
+      undo: () => db.setAccountType(account.id, old),
+      redo: () => db.setAccountType(account.id, next),
+    );
+  }
+
+  Future<void> _archive(LedgerData data, AccountInfo account) async {
+    final warnings = _archiveWarnings(
+      account,
+      data.balanceOf(account.id),
+      data.registerFor(account.id).scheduled,
+    );
+    // Nothing left behind, nothing to read first.
+    if (warnings.isNotEmpty) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (_) => _AccountWarning(
+          title: 'Archive ${account.name}?',
+          lines: warnings,
+          action: 'Archive ${account.name}',
+          danger: false,
+        ),
+      );
+      if (go != true || !mounted) return;
+    }
+    await _setArchived(account, true);
+  }
+
+  Future<void> _setArchived(AccountInfo account, bool archived) async {
+    if (archived) _leaveAccount(account);
+    if (!await _accountWrite(() => db.setArchived(account.id, archived))) {
+      return;
+    }
+    if (!archived) {
+      setState(() {
+        _section = AppSection.ledger;
+        _accountId = account.id;
+      });
+    }
+    _did(
+      archived
+          ? '${account.name} archived'
+          : '${account.name} back in the sidebar',
+      message: archived
+          ? '${account.name} archived · Settings brings it back'
+          : null,
+      undo: () => db.setArchived(account.id, !archived),
+      redo: () => db.setArchived(account.id, archived),
+    );
+  }
+
+  Future<void> _deleteAccount(LedgerData data, AccountInfo account) async {
+    final preview = data.deletePreview(account.id);
+    // Nothing in it and nothing kept elsewhere: nothing to read first.
+    final empty = preview.rows == 0 && preview.keptOn.isEmpty;
+    final go =
+        empty ||
+        await showDialog<bool>(
+              context: context,
+              builder: (_) => _AccountWarning(
+                title: 'Delete ${account.name}?',
+                lines: _deleteWarnings(
+                  account,
+                  data.balanceOf(account.id),
+                  preview,
+                ),
+                action: 'Delete ${account.name}',
+                danger: true,
+              ),
+            ) ==
+            true;
+    if (!go || !mounted) return;
+    _leaveAccount(account);
+    late DeletedAccount done;
+    if (!await _accountWrite(
+      () async => done = await db.deleteAccount(account.id),
+    )) {
+      return;
+    }
+    // Final, as the warning says: no Undo on the toast. ⌘Z still works, as
+    // it does for everything this session.
+    _did(
+      '${account.name} deleted',
+      undo: () => db.undeleteAccount(done),
+      redo: () async => done = await db.deleteAccount(account.id),
+      toast: false,
+    );
+    _showToast('${account.name} deleted');
+  }
+
   /// Saves a copy of everything where the user picks: another drive, a USB
   /// stick. The daily automatic copies stay on this disk.
   Future<void> _backUpTo() async {
@@ -859,17 +1087,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
               final data = snap.data;
               if (data == null) return const SizedBox.shrink();
               _data = data;
-              final accounts = data.balanceSheetAccounts;
-              if (accounts.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No accounts yet',
-                    style: onest(14, color: Mid.ink3),
-                  ),
-                );
+              final accounts = data.openAccounts;
+              final current = data.accounts[_accountId];
+              // Archived or deleted since: the first open one takes over.
+              final account = accounts.contains(current)
+                  ? current!
+                  : accounts.firstOrNull;
+              // A just-added account isn't in this snapshot yet; it will be
+              // in the next, so keep it chosen.
+              if (current != null && current.id == _pendingAccountId) {
+                _pendingAccountId = null;
               }
-              final account = data.accounts[_accountId] ?? accounts.first;
-              if (_accountId != account.id) {
+              if (account != null &&
+                  _accountId != account.id &&
+                  (current != null ||
+                      _pendingAccountId == null ||
+                      _accountId != _pendingAccountId)) {
                 _accountId = account.id;
                 db.payeeNames().then((p) => _entry.payeeNames = p);
               }
@@ -886,24 +1119,41 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           _selected = null;
                           _editing = null;
                         }),
-                        selected: account.id,
+                        selected: _newAccount ? null : account?.id,
                         backupHealth: _backups.health,
                         now: widget.clock,
                         onSelect: (id) => setState(() {
                           if (id != _accountId) _endReconcile();
                           _section = AppSection.ledger;
+                          _newAccount = false;
                           _accountId = id;
                           _selected = null;
                         }),
+                        addingAccount: _newAccount,
+                        onAddAccount: _openNewAccount,
                       ),
                       Expanded(
                         child: switch (_section) {
-                          AppSection.ledger => _body(data, account),
+                          AppSection.ledger
+                              when _newAccount || account == null =>
+                            _NewAccountPage(
+                              onCreate: _createAccount,
+                              onCancel: account == null
+                                  ? null
+                                  : () => setState(() => _newAccount = false),
+                            ),
+                          AppSection.ledger => _body(data, account!),
                           AppSection.settings => _SettingsPage(
                             health: _backups.health,
                             now: widget.clock,
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
+                            archived: data.archivedAccounts.isEmpty
+                                ? null
+                                : _ArchivedAccounts(
+                                    data: data,
+                                    onUnarchive: (a) => _setArchived(a, false),
+                                  ),
                           ),
                           _ => _PlaceholderSection(section: _section),
                         },
@@ -934,6 +1184,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Widget _body(LedgerData data, AccountInfo account) {
     final summary = data.summaryFor(account.id);
     final register = data.registerFor(account.id);
+    // Nothing in it yet: ask what's in it first.
+    final fresh =
+        register.posted.isEmpty &&
+        register.scheduled.isEmpty &&
+        !_startedEmpty.contains(account.id);
     _rows = {
       for (final r in [...register.posted, ...register.scheduled]) r.txnId: r,
     };
@@ -962,17 +1217,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
         children: [
           Row(
             children: [
-              Text(
-                account.name,
-                style: onest(22, weight: 600, letterSpacing: -0.3),
-              ),
-              if (account.mask != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  '··${account.mask}',
-                  style: onest(13, color: Mid.ink3, tabular: true),
+              Transform.translate(
+                // The name's own padding (it renames in place) stays out of
+                // the left edge the rest of the page lines up on.
+                offset: const Offset(-8, 0),
+                child: _AccountTitle(
+                  account: account,
+                  onRename: (name) => _rename(account, name),
+                  onChangeKind: () => _changeKind(account),
+                  onArchive: () => _archive(data, account),
+                  onDelete: () => _deleteAccount(data, account),
                 ),
-              ],
+              ),
               const Spacer(),
               _SearchField(
                 controller: _search,
@@ -982,108 +1238,126 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          BalanceHeader(
-            owed: account.isOwed,
-            summary: summary,
-            forecast: forecast,
-            hoveredStatus: _hoveredStatus,
-            activeStatus: activeStatus,
-            onOpenScheduled: _openScheduled,
-            onReconcile: () => _startReconcile(data, account),
-            reconcile: _reconcile == null
-                ? null
-                : ReconcilePanel(
-                    session: _reconcile!,
-                    today: today,
-                    check: () => _reconcileCheck(data, summary),
-                    onLock: () =>
-                        _lockReconcile(account, _reconcileCheck(data, summary)),
-                    onAdjust: () => _lockReconcile(
-                      account,
-                      _reconcileCheck(data, summary),
-                      adjust: true,
-                    ),
-                    onCancel: _endReconcile,
-                  ),
-            onStatusTap: (s) => setState(() {
-              final f = switch (s) {
-                Cleared.uncleared => RegisterFilter.uncleared,
-                Cleared.cleared => RegisterFilter.cleared,
-                Cleared.reconciled => RegisterFilter.reconciled,
-              };
-              _filter = _filter == f ? RegisterFilter.all : f;
-            }),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: RegisterPanel(
-              owed: account.isOwed,
-              accountName: account.name,
-              posted: register.posted,
-              scheduled: register.scheduled,
-              reconcileThrough: _reconcile == null
-                  ? null
-                  : parseEntryDate(_reconcile!.date.text, today) ?? today,
-              filter: _filter,
-              search: _search.text,
-              selected: _selected,
-              selectedKey: _selectedKey,
-              editing: _editing,
-              hoveredStatus: _hoveredStatus,
-              categories: data.categories,
-              transferTargets: data.balanceSheetAccounts
-                  .where((a) => a.id != account.id)
-                  .toList(),
-              entryController: _entry,
-              today: today,
-              adding: _adding,
-              addButton: _PrimaryButton(
-                label: 'Add',
-                icon: Icons.add_rounded,
-                key: const ValueKey('add-transaction'),
-                onTap: _newEntry,
+          if (fresh)
+            Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: _AccountStart(
+                  key: ValueKey('start-${account.id}'),
+                  account: account,
+                  today: today,
+                  onStart: (balance, date) =>
+                      _startAccount(account, balance, date),
+                ),
               ),
-              onCloseEntry: () => setState(() => _adding = false),
-              actions: RegisterActions(
-                onFilter: (f) => setState(() => _filter = f),
-                onRowTap: _tapRow,
-                onToggleCleared: _toggleCleared,
-                onConfirm: _startConfirm,
-                onSetCategory: (r, c) async {
-                  final previous = await db.setCategoryMany(
-                    transactionIds: [r.txnId],
-                    accountId: account.id,
-                    categoryId: c.id,
-                  );
-                  if (previous.isEmpty) return;
-                  _did(
-                    '${r.payee} → ${c.name}',
-                    undo: () async => _expect(
-                      (await db.restoreCategories(
-                            previous,
-                            account.id,
-                          )).length ==
-                          previous.length,
+            )
+          else ...[
+            BalanceHeader(
+              owed: account.isOwed,
+              summary: summary,
+              forecast: forecast,
+              hoveredStatus: _hoveredStatus,
+              activeStatus: activeStatus,
+              onOpenScheduled: _openScheduled,
+              onReconcile: () => _startReconcile(data, account),
+              reconcile: _reconcile == null
+                  ? null
+                  : ReconcilePanel(
+                      session: _reconcile!,
+                      today: today,
+                      check: () => _reconcileCheck(data, summary),
+                      onLock: () => _lockReconcile(
+                        account,
+                        _reconcileCheck(data, summary),
+                      ),
+                      onAdjust: () => _lockReconcile(
+                        account,
+                        _reconcileCheck(data, summary),
+                        adjust: true,
+                      ),
+                      onCancel: _endReconcile,
                     ),
-                    redo: () async => _expect(
-                      (await db.setCategoryMany(
-                            transactionIds: [r.txnId],
-                            accountId: account.id,
-                            categoryId: c.id,
-                          )).length ==
-                          1,
-                    ),
-                  );
-                },
-                onDelete: _delete,
-                onClearSelection: _clearSelection,
-                onEdit: (r) => _startEdit(r.txnId, EditField.payee),
-                onCancelEdit: _cancelEdit,
-                onUnreconcile: (_) => _unreconcile(account),
-                onMove: (r, to) => _move(r, account, to),
+              onStatusTap: (s) => setState(() {
+                final f = switch (s) {
+                  Cleared.uncleared => RegisterFilter.uncleared,
+                  Cleared.cleared => RegisterFilter.cleared,
+                  Cleared.reconciled => RegisterFilter.reconciled,
+                };
+                _filter = _filter == f ? RegisterFilter.all : f;
+              }),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: RegisterPanel(
+                owed: account.isOwed,
+                accountName: account.name,
+                posted: register.posted,
+                scheduled: register.scheduled,
+                reconcileThrough: _reconcile == null
+                    ? null
+                    : parseEntryDate(_reconcile!.date.text, today) ?? today,
+                filter: _filter,
+                search: _search.text,
+                selected: _selected,
+                selectedKey: _selectedKey,
+                editing: _editing,
+                hoveredStatus: _hoveredStatus,
+                categories: data.categories,
+                transferTargets: data.openAccounts
+                    .where((a) => a.id != account.id)
+                    .toList(),
+                entryController: _entry,
+                today: today,
+                adding: _adding,
+                addButton: _PrimaryButton(
+                  label: 'Add',
+                  icon: Icons.add_rounded,
+                  key: const ValueKey('add-transaction'),
+                  onTap: _newEntry,
+                ),
+                onCloseEntry: () => setState(() => _adding = false),
+                actions: RegisterActions(
+                  onFilter: (f) => setState(() => _filter = f),
+                  onRowTap: _tapRow,
+                  onToggleCleared: _toggleCleared,
+                  onConfirm: _startConfirm,
+                  onSetCategory: (r, c) async {
+                    final previous = await db.setCategoryMany(
+                      transactionIds: [r.txnId],
+                      accountId: account.id,
+                      categoryId: c.id,
+                    );
+                    if (previous.isEmpty) return;
+                    _did(
+                      '${r.payee} → ${c.name}',
+                      undo: () async => _expect(
+                        (await db.restoreCategories(
+                              previous,
+                              account.id,
+                            )).length ==
+                            previous.length,
+                      ),
+                      redo: () async => _expect(
+                        (await db.setCategoryMany(
+                              transactionIds: [r.txnId],
+                              accountId: account.id,
+                              categoryId: c.id,
+                            )).length ==
+                            1,
+                      ),
+                    );
+                  },
+                  onDelete: _delete,
+                  onClearSelection: _clearSelection,
+                  onEdit: (r) => _startEdit(r.txnId, EditField.payee),
+                  onCancelEdit: _cancelEdit,
+                  onUnreconcile: (_) => _unreconcile(account),
+                  onMove: (r, to) => _move(r, account, to),
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1109,23 +1383,35 @@ class _Sidebar extends StatelessWidget {
     required this.onSelect,
     required this.backupHealth,
     required this.now,
+    required this.addingAccount,
+    required this.onAddAccount,
   });
   final LedgerData data;
+  final bool addingAccount;
+  final VoidCallback onAddAccount;
   final ValueListenable<BackupHealth> backupHealth;
   final DateTime Function() now;
   final AppSection section;
   final ValueChanged<AppSection> onSection;
-  final int selected;
+  final int? selected;
   final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final accounts = data.balanceSheetAccounts;
     final groups = <String, List<AccountInfo>>{};
-    for (final a in accounts) {
+    for (final a in data.openAccounts) {
       groups.putIfAbsent(a.group ?? 'Accounts', () => []).add(a);
     }
-    final net = accounts.fold(0, (s, a) => s + data.balanceOf(a.id));
+    // Archived accounts still hold money, or debt.
+    final net = data.balanceSheetAccounts.fold(
+      0,
+      (s, a) => s + data.balanceOf(a.id),
+    );
+    // So net worth isn't a mystery sum of the accounts above it.
+    final archived = data.archivedAccounts.fold(
+      0,
+      (s, a) => s + data.balanceOf(a.id),
+    );
 
     Widget header(
       AppSection sec,
@@ -1188,6 +1474,8 @@ class _Sidebar extends StatelessWidget {
                   ),
                 const SizedBox(height: 14),
               ],
+              _AddAccountTile(active: addingAccount, onTap: onAddAccount),
+              const SizedBox(height: 10),
             ],
           ),
           const SizedBox(height: 2),
@@ -1233,6 +1521,15 @@ class _Sidebar extends StatelessWidget {
                   '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
                   style: onest(18, weight: 500, tabular: true),
                 ),
+                if (archived != 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'incl. ${_money(archived)} in archived',
+                      key: const ValueKey('net-worth-archived'),
+                      style: onest(11.5, color: Mid.ink3, tabular: true),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1317,8 +1614,12 @@ class _SettingsPage extends StatelessWidget {
     required this.now,
     required this.onBackUp,
     required this.onRestore,
+    this.archived,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// Archived accounts, when there are any.
+  final Widget? archived;
   final DateTime Function() now;
   final VoidCallback onBackUp;
   final VoidCallback onRestore;
@@ -1353,103 +1654,110 @@ class _SettingsPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
       child: Align(
         alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // As tall as an account's title row (it has search), so the
-              // title doesn't jump when switching.
-              SizedBox(
-                height: 36,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Settings',
-                    style: onest(22, weight: 600, letterSpacing: -0.3),
+        // Scrolls once archived accounts make it taller than the window.
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // As tall as an account's title row (it has search), so the
+                // title doesn't jump when switching.
+                SizedBox(
+                  height: 36,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Settings',
+                      style: onest(22, weight: 600, letterSpacing: -0.3),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
-                decoration: BoxDecoration(
-                  color: Mid.panel,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Mid.rule),
-                ),
-                child: ValueListenableBuilder(
-                  valueListenable: health,
-                  builder: (context, h, _) {
-                    final failing = h.alarmingAt(now());
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Backups', style: onest(16, weight: 600)),
-                        const SizedBox(height: 16),
-                        line(
-                          'Daily copy',
-                          failing
-                              ? Text(
-                                  'Failing${h.newest == null ? '' : ' · the last one is from ${when(h.newest!)}'}. '
-                                  'Check the disk has room, and back up to another drive.',
-                                  key: const ValueKey('backup-failed'),
-                                  style: onest(13.5, color: Mid.coral),
-                                )
-                              : Text(
-                                  h.newest == null
-                                      ? 'None yet · one is made each day the app is open'
-                                      : '${when(h.newest!)} · on this computer',
-                                  style: onest(13.5, color: Mid.ink),
-                                ),
-                        ),
-                        line(
-                          'Kept',
-                          Text(
-                            'The newest 14, plus the first of each month for a year',
-                            style: onest(13.5, color: Mid.ink2),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                  decoration: BoxDecoration(
+                    color: Mid.panel,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Mid.rule),
+                  ),
+                  child: ValueListenableBuilder(
+                    valueListenable: health,
+                    builder: (context, h, _) {
+                      final failing = h.alarmingAt(now());
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Backups', style: onest(16, weight: 600)),
+                          const SizedBox(height: 16),
+                          line(
+                            'Daily copy',
+                            failing
+                                ? Text(
+                                    'Failing${h.newest == null ? '' : ' · the last one is from ${when(h.newest!)}'}. '
+                                    'Check the disk has room, and back up to another drive.',
+                                    key: const ValueKey('backup-failed'),
+                                    style: onest(13.5, color: Mid.coral),
+                                  )
+                                : Text(
+                                    h.newest == null
+                                        ? 'None yet · one is made each day the app is open'
+                                        : '${when(h.newest!)} · on this computer',
+                                    style: onest(13.5, color: Mid.ink),
+                                  ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            BarButton(
-                              key: const ValueKey('back-up'),
-                              label: 'Back up to…',
-                              leading: const Icon(
-                                Icons.save_alt_rounded,
-                                size: 14,
-                                color: Mid.ink3,
-                              ),
-                              onTap: onBackUp,
+                          line(
+                            'Kept',
+                            Text(
+                              'The newest 14, plus the first of each month for a year',
+                              style: onest(13.5, color: Mid.ink2),
                             ),
-                            BarButton(
-                              key: const ValueKey('restore'),
-                              label: 'Restore from…',
-                              leading: const Icon(
-                                Icons.settings_backup_restore_rounded,
-                                size: 14,
-                                color: Mid.ink3,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              BarButton(
+                                key: const ValueKey('back-up'),
+                                label: 'Back up to…',
+                                leading: const Icon(
+                                  Icons.save_alt_rounded,
+                                  size: 14,
+                                  color: Mid.ink3,
+                                ),
+                                onTap: onBackUp,
                               ),
-                              onTap: onRestore,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'The daily copies are on this computer, so they won’t '
-                          'help if it’s lost or breaks: back up to another drive '
-                          'or a USB stick now and then. Restoring saves what you '
-                          'have first, and Undo brings it back.',
-                          style: onest(13, color: Mid.ink3),
-                        ),
-                      ],
-                    );
-                  },
+                              BarButton(
+                                key: const ValueKey('restore'),
+                                label: 'Restore from…',
+                                leading: const Icon(
+                                  Icons.settings_backup_restore_rounded,
+                                  size: 14,
+                                  color: Mid.ink3,
+                                ),
+                                onTap: onRestore,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'The daily copies are on this computer, so they won’t '
+                            'help if it’s lost or breaks: back up to another drive '
+                            'or a USB stick now and then. Restoring saves what you '
+                            'have first, and Undo brings it back.',
+                            style: onest(13, color: Mid.ink3),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                if (archived != null) ...[
+                  const SizedBox(height: 16),
+                  archived!,
+                ],
+              ],
+            ),
           ),
         ),
       ),

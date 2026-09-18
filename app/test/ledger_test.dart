@@ -1420,6 +1420,209 @@ void main() {
       expect(f.isShort, isFalse);
     });
   });
+
+  group('accounts', () {
+    Future<int> accountId(String name) async => (await db.loadLedger())
+        .balanceSheetAccounts
+        .firstWhere((a) => a.name == name)
+        .id;
+
+    test('a new account goes last, in its group, and starts cleared', () async {
+      final card = await db.createAccount(
+        name: ' Khan Visa ',
+        type: AccountType.liability,
+      );
+      await db.postOpeningBalance(
+        accountId: card,
+        date: today,
+        balance: -50000000,
+      );
+      final data = await db.loadLedger();
+      final a = data.accounts[card]!;
+      expect(a.name, 'Khan Visa');
+      expect(a.group, 'Credit');
+      expect(data.openAccounts.last.id, card);
+      final s = data.summaryFor(card);
+      expect(s.cleared, -50000000);
+      expect(s.working, -50000000);
+      final row = data.registerFor(card).posted.single;
+      expect(row.kind, RowKind.opening);
+      expect(row.payee, 'Opening balance');
+      // The seed's own equity account, not a second one.
+      expect(
+        data.accounts.values.where((a) => a.name == 'Opening balances'),
+        hasLength(1),
+      );
+    });
+
+    test('undoing an added account leaves it once it has rows; '
+        'nothing posts to a deleted one', () async {
+      final id = await db.createAccount(name: 'Spare', type: AccountType.asset);
+      await db.postOpeningBalance(accountId: id, date: today, balance: 100000);
+      expect(await db.deleteEmptyAccount(id), isFalse);
+      expect((await db.loadLedger()).accounts[id]!.deleted, isFalse);
+
+      final empty = await db.createAccount(
+        name: 'Mistake',
+        type: AccountType.asset,
+      );
+      expect(await db.deleteEmptyAccount(empty), isTrue);
+      await expectLater(
+        db.postSimple(
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: 'Nowhere',
+          counterAccountId: empty,
+          amount: -1000,
+        ),
+        throwsA(isA<NotFoundException>()),
+      );
+      await db.undeleteAccount(DeletedAccount(empty, const []));
+      expect((await db.loadLedger()).openAccounts.last.id, empty);
+    });
+
+    test(
+      'changing kind flips an opening balance typed the wrong way',
+      () async {
+        final card = await db.createAccount(
+          name: 'Golomt Visa 2',
+          type: AccountType.asset,
+        );
+        await db.postOpeningBalance(
+          accountId: card,
+          date: today,
+          balance: 64020000,
+        );
+        await db.postSimple(
+          accountId: card,
+          date: today,
+          today: today,
+          payee: 'Coffee',
+          counterAccountId: await categoryId('Dining out'),
+          amount: -800000,
+        );
+        expect(await db.setAccountType(card, AccountType.liability), isTrue);
+        var data = await db.loadLedger();
+        // Owed 640,200 plus the coffee, not in credit.
+        expect(data.balanceOf(card), -64820000);
+        expect(await db.setAccountType(card, AccountType.asset), isTrue);
+        data = await db.loadLedger();
+        expect(data.balanceOf(card), 63220000);
+      },
+    );
+
+    test('changing kind moves the group; a reconciled opening stays', () async {
+      final savings = await accountId('Khan Savings');
+      await db.setAccountType(savings, AccountType.liability);
+      final data = await db.loadLedger();
+      expect(data.accounts[savings]!.isOwed, isTrue);
+      expect(data.accounts[savings]!.group, 'Credit');
+      // Checking's opening balance is locked by its statement: never flipped.
+      final before = (await db.loadLedger()).summaryFor(checking).cleared;
+      await db.customStatement(
+        'UPDATE entries SET cleared = ${Cleared.reconciled.index} '
+        'WHERE account_id = ? AND transaction_id = ('
+        'SELECT MIN(transaction_id) FROM entries WHERE account_id = ?)',
+        [checking, checking],
+      );
+      expect(await db.setAccountType(checking, AccountType.liability), isFalse);
+      expect((await db.loadLedger()).summaryFor(checking).cleared, before);
+    });
+
+    test('archived: out of the lists, still in net worth', () async {
+      final savings = await accountId('Khan Savings');
+      await db.setArchived(savings, true);
+      final data = await db.loadLedger();
+      expect(data.openAccounts.map((a) => a.id), isNot(contains(savings)));
+      expect(data.archivedAccounts.single.id, savings);
+      expect(data.balanceSheetAccounts.map((a) => a.id), contains(savings));
+      await db.setArchived(savings, false);
+      expect((await db.loadLedger()).archivedAccounts, isEmpty);
+    });
+
+    test('delete: its own rows go, transfers stay on the other account, '
+        'and the preview says so', () async {
+      final savings = await accountId('Khan Savings');
+      final before = await db.loadLedger();
+      final preview = before.deletePreview(checking);
+      final savingsBefore = before.registerFor(savings);
+      final transfers = savingsBefore.posted
+          .where((r) => r.kind == RowKind.transfer && r.payee == 'TDB Checking')
+          .toList();
+      expect(transfers, isNotEmpty);
+      expect(
+        preview.keptOn.entries
+            .singleWhere((e) => e.key.name == 'Khan Savings')
+            .value,
+        transfers.length,
+      );
+
+      // A transfer reconciled on Checking's side locks Savings' side, until
+      // Checking is deleted: its statements no longer hold anything.
+      await db.customStatement(
+        'UPDATE entries SET cleared = ${Cleared.reconciled.index} '
+        'WHERE account_id = ? AND transaction_id = ?',
+        [checking, transfers.first.txnId],
+      );
+      expect(
+        (await db.loadLedger())
+            .registerFor(savings)
+            .posted
+            .firstWhere((r) => r.txnId == transfers.first.txnId)
+            .lockedIn,
+        'TDB Checking',
+      );
+
+      final done = await db.deleteAccount(checking);
+      expect(done.transactionIds, hasLength(preview.rows));
+      final after = await db.loadLedger();
+      expect(after.accounts[checking]!.deleted, isTrue);
+      expect(
+        after.balanceSheetAccounts.map((a) => a.id),
+        isNot(contains(checking)),
+      );
+      // Savings is exactly as it was.
+      expect(after.balanceOf(savings), before.balanceOf(savings));
+      expect(
+        after.summaryFor(savings).cleared,
+        before.summaryFor(savings).cleared,
+      );
+      final kept = after
+          .registerFor(savings)
+          .posted
+          .firstWhere((r) => r.txnId == transfers.first.txnId);
+      expect(kept.payee, 'TDB Checking (deleted)');
+      expect(kept.otherClosed, isTrue);
+      expect(kept.lockedIn, isNull);
+      await db.softDelete(kept.txnId); // no longer locked
+
+      // Nothing can move onto it.
+      final wallet = await accountId('Cash wallet');
+      final walletRow = after.registerFor(wallet).posted.first;
+      await expectLater(
+        db.moveToAccount(
+          transactionId: walletRow.txnId,
+          fromAccountId: wallet,
+          toAccountId: checking,
+        ),
+        throwsA(isA<NotFoundException>()),
+      );
+
+      await db.restoreMany([kept.txnId]);
+      await db.undeleteAccount(done);
+      final back = await db.loadLedger();
+      expect(back.accounts[checking]!.deleted, isFalse);
+      expect(
+        back.summaryFor(checking).working,
+        before.summaryFor(checking).working,
+      );
+      expect(
+        back.registerFor(checking).posted,
+        hasLength(before.registerFor(checking).posted.length),
+      );
+    });
+  });
 }
 
 class _Rollback implements Exception {

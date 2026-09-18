@@ -94,6 +94,28 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<int> archivedAt = GeneratedColumn<int>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -104,6 +126,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     mask,
     sidebarGroup,
     sortOrder,
+    archivedAt,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -164,6 +188,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -207,6 +243,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}archived_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -228,6 +272,10 @@ class Account extends DataClass implements Insertable<Account> {
   final String? mask;
   final String? sidebarGroup;
   final int sortOrder;
+  final int? archivedAt;
+
+  /// Deleted with its own rows; transfers with other accounts stay.
+  final int? deletedAt;
   const Account({
     required this.id,
     required this.name,
@@ -237,6 +285,8 @@ class Account extends DataClass implements Insertable<Account> {
     this.mask,
     this.sidebarGroup,
     required this.sortOrder,
+    this.archivedAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -257,6 +307,12 @@ class Account extends DataClass implements Insertable<Account> {
       map['sidebar_group'] = Variable<String>(sidebarGroup);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<int>(archivedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
     return map;
   }
 
@@ -274,6 +330,12 @@ class Account extends DataClass implements Insertable<Account> {
           ? const Value.absent()
           : Value(sidebarGroup),
       sortOrder: Value(sortOrder),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -293,6 +355,8 @@ class Account extends DataClass implements Insertable<Account> {
       mask: serializer.fromJson<String?>(json['mask']),
       sidebarGroup: serializer.fromJson<String?>(json['sidebarGroup']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      archivedAt: serializer.fromJson<int?>(json['archivedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
     );
   }
   @override
@@ -309,6 +373,8 @@ class Account extends DataClass implements Insertable<Account> {
       'mask': serializer.toJson<String?>(mask),
       'sidebarGroup': serializer.toJson<String?>(sidebarGroup),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'archivedAt': serializer.toJson<int?>(archivedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
     };
   }
 
@@ -321,6 +387,8 @@ class Account extends DataClass implements Insertable<Account> {
     Value<String?> mask = const Value.absent(),
     Value<String?> sidebarGroup = const Value.absent(),
     int? sortOrder,
+    Value<int?> archivedAt = const Value.absent(),
+    Value<int?> deletedAt = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -330,6 +398,8 @@ class Account extends DataClass implements Insertable<Account> {
     mask: mask.present ? mask.value : this.mask,
     sidebarGroup: sidebarGroup.present ? sidebarGroup.value : this.sidebarGroup,
     sortOrder: sortOrder ?? this.sortOrder,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -345,6 +415,10 @@ class Account extends DataClass implements Insertable<Account> {
           ? data.sidebarGroup.value
           : this.sidebarGroup,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -358,7 +432,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('institution: $institution, ')
           ..write('mask: $mask, ')
           ..write('sidebarGroup: $sidebarGroup, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -373,6 +449,8 @@ class Account extends DataClass implements Insertable<Account> {
     mask,
     sidebarGroup,
     sortOrder,
+    archivedAt,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -385,7 +463,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.institution == this.institution &&
           other.mask == this.mask &&
           other.sidebarGroup == this.sidebarGroup &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.archivedAt == this.archivedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -397,6 +477,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String?> mask;
   final Value<String?> sidebarGroup;
   final Value<int> sortOrder;
+  final Value<int?> archivedAt;
+  final Value<int?> deletedAt;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -406,6 +488,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.mask = const Value.absent(),
     this.sidebarGroup = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.archivedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -416,6 +500,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.mask = const Value.absent(),
     this.sidebarGroup = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.archivedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
   }) : name = Value(name),
        type = Value(type);
   static Insertable<Account> custom({
@@ -427,6 +513,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? mask,
     Expression<String>? sidebarGroup,
     Expression<int>? sortOrder,
+    Expression<int>? archivedAt,
+    Expression<int>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -437,6 +525,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (mask != null) 'mask': mask,
       if (sidebarGroup != null) 'sidebar_group': sidebarGroup,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (archivedAt != null) 'archived_at': archivedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
     });
   }
 
@@ -449,6 +539,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String?>? mask,
     Value<String?>? sidebarGroup,
     Value<int>? sortOrder,
+    Value<int?>? archivedAt,
+    Value<int?>? deletedAt,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -459,6 +551,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       mask: mask ?? this.mask,
       sidebarGroup: sidebarGroup ?? this.sidebarGroup,
       sortOrder: sortOrder ?? this.sortOrder,
+      archivedAt: archivedAt ?? this.archivedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
@@ -491,6 +585,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<int>(archivedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
     return map;
   }
 
@@ -504,7 +604,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('institution: $institution, ')
           ..write('mask: $mask, ')
           ..write('sidebarGroup: $sidebarGroup, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -2191,6 +2293,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<String?> mask,
   Value<String?> sidebarGroup,
   Value<int> sortOrder,
+  Value<int?> archivedAt,
+  Value<int?> deletedAt,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -2201,6 +2305,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String?> mask,
   Value<String?> sidebarGroup,
   Value<int> sortOrder,
+  Value<int?> archivedAt,
+  Value<int?> deletedAt,
 });
 
 final class $$AccountsTableReferences
@@ -2294,6 +2400,16 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2396,6 +2512,16 @@ class $$AccountsTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -2434,6 +2560,14 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<int> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   Expression<T> reconciliationsRefs<T extends Object>(
     Expression<T> Function($$ReconciliationsTableAnnotationComposer a) f,
@@ -2522,6 +2656,8 @@ class $$AccountsTableTableManager
                 Value<String?> mask = const Value.absent(),
                 Value<String?> sidebarGroup = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<int?> archivedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -2531,6 +2667,8 @@ class $$AccountsTableTableManager
                 mask: mask,
                 sidebarGroup: sidebarGroup,
                 sortOrder: sortOrder,
+                archivedAt: archivedAt,
+                deletedAt: deletedAt,
               ),
           createCompanionCallback:
               ({
@@ -2542,6 +2680,8 @@ class $$AccountsTableTableManager
                 Value<String?> mask = const Value.absent(),
                 Value<String?> sidebarGroup = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<int?> archivedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -2551,6 +2691,8 @@ class $$AccountsTableTableManager
                 mask: mask,
                 sidebarGroup: sidebarGroup,
                 sortOrder: sortOrder,
+                archivedAt: archivedAt,
+                deletedAt: deletedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

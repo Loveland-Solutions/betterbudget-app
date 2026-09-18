@@ -19,6 +19,8 @@ class AccountInfo {
     this.mask,
     this.group,
     this.sortOrder = 0,
+    this.archived = false,
+    this.deleted = false,
   });
 
   final int id;
@@ -29,9 +31,19 @@ class AccountInfo {
   final String? group;
   final int sortOrder;
 
+  /// Out of the sidebar and the account lists, still in net worth.
+  final bool archived;
+
+  /// Deleted with its own rows. What's left of it is the far side of
+  /// transfers kept on other accounts, so it counts nowhere.
+  final bool deleted;
+
   /// Accounts the user holds money in, as opposed to categories.
   bool get isBalanceSheet =>
       type == AccountType.asset || type == AccountType.liability;
+
+  /// How other accounts' rows name it.
+  String get label => deleted ? '$name (deleted)' : name;
 
   /// A credit account: what's owed reads as a positive amount, the way the
   /// bank shows it, and owing is never a warning.
@@ -113,6 +125,7 @@ class RegisterRow {
     this.reconciledOn,
     this.latestReconcile = false,
     this.incomeCategory = false,
+    this.otherClosed = false,
     this.balance = 0,
     this.clearedBalance = 0,
   });
@@ -148,6 +161,10 @@ class RegisterRow {
 
   /// The category is an income category (Salary), not a refund or transfer.
   final bool incomeCategory;
+
+  /// A transfer whose other account is archived or deleted: that side stays
+  /// where it is.
+  final bool otherClosed;
   final int balance;
 
   /// Running total of cleared and reconciled rows only, in date order: what a
@@ -180,6 +197,7 @@ class RegisterRow {
     reconciledOn: reconciledOn,
     latestReconcile: latestReconcile,
     incomeCategory: incomeCategory,
+    otherClosed: otherClosed,
     balance: b,
     clearedBalance: clearedTotal,
   );
@@ -244,6 +262,18 @@ class AccountSummary {
   final DateTime? reconciledOn;
 }
 
+typedef AccountDeletePreview = ({
+  /// Rows that go with the account, and how many of those were reconciled.
+  int rows,
+  int reconciled,
+
+  /// Transfers that stay, by the other account (two may share a name).
+  Map<AccountInfo, int> keptOn,
+
+  /// Scheduled transfers that stay on another account's forecast, by date.
+  List<({String on, DateTime date})> keptScheduled,
+});
+
 class LedgerData {
   LedgerData({
     required List<AccountInfo> accounts,
@@ -255,13 +285,54 @@ class LedgerData {
   final List<TxnData> txns;
   final List<Reconciliation> reconciliations;
 
+  /// Every account that still exists, archived ones included: net worth.
   List<AccountInfo> get balanceSheetAccounts =>
-      accounts.values.where((a) => a.isBalanceSheet).toList()
+      accounts.values.where((a) => a.isBalanceSheet && !a.deleted).toList()
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+  /// The accounts in use: the sidebar, transfers and Move to.
+  List<AccountInfo> get openAccounts =>
+      balanceSheetAccounts.where((a) => !a.archived).toList();
+
+  List<AccountInfo> get archivedAccounts =>
+      balanceSheetAccounts.where((a) => a.archived).toList();
 
   List<AccountInfo> get categories =>
       accounts.values.where((a) => a.isCategory).toList()
         ..sort((a, b) => a.name.compareTo(b.name));
+
+  /// What deleting [accountId] takes with it, worked out the way the
+  /// database does it: every row that is only its own goes; a transfer with
+  /// another account stays on that account.
+  AccountDeletePreview deletePreview(int accountId) {
+    var rows = 0, reconciled = 0;
+    final kept = <int, int>{};
+    final keptScheduled = <({String on, DateTime date})>[];
+    for (final t in txns) {
+      final mine = t.entries.where((e) => e.accountId == accountId);
+      if (mine.isEmpty) continue;
+      final others = {
+        for (final e in t.entries)
+          if (e.accountId != accountId) accounts[e.accountId]!,
+      }.where((a) => a.isBalanceSheet && !a.deleted).toList();
+      if (others.isEmpty) {
+        rows++;
+        if (mine.any((e) => e.cleared == Cleared.reconciled)) reconciled++;
+      } else {
+        for (final a in others) {
+          kept[a.id] = (kept[a.id] ?? 0) + 1;
+          if (t.scheduled) keptScheduled.add((on: a.name, date: t.date));
+        }
+      }
+    }
+    keptScheduled.sort((a, b) => a.date.compareTo(b.date));
+    return (
+      rows: rows,
+      reconciled: reconciled,
+      keptOn: {for (final e in kept.entries) accounts[e.key]!: e.value},
+      keptScheduled: keptScheduled,
+    );
+  }
 
   // LedgerData is rebuilt on every database change and never mutated, so
   // what the screen asks for on each rebuild (every keystroke in search) is
@@ -435,6 +506,7 @@ class LedgerData {
     var payee = t.payee ?? '';
     var label = '';
     var incomeCategory = false;
+    var otherClosed = false;
     int? categoryId;
     var lines = <({String name, int amount})>[];
 
@@ -446,8 +518,10 @@ class LedgerData {
         label = other.name;
       } else if (other.isBalanceSheet) {
         kind = RowKind.transfer;
-        payee = other.name;
+        payee = other.label;
         label = 'Transfer';
+        // Not in the account lists, so the editor can't name it again.
+        otherClosed = other.archived || other.deleted;
       } else {
         label = other.name;
         categoryId = other.id;
@@ -458,7 +532,7 @@ class LedgerData {
       // Split lines in this account's sign convention, so they sum to [amount].
       lines = [
         for (final o in others)
-          (name: accounts[o.accountId]!.name, amount: -o.amount),
+          (name: accounts[o.accountId]!.label, amount: -o.amount),
       ];
       label = '${others.length} categories';
     }
@@ -483,12 +557,14 @@ class LedgerData {
       splitLines: lines,
       txnPayee: t.payee,
       incomeCategory: incomeCategory,
+      otherClosed: otherClosed,
       lockedIn: e.cleared == Cleared.reconciled
           ? null
           : others
                 .where((o) => o.cleared == Cleared.reconciled)
                 .map((o) => accounts[o.accountId]!)
-                .where((a) => a.isBalanceSheet)
+                // A deleted account's statements no longer hold anything.
+                .where((a) => a.isBalanceSheet && !a.deleted)
                 .firstOrNull
                 ?.name,
     );
