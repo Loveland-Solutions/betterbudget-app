@@ -1961,6 +1961,40 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('right-click an account in the sidebar for its menu', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      final savings = find.text('Khan Savings').first;
+      await tester.tap(savings, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('menu-archive')), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/account_right_click.png'),
+      );
+      // Rename opens that account with its name ready to edit.
+      await tester.tap(find.byKey(const ValueKey('menu-rename')));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('account-name-field'));
+      expect(tester.widget<TextField>(field).controller!.text, 'Khan Savings');
+      await tester.enterText(field, 'Khan Goal');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.text('Khan Goal'), findsNWidgets(2)); // title, sidebar
+
+      // Archive from the menu, on an account that isn't open.
+      await tester.tap(find.text('Cash wallet'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('menu-archive')));
+      await tester.pumpAndSettle();
+      expect(find.text('Archive Cash wallet?'), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
+      expect(find.text('Cash wallet'), findsNothing);
+      expect(find.text('Khan Goal'), findsNWidgets(2)); // still open
+      await tidy(tester, db);
+    });
+
     testWidgets('archive says what it leaves; Settings brings it back', (
       tester,
     ) async {

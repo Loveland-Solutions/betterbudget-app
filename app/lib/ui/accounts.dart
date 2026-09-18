@@ -416,21 +416,70 @@ class _AccountStartState extends State<_AccountStart> {
   }
 }
 
+/// What can be done to an account, from ⋯ beside its name or a right-click
+/// on it in the sidebar.
+class _AccountActions {
+  const _AccountActions({
+    required this.rename,
+    required this.changeKind,
+    required this.archive,
+    required this.delete,
+  });
+  final VoidCallback rename;
+  final VoidCallback changeKind;
+  final VoidCallback archive;
+  final VoidCallback delete;
+}
+
+const _menuStyle = MenuStyle(
+  backgroundColor: WidgetStatePropertyAll(Mid.raised),
+  shape: WidgetStatePropertyAll(
+    RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+  ),
+  padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+);
+
+List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
+  Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
+      MenuItemButton(
+        key: ValueKey(key),
+        onPressed: onTap,
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+          overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+        ),
+        child: Text(label, style: onest(13, color: color ?? Mid.ink2)),
+      );
+  return [
+    item('Rename', 'menu-rename', act.rename),
+    item(
+      a.isOwed ? 'Change to bank account' : 'Change to card or loan',
+      'menu-kind',
+      act.changeKind,
+    ),
+    const Divider(height: 9, color: Mid.rule),
+    item('Archive…', 'menu-archive', act.archive),
+    item('Delete…', 'menu-delete', act.delete, color: Mid.coral),
+  ];
+}
+
 /// The account's name, which renames in place when clicked, and a menu for
 /// the rest.
 class _AccountTitle extends StatefulWidget {
   const _AccountTitle({
     required this.account,
     required this.onRename,
-    required this.onChangeKind,
-    required this.onArchive,
-    required this.onDelete,
+    required this.actions,
+    this.renameRequest = 0,
   });
   final AccountInfo account;
   final ValueChanged<String> onRename;
-  final VoidCallback onChangeKind;
-  final VoidCallback onArchive;
-  final VoidCallback onDelete;
+
+  /// Its rename is the field here, whatever [actions] says.
+  final _AccountActions actions;
+
+  /// Bumped to open the name for renaming (Rename from the sidebar).
+  final int renameRequest;
 
   @override
   State<_AccountTitle> createState() => _AccountTitleState();
@@ -452,6 +501,7 @@ class _AccountTitleState extends State<_AccountTitle> {
   void didUpdateWidget(_AccountTitle old) {
     super.didUpdateWidget(old);
     if (old.account.id != widget.account.id) _cancel();
+    if (old.renameRequest != widget.renameRequest) _startRename();
   }
 
   @override
@@ -551,32 +601,17 @@ class _AccountTitleState extends State<_AccountTitle> {
         ],
         const SizedBox(width: 6),
         MenuAnchor(
-          style: MenuStyle(
-            backgroundColor: const WidgetStatePropertyAll(Mid.raised),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(vertical: 6),
+          style: _menuStyle,
+          alignmentOffset: const Offset(0, 4),
+          menuChildren: _accountMenu(
+            a,
+            _AccountActions(
+              rename: _startRename,
+              changeKind: widget.actions.changeKind,
+              archive: widget.actions.archive,
+              delete: widget.actions.delete,
             ),
           ),
-          alignmentOffset: const Offset(0, 4),
-          menuChildren: [
-            _menuItem('Rename', 'menu-rename', _startRename),
-            _menuItem(
-              a.isOwed ? 'Change to bank account' : 'Change to card or loan',
-              'menu-kind',
-              widget.onChangeKind,
-            ),
-            const Divider(height: 9, color: Mid.rule),
-            _menuItem('Archive…', 'menu-archive', widget.onArchive),
-            _menuItem(
-              'Delete…',
-              'menu-delete',
-              widget.onDelete,
-              color: Mid.coral,
-            ),
-          ],
           builder: (context, menu, _) => Hoverable(
             key: const ValueKey('account-menu'),
             onTap: () => menu.isOpen ? menu.close() : menu.open(),
@@ -598,21 +633,6 @@ class _AccountTitleState extends State<_AccountTitle> {
       ],
     );
   }
-
-  Widget _menuItem(
-    String label,
-    String key,
-    VoidCallback onTap, {
-    Color color = Mid.ink2,
-  }) => MenuItemButton(
-    key: ValueKey(key),
-    onPressed: onTap,
-    style: ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-      overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-    ),
-    child: Text(label, style: onest(13, color: color)),
-  );
 }
 
 /// A dialog that says what an account action will do, and does it on the

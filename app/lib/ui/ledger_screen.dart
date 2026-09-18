@@ -80,6 +80,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// it arrives. Any other account missing from a snapshot (a restore) gives
   /// way to the first open one.
   int? _pendingAccountId;
+
+  /// Bumped by Rename in the sidebar's right-click menu: the account opens
+  /// with its name ready to edit in the header.
+  var _renameRequest = 0;
   ({String message, VoidCallback? undo})? _toast;
 
   /// Everything undoable done this session, oldest first. ⌘Z / Ctrl+Z undoes
@@ -795,6 +799,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  _AccountActions _actionsFor(LedgerData data, AccountInfo account) =>
+      _AccountActions(
+        rename: () => setState(() {
+          if (account.id != _accountId) _endReconcile();
+          _section = AppSection.ledger;
+          _newAccount = false;
+          _accountId = account.id;
+          _selected = null;
+          _renameRequest++;
+        }),
+        changeKind: () => _changeKind(account),
+        archive: () => _archive(data, account),
+        delete: () => _deleteAccount(data, account),
+      );
+
   Future<void> _rename(AccountInfo account, String name) async {
     final old = account.name;
     if (!await _accountWrite(() => db.renameAccount(account.id, name))) return;
@@ -1131,6 +1150,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         }),
                         addingAccount: _newAccount,
                         onAddAccount: _openNewAccount,
+                        actionsFor: (a) => _actionsFor(data, a),
                       ),
                       Expanded(
                         child: switch (_section) {
@@ -1224,9 +1244,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 child: _AccountTitle(
                   account: account,
                   onRename: (name) => _rename(account, name),
-                  onChangeKind: () => _changeKind(account),
-                  onArchive: () => _archive(data, account),
-                  onDelete: () => _deleteAccount(data, account),
+                  actions: _actionsFor(data, account),
+                  renameRequest: _renameRequest,
                 ),
               ),
               const Spacer(),
@@ -1385,7 +1404,11 @@ class _Sidebar extends StatelessWidget {
     required this.now,
     required this.addingAccount,
     required this.onAddAccount,
+    required this.actionsFor,
   });
+
+  /// For the right-click menu on each account.
+  final _AccountActions Function(AccountInfo) actionsFor;
   final LedgerData data;
   final bool addingAccount;
   final VoidCallback onAddAccount;
@@ -1470,6 +1493,7 @@ class _Sidebar extends StatelessWidget {
                       balance: data.balanceOf(a.id),
                       active: a.id == selected,
                       onTap: () => onSelect(a.id),
+                      actions: actionsFor(a),
                     ),
                   ),
                 const SizedBox(height: 14),
@@ -2049,11 +2073,13 @@ class _AccountTile extends StatefulWidget {
     required this.balance,
     required this.active,
     required this.onTap,
+    required this.actions,
   });
   final AccountInfo account;
   final int balance;
   final bool active;
   final VoidCallback onTap;
+  final _AccountActions actions;
 
   @override
   State<_AccountTile> createState() => _AccountTileState();
@@ -2061,21 +2087,36 @@ class _AccountTile extends StatefulWidget {
 
 class _AccountTileState extends State<_AccountTile> {
   bool _hover = false;
+  final _menu = MenuController();
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
+  Widget build(BuildContext context) => MenuAnchor(
+    controller: _menu,
+    style: _menuStyle,
+    // Lit while its menu is open, so it's clear which account it's for.
+    onOpen: () => setState(() {}),
+    onClose: () {
+      if (mounted) setState(() {});
+    },
+    menuChildren: _accountMenu(widget.account, widget.actions),
+    child: _tile(),
+  );
+
+  Widget _tile() => MouseRegion(
     cursor: SystemMouseCursors.click,
     onEnter: (_) => setState(() => _hover = true),
     onExit: (_) => setState(() => _hover = false),
     child: GestureDetector(
       onTap: widget.onTap,
+      // Right-click: the same menu as ⋯ beside the name, where the click was.
+      onSecondaryTapDown: (d) => _menu.open(position: d.localPosition),
       child: Container(
         margin: const EdgeInsets.only(bottom: 2),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: widget.active
               ? Mid.panel
-              : (_hover ? Mid.hover : Colors.transparent),
+              : (_hover || _menu.isOpen ? Mid.hover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
           border: widget.active
               ? const Border(left: BorderSide(color: Mid.blue, width: 2))

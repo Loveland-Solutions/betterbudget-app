@@ -387,7 +387,10 @@ be quietly undone.
     the first reconcile starts from it. Left empty, the account starts at ₮0 with the
     entry row open. **The name renames in place** when clicked (Enter or leaving the
     field saves, Esc cancels). A ⋯ beside it holds Rename, Change to credit card / bank
-    account, Archive… and Delete…. Every action undoes with ⌘Z. Rejected: an Accounts
+    account, Archive… and Delete…. **Right-clicking an account in the sidebar opens the
+    same menu** (owner's request, after trying it). The account stays lit while the
+    menu is open, and Rename there opens the account with its name ready to edit.
+    Every action undoes with ⌘Z. Rejected: an Accounts
     page in Settings (B, managing accounts away from the ledger) and typing a new
     account straight into the sidebar (C, no place to ask the kind).
     **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries
