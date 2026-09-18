@@ -479,6 +479,9 @@ class AppDatabase extends _$AppDatabase {
     return transaction(() async {
       await _assertLive(accountId);
       await _assertLive(counterAccountId);
+      if (counterAccountId == accountId) {
+        throw LockedException('It can’t move money to its own account');
+      }
       return postTransaction(
         date: date,
         payee: payee,
@@ -790,6 +793,9 @@ class AppDatabase extends _$AppDatabase {
       );
 
       if (counterAccountId != null) await _assertLive(counterAccountId);
+      if (counterAccountId == accountId) {
+        throw LockedException('It can’t move money to its own account');
+      }
       if (amount != null || counterAccountId != null) {
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {

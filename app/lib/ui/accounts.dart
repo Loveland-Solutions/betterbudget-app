@@ -832,3 +832,72 @@ class _ArchivedAccounts extends StatelessWidget {
     ),
   );
 }
+
+/// Every account's rows in one register, above the account groups.
+class _AllAccountsTile extends StatelessWidget {
+  const _AllAccountsTile({required this.active, required this.onTap});
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Hoverable(
+    key: const ValueKey('all-accounts'),
+    onTap: onTap,
+    builder: (hover) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: active ? Mid.panel : (hover ? Mid.hover : Colors.transparent),
+        borderRadius: BorderRadius.circular(8),
+        border: active
+            ? const Border(left: BorderSide(color: Mid.blue, width: 2))
+            : null,
+      ),
+      child: Text(
+        'All accounts',
+        style: onest(13.5, color: active ? Mid.ink : Mid.ink2),
+      ),
+    ),
+  );
+}
+
+/// A filter in force on All accounts, with ✕ to take it off (Esc does too).
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label, required this.onClear});
+  final String label;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('filter-chip'),
+    height: 30,
+    padding: const EdgeInsets.only(left: 12, right: 4),
+    decoration: BoxDecoration(
+      color: Mid.blueWash,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Mid.blue.withValues(alpha: 0.5)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: onest(13, color: Mid.ink)),
+        const SizedBox(width: 4),
+        Tooltip(
+          message: 'Show every row · Esc',
+          child: Hoverable(
+            key: const ValueKey('filter-clear'),
+            onTap: onClear,
+            builder: (hover) => Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: hover ? Mid.raised : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.close_rounded, size: 14, color: Mid.ink2),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}

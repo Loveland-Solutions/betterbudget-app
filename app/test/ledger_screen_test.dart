@@ -2354,4 +2354,215 @@ void main() {
       await tidy(tester, db);
     });
   });
+
+  group('all accounts', () {
+    testWidgets('every account in one register, each row naming its account', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('all-accounts')));
+      await tester.pumpAndSettle();
+      expect(find.text('All accounts'), findsWidgets);
+      expect(find.text('Account'), findsOneWidget); // the last column
+      // A transfer shows once, from the account the money leaves.
+      final ledger = await tester.runAsync(db.loadLedger);
+      final savings = ledger!.registerAll().posted.firstWhere(
+        (r) => r.payee == 'Khan Savings',
+      );
+      expect(ledger.accounts[savings.accountId]!.name, 'TDB Checking');
+      expect(savings.amount, isNegative);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/all_accounts.png'),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('a new row goes in the account picked in the row', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('all-accounts')));
+      await tester.pumpAndSettle();
+      await openEntry(tester);
+      // It starts on the account that was open.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('entry-account')),
+          matching: find.text('TDB Checking'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('entry-account')));
+      await tester.pumpAndSettle();
+      final ledger = await tester.runAsync(db.loadLedger);
+      final wallet = ledger!.openAccounts.firstWhere(
+        (a) => a.name == 'Cash wallet',
+      );
+      await tester.tap(find.byKey(ValueKey('pick-account-${wallet.id}')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Хүнсний дэлгүүр',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Groceries',
+      );
+      await tester.enterText(find.widgetWithText(TextField, '0.00'), '12000');
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/all_accounts_entry.png'),
+      );
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      final after = await tester.runAsync(db.loadLedger);
+      final row = after!
+          .registerFor(wallet.id)
+          .posted
+          .where((r) => r.payee == 'Хүнсний дэлгүүр');
+      expect(row, hasLength(1));
+      await tidy(tester, db);
+    });
+
+    testWidgets('a category’s usage opens its rows, with a total', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      final ledger = await tester.runAsync(db.loadLedger);
+      final groceries = ledger!.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+      await tester.tap(find.byKey(ValueKey('category-rows-${groceries.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Category: Groceries'), findsOneWidget);
+      expect(
+        find.text('2 rows · ₮276,650.50 spent since 2026.09.12'),
+        findsOneWidget,
+      );
+      expect(find.text('Sakura Coffee'), findsNothing); // Dining out
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/all_accounts_category.png'),
+      );
+      // Esc takes the filter off.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
+      expect(find.text('Sakura Coffee'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets(
+      'a batch stays on the picked account; hovering its list keeps the row',
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await tester.tap(find.byKey(const ValueKey('all-accounts')));
+        await tester.pumpAndSettle();
+        await openEntry(tester);
+        final ledger = await tester.runAsync(db.loadLedger);
+        final wallet = ledger!.openAccounts.firstWhere(
+          (a) => a.name == 'Cash wallet',
+        );
+        // Open the list and move a real mouse over it, before typing.
+        await tester.tap(find.byKey(const ValueKey('entry-account')));
+        await tester.pumpAndSettle();
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(
+          tester.getCenter(find.byKey(ValueKey('pick-account-${wallet.id}'))),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.widgetWithText(TextField, 'New transaction — payee'),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(ValueKey('pick-account-${wallet.id}')));
+        await tester.pumpAndSettle();
+        await mouse.removePointer();
+
+        Future<void> add(String payee) async {
+          await tester.enterText(
+            find.widgetWithText(TextField, 'New transaction — payee'),
+            payee,
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Category'),
+            'Groceries',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, '0.00'),
+            '5000',
+          );
+          await tester.runAsync(() async {
+            await tester.testTextInput.receiveAction(TextInputAction.done);
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+          });
+          await settle(tester);
+        }
+
+        await add('Market one');
+        await add('Market two');
+        final after = await tester.runAsync(db.loadLedger);
+        final inWallet = after!
+            .registerFor(wallet.id)
+            .posted
+            .map((r) => r.payee)
+            .toSet();
+        expect(inWallet, containsAll(['Market one', 'Market two']));
+        await tidy(tester, db);
+      },
+    );
+
+    testWidgets('Rename from the sidebar opens that account', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('all-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text('Khan Savings').first,
+        buttons: kSecondaryButton,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('menu-rename')));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('account-name-field'));
+      expect(tester.widget<TextField>(field).controller!.text, 'Khan Savings');
+      await tidy(tester, db);
+    });
+
+    testWidgets('a card payment not yet on the card reads uncleared', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      final ledger = await tester.runAsync(db.loadLedger);
+      final ids = {for (final a in ledger!.openAccounts) a.name: a.id};
+      late int txn;
+      await tester.runAsync(() async {
+        txn = await db.postSimple(
+          accountId: ids['TDB Checking']!,
+          date: DateTime(2026, 9, 16),
+          today: DateTime(2026, 9, 16),
+          payee: 'Card payment',
+          counterAccountId: ids['Golomt Visa']!,
+          amount: -10000000,
+        );
+        final bank = (await db.loadLedger())
+            .registerFor(ids['TDB Checking']!)
+            .posted
+            .firstWhere((r) => r.txnId == txn);
+        await db.toggleCleared(bank.entryId); // left the bank
+      });
+      final after = await tester.runAsync(db.loadLedger);
+      final row = after!.registerAll().posted.firstWhere((r) => r.txnId == txn);
+      expect(row.cleared, Cleared.uncleared);
+      expect(row.clearedIn, 'Golomt Visa');
+      await tidy(tester, db);
+    });
+  });
 }

@@ -82,6 +82,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// way to the first open one.
   int? _pendingAccountId;
 
+  /// All accounts is open in the ledger, instead of one account.
+  bool _all = false;
+
+  /// All accounts, narrowed to the rows filed under this category.
+  int? _categoryFilter;
+
   /// Bumped by Rename in the sidebar's right-click menu: the account opens
   /// with its name ready to edit in the header.
   var _renameRequest = 0;
@@ -129,9 +135,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         .asyncExpand((_) => db.watchLedger());
     _entry = EntryRowController(
       onSubmit: _post,
-      suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
+      suggestCategory: (payee) =>
+          db.lastCategoryFor(payee, _entryAccountId ?? _accountId!),
     );
   }
+
+  /// Where the new-transaction row posts: the open account, or in All
+  /// accounts the one picked in the row.
+  int? get _entryAccountId => _all ? _entry.account?.id : _accountId;
 
   @override
   void dispose() {
@@ -183,7 +194,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await db.transaction(() async {
         made = await _makeCategory(d);
         id = await db.postSimple(
-          accountId: _accountId!,
+          accountId: d.account?.id ?? _accountId!,
           date: d.date,
           today: today,
           payee: d.payee,
@@ -199,18 +210,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
         () async => _expect((await db.softDeleteMany([id])).length == 1),
         () => db.restoreMany([id]),
       );
+      // A row that won't show under the filter or search in force says where
+      // it went, or it looks lost and gets typed again.
+      final hidden =
+          _search.text.trim().isNotEmpty ||
+          (_all &&
+              _categoryFilter != null &&
+              (made ?? d.counter?.id) != _categoryFilter);
+      final where = d.account == null ? '' : ' to ${d.account!.name}';
       _did(
         '${d.payee} added',
         undo: pair.undo,
         redo: pair.redo,
-        toast: made != null,
-        message: made == null
-            ? null
-            : '${d.payee} added · new ${d.amount! > 0 ? 'income ' : ''}'
+        toast: made != null || hidden,
+        message: made != null
+            ? '${d.payee} added$where · new ${d.amount! > 0 ? 'income ' : ''}'
                   'category “${d.newCategory}”'
-                  '${d.date.isAfter(today) ? ' · scheduled for ${fullDate(d.date)}' : ''}',
+                  '${d.date.isAfter(today) ? ' · scheduled for ${fullDate(d.date)}' : ''}'
+                  '${hidden ? ' · not in this view' : ''}'
+            : hidden
+            ? '${d.payee} added$where · not in this view'
+            : null,
       );
-      if (made == null && d.date.isAfter(today)) {
+      if (made == null && !hidden && d.date.isAfter(today)) {
         _showToast(
           'Scheduled for ${fullDate(d.date)} · not in balances until confirmed',
         );
@@ -350,7 +372,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return KeyEventResult.ignored;
     }
     final row = _rows[_selected];
-    if (row == null) return KeyEventResult.ignored;
+    if (row == null) {
+      // Esc with nothing selected takes the category filter off.
+      if (event.logicalKey == LogicalKeyboardKey.escape &&
+          _categoryFilter != null &&
+          _all) {
+        setState(() => _categoryFilter = null);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     switch (event.logicalKey) {
       case LogicalKeyboardKey.delete || LogicalKeyboardKey.backspace:
         _delete(row);
@@ -454,7 +485,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Reconciled rows open too: payee, memo and category can still change.
     final controller = EntryRowController(
       onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
-      suggestCategory: (payee) => db.lastCategoryFor(payee, _accountId!),
+      suggestCategory: (payee) => db.lastCategoryFor(payee, row.accountId),
     )..payeeNames = _entry.payeeNames;
     setState(() {
       _editing = (
@@ -503,7 +534,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         made = await _makeCategory(d, fallback: row.amount);
         return db.editTransaction(
           transactionId: row.txnId,
-          accountId: _accountId!,
+          accountId: row.accountId,
           date: d.date,
           today: today,
           payee: d.payee,
@@ -764,16 +795,221 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Leaving the view: an edit with changes stops it, as clicking another
+  /// row does; otherwise the editor closes. False means stay.
+  bool _mayLeave() {
+    final e = _editing;
+    if (e == null) return true;
+    if (e.controller.isDirty()) {
+      _showToast('Save with Enter, or press Esc to discard your changes');
+      return false;
+    }
+    _cancelEdit();
+    return true;
+  }
+
+  /// One account's register, from anywhere: the sidebar, a rename, a new or
+  /// unarchived account.
+  void _openAccount(int id) {
+    if (!_mayLeave()) return;
+    setState(() {
+      if (id != _accountId || _all) _endReconcile();
+      _section = AppSection.ledger;
+      _newAccount = false;
+      _all = false;
+      _accountId = id;
+      _selected = null;
+    });
+  }
+
+  // ---------- all accounts ----------
+
+  /// All accounts, optionally narrowed to a category (from the Budget
+  /// screen's usage text).
+  void _openAll({int? category}) {
+    if (!_mayLeave()) return;
+    setState(() {
+      _endReconcile();
+      _section = AppSection.ledger;
+      _newAccount = false;
+      _all = true;
+      _categoryFilter = category;
+      _selected = null;
+      _adding = false;
+      // Each visit starts new rows in the account last open, so a pick from
+      // days ago doesn't quietly carry on; within a batch it stays.
+      _entry.account = null;
+    });
+  }
+
+  Widget _allBody(LedgerData data) {
+    final filter = data.accounts[_categoryFilter];
+    final register = data.registerAll(categoryId: filter?.id);
+    _rows = {
+      for (final r in [...register.posted, ...register.scheduled]) r.txnId: r,
+    };
+    if (!_rows.containsKey(_selected)) _selected = null;
+    if (_editing != null && !_rows.containsKey(_editing!.txnId)) {
+      _editing = null;
+    }
+    final open = data.openAccounts;
+    // A new row starts in the account last open, then stays on the last one
+    // picked. By id: every snapshot has fresh AccountInfo objects.
+    AccountInfo? openById(int? id) => open.where((a) => a.id == id).firstOrNull;
+    _entry.account =
+        openById(_entry.account?.id) ??
+        openById(_accountId) ??
+        open.firstOrNull;
+    AccountInfo accountOf(RegisterRow r) => data.accounts[r.accountId]!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'All accounts',
+                style: onest(22, weight: 600, letterSpacing: -0.3),
+              ),
+              const Spacer(),
+              _SearchField(
+                controller: _search,
+                focusNode: _searchFocus,
+                onChanged: () => setState(() {}),
+              ),
+            ],
+          ),
+          if (filter != null) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _FilterChip(
+                  label: 'Category: ${filter.name}',
+                  onClear: () => setState(() => _categoryFilter = null),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  _filterTotal(data, filter, register),
+                  key: const ValueKey('filter-total'),
+                  style: onest(13, color: Mid.ink2, tabular: true),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          Expanded(
+            child: RegisterPanel(
+              owed: false,
+              accountName: null,
+              posted: register.posted,
+              scheduled: register.scheduled,
+              reconcileThrough: null,
+              filter:
+                  _filter == RegisterFilter.cleared ||
+                      _filter == RegisterFilter.reconciled
+                  ? RegisterFilter.all
+                  : _filter,
+              search: _search.text,
+              selected: _selected,
+              selectedKey: _selectedKey,
+              editing: _editing,
+              hoveredStatus: _hoveredStatus,
+              categories: data.knownCategories,
+              transferTargets: open,
+              allAccounts: data.accounts,
+              entryController: _entry,
+              today: today,
+              adding: _adding,
+              addButton: _PrimaryButton(
+                label: 'Add',
+                icon: Icons.add_rounded,
+                key: const ValueKey('add-transaction'),
+                onTap: _newEntry,
+              ),
+              onCloseEntry: () => setState(() => _adding = false),
+              actions: RegisterActions(
+                onFilter: (f) => setState(() => _filter = f),
+                onRowTap: _tapRow,
+                onToggleCleared: _toggleCleared,
+                onConfirm: _startConfirm,
+                onSetCategory: (r, c) => _setCategory(r, c),
+                onDelete: _delete,
+                onClearSelection: _clearSelection,
+                onEdit: (r) => _startEdit(r.txnId, EditField.payee),
+                onCancelEdit: _cancelEdit,
+                onUnreconcile: (r) => _unreconcile(accountOf(r)),
+                onMove: (r, to) => _move(r, accountOf(r), to),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "2 rows · ₮276,650.50 spent since 2026.08.31 · 1 scheduled": the rows
+  /// the total covers (posted), the span, and scheduled apart since they
+  /// aren't in it. More back than spent reads as refunded.
+  String _filterTotal(
+    LedgerData data,
+    AccountInfo c,
+    ({List<RegisterRow> posted, List<RegisterRow> scheduled}) register,
+  ) {
+    final posted = register.posted.length;
+    final total = data.categoryTotal(c.id);
+    String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+    final what = c.isIncome
+        ? (total >= 0
+              ? '${money(total)} received'
+              : '${money(-total)} paid back')
+        : (total >= 0 ? '${money(total)} spent' : '${money(-total)} refunded');
+    final since = register.posted.isEmpty
+        ? ''
+        : ' since ${fullDate(register.posted.first.date)}';
+    final sched = register.scheduled.length;
+    return '$posted ${posted == 1 ? 'row' : 'rows'} · $what$since'
+        '${sched == 0 ? '' : ' · $sched scheduled'}';
+  }
+
+  /// A row's category from its inline menu, in whichever account it's in.
+  Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
+    final previous = await db.setCategoryMany(
+      transactionIds: [r.txnId],
+      accountId: r.accountId,
+      categoryId: c.id,
+    );
+    if (previous.isEmpty) return;
+    _did(
+      '${r.payee} → ${c.name}',
+      undo: () async => _expect(
+        (await db.restoreCategories(previous, r.accountId)).length ==
+            previous.length,
+      ),
+      redo: () async => _expect(
+        (await db.setCategoryMany(
+              transactionIds: [r.txnId],
+              accountId: r.accountId,
+              categoryId: c.id,
+            )).length ==
+            1,
+      ),
+    );
+  }
+
   // ---------- accounts ----------
 
-  void _openNewAccount() => setState(() {
-    _endReconcile();
-    _section = AppSection.ledger;
-    _newAccount = true;
-    _selected = null;
-    _editing = null;
-    _adding = false;
-  });
+  void _openNewAccount() {
+    if (!_mayLeave()) return;
+    setState(() {
+      _endReconcile();
+      _section = AppSection.ledger;
+      _newAccount = true;
+      _selected = null;
+      _adding = false;
+    });
+  }
 
   Future<void> _createAccount(String name, AccountType type) async {
     final int id;
@@ -787,6 +1023,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     setState(() {
       _newAccount = false;
+      _all = false;
       _accountId = id;
       _pendingAccountId = id;
     });
@@ -1025,14 +1262,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   _AccountActions _actionsFor(LedgerData data, AccountInfo account) =>
       _AccountActions(
-        rename: () => setState(() {
-          if (account.id != _accountId) _endReconcile();
-          _section = AppSection.ledger;
-          _newAccount = false;
-          _accountId = account.id;
-          _selected = null;
-          _renameRequest++;
-        }),
+        rename: () {
+          _openAccount(account.id);
+          if (_accountId != account.id || _all) return;
+          // A frame later: coming from All accounts or Budget, the title it
+          // opens in is only built by then.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _renameRequest++);
+          });
+        },
         changeKind: () => _changeKind(account),
         archive: () => _archive(data, account),
         delete: () => _deleteAccount(data, account),
@@ -1097,12 +1335,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!await _accountWrite(() => db.setArchived(account.id, archived))) {
       return;
     }
-    if (!archived) {
-      setState(() {
-        _section = AppSection.ledger;
-        _accountId = account.id;
-      });
-    }
+    if (!archived) _openAccount(account.id);
     _did(
       archived
           ? '${account.name} archived'
@@ -1356,22 +1589,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       _Sidebar(
                         data: data,
                         section: _section,
-                        onSection: (sec) => setState(() {
-                          if (sec != _section) _endReconcile();
-                          _section = sec;
-                          _selected = null;
-                          _editing = null;
-                        }),
-                        selected: _newAccount ? null : account?.id,
+                        onSection: (sec) {
+                          if (!_mayLeave()) return;
+                          setState(() {
+                            if (sec != _section) _endReconcile();
+                            _section = sec;
+                            _selected = null;
+                          });
+                        },
+                        selected: _newAccount || _all ? null : account?.id,
                         backupHealth: _backups.health,
                         now: widget.clock,
-                        onSelect: (id) => setState(() {
-                          if (id != _accountId) _endReconcile();
-                          _section = AppSection.ledger;
-                          _newAccount = false;
-                          _accountId = id;
-                          _selected = null;
-                        }),
+                        onSelect: _openAccount,
+                        allActive: _all && !_newAccount,
+                        onAll: () => _openAll(),
                         addingAccount: _newAccount,
                         onAddAccount: _openNewAccount,
                         actionsFor: (a) => _actionsFor(data, a),
@@ -1386,6 +1617,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   ? null
                                   : () => setState(() => _newAccount = false),
                             ),
+                          AppSection.ledger when _all => _allBody(data),
                           AppSection.ledger => _body(data, account!),
                           AppSection.settings => _SettingsPage(
                             health: _backups.health,
@@ -1401,6 +1633,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           ),
                           AppSection.budget => _BudgetPage(
                             data: data,
+                            onShowRows: (c) => _openAll(category: c.id),
                             actionsFor: (c) => _categoryActions(data, c),
                             onCreate: _createCategory,
                             onUnarchive: (c) => _archiveCategory(c, false),
@@ -1573,32 +1806,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onRowTap: _tapRow,
                   onToggleCleared: _toggleCleared,
                   onConfirm: _startConfirm,
-                  onSetCategory: (r, c) async {
-                    final previous = await db.setCategoryMany(
-                      transactionIds: [r.txnId],
-                      accountId: account.id,
-                      categoryId: c.id,
-                    );
-                    if (previous.isEmpty) return;
-                    _did(
-                      '${r.payee} → ${c.name}',
-                      undo: () async => _expect(
-                        (await db.restoreCategories(
-                              previous,
-                              account.id,
-                            )).length ==
-                            previous.length,
-                      ),
-                      redo: () async => _expect(
-                        (await db.setCategoryMany(
-                              transactionIds: [r.txnId],
-                              accountId: account.id,
-                              categoryId: c.id,
-                            )).length ==
-                            1,
-                      ),
-                    );
-                  },
+                  onSetCategory: _setCategory,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
                   onEdit: (r) => _startEdit(r.txnId, EditField.payee),
@@ -1637,7 +1845,11 @@ class _Sidebar extends StatelessWidget {
     required this.addingAccount,
     required this.onAddAccount,
     required this.actionsFor,
+    required this.allActive,
+    required this.onAll,
   });
+  final bool allActive;
+  final VoidCallback onAll;
 
   /// For the right-click menu on each account.
   final _AccountActions Function(AccountInfo) actionsFor;
@@ -1712,6 +1924,10 @@ class _Sidebar extends StatelessWidget {
             open: section == AppSection.ledger,
             children: [
               const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.only(left: 26, bottom: 12),
+                child: _AllAccountsTile(active: allActive, onTap: onAll),
+              ),
               for (final g in groups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),

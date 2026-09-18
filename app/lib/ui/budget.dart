@@ -24,8 +24,12 @@ class _BudgetPage extends StatefulWidget {
     required this.actionsFor,
     required this.onCreate,
     required this.onUnarchive,
+    required this.onShowRows,
   });
   final LedgerData data;
+
+  /// The usage text was clicked: its rows, in All accounts.
+  final ValueChanged<AccountInfo> onShowRows;
   final _CategoryActions Function(AccountInfo) actionsFor;
   final void Function(String name, bool income) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
@@ -58,6 +62,7 @@ class _BudgetPageState extends State<_BudgetPage> {
             category: c,
             usage: data.categoryUsage[c.id],
             actions: widget.actionsFor(c),
+            onShowRows: () => widget.onShowRows(c),
           ),
         const SizedBox(height: 14),
       ],
@@ -192,8 +197,10 @@ class _CategoryRow extends StatefulWidget {
     required this.category,
     required this.usage,
     required this.actions,
+    required this.onShowRows,
   });
   final AccountInfo category;
+  final VoidCallback onShowRows;
   final CategoryUsage? usage;
   final _CategoryActions actions;
 
@@ -322,10 +329,35 @@ class _CategoryRowState extends State<_CategoryRow> {
                           ),
                         ),
                 ),
-                Text(
-                  _usageText(widget.usage),
-                  style: onest(12.5, color: Mid.ink3, tabular: true),
-                ),
+                // Its rows, in All accounts: what the count is counting.
+                if (widget.usage == null)
+                  Text(
+                    _usageText(widget.usage),
+                    style: onest(12.5, color: Mid.ink3, tabular: true),
+                  )
+                else
+                  Tooltip(
+                    message: 'Show these rows',
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Hoverable(
+                      key: ValueKey('category-rows-${c.id}'),
+                      onTap: widget.onShowRows,
+                      builder: (hover) => Text(
+                        _usageText(widget.usage),
+                        style:
+                            onest(
+                              12.5,
+                              color: hover ? Mid.blue : Mid.ink3,
+                              tabular: true,
+                            ).copyWith(
+                              decoration: hover
+                                  ? TextDecoration.underline
+                                  : null,
+                              decorationColor: Mid.blue,
+                            ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(width: 12),
                 Hoverable(
                   key: ValueKey('category-menu-${c.id}'),

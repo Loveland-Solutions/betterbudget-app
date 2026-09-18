@@ -252,8 +252,8 @@ be quietly undone.
     Net worth stays pinned at the bottom. Budget and Savings are placeholders marked
     "Later" that open a "Not built yet" page. **"Savings" is a working name** until the
     section is defined. Rejected: an icon rail plus a per-section panel (B), and
-    accounts-only sidebar with sections as a top switch (C). "All accounts" waits until
-    cross-account search exists.
+    accounts-only sidebar with sections as a top switch (C). "All accounts" was first held back
+    for cross-account search; the owner asked for it with categories (rule 23).
     **Opening a section spills its contents down** (owner's request): the space opens
     and the items fade and drop into place one after another, top to bottom, while
     the sections below slide down. Opening takes 360 ms and
@@ -480,6 +480,52 @@ be quietly undone.
     - The Add category row stays open for the next one. Dates from another year show
       in full. Names sort ignoring case.
     - The database refuses category actions on anything that isn't a live category.
+
+23. **All accounts is a view under Ledger** (owner's request, from clicking a
+    category's usage). "All accounts" sits above the account groups in the sidebar
+    and shows every account's rows in one register. **The last column is Account**,
+    in place of Balance: a running total mixing checking, a card and cash means
+    nothing. **A transfer shows once**, from the account the money leaves ("To Khan
+    Savings" in TDB Checking's row). Scheduled rows name their account where one
+    account's register says "next of 4 scheduled". **Adding a row asks for the
+    account** (owner's call: the dropdown is for adding, not filtering). It's a
+    dropdown in the Account column that starts on the account last open and stays
+    on the last one picked, so a batch from one account is picked once. The note and
+    Add move to a line under it. A row's own actions (edit, clear, categorize, Move
+    to, delete, confirm) work on its own account. **Nothing sits above the register
+    but filters** (owner's call, option A): net worth is in the sidebar, and the
+    forecast and reconcile stay per account, since "will I make it to payday?" and a
+    statement are about one account. Rejected: a slim summary line (B) and a
+    combined forecast (C). **Clicking a category's usage on the Budget screen**
+    ("2 rows · last 09.16") opens All accounts with a chip, "Category: Groceries ✕",
+    and what matched: "2 rows · ₮276,650.50 spent". A split counts only its line in
+    that category. ✕ or Esc takes the filter off. This is the first slice of Search
+    (roadmap item 10): chips for account, date and amount can join it.
+    **From the reviews** (decided along the lines above):
+    - **The picker starts on the account last open each time All accounts is
+      opened, then stays on the last pick for the batch.** A pick from days ago
+      doesn't carry on. (The first build reset after every save, so the second row
+      of a batch went to the wrong account.) It comes after Amount in Tab order.
+      With an account chosen, Enter adds; Space or ↓ opens the list. Keys pressed
+      on it never reach the row shortcuts, and hovering its list doesn't close an
+      empty row.
+    - Nothing moves money to its own account (enforced in the database). "→ Cash
+      wallet" from Cash wallet says "Can't transfer to the same account".
+    - **A transfer's symbol shows the less settled side**, with a tooltip naming
+      it ("In Golomt Visa: Uncleared…"). Clicking clears that side, and
+      Uncleared counts it. "Has my card payment landed?" can be answered here.
+    - A transfer is shown from an open account's side before an archived one's.
+    - Scheduled rows name their account even when overdue ("· due 3 days ago ·
+      TDB Checking"). Search matches account names too.
+    - **A new row that won't show under the filter or search says where it
+      went** ("Nomin added to Cash wallet · not in this view"), so it isn't typed
+      twice.
+    - The filter line counts the posted rows its total covers, gives the span,
+      and counts scheduled rows apart: "2 rows · ₮276,650.50 spent since
+      2026.09.12 · 1 scheduled". More back than spent reads "refunded".
+    - Rename, Add account and "Show in sidebar" from All accounts open that
+      account. Switching views with an unsaved edit stops, as clicking another
+      row does.
 
 ## Consequences
 

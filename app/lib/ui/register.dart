@@ -79,6 +79,7 @@ class RegisterPanel extends StatelessWidget {
     required this.hoveredStatus,
     required this.categories,
     required this.transferTargets,
+    this.allAccounts,
     required this.entryController,
     required this.today,
     required this.actions,
@@ -122,6 +123,11 @@ class RegisterPanel extends StatelessWidget {
   final ValueNotifier<Cleared?> hoveredStatus;
   final List<AccountInfo> categories;
   final List<AccountInfo> transferTargets;
+
+  /// All accounts: each row's account by id. The last column names it, in
+  /// place of a running balance that would mix accounts, and the entry row
+  /// asks which account a new row goes in.
+  final Map<int, AccountInfo>? allAccounts;
   final EntryRowController entryController;
   final DateTime today;
   final RegisterActions actions;
@@ -132,11 +138,14 @@ class RegisterPanel extends StatelessWidget {
     final digits = q.replaceAll(RegExp(r'[,\s₮]'), '');
     return r.payee.toLowerCase().contains(q) ||
         r.memo.toLowerCase().contains(q) ||
+        (_accountOf(r)?.toLowerCase().contains(q) ?? false) ||
         r.categoryLabel.toLowerCase().contains(q) ||
         (digits.isNotEmpty &&
             RegExp(r'^\d+$').hasMatch(digits) &&
             formatWhole(r.amount).replaceAll(',', '').contains(digits));
   }
+
+  String? _accountOf(RegisterRow r) => allAccounts?[r.accountId]?.name;
 
   @override
   Widget build(BuildContext context) {
@@ -184,9 +193,12 @@ class RegisterPanel extends StatelessWidget {
         key: ValueKey('edit-${r.txnId}'),
         controller: e.controller,
         categories: categories,
-        transferTargets: transferTargets,
+        // Never a transfer to its own account.
+        transferTargets: transferTargets
+            .where((a) => a.id != r.accountId)
+            .toList(),
         today: today,
-        accountName: accountName,
+        accountName: _accountOf(r) ?? accountName,
         initial: EditInitial.fromRow(
           r,
           focus: e.focus,
@@ -223,6 +235,7 @@ class RegisterPanel extends StatelessWidget {
                   today: today,
                   onConfirm: () => actions.onConfirm(r),
                   extra: null,
+                  accountName: _accountOf(r),
                   bar: bar(r),
                   onTap: () => tap(r.txnId),
                 ),
@@ -240,9 +253,14 @@ class RegisterPanel extends StatelessWidget {
                   row: next,
                   today: today,
                   onConfirm: () => actions.onConfirm(next),
-                  extra: visibleScheduled.length > 1
-                      ? 'next of ${visibleScheduled.length} scheduled'
-                      : 'scheduled',
+                  // All accounts: which account, not how many (the
+                  // Scheduled tab counts them), so the payee keeps its room.
+                  extra: _accountOf(next) != null
+                      ? null
+                      : (visibleScheduled.length > 1
+                            ? 'next of ${visibleScheduled.length} scheduled'
+                            : 'scheduled'),
+                  accountName: _accountOf(next),
                   onMore: () => actions.onFilter(RegisterFilter.scheduled),
                   bar: bar(next),
                   onTap: () => tap(next.txnId),
@@ -266,6 +284,7 @@ class RegisterPanel extends StatelessWidget {
                   row: r,
                   today: today,
                   owed: owed,
+                  accountName: _accountOf(r),
                   striped: i.isOdd,
                   reconciling: through != null,
                   bar: bar(r),
@@ -315,7 +334,9 @@ class RegisterPanel extends StatelessWidget {
             ),
           ),
           _HeaderRow(
-            balance: through != null
+            balance: allAccounts != null
+                ? 'Account'
+                : through != null
                 ? 'Cleared balance'
                 : (owed ? 'Owed' : 'Balance'),
           ),
@@ -330,6 +351,9 @@ class RegisterPanel extends StatelessWidget {
                     transferTargets: transferTargets,
                     today: today,
                     accountName: accountName,
+                    accountChoices: allAccounts == null
+                        ? null
+                        : transferTargets,
                     onCancel: onCloseEntry,
                   )
                 : const SizedBox(width: double.infinity),
@@ -509,8 +533,13 @@ class _RowActions extends StatelessWidget {
           );
     // A transfer can't move onto its own other side; an opening balance
     // belongs to its account.
+    // In All accounts the list has every account, its own included.
     final targets = accounts
-        .where((a) => !(r.kind == RowKind.transfer && a.name == r.payee))
+        .where(
+          (a) =>
+              a.id != r.accountId &&
+              !(r.kind == RowKind.transfer && a.name == r.payee),
+        )
         .toList();
     final move = r.kind != RowKind.opening && targets.isNotEmpty
         ? CategoryMenu(
@@ -713,6 +742,7 @@ class _PostedRow extends StatelessWidget {
     required this.row,
     required this.today,
     required this.owed,
+    this.accountName,
     required this.striped,
     required this.reconciling,
     required this.bar,
@@ -726,6 +756,9 @@ class _PostedRow extends StatelessWidget {
   final RegisterRow row;
   final DateTime today;
   final bool owed;
+
+  /// All accounts: the row's account, shown where the balance would be.
+  final String? accountName;
 
   /// Every other row is tinted, to tell transactions apart at a glance.
   final bool striped;
@@ -755,13 +788,14 @@ class _PostedRow extends StatelessWidget {
               .join(' · ')
         : r.memo;
     final stale = staleNote(r, today);
-    final statusTip = switch (r.cleared) {
-      Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
-      Cleared.cleared =>
-        'Cleared — settled at the bank. Click to mark uncleared.',
-      Cleared.reconciled =>
-        'Reconciled — matches a statement, so its date and amount are locked.',
-    };
+    final statusTip =
+        (r.clearedIn == null ? '' : 'In ${r.clearedIn}: ') +
+        switch (r.cleared) {
+          Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+          Cleared.cleared =>
+            'Cleared — settled at the bank. Click to mark uncleared.',
+          Cleared.reconciled => 'Reconciled — matches a statement, so its date and amount are locked.',
+        };
 
     return ValueListenableBuilder<Cleared?>(
       valueListenable: hoveredStatus,
@@ -950,7 +984,14 @@ class _PostedRow extends StatelessWidget {
                         width: Cols.balance,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: reconciling && r.cleared == Cleared.uncleared
+                          child: accountName != null
+                              ? Text(
+                                  accountName!,
+                                  style: onest(13, color: Mid.ink2),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : reconciling && r.cleared == Cleared.uncleared
                               ? null
                               : Builder(
                                   builder: (context) {
@@ -992,7 +1033,11 @@ class _ScheduledRow extends StatelessWidget {
     required this.bar,
     required this.onTap,
     this.onMore,
+    this.accountName,
   });
+
+  /// All accounts: which account it's in, shown even when overdue.
+  final String? accountName;
 
   final RegisterRow row;
   final DateTime today;
@@ -1079,6 +1124,17 @@ class _ScheduledRow extends StatelessWidget {
                             // The overdue note takes the place of "next of
                             // N scheduled", which the Scheduled tab also
                             // counts, so the payee keeps its room.
+                            if (accountName != null) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '· $accountName',
+                                  style: onest(14, color: Mid.ink3),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                             if (extra != null && overdue == null) ...[
                               const SizedBox(width: 8),
                               Hoverable(
