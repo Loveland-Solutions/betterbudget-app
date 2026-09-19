@@ -30,6 +30,11 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   balance prefilled with the cleared total, reconciled rows whose payee couldn't be
   fixed, a row hover as faint as the row stripe, and a separate cash-account counting
   flow (not wanted yet; on the roadmap).
+- **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
+  save me from myself"). Don't forbid an action to protect the user. Say exactly what
+  will happen, big and specific with real numbers, then let them go ahead, with undo.
+  Use a default rather than a required choice. Locks the owner chose themselves (such as
+  reconciled rows) stay.
 - They often choose between options, so offer two or three with a recommendation and
   sketches, then build the one they pick. Record the choice, and what was rejected, in
   ADR 0004.

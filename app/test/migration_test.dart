@@ -62,6 +62,7 @@ void main() {
         );
         await db.customStatement('DROP TABLE entries_v2');
       }
+      await dropAccountColumnsAddedInV4(db);
       await db.customStatement('PRAGMA user_version = $from');
       await db.close();
 
@@ -105,7 +106,7 @@ void main() {
       final backups = dir
           .listSync()
           .whereType<File>()
-          .where((f) => f.path.contains('.before-v3-from-v$from-'))
+          .where((f) => f.path.contains('.before-v4-from-v$from-'))
           .toList();
       expect(backups, hasLength(1));
       final copy = sqlite3.open(backups.single.path);
@@ -113,4 +114,37 @@ void main() {
       expect(copy.select('PRAGMA user_version').single.values.single, from);
     });
   }
+
+  test('upgrades a v3 file: accounts can be archived and deleted', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final before = await db.loadLedger();
+    await dropAccountColumnsAddedInV4(db);
+    await db.customStatement('PRAGMA user_version = 3');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final data = await db.loadLedger();
+    expect(
+      data.balanceSheetAccounts.map((a) => a.name),
+      before.balanceSheetAccounts.map((a) => a.name),
+    );
+    expect(data.accounts.values.any((a) => a.archived || a.deleted), isFalse);
+    final savings = data.balanceSheetAccounts
+        .firstWhere((a) => a.name == 'Khan Savings')
+        .id;
+    await db.setArchived(savings, true);
+    expect((await db.loadLedger()).accounts[savings]!.archived, isTrue);
+  });
+}
+
+/// The v3 accounts table: no archived or deleted columns.
+Future<void> dropAccountColumnsAddedInV4(AppDatabase db) async {
+  await db.customStatement('ALTER TABLE accounts DROP COLUMN archived_at');
+  await db.customStatement('ALTER TABLE accounts DROP COLUMN deleted_at');
 }

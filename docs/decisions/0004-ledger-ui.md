@@ -378,6 +378,60 @@ be quietly undone.
     Nothing changes Working by age on its own. Rejected: a header line that filters to
     these rows (B), and both (C).
 
+21. **Accounts are added and managed where they're used** (owner's call, option A of
+    three). A quiet "+ Add account" sits under the accounts in the sidebar and opens a
+    form in the main area: a name ("New account" if left empty) and a kind, Bank account
+    (already chosen) or Credit card. A bank field was left out because nothing shows it.
+    **A new account's first screen asks what's in it** ("What do you owe on it
+    today?" on a card), with a date. The answer becomes a cleared opening balance, so
+    the first reconcile starts from it. Left empty, the account starts at ₮0 with the
+    entry row open. **The name renames in place** when clicked (Enter or leaving the
+    field saves, Esc cancels). A ⋯ beside it holds Rename, Change to credit card / bank
+    account, Archive… and Delete…. **Right-clicking an account in the sidebar opens the
+    same menu** (owner's request, after trying it). The account stays lit while the
+    menu is open, and Rename there opens the account with its name ready to edit.
+    Every action undoes with ⌘Z. Rejected: an Accounts
+    page in Settings (B, managing accounts away from the ledger) and typing a new
+    account straight into the sidebar (C, no place to ask the kind).
+    **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries
+    to save me from myself"). The first design allowed archiving only at a zero
+    balance and deleting only an account with no rows. Now both are always allowed,
+    and a dialog says exactly what will happen first. **Archive** takes the account
+    out of the sidebar, transfers and Move to, but keeps it in net worth. It asks
+    only when something is left behind ("₮4,182,450 is still in it…", "4 scheduled
+    rows … won't show in any forecast"). Settings lists archived accounts with "Show in
+    sidebar". **Delete is stark and final** (owner's correction: don't promise it
+    can be brought back). The title is coral, and the dialog gives the rows that go and
+    how many were reconciled, how far net worth moves, and where transfers stay. The
+    button names the account, and Enter doesn't press it. The toast has no Undo,
+    though ⌘Z still works as it does for everything in the session (the dialog doesn't
+    say it can't be undone, since that wouldn't be true). **Deleting an account never
+    changes another account** (owner's call). Its transfers stay on the other account
+    as "TDB Checking (deleted)", so balances, cleared totals and reconciles there are
+    untouched, and a lock that came from the deleted account's statements lifts.
+    Rejected: turning those transfers into ordinary rows with no category, which hides
+    where the money came from.
+    **From the reviews** (decided along the lines above):
+    - The second kind is **"Card or loan"**, with a hint naming loans and Storepay.
+      Salary loans, mortgages and buy-now-pay-later all show as owed. The form says
+      accounts are in tögrög for now.
+    - The start hint shows before anything is typed. On a card it says "what you've
+      used, not the available limit". The question follows the date ("What was in it
+      on 08.31?").
+    - After a balance, the entry row opens and the toast says "add only what hasn't
+      settled yet", because the bank's number already includes everything settled.
+    - **Changing the kind flips an unreconciled opening balance**, since it was typed
+      in the kind's own sign. Changing back flips it back.
+    - The archive warning separates bills (dropped from every forecast) from scheduled
+      transfers (still on the other account's forecast). The delete warning names
+      scheduled transfers that stay.
+    - Balances in the warnings read "₮3,000 overdrawn" or "₮5,000 in credit: the bank
+      owes you", and show the fraction when there is one.
+    - Net worth adds "incl. ₮X in archived" when archived accounts hold anything.
+    - Deleting an account with no rows and no transfers skips the dialog.
+    - Undo of adding an account only works while it is still empty.
+    - The database refuses new rows in a deleted account.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

@@ -19,6 +19,10 @@ class Accounts extends Table {
   TextColumn get mask => text().nullable()();
   TextColumn get sidebarGroup => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  IntColumn get archivedAt => integer().nullable()();
+
+  /// Deleted with its own rows; transfers with other accounts stay.
+  IntColumn get deletedAt => integer().nullable()();
 }
 
 class Payees extends Table {
@@ -150,6 +154,13 @@ class MoveRecord {
   final Cleared cleared;
 }
 
+/// What [AppDatabase.deleteAccount] deleted, so undo can put it back.
+class DeletedAccount {
+  const DeletedAccount(this.accountId, this.transactionIds);
+  final int accountId;
+  final List<int> transactionIds;
+}
+
 class NotFoundException implements Exception {
   NotFoundException(this.message);
   final String message;
@@ -187,7 +198,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -201,6 +212,10 @@ class AppDatabase extends _$AppDatabase {
           await linkReconciledEntries();
         }
         if (from < 3) await repairReconciledEntries();
+        if (from < 4) {
+          await m.addColumn(accounts, accounts.archivedAt);
+          await m.addColumn(accounts, accounts.deletedAt);
+        }
       });
     },
     beforeOpen: (details) async {
@@ -350,6 +365,8 @@ class AppDatabase extends _$AppDatabase {
             mask: a.mask,
             group: a.sidebarGroup,
             sortOrder: a.sortOrder,
+            archived: a.archivedAt != null,
+            deleted: a.deletedAt != null,
           ),
       ],
       txns: [
@@ -450,20 +467,24 @@ class AppDatabase extends _$AppDatabase {
     required int amount,
     String? memo,
   }) {
-    return postTransaction(
-      date: date,
-      payee: payee,
-      memo: memo,
-      scheduled: dateOnly(date).isAfter(dateOnly(today)),
-      lines: [
-        (accountId: accountId, amount: amount, cleared: Cleared.uncleared),
-        (
-          accountId: counterAccountId,
-          amount: -amount,
-          cleared: Cleared.uncleared,
-        ),
-      ],
-    );
+    return transaction(() async {
+      await _assertLive(accountId);
+      await _assertLive(counterAccountId);
+      return postTransaction(
+        date: date,
+        payee: payee,
+        memo: memo,
+        scheduled: dateOnly(date).isAfter(dateOnly(today)),
+        lines: [
+          (accountId: accountId, amount: amount, cleared: Cleared.uncleared),
+          (
+            accountId: counterAccountId,
+            amount: -amount,
+            cleared: Cleared.uncleared,
+          ),
+        ],
+      );
+    });
   }
 
   /// Moves the category side of a two-entry transaction to [categoryId].
@@ -603,7 +624,9 @@ class AppDatabase extends _$AppDatabase {
               ..where(
                 entries.transactionId.isIn(transactionIds) &
                     entries.cleared.equalsValue(Cleared.reconciled) &
-                    accounts.type.isInValues(_reconcilable),
+                    accounts.type.isInValues(_reconcilable) &
+                    // A deleted account's statements no longer lock anything.
+                    accounts.deletedAt.isNull(),
               ))
             .get();
     return {for (final r in rows) r.read(entries.transactionId)!};
@@ -757,6 +780,7 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+      if (counterAccountId != null) await _assertLive(counterAccountId);
       if (amount != null || counterAccountId != null) {
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {
@@ -823,7 +847,11 @@ class AppDatabase extends _$AppDatabase {
     required int toAccountId,
   }) => transaction(() async {
     final types = await _accountTypes();
-    if (!_reconcilable.contains(types[toAccountId])) {
+    final target = await (select(
+      accounts,
+    )..where((a) => a.id.equals(toAccountId))).getSingleOrNull();
+    if (!_reconcilable.contains(types[toAccountId]) ||
+        target?.deletedAt != null) {
       throw NotFoundException('Not an account');
     }
     if ((await _reconciledAmong([transactionId])).isNotEmpty) {
@@ -921,6 +949,174 @@ class AppDatabase extends _$AppDatabase {
       mask: Value(mask),
       sidebarGroup: Value(group),
       sortOrder: Value(sortOrder),
+    ),
+  );
+
+  // ---------- accounts ----------
+
+  static const openingBalancesName = 'Opening balances';
+
+  /// The sidebar group a new or changed account goes in.
+  static String groupFor(AccountType type) =>
+      type == AccountType.liability ? 'Credit' : 'Cash & bank';
+
+  /// A bank account or credit card, last in the sidebar.
+  Future<int> createAccount({
+    required String name,
+    required AccountType type,
+  }) => transaction(() async {
+    final last =
+        await (selectOnly(accounts)..addColumns([accounts.sortOrder.max()]))
+            .map((r) => r.read(accounts.sortOrder.max()))
+            .getSingle();
+    return addAccount(
+      name: name.trim(),
+      type: type,
+      group: groupFor(type),
+      sortOrder: (last ?? 0) + 1,
+    );
+  });
+
+  Future<void> renameAccount(int accountId, String name) =>
+      (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(name: Value(name.trim())),
+      );
+
+  /// Bank account ⇄ card or loan. Rows keep their amounts: a purchase lowers
+  /// the balance either way. The opening balance is the exception, since it
+  /// was typed in the kind's own sign ("₮640,200" in, or owed), so an
+  /// unreconciled one flips with it. Changing back flips it back, which makes
+  /// this its own undo. Returns whether an opening balance flipped.
+  Future<bool> setAccountType(int accountId, AccountType type) {
+    assert(_reconcilable.contains(type));
+    return transaction(() async {
+      final current = await (select(
+        accounts,
+      )..where((a) => a.id.equals(accountId))).getSingle();
+      await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(
+          type: Value(type),
+          sidebarGroup: Value(groupFor(type)),
+        ),
+      );
+      if (current.type == type) return false;
+      final opening = await customSelect(
+        'SELECT t.id FROM transactions t '
+        'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ?1 '
+        'JOIN entries other ON other.transaction_id = t.id AND other.id != mine.id '
+        'JOIN accounts a ON a.id = other.account_id '
+        'WHERE t.deleted_at IS NULL AND a.name = ?2 '
+        "AND a.type = 'equity' AND mine.cleared != ?3 "
+        'GROUP BY t.id HAVING COUNT(*) = 1',
+        variables: [
+          Variable.withInt(accountId),
+          Variable.withString(openingBalancesName),
+          Variable.withInt(Cleared.reconciled.index),
+        ],
+        readsFrom: {transactions, entries, accounts},
+      ).get();
+      for (final r in opening) {
+        final id = r.read<int>('id');
+        await customStatement(
+          'UPDATE entries SET amount_minor = -amount_minor '
+          'WHERE transaction_id = ?',
+          [id],
+        );
+        await _assertBalanced(id);
+        await _touch(id);
+      }
+      markTablesUpdated({entries});
+      return opening.isNotEmpty;
+    });
+  }
+
+  Future<void> setArchived(int accountId, bool archived) =>
+      (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(archivedAt: Value(archived ? _now : null)),
+      );
+
+  /// Deletes the account and every transaction that is only its own,
+  /// reconciled or not. A transaction that also moves money in another
+  /// account (a transfer) stays, so no other account's balance or statement
+  /// changes; its side here stays on the deleted account, which counts
+  /// nowhere. Soft, like every delete, so undo can put it all back.
+  Future<DeletedAccount> deleteAccount(int accountId) => transaction(() async {
+    final rows = await customSelect(
+      'SELECT t.id FROM transactions t '
+      'WHERE t.deleted_at IS NULL '
+      'AND EXISTS (SELECT 1 FROM entries e '
+      '  WHERE e.transaction_id = t.id AND e.account_id = ?1) '
+      'AND NOT EXISTS (SELECT 1 FROM entries e JOIN accounts a '
+      '  ON a.id = e.account_id WHERE e.transaction_id = t.id '
+      "  AND a.id != ?1 AND a.type IN ('asset', 'liability') "
+      '  AND a.deleted_at IS NULL)',
+      variables: [Variable.withInt(accountId)],
+      readsFrom: {transactions, entries, accounts},
+    ).get();
+    final ids = [for (final r in rows) r.read<int>('id')];
+    final now = _now;
+    await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+      TransactionsCompanion(deletedAt: Value(now)),
+    );
+    await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(deletedAt: Value(now)),
+    );
+    return DeletedAccount(accountId, ids);
+  });
+
+  /// Undo for adding an account: deletes it only while nothing is in it.
+  /// Returns false, deleting nothing, once it holds any live row.
+  Future<bool> deleteEmptyAccount(int accountId) => transaction(() async {
+    final used = await customSelect(
+      'SELECT 1 FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'WHERE e.account_id = ? AND t.deleted_at IS NULL LIMIT 1',
+      variables: [Variable.withInt(accountId)],
+      readsFrom: {entries, transactions},
+    ).get();
+    if (used.isNotEmpty) return false;
+    await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(deletedAt: Value(_now)),
+    );
+    return true;
+  });
+
+  /// Refuses a deleted account as the place money goes: the UI never offers
+  /// one, and nothing may land there.
+  Future<void> _assertLive(int accountId) async {
+    final a = await (select(
+      accounts,
+    )..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (a == null || a.deletedAt != null) {
+      throw NotFoundException('That account was deleted');
+    }
+  }
+
+  /// Undo for [deleteAccount].
+  Future<void> undeleteAccount(DeletedAccount d) => transaction(() async {
+    await (update(accounts)..where((a) => a.id.equals(d.accountId))).write(
+      const AccountsCompanion(deletedAt: Value(null)),
+    );
+    await restoreMany(d.transactionIds);
+  });
+
+  /// What was in [accountId] on [date], as a cleared opening balance: the
+  /// first reconcile starts from it. [balance] is in the account's own sign
+  /// (a card owing ₮500,000 is −500,000).
+  Future<int> postOpeningBalance({
+    required int accountId,
+    required DateTime date,
+    required int balance,
+  }) => transaction(
+    () async => postTransaction(
+      date: dateOnly(date),
+      lines: [
+        (accountId: accountId, amount: balance, cleared: Cleared.cleared),
+        (
+          accountId: await _equityAccount(openingBalancesName),
+          amount: -balance,
+          cleared: Cleared.cleared,
+        ),
+      ],
     ),
   );
 
@@ -1039,19 +1235,20 @@ class AppDatabase extends _$AppDatabase {
   static const adjustmentsAccountName = 'Balance adjustments';
 
   /// Equity, like opening balances: an adjustment isn't spending or income.
-  Future<int> _adjustmentsAccount() async {
+  Future<int> _adjustmentsAccount() => _equityAccount(adjustmentsAccountName);
+
+  Future<int> _equityAccount(String name) async {
     final existing =
-        await (select(accounts)..where(
-              (a) =>
-                  a.name.equals(adjustmentsAccountName) &
-                  a.type.equalsValue(AccountType.equity),
-            ))
+        await (select(accounts)
+              ..where(
+                (a) =>
+                    a.name.equals(name) &
+                    a.type.equalsValue(AccountType.equity),
+              )
+              ..limit(1))
             .getSingleOrNull();
     return existing?.id ??
-        await addAccount(
-          name: adjustmentsAccountName,
-          type: AccountType.equity,
-        );
+        await addAccount(name: name, type: AccountType.equity);
   }
 
   /// Takes back [accountId]'s most recent reconcile that locked rows, from any
