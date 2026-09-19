@@ -59,8 +59,9 @@ layout (she decides at the checkout).
 they answer "will rent clear?" before the short check lands, and both are ledger work.
 Next: card payments in the checking forecast. Then the budget per pay period.
 
-**For the owner:** is this persona a real target user? If so, currency and date format
-move up.
+**Owner (2026-09-19): yes, a real user: the owner's daughter.** So dollars and US
+dates move up. Neither can wait for a later "multi-currency" decision: she can't enter
+"$500" or "9/24/2026" today.
 
 ## 2. Salaried wealth builder, 45, works at IBM (2026-09-19)
 
@@ -136,6 +137,14 @@ College 2034   $160k   funded 34%   $1,300/mo needed · putting in $1,000
 **Recommendation put to the owner (2026-09-19), not yet decided:** A, with B's Update
 value as the way values get in; goals later as lines on A; rename the section "Growth".
 Owner: "document this, and we'll follow up."
+
+**Owner's direction (2026-09-19):** Savings "will take some work". It should get users
+onto the first few steps of the Church of Jesus Christ of Latter-day Saints course
+*Personal Finances for Self-Reliance*, starting with "a safety net of one month's pay".
+So the section is a guided path through the course's milestones, not A/B/C as
+sketched above. Those concepts become later steps or supporting views (the course's
+later chapters cover investing). The course's exact steps and wording are being
+researched from the Church's manual before anything is designed.
 
 **What has to change first** (data-model check, file references in the session notes):
 

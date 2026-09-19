@@ -144,7 +144,9 @@ Roughly in the order they will block something.
    [personas.md](personas.md) §2** (2026-09-19): A. a Growth page (where each period's
    surplus went, a real savings rate, net worth split into saved and market change),
    B. a balance sheet with Update value, C. goals. Recommended A plus B's Update value,
-   renamed "Growth". The owner will follow up.
+   renamed "Growth". **Owner's direction (2026-09-19):** Savings guides users through the
+   first steps of the Church's *Personal Finances for Self-Reliance* course, starting
+   with a one-month safety net; see personas.md §2 and the course itself in [self-reliance-course.md](self-reliance-course.md).
 4. **Budget model: envelopes or targets?** Blocks the budget. The double-entry schema
    suits envelopes. **The budget runs per pay period or per month, not all time**
    (owner, 2026-09-19; which of the two is still open). A category's rows, opened
@@ -167,7 +169,8 @@ Roughly in the order they will block something.
 **Persona reviews** (2026-09-19) are logged in [personas.md](personas.md): what a
 paycheck-to-paycheck student needs (recurring bills and a forecast past the next payday
 top the list) and what a salaried wealth builder needs (the Savings section). The owner
-said "we'll address it"; nothing there is picked yet.
+said "we'll address it"; nothing there is picked yet. The student is real (the
+owner's daughter), so dollars and US dates are needed.
 
 **Work through the list below, one item at a time** (owner, 2026-09-18). Design each,
 show the owner, build the one they pick, review, merge, tick it off here, then start
