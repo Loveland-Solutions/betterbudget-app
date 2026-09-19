@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-18**
+**Last updated: 2026-09-19**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -11,8 +11,9 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main` (through PR #9: rows grow smoothly when
-opened) and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #13: pay and paydays) and
+nothing is uncommitted. Keep the pattern: branch, commit, PR, merge. The owner's data
+file is at schema version 5.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -162,11 +163,16 @@ show the owner, build the one they pick, review, merge, tick it off here, then s
 the next. Details for each item are further down (open items, roadmap, tabled).
 
 - [x] 1. **Accounts**: add, rename, archive; a new account starts empty with an opening balance
-- [x] 2. **Categories**: add, rename, archive
+- [x] 2. **Categories**: add, rename, archive (on the Budget screen, rule 22), plus the
+  **All accounts** view the owner asked for with it (rule 23)
 - [ ] 3. **Splits**: create and edit them
-- [ ] 4. **Recurring** scheduled items. **Starts with paychecks** (owner, 2026-09-19):
-  a payday mark on income categories (only payday rows end the forecast; option A),
-  and a way to put in paychecks that the app encourages
+- [ ] 4. **Recurring** scheduled items. **Pay is done** (PR #13, rule 24): payday mark,
+  pay setup, the next payday always scheduled, budget by month or pay period. Still to
+  do: recurring bills (rent, СӨХ, utilities, phone), probably on the same schedule
+  model. **Two pay questions are waiting for the owner** (asked 2026-09-19, both
+  recommended yes): (a) twice a month with **an amount for each day** (advance, then
+  the rest); (b) **"I don't have regular pay"** in the setup, which turns off the "Add
+  your pay" prompt (undo it in Settings), for self-employed users.
 - [ ] 5. A better **"not cleared" note**
 - [ ] 6. **Duplicate check on Confirm**
 - [ ] 7. **Several overdue bills** in All
@@ -230,6 +236,17 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **PR #13 (2026-09-19):** pay (rule 24). Only payday income ends a forecast, and a
+  pay setup is prompted from the forecast, the Budget screen and Settings. Pay that
+  varies is an estimate on the low side. The next payday is always scheduled from the
+  plan, and early or late pay belongs to its planned payday. Budget by month or pay
+  period is set in Settings. Schema v5.
+- **PR #12:** categories on the Budget screen, managed there, and created from the
+  entry row (rule 22). The All accounts view under Ledger has an Account column, an
+  account picker when adding, and category and period chips (rule 23).
+- **PR #11:** accounts: add, rename, change kind, archive, delete (rule 21, "warn,
+  don't block"), with a right-click menu in the sidebar. Schema v4.
 
 - **PR #9 (2026-09-18):** rows grow smoothly when opened into the editor or action bar
   (`SmoothHeight`, rule 12).
