@@ -2,6 +2,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/forecast.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1699,6 +1700,232 @@ void main() {
         );
       },
     );
+  });
+
+  group('pay', () {
+    test('a schedule keeps its next payday scheduled; undo and redo', () async {
+      final salary = await categoryId('Salary');
+      final change = await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 210000000,
+        varies: true,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      expect(change.created, hasLength(1));
+      var data = await db.loadLedger();
+      final next = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == change.created.single);
+      expect(next.date, DateTime(2026, 9, 25));
+      expect(next.estimate, 210000000);
+      expect(next.isIncome, isTrue);
+      // Nothing more while one is waiting.
+      expect(await db.ensurePaydays(today), isEmpty);
+
+      // Confirmed (for less): the one after comes from the plan.
+      await db.editTransaction(
+        transactionId: next.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 25),
+        today: DateTime(2026, 9, 25),
+        amount: 200000000,
+        confirm: true,
+      );
+      final after = await db.ensurePaydays(DateTime(2026, 9, 25));
+      data = await db.loadLedger();
+      final following = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == after.single);
+      expect(following.date, DateTime(2026, 10, 23)); // 10.25 is a Sunday
+      expect(following.amount, 210000000);
+
+      await db.undoPayChange(change);
+      data = await db.loadLedger();
+      expect(data.paySchedules, isEmpty);
+      await db.redoPayChange(change);
+      expect((await db.loadLedger()).paySchedules, hasLength(1));
+    });
+
+    test('only a payday ends the forecast', () async {
+      final allowance = await db.createCategory(
+        'Child allowance',
+        income: true,
+      );
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 18),
+        today: today,
+        payee: 'Хүүхдийн мөнгө',
+        counterAccountId: allowance,
+        amount: 10000000,
+      );
+      var row = (await db.loadLedger())
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.payee == 'Хүүхдийн мөнгө');
+      expect(row.isIncome, isFalse);
+      await db.setPayday(allowance, true);
+      row = (await db.loadLedger())
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.payee == 'Хүүхдийн мөнгө');
+      expect(row.isIncome, isTrue);
+    });
+
+    Future<PayChange> monthly(int salary, {bool period = false, int? id}) =>
+        db.savePaySchedule(
+          id: id,
+          categoryId: salary,
+          accountId: checking,
+          amount: 210000000,
+          rule: PayRule.monthly,
+          day1: 25,
+          today: today,
+          definesPeriod: period,
+        );
+
+    Future<List<RegisterRow>> paydaysOf(int scheduleId) async =>
+        (await db.loadLedger())
+            .registerFor(checking)
+            .scheduled
+            .where((r) => r.payScheduleId == scheduleId)
+            .toList();
+
+    test(
+      'paid early, the next payday is the one after, not the same one',
+      () async {
+        final salary = await categoryId('Salary');
+        final change = await monthly(salary);
+        final row = (await paydaysOf(change.after.id)).single;
+        await db.editTransaction(
+          transactionId: row.txnId,
+          accountId: checking,
+          date: DateTime(2026, 9, 23),
+          today: DateTime(2026, 9, 23),
+          confirm: true,
+        );
+        await db.ensurePaydays(DateTime(2026, 9, 23));
+        final next = await paydaysOf(change.after.id);
+        expect(next.map((r) => r.date), [DateTime(2026, 10, 23)]);
+      },
+    );
+
+    test('a payday deleted by the user stays skipped', () async {
+      final salary = await categoryId('Salary');
+      final change = await monthly(salary);
+      final row = (await paydaysOf(change.after.id)).single;
+      await db.softDelete(row.txnId); // unpaid leave
+      await db.ensurePaydays(today);
+      final next = await paydaysOf(change.after.id);
+      expect(next.map((r) => r.date), [DateTime(2026, 10, 23)]);
+    });
+
+    test('an overdue payday gets the next one scheduled behind it', () async {
+      final salary = await categoryId('Salary');
+      final change = await monthly(salary);
+      await db.ensurePaydays(DateTime(2026, 9, 28)); // the 25th didn't come
+      final rows = await paydaysOf(change.after.id);
+      expect(rows.map((r) => r.date), [
+        DateTime(2026, 9, 25),
+        DateTime(2026, 10, 23),
+      ]);
+    });
+
+    test(
+      'a salary scheduled by hand is taken over, and undo brings it back',
+      () async {
+        final salary = await categoryId('Salary');
+        final manual = await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 25),
+          today: today,
+          payee: 'Altan Gadas LLC',
+          counterAccountId: salary,
+          amount: 210000000,
+        );
+        final change = await monthly(salary);
+        expect(change.replaced, [manual]);
+        var income = (await db.loadLedger())
+            .registerFor(checking)
+            .scheduled
+            .where((r) => r.date == DateTime(2026, 9, 25) && r.amount > 0);
+        expect(income, hasLength(1));
+        await db.undoPayChange(change);
+        income = (await db.loadLedger())
+            .registerFor(checking)
+            .scheduled
+            .where((r) => r.date == DateTime(2026, 9, 25) && r.amount > 0);
+        expect(income.single.txnId, manual);
+      },
+    );
+
+    test('a start date later than today is the first payday', () async {
+      final salary = await categoryId('Salary');
+      final change = await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.everyWeeks,
+        anchor: DateTime(2026, 10, 9),
+        today: today,
+      );
+      expect(
+        (await paydaysOf(change.after.id)).single.date,
+        DateTime(2026, 10, 9),
+      );
+    });
+
+    test(
+      'undo puts the pay period back exactly, after an edit or a stop',
+      () async {
+        final salary = await categoryId('Salary');
+        final s1 = await monthly(salary);
+        final s2 = await monthly(salary, period: true);
+        // Edit S1 to take the period, then undo: S2 has it again, alone.
+        final edit = await monthly(salary, id: s1.after.id, period: true);
+        expect((await db.loadLedger()).periodSchedule!.id, s1.after.id);
+        await db.undoPayChange(edit);
+        var data = await db.loadLedger();
+        expect(data.paySchedules.where((p) => p.definesPeriod), hasLength(1));
+        expect(data.periodSchedule!.id, s2.after.id);
+
+        // Salary deliberately not a payday; stop S1, undo: nothing else moves.
+        await db.setPayday(salary, false);
+        final stop = await db.stopPaySchedule(s1.after.id, today);
+        await db.undoPayChange(stop);
+        data = await db.loadLedger();
+        expect(data.periodSchedule!.id, s2.after.id);
+        expect(data.accounts[salary]!.payday, isFalse);
+      },
+    );
+
+    test('one schedule defines the pay period at a time', () async {
+      final salary = await categoryId('Salary');
+      final a = await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.monthly,
+        today: today,
+        definesPeriod: true,
+      );
+      await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.twiceMonthly,
+        today: today,
+        definesPeriod: true,
+      );
+      final data = await db.loadLedger();
+      expect(data.paySchedules.where((p) => p.definesPeriod), hasLength(1));
+      expect(data.periodSchedule!.id, isNot(a.after.id));
+    });
   });
 }
 

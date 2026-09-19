@@ -11,6 +11,7 @@ import '../data/demo_seed.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import '../domain/pay.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
@@ -19,6 +20,7 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
+part 'pay_setup.dart';
 
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
@@ -88,6 +90,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// All accounts, narrowed to the rows filed under this category.
   int? _categoryFilter;
 
+  /// All accounts, narrowed to the budget's current period (month or pay
+  /// period): a category opened from Budget starts there.
+  bool _periodFilter = false;
+
   /// Bumped by Rename in the sidebar's right-click menu: the account opens
   /// with its name ready to edit in the header.
   var _renameRequest = 0;
@@ -131,8 +137,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void initState() {
     super.initState();
-    _ledger = Stream.fromFuture(seedDemoIfEmpty(db, today))
-        .asyncExpand((_) => db.watchLedger());
+    // Each pay schedule's next payday is scheduled before the first look.
+    _ledger = Stream.fromFuture(
+      seedDemoIfEmpty(db, today).then((_) => db.ensurePaydays(today)),
+    ).asyncExpand((_) => db.watchLedger());
     _entry = EntryRowController(
       onSubmit: _post,
       suggestCategory: (payee) =>
@@ -375,9 +383,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (row == null) {
       // Esc with nothing selected takes the category filter off.
       if (event.logicalKey == LogicalKeyboardKey.escape &&
-          _categoryFilter != null &&
+          (_categoryFilter != null || _periodFilter) &&
           _all) {
-        setState(() => _categoryFilter = null);
+        setState(() {
+          _categoryFilter = null;
+          _periodFilter = false;
+        });
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
@@ -559,11 +570,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
       String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
       final amount = d.amount ?? row.amount;
       final early = row.date.isAfter(today);
+      // A payday confirmed: its schedule's next one, from the plan. Only
+      // its own: confirming a bill never touches pay.
+      var next = const <int>[];
+      final schedule = row.payScheduleId;
+      if (schedule != null) {
+        try {
+          next = await db.ensurePaydays(today, only: schedule);
+        } catch (e) {
+          debugPrint('Scheduling the next payday failed: $e');
+        }
+      }
       final pair = _alsoCategory(
         made,
-        // One action: the confirm and any rest still owed come and go
-        // together.
+        // One action: the confirm, any rest still owed and the next payday
+        // come and go together.
         () => db.transaction(() async {
+          await db.dropPaydays(next);
           await db.restoreSnapshot(before);
           if (owedId case final id?) {
             _expect((await db.softDeleteMany([id])).length == 1);
@@ -572,8 +595,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         () => db.transaction(() async {
           await db.restoreSnapshot(after);
           if (owedId case final id?) await db.restoreMany([id]);
+          if (schedule != null) await db.bringBackPaydays(next, schedule);
         }),
       );
+      // Under an estimate is the direction that hurts: said once, here.
+      final under = row.estimate == null || amount >= row.estimate!
+          ? null
+          : row.estimate! - amount;
       _did(
         '$name confirmed',
         undo: pair.undo,
@@ -587,7 +615,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 ? ''
                 : ', planned ${money(row.amount)}'}'
             // The date, whenever it isn't the one planned.
-            '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}',
+            '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}'
+            '${under == null ? '' : ' · ${money(under)} under the estimate · lower it on the Budget screen'}',
       );
       return null;
     }
@@ -822,11 +851,128 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  // ---------- pay ----------
+
+  /// Opens the pay setup: from the forecast's "Add your pay", a payday
+  /// category on the Budget screen, or Settings. [existing] edits one.
+  Future<void> _openPaySetup({
+    AccountInfo? category,
+    AccountInfo? account,
+    PaySchedule? existing,
+  }) async {
+    final data = _data;
+    if (data == null) return;
+    final incomes = data.categories.where((c) => c.isIncome).toList()
+      ..sort((a, b) => (b.payday ? 1 : 0) - (a.payday ? 1 : 0));
+    final into = data.openAccounts.where((a) => !a.isOwed).toList();
+    if (incomes.isEmpty || into.isEmpty) {
+      _showToast(
+        incomes.isEmpty
+            ? 'Add an income category on the Budget screen first'
+            : 'Add a bank account first',
+      );
+      return;
+    }
+    AccountInfo? byId(List<AccountInfo> from, int? id) =>
+        from.where((a) => a.id == id).firstOrNull;
+    final result = await showDialog<PaySetupResult>(
+      context: context,
+      builder: (_) => _PaySetupDialog(
+        categories: incomes,
+        accounts: into,
+        category:
+            byId(incomes, existing?.categoryId ?? category?.id) ??
+            incomes.first,
+        account:
+            byId(into, existing?.accountId ?? account?.id ?? _accountId) ??
+            into.first,
+        today: today,
+        existing: existing,
+        history: (c, a) => db.payHistory(c, a, scheduleId: existing?.id),
+        periodBy: data.periodSchedule?.id == existing?.id
+            ? null
+            : data.periodSchedule,
+        names: (id) => data.accounts[id]?.name ?? '',
+      ),
+    );
+    if (result == null || !mounted) return;
+    late PayChange change;
+    switch (result) {
+      case PayStop():
+        if (!await _accountWrite(
+          () async => change = await db.stopPaySchedule(existing!.id, today),
+          what: 'pay',
+        )) {
+          return;
+        }
+        _did(
+          'Pay stopped',
+          message: 'Pay no longer scheduled · paydays already past stay',
+          undo: () => db.undoPayChange(change),
+          redo: () => db.redoPayChange(change),
+        );
+      case PaySave(:final draft):
+        if (!await _accountWrite(
+          () async => change = await db.savePaySchedule(
+            id: existing?.id,
+            categoryId: draft.categoryId,
+            accountId: draft.accountId,
+            payee: draft.payee,
+            amount: draft.amount,
+            varies: draft.varies,
+            rule: draft.rule,
+            day1: draft.day1,
+            day2: draft.day2,
+            weeks: draft.weeks,
+            anchor: draft.anchor,
+            weekendBefore: draft.weekendBefore,
+            definesPeriod: draft.definesPeriod,
+            today: today,
+          ),
+          what: 'pay',
+        )) {
+          return;
+        }
+        final next = await db.loadLedger();
+        final payday = next.txns
+            .where((t) => change.created.contains(t.id))
+            .firstOrNull;
+        _did(
+          'Pay saved',
+          message: payday == null
+              ? 'Pay saved'
+              : 'Pay saved · next payday ${fullDate(payday.date)}',
+          undo: () => db.undoPayChange(change),
+          redo: () => db.redoPayChange(change),
+        );
+    }
+  }
+
+  /// Budget by month, or by [schedule]'s pay periods.
+  Future<void> _budgetBy(PaySchedule? schedule) async {
+    late List<int> before;
+    if (!await _accountWrite(
+      () async => before = await db.setPeriodSchedule(schedule?.id),
+      what: 'budget period',
+    )) {
+      return;
+    }
+    _did(
+      schedule == null ? 'Budget by month' : 'Budget by pay period',
+      undo: () async {
+        await db.setPeriodSchedule(before.firstOrNull);
+      },
+      redo: () async {
+        await db.setPeriodSchedule(schedule?.id);
+      },
+    );
+  }
+
   // ---------- all accounts ----------
 
   /// All accounts, optionally narrowed to a category (from the Budget
   /// screen's usage text).
-  void _openAll({int? category}) {
+  void _openAll({int? category, bool period = false}) {
     if (!_mayLeave()) return;
     setState(() {
       _endReconcile();
@@ -834,6 +980,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _newAccount = false;
       _all = true;
       _categoryFilter = category;
+      _periodFilter = period;
       _selected = null;
       _adding = false;
       // Each visit starts new rows in the account last open, so a pick from
@@ -844,7 +991,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Widget _allBody(LedgerData data) {
     final filter = data.accounts[_categoryFilter];
-    final register = data.registerAll(categoryId: filter?.id);
+    final all = data.registerAll(categoryId: filter?.id);
+    // The budget's period: this month, or this pay period.
+    final period = _periodFilter
+        ? budgetPeriod(today, data.periodSchedule)
+        : null;
+    bool inPeriod(RegisterRow r) =>
+        period == null ||
+        (!r.date.isBefore(period.start) && !r.date.isAfter(period.end));
+    final register = (
+      posted: all.posted.where(inPeriod).toList(),
+      scheduled: all.scheduled.where(inPeriod).toList(),
+    );
     _rows = {
       for (final r in [...register.posted, ...register.scheduled]) r.txnId: r,
     };
@@ -881,20 +1039,35 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
             ],
           ),
-          if (filter != null) ...[
+          if (filter != null || period != null) ...[
             const SizedBox(height: 14),
             Row(
               children: [
-                _FilterChip(
-                  label: 'Category: ${filter.name}',
-                  onClear: () => setState(() => _categoryFilter = null),
-                ),
-                const SizedBox(width: 14),
-                Text(
-                  _filterTotal(data, filter, register),
-                  key: const ValueKey('filter-total'),
-                  style: onest(13, color: Mid.ink2, tabular: true),
-                ),
+                if (filter != null) ...[
+                  _FilterChip(
+                    key: const ValueKey('filter-chip'),
+                    label: 'Category: ${filter.name}',
+                    onClear: () => setState(() => _categoryFilter = null),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (period != null) ...[
+                  _FilterChip(
+                    key: const ValueKey('period-chip'),
+                    label:
+                        '${period.label[0].toUpperCase()}${period.label.substring(1)}'
+                        ' · ${shortDate(period.start)}–${shortDate(period.end)}',
+                    onClear: () => setState(() => _periodFilter = false),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                const SizedBox(width: 6),
+                if (filter != null)
+                  Text(
+                    _filterTotal(data, filter, register, period),
+                    key: const ValueKey('filter-total'),
+                    style: onest(13, color: Mid.ink2, tabular: true),
+                  ),
               ],
             ),
           ],
@@ -956,16 +1129,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
     LedgerData data,
     AccountInfo c,
     ({List<RegisterRow> posted, List<RegisterRow> scheduled}) register,
+    ({DateTime start, DateTime end, String label})? period,
   ) {
     final posted = register.posted.length;
-    final total = data.categoryTotal(c.id);
+    final total = data.categoryTotal(
+      c.id,
+      from: period?.start,
+      to: period?.end,
+    );
     String money(int v) => formatMoney(v, showCents: v % 100 != 0);
     final what = c.isIncome
         ? (total >= 0
               ? '${money(total)} received'
               : '${money(-total)} paid back')
         : (total >= 0 ? '${money(total)} spent' : '${money(-total)} refunded');
-    final since = register.posted.isEmpty
+    // With a period chip the span is on the chip; all time says since when.
+    final since = period != null || register.posted.isEmpty
         ? ''
         : ' since ${fullDate(register.posted.first.date)}';
     final sched = register.scheduled.length;
@@ -1110,7 +1289,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
         changeKind: () => _changeCategoryKind(c),
         archive: () => _archiveCategory(c, true),
         delete: () => _deleteCategory(data, c),
+        pay: c.isIncome
+            ? () => _openPaySetup(
+                category: c,
+                existing: data.paySchedules
+                    .where((p) => p.categoryId == c.id)
+                    .firstOrNull,
+              )
+            : null,
+        togglePayday: c.isIncome ? () => _setPayday(c, !c.payday) : null,
       );
+
+  Future<void> _setPayday(AccountInfo c, bool payday) async {
+    if (!await _accountWrite(
+      () => db.setPayday(c.id, payday),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      payday ? '${c.name} marks payday' : '${c.name} isn’t a payday',
+      message: payday
+          ? '${c.name} is a payday · forecasts run to it'
+          : '${c.name} isn’t a payday · forecasts run past it',
+      undo: () => db.setPayday(c.id, !payday),
+      redo: () => db.setPayday(c.id, payday),
+    );
+  }
 
   /// A category already called [name], ignoring case, archived included.
   AccountInfo? _categoryNamed(LedgerData data, String name, {int? except}) =>
@@ -1481,6 +1686,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    // A restored file's pay schedules get their next paydays, as at launch.
+    try {
+      await db.ensurePaydays(today);
+    } catch (e) {
+      debugPrint('Scheduling paydays after restore failed: $e');
+    }
     // Earlier actions point at rows the restore replaced.
     _history.clear();
     _redo.clear();
@@ -1624,6 +1835,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             now: widget.clock,
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
+                            budget: _BudgetSettings(
+                              data: data,
+                              onBudgetBy: _budgetBy,
+                              onEdit: (p) => _openPaySetup(existing: p),
+                              onAdd: () => _openPaySetup(),
+                            ),
                             archived: data.archivedAccounts.isEmpty
                                 ? null
                                 : _ArchivedAccounts(
@@ -1633,7 +1850,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           ),
                           AppSection.budget => _BudgetPage(
                             data: data,
-                            onShowRows: (c) => _openAll(category: c.id),
+                            onShowRows: (c) =>
+                                _openAll(category: c.id, period: true),
                             actionsFor: (c) => _categoryActions(data, c),
                             onCreate: _createCategory,
                             onUnarchive: (c) => _archiveCategory(c, false),
@@ -1743,6 +1961,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
               onReconcile: () => _startReconcile(data, account),
+              // Asked until there's pay anywhere; once there is, an account
+              // it doesn't go into doesn't nag, and a click can't start a
+              // second Salary by mistake.
+              onAddPay: account.isOwed || data.paySchedules.isNotEmpty
+                  ? null
+                  : () => _openPaySetup(account: account),
               reconcile: _reconcile == null
                   ? null
                   : ReconcilePanel(
@@ -2082,8 +2306,12 @@ class _SettingsPage extends StatelessWidget {
     required this.onBackUp,
     required this.onRestore,
     this.archived,
+    this.budget,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// Budget by month or pay period, and pay schedules.
+  final Widget? budget;
 
   /// Archived accounts, when there are any.
   final Widget? archived;
@@ -2219,6 +2447,7 @@ class _SettingsPage extends StatelessWidget {
                     },
                   ),
                 ),
+                if (budget != null) ...[const SizedBox(height: 16), budget!],
                 if (archived != null) ...[
                   const SizedBox(height: 16),
                   archived!,

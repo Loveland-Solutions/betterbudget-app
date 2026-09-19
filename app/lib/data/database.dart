@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
+import '../domain/pay.dart';
 
 part 'database.g.dart';
 
@@ -23,6 +24,36 @@ class Accounts extends Table {
 
   /// Deleted with its own rows; transfers with other accounts stay.
   IntColumn get deletedAt => integer().nullable()();
+
+  /// An income category whose rows end the forecast (Salary, Pension; not
+  /// child allowance).
+  BoolColumn get payday => boolean().withDefault(const Constant(false))();
+}
+
+@DataClassName('PayScheduleRow')
+/// When pay comes into an account (rule 24). Its next payday is always
+/// scheduled, from the plan, not from what last came.
+class PaySchedules extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId => integer().references(Accounts, #id)();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+  TextColumn get payee => text().nullable()();
+
+  /// Positive; with [varies], the least it's likely to be.
+  IntColumn get amountMinor => integer()();
+  BoolColumn get varies => boolean().withDefault(const Constant(false))();
+  TextColumn get rule => textEnum<PayRule>()();
+  IntColumn get day1 => integer().withDefault(const Constant(25))();
+  IntColumn get day2 => integer().withDefault(const Constant(10))();
+  IntColumn get weeks => integer().withDefault(const Constant(2))();
+  TextColumn get anchor => text().nullable()();
+  BoolColumn get weekendBefore => boolean().withDefault(const Constant(true))();
+
+  /// The budget runs by this schedule's pay periods (at most one does).
+  BoolColumn get definesPeriod =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get createdAt => integer()();
+  IntColumn get deletedAt => integer().nullable()();
 }
 
 class Payees extends Table {
@@ -40,6 +71,10 @@ class Transactions extends Table {
   TextColumn get memo => text().nullable()();
   TextColumn get importKey => text().nullable().unique()();
   BoolColumn get scheduled => boolean().withDefault(const Constant(false))();
+
+  /// A payday a pay schedule scheduled.
+  IntColumn get payScheduleId =>
+      integer().nullable().references(PaySchedules, #id)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
@@ -154,6 +189,34 @@ class MoveRecord {
   final Cleared cleared;
 }
 
+/// What a pay schedule change did, so undo and redo can replay it exactly:
+/// the schedule before and after, paydays it scheduled or took away, the
+/// schedule that defined the budget period before, and the payday mark.
+class PayChange {
+  const PayChange({
+    required this.before,
+    required this.after,
+    required this.created,
+    required this.removed,
+    required this.replaced,
+    required this.periodBefore,
+    required this.paydayBefore,
+  });
+  final PayScheduleRow? before;
+  final PayScheduleRow after;
+
+  /// Paydays it scheduled, and ones of its own it took away.
+  final List<int> created;
+  final List<int> removed;
+
+  /// Income the user had scheduled by hand, which the schedule took over.
+  final List<int> replaced;
+  final List<int> periodBefore;
+
+  /// The category's payday mark before, or null if this didn't touch it.
+  final bool? paydayBefore;
+}
+
 /// What [AppDatabase.deleteCategory] did: the category, and which entries
 /// moved to [into], so undo can move them back.
 class DeletedCategory {
@@ -192,7 +255,14 @@ DateTime parseDateKey(String s) {
 }
 
 @DriftDatabase(
-  tables: [Accounts, Payees, Transactions, Entries, Reconciliations],
+  tables: [
+    Accounts,
+    PaySchedules,
+    Payees,
+    Transactions,
+    Entries,
+    Reconciliations,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
@@ -207,7 +277,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -224,6 +294,16 @@ class AppDatabase extends _$AppDatabase {
         if (from < 4) {
           await m.addColumn(accounts, accounts.archivedAt);
           await m.addColumn(accounts, accounts.deletedAt);
+        }
+        if (from < 5) {
+          await m.addColumn(accounts, accounts.payday);
+          await m.createTable(paySchedules);
+          await m.addColumn(transactions, transactions.payScheduleId);
+          // Every income row ended the forecast before; nothing changes
+          // until the user unmarks one.
+          await customStatement(
+            "UPDATE accounts SET payday = 1 WHERE type = 'income'",
+          );
         }
       });
     },
@@ -279,6 +359,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> replaceAllFrom(String path) async {
     const parentsFirst = [
       'accounts',
+      'pay_schedules',
       'payees',
       'transactions',
       'reconciliations',
@@ -330,7 +411,14 @@ class AppDatabase extends _$AppDatabase {
   /// Re-emits the whole ledger whenever any ledger table changes.
   Stream<LedgerData> watchLedger() => customSelect(
     'SELECT 1',
-    readsFrom: {accounts, payees, transactions, entries, reconciliations},
+    readsFrom: {
+      accounts,
+      paySchedules,
+      payees,
+      transactions,
+      entries,
+      reconciliations,
+    },
   ).watch().asyncMap((_) => loadLedger());
 
   Future<LedgerData> loadLedger() async {
@@ -347,6 +435,7 @@ class AppDatabase extends _$AppDatabase {
       readsFrom: {entries, transactions},
     ).map((r) => entries.map(r.data)).get();
     final recRows = await select(reconciliations).get();
+    final schedules = await select(paySchedules).get();
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -376,6 +465,7 @@ class AppDatabase extends _$AppDatabase {
             sortOrder: a.sortOrder,
             archived: a.archivedAt != null,
             deleted: a.deletedAt != null,
+            payday: a.payday,
           ),
       ],
       txns: [
@@ -386,8 +476,17 @@ class AppDatabase extends _$AppDatabase {
             payee: t.payeeId == null ? null : payeeNames[t.payeeId],
             memo: t.memo,
             scheduled: t.scheduled,
+            payScheduleId: t.payScheduleId,
             entries: byTxn[t.id] ?? const [],
           ),
+      ],
+      paySchedules: [
+        for (final p in schedules)
+          if (p.deletedAt == null) _schedule(p),
+      ],
+      stoppedPaySchedules: [
+        for (final p in schedules)
+          if (p.deletedAt != null) _schedule(p),
       ],
       reconciliations: [
         for (final r in recRows)
@@ -433,6 +532,7 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     bool scheduled = false,
     String? importKey,
+    int? payScheduleId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
   }) {
     return transaction(() async {
@@ -445,6 +545,7 @@ class AppDatabase extends _$AppDatabase {
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(scheduled),
           importKey: Value(importKey),
+          payScheduleId: Value(payScheduleId),
           createdAt: now,
           updatedAt: now,
         ),
@@ -956,10 +1057,12 @@ class AppDatabase extends _$AppDatabase {
     String? mask,
     String? group,
     int sortOrder = 0,
+    bool payday = false,
   }) => into(accounts).insert(
     AccountsCompanion.insert(
       name: name,
       type: type,
+      payday: Value(payday),
       institution: Value(institution),
       mask: Value(mask),
       sidebarGroup: Value(group),
@@ -1078,6 +1181,395 @@ class AppDatabase extends _$AppDatabase {
     );
     return DeletedAccount(accountId, ids);
   });
+
+  // ---------- pay ----------
+
+  PaySchedule _schedule(PayScheduleRow p) => PaySchedule(
+    id: p.id,
+    categoryId: p.categoryId,
+    accountId: p.accountId,
+    amount: p.amountMinor,
+    varies: p.varies,
+    payee: p.payee,
+    rule: p.rule,
+    day1: p.day1,
+    day2: p.day2,
+    weeks: p.weeks,
+    anchor: p.anchor == null ? null : parseDateKey(p.anchor!),
+    weekendBefore: p.weekendBefore,
+    definesPeriod: p.definesPeriod,
+  );
+
+  /// Marks an income category as payday (its rows end the forecast) or not.
+  Future<void> setPayday(int categoryId, bool payday) => transaction(() async {
+    await _assertCategory(categoryId);
+    await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+      AccountsCompanion(payday: Value(payday)),
+    );
+  });
+
+  /// Recent paychecks in [categoryId] into [accountId], newest first: what
+  /// an estimate should come from. With [scheduleId], only that schedule's
+  /// own paydays once it has any (a bonus filed under Salary isn't pay).
+  Future<List<int>> payHistory(
+    int categoryId,
+    int accountId, {
+    int? scheduleId,
+  }) async {
+    Future<List<int>> read(bool linked) async {
+      final rows = await customSelect(
+        'SELECT mine.amount_minor AS amount FROM transactions t '
+        'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ?1 '
+        'JOIN entries cat ON cat.transaction_id = t.id AND cat.account_id = ?2 '
+        'WHERE t.deleted_at IS NULL AND t.scheduled = 0 AND mine.amount_minor > 0 '
+        '${linked ? 'AND t.pay_schedule_id = ?3 ' : ''}'
+        'ORDER BY t.date DESC, t.id DESC LIMIT 6',
+        variables: [
+          Variable.withInt(accountId),
+          Variable.withInt(categoryId),
+          if (linked) Variable.withInt(scheduleId!),
+        ],
+        readsFrom: {transactions, entries},
+      ).get();
+      return [for (final r in rows) r.read<int>('amount')];
+    }
+
+    if (scheduleId != null) {
+      final own = await read(true);
+      if (own.isNotEmpty) return own;
+    }
+    return read(false);
+  }
+
+  /// Adds or changes a pay schedule. A new one marks its category payday;
+  /// with [definesPeriod] the budget runs by it and no other. Paydays it had
+  /// scheduled from today on are replaced by ones from the new plan, and so
+  /// is income the user had scheduled by hand in that category and account
+  /// within a week of the first payday (it's the same pay).
+  Future<PayChange> savePaySchedule({
+    int? id,
+    required int categoryId,
+    required int accountId,
+    required int amount,
+    required PayRule rule,
+    required DateTime today,
+    String? payee,
+    bool varies = false,
+    int day1 = 25,
+    int day2 = 10,
+    int weeks = 2,
+    DateTime? anchor,
+    bool weekendBefore = true,
+    bool definesPeriod = false,
+  }) => transaction(() async {
+    await _assertCategory(categoryId);
+    await _assertLive(accountId);
+    if (amount <= 0) throw NotFoundException('Pay is money in');
+    // What it was before anything here is written, for undo.
+    final before = id == null
+        ? null
+        : await (select(
+            paySchedules,
+          )..where((p) => p.id.equals(id))).getSingle();
+    final periodBefore = await _periodIds();
+    final companion = PaySchedulesCompanion(
+      categoryId: Value(categoryId),
+      accountId: Value(accountId),
+      payee: Value(payee?.trim().isEmpty ?? true ? null : payee!.trim()),
+      amountMinor: Value(amount),
+      varies: Value(varies),
+      rule: Value(rule),
+      day1: Value(day1),
+      day2: Value(day2),
+      weeks: Value(weeks),
+      anchor: Value(anchor == null ? null : dateKey(dateOnly(anchor))),
+      weekendBefore: Value(weekendBefore),
+      definesPeriod: Value(definesPeriod),
+      deletedAt: const Value(null),
+    );
+    final sid =
+        id ??
+        await into(paySchedules)
+            .insert(companion.copyWith(createdAt: Value(_now)));
+    if (id != null) {
+      await (update(
+        paySchedules,
+      )..where((p) => p.id.equals(id))).write(companion);
+    }
+    if (definesPeriod) await _onlyPeriod(sid);
+    // A new schedule marks its category; an edit leaves a deliberate
+    // "Not a payday" alone.
+    bool? paydayBefore;
+    if (id == null) {
+      final c = await (select(
+        accounts,
+      )..where((a) => a.id.equals(categoryId))).getSingle();
+      paydayBefore = c.payday;
+      await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+        const AccountsCompanion(payday: Value(true)),
+      );
+    }
+    final removed = await _removeComing(sid, today);
+    final created = await ensurePaydays(today, only: sid);
+    final replaced = <int>[];
+    if (created.isNotEmpty) {
+      final first = await (select(
+        transactions,
+      )..where((t) => t.id.equals(created.first))).getSingle();
+      final day = parseDateKey(first.date);
+      String key(int n) => dateKey(DateTime(day.year, day.month, day.day + n));
+      final rows = await customSelect(
+        'SELECT DISTINCT t.id FROM transactions t '
+        'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ?1 '
+        'JOIN entries cat ON cat.transaction_id = t.id AND cat.account_id = ?2 '
+        'WHERE t.deleted_at IS NULL AND t.scheduled = 1 '
+        'AND t.pay_schedule_id IS NULL AND mine.amount_minor > 0 '
+        'AND t.date BETWEEN ?3 AND ?4',
+        variables: [
+          Variable.withInt(accountId),
+          Variable.withInt(categoryId),
+          Variable.withString(key(-7)),
+          Variable.withString(key(7)),
+        ],
+        readsFrom: {transactions, entries},
+      ).get();
+      replaced.addAll(rows.map((r) => r.read<int>('id')));
+      await softDeleteMany(replaced);
+    }
+    return PayChange(
+      before: before,
+      after: await (select(
+        paySchedules,
+      )..where((p) => p.id.equals(sid))).getSingle(),
+      created: created,
+      removed: removed,
+      replaced: replaced,
+      periodBefore: periodBefore,
+      paydayBefore: paydayBefore,
+    );
+  });
+
+  /// Stops a pay schedule: paydays it scheduled from today on go; ones
+  /// already past stay to be confirmed. The category's mark is left alone.
+  Future<PayChange> stopPaySchedule(int id, DateTime today) =>
+      transaction(() async {
+        final before = await (select(
+          paySchedules,
+        )..where((p) => p.id.equals(id))).getSingle();
+        final periodBefore = await _periodIds();
+        final removed = await _removeComing(id, today);
+        await (update(paySchedules)..where((p) => p.id.equals(id))).write(
+          PaySchedulesCompanion(
+            deletedAt: Value(_now),
+            definesPeriod: const Value(false),
+          ),
+        );
+        return PayChange(
+          before: before,
+          after: await (select(
+            paySchedules,
+          )..where((p) => p.id.equals(id))).getSingle(),
+          created: const [],
+          removed: removed,
+          replaced: const [],
+          periodBefore: periodBefore,
+          paydayBefore: null,
+        );
+      });
+
+  /// Undo for [savePaySchedule] and [stopPaySchedule]: everything back
+  /// exactly as it was, the budget period included.
+  Future<void> undoPayChange(PayChange c) => transaction(() async {
+    final sid = c.after.id;
+    await _dropPaydays(c.created);
+    await _bringBackPaydays(c.removed, sid);
+    await restoreMany(c.replaced);
+    final before = c.before;
+    if (before == null) {
+      await (update(paySchedules)..where((p) => p.id.equals(sid))).write(
+        PaySchedulesCompanion(
+          deletedAt: Value(_now),
+          definesPeriod: const Value(false),
+        ),
+      );
+    } else {
+      await update(paySchedules).replace(before);
+    }
+    await _setPeriodIds(c.periodBefore);
+    if (c.paydayBefore case final was?) {
+      await (update(accounts)..where((a) => a.id.equals(c.after.categoryId)))
+          .write(AccountsCompanion(payday: Value(was)));
+    }
+  });
+
+  /// Redo for [savePaySchedule] and [stopPaySchedule].
+  Future<void> redoPayChange(PayChange c) => transaction(() async {
+    final sid = c.after.id;
+    await update(paySchedules).replace(c.after);
+    if (c.after.definesPeriod) await _onlyPeriod(sid);
+    if (c.paydayBefore != null) {
+      await (update(accounts)..where((a) => a.id.equals(c.after.categoryId)))
+          .write(const AccountsCompanion(payday: Value(true)));
+    }
+    await _dropPaydays(c.removed);
+    await _bringBackPaydays(c.created, sid);
+    await softDeleteMany(c.replaced);
+  });
+
+  /// The budget runs by [id]'s pay periods, or by month with null. Returns
+  /// the schedules that defined it before (empty for month), for undo.
+  Future<List<int>> setPeriodSchedule(int? id) => transaction(() async {
+    final before = await _periodIds();
+    await _setPeriodIds([?id]);
+    return before;
+  });
+
+  Future<List<int>> _periodIds() =>
+      (selectOnly(paySchedules)
+            ..addColumns([paySchedules.id])
+            ..where(paySchedules.definesPeriod.equals(true)))
+          .map((r) => r.read(paySchedules.id)!)
+          .get();
+
+  /// Exactly [ids] define the budget period, no others.
+  Future<void> _setPeriodIds(List<int> ids) async {
+    await update(paySchedules)
+        .write(const PaySchedulesCompanion(definesPeriod: Value(false)));
+    await (update(paySchedules)..where((p) => p.id.isIn(ids))).write(
+      const PaySchedulesCompanion(definesPeriod: Value(true)),
+    );
+  }
+
+  Future<void> _onlyPeriod(int id) => _setPeriodIds([id]);
+
+  /// Paydays the app takes away itself (a changed plan, an undo) are
+  /// unlinked as well as deleted: only a payday the user deleted stays
+  /// linked, which is how a skipped payday stays skipped.
+  Future<void> dropPaydays(List<int> ids) =>
+      transaction(() => _dropPaydays(ids));
+
+  Future<void> _dropPaydays(List<int> ids) async {
+    if (ids.isEmpty) return;
+    await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+      TransactionsCompanion(
+        deletedAt: Value(_now),
+        payScheduleId: const Value(null),
+      ),
+    );
+  }
+
+  /// Undo for [dropPaydays]: back, and linked to [scheduleId] again.
+  Future<void> bringBackPaydays(List<int> ids, int scheduleId) =>
+      transaction(() => _bringBackPaydays(ids, scheduleId));
+
+  Future<void> _bringBackPaydays(List<int> ids, int scheduleId) async {
+    if (ids.isEmpty) return;
+    await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+      TransactionsCompanion(
+        deletedAt: const Value(null),
+        payScheduleId: Value(scheduleId),
+      ),
+    );
+  }
+
+  /// Takes away the schedule's unconfirmed paydays dated [today] or later.
+  Future<List<int>> _removeComing(int id, DateTime today) async {
+    final ids =
+        await (selectOnly(transactions)
+              ..addColumns([transactions.id])
+              ..where(
+                transactions.payScheduleId.equals(id) &
+                    transactions.scheduled.equals(true) &
+                    transactions.deletedAt.isNull() &
+                    transactions.date.isBiggerOrEqualValue(
+                      dateKey(dateOnly(today)),
+                    ),
+              ))
+            .map((r) => r.read(transactions.id)!)
+            .get();
+    await _dropPaydays(ids);
+    return ids;
+  }
+
+  /// Keeps each pay schedule's next payday scheduled. One with nothing
+  /// waiting from [today] on gets the payday after its latest planned one:
+  /// confirmed (early or late, it counts as the payday it was for), still
+  /// overdue, or deleted by the user (skipped: it doesn't come back). With
+  /// nothing at all, from today. Returns what it scheduled, for undo.
+  Future<List<int>> ensurePaydays(DateTime today, {int? only}) => transaction(
+    () async {
+      final created = <int>[];
+      final t = dateOnly(today);
+      final todayKey = dateKey(t);
+      final rows =
+          await (select(paySchedules)..where(
+                (p) =>
+                    p.deletedAt.isNull() &
+                    (only == null ? const Constant(true) : p.id.equals(only)),
+              ))
+              .get();
+      for (final p in rows) {
+        final category = await (select(
+          accounts,
+        )..where((a) => a.id.equals(p.categoryId))).getSingle();
+        final account = await (select(
+          accounts,
+        )..where((a) => a.id.equals(p.accountId))).getSingle();
+        // Nothing lands in an account or category that's gone or put away.
+        if (category.deletedAt != null ||
+            account.deletedAt != null ||
+            category.archivedAt != null ||
+            account.archivedAt != null) {
+          continue;
+        }
+        final linked = await (select(
+          transactions,
+        )..where((x) => x.payScheduleId.equals(p.id))).get();
+        if (linked.any(
+          (x) =>
+              x.deletedAt == null &&
+              x.scheduled &&
+              x.date.compareTo(todayKey) >= 0,
+        )) {
+          continue;
+        }
+        final schedule = _schedule(p);
+        final latest = linked
+            .map(
+              (x) => x.scheduled
+                  ? parseDateKey(x.date)
+                  : schedule.plannedFor(parseDateKey(x.date)),
+            )
+            .fold<DateTime?>(null, (m, d) => m == null || d.isAfter(m) ? d : m);
+        final yesterday = DateTime(t.year, t.month, t.day - 1);
+        final from = latest == null || latest.isBefore(yesterday)
+            ? yesterday
+            : latest;
+        final date = schedule.nextAfter(from);
+        created.add(
+          await postTransaction(
+            date: date,
+            payee: p.payee ?? category.name,
+            scheduled: true,
+            payScheduleId: p.id,
+            lines: [
+              (
+                accountId: p.accountId,
+                amount: p.amountMinor,
+                cleared: Cleared.uncleared,
+              ),
+              (
+                accountId: p.categoryId,
+                amount: -p.amountMinor,
+                cleared: Cleared.uncleared,
+              ),
+            ],
+          ),
+        );
+      }
+      return created;
+    },
+  );
 
   // ---------- categories ----------
 

@@ -99,7 +99,8 @@ class EditInitial {
            (r.locked && r.kind == RowKind.transfer) ||
            r.otherClosed,
        lockAmount = r.kind == RowKind.split || r.locked,
-       payeeOptional = r.kind != RowKind.simple;
+       payeeOptional = r.kind != RowKind.simple,
+       variesPay = r.estimate != null;
 
   final DateTime date;
   final String payee;
@@ -114,6 +115,10 @@ class EditInitial {
   final bool lockCategory;
   final bool lockAmount;
   final bool payeeOptional;
+
+  /// Pay that varies: coming in under the estimate is just what came, not
+  /// "still owed".
+  final bool variesPay;
   final EditField focus;
 
   /// Saving confirms a scheduled transaction.
@@ -399,6 +404,7 @@ class _EntryRowState extends State<EntryRow> {
     final initial = _initial;
     if (initial == null ||
         !initial.confirming ||
+        initial.variesPay ||
         initial.lockAmount ||
         initial.amount <= 0) {
       return null;

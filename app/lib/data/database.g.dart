@@ -116,6 +116,19 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _paydayMeta = const VerificationMeta('payday');
+  @override
+  late final GeneratedColumn<bool> payday = GeneratedColumn<bool>(
+    'payday',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("payday" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -128,6 +141,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     sortOrder,
     archivedAt,
     deletedAt,
+    payday,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -200,6 +214,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('payday')) {
+      context.handle(
+        _paydayMeta,
+        payday.isAcceptableOrUnknown(data['payday']!, _paydayMeta),
+      );
+    }
     return context;
   }
 
@@ -251,6 +271,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}deleted_at'],
       ),
+      payday: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}payday'],
+      )!,
     );
   }
 
@@ -276,6 +300,10 @@ class Account extends DataClass implements Insertable<Account> {
 
   /// Deleted with its own rows; transfers with other accounts stay.
   final int? deletedAt;
+
+  /// An income category whose rows end the forecast (Salary, Pension; not
+  /// child allowance).
+  final bool payday;
   const Account({
     required this.id,
     required this.name,
@@ -287,6 +315,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.sortOrder,
     this.archivedAt,
     this.deletedAt,
+    required this.payday,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -313,6 +342,7 @@ class Account extends DataClass implements Insertable<Account> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<int>(deletedAt);
     }
+    map['payday'] = Variable<bool>(payday);
     return map;
   }
 
@@ -336,6 +366,7 @@ class Account extends DataClass implements Insertable<Account> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      payday: Value(payday),
     );
   }
 
@@ -357,6 +388,7 @@ class Account extends DataClass implements Insertable<Account> {
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      payday: serializer.fromJson<bool>(json['payday']),
     );
   }
   @override
@@ -375,6 +407,7 @@ class Account extends DataClass implements Insertable<Account> {
       'sortOrder': serializer.toJson<int>(sortOrder),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
+      'payday': serializer.toJson<bool>(payday),
     };
   }
 
@@ -389,6 +422,7 @@ class Account extends DataClass implements Insertable<Account> {
     int? sortOrder,
     Value<int?> archivedAt = const Value.absent(),
     Value<int?> deletedAt = const Value.absent(),
+    bool? payday,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -400,6 +434,7 @@ class Account extends DataClass implements Insertable<Account> {
     sortOrder: sortOrder ?? this.sortOrder,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    payday: payday ?? this.payday,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -419,6 +454,7 @@ class Account extends DataClass implements Insertable<Account> {
           ? data.archivedAt.value
           : this.archivedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      payday: data.payday.present ? data.payday.value : this.payday,
     );
   }
 
@@ -434,7 +470,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('sidebarGroup: $sidebarGroup, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('payday: $payday')
           ..write(')'))
         .toString();
   }
@@ -451,6 +488,7 @@ class Account extends DataClass implements Insertable<Account> {
     sortOrder,
     archivedAt,
     deletedAt,
+    payday,
   );
   @override
   bool operator ==(Object other) =>
@@ -465,7 +503,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.sidebarGroup == this.sidebarGroup &&
           other.sortOrder == this.sortOrder &&
           other.archivedAt == this.archivedAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.payday == this.payday);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -479,6 +518,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> sortOrder;
   final Value<int?> archivedAt;
   final Value<int?> deletedAt;
+  final Value<bool> payday;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -490,6 +530,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.sortOrder = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.payday = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -502,6 +543,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.sortOrder = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.payday = const Value.absent(),
   }) : name = Value(name),
        type = Value(type);
   static Insertable<Account> custom({
@@ -515,6 +557,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? sortOrder,
     Expression<int>? archivedAt,
     Expression<int>? deletedAt,
+    Expression<bool>? payday,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -527,6 +570,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (sortOrder != null) 'sort_order': sortOrder,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (payday != null) 'payday': payday,
     });
   }
 
@@ -541,6 +585,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? sortOrder,
     Value<int?>? archivedAt,
     Value<int?>? deletedAt,
+    Value<bool>? payday,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -553,6 +598,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       sortOrder: sortOrder ?? this.sortOrder,
       archivedAt: archivedAt ?? this.archivedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      payday: payday ?? this.payday,
     );
   }
 
@@ -591,6 +637,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<int>(deletedAt.value);
     }
+    if (payday.present) {
+      map['payday'] = Variable<bool>(payday.value);
+    }
     return map;
   }
 
@@ -606,6 +655,865 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('sidebarGroup: $sidebarGroup, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('archivedAt: $archivedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('payday: $payday')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PaySchedulesTable extends PaySchedules
+    with TableInfo<$PaySchedulesTable, PayScheduleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PaySchedulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _payeeMeta = const VerificationMeta('payee');
+  @override
+  late final GeneratedColumn<String> payee = GeneratedColumn<String>(
+    'payee',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _variesMeta = const VerificationMeta('varies');
+  @override
+  late final GeneratedColumn<bool> varies = GeneratedColumn<bool>(
+    'varies',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("varies" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<PayRule, String> rule =
+      GeneratedColumn<String>(
+        'rule',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<PayRule>($PaySchedulesTable.$converterrule);
+  static const VerificationMeta _day1Meta = const VerificationMeta('day1');
+  @override
+  late final GeneratedColumn<int> day1 = GeneratedColumn<int>(
+    'day1',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(25),
+  );
+  static const VerificationMeta _day2Meta = const VerificationMeta('day2');
+  @override
+  late final GeneratedColumn<int> day2 = GeneratedColumn<int>(
+    'day2',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(10),
+  );
+  static const VerificationMeta _weeksMeta = const VerificationMeta('weeks');
+  @override
+  late final GeneratedColumn<int> weeks = GeneratedColumn<int>(
+    'weeks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(2),
+  );
+  static const VerificationMeta _anchorMeta = const VerificationMeta('anchor');
+  @override
+  late final GeneratedColumn<String> anchor = GeneratedColumn<String>(
+    'anchor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weekendBeforeMeta = const VerificationMeta(
+    'weekendBefore',
+  );
+  @override
+  late final GeneratedColumn<bool> weekendBefore = GeneratedColumn<bool>(
+    'weekend_before',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("weekend_before" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _definesPeriodMeta = const VerificationMeta(
+    'definesPeriod',
+  );
+  @override
+  late final GeneratedColumn<bool> definesPeriod = GeneratedColumn<bool>(
+    'defines_period',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("defines_period" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    categoryId,
+    accountId,
+    payee,
+    amountMinor,
+    varies,
+    rule,
+    day1,
+    day2,
+    weeks,
+    anchor,
+    weekendBefore,
+    definesPeriod,
+    createdAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pay_schedules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PayScheduleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('payee')) {
+      context.handle(
+        _payeeMeta,
+        payee.isAcceptableOrUnknown(data['payee']!, _payeeMeta),
+      );
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('varies')) {
+      context.handle(
+        _variesMeta,
+        varies.isAcceptableOrUnknown(data['varies']!, _variesMeta),
+      );
+    }
+    if (data.containsKey('day1')) {
+      context.handle(
+        _day1Meta,
+        day1.isAcceptableOrUnknown(data['day1']!, _day1Meta),
+      );
+    }
+    if (data.containsKey('day2')) {
+      context.handle(
+        _day2Meta,
+        day2.isAcceptableOrUnknown(data['day2']!, _day2Meta),
+      );
+    }
+    if (data.containsKey('weeks')) {
+      context.handle(
+        _weeksMeta,
+        weeks.isAcceptableOrUnknown(data['weeks']!, _weeksMeta),
+      );
+    }
+    if (data.containsKey('anchor')) {
+      context.handle(
+        _anchorMeta,
+        anchor.isAcceptableOrUnknown(data['anchor']!, _anchorMeta),
+      );
+    }
+    if (data.containsKey('weekend_before')) {
+      context.handle(
+        _weekendBeforeMeta,
+        weekendBefore.isAcceptableOrUnknown(
+          data['weekend_before']!,
+          _weekendBeforeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('defines_period')) {
+      context.handle(
+        _definesPeriodMeta,
+        definesPeriod.isAcceptableOrUnknown(
+          data['defines_period']!,
+          _definesPeriodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PayScheduleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PayScheduleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}account_id'],
+      )!,
+      payee: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payee'],
+      ),
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      varies: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}varies'],
+      )!,
+      rule: $PaySchedulesTable.$converterrule.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}rule'],
+        )!,
+      ),
+      day1: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day1'],
+      )!,
+      day2: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day2'],
+      )!,
+      weeks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weeks'],
+      )!,
+      anchor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anchor'],
+      ),
+      weekendBefore: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}weekend_before'],
+      )!,
+      definesPeriod: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}defines_period'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $PaySchedulesTable createAlias(String alias) {
+    return $PaySchedulesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<PayRule, String, String> $converterrule =
+      const EnumNameConverter<PayRule>(PayRule.values);
+}
+
+class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
+  final int id;
+  final int categoryId;
+  final int accountId;
+  final String? payee;
+
+  /// Positive; with [varies], the least it's likely to be.
+  final int amountMinor;
+  final bool varies;
+  final PayRule rule;
+  final int day1;
+  final int day2;
+  final int weeks;
+  final String? anchor;
+  final bool weekendBefore;
+
+  /// The budget runs by this schedule's pay periods (at most one does).
+  final bool definesPeriod;
+  final int createdAt;
+  final int? deletedAt;
+  const PayScheduleRow({
+    required this.id,
+    required this.categoryId,
+    required this.accountId,
+    this.payee,
+    required this.amountMinor,
+    required this.varies,
+    required this.rule,
+    required this.day1,
+    required this.day2,
+    required this.weeks,
+    this.anchor,
+    required this.weekendBefore,
+    required this.definesPeriod,
+    required this.createdAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['category_id'] = Variable<int>(categoryId);
+    map['account_id'] = Variable<int>(accountId);
+    if (!nullToAbsent || payee != null) {
+      map['payee'] = Variable<String>(payee);
+    }
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['varies'] = Variable<bool>(varies);
+    {
+      map['rule'] = Variable<String>(
+        $PaySchedulesTable.$converterrule.toSql(rule),
+      );
+    }
+    map['day1'] = Variable<int>(day1);
+    map['day2'] = Variable<int>(day2);
+    map['weeks'] = Variable<int>(weeks);
+    if (!nullToAbsent || anchor != null) {
+      map['anchor'] = Variable<String>(anchor);
+    }
+    map['weekend_before'] = Variable<bool>(weekendBefore);
+    map['defines_period'] = Variable<bool>(definesPeriod);
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  PaySchedulesCompanion toCompanion(bool nullToAbsent) {
+    return PaySchedulesCompanion(
+      id: Value(id),
+      categoryId: Value(categoryId),
+      accountId: Value(accountId),
+      payee: payee == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payee),
+      amountMinor: Value(amountMinor),
+      varies: Value(varies),
+      rule: Value(rule),
+      day1: Value(day1),
+      day2: Value(day2),
+      weeks: Value(weeks),
+      anchor: anchor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchor),
+      weekendBefore: Value(weekendBefore),
+      definesPeriod: Value(definesPeriod),
+      createdAt: Value(createdAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory PayScheduleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PayScheduleRow(
+      id: serializer.fromJson<int>(json['id']),
+      categoryId: serializer.fromJson<int>(json['categoryId']),
+      accountId: serializer.fromJson<int>(json['accountId']),
+      payee: serializer.fromJson<String?>(json['payee']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      varies: serializer.fromJson<bool>(json['varies']),
+      rule: $PaySchedulesTable.$converterrule.fromJson(
+        serializer.fromJson<String>(json['rule']),
+      ),
+      day1: serializer.fromJson<int>(json['day1']),
+      day2: serializer.fromJson<int>(json['day2']),
+      weeks: serializer.fromJson<int>(json['weeks']),
+      anchor: serializer.fromJson<String?>(json['anchor']),
+      weekendBefore: serializer.fromJson<bool>(json['weekendBefore']),
+      definesPeriod: serializer.fromJson<bool>(json['definesPeriod']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'categoryId': serializer.toJson<int>(categoryId),
+      'accountId': serializer.toJson<int>(accountId),
+      'payee': serializer.toJson<String?>(payee),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'varies': serializer.toJson<bool>(varies),
+      'rule': serializer.toJson<String>(
+        $PaySchedulesTable.$converterrule.toJson(rule),
+      ),
+      'day1': serializer.toJson<int>(day1),
+      'day2': serializer.toJson<int>(day2),
+      'weeks': serializer.toJson<int>(weeks),
+      'anchor': serializer.toJson<String?>(anchor),
+      'weekendBefore': serializer.toJson<bool>(weekendBefore),
+      'definesPeriod': serializer.toJson<bool>(definesPeriod),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  PayScheduleRow copyWith({
+    int? id,
+    int? categoryId,
+    int? accountId,
+    Value<String?> payee = const Value.absent(),
+    int? amountMinor,
+    bool? varies,
+    PayRule? rule,
+    int? day1,
+    int? day2,
+    int? weeks,
+    Value<String?> anchor = const Value.absent(),
+    bool? weekendBefore,
+    bool? definesPeriod,
+    int? createdAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => PayScheduleRow(
+    id: id ?? this.id,
+    categoryId: categoryId ?? this.categoryId,
+    accountId: accountId ?? this.accountId,
+    payee: payee.present ? payee.value : this.payee,
+    amountMinor: amountMinor ?? this.amountMinor,
+    varies: varies ?? this.varies,
+    rule: rule ?? this.rule,
+    day1: day1 ?? this.day1,
+    day2: day2 ?? this.day2,
+    weeks: weeks ?? this.weeks,
+    anchor: anchor.present ? anchor.value : this.anchor,
+    weekendBefore: weekendBefore ?? this.weekendBefore,
+    definesPeriod: definesPeriod ?? this.definesPeriod,
+    createdAt: createdAt ?? this.createdAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  PayScheduleRow copyWithCompanion(PaySchedulesCompanion data) {
+    return PayScheduleRow(
+      id: data.id.present ? data.id.value : this.id,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      payee: data.payee.present ? data.payee.value : this.payee,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      varies: data.varies.present ? data.varies.value : this.varies,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      day1: data.day1.present ? data.day1.value : this.day1,
+      day2: data.day2.present ? data.day2.value : this.day2,
+      weeks: data.weeks.present ? data.weeks.value : this.weeks,
+      anchor: data.anchor.present ? data.anchor.value : this.anchor,
+      weekendBefore: data.weekendBefore.present
+          ? data.weekendBefore.value
+          : this.weekendBefore,
+      definesPeriod: data.definesPeriod.present
+          ? data.definesPeriod.value
+          : this.definesPeriod,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayScheduleRow(')
+          ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('payee: $payee, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('varies: $varies, ')
+          ..write('rule: $rule, ')
+          ..write('day1: $day1, ')
+          ..write('day2: $day2, ')
+          ..write('weeks: $weeks, ')
+          ..write('anchor: $anchor, ')
+          ..write('weekendBefore: $weekendBefore, ')
+          ..write('definesPeriod: $definesPeriod, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    categoryId,
+    accountId,
+    payee,
+    amountMinor,
+    varies,
+    rule,
+    day1,
+    day2,
+    weeks,
+    anchor,
+    weekendBefore,
+    definesPeriod,
+    createdAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PayScheduleRow &&
+          other.id == this.id &&
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId &&
+          other.payee == this.payee &&
+          other.amountMinor == this.amountMinor &&
+          other.varies == this.varies &&
+          other.rule == this.rule &&
+          other.day1 == this.day1 &&
+          other.day2 == this.day2 &&
+          other.weeks == this.weeks &&
+          other.anchor == this.anchor &&
+          other.weekendBefore == this.weekendBefore &&
+          other.definesPeriod == this.definesPeriod &&
+          other.createdAt == this.createdAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
+  final Value<int> id;
+  final Value<int> categoryId;
+  final Value<int> accountId;
+  final Value<String?> payee;
+  final Value<int> amountMinor;
+  final Value<bool> varies;
+  final Value<PayRule> rule;
+  final Value<int> day1;
+  final Value<int> day2;
+  final Value<int> weeks;
+  final Value<String?> anchor;
+  final Value<bool> weekendBefore;
+  final Value<bool> definesPeriod;
+  final Value<int> createdAt;
+  final Value<int?> deletedAt;
+  const PaySchedulesCompanion({
+    this.id = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.payee = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.varies = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.day1 = const Value.absent(),
+    this.day2 = const Value.absent(),
+    this.weeks = const Value.absent(),
+    this.anchor = const Value.absent(),
+    this.weekendBefore = const Value.absent(),
+    this.definesPeriod = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  PaySchedulesCompanion.insert({
+    this.id = const Value.absent(),
+    required int categoryId,
+    required int accountId,
+    this.payee = const Value.absent(),
+    required int amountMinor,
+    this.varies = const Value.absent(),
+    required PayRule rule,
+    this.day1 = const Value.absent(),
+    this.day2 = const Value.absent(),
+    this.weeks = const Value.absent(),
+    this.anchor = const Value.absent(),
+    this.weekendBefore = const Value.absent(),
+    this.definesPeriod = const Value.absent(),
+    required int createdAt,
+    this.deletedAt = const Value.absent(),
+  }) : categoryId = Value(categoryId),
+       accountId = Value(accountId),
+       amountMinor = Value(amountMinor),
+       rule = Value(rule),
+       createdAt = Value(createdAt);
+  static Insertable<PayScheduleRow> custom({
+    Expression<int>? id,
+    Expression<int>? categoryId,
+    Expression<int>? accountId,
+    Expression<String>? payee,
+    Expression<int>? amountMinor,
+    Expression<bool>? varies,
+    Expression<String>? rule,
+    Expression<int>? day1,
+    Expression<int>? day2,
+    Expression<int>? weeks,
+    Expression<String>? anchor,
+    Expression<bool>? weekendBefore,
+    Expression<bool>? definesPeriod,
+    Expression<int>? createdAt,
+    Expression<int>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
+      if (payee != null) 'payee': payee,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (varies != null) 'varies': varies,
+      if (rule != null) 'rule': rule,
+      if (day1 != null) 'day1': day1,
+      if (day2 != null) 'day2': day2,
+      if (weeks != null) 'weeks': weeks,
+      if (anchor != null) 'anchor': anchor,
+      if (weekendBefore != null) 'weekend_before': weekendBefore,
+      if (definesPeriod != null) 'defines_period': definesPeriod,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  PaySchedulesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? categoryId,
+    Value<int>? accountId,
+    Value<String?>? payee,
+    Value<int>? amountMinor,
+    Value<bool>? varies,
+    Value<PayRule>? rule,
+    Value<int>? day1,
+    Value<int>? day2,
+    Value<int>? weeks,
+    Value<String?>? anchor,
+    Value<bool>? weekendBefore,
+    Value<bool>? definesPeriod,
+    Value<int>? createdAt,
+    Value<int?>? deletedAt,
+  }) {
+    return PaySchedulesCompanion(
+      id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
+      payee: payee ?? this.payee,
+      amountMinor: amountMinor ?? this.amountMinor,
+      varies: varies ?? this.varies,
+      rule: rule ?? this.rule,
+      day1: day1 ?? this.day1,
+      day2: day2 ?? this.day2,
+      weeks: weeks ?? this.weeks,
+      anchor: anchor ?? this.anchor,
+      weekendBefore: weekendBefore ?? this.weekendBefore,
+      definesPeriod: definesPeriod ?? this.definesPeriod,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (payee.present) {
+      map['payee'] = Variable<String>(payee.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (varies.present) {
+      map['varies'] = Variable<bool>(varies.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(
+        $PaySchedulesTable.$converterrule.toSql(rule.value),
+      );
+    }
+    if (day1.present) {
+      map['day1'] = Variable<int>(day1.value);
+    }
+    if (day2.present) {
+      map['day2'] = Variable<int>(day2.value);
+    }
+    if (weeks.present) {
+      map['weeks'] = Variable<int>(weeks.value);
+    }
+    if (anchor.present) {
+      map['anchor'] = Variable<String>(anchor.value);
+    }
+    if (weekendBefore.present) {
+      map['weekend_before'] = Variable<bool>(weekendBefore.value);
+    }
+    if (definesPeriod.present) {
+      map['defines_period'] = Variable<bool>(definesPeriod.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PaySchedulesCompanion(')
+          ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('payee: $payee, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('varies: $varies, ')
+          ..write('rule: $rule, ')
+          ..write('day1: $day1, ')
+          ..write('day2: $day2, ')
+          ..write('weeks: $weeks, ')
+          ..write('anchor: $anchor, ')
+          ..write('weekendBefore: $weekendBefore, ')
+          ..write('definesPeriod: $definesPeriod, ')
+          ..write('createdAt: $createdAt, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
@@ -875,6 +1783,20 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _payScheduleIdMeta = const VerificationMeta(
+    'payScheduleId',
+  );
+  @override
+  late final GeneratedColumn<int> payScheduleId = GeneratedColumn<int>(
+    'pay_schedule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pay_schedules (id)',
+    ),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -916,6 +1838,7 @@ class $TransactionsTable extends Transactions
     memo,
     importKey,
     scheduled,
+    payScheduleId,
     createdAt,
     updatedAt,
     deletedAt,
@@ -965,6 +1888,15 @@ class $TransactionsTable extends Transactions
       context.handle(
         _scheduledMeta,
         scheduled.isAcceptableOrUnknown(data['scheduled']!, _scheduledMeta),
+      );
+    }
+    if (data.containsKey('pay_schedule_id')) {
+      context.handle(
+        _payScheduleIdMeta,
+        payScheduleId.isAcceptableOrUnknown(
+          data['pay_schedule_id']!,
+          _payScheduleIdMeta,
+        ),
       );
     }
     if (data.containsKey('created_at')) {
@@ -1022,6 +1954,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}scheduled'],
       )!,
+      payScheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pay_schedule_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -1052,6 +1988,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   final String? memo;
   final String? importKey;
   final bool scheduled;
+
+  /// A payday a pay schedule scheduled.
+  final int? payScheduleId;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -1062,6 +2001,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     this.memo,
     this.importKey,
     required this.scheduled,
+    this.payScheduleId,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -1081,6 +2021,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       map['import_key'] = Variable<String>(importKey);
     }
     map['scheduled'] = Variable<bool>(scheduled);
+    if (!nullToAbsent || payScheduleId != null) {
+      map['pay_schedule_id'] = Variable<int>(payScheduleId);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -1101,6 +2044,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ? const Value.absent()
           : Value(importKey),
       scheduled: Value(scheduled),
+      payScheduleId: payScheduleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payScheduleId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1121,6 +2067,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       memo: serializer.fromJson<String?>(json['memo']),
       importKey: serializer.fromJson<String?>(json['importKey']),
       scheduled: serializer.fromJson<bool>(json['scheduled']),
+      payScheduleId: serializer.fromJson<int?>(json['payScheduleId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
@@ -1136,6 +2083,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'memo': serializer.toJson<String?>(memo),
       'importKey': serializer.toJson<String?>(importKey),
       'scheduled': serializer.toJson<bool>(scheduled),
+      'payScheduleId': serializer.toJson<int?>(payScheduleId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
@@ -1149,6 +2097,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     Value<String?> memo = const Value.absent(),
     Value<String?> importKey = const Value.absent(),
     bool? scheduled,
+    Value<int?> payScheduleId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -1159,6 +2108,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     memo: memo.present ? memo.value : this.memo,
     importKey: importKey.present ? importKey.value : this.importKey,
     scheduled: scheduled ?? this.scheduled,
+    payScheduleId: payScheduleId.present
+        ? payScheduleId.value
+        : this.payScheduleId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1171,6 +2123,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       memo: data.memo.present ? data.memo.value : this.memo,
       importKey: data.importKey.present ? data.importKey.value : this.importKey,
       scheduled: data.scheduled.present ? data.scheduled.value : this.scheduled,
+      payScheduleId: data.payScheduleId.present
+          ? data.payScheduleId.value
+          : this.payScheduleId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -1186,6 +2141,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('memo: $memo, ')
           ..write('importKey: $importKey, ')
           ..write('scheduled: $scheduled, ')
+          ..write('payScheduleId: $payScheduleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -1201,6 +2157,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     memo,
     importKey,
     scheduled,
+    payScheduleId,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1215,6 +2172,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.memo == this.memo &&
           other.importKey == this.importKey &&
           other.scheduled == this.scheduled &&
+          other.payScheduleId == this.payScheduleId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -1227,6 +2185,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<String?> memo;
   final Value<String?> importKey;
   final Value<bool> scheduled;
+  final Value<int?> payScheduleId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -1237,6 +2196,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.memo = const Value.absent(),
     this.importKey = const Value.absent(),
     this.scheduled = const Value.absent(),
+    this.payScheduleId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1248,6 +2208,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.memo = const Value.absent(),
     this.importKey = const Value.absent(),
     this.scheduled = const Value.absent(),
+    this.payScheduleId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -1261,6 +2222,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<String>? memo,
     Expression<String>? importKey,
     Expression<bool>? scheduled,
+    Expression<int>? payScheduleId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -1272,6 +2234,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (memo != null) 'memo': memo,
       if (importKey != null) 'import_key': importKey,
       if (scheduled != null) 'scheduled': scheduled,
+      if (payScheduleId != null) 'pay_schedule_id': payScheduleId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1285,6 +2248,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<String?>? memo,
     Value<String?>? importKey,
     Value<bool>? scheduled,
+    Value<int?>? payScheduleId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -1296,6 +2260,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       memo: memo ?? this.memo,
       importKey: importKey ?? this.importKey,
       scheduled: scheduled ?? this.scheduled,
+      payScheduleId: payScheduleId ?? this.payScheduleId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1323,6 +2288,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (scheduled.present) {
       map['scheduled'] = Variable<bool>(scheduled.value);
     }
+    if (payScheduleId.present) {
+      map['pay_schedule_id'] = Variable<int>(payScheduleId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1344,6 +2312,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('memo: $memo, ')
           ..write('importKey: $importKey, ')
           ..write('scheduled: $scheduled, ')
+          ..write('payScheduleId: $payScheduleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -2265,6 +3234,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $AccountsTable accounts = $AccountsTable(this);
+  late final $PaySchedulesTable paySchedules = $PaySchedulesTable(this);
   late final $PayeesTable payees = $PayeesTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $ReconciliationsTable reconciliations = $ReconciliationsTable(
@@ -2277,6 +3247,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     accounts,
+    paySchedules,
     payees,
     transactions,
     reconciliations,
@@ -2295,6 +3266,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int> sortOrder,
   Value<int?> archivedAt,
   Value<int?> deletedAt,
+  Value<bool> payday,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -2307,6 +3279,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> sortOrder,
   Value<int?> archivedAt,
   Value<int?> deletedAt,
+  Value<bool> payday,
 });
 
 final class $$AccountsTableReferences
@@ -2410,6 +3383,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get payday => $composableBuilder(
+    column: $table.payday,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2522,6 +3500,11 @@ class $$AccountsTableOrderingComposer
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get payday => $composableBuilder(
+    column: $table.payday,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -2568,6 +3551,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get payday =>
+      $composableBuilder(column: $table.payday, builder: (column) => column);
 
   Expression<T> reconciliationsRefs<T extends Object>(
     Expression<T> Function($$ReconciliationsTableAnnotationComposer a) f,
@@ -2658,6 +3644,7 @@ class $$AccountsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
+                Value<bool> payday = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -2669,6 +3656,7 @@ class $$AccountsTableTableManager
                 sortOrder: sortOrder,
                 archivedAt: archivedAt,
                 deletedAt: deletedAt,
+                payday: payday,
               ),
           createCompanionCallback:
               ({
@@ -2682,6 +3670,7 @@ class $$AccountsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
+                Value<bool> payday = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -2693,6 +3682,7 @@ class $$AccountsTableTableManager
                 sortOrder: sortOrder,
                 archivedAt: archivedAt,
                 deletedAt: deletedAt,
+                payday: payday,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -2776,6 +3766,701 @@ typedef $$AccountsTableProcessedTableManager =
       (Account, $$AccountsTableReferences),
       Account,
       PrefetchHooks Function({bool reconciliationsRefs, bool entriesRefs})
+    >;
+typedef $$PaySchedulesTableCreateCompanionBuilder =
+    PaySchedulesCompanion Function({
+      Value<int> id,
+      required int categoryId,
+      required int accountId,
+      Value<String?> payee,
+      required int amountMinor,
+      Value<bool> varies,
+      required PayRule rule,
+      Value<int> day1,
+      Value<int> day2,
+      Value<int> weeks,
+      Value<String?> anchor,
+      Value<bool> weekendBefore,
+      Value<bool> definesPeriod,
+      required int createdAt,
+      Value<int?> deletedAt,
+    });
+typedef $$PaySchedulesTableUpdateCompanionBuilder =
+    PaySchedulesCompanion Function({
+      Value<int> id,
+      Value<int> categoryId,
+      Value<int> accountId,
+      Value<String?> payee,
+      Value<int> amountMinor,
+      Value<bool> varies,
+      Value<PayRule> rule,
+      Value<int> day1,
+      Value<int> day2,
+      Value<int> weeks,
+      Value<String?> anchor,
+      Value<bool> weekendBefore,
+      Value<bool> definesPeriod,
+      Value<int> createdAt,
+      Value<int?> deletedAt,
+    });
+
+final class $$PaySchedulesTableReferences
+    extends BaseReferences<_$AppDatabase, $PaySchedulesTable, PayScheduleRow> {
+  $$PaySchedulesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AccountsTable _categoryIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('pay_schedules__category_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<int>('category_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('pay_schedules__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<int>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$TransactionsTable, List<TransactionRow>>
+  _transactionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transactions,
+    aliasName: 'pay_schedules__id__transactions__pay_schedule_id',
+  );
+
+  $$TransactionsTableProcessedTableManager get transactionsRefs {
+    final manager = $$TransactionsTableTableManager(
+      $_db,
+      $_db.transactions,
+    ).filter((f) => f.payScheduleId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_transactionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PaySchedulesTableFilterComposer
+    extends Composer<_$AppDatabase, $PaySchedulesTable> {
+  $$PaySchedulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payee => $composableBuilder(
+    column: $table.payee,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get varies => $composableBuilder(
+    column: $table.varies,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<PayRule, PayRule, String> get rule =>
+      $composableBuilder(
+        column: $table.rule,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get day1 => $composableBuilder(
+    column: $table.day1,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get day2 => $composableBuilder(
+    column: $table.day2,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weeks => $composableBuilder(
+    column: $table.weeks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anchor => $composableBuilder(
+    column: $table.anchor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get weekendBefore => $composableBuilder(
+    column: $table.weekendBefore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get definesPeriod => $composableBuilder(
+    column: $table.definesPeriod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AccountsTableFilterComposer get categoryId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> transactionsRefs(
+    Expression<bool> Function($$TransactionsTableFilterComposer f) f,
+  ) {
+    final $$TransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.payScheduleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$PaySchedulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PaySchedulesTable> {
+  $$PaySchedulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payee => $composableBuilder(
+    column: $table.payee,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get varies => $composableBuilder(
+    column: $table.varies,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get day1 => $composableBuilder(
+    column: $table.day1,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get day2 => $composableBuilder(
+    column: $table.day2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weeks => $composableBuilder(
+    column: $table.weeks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anchor => $composableBuilder(
+    column: $table.anchor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get weekendBefore => $composableBuilder(
+    column: $table.weekendBefore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get definesPeriod => $composableBuilder(
+    column: $table.definesPeriod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AccountsTableOrderingComposer get categoryId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PaySchedulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PaySchedulesTable> {
+  $$PaySchedulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get payee =>
+      $composableBuilder(column: $table.payee, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get varies =>
+      $composableBuilder(column: $table.varies, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<PayRule, String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<int> get day1 =>
+      $composableBuilder(column: $table.day1, builder: (column) => column);
+
+  GeneratedColumn<int> get day2 =>
+      $composableBuilder(column: $table.day2, builder: (column) => column);
+
+  GeneratedColumn<int> get weeks =>
+      $composableBuilder(column: $table.weeks, builder: (column) => column);
+
+  GeneratedColumn<String> get anchor =>
+      $composableBuilder(column: $table.anchor, builder: (column) => column);
+
+  GeneratedColumn<bool> get weekendBefore => $composableBuilder(
+    column: $table.weekendBefore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get definesPeriod => $composableBuilder(
+    column: $table.definesPeriod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$AccountsTableAnnotationComposer get categoryId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> transactionsRefs<T extends Object>(
+    Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
+  ) {
+    final $$TransactionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.payScheduleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$PaySchedulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PaySchedulesTable,
+          PayScheduleRow,
+          $$PaySchedulesTableFilterComposer,
+          $$PaySchedulesTableOrderingComposer,
+          $$PaySchedulesTableAnnotationComposer,
+          $$PaySchedulesTableCreateCompanionBuilder,
+          $$PaySchedulesTableUpdateCompanionBuilder,
+          (PayScheduleRow, $$PaySchedulesTableReferences),
+          PayScheduleRow,
+          PrefetchHooks Function({
+            bool categoryId,
+            bool accountId,
+            bool transactionsRefs,
+          })
+        > {
+  $$PaySchedulesTableTableManager(_$AppDatabase db, $PaySchedulesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PaySchedulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PaySchedulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PaySchedulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> categoryId = const Value.absent(),
+                Value<int> accountId = const Value.absent(),
+                Value<String?> payee = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<bool> varies = const Value.absent(),
+                Value<PayRule> rule = const Value.absent(),
+                Value<int> day1 = const Value.absent(),
+                Value<int> day2 = const Value.absent(),
+                Value<int> weeks = const Value.absent(),
+                Value<String?> anchor = const Value.absent(),
+                Value<bool> weekendBefore = const Value.absent(),
+                Value<bool> definesPeriod = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+              }) => PaySchedulesCompanion(
+                id: id,
+                categoryId: categoryId,
+                accountId: accountId,
+                payee: payee,
+                amountMinor: amountMinor,
+                varies: varies,
+                rule: rule,
+                day1: day1,
+                day2: day2,
+                weeks: weeks,
+                anchor: anchor,
+                weekendBefore: weekendBefore,
+                definesPeriod: definesPeriod,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int categoryId,
+                required int accountId,
+                Value<String?> payee = const Value.absent(),
+                required int amountMinor,
+                Value<bool> varies = const Value.absent(),
+                required PayRule rule,
+                Value<int> day1 = const Value.absent(),
+                Value<int> day2 = const Value.absent(),
+                Value<int> weeks = const Value.absent(),
+                Value<String?> anchor = const Value.absent(),
+                Value<bool> weekendBefore = const Value.absent(),
+                Value<bool> definesPeriod = const Value.absent(),
+                required int createdAt,
+                Value<int?> deletedAt = const Value.absent(),
+              }) => PaySchedulesCompanion.insert(
+                id: id,
+                categoryId: categoryId,
+                accountId: accountId,
+                payee: payee,
+                amountMinor: amountMinor,
+                varies: varies,
+                rule: rule,
+                day1: day1,
+                day2: day2,
+                weeks: weeks,
+                anchor: anchor,
+                weekendBefore: weekendBefore,
+                definesPeriod: definesPeriod,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PaySchedulesTable, PayScheduleRow>(table),
+                  $$PaySchedulesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                categoryId = false,
+                accountId = false,
+                transactionsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (transactionsRefs) db.transactions,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.categoryId,
+                            referencedTable: $$PaySchedulesTableReferences
+                                ._categoryIdTable(db),
+                            referencedColumn: $$PaySchedulesTableReferences
+                                ._categoryIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (accountId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.accountId,
+                            referencedTable: $$PaySchedulesTableReferences
+                                ._accountIdTable(db),
+                            referencedColumn: $$PaySchedulesTableReferences
+                                ._accountIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (transactionsRefs)
+                        await $_getPrefetchedData<
+                          PayScheduleRow,
+                          $PaySchedulesTable,
+                          TransactionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PaySchedulesTableReferences
+                              ._transactionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PaySchedulesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transactionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.payScheduleId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PaySchedulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PaySchedulesTable,
+      PayScheduleRow,
+      $$PaySchedulesTableFilterComposer,
+      $$PaySchedulesTableOrderingComposer,
+      $$PaySchedulesTableAnnotationComposer,
+      $$PaySchedulesTableCreateCompanionBuilder,
+      $$PaySchedulesTableUpdateCompanionBuilder,
+      (PayScheduleRow, $$PaySchedulesTableReferences),
+      PayScheduleRow,
+      PrefetchHooks Function({
+        bool categoryId,
+        bool accountId,
+        bool transactionsRefs,
+      })
     >;
 typedef $$PayeesTableCreateCompanionBuilder = PayeesCompanion Function({
   Value<int> id,
@@ -3012,6 +4697,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> memo,
       Value<String?> importKey,
       Value<bool> scheduled,
+      Value<int?> payScheduleId,
       required int createdAt,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -3024,6 +4710,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> memo,
       Value<String?> importKey,
       Value<bool> scheduled,
+      Value<int?> payScheduleId,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -3044,6 +4731,24 @@ final class $$TransactionsTableReferences
       $_db.payees,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_payeeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PaySchedulesTable _payScheduleIdTable(_$AppDatabase db) => db
+      .paySchedules
+      .createAlias('transactions__pay_schedule_id__pay_schedules__id');
+
+  $$PaySchedulesTableProcessedTableManager? get payScheduleId {
+    final $_column = $_itemColumn<int>('pay_schedule_id');
+    if ($_column == null) return null;
+    final manager = $$PaySchedulesTableTableManager(
+      $_db,
+      $_db.paySchedules,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_payScheduleIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -3133,6 +4838,29 @@ class $$TransactionsTableFilterComposer
           }) => $$PayeesTableFilterComposer(
             $db: $db,
             $table: $db.payees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PaySchedulesTableFilterComposer get payScheduleId {
+    final $$PaySchedulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payScheduleId,
+      referencedTable: $db.paySchedules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaySchedulesTableFilterComposer(
+            $db: $db,
+            $table: $db.paySchedules,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3239,6 +4967,29 @@ class $$TransactionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$PaySchedulesTableOrderingComposer get payScheduleId {
+    final $$PaySchedulesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payScheduleId,
+      referencedTable: $db.paySchedules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaySchedulesTableOrderingComposer(
+            $db: $db,
+            $table: $db.paySchedules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -3297,6 +5048,29 @@ class $$TransactionsTableAnnotationComposer
     return composer;
   }
 
+  $$PaySchedulesTableAnnotationComposer get payScheduleId {
+    final $$PaySchedulesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payScheduleId,
+      referencedTable: $db.paySchedules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PaySchedulesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.paySchedules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> entriesRefs<T extends Object>(
     Expression<T> Function($$EntriesTableAnnotationComposer a) f,
   ) {
@@ -3336,7 +5110,11 @@ class $$TransactionsTableTableManager
           $$TransactionsTableUpdateCompanionBuilder,
           (TransactionRow, $$TransactionsTableReferences),
           TransactionRow,
-          PrefetchHooks Function({bool payeeId, bool entriesRefs})
+          PrefetchHooks Function({
+            bool payeeId,
+            bool payScheduleId,
+            bool entriesRefs,
+          })
         > {
   $$TransactionsTableTableManager(_$AppDatabase db, $TransactionsTable table)
     : super(
@@ -3357,6 +5135,7 @@ class $$TransactionsTableTableManager
                 Value<String?> memo = const Value.absent(),
                 Value<String?> importKey = const Value.absent(),
                 Value<bool> scheduled = const Value.absent(),
+                Value<int?> payScheduleId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -3367,6 +5146,7 @@ class $$TransactionsTableTableManager
                 memo: memo,
                 importKey: importKey,
                 scheduled: scheduled,
+                payScheduleId: payScheduleId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -3379,6 +5159,7 @@ class $$TransactionsTableTableManager
                 Value<String?> memo = const Value.absent(),
                 Value<String?> importKey = const Value.absent(),
                 Value<bool> scheduled = const Value.absent(),
+                Value<int?> payScheduleId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -3389,6 +5170,7 @@ class $$TransactionsTableTableManager
                 memo: memo,
                 importKey: importKey,
                 scheduled: scheduled,
+                payScheduleId: payScheduleId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -3401,67 +5183,79 @@ class $$TransactionsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({payeeId = false, entriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (entriesRefs) db.entries],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (payeeId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.payeeId,
-                        referencedTable: $$TransactionsTableReferences
-                            ._payeeIdTable(db),
-                        referencedColumn: $$TransactionsTableReferences
-                            ._payeeIdTable(db)
-                            .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({payeeId = false, payScheduleId = false, entriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [if (entriesRefs) db.entries],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (payeeId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.payeeId,
+                            referencedTable: $$TransactionsTableReferences
+                                ._payeeIdTable(db),
+                            referencedColumn: $$TransactionsTableReferences
+                                ._payeeIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (payScheduleId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.payScheduleId,
+                            referencedTable: $$TransactionsTableReferences
+                                ._payScheduleIdTable(db),
+                            referencedColumn: $$TransactionsTableReferences
+                                ._payScheduleIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (entriesRefs)
+                        await $_getPrefetchedData<
+                          TransactionRow,
+                          $TransactionsTable,
+                          EntryRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TransactionsTableReferences
+                              ._entriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TransactionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).entriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.transactionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (entriesRefs)
-                    await $_getPrefetchedData<
-                      TransactionRow,
-                      $TransactionsTable,
-                      EntryRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$TransactionsTableReferences
-                          ._entriesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TransactionsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).entriesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.transactionId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3478,7 +5272,11 @@ typedef $$TransactionsTableProcessedTableManager =
       $$TransactionsTableUpdateCompanionBuilder,
       (TransactionRow, $$TransactionsTableReferences),
       TransactionRow,
-      PrefetchHooks Function({bool payeeId, bool entriesRefs})
+      PrefetchHooks Function({
+        bool payeeId,
+        bool payScheduleId,
+        bool entriesRefs,
+      })
     >;
 typedef $$ReconciliationsTableCreateCompanionBuilder =
     ReconciliationsCompanion Function({
@@ -4450,6 +6248,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$AccountsTableTableManager get accounts =>
       $$AccountsTableTableManager(_db, _db.accounts);
+  $$PaySchedulesTableTableManager get paySchedules =>
+      $$PaySchedulesTableTableManager(_db, _db.paySchedules);
   $$PayeesTableTableManager get payees =>
       $$PayeesTableTableManager(_db, _db.payees);
   $$TransactionsTableTableManager get transactions =>

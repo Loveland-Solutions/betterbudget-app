@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-18**
+**Last updated: 2026-09-19**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -11,8 +11,9 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.**
 
-**Git state:** everything is merged to `main` (through PR #9: rows grow smoothly when
-opened) and nothing is uncommitted. Keep the pattern: branch, commit, PR, merge.
+**Git state:** everything is merged to `main` (through PR #13: pay and paydays) and
+nothing is uncommitted. Keep the pattern: branch, commit, PR, merge. The owner's data
+file is at schema version 5.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -28,6 +29,7 @@ Visual direction and the register's UX rules are settled in
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
 | Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
 | All accounts | Under Ledger, above the groups: every account's rows in one register, Account as the last column, a transfer once. Adding asks for the account (a dropdown that remembers the last). Clicking a category's usage on the Budget screen opens it with a "Category: X ✕" chip and "n rows · ₮X spent"; Esc clears (rule 23) |
+| Pay | Payday mark on income categories (only paydays end forecasts). Pay setup (forecast "no payday ahead · Add your pay", Budget screen, Settings): account, from, same or varies ("Expect at least", history, warning if high), monthly / twice a month / every N weeks, weekend rule; the next payday is always scheduled from the plan. Settings: Budget by Month or Pay period, pay list with Edit (rule 24). Schema v5 |
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
 | Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. Money in due today or earlier and not confirmed isn't counted (the header says so in gold and opens it); on payday "Runs out 10.15 unless ₮2,500,000 due today comes". A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
@@ -75,7 +77,7 @@ scheduled items.
 | [0001](decisions/0001-database.md) | SQLite via Drift, encrypted with SQLCipher. MNT is exponent 2. |
 | [0002](decisions/0002-tdb-import-format.md) | TDB import targets the unformatted Excel export. Column map and dedup key recorded. |
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
-| [0004](decisions/0004-ledger-ui.md) | Midnight look and 23 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view. |
+| [0004](decisions/0004-ledger-ui.md) | Midnight look and 24 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view, pay and paydays. |
 
 Full ledger feature map, with what's built marked: [ledger-features.md](ledger-features.md).
 
@@ -140,7 +142,9 @@ Roughly in the order they will block something.
 3. **What is "Savings"?** A placeholder name in the sidebar; the owner will define it later
    (goals? savings accounts?). Relates to the budget model below.
 4. **Budget model: envelopes or targets?** Blocks the budget. The double-entry schema
-   suits envelopes.
+   suits envelopes. **The budget runs per pay period or per month, not all time**
+   (owner, 2026-09-19; which of the two is still open). A category's rows, opened
+   from Budget, should show that period, not all time.
 5. **Multi-currency at launch?** Current lean: data model ready (entries carry
    `currency` and `rate`), UI MNT-only.
 6. **Is the dedup key stable across overlapping exports?** Two overlapping TDB exports
@@ -159,9 +163,16 @@ show the owner, build the one they pick, review, merge, tick it off here, then s
 the next. Details for each item are further down (open items, roadmap, tabled).
 
 - [x] 1. **Accounts**: add, rename, archive; a new account starts empty with an opening balance
-- [x] 2. **Categories**: add, rename, archive
+- [x] 2. **Categories**: add, rename, archive (on the Budget screen, rule 22), plus the
+  **All accounts** view the owner asked for with it (rule 23)
 - [ ] 3. **Splits**: create and edit them
-- [ ] 4. **Recurring** scheduled items
+- [ ] 4. **Recurring** scheduled items. **Pay is done** (PR #13, rule 24): payday mark,
+  pay setup, the next payday always scheduled, budget by month or pay period. Still to
+  do: recurring bills (rent, СӨХ, utilities, phone), probably on the same schedule
+  model. **Two pay questions are waiting for the owner** (asked 2026-09-19, both
+  recommended yes): (a) twice a month with **an amount for each day** (advance, then
+  the rest); (b) **"I don't have regular pay"** in the setup, which turns off the "Add
+  your pay" prompt (undo it in Settings), for self-employed users.
 - [ ] 5. A better **"not cleared" note**
 - [ ] 6. **Duplicate check on Confirm**
 - [ ] 7. **Several overdue bills** in All
@@ -225,6 +236,17 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **PR #13 (2026-09-19):** pay (rule 24). Only payday income ends a forecast, and a
+  pay setup is prompted from the forecast, the Budget screen and Settings. Pay that
+  varies is an estimate on the low side. The next payday is always scheduled from the
+  plan, and early or late pay belongs to its planned payday. Budget by month or pay
+  period is set in Settings. Schema v5.
+- **PR #12:** categories on the Budget screen, managed there, and created from the
+  entry row (rule 22). The All accounts view under Ledger has an Account column, an
+  account picker when adding, and category and period chips (rule 23).
+- **PR #11:** accounts: add, rename, change kind, archive, delete (rule 21, "warn,
+  don't block"), with a right-click menu in the sidebar. Schema v4.
 
 - **PR #9 (2026-09-18):** rows grow smoothly when opened into the editor or action bar
   (`SmoothHeight`, rule 12).

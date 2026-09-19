@@ -2,6 +2,8 @@
 /// Pure Dart: no database, no Flutter.
 library;
 
+import 'pay.dart';
+
 enum AccountType { asset, liability, income, expense, equity }
 
 enum Cleared { uncleared, cleared, reconciled }
@@ -21,7 +23,12 @@ class AccountInfo {
     this.sortOrder = 0,
     this.archived = false,
     this.deleted = false,
+    this.payday = false,
   });
+
+  /// An income category whose rows end the forecast (Salary, not child
+  /// allowance).
+  final bool payday;
 
   final int id;
   final String name;
@@ -81,8 +88,11 @@ class TxnData {
     this.payee,
     this.memo,
     this.scheduled = false,
+    this.payScheduleId,
   });
 
+  /// A payday a pay schedule scheduled.
+  final int? payScheduleId;
   final int id;
   final DateTime date;
   final String? payee;
@@ -129,6 +139,8 @@ class RegisterRow {
     this.otherClosed = false,
     this.accountId = 0,
     this.clearedIn,
+    this.estimate,
+    this.payScheduleId,
     this.balance = 0,
     this.clearedBalance = 0,
   });
@@ -162,7 +174,8 @@ class RegisterRow {
   /// Locked by the account's most recent reconcile, which can be taken back.
   final bool latestReconcile;
 
-  /// The category is an income category (Salary), not a refund or transfer.
+  /// The category is a payday income category (Salary), not a refund,
+  /// transfer or child allowance.
   final bool incomeCategory;
 
   /// A transfer whose other account is archived or deleted: that side stays
@@ -176,6 +189,13 @@ class RegisterRow {
   /// All accounts: the cleared state shown is this account's side of the
   /// transfer (less settled than the side the money left).
   final String? clearedIn;
+
+  /// A payday a pay schedule scheduled.
+  final int? payScheduleId;
+
+  /// A payday from pay that varies: the least it's likely to be. Coming in
+  /// under it isn't "still owed", and the forecast calls it an estimate.
+  final int? estimate;
   final int balance;
 
   /// Running total of cleared and reconciled rows only, in date order: what a
@@ -216,6 +236,8 @@ class RegisterRow {
     otherClosed: otherClosed,
     accountId: accountId,
     clearedIn: clearedIn,
+    estimate: estimate,
+    payScheduleId: payScheduleId,
     balance: balance,
     clearedBalance: clearedBalance,
   );
@@ -240,6 +262,8 @@ class RegisterRow {
     incomeCategory: incomeCategory,
     otherClosed: otherClosed,
     accountId: accountId,
+    estimate: estimate,
+    payScheduleId: payScheduleId,
     balance: b,
     clearedBalance: clearedTotal,
   );
@@ -327,7 +351,22 @@ class LedgerData {
     required List<AccountInfo> accounts,
     required this.txns,
     this.reconciliations = const [],
+    this.paySchedules = const [],
+    this.stoppedPaySchedules = const [],
   }) : accounts = {for (final a in accounts) a.id: a};
+
+  /// Active pay schedules (rule 24).
+  final List<PaySchedule> paySchedules;
+
+  /// Stopped ones: their overdue paydays are still estimates.
+  final List<PaySchedule> stoppedPaySchedules;
+  late final Map<int, PaySchedule> _schedulesById = {
+    for (final p in [...stoppedPaySchedules, ...paySchedules]) p.id: p,
+  };
+
+  /// The schedule the budget runs by, or null for calendar months.
+  PaySchedule? get periodSchedule =>
+      paySchedules.where((p) => p.definesPeriod).firstOrNull;
 
   final Map<int, AccountInfo> accounts;
   final List<TxnData> txns;
@@ -649,10 +688,12 @@ class LedgerData {
 
   /// What's filed under [categoryId], posted rows only: spent for spending
   /// (positive), received for income (positive).
-  int categoryTotal(int categoryId) {
+  int categoryTotal(int categoryId, {DateTime? from, DateTime? to}) {
     var sum = 0;
     for (final t in txns) {
       if (t.scheduled) continue;
+      if (from != null && t.date.isBefore(from)) continue;
+      if (to != null && t.date.isAfter(to)) continue;
       for (final e in t.entries) {
         if (e.accountId == categoryId) sum += e.amount;
       }
@@ -685,7 +726,9 @@ class LedgerData {
       } else {
         label = other.name;
         categoryId = other.id;
-        incomeCategory = other.type == AccountType.income;
+        // Only a payday ends a forecast: child allowance is income, and
+        // rent due after it is still before payday.
+        incomeCategory = other.type == AccountType.income && other.payday;
       }
     } else {
       kind = RowKind.split;
@@ -719,6 +762,11 @@ class LedgerData {
       incomeCategory: incomeCategory,
       otherClosed: otherClosed,
       accountId: e.accountId,
+      payScheduleId: t.payScheduleId,
+      estimate: switch (_schedulesById[t.payScheduleId]) {
+        final p? when p.varies => p.amount,
+        _ => null,
+      },
       lockedIn: e.cleared == Cleared.reconciled
           ? null
           : others
