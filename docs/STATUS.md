@@ -140,13 +140,19 @@ Roughly in the order they will block something.
    feel. Likely candidates: splits, accounts/categories management, import, recurring,
    plus search and sorting on the roadmap. Ask rather than assume.
 3. **What is "Savings"?** A placeholder name in the sidebar; the owner will define it later
-   (goals? savings accounts?). Relates to the budget model below.
+   (goals? savings accounts?). Relates to the budget model below. **Options are in
+   [personas.md](personas.md) §2** (2026-09-19): A. a Growth page (where each period's
+   surplus went, a real savings rate, net worth split into saved and market change),
+   B. a balance sheet with Update value, C. goals. Recommended A plus B's Update value,
+   renamed "Growth". The owner will follow up.
 4. **Budget model: envelopes or targets?** Blocks the budget. The double-entry schema
    suits envelopes. **The budget runs per pay period or per month, not all time**
    (owner, 2026-09-19; which of the two is still open). A category's rows, opened
    from Budget, should show that period, not all time.
 5. **Multi-currency at launch?** Current lean: data model ready (entries carry
-   `currency` and `rate`), UI MNT-only.
+   `currency` and `rate`), UI MNT-only. **Live risk:** sidebar net worth adds raw
+   balances, so a second-currency account (a USD 401(k)) would add cents to tögrög. Both
+   personas in [personas.md](personas.md) are US users paid in dollars.
 6. **Is the dedup key stable across overlapping exports?** Two overlapping TDB exports
    would settle it.
 7. **Which other banks import at launch?** Khan, Golomt, Khas, State Bank, M Bank.
@@ -157,6 +163,11 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**Persona reviews** (2026-09-19) are logged in [personas.md](personas.md): what a
+paycheck-to-paycheck student needs (recurring bills and a forecast past the next payday
+top the list) and what a salaried wealth builder needs (the Savings section). The owner
+said "we'll address it"; nothing there is picked yet.
 
 **Work through the list below, one item at a time** (owner, 2026-09-18). Design each,
 show the owner, build the one they pick, review, merge, tick it off here, then start
