@@ -140,6 +140,7 @@ class RegisterRow {
     this.accountId = 0,
     this.clearedIn,
     this.estimate,
+    this.payScheduleId,
     this.balance = 0,
     this.clearedBalance = 0,
   });
@@ -189,6 +190,9 @@ class RegisterRow {
   /// transfer (less settled than the side the money left).
   final String? clearedIn;
 
+  /// A payday a pay schedule scheduled.
+  final int? payScheduleId;
+
   /// A payday from pay that varies: the least it's likely to be. Coming in
   /// under it isn't "still owed", and the forecast calls it an estimate.
   final int? estimate;
@@ -233,6 +237,7 @@ class RegisterRow {
     accountId: accountId,
     clearedIn: clearedIn,
     estimate: estimate,
+    payScheduleId: payScheduleId,
     balance: balance,
     clearedBalance: clearedBalance,
   );
@@ -258,6 +263,7 @@ class RegisterRow {
     otherClosed: otherClosed,
     accountId: accountId,
     estimate: estimate,
+    payScheduleId: payScheduleId,
     balance: b,
     clearedBalance: clearedTotal,
   );
@@ -346,12 +352,16 @@ class LedgerData {
     required this.txns,
     this.reconciliations = const [],
     this.paySchedules = const [],
+    this.stoppedPaySchedules = const [],
   }) : accounts = {for (final a in accounts) a.id: a};
 
   /// Active pay schedules (rule 24).
   final List<PaySchedule> paySchedules;
+
+  /// Stopped ones: their overdue paydays are still estimates.
+  final List<PaySchedule> stoppedPaySchedules;
   late final Map<int, PaySchedule> _schedulesById = {
-    for (final p in paySchedules) p.id: p,
+    for (final p in [...stoppedPaySchedules, ...paySchedules]) p.id: p,
   };
 
   /// The schedule the budget runs by, or null for calendar months.
@@ -752,6 +762,7 @@ class LedgerData {
       incomeCategory: incomeCategory,
       otherClosed: otherClosed,
       accountId: e.accountId,
+      payScheduleId: t.payScheduleId,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amount,
         _ => null,

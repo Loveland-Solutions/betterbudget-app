@@ -570,19 +570,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
       String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
       final amount = d.amount ?? row.amount;
       final early = row.date.isAfter(today);
-      // A payday confirmed: the schedule's next one, from the plan.
+      // A payday confirmed: its schedule's next one, from the plan. Only
+      // its own: confirming a bill never touches pay.
       var next = const <int>[];
-      try {
-        next = await db.ensurePaydays(today);
-      } catch (e) {
-        debugPrint('Scheduling the next payday failed: $e');
+      final schedule = row.payScheduleId;
+      if (schedule != null) {
+        try {
+          next = await db.ensurePaydays(today, only: schedule);
+        } catch (e) {
+          debugPrint('Scheduling the next payday failed: $e');
+        }
       }
       final pair = _alsoCategory(
         made,
         // One action: the confirm, any rest still owed and the next payday
         // come and go together.
         () => db.transaction(() async {
-          await db.softDeleteMany(next);
+          await db.dropPaydays(next);
           await db.restoreSnapshot(before);
           if (owedId case final id?) {
             _expect((await db.softDeleteMany([id])).length == 1);
@@ -591,7 +595,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         () => db.transaction(() async {
           await db.restoreSnapshot(after);
           if (owedId case final id?) await db.restoreMany([id]);
-          await db.restoreMany(next);
+          if (schedule != null) await db.bringBackPaydays(next, schedule);
         }),
       );
       // Under an estimate is the direction that hurts: said once, here.
@@ -884,7 +888,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
             into.first,
         today: today,
         existing: existing,
-        history: db.payHistory,
+        history: (c, a) => db.payHistory(c, a, scheduleId: existing?.id),
+        periodBy: data.periodSchedule?.id == existing?.id
+            ? null
+            : data.periodSchedule,
+        names: (id) => data.accounts[id]?.name ?? '',
       ),
     );
     if (result == null || !mounted) return;
@@ -1678,6 +1686,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    // A restored file's pay schedules get their next paydays, as at launch.
+    try {
+      await db.ensurePaydays(today);
+    } catch (e) {
+      debugPrint('Scheduling paydays after restore failed: $e');
+    }
     // Earlier actions point at rows the restore replaced.
     _history.clear();
     _redo.clear();
@@ -1947,7 +1961,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
               onReconcile: () => _startReconcile(data, account),
-              onAddPay: account.isOwed
+              // Asked until there's pay anywhere; once there is, an account
+              // it doesn't go into doesn't nag, and a click can't start a
+              // second Salary by mistake.
+              onAddPay: account.isOwed || data.paySchedules.isNotEmpty
                   ? null
                   : () => _openPaySetup(account: account),
               reconcile: _reconcile == null

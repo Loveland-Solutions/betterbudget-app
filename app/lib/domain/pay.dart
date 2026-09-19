@@ -61,29 +61,50 @@ class PaySchedule {
     PayRule.everyWeeks => (52 / weeks).round(),
   };
 
-  /// The first payday strictly after [after], weekend rule applied.
+  /// The first payday strictly after [after], weekend rule applied. An
+  /// every-N-weeks schedule starts at [anchor]: nothing before it.
   DateTime nextAfter(DateTime after) {
-    final a = dateOnly(after);
+    var a = dateOnly(after);
+    final start = anchor;
+    if (rule == PayRule.everyWeeks && start != null) {
+      final dayBefore = _addDays(dateOnly(start), -1);
+      if (a.isBefore(dayBefore)) a = dayBefore;
+    }
     // Nominal dates are generated in order and each is moved off a weekend;
     // a move can't reorder two paydays a week or more apart.
-    for (final d in _nominalFrom(a.subtract(const Duration(days: 7)))) {
+    for (final d in _nominalFrom(_addDays(a, -7))) {
       final moved = _offWeekend(d);
       if (moved.isAfter(a)) return moved;
     }
     throw StateError('unreachable');
   }
 
-  /// The last payday on or before [day], or null if none can be (an every-N-
-  /// weeks schedule that starts later).
+  /// The last payday on or before [day] (the schedule's rhythm, even before
+  /// an every-N-weeks start), or null if none is found.
   DateTime? lastOnOrBefore(DateTime day) {
     final d = dateOnly(day);
+    // Far enough back to hold one whole interval, whatever the weeks.
+    final back = 7 * weeks + 14 > 70 ? 7 * weeks + 14 : 70;
     DateTime? last;
-    for (final n in _nominalFrom(d.subtract(const Duration(days: 70)))) {
+    for (final n in _nominalFrom(_addDays(d, -back))) {
       final moved = _offWeekend(n);
       if (moved.isAfter(d)) break;
       last = moved;
     }
     return last;
+  }
+
+  /// The planned payday a paycheck posted on [posted] belongs to: the
+  /// nearest one. Pay confirmed two days early (before a holiday) or a few
+  /// days late is still that payday, so the next is the one after it.
+  DateTime plannedFor(DateTime posted) {
+    final p = dateOnly(posted);
+    final before = lastOnOrBefore(p);
+    final after = nextAfter(p);
+    if (before == null) return after;
+    return p.difference(before).inHours <= after.difference(p).inHours
+        ? before
+        : after;
   }
 
   /// The pay period [day] is in: from its last payday up to the day before
@@ -92,12 +113,17 @@ class PaySchedule {
     final start = lastOnOrBefore(day);
     if (start == null) return null;
     final next = nextAfter(day);
-    return (start: start, end: next.subtract(const Duration(days: 1)));
+    return (start: start, end: _addDays(next, -1));
   }
 
+  // Calendar days, never Durations: across a daylight-saving change a day
+  // is 23 or 25 hours and a Duration lands on the wrong date.
+  static DateTime _addDays(DateTime d, int n) =>
+      DateTime(d.year, d.month, d.day + n);
+
   DateTime _offWeekend(DateTime d) => switch (d.weekday) {
-    DateTime.saturday => d.add(Duration(days: weekendBefore ? -1 : 2)),
-    DateTime.sunday => d.add(Duration(days: weekendBefore ? -2 : 1)),
+    DateTime.saturday => _addDays(d, weekendBefore ? -1 : 2),
+    DateTime.sunday => _addDays(d, weekendBefore ? -2 : 1),
     _ => d,
   };
 
@@ -118,14 +144,14 @@ class PaySchedule {
           }
         }
       case PayRule.everyWeeks:
-        final step = Duration(days: 7 * weeks);
+        final step = 7 * weeks;
         var d = dateOnly(anchor ?? from);
         // Back to the first on or after [from], in whole steps.
         while (d.isAfter(from)) {
-          d = d.subtract(step);
+          d = _addDays(d, -step);
         }
         while (d.isBefore(from)) {
-          d = d.add(step);
+          d = _addDays(d, step);
         }
         while (true) {
           yield d;

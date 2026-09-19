@@ -565,6 +565,39 @@ be quietly undone.
     category's rows opened from Budget: a "This month · 09.01–09.30" (or "This pay
     period") chip, removed with ✕ or Esc for all time. The budget's periods will use
     the same setting.
+    **From the reviews** (decided along the lines above):
+    - **Early or late pay belongs to its planned payday.** Pay confirmed on the
+      23rd for the 25th schedules next month's, not the 25th again. A payday the
+      user deletes (unpaid leave) stays skipped. Paydays the app takes away itself
+      (a changed plan, an undo) are unlinked, so they don't count as skipped.
+    - **A salary the user had scheduled by hand** within a week of the first
+      payday is taken over by the new schedule, and undo brings it back.
+    - While a payday is overdue, the next one is scheduled too, so the forecast
+      still has a payday to run to.
+    - Confirming a bill never touches pay; confirming a payday schedules only its
+      own schedule's next one.
+    - An every-N-weeks start date later than today is the first payday.
+    - **"Add your pay" asks only while there's no pay set up anywhere.** Once
+      there is, accounts that pay doesn't go into say plainly "Next 30 days". A
+      click can't start a second Salary by mistake.
+    - The amount is labelled "Each payday". For twice a month and every N weeks,
+      the summary adds "about ₮X a month", so a monthly figure typed by mistake
+      shows as double before saving. "It varies" says to leave bonuses out.
+      Estimates and history come from the schedule's own paychecks, not
+      everything filed under Salary.
+    - **Nudges point the safe way.** Pay that varies suggests raising the
+      estimate only when the *lowest* of the last six beat it by 5%. Pay that's
+      the same notices when the last two came in alike and off the plan ("Last 2
+      came in at ₮X, less than planned · update it?").
+    - Undo puts back exactly which schedule the budget ran by, and a category's
+      payday mark. Editing a schedule no longer re-marks a category the user set
+      to "Not a payday".
+    - Paydays skip archived or deleted accounts and categories. Settings says
+      so ("(archived · no paydays until it's back)"), names two earners by
+      employer, and the dialog says which pay the budget follows when it's
+      another's.
+    - Date arithmetic is in calendar days, safe across daylight saving. A
+      restore schedules paydays as a launch does.
 
 ## Consequences
 

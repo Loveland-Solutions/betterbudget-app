@@ -53,7 +53,8 @@ void main() {
       anchor: DateTime(2026, 9, 11), // a Friday
     );
     expect(pay.nextAfter(DateTime(2026, 9, 11)), DateTime(2026, 9, 25));
-    expect(pay.nextAfter(DateTime(2026, 8, 1)), DateTime(2026, 8, 14));
+    // Nothing before its first payday: a new job starting later.
+    expect(pay.nextAfter(DateTime(2026, 8, 1)), DateTime(2026, 9, 11));
     expect(pay.periodOf(DateTime(2026, 9, 19)), (
       start: DateTime(2026, 9, 11),
       end: DateTime(2026, 9, 24),
@@ -72,5 +73,29 @@ void main() {
     );
     expect(paid.start, DateTime(2026, 9, 10));
     expect(paid.end, DateTime(2026, 9, 24));
+  });
+
+  test('pay confirmed early or late belongs to its planned payday', () {
+    final pay = s(PayRule.monthly);
+    // Paid on 09.23 for the 25th (before a holiday): still the 25th's.
+    expect(pay.plannedFor(DateTime(2026, 9, 23)), DateTime(2026, 9, 25));
+    expect(pay.plannedFor(DateTime(2026, 9, 28)), DateTime(2026, 9, 25));
+    final twice = s(PayRule.twiceMonthly, day1: 10, day2: 25);
+    expect(twice.plannedFor(DateTime(2026, 9, 12)), DateTime(2026, 9, 10));
+  });
+
+  test('a weekend move can cross into the previous month', () {
+    // 2026.08.01 is a Saturday: the Friday before is 07.31.
+    final pay = s(PayRule.monthly, day1: 1);
+    expect(pay.nextAfter(DateTime(2026, 7, 20)), DateTime(2026, 7, 31));
+    // Monday after, at a month's end: 2026.10.31 is a Saturday → 11.02.
+    expect(
+      s(
+        PayRule.monthly,
+        day1: 31,
+        before: false,
+      ).nextAfter(DateTime(2026, 10, 20)),
+      DateTime(2026, 11, 2),
+    );
   });
 }

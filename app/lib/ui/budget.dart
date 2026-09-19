@@ -181,42 +181,63 @@ class _BudgetPageState extends State<_BudgetPage> {
 }
 
 /// What an income category's line says about pay: "payday · ₮2,100,000 or
-/// more monthly on the 25th · next 09.25", "payday · pay not set up" (gold,
-/// until it is), or "not a payday". When the last three paychecks all came
-/// in well above an estimate, it suggests raising it; it never does itself.
+/// more on the 10th and 25th · next 09.25", "payday · pay not set up" (gold,
+/// until it is), or "not a payday". It suggests updating the amount from
+/// the schedule's own paychecks, and never changes it itself:
+/// - pay that varies: only when even the lowest of the last six beat the
+///   estimate by 5% (a floor is meant to be beaten; one thin month mustn't
+///   leave it too high);
+/// - pay that's the same: when the last two came in alike and off the plan
+///   (a raise, a tax change, a cut), louder when it's less.
 ({String text, bool nudge}) _payNote(LedgerData data, AccountInfo c) {
   if (!c.payday) return (text: 'not a payday', nudge: false);
   final pays = data.paySchedules.where((p) => p.categoryId == c.id).toList();
   if (pays.isEmpty) return (text: 'payday · pay not set up', nudge: true);
   final p = pays.first;
+  final more = pays.length > 1 ? ' · +${pays.length - 1} more pay' : '';
   String money(int v) => formatMoney(v, showCents: v % 100 != 0);
   final came = data
       .registerAll(categoryId: c.id)
       .posted
-      .where((r) => r.accountId == p.accountId && r.amount > 0)
+      .where((r) => r.payScheduleId == p.id && r.amount > 0)
       .map((r) => r.amount)
       .toList()
       .reversed
-      .take(3)
       .toList();
-  if (p.varies &&
-      came.length == 3 &&
-      came.every((a) => a * 20 > p.amount * 21)) {
-    final low = came.reduce((a, b) => a < b ? a : b);
-    return (
-      text: 'Last 3 came in above ${money(low)} · raise the estimate?',
-      nudge: true,
-    );
+  if (p.varies && came.length >= 6) {
+    final low = came.take(6).reduce((a, b) => a < b ? a : b);
+    if (low * 20 > p.amount * 21) {
+      return (
+        text:
+            'Your lowest of the last 6 was ${money(low)} · raise the '
+            'estimate?$more',
+        nudge: true,
+      );
+    }
+  }
+  if (!p.varies && came.length >= 2 && came[0] == came[1]) {
+    final now = came[0];
+    // More than 2% off the plan either way.
+    if ((now - p.amount).abs() * 50 > p.amount) {
+      return (
+        text: now < p.amount
+            ? 'Last 2 came in at ${money(now)}, less than planned · update '
+                  'it?$more'
+            : 'Last 2 came in at ${money(now)} · update the amount?$more',
+        nudge: true,
+      );
+    }
   }
   final next = data
       .registerFor(p.accountId)
       .scheduled
-      .where((r) => r.categoryId == c.id)
+      .where((r) => r.payScheduleId == p.id)
       .firstOrNull;
   return (
     text:
         'payday · ${money(p.amount)}${p.varies ? ' or more' : ''} '
-        '${p.describe}${next == null ? '' : ' · next ${shortDate(next.date)}'}',
+        '${p.describe}${next == null ? '' : ' · next ${shortDate(next.date)}'}'
+        '$more',
     nudge: false,
   );
 }

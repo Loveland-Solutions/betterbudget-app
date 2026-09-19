@@ -42,8 +42,16 @@ class _PaySetupDialog extends StatefulWidget {
     required this.account,
     required this.today,
     required this.history,
+    required this.names,
     this.existing,
+    this.periodBy,
   });
+
+  /// Another schedule the budget runs by, if one does.
+  final PaySchedule? periodBy;
+
+  /// An account or category's name, by id.
+  final String Function(int id) names;
 
   /// Income categories to file pay under, and accounts it can go into.
   final List<AccountInfo> categories;
@@ -135,6 +143,8 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
       PayRule.monthly when _day(_day1) == null => 'Which day of the month?',
       PayRule.twiceMonthly when _day(_day1) == null || _day(_day2) == null =>
         'Which two days of the month?',
+      PayRule.twiceMonthly when _day(_day1) == _day(_day2) =>
+        'Two different days of the month',
       PayRule.everyWeeks when _weeksValue == null => 'Every how many weeks?',
       PayRule.everyWeeks when _anchorValue == null =>
         'When is a payday? (${fullDate(widget.today)})',
@@ -364,9 +374,13 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     ),
                   ),
                   if (_varies)
-                    hint('Hourly, overtime, bonuses: it changes each time.'),
+                    hint(
+                      'Hourly, shifts, overtime: it changes each time. Leave '
+                      'bonuses out; they aren’t every payday.',
+                    ),
                   line(
-                    _varies ? 'Expect at least' : 'Amount',
+                    // Each payday, not the month: twice a month is two of these.
+                    _varies ? 'Expect at least' : 'Each payday',
                     Align(
                       alignment: Alignment.centerLeft,
                       child: SizedBox(
@@ -450,7 +464,12 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                             PayRule.everyWeeks => [
                               Text('Every ', style: onest(13.5)),
                               small(_weeks, 'pay-weeks-n', width: 44),
-                              Text(' weeks, from ', style: onest(13.5)),
+                              Text(
+                                _weeksValue == 1
+                                    ? ' week, from '
+                                    : ' weeks, from ',
+                                style: onest(13.5),
+                              ),
                               SizedBox(
                                 width: 130,
                                 height: 30,
@@ -510,6 +529,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       ],
                     ),
                   ),
+                  // Another schedule sets the period: "Month" here would only mean
+                  // "not this pay", so say what's in effect.
+                  if (widget.periodBy case final other? when !_byPeriod)
+                    hint(
+                      'The budget follows '
+                      '${other.payee ?? widget.names(other.categoryId)}’s pay '
+                      'periods. Pay period here moves it to this pay.',
+                      key: const ValueKey('pay-period-other'),
+                    ),
                   if (preview != null && preview.perYear > 24)
                     hint(
                       '${preview.perYear} paydays a year: two months a year '
@@ -523,7 +551,9 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     child: Text(
                       _problem ??
                           'Next payday ${fullDate(next!)} · '
-                              '${money(amount!)}${_varies ? ' or more' : ''}',
+                              '${money(amount!)}${_varies ? ' or more' : ''}'
+                              // A doubled monthly figure shows before saving.
+                              '${preview!.rule == PayRule.monthly ? '' : ' · about ${money(amount * preview.perYear ~/ 12)} a month'}',
                       key: const ValueKey('pay-summary'),
                       style: onest(
                         13,
@@ -587,7 +617,16 @@ class _BudgetSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     final pays = data.paySchedules;
     final by = data.periodSchedule;
-    String name(int id) => data.accounts[id]?.name ?? '';
+    String name(int id) {
+      final a = data.accounts[id];
+      if (a == null) return '';
+      return a.deleted
+          ? '${a.name} (deleted)'
+          : a.archived
+          ? '${a.name} (archived · no paydays until it’s back)'
+          : a.name;
+    }
+
     String money(int v) => formatMoney(v, showCents: v % 100 != 0);
 
     Widget choice(String label, bool on, VoidCallback onTap, String key) =>
@@ -669,8 +708,9 @@ class _BudgetSettings extends StatelessWidget {
                       choice(
                         pays.length == 1
                             ? 'Pay period'
-                            : 'Pay period · ${name(p.categoryId)} into '
-                                  '${name(p.accountId)}',
+                            // The employer is how people tell two apart.
+                            : 'Pay period · '
+                                  '${p.payee ?? '${name(p.categoryId)} into ${name(p.accountId)}'}',
                         by?.id == p.id,
                         () => onBudgetBy(p),
                         'budget-by-${p.id}',

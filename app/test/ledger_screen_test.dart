@@ -2600,7 +2600,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('pay-26')), findsOneWidget);
       expect(
-        find.text('Next payday 2026.09.25 · ₮2,100,000 or more'),
+        find.text(
+          'Next payday 2026.09.25 · ₮2,100,000 or more · '
+          'about ₮4,550,000 a month',
+        ),
         findsOneWidget,
       );
       await expectLater(
@@ -2685,6 +2688,13 @@ void main() {
         () => db.ensurePaydays(DateTime(2026, 9, 16)),
       );
       expect(next, hasLength(1));
+      // Paid a day early for the 17th: the next is October's (the 17th is a
+      // Saturday, so Friday the 16th), not the 17th again.
+      final after = await tester.runAsync(db.loadLedger);
+      expect(
+        after!.txns.firstWhere((t) => t.id == next!.single).date,
+        DateTime(2026, 10, 16),
+      );
       await tidy(tester, db);
     });
   });
