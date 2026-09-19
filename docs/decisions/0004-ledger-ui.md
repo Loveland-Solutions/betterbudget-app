@@ -598,6 +598,44 @@ be quietly undone.
       another's.
     - Date arithmetic is in calendar days, safe across daylight saving. A
       restore schedules paydays as a launch does.
+25. **Savings is the steps to getting financially prepared** (owner's calls,
+    2026-09-19). It follows the order of the Church's *Personal Finances for
+    Self-Reliance* course ("What Is My Current Financial Priority?", chapter 5;
+    see [self-reliance-course.md](../self-reliance-course.md)), **for everyone**.
+    Tithing is left out: "I'm not going to push tithing. I want to push getting
+    financially prepared." Six steps: one month of expenses set aside; health
+    coverage; no consumer debt; 3 to 6 months set aside; saving for retirement;
+    paying off the mortgage and student loans. **Option A of three** (a ladder).
+    Rejected: B, the payday split (tithing, then the fund, then the rest) as the
+    section itself (it may come with the budget), and C, a course companion with
+    weekly lessons (courses may be added later). Also set aside for now: the
+    earlier Growth page, balance sheet and goals concepts
+    ([personas.md](../personas.md) §2).
+    **How it works** (decided along those lines):
+    - Every step shows. **The current step is the first not done** ("Now",
+      outlined in blue); done steps have a green check. Nothing is locked: any
+      step can be **set aside** from its ⋯ and brought back (warn, don't block).
+    - **A month is a month of expenses, not pay** (the course's own wording):
+      the average of spending categories over the last 3 months (or since the
+      ledger began, from 4 weeks), rounded up. Refunds count against it; transfers,
+      card payments and opening balances don't. The user can type their own
+      ("as you typed it"); emptying it goes back to the average. With under 4
+      weeks of rows it asks for one.
+    - **The fund lives in accounts the user picks** ("Kept in Khan Savings",
+      a menu of bank accounts). Until one is picked, step 1 isn't done whatever
+      is saved.
+    - **Consumer debt** is every card or loan owing, unless marked a mortgage, a
+      student loan, or "paid in full every month" (a card used for convenience).
+      Each shows its balance, smallest first, with the course's advice: extra
+      on one at a time, smallest balance or highest interest first, then roll
+      its payment into the next. While step 1 is current, it names the debts to
+      pay only minimums on.
+    - **Health coverage and retirement are the user's answers** (the money
+      usually never passes through the ledger). "Not yet" is the default.
+    - The bigger fund aims for 3 months unless the user picks 4, 5 or 6.
+    - Answers are quiet clicks (like clearing a row); marking an account, a
+      typed month and setting a step aside toast. All of them undo and redo.
+    - Stored as an account role and a small preferences table (schema v6).
 
 ## Consequences
 

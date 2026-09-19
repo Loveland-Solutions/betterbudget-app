@@ -28,6 +28,21 @@ class Accounts extends Table {
   /// An income category whose rows end the forecast (Salary, Pension; not
   /// child allowance).
   BoolColumn get payday => boolean().withDefault(const Constant(false))();
+
+  /// What the account is for on the Savings steps (rule 25): the emergency
+  /// fund, or a loan that isn't consumer debt.
+  TextColumn get role => textEnum<AccountRole>().nullable()();
+}
+
+/// Small settings the user chose, by key. The Savings steps keep their
+/// answers here (`ready.*`).
+@DataClassName('PreferenceRow')
+class Preferences extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
 }
 
 @DataClassName('PayScheduleRow')
@@ -262,6 +277,7 @@ DateTime parseDateKey(String s) {
     Transactions,
     Entries,
     Reconciliations,
+    Preferences,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -277,7 +293,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -304,6 +320,10 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             "UPDATE accounts SET payday = 1 WHERE type = 'income'",
           );
+        }
+        if (from < 6) {
+          await m.addColumn(accounts, accounts.role);
+          await m.createTable(preferences);
         }
       });
     },
@@ -364,6 +384,7 @@ class AppDatabase extends _$AppDatabase {
       'transactions',
       'reconciliations',
       'entries',
+      'preferences',
     ];
     // A table added to the schema must be added here, or a restore drops it.
     assert(
@@ -418,6 +439,7 @@ class AppDatabase extends _$AppDatabase {
       transactions,
       entries,
       reconciliations,
+      preferences,
     },
   ).watch().asyncMap((_) => loadLedger());
 
@@ -436,6 +458,7 @@ class AppDatabase extends _$AppDatabase {
     ).map((r) => entries.map(r.data)).get();
     final recRows = await select(reconciliations).get();
     final schedules = await select(paySchedules).get();
+    final prefRows = await select(preferences).get();
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -466,8 +489,10 @@ class AppDatabase extends _$AppDatabase {
             archived: a.archivedAt != null,
             deleted: a.deletedAt != null,
             payday: a.payday,
+            role: a.role,
           ),
       ],
+      prefs: {for (final p in prefRows) p.key: p.value},
       txns: [
         for (final t in txnRows)
           TxnData(
@@ -1094,6 +1119,19 @@ class AppDatabase extends _$AppDatabase {
       sortOrder: (last ?? 0) + 1,
     );
   });
+
+  /// Marks what an account is for on the Savings steps; null clears it.
+  Future<void> setAccountRole(int accountId, AccountRole? role) =>
+      (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(role: Value(role)),
+      );
+
+  /// Sets a preference; null removes it.
+  Future<void> setPreference(String key, String? value) => value == null
+      ? (delete(preferences)..where((p) => p.key.equals(key))).go()
+      : into(preferences).insertOnConflictUpdate(
+          PreferencesCompanion.insert(key: key, value: value),
+        );
 
   Future<void> renameAccount(int accountId, String name) =>
       (update(accounts)..where((a) => a.id.equals(accountId))).write(

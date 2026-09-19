@@ -5,6 +5,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/register.dart' show SmoothHeight;
@@ -108,10 +109,86 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('savings: the steps, the fund account, answers and undo', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    expect(find.text('One month of expenses set aside'), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Pick the account'), findsOneWidget);
+
+    // Khan Savings holds the fund.
+    await tester.tap(find.byKey(const ValueKey('fund-picker')));
+    await tester.pumpAndSettle();
+    final khan = (await tester.runAsync(db.loadLedger))!.balanceSheetAccounts
+        .firstWhere((a) => a.name == 'Khan Savings');
+    await tester.tap(find.byKey(ValueKey('fund-${khan.id}')));
+    await settle(tester);
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('Kept in Khan Savings'), findsOneWidget);
+    expect(find.text('Khan Savings holds the emergency fund'), findsOneWidget);
+
+    // Type a month, so the numbers don't hang on the demo's dates.
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('month-field')),
+      '2000000',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    var data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs[ReadyKeys.month], '200000000');
+    final r = Readiness.of(data, DateTime(2026, 9, 16));
+    expect(r.fund, data.balanceOf(khan.id));
+
+    // Health is a quiet answer; ⌘Z takes it back.
+    await tester.tap(find.byKey(const ValueKey('answer-health-yes')));
+    await settle(tester);
+    expect(
+      (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.health],
+      'yes',
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/savings.png'),
+    );
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs[ReadyKeys.health], isNull);
+    // Redo puts it back.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs[ReadyKeys.health], 'yes');
+
+    // A step can be set aside, and brought back.
+    await tester.tap(find.byKey(const ValueKey('step-retirement-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('step-retirement-aside')));
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('Set aside'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
   testWidgets('sidebar sections: the one you are in expands', (tester) async {
     final db = await pumpLedger(tester);
     expect(find.text('Cash wallet'), findsOneWidget);
-    expect(find.text('Later'), findsOneWidget); // Savings
 
     await tester.tap(find.text('Budget'));
     await tester.pumpAndSettle();

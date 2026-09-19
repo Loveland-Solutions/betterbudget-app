@@ -62,6 +62,7 @@ void main() {
         );
         await db.customStatement('DROP TABLE entries_v2');
       }
+      await dropAddedInV6(db);
       await dropAddedInV5(db);
       await dropAccountColumnsAddedInV4(db);
       await db.customStatement('PRAGMA user_version = $from');
@@ -107,7 +108,7 @@ void main() {
       final backups = dir
           .listSync()
           .whereType<File>()
-          .where((f) => f.path.contains('.before-v5-from-v$from-'))
+          .where((f) => f.path.contains('.before-v${db.schemaVersion}-from-v$from-'))
           .toList();
       expect(backups, hasLength(1));
       final copy = sqlite3.open(backups.single.path);
@@ -116,6 +117,35 @@ void main() {
     });
   }
 
+  test(
+    'upgrades a v5 file: no roles, no answers, Savings starts fresh',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      final before = await db.loadLedger();
+      await dropAddedInV6(db);
+      await db.customStatement('PRAGMA user_version = 5');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final data = await db.loadLedger();
+      expect(data.accounts.values.map((a) => a.role), everyElement(isNull));
+      expect(data.prefs, isEmpty);
+      expect(data.txns.length, before.txns.length);
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v6-from-v5-')),
+      );
+      await db.setPreference('ready.health', 'yes');
+      expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
+    },
+  );
+
   test('upgrades a v4 file: income categories stay paydays', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
     addTearDown(() => dir.delete(recursive: true));
@@ -123,6 +153,7 @@ void main() {
 
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
+    await dropAddedInV6(db);
     await dropAddedInV5(db);
     await db.customStatement('PRAGMA user_version = 4');
     await db.close();
@@ -145,6 +176,7 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final before = await db.loadLedger();
+    await dropAddedInV6(db);
     await dropAddedInV5(db);
     await dropAccountColumnsAddedInV4(db);
     await db.customStatement('PRAGMA user_version = 3');
@@ -167,6 +199,12 @@ void main() {
 }
 
 /// The v3 accounts table: no archived or deleted columns.
+/// The v5 schema: no account roles or preferences.
+Future<void> dropAddedInV6(AppDatabase db) async {
+  await db.customStatement('ALTER TABLE accounts DROP COLUMN role');
+  await db.customStatement('DROP TABLE preferences');
+}
+
 Future<void> dropAccountColumnsAddedInV4(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN archived_at');
   await db.customStatement('ALTER TABLE accounts DROP COLUMN deleted_at');

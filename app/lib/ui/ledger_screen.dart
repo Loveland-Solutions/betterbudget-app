@@ -12,6 +12,7 @@ import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../domain/readiness.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
@@ -21,13 +22,14 @@ import 'theme.dart';
 part 'accounts.dart';
 part 'budget.dart';
 part 'pay_setup.dart';
+part 'savings.dart';
 
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
     defaultTargetPlatform == TargetPlatform.iOS;
 
-/// Top-level sections. Budget and Savings are placeholders; "Savings" is a
-/// working name until the section is defined. Settings opens from the gear
+/// Top-level sections. Savings holds the steps to getting financially
+/// prepared (rule 25). Settings opens from the gear
 /// under Net worth, not from a section header.
 enum AppSection { ledger, budget, savings, settings }
 
@@ -1481,6 +1483,57 @@ class _LedgerScreenState extends State<LedgerScreen> {
         delete: () => _deleteAccount(data, account),
       );
 
+  /// Marks what an account is for on the Savings steps.
+  Future<void> _setRole(
+    AccountInfo account,
+    AccountRole? role,
+    String label,
+  ) async {
+    final old = account.role;
+    if (old == role) return;
+    if (!await _accountWrite(() => db.setAccountRole(account.id, role))) {
+      return;
+    }
+    _did(
+      label,
+      undo: () => db.setAccountRole(account.id, old),
+      redo: () => db.setAccountRole(account.id, role),
+    );
+    _keysBack();
+  }
+
+  /// A menu closing leaves focus on the page, out of reach of ⌘Z; give it
+  /// back to the screen's keys unless someone is typing.
+  void _keysBack() {
+    if (!_typing) _registerFocus.requestFocus();
+  }
+
+  /// A Savings answer or setting. Answers are quiet, like clearing a row;
+  /// ⌘Z undoes them.
+  Future<void> _setPref(
+    LedgerData data,
+    String key,
+    String? value,
+    String label, {
+    bool toast = false,
+  }) async {
+    final old = data.prefs[key];
+    if (old == value) return;
+    try {
+      await db.setPreference(key, value);
+    } catch (e) {
+      _showToast('Couldn’t save: $e');
+      return;
+    }
+    _did(
+      label,
+      toast: toast,
+      undo: () => db.setPreference(key, old),
+      redo: () => db.setPreference(key, value),
+    );
+    _keysBack();
+  }
+
   Future<void> _rename(AccountInfo account, String name) async {
     final old = account.name;
     if (!await _accountWrite(() => db.renameAccount(account.id, name))) return;
@@ -1856,7 +1909,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onCreate: _createCategory,
                             onUnarchive: (c) => _archiveCategory(c, false),
                           ),
-                          _ => _PlaceholderSection(section: _section),
+                          AppSection.savings => _SavingsPage(
+                            data: data,
+                            today: dateOnly(widget.clock()),
+                            actions: _SavingsActions(
+                              setRole: _setRole,
+                              setPref: (key, value, label, {toast = false}) =>
+                                  _setPref(
+                                    data,
+                                    key,
+                                    value,
+                                    label,
+                                    toast: toast,
+                                  ),
+                            ),
+                          ),
                         },
                       ),
                     ],
@@ -2104,18 +2171,13 @@ class _Sidebar extends StatelessWidget {
       (s, a) => s + data.balanceOf(a.id),
     );
 
-    Widget header(
-      AppSection sec,
-      IconData icon,
-      String label, {
-      bool later = false,
-    }) => _SectionHeader(
-      icon: icon,
-      label: label,
-      expanded: section == sec,
-      later: later,
-      onTap: () => onSection(sec),
-    );
+    Widget header(AppSection sec, IconData icon, String label) =>
+        _SectionHeader(
+          icon: icon,
+          label: label,
+          expanded: section == sec,
+          onTap: () => onSection(sec),
+        );
 
     return Container(
       width: 240,
@@ -2177,12 +2239,7 @@ class _Sidebar extends StatelessWidget {
           const SizedBox(height: 2),
           header(AppSection.budget, Icons.pie_chart_outline_rounded, 'Budget'),
           const SizedBox(height: 2),
-          header(
-            AppSection.savings,
-            Icons.savings_outlined,
-            'Savings',
-            later: true,
-          ),
+          header(AppSection.savings, Icons.savings_outlined, 'Savings'),
           const Spacer(),
           // Settings, above Net worth, laid out like a section header so its
           // icon and label line up with theirs.
@@ -2574,15 +2631,11 @@ class _SectionHeader extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.expanded,
-    required this.later,
     required this.onTap,
   });
   final IconData icon;
   final String label;
   final bool expanded;
-
-  /// A placeholder section that isn't built yet.
-  final bool later;
   final VoidCallback onTap;
 
   @override
@@ -2620,9 +2673,6 @@ class _SectionHeaderState extends State<_SectionHeader> {
                   color: on ? Mid.ink : Mid.ink2,
                 ),
               ),
-              const Spacer(),
-              if (widget.later)
-                Text('Later', style: onest(11.5, color: Mid.ink3)),
             ],
           ),
         ),
@@ -2706,35 +2756,6 @@ class _SpillState extends State<_Spill> with SingleTickerProviderStateMixin {
     return Opacity(
       opacity: t,
       child: Transform.translate(offset: Offset(0, -8 * (1 - t)), child: child),
-    );
-  }
-}
-
-/// Stands in for Budget and Savings until they're designed.
-class _PlaceholderSection extends StatelessWidget {
-  const _PlaceholderSection({required this.section});
-  final AppSection section;
-
-  @override
-  Widget build(BuildContext context) {
-    final (icon, name) = switch (section) {
-      AppSection.budget => (Icons.pie_chart_outline_rounded, 'Budget'),
-      _ => (Icons.savings_outlined, 'Savings'),
-    };
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 32, color: Mid.ink3),
-          const SizedBox(height: 14),
-          Text(name, style: onest(22, weight: 600, letterSpacing: -0.3)),
-          const SizedBox(height: 6),
-          Text(
-            'Not built yet. The ledger comes first.',
-            style: onest(14, color: Mid.ink3),
-          ),
-        ],
-      ),
     );
   }
 }

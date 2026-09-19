@@ -8,6 +8,11 @@ enum AccountType { asset, liability, income, expense, equity }
 
 enum Cleared { uncleared, cleared, reconciled }
 
+/// What an account is for on the Savings steps (ADR 0004, rule 25). A bank
+/// account can hold the emergency fund; a card or loan is consumer debt
+/// unless it's one of the others.
+enum AccountRole { emergencyFund, mortgage, studentLoan, paidMonthly }
+
 enum RowKind { simple, split, transfer, opening }
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -24,7 +29,11 @@ class AccountInfo {
     this.archived = false,
     this.deleted = false,
     this.payday = false,
+    this.role,
   });
+
+  /// What it's for on the Savings steps; null for most accounts.
+  final AccountRole? role;
 
   /// An income category whose rows end the forecast (Salary, not child
   /// allowance).
@@ -353,7 +362,11 @@ class LedgerData {
     this.reconciliations = const [],
     this.paySchedules = const [],
     this.stoppedPaySchedules = const [],
+    this.prefs = const {},
   }) : accounts = {for (final a in accounts) a.id: a};
+
+  /// The user's small settings by key, such as the Savings answers.
+  final Map<String, String> prefs;
 
   /// Active pay schedules (rule 24).
   final List<PaySchedule> paySchedules;
