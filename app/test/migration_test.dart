@@ -108,7 +108,9 @@ void main() {
       final backups = dir
           .listSync()
           .whereType<File>()
-          .where((f) => f.path.contains('.before-v${db.schemaVersion}-from-v$from-'))
+          .where(
+            (f) => f.path.contains('.before-v${db.schemaVersion}-from-v$from-'),
+          )
           .toList();
       expect(backups, hasLength(1));
       final copy = sqlite3.open(backups.single.path);
@@ -198,13 +200,13 @@ void main() {
   });
 }
 
-/// The v3 accounts table: no archived or deleted columns.
 /// The v5 schema: no account roles or preferences.
 Future<void> dropAddedInV6(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN role');
   await db.customStatement('DROP TABLE preferences');
 }
 
+/// The v3 accounts table: no archived or deleted columns.
 Future<void> dropAccountColumnsAddedInV4(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN archived_at');
   await db.customStatement('ALTER TABLE accounts DROP COLUMN deleted_at');

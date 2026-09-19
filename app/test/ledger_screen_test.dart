@@ -183,6 +183,19 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(find.text('Set aside'), findsOneWidget);
+    // ⌘Z brings it back.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Set aside'), findsNothing);
+    expect(
+      (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.setAside],
+      isNull,
+    );
     await tidy(tester, db);
   });
 

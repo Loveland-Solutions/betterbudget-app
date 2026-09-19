@@ -28,8 +28,13 @@ abstract final class ReadyKeys {
   static const health = 'ready.health';
   static const retirement = 'ready.retirement';
 
-  /// 'yes': paying the mortgage and student loans down on purpose.
+  /// 'yes': paying the mortgage and student loans down on purpose;
+  /// 'none': there aren't any.
   static const longLoans = 'ready.longLoans';
+
+  /// The consumer debt to pay extra on, by account id; unset is the
+  /// smallest.
+  static const target = 'ready.target';
 
   /// A month of expenses the user typed, in minor units; overrides the
   /// average.
@@ -52,9 +57,14 @@ class MonthOfSpending {
     required this.typed,
     required this.days,
     required this.spent,
+    this.loanPayments = 0,
   });
 
   final int amount;
+
+  /// Of [spent], paid into a mortgage or student loan: a bill that has to
+  /// keep being paid, though it's a transfer and not spending.
+  final int loanPayments;
 
   /// Typed by the user rather than averaged.
   final bool typed;
@@ -69,15 +79,31 @@ class MonthOfSpending {
   static const minDays = 28;
 
   /// Spending categories' posted rows over the last three months (or since
-  /// the ledger began), scaled to an average month and rounded up to a whole
-  /// unit. Refunds count against spending; transfers, card payments and
-  /// opening balances aren't spending.
+  /// the first one, so an opening balance dated months earlier doesn't
+  /// thin the average), scaled to an average month and rounded up to a whole
+  /// unit. Payments into a mortgage or student loan count too. Refunds count
+  /// against spending; other transfers, card payments (the card's own
+  /// spending already counts) and opening balances don't.
   static MonthOfSpending of(LedgerData data, DateTime today) {
     final typed = int.tryParse(data.prefs[ReadyKeys.month] ?? '');
     final end = dateOnly(today);
+    bool spending(EntryData e) =>
+        data.accounts[e.accountId]?.type == AccountType.expense;
+    bool loanPayment(TxnData t, EntryData e) {
+      final a = data.accounts[e.accountId];
+      return a != null &&
+          e.amount > 0 &&
+          (a.role == AccountRole.mortgage ||
+              a.role == AccountRole.studentLoan) &&
+          t.entries.any(
+            (o) => o.id != e.id && data.accounts[o.accountId]!.isBalanceSheet,
+          );
+    }
+
     DateTime? first;
     for (final t in data.txns) {
       if (t.scheduled) continue;
+      if (!t.entries.any((e) => spending(e) || loanPayment(t, e))) continue;
       if (first == null || t.date.isBefore(first)) first = t.date;
     }
     var start = end.subtract(const Duration(days: spanDays - 1));
@@ -88,34 +114,44 @@ class MonthOfSpending {
                   .difference(DateTime.utc(start.year, start.month, start.day))
                   .inDays +
               1;
-    var spent = 0;
+    var spent = 0, loans = 0;
     for (final t in data.txns) {
       if (t.scheduled || t.date.isBefore(start) || t.date.isAfter(end)) {
         continue;
       }
       for (final e in t.entries) {
-        if (data.accounts[e.accountId]?.type == AccountType.expense) {
-          spent += e.amount;
-        }
+        if (spending(e)) spent += e.amount;
+        if (loanPayment(t, e)) loans += e.amount;
       }
     }
+    spent += loans;
     if (typed != null && typed > 0) {
       return MonthOfSpending(
         amount: typed,
         typed: true,
         days: days,
         spent: spent,
+        loanPayments: loans,
       );
     }
     if (days < minDays || spent <= 0) {
-      return MonthOfSpending(amount: 0, typed: false, days: days, spent: spent);
+      return MonthOfSpending(
+        amount: 0,
+        typed: false,
+        days: days,
+        spent: spent,
+        loanPayments: loans,
+      );
     }
-    final perMonth = spent * 365.25 / 12 / days;
+    // A month is 365.25 / 12 = 1461 / 48 days; whole units, rounded up, in
+    // integers so an exact month doesn't gain a unit.
+    final per = 48 * days * 100;
     return MonthOfSpending(
-      amount: (perMonth / 100).ceil() * 100,
+      amount: (spent * 1461 + per - 1) ~/ per * 100,
       typed: false,
       days: days,
       spent: spent,
+      loanPayments: loans,
     );
   }
 }
@@ -130,10 +166,15 @@ class Readiness {
     required this.monthsTarget,
     required this.answers,
     required this.setAside,
+    required this.longMarked,
+    required this.carriedSince,
+    required this.target,
   });
 
   factory Readiness.of(LedgerData data, DateTime today) {
-    final open = data.balanceSheetAccounts;
+    // Archived accounts are out of the picker and the lists, so they're out
+    // of the sums too: nothing counts that can't be seen and changed.
+    final open = data.openAccounts;
     final fundAccounts = [
       for (final a in open)
         if (!a.isOwed && a.role == AccountRole.emergencyFund) a,
@@ -145,19 +186,36 @@ class Readiness {
     ]..sort((a, b) => a.owed.compareTo(b.owed));
     const long = {AccountRole.mortgage, AccountRole.studentLoan};
     final months = int.tryParse(data.prefs[ReadyKeys.months] ?? '') ?? 3;
+    final consumer = owed(
+      (a) => !long.contains(a.role) && a.role != AccountRole.paidMonthly,
+    );
+    final targetId = int.tryParse(data.prefs[ReadyKeys.target] ?? '');
     return Readiness._(
+      longMarked: open.any((a) => a.isOwed && long.contains(a.role)),
+      carriedSince: {
+        for (final a in open)
+          if (a.isOwed &&
+              a.role == AccountRole.paidMonthly &&
+              data.balanceOf(a.id) < 0)
+            a.id: _carriedSince(data, a.id, dateOnly(today)),
+      }..removeWhere((_, since) => since == null),
+      target:
+          consumer.where((d) => d.account.id == targetId).firstOrNull ??
+          consumer.firstOrNull,
       month: MonthOfSpending.of(data, today),
       fundAccounts: fundAccounts,
       fund: fundAccounts.fold(0, (s, a) => s + data.balanceOf(a.id)),
-      consumerDebts: owed(
-        (a) => !long.contains(a.role) && a.role != AccountRole.paidMonthly,
-      ),
+      consumerDebts: consumer,
       longLoans: owed((a) => long.contains(a.role)),
       monthsTarget: months.clamp(3, 6),
       answers: {
         ReadyStep.health: data.prefs[ReadyKeys.health] == 'yes',
         ReadyStep.retirement: data.prefs[ReadyKeys.retirement] == 'yes',
-        ReadyStep.longLoans: data.prefs[ReadyKeys.longLoans] == 'yes',
+        ReadyStep.longLoans: switch (data.prefs[ReadyKeys.longLoans]) {
+          'yes' => true,
+          'none' => !open.any((a) => a.isOwed && long.contains(a.role)),
+          _ => false,
+        },
       },
       setAside: {
         for (final n in (data.prefs[ReadyKeys.setAside] ?? '').split(','))
@@ -183,6 +241,43 @@ class Readiness {
   final Map<ReadyStep, bool> answers;
   final Set<ReadyStep> setAside;
 
+  /// Some card or loan is marked a mortgage or student loan.
+  final bool longMarked;
+
+  /// Cards marked paid in full every month that have owed something every
+  /// day for over five weeks: since when. A warning, not a reclassing.
+  final Map<int, DateTime?> carriedSince;
+
+  /// The consumer debt to pay extra on: the one picked, or the smallest.
+  final Debt? target;
+
+  /// Paid in full: a card that owes nothing at the end of some day in the
+  /// last [_carryDays] days. Otherwise the day after it last owed nothing
+  /// (or its first row), which is when the balance started carrying.
+  static const _carryDays = 35;
+
+  static DateTime? _carriedSince(LedgerData data, int id, DateTime today) {
+    final byDay = <DateTime, int>{};
+    for (final t in data.txns) {
+      if (t.scheduled || t.date.isAfter(today)) continue;
+      for (final e in t.entries) {
+        if (e.accountId == id) byDay[t.date] = (byDay[t.date] ?? 0) + e.amount;
+      }
+    }
+    final days = byDay.keys.toList()..sort();
+    if (days.isEmpty) return null;
+    var balance = 0;
+    DateTime? lastClear;
+    for (final d in days) {
+      balance += byDay[d]!;
+      if (balance >= 0) lastClear = d;
+    }
+    final since = lastClear == null
+        ? days.first
+        : lastClear.add(const Duration(days: 1));
+    return today.difference(since).inDays > _carryDays ? since : null;
+  }
+
   int get consumerOwed => consumerDebts.fold(0, (s, d) => s + d.owed);
   int get longOwed => longLoans.fold(0, (s, d) => s + d.owed);
 
@@ -197,7 +292,9 @@ class Readiness {
     ReadyStep.oneMonth || ReadyStep.moreMonths =>
       targetOf(s) > 0 && fundAccounts.isNotEmpty && fund >= targetOf(s),
     ReadyStep.consumerDebt => consumerDebts.isEmpty,
-    ReadyStep.longLoans => longLoans.isEmpty || answers[s]!,
+    // Nothing marked isn't "paid off": the mortgage may just not be kept
+    // here. Done when there's none, when it's paid, or when paying extra.
+    ReadyStep.longLoans => (longMarked && longLoans.isEmpty) || answers[s]!,
     ReadyStep.health || ReadyStep.retirement => answers[s]!,
   };
 

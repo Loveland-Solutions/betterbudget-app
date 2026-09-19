@@ -7,7 +7,15 @@ part of 'ledger_screen.dart';
 
 /// What the page changes, each recorded for undo by the screen.
 class _SavingsActions {
-  const _SavingsActions({required this.setRole, required this.setPref});
+  const _SavingsActions({
+    required this.setRole,
+    required this.setPref,
+    required this.setAside,
+  });
+
+  /// Sets a step aside or brings it back, from the newest ledger so two
+  /// quick clicks both count.
+  final void Function(ReadyStep step, bool aside, String label) setAside;
 
   /// Marks an account (or clears it); [label] names the change for undo.
   final void Function(AccountInfo account, AccountRole? role, String label)
@@ -179,13 +187,12 @@ class _StepRow extends StatelessWidget {
             step: step,
             r: r,
             aside: aside,
-            onSetAside: (a) => actions.setPref(
-              ReadyKeys.setAside,
-              r.setAsideWith(step, a),
+            onSetAside: (a) => actions.setAside(
+              step,
+              a,
               a
                   ? '“${_stepTitle(step, r)}” set aside'
                   : '“${_stepTitle(step, r)}” back in the steps',
-              toast: true,
             ),
           ),
         ],
@@ -223,8 +230,9 @@ class _StepRow extends StatelessWidget {
                         'Type a month of your expenses.')
             : m.typed
             ? 'A month of expenses: ${_money(m.amount)}, as you typed it'
-            : 'A month of your spending: ${_money(m.amount)}, the average of '
-                  'the last ${m.days >= MonthOfSpending.spanDays ? '3 months' : '${m.days} days'}';
+            : 'A month of expenses: ${_money(m.amount)}, the average of '
+                  'the last ${m.days >= MonthOfSpending.spanDays ? '3 months' : '${m.days} days'}'
+                  '${m.loanPayments > 0 ? ', loan payments included' : ''}';
         final noFund = r.fundAccounts.isEmpty;
         return [
           if (target > 0 && !noFund) ...[
@@ -261,13 +269,15 @@ class _StepRow extends StatelessWidget {
           ],
           if (current && step == ReadyStep.moreMonths)
             guide('Enough to get through losing a job or a long illness.'),
-          if (step == ReadyStep.oneMonth || current)
+          // The fund and the month are set on step 1 only, so they never
+          // show twice; step 4 adds how many months.
+          if (step == ReadyStep.oneMonth)
             controls([
               _FundPicker(data: data, r: r, actions: actions),
               _MonthField(r: r, actions: actions),
-              if (step == ReadyStep.moreMonths)
-                _MonthsChoice(r: r, actions: actions),
             ]),
+          if (step == ReadyStep.moreMonths && current)
+            controls([_MonthsChoice(r: r, actions: actions)]),
         ];
       case ReadyStep.health:
       case ReadyStep.retirement:
@@ -320,42 +330,62 @@ class _StepRow extends StatelessWidget {
               'interest first; both get you there. When one is paid off, '
               'put its payment toward the next.',
             ),
-          for (final d in r.consumerDebts) _DebtLine(debt: d, actions: actions),
+          for (final d in r.consumerDebts)
+            _DebtLine(debt: d, r: r, actions: actions),
           for (final a in data.openAccounts)
             if (a.isOwed && a.role == AccountRole.paidMonthly)
               _DebtLine(
                 debt: (account: a, owed: -data.balanceOf(a.id)),
+                r: r,
                 actions: actions,
               ),
         ];
       case ReadyStep.longLoans:
-        final marked = [
-          for (final a in data.openAccounts)
-            if (a.isOwed &&
-                (a.role == AccountRole.mortgage ||
-                    a.role == AccountRole.studentLoan))
-              a,
-        ];
+        void answer(String? v, String label) =>
+            actions.setPref(ReadyKeys.longLoans, v, label);
+        final said = data.prefs[ReadyKeys.longLoans];
+        if (!r.longMarked) {
+          return [
+            fact(
+              r.answers[step]!
+                  ? 'You have none'
+                  : 'Do you have a mortgage or student loans?',
+            ),
+            if (r.consumerDebts.isNotEmpty && !r.answers[step]!)
+              guide('If a loan under No consumer debt is one, mark it there.'),
+            controls([
+              _Choice(
+                key: const ValueKey('answer-longLoans-none'),
+                label: 'I have none',
+                on: said == 'none',
+                onTap: () => answer('none', 'No mortgage or student loans'),
+              ),
+              _Choice(
+                key: const ValueKey('answer-longLoans-yes'),
+                label: 'Paying extra on them',
+                on: said == 'yes',
+                onTap: () => answer('yes', 'Paying extra on loans'),
+              ),
+              _Choice(
+                key: const ValueKey('answer-longLoans-no'),
+                label: 'Not yet',
+                on: said == null,
+                onTap: () => answer(null, 'Loans: not yet'),
+              ),
+            ]),
+          ];
+        }
         return [
-          fact(
-            marked.isEmpty
-                ? (r.consumerDebts.isEmpty
-                      ? 'No mortgage or student loan'
-                      : 'No mortgage or student loan marked. If one above '
-                            'is, mark it there.')
-                : r.longLoans.isEmpty
-                ? 'Paid off'
-                : '${_money(r.longOwed)} left',
-          ),
-          for (final d in r.longLoans) _DebtLine(debt: d, actions: actions),
+          fact(r.longLoans.isEmpty ? 'Paid off' : '${_money(r.longOwed)} left'),
+          for (final d in r.longLoans)
+            _DebtLine(debt: d, r: r, actions: actions),
           if (r.longLoans.isNotEmpty)
             controls([
               _Answer(
                 stepKey: step.name,
-                yes: r.answers[step]!,
+                yes: said == 'yes',
                 yesLabel: 'Paying extra',
-                onChanged: (v) => actions.setPref(
-                  ReadyKeys.longLoans,
+                onChanged: (v) => answer(
                   v ? 'yes' : null,
                   v ? 'Paying extra on loans' : 'Not paying extra on loans',
                 ),
@@ -650,6 +680,26 @@ class _MonthsChoice extends StatelessWidget {
   );
 }
 
+class _Choice extends StatelessWidget {
+  const _Choice({
+    super.key,
+    required this.label,
+    required this.on,
+    required this.onTap,
+  });
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => BarButton(
+    label: label,
+    active: on,
+    color: on ? Mid.blue : Mid.ink2,
+    onTap: onTap,
+  );
+}
+
 class _Answer extends StatelessWidget {
   const _Answer({
     required this.stepKey,
@@ -692,14 +742,18 @@ String _roleWords(AccountRole? role) => switch (role) {
 
 /// A card or loan, what's owed on it, and what it counts as.
 class _DebtLine extends StatelessWidget {
-  const _DebtLine({required this.debt, required this.actions});
+  const _DebtLine({required this.debt, required this.r, required this.actions});
   final Debt debt;
+  final Readiness r;
   final _SavingsActions actions;
 
   @override
   Widget build(BuildContext context) {
     final a = debt.account;
-    return Padding(
+    final consumer = r.consumerDebts.any((d) => d.account.id == a.id);
+    final target = consumer && r.target?.account.id == a.id;
+    final carried = r.carriedSince[a.id];
+    final line = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
@@ -721,6 +775,24 @@ class _DebtLine extends StatelessWidget {
           MenuAnchor(
             style: _menuStyle,
             menuChildren: [
+              if (consumer && !target)
+                MenuItemButton(
+                  key: ValueKey('debt-${a.id}-target'),
+                  onPressed: () => actions.setPref(
+                    ReadyKeys.target,
+                    '${a.id}',
+                    'Paying extra on ${a.name}',
+                    toast: true,
+                  ),
+                  style: ButtonStyle(
+                    minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
+                    overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                  ),
+                  child: Text(
+                    'Pay extra on this one',
+                    style: onest(13, color: Mid.ink2),
+                  ),
+                ),
               for (final role in <AccountRole?>[
                 null,
                 AccountRole.paidMonthly,
@@ -761,8 +833,33 @@ class _DebtLine extends StatelessWidget {
               ),
             ),
           ),
+          if (target) ...[
+            const SizedBox(width: 12),
+            Text(
+              'Pay extra here',
+              key: ValueKey('debt-${a.id}-is-target'),
+              style: onest(12.5, color: Mid.blue),
+            ),
+          ],
         ],
       ),
+    );
+    if (carried == null) return line;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        line,
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            'Owed every day since ${fullDate(carried)}: a balance is carrying '
+            'over. It’s left out of consumer debt only because it’s marked '
+            'paid in full.',
+            key: ValueKey('debt-${a.id}-carried'),
+            style: onest(12.5, color: Mid.gold, height: 1.4),
+          ),
+        ),
+      ],
     );
   }
 }

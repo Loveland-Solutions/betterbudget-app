@@ -375,7 +375,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (event is KeyDownEvent) undo ? _undo() : _redoLast();
       return KeyEventResult.handled;
     }
-    if (_typing ||
+    // Row keys act on the register; elsewhere its selection is out of sight.
+    if (_section != AppSection.ledger ||
+        _typing ||
         keys.isMetaPressed ||
         keys.isControlPressed ||
         keys.isAltPressed) {
@@ -1511,13 +1513,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// A Savings answer or setting. Answers are quiet, like clearing a row;
   /// ⌘Z undoes them.
   Future<void> _setPref(
-    LedgerData data,
     String key,
     String? value,
     String label, {
     bool toast = false,
   }) async {
-    final old = data.prefs[key];
+    // The newest ledger: two quick clicks mustn't both start from the same
+    // old answer.
+    final old = _data?.prefs[key];
     if (old == value) return;
     try {
       await db.setPreference(key, value);
@@ -1915,13 +1918,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             actions: _SavingsActions(
                               setRole: _setRole,
                               setPref: (key, value, label, {toast = false}) =>
-                                  _setPref(
-                                    data,
-                                    key,
-                                    value,
-                                    label,
-                                    toast: toast,
-                                  ),
+                                  _setPref(key, value, label, toast: toast),
+                              setAside: (step, aside, label) => _setPref(
+                                ReadyKeys.setAside,
+                                Readiness.of(
+                                  _data ?? data,
+                                  widget.clock(),
+                                ).setAsideWith(step, aside),
+                                label,
+                                toast: true,
+                              ),
                             ),
                           ),
                         },

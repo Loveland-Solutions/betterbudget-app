@@ -636,6 +636,30 @@ be quietly undone.
     - Answers are quiet clicks (like clearing a row); marking an account, a
       typed month and setting a step aside toast. All of them undo and redo.
     - Stored as an account role and a small preferences table (schema v6).
+    **From the reviews** (decided along the lines above):
+    - The month's average starts at the first spending row, so an opening
+      balance dated months back doesn't shrink it and tick step 1 early.
+      Payments into a marked mortgage or student loan count as a month's
+      expenses ("loan payments included"); card payments don't, since the
+      card's own spending already counts. Worked out in whole integers.
+    - **A check means paid off or yes, never "not marked".** With no loan
+      marked, step 6 asks: "I have none", "Paying extra on them" or "Not yet".
+    - A card marked "paid in full every month" that has owed something every
+      day for over five weeks says so in gold ("Owed every day since …"). It
+      stays the user's call.
+    - Step 3 marks one debt **"Pay extra here"**: the smallest, or one picked
+      from its menu ("Pay extra on this one").
+    - One word for the figure: "a month of expenses", the course's word.
+    - The fund and the month are set on step 1 only; step 4 adds the months.
+      Archived accounts count nowhere in Savings (they can't be seen or
+      changed there).
+    - Row keys (Delete, C) act only on the ledger, so they can't reach a
+      hidden row from Savings; answers read the newest ledger, so quick
+      clicks both count.
+    - **Later:** showing the three monthly totals under the average (a
+      student's swings); keeping the "a separate account works best" hint
+      when the fund's account is also spent from; the rate and minimum payment
+      per debt (with card due dates, personas §1).
 
 ## Consequences
 

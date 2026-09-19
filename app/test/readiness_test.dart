@@ -162,6 +162,126 @@ void main() {
     );
   });
 
+  test('an opening balance dated months back does not thin the month', () {
+    final data = ledger(days: 30);
+    final early = today.subtract(const Duration(days: 200));
+    final withOld = LedgerData(
+      accounts: data.accounts.values.toList(),
+      txns: [move(early, opening, checking, 100), ...data.txns],
+    );
+    final m = MonthOfSpending.of(withOld, today);
+    expect(m.days, 30);
+    // 3,000.00 a day × 30.4375 = 91,312.50, rounded up.
+    expect(m.amount, 9131300);
+  });
+
+  test('mortgage payments count as a month of expenses; card payments not', () {
+    final data = ledger();
+    final start = today.subtract(const Duration(days: 90));
+    final more = LedgerData(
+      accounts: data.accounts.values.toList(),
+      txns: [
+        ...data.txns,
+        move(start.add(const Duration(days: 5)), checking, mortgage, 1000000),
+        move(start.add(const Duration(days: 6)), checking, visa, 5000000),
+      ],
+    );
+    final m = MonthOfSpending.of(more, today);
+    expect(m.loanPayments, 1000000);
+    expect(m.spent, 91 * 300000 + 1000000);
+  });
+
+  test('step 6 is done only when there are none, they are paid, or extra', () {
+    // Nothing marked isn't the same as paid off.
+    var r = Readiness.of(ledger(mortgageRole: null, owedOnVisa: 0), today);
+    expect(r.longMarked, isFalse);
+    expect(r.isDone(ReadyStep.longLoans), isFalse);
+    r = Readiness.of(
+      ledger(
+        mortgageRole: null,
+        owedOnVisa: 0,
+        prefs: {ReadyKeys.longLoans: 'none'},
+      ),
+      today,
+    );
+    expect(r.isDone(ReadyStep.longLoans), isTrue);
+    // "None" stops counting once a loan is marked and owing.
+    r = Readiness.of(ledger(prefs: {ReadyKeys.longLoans: 'none'}), today);
+    expect(r.isDone(ReadyStep.longLoans), isFalse);
+  });
+
+  test('pay extra on the smallest debt, unless another is picked', () {
+    var r = Readiness.of(ledger(mortgageRole: null), today);
+    expect(r.consumerDebts.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.target!.account.name, 'Visa');
+    r = Readiness.of(
+      ledger(mortgageRole: null, prefs: {ReadyKeys.target: '$mortgage'}),
+      today,
+    );
+    expect(r.target!.account.name, 'Home loan');
+    // A pick that's paid off falls back to the smallest.
+    r = Readiness.of(ledger(prefs: {ReadyKeys.target: '$mortgage'}), today);
+    expect(r.target!.account.name, 'Visa');
+  });
+
+  test('a card marked paid monthly that carries a balance is flagged', () {
+    LedgerData withCard(List<TxnData> card) {
+      final data = ledger(owedOnVisa: 0);
+      return LedgerData(
+        accounts: [
+          for (final a in data.accounts.values)
+            a.id == visa
+                ? acct(
+                    visa,
+                    'Visa',
+                    AccountType.liability,
+                    AccountRole.paidMonthly,
+                  )
+                : a,
+        ],
+        txns: [...data.txns, ...card],
+      );
+    }
+
+    final d = today.subtract(const Duration(days: 60));
+    // Owed since 60 days ago, never paid down.
+    var r = Readiness.of(withCard([move(d, visa, food, 50000)]), today);
+    expect(r.carriedSince[visa], d);
+    expect(r.isDone(ReadyStep.consumerDebt), isTrue);
+    // Paid to zero 10 days ago, spent again since: paid in full.
+    r = Readiness.of(
+      withCard([
+        move(d, visa, food, 50000),
+        move(today.subtract(const Duration(days: 10)), checking, visa, 50000),
+        move(today.subtract(const Duration(days: 3)), visa, food, 20000),
+      ]),
+      today,
+    );
+    expect(r.carriedSince, isEmpty);
+  });
+
+  test('an archived account is out of the fund', () {
+    final data = ledger(inSavings: 9131300);
+    final archived = LedgerData(
+      accounts: [
+        for (final a in data.accounts.values)
+          a.id == savings
+              ? AccountInfo(
+                  id: savings,
+                  name: 'Savings',
+                  type: AccountType.asset,
+                  role: AccountRole.emergencyFund,
+                  archived: true,
+                )
+              : a,
+      ],
+      txns: data.txns,
+    );
+    final r = Readiness.of(archived, today);
+    expect(r.fundAccounts, isEmpty);
+    expect(r.isDone(ReadyStep.oneMonth), isFalse);
+  });
+
   group('database', () {
     late AppDatabase db;
     setUp(() => db = AppDatabase(NativeDatabase.memory()));
