@@ -19,7 +19,11 @@ class BalanceHeader extends StatelessWidget {
     required this.onReconcile,
     this.reconcile,
     this.owed = false,
+    this.onAddPay,
   });
+
+  /// No payday ahead: the forecast offers to put pay in.
+  final VoidCallback? onAddPay;
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
@@ -69,7 +73,11 @@ class BalanceHeader extends StatelessWidget {
             const SizedBox(width: 40),
             SizedBox(
               width: 440,
-              child: ForecastPanel(forecast, onOpen: onOpenScheduled),
+              child: ForecastPanel(
+                forecast,
+                onOpen: onOpenScheduled,
+                onAddPay: onAddPay,
+              ),
             ),
           ],
         ),
@@ -405,9 +413,10 @@ class _LateNote extends StatelessWidget {
 
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
-  const ForecastPanel(this.f, {super.key, required this.onOpen});
+  const ForecastPanel(this.f, {super.key, required this.onOpen, this.onAddPay});
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
+  final VoidCallback? onAddPay;
 
   @override
   Widget build(BuildContext context) {
@@ -490,6 +499,24 @@ class ForecastPanel extends StatelessWidget {
             if (late.isNotEmpty)
               Flexible(
                 child: _LateNote(late: late, today: f.start, onOpen: onOpen),
+              )
+            // Nothing to run to: the forecast can't say "until payday", so it
+            // asks for pay, every time, until it has some.
+            else if (!f.owed && payday == null && onAddPay != null)
+              Flexible(
+                child: Hoverable(
+                  key: const ValueKey('add-pay'),
+                  onTap: onAddPay,
+                  builder: (hover) => Text(
+                    ' · no payday ahead · Add your pay →',
+                    style: onest(12, color: Mid.gold).copyWith(
+                      decoration: hover ? TextDecoration.underline : null,
+                      decorationColor: Mid.gold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
           ],
         ),
@@ -1034,7 +1061,10 @@ class _BillCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          l.row.memo.isNotEmpty
+                          // Pay that varies: the forecast counts on the least.
+                          l.row.estimate != null
+                              ? '${l.row.categoryLabel} · at least, an estimate'
+                              : l.row.memo.isNotEmpty
                               ? l.row.memo
                               : l.row.categoryLabel,
                           style: onest(12, color: Mid.ink3),

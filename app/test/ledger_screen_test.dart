@@ -4,6 +4,7 @@ import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/register.dart' show SmoothHeight;
@@ -2442,10 +2443,9 @@ void main() {
       await tester.tap(find.byKey(ValueKey('category-rows-${groceries.id}')));
       await tester.pumpAndSettle();
       expect(find.text('Category: Groceries'), findsOneWidget);
-      expect(
-        find.text('2 rows · ₮276,650.50 spent since 2026.09.12'),
-        findsOneWidget,
-      );
+      // The budget's period: this month, which the chip names.
+      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('2 rows · ₮276,650.50 spent'), findsOneWidget);
       expect(find.text('Sakura Coffee'), findsNothing); // Dining out
       await expectLater(
         find.byType(LedgerScreen),
@@ -2562,6 +2562,129 @@ void main() {
       final row = after!.registerAll().posted.firstWhere((r) => r.txnId == txn);
       expect(row.cleared, Cleared.uncleared);
       expect(row.clearedIn, 'Golomt Visa');
+      await tidy(tester, db);
+    });
+  });
+
+  group('pay', () {
+    testWidgets('no payday ahead: the forecast asks for pay, and it’s saved', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      // Cash wallet has no payday to run to.
+      await tester.tap(find.text('Cash wallet').first);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('add-pay')), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('add-pay')));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Add your pay'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pay-varies')));
+      await tester.pumpAndSettle();
+      expect(find.text('Expect at least'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('pay-amount')),
+        '2100000',
+      );
+      await tester.tap(find.byKey(const ValueKey('pay-weeks')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('pay-anchor')),
+        '2026.09.11',
+      );
+      await tester.pumpAndSettle();
+      // Clicking elsewhere closes the calendar.
+      await tester.tap(find.text('Add your pay'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pay-26')), findsOneWidget);
+      expect(
+        find.text('Next payday 2026.09.25 · ₮2,100,000 or more'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/pay_setup.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
+      expect(find.text('Pay saved · next payday 2026.09.25'), findsOneWidget);
+      // The forecast runs to it now.
+      expect(find.byKey(const ValueKey('add-pay')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Salary · ₮2,100,000 or more · every 2 weeks · into Cash wallet',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/settings_budget.png'),
+      );
+      // Undo takes it all back.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      final ledger = await tester.runAsync(db.loadLedger);
+      expect(ledger!.paySchedules, isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('the Budget screen says which income is payday', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      expect(find.text('payday · pay not set up'), findsOneWidget);
+      await tester.tap(find.text('Salary'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(const ValueKey('category-payday')));
+      expect(find.text('not a payday'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('pay that varies, confirmed under the estimate', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      final ledger = await tester.runAsync(db.loadLedger);
+      final salary = ledger!.categories.firstWhere((c) => c.name == 'Salary');
+      final checking = ledger.openAccounts.first.id;
+      await tester.runAsync(
+        () => db.savePaySchedule(
+          categoryId: salary.id,
+          accountId: checking,
+          amount: 210000000,
+          varies: true,
+          rule: PayRule.monthly,
+          day1: 17,
+          today: DateTime(2026, 9, 16),
+        ),
+      );
+      await settle(tester);
+      final payday = find.text('Salary').first;
+      expect(payday, findsWidgets);
+      final row = (await tester.runAsync(db.loadLedger))!
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.estimate != null);
+      await tester.runAsync(
+        () => db.editTransaction(
+          transactionId: row.txnId,
+          accountId: checking,
+          date: DateTime(2026, 9, 16),
+          today: DateTime(2026, 9, 16),
+          amount: 200000000,
+          confirm: true,
+        ),
+      );
+      final next = await tester.runAsync(
+        () => db.ensurePaydays(DateTime(2026, 9, 16)),
+      );
+      expect(next, hasLength(1));
       await tidy(tester, db);
     });
   });

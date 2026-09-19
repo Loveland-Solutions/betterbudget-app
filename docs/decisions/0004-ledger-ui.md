@@ -100,7 +100,7 @@ be quietly undone.
    never warns. Rejected: counting it as today but running on past it (B), which says
    you're fine while rent bounces if pay is later still, and a second dashed line for
    "if it arrives today" (C), one more thing to explain.
-   **Only a row in an income category (Salary) ends the forecast.** It used to ignore
+   **Only a row in a payday income category (Salary; see rule 24) ends the forecast.** It used to ignore
    transfers in, so moving money from savings before rent still showed "Runs out", and any
    scheduled money in, even a ₮5,000 refund, ended it as if it were payday.
    **A credit card forecasts what will be owed** (owner's call): "Next 30 days",
@@ -526,6 +526,45 @@ be quietly undone.
     - Rename, Add account and "Show in sidebar" from All accounts open that
       account. Switching views with an unsaved edit stops, as clicking another
       row does.
+
+24. **Pay: paydays end the forecast, and the app asks for pay** (owner's calls,
+    2026-09-19). **Only a payday income ends a forecast** (option A of three).
+    Income categories carry a payday mark: on for Salary and Pension (every existing
+    income category kept it when upgraded), off for the rest. Child allowance on the
+    12th no longer ends the forecast before rent on the 20th. Toggle it with "Mark as
+    payday" / "Not a payday" in the category's ⋯. Rejected: ending the forecast at
+    the first income big enough to cover the bills (B), and always forecasting 30
+    days (C). **Putting in pay** (option A): a pay setup names the category, the
+    account it's paid into, who from (optional), whether it's about the same each
+    time or varies, the amount, and when it comes (monthly on a day, twice a month,
+    or every N weeks from a payday), with a weekend payday moved to the Friday
+    before or the Monday after. It opens from the forecast, from a payday category
+    on the Budget screen ("payday · pay not set up", gold, until it is; or
+    "payday · ₮2,100,000 or more on the 10th and 25th · next 09.25"), and from
+    Settings. **The next payday is always scheduled from the plan**: saving
+    schedules one, and confirming it schedules the one after at the planned
+    amount, whatever came. Rejected: a Pay section only in Settings (B), and
+    prompting after each payday with nothing scheduled (C). **The app keeps asking
+    until there's pay:** an account's forecast with no payday to run to says
+    "Next 30 days · no payday ahead · Add your pay →" in gold.
+    **Pay that varies is an estimate on the low side** (owner: "better to have too
+    much money than too little"). The setup's amount reads "Expect at least", with
+    the advice that the forecast counts on it. Your last paychecks' lowest and highest
+    show beside it. Typing more than some of them says so in gold ("Higher than 2 of
+    your last 6 paychecks: the forecast may look better than it'll be"), and it
+    still saves. Confirming under the estimate isn't "still owed". The toast says
+    "₮180,000 under the estimate", and the payday card says "at least, an
+    estimate". When the last three came in over 5% above it, the Budget screen line
+    says "Last 3 came in above ₮X · raise the estimate?". Nothing changes the
+    estimate but the user.
+    **Budget by month or pay period, the user's choice** (owner's call: people
+    paid every two weeks). It's in the pay setup and in Settings ("Budget by: Month
+    / Pay period"), and it starts on Month. A pay period needs a pay schedule; with
+    two earners, whose pay it follows is the choice. Every-two-weeks pay notes "26
+    paydays a year: two months a year have three". For now it decides the span of a
+    category's rows opened from Budget: a "This month · 09.01–09.30" (or "This pay
+    period") chip, removed with ✕ or Esc for all time. The budget's periods will use
+    the same setting.
 
 ## Consequences
 

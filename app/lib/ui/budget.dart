@@ -11,11 +11,17 @@ class _CategoryActions {
     required this.changeKind,
     required this.archive,
     required this.delete,
+    this.pay,
+    this.togglePayday,
   });
   final ValueChanged<String> rename;
   final VoidCallback changeKind;
   final VoidCallback archive;
   final VoidCallback delete;
+
+  /// Income only: set up or edit its pay, and mark it payday or not.
+  final VoidCallback? pay;
+  final VoidCallback? togglePayday;
 }
 
 class _BudgetPage extends StatefulWidget {
@@ -63,6 +69,7 @@ class _BudgetPageState extends State<_BudgetPage> {
             usage: data.categoryUsage[c.id],
             actions: widget.actionsFor(c),
             onShowRows: () => widget.onShowRows(c),
+            payNote: c.isIncome ? _payNote(data, c) : null,
           ),
         const SizedBox(height: 14),
       ],
@@ -173,6 +180,47 @@ class _BudgetPageState extends State<_BudgetPage> {
   }
 }
 
+/// What an income category's line says about pay: "payday · ₮2,100,000 or
+/// more monthly on the 25th · next 09.25", "payday · pay not set up" (gold,
+/// until it is), or "not a payday". When the last three paychecks all came
+/// in well above an estimate, it suggests raising it; it never does itself.
+({String text, bool nudge}) _payNote(LedgerData data, AccountInfo c) {
+  if (!c.payday) return (text: 'not a payday', nudge: false);
+  final pays = data.paySchedules.where((p) => p.categoryId == c.id).toList();
+  if (pays.isEmpty) return (text: 'payday · pay not set up', nudge: true);
+  final p = pays.first;
+  String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+  final came = data
+      .registerAll(categoryId: c.id)
+      .posted
+      .where((r) => r.accountId == p.accountId && r.amount > 0)
+      .map((r) => r.amount)
+      .toList()
+      .reversed
+      .take(3)
+      .toList();
+  if (p.varies &&
+      came.length == 3 &&
+      came.every((a) => a * 20 > p.amount * 21)) {
+    final low = came.reduce((a, b) => a < b ? a : b);
+    return (
+      text: 'Last 3 came in above ${money(low)} · raise the estimate?',
+      nudge: true,
+    );
+  }
+  final next = data
+      .registerFor(p.accountId)
+      .scheduled
+      .where((r) => r.categoryId == c.id)
+      .firstOrNull;
+  return (
+    text:
+        'payday · ${money(p.amount)}${p.varies ? ' or more' : ''} '
+        '${p.describe}${next == null ? '' : ' · next ${shortDate(next.date)}'}',
+    nudge: false,
+  );
+}
+
 /// "09.12" this year; the full date before, since a category last used in
 /// another year is the one worth archiving.
 String _lastDate(DateTime d) =>
@@ -198,9 +246,13 @@ class _CategoryRow extends StatefulWidget {
     required this.usage,
     required this.actions,
     required this.onShowRows,
+    this.payNote,
   });
   final AccountInfo category;
   final VoidCallback onShowRows;
+
+  /// Income: whether it's payday, its pay, and any nudge about the estimate.
+  final ({String text, bool nudge})? payNote;
   final CategoryUsage? usage;
   final _CategoryActions actions;
 
@@ -273,6 +325,8 @@ class _CategoryRowState extends State<_CategoryRow> {
           changeKind: a.changeKind,
           archive: a.archive,
           delete: a.delete,
+          pay: a.pay,
+          togglePayday: a.togglePayday,
         ),
       ),
       child: MouseRegion(
@@ -329,6 +383,30 @@ class _CategoryRowState extends State<_CategoryRow> {
                           ),
                         ),
                 ),
+                if (widget.payNote case final note?) ...[
+                  Flexible(
+                    child: Hoverable(
+                      key: ValueKey('pay-note-${c.id}'),
+                      onTap: widget.actions.pay,
+                      builder: (hover) => Text(
+                        note.text,
+                        style:
+                            onest(
+                              12.5,
+                              color: note.nudge ? Mid.gold : Mid.ink2,
+                            ).copyWith(
+                              decoration: hover && widget.actions.pay != null
+                                  ? TextDecoration.underline
+                                  : null,
+                              decorationColor: note.nudge ? Mid.gold : Mid.ink2,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 // Its rows, in All accounts: what the count is counting.
                 if (widget.usage == null)
                   Text(
@@ -398,6 +476,13 @@ List<Widget> _categoryMenu(AccountInfo c, _CategoryActions act) {
       );
   return [
     item('Rename', 'category-rename', () => act.rename(c.name)),
+    if (act.pay case final pay?) item('Pay…', 'category-pay', pay),
+    if (act.togglePayday case final toggle?)
+      item(
+        c.payday ? 'Not a payday' : 'Mark as payday',
+        'category-payday',
+        toggle,
+      ),
     item(
       c.isIncome ? 'Change to spending' : 'Change to income',
       'category-kind',

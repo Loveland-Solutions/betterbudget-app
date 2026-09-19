@@ -862,13 +862,12 @@ class _AllAccountsTile extends StatelessWidget {
 
 /// A filter in force on All accounts, with ✕ to take it off (Esc does too).
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.onClear});
+  const _FilterChip({super.key, required this.label, required this.onClear});
   final String label;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) => Container(
-    key: const ValueKey('filter-chip'),
     height: 30,
     padding: const EdgeInsets.only(left: 12, right: 4),
     decoration: BoxDecoration(
