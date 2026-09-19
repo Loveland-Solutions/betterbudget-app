@@ -16,7 +16,17 @@ class EntryDraft {
     required this.amount,
     this.memo,
     this.keepOwed = false,
+    this.newCategory,
+    this.account,
   });
+
+  /// All accounts: the account the new row goes in. Null in an account's
+  /// own register, where it's that account.
+  final AccountInfo? account;
+
+  /// A category typed that doesn't exist yet: the screen creates it (income
+  /// when the amount had a `+`) and files the row under it. [counter] is null.
+  final String? newCategory;
 
   /// Confirming money in that came short: keep the rest scheduled as still
   /// owed.
@@ -42,6 +52,10 @@ class EntryRowController {
   final Future<int?> Function(String payee) suggestCategory;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
+
+  /// All accounts: where new rows go. Kept between rows, so a batch from
+  /// one account is picked once.
+  AccountInfo? account;
 
   /// Set by the row: whether anything has been typed or changed.
   bool Function() isDirty = () => false;
@@ -149,10 +163,15 @@ class EntryRow extends StatefulWidget {
     this.initial,
     this.onCancel,
     this.accountName,
+    this.accountChoices,
   });
 
   /// The register's account, so a transfer can say which way it goes.
   final String? accountName;
+
+  /// All accounts, adding: the accounts a new row can go in, picked in the
+  /// last column. Null in an account's own register and when editing.
+  final List<AccountInfo>? accountChoices;
 
   final EntryRowController controller;
   final List<AccountInfo> categories;
@@ -194,6 +213,7 @@ class _EntryRowState extends State<EntryRow> {
   final _dateFocus = FocusNode(debugLabel: 'entry-date');
   final _memoFocus = FocusNode(debugLabel: 'entry-memo');
   final _categoryFocus = FocusNode(debugLabel: 'entry-category');
+  final _accountFocus = FocusNode(debugLabel: 'entry-account');
   final _amountFocus = FocusNode(debugLabel: 'entry-amount');
   String? _error;
   bool _busy = false;
@@ -211,6 +231,7 @@ class _EntryRowState extends State<EntryRow> {
 
   FocusNode get _payeeFocus => widget.controller.payeeFocus;
   List<FocusNode> get _focuses => [
+    _accountFocus,
     _dateFocus,
     _payeeFocus,
     _memoFocus,
@@ -218,10 +239,36 @@ class _EntryRowState extends State<EntryRow> {
     _amountFocus,
   ];
 
+  /// The "+ New category" line in the list: not an account yet.
+  static const _createId = -1;
+  ({String label, AccountInfo account}) _createOption(String name) => (
+    label: '+ New category “$name”',
+    account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
+  );
+
+  /// Every name the Category field knows, archived categories included: an
+  /// old row filed under one keeps it when edited.
   List<({String label, AccountInfo account})> get _counterOptions => [
     for (final c in widget.categories) (label: c.name, account: c),
-    for (final a in widget.transferTargets) (label: '→ ${a.name}', account: a),
+    for (final a in widget.transferTargets)
+      // Not a transfer to the account it's coming from.
+      if (!_picking || a.id != widget.controller.account?.id)
+        (label: '→ ${a.name}', account: a),
   ];
+
+  /// All accounts, adding: the row asks which account.
+  bool get _picking => widget.accountChoices != null && !_editing;
+
+  /// The account the row is in, for the transfer sentence.
+  String? get _here =>
+      _picking ? widget.controller.account?.name : widget.accountName;
+
+  /// What the list offers and a payee prefills: not archived categories.
+  Iterable<({String label, AccountInfo account})> get _listOptions =>
+      _counterOptions.where((o) => !o.account.archived);
+
+  /// The "+ New category" line was picked for exactly this text.
+  String? _chosenNew;
 
   @override
   void initState() {
@@ -278,16 +325,53 @@ class _EntryRowState extends State<EntryRow> {
 
   bool get _isTransfer => _category.text.trim().startsWith('→');
 
+  /// A name typed in Category that isn't one yet: saving creates it.
+  String? get _newCategory {
+    if (_initial?.lockCategory ?? false) return null;
+    final t = _category.text.trim();
+    if (t.isEmpty || t.startsWith('→')) return null;
+    final known = _counterOptions.any(
+      (o) => o.label.toLowerCase() == t.toLowerCase(),
+    );
+    return known ? null : t;
+  }
+
+  /// Why a typed name can't become a category without picking "+ New": it
+  /// starts other names ("Gro" for Groceries), or it's an account ("Golomt
+  /// Visa" meaning the transfer). Null when it can.
+  String? get _newCategoryDoubt {
+    final t = _newCategory;
+    if (t == null || _chosenNew == t) return null;
+    final q = t.toLowerCase();
+    final account = widget.transferTargets
+        .where((a) => a.name.toLowerCase() == q)
+        .firstOrNull;
+    if (account != null) return 'Did you mean “→ ${account.name}”?';
+    final near = _listOptions
+        .where((o) => o.label.toLowerCase().contains(q))
+        .map((o) => o.label)
+        .take(2)
+        .toList();
+    if (near.isEmpty) return null;
+    return '“$t” isn’t a category · pick ${near.join(' or ')}, or + New category';
+  }
+
+  /// "new income category" when the amount has a `+`: income ends forecasts.
+  String get _newCategoryNote => _amount.text.trim().startsWith('+')
+      ? 'new income category'
+      : 'new category';
+
   /// A transfer spelled out before it's added: "₮640,200.00 from TDB
   /// Checking to Golomt Visa". The category reads "→ Golomt Visa" either way,
   /// and only a `+` on the amount turns it around, which is easy to miss
   /// when entering it from the receiving account.
   String? get _transferLine {
-    final here = widget.accountName;
+    final here = _here;
     if (here == null || !_isTransfer) return null;
     final q = _category.text.trim().toLowerCase();
-    final other = widget.transferTargets
-        .where((a) => '→ ${a.name}'.toLowerCase() == q)
+    final other = _counterOptions
+        .where((o) => o.account.isBalanceSheet && o.label.toLowerCase() == q)
+        .map((o) => o.account)
         .firstOrNull;
     if (other == null) return null;
     final raw = _amount.text.trim();
@@ -352,6 +436,8 @@ class _EntryRowState extends State<EntryRow> {
   /// user's choice; this only decides where Enter sends them next.
   List<({String name, FocusNode focus})> get _missing => [
     if (_date.text.trim().isEmpty) (name: 'date', focus: _dateFocus),
+    if (_picking && widget.controller.account == null)
+      (name: 'account', focus: _accountFocus),
     if (_payee.text.trim().isEmpty &&
         !_isTransfer &&
         !(_initial?.payeeOptional ?? false))
@@ -370,7 +456,13 @@ class _EntryRowState extends State<EntryRow> {
       c.removeListener(_edited);
       c.dispose();
     }
-    for (final f in [_dateFocus, _memoFocus, _categoryFocus, _amountFocus]) {
+    for (final f in [
+      _dateFocus,
+      _memoFocus,
+      _categoryFocus,
+      _amountFocus,
+      _accountFocus,
+    ]) {
       f.dispose();
     }
     _payeeFocus.removeListener(_focusChanged);
@@ -378,14 +470,17 @@ class _EntryRowState extends State<EntryRow> {
     super.dispose();
   }
 
+  /// The account list is open: focus is in its items, still in this row.
+  bool _accountMenuOpen = false;
+
   void _focusChanged() {
-    final active = _focuses.any((f) => f.hasFocus);
+    final active = _accountMenuOpen || _focuses.any((f) => f.hasFocus);
     if (active != _active) setState(() => _active = active);
     // Clicking away from a new row with nothing in it closes the row; with
     // something typed it stays, so nothing is lost.
     if (!active && !_editing && !widget.controller.isDirty()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_focuses.any((f) => f.hasFocus)) {
+        if (mounted && !_accountMenuOpen && !_focuses.any((f) => f.hasFocus)) {
           widget.onCancel?.call();
         }
       });
@@ -395,7 +490,7 @@ class _EntryRowState extends State<EntryRow> {
   Future<bool> _prefillCategory() async {
     if (_category.text.isNotEmpty || _payee.text.trim().isEmpty) return false;
     final id = await widget.controller.suggestCategory(_payee.text.trim());
-    final match = _counterOptions.where((o) => o.account.id == id).firstOrNull;
+    final match = _listOptions.where((o) => o.account.id == id).firstOrNull;
     if (match == null || !mounted) return false;
     setState(() => _category.text = match.label);
     return true;
@@ -461,8 +556,14 @@ class _EntryRowState extends State<EntryRow> {
     FocusNode? fix;
     if (date == null) {
       (error, fix) = ('Date should look like 2026.09.16', _dateFocus);
-    } else if (!lockCategory && counter == null) {
-      (error, fix) = ('No category “${_category.text.trim()}”', _categoryFocus);
+    } else if (_picking &&
+        _category.text.trim().toLowerCase() ==
+            '→ ${widget.controller.account?.name}'.toLowerCase()) {
+      (error, fix) = ('Can’t transfer to the same account', _categoryFocus);
+    } else if (!lockCategory && counter == null && _newCategory == null) {
+      (error, fix) = ('No account “${_category.text.trim()}”', _categoryFocus);
+    } else if (!lockCategory && counter == null && _newCategoryDoubt != null) {
+      (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount && (parsed == null || parsed == 0)) {
       (error, fix) = ('Can’t read “$raw” as an amount', _amountFocus);
     }
@@ -483,6 +584,8 @@ class _EntryRowState extends State<EntryRow> {
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
+        newCategory: counter == null ? _newCategory : null,
+        account: _picking ? widget.controller.account : null,
       ),
     );
     if (!mounted) return;
@@ -494,13 +597,39 @@ class _EntryRowState extends State<EntryRow> {
     }
   }
 
+  /// The note (what's missing, the sum, an error) and Add.
+  Widget _submitLine(int? preview, bool showsMath) => Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      Flexible(child: _note(preview, showsMath)),
+      if (_hasContent || _active) ...[
+        const SizedBox(width: 10),
+        _AddButton(
+          label: _initial?.confirming ?? false
+              ? 'Confirm'
+              : (_editing ? 'Save' : 'Add'),
+          ready: _missing.isEmpty && _error == null,
+          onTap: _submit,
+        ),
+      ],
+    ],
+  );
+
   Widget _note(int? preview, bool showsMath) {
     final String text;
     final Color color;
     if (_error != null) {
       (text, color) = (_error!, Mid.coral);
     } else if (showsMath) {
-      (text, color) = ('= ${formatMoney(preview!)}', Mid.ink2);
+      (text, color) = (
+        // The new-category note stays in sight while the sum shows.
+        '= ${formatMoney(preview!)}'
+            '${_newCategory == null ? '' : ' · $_newCategoryNote'}',
+        Mid.ink2,
+      );
+    } else if (_newCategory != null) {
+      // Said before saving, so a typo doesn't quietly become a category.
+      (text, color) = (_newCategoryNote, Mid.gold);
     } else if (_hasContent && _missing.isNotEmpty) {
       final m = _missing;
       (text, color) = (
@@ -683,14 +812,26 @@ class _EntryRowState extends State<EntryRow> {
                                         focusNode: _categoryFocus,
                                         hint: 'Category',
                                         wanted: _wants('category'),
-                                        options: (q) => _counterOptions.where(
-                                          (o) => o.label.toLowerCase().contains(
-                                            q.toLowerCase(),
+                                        options: (q) => [
+                                          ..._listOptions.where(
+                                            (o) => o.label
+                                                .toLowerCase()
+                                                .contains(q.toLowerCase()),
                                           ),
-                                        ),
-                                        label: (o) => o.label,
-                                        onSelected: (_) =>
-                                            _amountFocus.requestFocus(),
+                                          if (_newCategory case final n?)
+                                            _createOption(n),
+                                        ],
+                                        label: (o) => o.account.id == _createId
+                                            ? o.account.name
+                                            : o.label,
+                                        optionText: (o) => o.label,
+                                        onSelected: (o) {
+                                          // Picked on purpose: no doubt left.
+                                          if (o.account.id == _createId) {
+                                            _chosenNew = o.account.name;
+                                          }
+                                          _amountFocus.requestFocus();
+                                        },
                                         onSubmit: _submit,
                                       ),
                                 ),
@@ -728,25 +869,45 @@ class _EntryRowState extends State<EntryRow> {
                         SizedBox(
                           width: Cols.balance,
                           height: 34,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Flexible(child: _note(preview, showsMath)),
-                              if (_hasContent || _active) ...[
-                                const SizedBox(width: 10),
-                                _AddButton(
-                                  label: _initial?.confirming ?? false
-                                      ? 'Confirm'
-                                      : (_editing ? 'Save' : 'Add'),
-                                  ready: _missing.isEmpty && _error == null,
-                                  onTap: _submit,
-                                ),
-                              ],
-                            ],
-                          ),
+                          child: _picking
+                              ? FocusTraversalOrder(
+                                  // After the amount, where it sits.
+                                  order: const NumericFocusOrder(4.5),
+                                  child: _AccountPicker(
+                                    choices: widget.accountChoices!,
+                                    value: widget.controller.account,
+                                    focusNode: _accountFocus,
+                                    wanted: _wants('account'),
+                                    onPicked: (a) => setState(() {
+                                      widget.controller.account = a;
+                                      _error = null;
+                                    }),
+                                    onMenu: (open) {
+                                      _accountMenuOpen = open;
+                                      _focusChanged();
+                                    },
+                                    onSubmit: _submit,
+                                  ),
+                                )
+                              : _submitLine(preview, showsMath),
                         ),
                       ],
                     ),
+                    // All accounts: the last column is the account, so the
+                    // note and Add sit under it.
+                    if (_picking && (_hasContent || _active))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: SizedBox(
+                          width:
+                              Cols.category +
+                              Cols.amount +
+                              Cols.balance +
+                              2 * Cols.gap,
+                          height: 30,
+                          child: _submitLine(preview, showsMath),
+                        ),
+                      ),
                     if (shortBy != null)
                       _OwedLine(
                         short: shortBy,
@@ -1275,7 +1436,11 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     required this.onSelected,
     required this.onSubmit,
     this.wanted = false,
+    this.optionText,
   });
+
+  /// How an option reads in the list, when not as it fills the field.
+  final String Function(T)? optionText;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -1304,7 +1469,12 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
         // Otherwise Enter means "add the transaction".
         final q = text.trim().toLowerCase();
         final opts = options(text);
-        final exact = opts.any((o) => label(o).toLowerCase() == q);
+        // The "+ New" line isn't a match: "Gro" + Enter picks Groceries.
+        final exact = opts.any(
+          (o) =>
+              label(o).toLowerCase() == q &&
+              (optionText == null || optionText!(o) == label(o)),
+        );
         if (q.isNotEmpty && opts.isNotEmpty && !exact) {
           onFieldSubmitted();
         } else {
@@ -1343,7 +1513,7 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                       vertical: 8,
                     ),
                     child: Text(
-                      label(list[i]),
+                      (optionText ?? label)(list[i]),
                       style: onest(
                         13,
                         color: i == highlighted ? Mid.ink : Mid.ink2,
@@ -1412,4 +1582,139 @@ class _AddButtonState extends State<_AddButton> {
       ),
     );
   }
+}
+
+/// All accounts: which account a new row goes in. Looks like a field and
+/// opens a list; Enter or Space opens it from the keyboard.
+class _AccountPicker extends StatelessWidget {
+  const _AccountPicker({
+    required this.choices,
+    required this.value,
+    required this.focusNode,
+    required this.onPicked,
+    required this.onMenu,
+    required this.onSubmit,
+    this.wanted = false,
+  });
+  final List<AccountInfo> choices;
+  final AccountInfo? value;
+  final FocusNode focusNode;
+  final ValueChanged<AccountInfo> onPicked;
+
+  /// The list opened or closed: while open, focus in it is still the row's.
+  final ValueChanged<bool> onMenu;
+
+  /// Enter with an account picked adds the row, like any field.
+  final VoidCallback onSubmit;
+  final bool wanted;
+
+  @override
+  Widget build(BuildContext context) => MenuAnchor(
+    style: const MenuStyle(
+      backgroundColor: WidgetStatePropertyAll(Mid.raised),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+      ),
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+    ),
+    alignmentOffset: const Offset(0, 4),
+    onOpen: () => onMenu(true),
+    onClose: () {
+      onMenu(false);
+      // Back to the field, so Tab and Enter carry on from here.
+      focusNode.requestFocus();
+    },
+    menuChildren: [
+      for (final a in choices)
+        MenuItemButton(
+          key: ValueKey('pick-account-${a.id}'),
+          onPressed: () => onPicked(a),
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size(200, 34)),
+            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+          ),
+          trailingIcon: a.id == value?.id
+              ? const Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+              : null,
+          child: Text(
+            a.name,
+            style: onest(13, color: a.id == value?.id ? Mid.ink : Mid.ink2),
+          ),
+        ),
+    ],
+    builder: (context, menu, _) => Focus(
+      focusNode: focusNode,
+      // Every key stops here but Tab and Esc: it isn't a text field, and a
+      // stray C or Delete must never reach the register's row shortcuts.
+      onKeyEvent: (node, e) {
+        final k = e.logicalKey;
+        if (k == LogicalKeyboardKey.tab || k == LogicalKeyboardKey.escape) {
+          return KeyEventResult.ignored;
+        }
+        if (e is! KeyDownEvent) return KeyEventResult.handled;
+        if ((k == LogicalKeyboardKey.enter ||
+                k == LogicalKeyboardKey.numpadEnter) &&
+            value != null &&
+            !menu.isOpen) {
+          onSubmit();
+        } else if (k == LogicalKeyboardKey.enter ||
+            k == LogicalKeyboardKey.numpadEnter ||
+            k == LogicalKeyboardKey.space ||
+            k == LogicalKeyboardKey.arrowDown) {
+          menu.isOpen ? menu.close() : menu.open();
+        }
+        return KeyEventResult.handled;
+      },
+      child: ListenableBuilder(
+        listenable: focusNode,
+        builder: (context, _) => GestureDetector(
+          key: const ValueKey('entry-account'),
+          onTap: () {
+            focusNode.requestFocus();
+            menu.isOpen ? menu.close() : menu.open();
+          },
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Mid.ground.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: focusNode.hasFocus || menu.isOpen
+                      ? Mid.blue
+                      : wanted
+                      ? Mid.coral.withValues(alpha: 0.6)
+                      : Colors.transparent,
+                  width: focusNode.hasFocus || menu.isOpen ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      value?.name ?? 'Account',
+                      style: onest(
+                        13.5,
+                        color: value == null ? Mid.ink3 : Mid.ink,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: Mid.ink3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

@@ -252,8 +252,8 @@ be quietly undone.
     Net worth stays pinned at the bottom. Budget and Savings are placeholders marked
     "Later" that open a "Not built yet" page. **"Savings" is a working name** until the
     section is defined. Rejected: an icon rail plus a per-section panel (B), and
-    accounts-only sidebar with sections as a top switch (C). "All accounts" waits until
-    cross-account search exists.
+    accounts-only sidebar with sections as a top switch (C). "All accounts" was first held back
+    for cross-account search; the owner asked for it with categories (rule 23).
     **Opening a section spills its contents down** (owner's request): the space opens
     and the items fade and drop into place one after another, top to bottom, while
     the sections below slide down. Opening takes 360 ms and
@@ -431,6 +431,101 @@ be quietly undone.
     - Deleting an account with no rows and no transfers skips the dialog.
     - Undo of adding an account only works while it is still empty.
     - The database refuses new rows in a deleted account.
+
+22. **Categories are managed on the Budget screen** (owner's call). Categories belong
+    to both the ledger and the budget, and one place should own them. The Budget
+    screen is where every category will be a line, so its first version is just the
+    list. It is grouped Spending and Income, and each category shows "42 rows · last
+    09.12 · 1 scheduled", which is what decides whether to keep, merge or archive it.
+    There are **no ₮ amounts yet**; the budget model (envelopes or targets, still open)
+    adds its columns to these rows. Budget no longer says "Later". Rejected, and
+    first recommended: a Categories page under Ledger, which would have become a second
+    place once the budget came; and a top-level Categories section, for the same
+    reason. **Add category** opens an inline row (name, Spending or Income; income ends
+    a forecast, like payday). **Click a name to rename it**; ⋯ or a right-click gives
+    Rename, Change to income / spending, Archive and Delete…, like accounts (rule 21).
+    **Archive** needs no dialog, since nothing is lost: the category leaves the menus
+    and the entry row, and its rows keep its name. "Show archived (n)" lists archived
+    categories with "Show in menus". **Delete with rows asks where they go** ("1 row is
+    filed under it. It moves to: [Groceries]"), then merges. The rows are moved, not
+    lost, so this isn't a block. Deleted rows move too, so undoing their delete
+    later finds a live category. An empty category just goes, with ⌘Z.
+    **A new category can be made while typing a transaction.** In the entry row, a
+    name that isn't a category shows "+ New category 'Coffee'" in the list and a gold
+    "new category" note, so a typo is visible before saving. Saving makes it (income
+    if the amount had `+`), and the toast says "Nomin Coffee added · new category
+    'Coffee'". One ⌘Z takes both back. "Gro" plus Enter still picks Groceries: the
+    "+ New" line never counts as a match.
+    **From the reviews** (decided along the lines above):
+    - An archived category's name is still known. Editing or confirming one of its
+      rows keeps it; only the lists leave it out. The first build treated it as new
+      and quietly made a second one.
+    - A typed name becomes a category only when that's clearly meant: "+ New" was
+      picked, or the name looks like nothing else. If it's part of another name,
+      saving from another field says "'Gro' isn't a category · pick Groceries, or +
+      New category". If it's an account's name, it says "Did you mean '→ Golomt
+      Visa'?". This protects against slips; it doesn't refuse anything, since "+ New"
+      is always there.
+    - The note says "new income category" when the amount has `+`, and it stays
+      beside a calculator sum.
+    - The category and its row are one write, and one undo takes both.
+    - No duplicates: adding a name that exists (any case) says so. If it's archived,
+      it comes back instead. Renaming onto another category's name offers "Merge
+      Gifts into Entertainment?", the same operation as delete-with-move.
+    - Delete counts deleted rows too, so undoing their delete later finds a category.
+      The dialog says how many are scheduled, and when moving between spending and
+      income it says what changes.
+    - A split merged into its own other line shows the category twice. Balances are
+      right; accepted until splits can be edited.
+    - The Add category row stays open for the next one. Dates from another year show
+      in full. Names sort ignoring case.
+    - The database refuses category actions on anything that isn't a live category.
+
+23. **All accounts is a view under Ledger** (owner's request, from clicking a
+    category's usage). "All accounts" sits above the account groups in the sidebar
+    and shows every account's rows in one register. **The last column is Account**,
+    in place of Balance: a running total mixing checking, a card and cash means
+    nothing. **A transfer shows once**, from the account the money leaves ("To Khan
+    Savings" in TDB Checking's row). Scheduled rows name their account where one
+    account's register says "next of 4 scheduled". **Adding a row asks for the
+    account** (owner's call: the dropdown is for adding, not filtering). It's a
+    dropdown in the Account column that starts on the account last open and stays
+    on the last one picked, so a batch from one account is picked once. The note and
+    Add move to a line under it. A row's own actions (edit, clear, categorize, Move
+    to, delete, confirm) work on its own account. **Nothing sits above the register
+    but filters** (owner's call, option A): net worth is in the sidebar, and the
+    forecast and reconcile stay per account, since "will I make it to payday?" and a
+    statement are about one account. Rejected: a slim summary line (B) and a
+    combined forecast (C). **Clicking a category's usage on the Budget screen**
+    ("2 rows · last 09.16") opens All accounts with a chip, "Category: Groceries ✕",
+    and what matched: "2 rows · ₮276,650.50 spent". A split counts only its line in
+    that category. ✕ or Esc takes the filter off. This is the first slice of Search
+    (roadmap item 10): chips for account, date and amount can join it.
+    **From the reviews** (decided along the lines above):
+    - **The picker starts on the account last open each time All accounts is
+      opened, then stays on the last pick for the batch.** A pick from days ago
+      doesn't carry on. (The first build reset after every save, so the second row
+      of a batch went to the wrong account.) It comes after Amount in Tab order.
+      With an account chosen, Enter adds; Space or ↓ opens the list. Keys pressed
+      on it never reach the row shortcuts, and hovering its list doesn't close an
+      empty row.
+    - Nothing moves money to its own account (enforced in the database). "→ Cash
+      wallet" from Cash wallet says "Can't transfer to the same account".
+    - **A transfer's symbol shows the less settled side**, with a tooltip naming
+      it ("In Golomt Visa: Uncleared…"). Clicking clears that side, and
+      Uncleared counts it. "Has my card payment landed?" can be answered here.
+    - A transfer is shown from an open account's side before an archived one's.
+    - Scheduled rows name their account even when overdue ("· due 3 days ago ·
+      TDB Checking"). Search matches account names too.
+    - **A new row that won't show under the filter or search says where it
+      went** ("Nomin added to Cash wallet · not in this view"), so it isn't typed
+      twice.
+    - The filter line counts the posted rows its total covers, gives the span,
+      and counts scheduled rows apart: "2 rows · ₮276,650.50 spent since
+      2026.09.12 · 1 scheduled". More back than spent reads "refunded".
+    - Rename, Add account and "Show in sidebar" from All accounts open that
+      account. Switching views with an unsaved edit stops, as clicking another
+      row does.
 
 ## Consequences
 

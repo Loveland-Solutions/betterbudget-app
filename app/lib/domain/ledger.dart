@@ -48,6 +48,7 @@ class AccountInfo {
   /// A credit account: what's owed reads as a positive amount, the way the
   /// bank shows it, and owing is never a warning.
   bool get isOwed => type == AccountType.liability;
+  bool get isIncome => type == AccountType.income;
   bool get isCategory =>
       type == AccountType.income || type == AccountType.expense;
 }
@@ -126,6 +127,8 @@ class RegisterRow {
     this.latestReconcile = false,
     this.incomeCategory = false,
     this.otherClosed = false,
+    this.accountId = 0,
+    this.clearedIn,
     this.balance = 0,
     this.clearedBalance = 0,
   });
@@ -165,6 +168,14 @@ class RegisterRow {
   /// A transfer whose other account is archived or deleted: that side stays
   /// where it is.
   final bool otherClosed;
+
+  /// The account this row is seen from: its own register's, or in All
+  /// accounts the one it belongs to.
+  final int accountId;
+
+  /// All accounts: the cleared state shown is this account's side of the
+  /// transfer (less settled than the side the money left).
+  final String? clearedIn;
   final int balance;
 
   /// Running total of cleared and reconciled rows only, in date order: what a
@@ -178,6 +189,36 @@ class RegisterRow {
 
   /// Income that ends a forecast: money in, filed under an income category.
   bool get isIncome => kind == RowKind.simple && amount > 0 && incomeCategory;
+
+  /// The same row with another side's cleared state (All accounts).
+  RegisterRow withSide({
+    required int entryId,
+    required Cleared cleared,
+    required String clearedIn,
+  }) => RegisterRow(
+    txnId: txnId,
+    entryId: entryId,
+    date: date,
+    payee: payee,
+    memo: memo,
+    amount: amount,
+    cleared: cleared,
+    scheduled: scheduled,
+    kind: kind,
+    categoryLabel: categoryLabel,
+    categoryId: categoryId,
+    splitLines: splitLines,
+    txnPayee: txnPayee,
+    lockedIn: lockedIn,
+    reconciledOn: reconciledOn,
+    latestReconcile: latestReconcile,
+    incomeCategory: incomeCategory,
+    otherClosed: otherClosed,
+    accountId: accountId,
+    clearedIn: clearedIn,
+    balance: balance,
+    clearedBalance: clearedBalance,
+  );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
     txnId: txnId,
@@ -198,6 +239,7 @@ class RegisterRow {
     latestReconcile: latestReconcile,
     incomeCategory: incomeCategory,
     otherClosed: otherClosed,
+    accountId: accountId,
     balance: b,
     clearedBalance: clearedTotal,
   );
@@ -262,6 +304,8 @@ class AccountSummary {
   final DateTime? reconciledOn;
 }
 
+typedef CategoryUsage = ({int rows, int scheduled, DateTime? last});
+
 typedef AccountDeletePreview = ({
   /// Rows that go with the account, and how many of those were reconciled.
   int rows,
@@ -273,6 +317,10 @@ typedef AccountDeletePreview = ({
   /// Scheduled transfers that stay on another account's forecast, by date.
   List<({String on, DateTime date})> keptScheduled,
 });
+
+/// Case-insensitive, so "coffee" sits beside "Coffee" and a duplicate shows.
+int _byName(AccountInfo a, AccountInfo b) =>
+    a.name.toLowerCase().compareTo(b.name.toLowerCase());
 
 class LedgerData {
   LedgerData({
@@ -297,9 +345,49 @@ class LedgerData {
   List<AccountInfo> get archivedAccounts =>
       balanceSheetAccounts.where((a) => a.archived).toList();
 
+  /// Categories in use: the menus and the entry row.
   List<AccountInfo> get categories =>
-      accounts.values.where((a) => a.isCategory).toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+      accounts.values
+          .where((a) => a.isCategory && !a.archived && !a.deleted)
+          .toList()
+        ..sort(_byName);
+
+  /// Every category a row can still be filed under, archived included: the
+  /// entry row knows them all and lists only [categories].
+  List<AccountInfo> get knownCategories => [
+    ...categories,
+    ...archivedCategories,
+  ];
+
+  List<AccountInfo> get archivedCategories =>
+      accounts.values
+          .where((a) => a.isCategory && a.archived && !a.deleted)
+          .toList()
+        ..sort(_byName);
+
+  /// How many live rows use each category (posted, and scheduled apart),
+  /// and the latest posted date: what decides whether to keep, merge or
+  /// archive it.
+  late final Map<int, CategoryUsage> categoryUsage = () {
+    final out = <int, CategoryUsage>{};
+    for (final t in txns) {
+      for (final id in {
+        for (final e in t.entries)
+          if (accounts[e.accountId]!.isCategory) e.accountId,
+      }) {
+        final u = out[id] ?? (rows: 0, scheduled: 0, last: null);
+        final last = u.last;
+        out[id] = t.scheduled
+            ? (rows: u.rows, scheduled: u.scheduled + 1, last: last)
+            : (
+                rows: u.rows + 1,
+                scheduled: u.scheduled,
+                last: last != null && !t.date.isAfter(last) ? last : t.date,
+              );
+      }
+    }
+    return out;
+  }();
 
   /// What deleting [accountId] takes with it, worked out the way the
   /// database does it: every row that is only its own goes; a transfer with
@@ -500,6 +588,78 @@ class LedgerData {
     return (posted: withBal, scheduled: projected);
   }
 
+  /// Every account's rows in one list (All accounts), oldest first. A
+  /// transfer shows once, from the side the money leaves. With [categoryId],
+  /// only rows filed (wholly or as a split line) under that category.
+  ({List<RegisterRow> posted, List<RegisterRow> scheduled}) registerAll({
+    int? categoryId,
+  }) => _allRegisters.putIfAbsent(categoryId, () => _registerAll(categoryId));
+
+  final _allRegisters =
+      <int?, ({List<RegisterRow> posted, List<RegisterRow> scheduled})>{};
+
+  ({List<RegisterRow> posted, List<RegisterRow> scheduled}) _registerAll(
+    int? categoryId,
+  ) {
+    final posted = <RegisterRow>[];
+    final scheduled = <RegisterRow>[];
+    for (final t in txns) {
+      if (categoryId != null &&
+          !t.entries.any((e) => e.accountId == categoryId)) {
+        continue;
+      }
+      // An open account's side before an archived one's (it has no register
+      // to edit it from), then the side money leaves.
+      final sides =
+          t.entries.where((e) {
+            final a = accounts[e.accountId]!;
+            return a.isBalanceSheet && !a.deleted;
+          }).toList()..sort((a, b) {
+            final x = accounts[a.accountId]!.archived ? 1 : 0;
+            final y = accounts[b.accountId]!.archived ? 1 : 0;
+            return x != y ? x - y : a.amount.compareTo(b.amount);
+          });
+      if (sides.isEmpty) continue;
+      var row = _row(t, sides.first);
+      // A transfer shows once, so it shows the side least settled: a card
+      // payment that left the bank but hasn't reached the card reads
+      // uncleared, and clearing it clears the card's side.
+      if (sides.length == 2 && !t.scheduled) {
+        final other = sides[1];
+        if (other.cleared.index < row.cleared.index) {
+          row = row.withSide(
+            entryId: other.id,
+            cleared: other.cleared,
+            clearedIn: accounts[other.accountId]!.name,
+          );
+        }
+      }
+      (t.scheduled ? scheduled : posted).add(row);
+    }
+    int byDate(RegisterRow a, RegisterRow b) {
+      final c = a.date.compareTo(b.date);
+      return c != 0 ? c : a.txnId.compareTo(b.txnId);
+    }
+
+    return (
+      posted: List.unmodifiable(posted..sort(byDate)),
+      scheduled: List.unmodifiable(scheduled..sort(byDate)),
+    );
+  }
+
+  /// What's filed under [categoryId], posted rows only: spent for spending
+  /// (positive), received for income (positive).
+  int categoryTotal(int categoryId) {
+    var sum = 0;
+    for (final t in txns) {
+      if (t.scheduled) continue;
+      for (final e in t.entries) {
+        if (e.accountId == categoryId) sum += e.amount;
+      }
+    }
+    return accounts[categoryId]?.isIncome ?? false ? -sum : sum;
+  }
+
   RegisterRow _row(TxnData t, EntryData e) {
     final others = t.entries.where((o) => o.id != e.id).toList();
     var kind = RowKind.simple;
@@ -558,6 +718,7 @@ class LedgerData {
       txnPayee: t.payee,
       incomeCategory: incomeCategory,
       otherClosed: otherClosed,
+      accountId: e.accountId,
       lockedIn: e.cleared == Cleared.reconciled
           ? null
           : others

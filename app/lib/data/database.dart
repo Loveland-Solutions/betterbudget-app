@@ -154,6 +154,15 @@ class MoveRecord {
   final Cleared cleared;
 }
 
+/// What [AppDatabase.deleteCategory] did: the category, and which entries
+/// moved to [into], so undo can move them back.
+class DeletedCategory {
+  const DeletedCategory(this.categoryId, this.into, this.entryIds);
+  final int categoryId;
+  final int? into;
+  final List<int> entryIds;
+}
+
 /// What [AppDatabase.deleteAccount] deleted, so undo can put it back.
 class DeletedAccount {
   const DeletedAccount(this.accountId, this.transactionIds);
@@ -470,6 +479,9 @@ class AppDatabase extends _$AppDatabase {
     return transaction(() async {
       await _assertLive(accountId);
       await _assertLive(counterAccountId);
+      if (counterAccountId == accountId) {
+        throw LockedException('It can’t move money to its own account');
+      }
       return postTransaction(
         date: date,
         payee: payee,
@@ -781,6 +793,9 @@ class AppDatabase extends _$AppDatabase {
       );
 
       if (counterAccountId != null) await _assertLive(counterAccountId);
+      if (counterAccountId == accountId) {
+        throw LockedException('It can’t move money to its own account');
+      }
       if (amount != null || counterAccountId != null) {
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {
@@ -1062,6 +1077,98 @@ class AppDatabase extends _$AppDatabase {
       AccountsCompanion(deletedAt: Value(now)),
     );
     return DeletedAccount(accountId, ids);
+  });
+
+  // ---------- categories ----------
+
+  /// A spending category, or income with [income] (it ends forecasts).
+  Future<int> createCategory(String name, {bool income = false}) => addAccount(
+    name: name.trim(),
+    type: income ? AccountType.income : AccountType.expense,
+  );
+
+  Future<void> setCategoryType(int categoryId, AccountType type) =>
+      transaction(() async {
+        if (type != AccountType.income && type != AccountType.expense) {
+          throw NotFoundException('Not a category kind');
+        }
+        await _assertCategory(categoryId);
+        await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+          AccountsCompanion(type: Value(type)),
+        );
+      });
+
+  /// Refuses anything but a live income or spending category: a wrong id
+  /// must never move a bank account's rows.
+  Future<void> _assertCategory(int id) async {
+    final a = await (select(
+      accounts,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    if (a == null ||
+        a.deletedAt != null ||
+        (a.type != AccountType.income && a.type != AccountType.expense)) {
+      throw NotFoundException('Not a category');
+    }
+  }
+
+  /// Rows filed under a category, deleted ones included.
+  Future<int> categoryEntryCount(int categoryId) async {
+    final n = entries.id.count();
+    return (selectOnly(entries)
+          ..addColumns([n])
+          ..where(entries.accountId.equals(categoryId)))
+        .map((r) => r.read(n)!)
+        .getSingle();
+  }
+
+  /// Deletes a category. With [into], every row in it moves there first (a
+  /// merge), deleted rows included so undoing their delete finds a live
+  /// category. Without, it must have no rows at all, deleted ones included.
+  Future<DeletedCategory> deleteCategory(int categoryId, {int? into}) =>
+      transaction(() async {
+        await _assertCategory(categoryId);
+        final moved = <int>[];
+        if (into != null) {
+          if (into == categoryId) throw NotFoundException('Same category');
+          await _assertCategory(into);
+          moved.addAll(
+            await (selectOnly(entries)
+                  ..addColumns([entries.id])
+                  ..where(entries.accountId.equals(categoryId)))
+                .map((r) => r.read(entries.id)!)
+                .get(),
+          );
+          await (update(entries)..where((e) => e.id.isIn(moved))).write(
+            EntriesCompanion(accountId: Value(into)),
+          );
+          final txns =
+              await (selectOnly(entries, distinct: true)
+                    ..addColumns([entries.transactionId])
+                    ..where(entries.id.isIn(moved)))
+                  .map((r) => r.read(entries.transactionId)!)
+                  .get();
+          for (final t in txns) {
+            await _touch(t);
+          }
+        } else if (await categoryEntryCount(categoryId) > 0) {
+          throw LockedException('It still has rows; pick where they go');
+        }
+        await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+          AccountsCompanion(deletedAt: Value(_now)),
+        );
+        return DeletedCategory(categoryId, into, moved);
+      });
+
+  /// Undo for [deleteCategory]: the category back, and its rows back in it.
+  Future<void> undeleteCategory(DeletedCategory d) => transaction(() async {
+    await (update(accounts)..where((a) => a.id.equals(d.categoryId))).write(
+      const AccountsCompanion(deletedAt: Value(null)),
+    );
+    final into = d.into;
+    if (into == null) return;
+    await (update(entries)
+          ..where((e) => e.id.isIn(d.entryIds) & e.accountId.equals(into)))
+        .write(EntriesCompanion(accountId: Value(d.categoryId)));
   });
 
   /// Undo for adding an account: deletes it only while nothing is in it.
