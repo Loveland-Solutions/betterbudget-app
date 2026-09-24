@@ -1657,6 +1657,117 @@ void main() {
     });
   });
 
+  testWidgets('a new ledger clears everything, keeps categories, and undoes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-new-ledger'),
+    ))!;
+    final db = AppDatabase(
+      NativeDatabase(File('${dir.path}/betterbudget.sqlite')),
+    );
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: midnightTheme(),
+          home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    });
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    Future<LedgerData> ledger() async =>
+        (await tester.runAsync(() => db.loadLedger()))!;
+
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('new-ledger')));
+    await tester.pumpAndSettle();
+
+    // Cancel changes nothing.
+    await run(find.byKey(const ValueKey('new-ledger')));
+    expect(find.text('Start a new ledger?'), findsOneWidget);
+    expect(
+      find.textContaining('These go: 19 transactions · 4 accounts'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Keep my 15 categories, with no rows in them'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/new_ledger_dialog.png'),
+    );
+    await run(find.byKey(const ValueKey('new-ledger-cancel')));
+    expect((await ledger()).txns, hasLength(19));
+
+    await run(find.byKey(const ValueKey('new-ledger')));
+    await run(find.byKey(const ValueKey('new-ledger-confirm')));
+    expect(
+      find.text('New ledger started · the old one is saved in Backups'),
+      findsOneWidget,
+    );
+    var now = await ledger();
+    expect(now.txns, isEmpty);
+    expect(now.balanceSheetAccounts, isEmpty);
+    expect(now.categories, hasLength(15));
+    expect(
+      Directory('${dir.path}/Backups').listSync().where(
+        (f) => f.path.split('/').last.startsWith('before-new-ledger-'),
+      ),
+      hasLength(1),
+    );
+
+    // An emptied ledger isn't given the demo data again.
+    await tester.runAsync(() => seedDemoIfEmpty(db, DateTime(2026, 9, 17)));
+    expect((await ledger()).txns, isEmpty);
+
+    await run(find.text('Undo'));
+    now = await ledger();
+    expect(now.txns, hasLength(19));
+    expect(now.balanceSheetAccounts, hasLength(4));
+
+    await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
+    expect((await ledger()).txns, isEmpty);
+
+    await tidy(tester, db);
+    await tester.runAsync(() => dir.delete(recursive: true));
+  });
+
+  test('a new ledger without categories starts with nothing', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await seedDemoIfEmpty(db, DateTime(2026, 9, 16));
+    await db.startNewLedger(DateTime(2026, 9, 16), keepCategories: false);
+    final ledger = await db.loadLedger();
+    expect(ledger.accounts, isEmpty);
+    expect(ledger.txns, isEmpty);
+    expect(await db.startedOwnLedger(), isTrue);
+    await seedDemoIfEmpty(db, DateTime(2026, 9, 17));
+    expect((await db.loadLedger()).accounts, isEmpty);
+    await db.close();
+  });
+
   testWidgets('old items say why Working may be off', (tester) async {
     final db = await pumpLedger(tester);
     await tester.runAsync(() async {
