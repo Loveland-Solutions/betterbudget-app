@@ -3,9 +3,11 @@ import 'database.dart';
 
 /// Synthetic demo data (never real statement data), dated relative to [today]
 /// so the register and forecast look the same whenever the app is first run.
-/// Only seeds an empty database.
+/// Only seeds an empty database, and never one the user emptied by starting
+/// a new ledger.
 Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
   if ((await db.select(db.accounts).get()).isNotEmpty) return;
+  if (await db.startedOwnLedger()) return;
 
   await db.transaction(() async {
     final checking = await db.addAccount(

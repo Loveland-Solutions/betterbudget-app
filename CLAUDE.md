@@ -2,6 +2,8 @@
 
 Read **[docs/STATUS.md](docs/STATUS.md)** first: what's built, what isn't, known bugs,
 uncommitted work, **the next step the owner asked for**, and setup. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
+The phone apps' design (record and check only, synced through a cloud folder the OS
+handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-mobile-companion.md)**.
 
 ## Unbreakable rules (from the README)
 
@@ -52,7 +54,7 @@ uncommitted work, **the next step the owner asked for**, and setup. UI decisions
   units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
   `forecast.dart`.
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
-  `dart run build_runner build`), `backup.dart` (daily copies, back up, restore),
+  `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger),
   plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`

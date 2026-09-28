@@ -183,7 +183,7 @@ class Backups {
     for (final f in all.where((f) => gone.contains(_basename(f.path)))) {
       await f.delete();
     }
-    for (final kind in ['before-restore-', 'restored-']) {
+    for (final kind in ['before-restore-', 'restored-', 'before-new-ledger-']) {
       final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.sqlite\$');
       for (final old in (await _files(pattern)).skip(_restoreKeep)) {
         await old.delete();
@@ -294,6 +294,17 @@ class Backups {
     await _deleteIncoming(dir, c.file);
     await db.replaceAllFrom(restored.path);
     return (before: before, restored: restored);
+  }
+
+  /// Saves what's here as `before-new-ledger-….sqlite` before a new ledger
+  /// replaces it, for undo and for Restore from… later.
+  Future<File> saveBeforeNewLedger(DateTime now) async {
+    final dir = await folder();
+    if (dir == null) throw StateError('No database file to save');
+    await dir.create(recursive: true);
+    final file = _unused(dir, 'before-new-ledger-', now);
+    await db.copyTo(file.path);
+    return file;
   }
 
   /// Undo and redo of a restore: puts [file] back, saving what's here first

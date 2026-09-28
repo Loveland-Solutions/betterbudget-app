@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
@@ -1764,6 +1765,63 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Clears everything for a real start once trying things out is done.
+  /// What's here is saved first, and Undo puts it back.
+  Future<void> _startNewLedger() async {
+    if (_restoring) return;
+    if (_editing?.controller.isDirty() ?? false) {
+      _showToast('Save with Enter, or press Esc to discard your changes');
+      return;
+    }
+    final data = _data;
+    if (data == null) return;
+    final keep = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => _NewLedgerDialog(
+        transactions: data.txns.length,
+        accounts: data.balanceSheetAccounts.length,
+        reconciles: data.reconciliations.length,
+        categories: data.categories.length,
+      ),
+    );
+    if (keep == null || !mounted) return;
+    _cancelEdit();
+    _endReconcile();
+    setState(() {
+      _selected = null;
+      _adding = false;
+      _all = false;
+      _newAccount = false;
+    });
+    final now = widget.clock();
+    final File before;
+    try {
+      before = await _whileRestoring(() async {
+        final saved = await _backups.saveBeforeNewLedger(now);
+        await db.startNewLedger(now, keepCategories: keep);
+        return saved;
+      });
+    } catch (e) {
+      debugPrint('New ledger failed: $e');
+      _showToast('Couldn’t start a new ledger · nothing was changed');
+      return;
+    }
+    if (!mounted) return;
+    // Earlier actions point at rows that are gone.
+    _history.clear();
+    _redo.clear();
+    _did(
+      'New ledger started',
+      undo: () =>
+          _whileRestoring(() => _backups.replaceWith(before, widget.clock())),
+      redo: () => _whileRestoring(
+        () => db.startNewLedger(widget.clock(), keepCategories: keep),
+      ),
+      message: 'New ledger started · the old one is saved in Backups',
+    );
+  }
+
   /// Runs a whole-ledger replace with input blocked, then refreshes what the
   /// entry row suggests, since the payees changed with everything else.
   Future<T> _whileRestoring<T>(Future<T> Function() replace) async {
@@ -1891,6 +1949,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             now: widget.clock,
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
+                            onNewLedger: _startNewLedger,
                             budget: _BudgetSettings(
                               data: data,
                               onBudgetBy: _budgetBy,
@@ -2368,6 +2427,7 @@ class _SettingsPage extends StatelessWidget {
     required this.now,
     required this.onBackUp,
     required this.onRestore,
+    required this.onNewLedger,
     this.archived,
     this.budget,
   });
@@ -2381,6 +2441,7 @@ class _SettingsPage extends StatelessWidget {
   final DateTime Function() now;
   final VoidCallback onBackUp;
   final VoidCallback onRestore;
+  final VoidCallback onNewLedger;
 
   @override
   Widget build(BuildContext context) {
@@ -2515,6 +2576,40 @@ class _SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   archived!,
                 ],
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                  decoration: BoxDecoration(
+                    color: Mid.panel,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Mid.rule),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Start over', style: onest(16, weight: 600)),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Done trying things out? A new ledger has no accounts '
+                        'or transactions, and can keep your categories. What '
+                        'you have now is saved first, and Undo brings it back.',
+                        style: onest(13, color: Mid.ink3),
+                      ),
+                      const SizedBox(height: 12),
+                      BarButton(
+                        key: const ValueKey('new-ledger'),
+                        label: 'Start a new ledger…',
+                        leading: const Icon(
+                          Icons.restart_alt_rounded,
+                          size: 14,
+                          color: Mid.ink3,
+                        ),
+                        onTap: onNewLedger,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -2625,6 +2720,140 @@ class _RestoreDialog extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Asks before a new ledger replaces everything, with what goes. Keeping
+/// the categories is the default; the box drops them too.
+class _NewLedgerDialog extends StatefulWidget {
+  const _NewLedgerDialog({
+    required this.transactions,
+    required this.accounts,
+    required this.reconciles,
+    required this.categories,
+  });
+  final int transactions;
+  final int accounts;
+  final int reconciles;
+  final int categories;
+
+  @override
+  State<_NewLedgerDialog> createState() => _NewLedgerDialogState();
+}
+
+class _NewLedgerDialogState extends State<_NewLedgerDialog> {
+  bool _keep = true;
+
+  @override
+  Widget build(BuildContext context) {
+    String n(int v, String one, String many) => '$v ${v == 1 ? one : many}';
+    final goes = [
+      n(widget.transactions, 'transaction', 'transactions'),
+      n(widget.accounts, 'account', 'accounts'),
+      if (widget.reconciles > 0)
+        n(widget.reconciles, 'reconcile', 'reconciles'),
+    ].join(' · ');
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Mid.coral.withValues(alpha: 0.5)),
+      ),
+      child: SizedBox(
+        width: 480,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Start a new ledger?',
+                style: onest(
+                  17,
+                  weight: 600,
+                  letterSpacing: -0.2,
+                  color: Mid.coral,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'These go: $goes.',
+                key: const ValueKey('new-ledger-goes'),
+                style: onest(13.5, color: Mid.ink, tabular: true),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'So do pay, payees, and your Budget and Savings settings.',
+                style: onest(13.5, color: Mid.ink),
+              ),
+              if (widget.categories > 0) ...[
+                const SizedBox(height: 12),
+                Hoverable(
+                  key: const ValueKey('new-ledger-keep'),
+                  onTap: () => setState(() => _keep = !_keep),
+                  builder: (hover) => Row(
+                    children: [
+                      Icon(
+                        _keep
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
+                        size: 18,
+                        color: _keep ? Mid.gold : Mid.ink3,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Keep my ${n(widget.categories, 'category', 'categories')}, '
+                        'with no rows in them',
+                        style: onest(13.5, color: hover ? Mid.ink : Mid.ink2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Text(
+                'What you have now is saved in Backups first. Undo brings it '
+                'back, and so does Restore from… later.',
+                style: onest(13, color: Mid.ink2),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  BarButton(
+                    key: const ValueKey('new-ledger-cancel'),
+                    label: 'Cancel',
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  Material(
+                    key: const ValueKey('new-ledger-confirm'),
+                    color: Mid.coral,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      onTap: () =>
+                          Navigator.of(context)
+                              .pop(_keep && widget.categories > 0),
+                      borderRadius: BorderRadius.circular(8),
+                      hoverColor: Colors.white.withValues(alpha: 0.14),
+                      child: Container(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Start a new ledger',
+                          style: onest(13, weight: 600, color: Mid.ground),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

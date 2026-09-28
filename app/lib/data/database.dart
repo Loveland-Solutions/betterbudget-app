@@ -1133,6 +1133,43 @@ class AppDatabase extends _$AppDatabase {
           PreferencesCompanion.insert(key: key, value: value),
         );
 
+  /// Set when the user starts a new ledger, so an empty ledger stays empty
+  /// instead of getting the demo data at the next launch.
+  static const startedKey = 'ledger.started';
+
+  /// Whether the user has started a ledger of their own (see [startedKey]).
+  Future<bool> startedOwnLedger() async =>
+      (await (select(
+        preferences,
+      )..where((p) => p.key.equals(startedKey))).getSingleOrNull()) !=
+      null;
+
+  /// A clean start: every account, transaction, reconcile, pay schedule,
+  /// payee and setting goes, in one write. With [keepCategories] the open
+  /// categories stay, with no rows in them. The caller saves a copy first.
+  Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
+      transaction(() async {
+        await delete(entries).go();
+        await delete(reconciliations).go();
+        await delete(transactions).go();
+        await delete(paySchedules).go();
+        await delete(payees).go();
+        await delete(preferences).go();
+        await (delete(accounts)..where(
+              (a) => keepCategories
+                  ? (a.type.isIn([
+                              AccountType.income.name,
+                              AccountType.expense.name,
+                            ]) &
+                            a.archivedAt.isNull() &
+                            a.deletedAt.isNull())
+                        .not()
+                  : const Constant(true),
+            ))
+            .go();
+        await setPreference(startedKey, dateKey(dateOnly(today)));
+      });
+
   Future<void> renameAccount(int accountId, String name) =>
       (update(accounts)..where((a) => a.id.equals(accountId))).write(
         AccountsCompanion(name: Value(name.trim())),

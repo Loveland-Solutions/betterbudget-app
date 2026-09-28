@@ -365,6 +365,15 @@ be quietly undone.
     stays quiet. The gear gets a coral dot, and Settings says "Failing · the last one
     is from …" in coral.
     Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
+    **Start over** (owner, 2026-09-24, for the alpha: "a clean start with no demo
+    accounts") is the last section of Settings: "Start a new ledger…" opens a coral
+    warning with what goes ("19 transactions · 4 accounts · 1 reconcile", then pay,
+    payees, and the Budget and Savings settings) and a box, ticked by default, to
+    keep the open categories with no rows (a default, not a required choice). What's
+    here is saved first as `before-new-ledger-….sqlite` in `Backups/`; Undo or ⌘Z
+    puts it back, and Restore from… can later. It clears the undo history like a
+    restore. A ledger emptied this way stays empty: the demo data only fills a file
+    that has never had a ledger started in it.
 
 20. **Old items say on the row why Working may be off** (owner's call, option A of
     three, from review finding G). Working leaves out scheduled rows and keeps
