@@ -40,6 +40,7 @@ class LedgerScreen extends StatefulWidget {
     required this.db,
     this.clock = DateTime.now,
     this.backups,
+    this.encrypted = false,
   });
 
   final AppDatabase db;
@@ -48,6 +49,10 @@ class LedgerScreen extends StatefulWidget {
   /// out; one is made for "Back up to…" and "Restore from…".
   final Backups? backups;
   final DateTime Function() clock;
+
+  /// The ledger is encrypted (ADR 0001): Settings says so, and whether the
+  /// recovery key was saved when it was shown. False in tests.
+  final bool encrypted;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -1950,6 +1955,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
                             onNewLedger: _startNewLedger,
+                            encrypted: widget.encrypted,
+                            recoveryKeySaved:
+                                data.prefs['security.recoveryKeySaved'] == '1',
                             budget: _BudgetSettings(
                               data: data,
                               onBudgetBy: _budgetBy,
@@ -2428,6 +2436,8 @@ class _SettingsPage extends StatelessWidget {
     required this.onBackUp,
     required this.onRestore,
     required this.onNewLedger,
+    required this.recoveryKeySaved,
+    this.encrypted = false,
     this.archived,
     this.budget,
   });
@@ -2442,6 +2452,13 @@ class _SettingsPage extends StatelessWidget {
   final VoidCallback onBackUp;
   final VoidCallback onRestore;
   final VoidCallback onNewLedger;
+
+  /// Whether the recovery key was saved or copied when it was shown (ADR
+  /// 0001): drives the coral warning below.
+  final bool recoveryKeySaved;
+
+  /// Shows the Security section; false in tests.
+  final bool encrypted;
 
   @override
   Widget build(BuildContext context) {
@@ -2575,6 +2592,42 @@ class _SettingsPage extends StatelessWidget {
                 if (archived != null) ...[
                   const SizedBox(height: 16),
                   archived!,
+                ],
+                if (encrypted) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                    decoration: BoxDecoration(
+                      color: Mid.panel,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Mid.rule),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Security', style: onest(16, weight: 600)),
+                        const SizedBox(height: 12),
+                        Text(
+                          recoveryKeySaved
+                              ? 'Your ledger and backups are encrypted. '
+                                    'Your recovery key opens them on another '
+                                    'computer, or if this one is lost. '
+                                    'BetterBudget doesn’t keep a copy of it.'
+                              : 'Your ledger and backups are encrypted. Your '
+                                    'recovery key wasn’t saved or copied when '
+                                    'it was shown, and BetterBudget doesn’t '
+                                    'keep a copy: if this computer is lost, '
+                                    'they can’t be opened.',
+                          style: onest(
+                            13,
+                            color: recoveryKeySaved ? Mid.ink3 : Mid.coral,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 Container(

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-28**
+**Last updated: 2026-09-29**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -14,8 +14,7 @@ start using with real money**; see "Next step".
 
 **Git state:** `main` has everything through PR #15 (Savings). Open, stacked:
 PR #16 `alpha-clean-start` (Start a new ledger, ADR 0005), then `encryption` on top of
-it (the cipher library, signing, the Keychain test build, goldens redrawn for macOS 27).
-The encryption feature itself isn't built yet. Keep the pattern: branch, commit, PR, merge. The owner's data
+it (draft PR #17: encryption, built and run on the owner's Mac, not yet reviewed). Keep the pattern: branch, commit, PR, merge. The owner's data
 file is at schema version 6.
 
 Visual direction and the register's UX rules are settled in
@@ -53,12 +52,8 @@ scheduled items.
 
 ### Not built yet
 
-- **Encryption.** Designed and tested, not built: the app already links SQLite3
-  Multiple Ciphers but sets no key, so the file and backups are still plain. Design and
-  test results in [ADR 0001](decisions/0001-database.md). Earlier note: the old plain
-  copies must be converted too (owner agreed, 2026-09-17). Remaining check: the Windows spike
-  first. `package:sqlite3` supports `hooks: user_defines: sqlite3: source: sqlcipher` (or
-  `sqlite3mc`) in `pubspec.yaml`.
+- **Encryption on Windows, Linux and Android** is unverified (no build machines here);
+  macOS and iOS are verified. Print for the recovery key isn't wired (Save and Copy are).
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
 - **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
@@ -181,14 +176,18 @@ start using it"):
 - [ ] **Encryption, in the alpha** (owner, 2026-09-24: "build it right the first time",
   for macOS, Windows, Linux, iOS and Android). Designed in ADR 0001: SQLite3 Multiple
   Ciphers writing SQLCipher v4, one data key per ledger in each device's secure store,
-  derived from a recovery key shown at setup (Print/Save, skippable with a coral warning
-  in Settings); Linux without a Secret Service asks for the recovery key at launch.
-  **Test build done** (2026-09-28): encrypted files, `VACUUM INTO` copies stay
-  encrypted, plain files convert in place, no slowdown; macOS and iOS builds; the
-  data-protection Keychain works on the signed Mac app. **Next: build it**: keys,
-  converting the owner's file and old backups (say how many), restore of encrypted,
-  plain and other-key backups, the recovery key screen and Settings warning, tests, both
-  reviews. Windows, Linux and Android verified when first built.
+  derived from a recovery key shown once at setup and never stored (Save/Copy,
+  skippable with a coral warning in Settings, owner 2026-09-28); Linux without a Secret Service asks for the recovery key at launch.
+  **Built** (2026-09-29, draft PR #17): keys (`keys.dart`), the cipher and conversion
+  (`encryption.dart`), restore of encrypted, plain and other-key backups, the setup
+  screen (shown once, Save/Copy, key on one line), Settings → Security (status only).
+  **One key per ledger, never replaced** (owner, 2026-09-29: "No. One key or all the
+  data is lost"). **First launch run from a plain v5 ledger on the owner's Mac:** a key
+  is made without asking, the ledger is encrypted and upgraded to v6, and every plain copy
+  in the app's folder is converted (daily copies, upgrade copies beside the database, older
+  folders), with none left readable. Fixed during that run: upgrade copies beside the
+  database were left plain, and a plain ledger with no key asked for a recovery key it
+  never had. **Next: both review passes**, then merge.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   Waiting for the owner; it's a new feature, so bring options and sketches.
 

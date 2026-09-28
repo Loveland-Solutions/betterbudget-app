@@ -40,6 +40,11 @@ dependencies:
   intl: ^0.20.3
   file_selector: ^1.1.0
   flutter_secure_storage: ^11.2.0
+  crypto: ^3.0.6
+  # Used directly in lib/data/ (encryption.dart, backup.dart) to open raw
+  # connections for the plain-to-cipher conversion and key checks, not just
+  # by drift under the hood.
+  sqlite3: ^3.5.2
 
 dev_dependencies:
   flutter_test:
@@ -53,8 +58,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.0
   build_runner: ^2.16.1
-  sqlite3: ^3.5.2
   file_selector_platform_interface: ^2.7.0
+  flutter_secure_storage_platform_interface: ^2.1.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -5,3 +5,9 @@ tdb-bank-transaction-exports/
 
 # Generated design canvas (2.6 MB, rebuilt from design/ledger sources; published copy lives online).
 design/ledger/betterbudget-ledger.html
+
+# Recovery keys saved from the app's setup screen. Never commit one: it opens the
+# ledger and every backup (ADR 0001).
+BetterBudget recovery key*.txt
+
+.DS_Store

@@ -121,11 +121,26 @@ key as a raw 256-bit value (`x'…'`), so no slow key stretching on every open.
   DPAPI, and the Secret Service (GNOME Keyring or KWallet) on Linux. **Linux without a
   Secret Service asks for the recovery key at launch**, the only case where the user types
   anything (owner, 2026-09-24).
-- **Adding a device:** type the recovery key, or scan a QR code shown on the Mac's
-  screen. Nothing goes over a network.
-- **Showing the recovery key at setup** (owner, 2026-09-24): with Print and Save, and
-  skippable (warn, don't block). Until it's saved, Settings says in coral that if this
-  computer is lost, the backups can't be opened.
+- **Adding a device:** type the recovery key. Nothing goes over a network.
+- **The recovery key is shown once and never stored** (owner, 2026-09-28: "Treat it
+  like any other key. Save it, copy it whatever, but you can only view it once, and the
+  app doesn't store it"). The setup screen shows it on one line with **Save…** (a text
+  file) and **Copy**, and says it won't be shown again. It's skippable (warn, don't
+  block): a coral line says continuing without saving or copying means it's gone. Only
+  the derived data key is kept, in the secure store, and it's never displayed. HKDF is
+  one-way, so it can't be turned back into the recovery key. **Settings → Security**
+  says the ledger is encrypted and that BetterBudget keeps no copy, in coral if the key
+  wasn't saved or copied. It has no button. A build that stored the key (for "Show
+  recovery key…") deletes that copy at the next launch.
+- **Rejected (owner, 2026-09-28):** "Show recovery key…" in Settings. The owner:
+  "that encryption doesn't seem that great if I'm able to view the master key at will".
+  Anyone at an unlocked computer could copy the key and open every future backup. Also
+  rejected: showing it behind Touch ID or the Mac password, and a QR code on the Mac for
+  adding a device (it would re-show the key). Also rejected (owner, 2026-09-29): **making a new
+  recovery key** (re-encrypting the ledger and backups). "No. One key or all the data
+  is lost." A ledger has one recovery key for its whole life. Lose it, and the
+  ledger and every backup can't be opened on another device. The setup screen's
+  warning says so.
 
 ### Converting what's there
 
