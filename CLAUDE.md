@@ -91,3 +91,5 @@ cd app && flutter analyze && flutter test
 - Goldens load Onest and Manrope explicitly. Border and fade animations need an extra
   `pump()` before capture.
 - Any font change: confirm the font has ₮ (U+20AE), Ө and Ү.
+- The app is signed with the owner's Apple team (see STATUS "Local setup notes"). An
+  unsigned build can't use the Keychain the encryption key lives in (ADR 0001).

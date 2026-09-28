@@ -39,6 +39,7 @@ dependencies:
   path_provider: ^2.1.6
   intl: ^0.20.3
   file_selector: ^1.1.0
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
@@ -105,3 +106,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# SQLite3 Multiple Ciphers instead of plain SQLite, for SQLCipher-format
+# encryption at rest on every platform (ADR 0001). Chosen over the SQLCipher
+# community build: no OpenSSL to link, and a current SQLite.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc

@@ -91,12 +91,89 @@ These are binding implementation constraints, not suggestions.
   secure store, a user who copies their file to a new machine has data that is intact
   and permanently unreadable. With no cloud copy, that is data loss.
 
+## Encryption design (owner, 2026-09-24: "build it right the first time")
+
+Targets: macOS, Windows, Linux, iOS, Android. The phone apps
+([ADR 0005](0005-mobile-companion.md)) share files through a cloud folder, so a key
+that lives on only one device isn't enough.
+
+### Library
+
+**SQLite3 Multiple Ciphers**, writing the **SQLCipher v4 file format**, selected in
+`pubspec.yaml` (`hooks: user_defines: sqlite3: source: sqlite3mc`). `package:sqlite3`
+builds it for every platform from one setting. It was chosen over the SQLCipher community
+build, which links OpenSSL on Windows, Linux and Android and ships an older SQLite. The
+files are standard SQLCipher v4, so other SQLCipher tools (DB Browser for SQLite's
+SQLCipher build) open them with the key, which keeps "open your own file without us".
+Each connection sets `PRAGMA cipher = 'sqlcipher'`, `PRAGMA legacy = 4`, then the
+key as a raw 256-bit value (`x'…'`), so no slow key stretching on every open.
+
+### Keys
+
+- **One data key**, 256 random bits. It encrypts the database, every backup, and the
+  phone snapshot and inbox files.
+- **A recovery key** the user keeps (about 25 characters in groups, plus a check
+  character against typos). The data key is derived from it (HKDF), so it alone opens the
+  ledger and any backup on any device. Changing it means re-encrypting (`PRAGMA rekey`),
+  which is rare.
+- **Each device stores the data key in its own secure store** (`flutter_secure_storage`),
+  never synced: Keychain "this device only" on macOS and iOS, Android Keystore, Windows
+  DPAPI, and the Secret Service (GNOME Keyring or KWallet) on Linux. **Linux without a
+  Secret Service asks for the recovery key at launch**, the only case where the user types
+  anything (owner, 2026-09-24).
+- **Adding a device:** type the recovery key, or scan a QR code shown on the Mac's
+  screen. Nothing goes over a network.
+- **Showing the recovery key at setup** (owner, 2026-09-24): with Print and Save, and
+  skippable (warn, don't block). Until it's saved, Settings says in coral that if this
+  computer is lost, the backups can't be opened.
+
+### Converting what's there
+
+The plain file is encrypted in place (`PRAGMA journal_mode = DELETE`, then `PRAGMA
+rekey`, then WAL again), after a plain copy is made that is removed once the encrypted
+file checks out. Existing plain backups in `Backups/` are converted too, not left behind,
+and the app says how many. A plain backup picked in Restore from… still restores, and the
+result is encrypted.
+
+### Rejected
+
+- **Key only in the device's secure store.** Backups in a cloud folder become unreadable
+  the day the computer dies, and an Android phone can't read a Mac's Keychain.
+- **A passphrase typed at every launch.** Forget it and every copy is lost, and typing it
+  at a till to check a budget is too much. An app lock (Touch ID, Face ID, Windows Hello,
+  phone PIN) can come later on top of the encryption, not instead of it.
+- **The SQLCipher community build.** OpenSSL on three platforms and an older SQLite.
+
+### Test build results (2026-09-24, this Mac)
+
+- SQLite3 Multiple Ciphers 2.5.0 on SQLite 3.53.4 builds and runs on macOS. An **iOS
+  build** (unsigned) bundles `sqlite3mc.framework`. All 179 app tests pass on it.
+- A file with the key is unreadable without it. **`VACUUM INTO` copies stay encrypted**
+  with the same key, so backups need no extra step. **A plain WAL file converts in place**
+  with `rekey`. **Speed:** 40,000 rows written and read back in about the same time
+  encrypted as plain (20–30 ms).
+- **macOS Keychain (2026-09-28):** the app is now signed with the owner's Apple
+  developer team (`5FJUXAJX9P`, "Apple Development", automatic signing) and has
+  `keychain-access-groups` = `$(AppIdentifierPrefix)com.lovelandsolutions.betterbudget`
+  in both entitlements files. The **data-protection keychain** works
+  (`usesDataProtectionKeychain: true`, the default), with `unlocked_this_device` and
+  not synchronizable, and a key written by one build is read by the next. Unsigned
+  (ad hoc) builds fail there with −34018. The login keychain worked unsigned, but it
+  isn't used, so there's nothing to migrate. The iOS project carries the same team.
+- **Signing setup notes:** this Mac lacked Apple's "WWDR G3" intermediate certificate
+  (only the one that expired in 2023 was installed), so the new certificate showed as
+  not valid. Installing `AppleWWDRCAG3.cer` from apple.com/certificateauthority fixed
+  it. The first development provisioning profile needed one `xcodebuild …
+  -allowProvisioningUpdates` run. `flutter build macos` works after that.
+- **Not yet verified:** Windows, Linux and Android. There's no Windows or Linux machine
+  here, no Android SDK on this Mac, and no `linux/` runner in the app yet. The same
+  prebuilt libraries exist for all three. Verify each when its build is first made, or
+  in CI (a GitHub Actions matrix build) once CI exists.
+
 ## Open items
 
-- **Verify SQLCipher on Windows before building on it.** Mobile and macOS are
-  well-trodden; Windows needs a bundled compiled library and has historically been the
-  rough edge. A throwaway spike opening an encrypted DB on all four targets is a cheap
-  answer to an expensive-to-discover problem.
+- **Verify the cipher library on Windows, Linux and Android** (see the test build
+  results above). macOS and iOS are verified.
 - **Attachment storage** (receipt photos as BLOB vs. on disk) is a separate decision.
   It affects whether the single-file backup story holds.
 - **Double-entry vs. transaction + splits** is a separate decision. It does not change
