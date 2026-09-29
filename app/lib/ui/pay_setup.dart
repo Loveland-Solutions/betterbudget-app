@@ -506,13 +506,13 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                         runSpacing: 6,
                         children: [
                           choice(
-                            'Same both paydays',
+                            'The same each paycheck',
                             !_split,
                             () => setState(_oneAmount),
                             'pay-amount-same',
                           ),
                           choice(
-                            'A different amount each day',
+                            'A different amount each paycheck',
                             _split,
                             () => setState(() => _split = true),
                             'pay-amount-split',

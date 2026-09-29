@@ -608,11 +608,13 @@ be quietly undone.
     - Date arithmetic is in calendar days, safe across daylight saving. A
       restore schedules paydays as a launch does.
     **Two amounts, and no regular pay** (owner said yes to both, 2026-09-29):
-    - **Twice a month can have a different amount each day** (an advance on
-      the 10th, the rest on the 25th). The default stays one amount: "Same both
-      paydays" / "A different amount each day" shows under the amount once
+    - **Twice a month can have a different amount each paycheck** (an advance on
+      the 10th, the rest on the 25th). The default stays one amount: "The same each
+      paycheck" / "A different amount each paycheck" shows under the amount once
       "Twice a month" is picked, and the second choice turns the amount into
-      "On the 10th" and "On the 25th", earlier day first. Each payday is
+      "On the 10th" and "On the 25th", earlier day first. (Owner's correction,
+      2026-09-29: "a different amount each day" was misleading; it's each
+      paycheck.) Each payday is
       scheduled at its own day's amount, a weekend move included; the summary
       shows the next payday's amount and "about" the two added together. The
       Budget screen and Settings say "₮500,000 on the 10th and ₮1,600,000 on
