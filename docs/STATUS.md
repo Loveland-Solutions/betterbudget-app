@@ -12,10 +12,12 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #17 (encryption). Branch `pay-options`:
-two pay amounts twice a month and "I don't have regular pay" (schema v7). Keep the
-pattern: branch, commit, PR, merge. The owner's data file is at schema version 6 until
-they run a v7 build.
+**Git state:** `main` has everything through PR #17 (encryption). Open: PR #18
+`pay-options` (a different amount each paycheck twice a month, "I don't have regular
+pay", "Erase everything and start over"; schema v7). The owner tried it in the app and
+said it looks good (2026-09-29); **merge #18 next**. Keep the pattern: branch, commit,
+PR, merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
+before it encrypted).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -200,8 +202,16 @@ start using it"):
   **restoring a backup under another key** by typing that key. 227 tests pass.
   Merged (PR #17). The owner questioned the Settings check ("the key shouldn't be in
   settings") and then said leave it (2026-09-29). The stronger check character makes keys saved before it invalid (test data only).
+- [x] **Pay follow-ups and a clearer clean start** (PR #18, owner tested 2026-09-29):
+  a different amount each paycheck twice a month; "I don't have regular pay"; the
+  clean start renamed **"Erase everything and start over…"**, naming each account and
+  balance that goes, with keep or erase the categories as a visible choice (ADR 0004
+  rules 19 and 24). Code review done, fixes in. 232 tests pass.
+- [ ] **The owner erases the test data** (Settings → Erase everything and start over,
+  keep categories) and starts entering real accounts. Only the owner can do this; it
+  runs inside the app with the Keychain key.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
-  Waiting for the owner; it's a new feature, so bring options and sketches.
+  **Next feature**: it's new, so bring two or three options with sketches.
 
 The rest of the list below can wait until the owner is using it for real. **Phone apps**
 are designed ([ADR 0005](decisions/0005-mobile-companion.md)) and come after the budget.
@@ -225,9 +235,9 @@ the next. Details for each item are further down (open items, roadmap, tabled).
 - [ ] 4. **Recurring** scheduled items. **Pay is done** (PR #13, rule 24): payday mark,
   pay setup, the next payday always scheduled, budget by month or pay period. Still to
   do: recurring bills (rent, СӨХ, utilities, phone), probably on the same schedule
-  model. **Both pay follow-ups built** (owner said yes, 2026-09-29; branch
-  `pay-options`, rule 24): twice a month with **an amount for each day**, and **"I
-  don't have regular pay"** (undo in Settings).
+  model. **Both pay follow-ups built** (owner said yes, 2026-09-29; PR #18, rule 24):
+  twice a month with **a different amount each paycheck**, and **"I don't have regular
+  pay"** (undo in Settings).
 - [ ] 5. A better **"not cleared" note**
 - [ ] 6. **Duplicate check on Confirm**
 - [ ] 7. **Several overdue bills** in All
