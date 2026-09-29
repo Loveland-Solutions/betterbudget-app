@@ -35,7 +35,42 @@ be quietly undone.
   | coral | `#F08A8A` | below zero, errors |
 
 - Brand colors were measured from the pixels of `assets/logo/logo-english.png`: navy
-  `#03173E`, royal `#0342B2`, gold `#C9A96B`, slate `#707784`.
+  `#03173E`, royal `#0342B2`, gold `#C9A96B`, slate `#707784`. The logo is now a bee
+  (`assets/logo/Better Budget Logo - *.svg`, 2026-09-29): wings are two B's in navy
+  `#031A42` and royal `#0342B2`, the body gold `#C9A96B` between black stripes. The
+  SVGs' leftover green fills (hidden under each shape's style) were removed.
+- **App icon (owner, 2026-09-29):** the bee on a white macOS tile, **tilted 45°** so it
+  flies up and to the right, drawn 27% larger than upright with room kept to the edge.
+  Rejected: the bee upright (smaller), and the largest tilt that fits (stinger and
+  wing crowd the edge). Made by `design/icon/app_icon.swift`; the phone apps still
+  have Flutter's icon.
+
+### Color: being redone (owner, 2026-09-29, not settled)
+
+The owner: Midnight is "a bit too dark. We need some color." Sketched on one canvas,
+https://claude.ai/artifact/DuV7bmBYHEiCpG4qBY2Wdb (the ledger screen with demo data).
+What's known so far:
+
+- **Categories get their own color** in their chip ("Lovely"). Violet Housing, orange
+  Groceries, sky Phone & internet, slate Bank fees, pink Dining out, teal Transport,
+  green income. Transfers and splits stay plain text.
+- **Dark mode must not be one color in lighter and darker shades** (owner: "I don't
+  need to stick to a dark color with a slightly less dark version of the same color").
+  Surfaces should differ from each other. This is what was wrong with Midnight, and
+  with the Dusk, Graphite and all-green sketches.
+- **A light mode is wanted** alongside dark (this reverses "a light theme is not
+  planned" below). **Charcoal & paper** was liked for it: a charcoal sidebar and
+  balance header over a light register.
+- **Dark: Forest & brass is the favorite** (deep green-black, brass for what you click,
+  bone balance card). The bone card is too bright for dark mode; offered instead: a
+  bronze card `#2B2517` (recommended) or charcoal `#1C1F1D`. Not chosen yet.
+- The owner also proposed a green palette (light `#F8FAF7`/`#35A66F`, dark
+  `#101613`/`#4CC98A`, teal secondary); sketched. Open points raised: its brand green
+  and income green are the same color, and no color in it comes from the bee logo.
+- Rejected: Dusk (lifted navy), Daylight, navy two-tone, Graphite, Espresso, Plum,
+  charcoal with a royal, teal or warm block ("all look kind of gross together"), navy
+  with copper, apricot or cream, and three uses of sage `#7FB069`. Oxblood & bone,
+  Steppe and Ink & tangerine are still on the canvas, not picked.
 - **Type: Onest, with Manrope as fallback.** Both are bundled; no font is fetched at
   runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tögrög sign
   renders as a box. Browsers hide this by substituting a system font, which is why the
@@ -723,7 +758,8 @@ be quietly undone.
 - Desktop and mobile get separate layouts over one data layer
   ([ledger-features.md §J](../ledger-features.md)). These rules are written for desktop;
   mobile must honor 1–7 and 9–16 in its own form.
-- A light theme is not planned. Midnight is a stance; revisit only if users ask.
+- ~~A light theme is not planned.~~ The owner wants a light mode (2026-09-29); see
+  "Color: being redone" above.
 - The 1440×900 window shows about five transactions under the header. Collapsing the
   header on scroll is an open idea, not a decision.
 - Golden screenshot tests (`app/test/goldens/`) pin these rules visually. Update them
