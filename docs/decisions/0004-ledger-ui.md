@@ -374,6 +374,22 @@ be quietly undone.
     puts it back, and Restore from… can later. It clears the undo history like a
     restore. A ledger emptied this way stays empty: the demo data only fills a file
     that has never had a ledger started in it.
+    **Made plain that everything goes** (owner, 2026-09-29: "it needs to be more clear
+    that all their old stuff will go away"; option A of three). "Start a new ledger"
+    read like adding a second ledger, so it's **"Erase everything and start over…"**,
+    and the card says it erases every account and transaction. The dialog, titled
+    "Erase everything and start over?", lists under "All of this is erased:" each
+    account by name with its balance as the sidebar shows it ("₮640,200 owed"), the
+    transactions with their first and last dates, then pay, reconciles, payees and
+    settings, and says "You start with no accounts and no money in the app." **The
+    categories are a visible choice** (owner: "the option to leave the categories or
+    delete them should be clearly visible"): "Your 15 categories" with "Keep them,
+    empty" (default) or "Erase them too", and a line saying what each means. The
+    button reads "Erase everything"; the toast "Everything erased · what you had is
+    saved in Backups". Still one click, saved first, undoable (warn, don't block).
+    Rejected: stronger words with counts only (B), and a before/after comparison
+    (C). The recovery-key screen's "Start a new ledger instead…" keeps its name: it
+    moves the old ledger aside, not erasing it.
 
 20. **Old items say on the row why Working may be off** (owner's call, option A of
     three, from review finding G). Working leaves out scheduled rows and keeps

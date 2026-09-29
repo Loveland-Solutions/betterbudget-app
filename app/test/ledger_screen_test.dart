@@ -1705,15 +1705,31 @@ void main() {
 
     // Cancel changes nothing.
     await run(find.byKey(const ValueKey('new-ledger')));
-    expect(find.text('Start a new ledger?'), findsOneWidget);
+    expect(find.text('Erase everything and start over?'), findsOneWidget);
+    // Each account by name with its balance, as the sidebar shows it.
+    final goes = find.byKey(const ValueKey('new-ledger-goes'));
+    for (final t in [
+      'TDB Checking',
+      '₮4,182,450',
+      'Golomt Visa',
+      '₮640,200 owed',
+      '19 transactions',
+    ]) {
+      expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
+    }
+    expect(find.text('Your 15 categories'), findsOneWidget);
     expect(
-      find.textContaining('These go: 19 transactions · 4 accounts'),
+      find.text('Kept with no rows in them, ready for your real accounts.'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('new-ledger-drop')));
+    await tester.pumpAndSettle();
     expect(
-      find.text('Keep my 15 categories, with no rows in them'),
+      find.text('You’ll add categories again on the Budget screen.'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('new-ledger-keep')));
+    await tester.pumpAndSettle();
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/new_ledger_dialog.png'),
@@ -1724,7 +1740,7 @@ void main() {
     await run(find.byKey(const ValueKey('new-ledger')));
     await run(find.byKey(const ValueKey('new-ledger-confirm')));
     expect(
-      find.text('New ledger started · the old one is saved in Backups'),
+      find.text('Everything erased · what you had is saved in Backups'),
       findsOneWidget,
     );
     var now = await ledger();
