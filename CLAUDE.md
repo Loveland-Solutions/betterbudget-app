@@ -54,13 +54,17 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
   `forecast.dart`.
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
-  `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger),
-  plus `demo_seed.dart`.
+  `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger,
+  converting plain copies), `keys.dart` (recovery key, data key, secure store),
+  `encryption.dart` (cipher pragmas, converting a plain file), plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (Midnight tokens, `Money`, `StatusGlyph`), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
   (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`
-  (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel).
+  (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel), `recovery_key_screen.dart` (the key shown
+  once at setup, the entry screen when a device has no key, the key-check dialogs),
+  `startup.dart` (what happens at launch: check the key, show a new key before storing
+  it, convert, open; tested in `test/startup_test.dart`).
 - Widget tests stand in for the macOS open and save dialogs with a fake
   `FileSelectorPlatform` (see the "backups" group); taps that start file work go
   inside `tester.runAsync`.
@@ -91,3 +95,5 @@ cd app && flutter analyze && flutter test
 - Goldens load Onest and Manrope explicitly. Border and fade animations need an extra
   `pump()` before capture.
 - Any font change: confirm the font has ₮ (U+20AE), Ө and Ү.
+- The app is signed with the owner's Apple team (see STATUS "Local setup notes"). An
+  unsigned build can't use the Keychain the encryption key lives in (ADR 0001).

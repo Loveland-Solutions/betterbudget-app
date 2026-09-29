@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -5,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
 import '../domain/pay.dart';
+import 'encryption.dart';
 
 part 'database.g.dart';
 
@@ -292,6 +295,26 @@ class AppDatabase extends _$AppDatabase {
             ),
       );
 
+  /// The real app's entry point (ADR 0001): every connection is opened with
+  /// [dataKey] applied as the SQLCipher key. A plain file left from before
+  /// encryption is converted in place first. Tests and the restore
+  /// candidate check open a plain or already-keyed executor directly with
+  /// the constructor above instead.
+  static Future<AppDatabase> openEncrypted(Uint8List dataKey) async {
+    final dir = await getApplicationSupportDirectory();
+    final file = File('${dir.path}/betterbudget.sqlite');
+    await prepareLedgerFile(file, dataKey);
+    return AppDatabase(
+      driftDatabase(
+        name: 'betterbudget',
+        native: DriftNativeOptions(
+          databaseDirectory: getApplicationSupportDirectory,
+          setup: (db) => applyCipherKey(db, dataKey),
+        ),
+      ),
+    );
+  }
+
   @override
   int get schemaVersion => 6;
 
@@ -376,7 +399,17 @@ class AppDatabase extends _$AppDatabase {
   /// which upgrades it). A file whose rows break a reference or leave a
   /// transaction unbalanced is refused and nothing changes. Watchers see the
   /// new ledger straight away.
-  Future<void> replaceAllFrom(String path) async {
+  ///
+  /// [sourceKeyBind] is the value to bind to `ATTACH ... KEY ?`: the raw-key
+  /// literal (`x'...'`, from `rawKeyLiteral` in `keys.dart`) when [path] is
+  /// SQLCipher-encrypted with this app's data key, `''` when it's a plain
+  /// file. Once
+  /// this connection has cipher pragmas set (the real, encrypted app),
+  /// attaching with no `KEY` clause at all fails outright, even for a
+  /// genuinely plain file — verified against the linked SQLite3 Multiple
+  /// Ciphers build. Leave it null only when this connection itself has no
+  /// cipher configured (tests, and any other plain executor).
+  Future<void> replaceAllFrom(String path, {String? sourceKeyBind}) async {
     const parentsFirst = [
       'accounts',
       'pay_schedules',
@@ -393,7 +426,21 @@ class AppDatabase extends _$AppDatabase {
           allTables.length == parentsFirst.length,
       'replaceAllFrom is missing a table',
     );
-    await customStatement('ATTACH DATABASE ? AS src', [path]);
+    try {
+      if (sourceKeyBind == null) {
+        await customStatement('ATTACH DATABASE ? AS src', [path]);
+      } else {
+        await customStatement('ATTACH DATABASE ? AS src KEY ?', [
+          path,
+          sourceKeyBind,
+        ]);
+      }
+    } on Object catch (e) {
+      // The error's text would include the bound key.
+      throw CipherException(
+        'Couldn’t open the backup to restore (${e.runtimeType})',
+      );
+    }
     try {
       await transaction(() async {
         for (final t in parentsFirst.reversed) {

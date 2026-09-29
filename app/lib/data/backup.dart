@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import 'database.dart';
+import 'encryption.dart';
+import 'keys.dart';
 
 /// How the daily copies are going, for the sidebar.
 @immutable
@@ -31,6 +34,7 @@ class RestoreCandidate {
     required this.madeAt,
     required this.transactions,
     required this.accounts,
+    required this.sourceKeyBind,
   });
 
   /// The working copy in `Backups/`. The picked file itself is never changed.
@@ -38,6 +42,12 @@ class RestoreCandidate {
   final DateTime madeAt;
   final int transactions;
   final int accounts;
+
+  /// What [AppDatabase.replaceAllFrom] should bind to `ATTACH ... KEY ?`
+  /// when this candidate is restored: the raw-key literal when [file] is
+  /// encrypted with this app's data key, `''` when it's plain, or null when
+  /// the main connection itself has no cipher configured (tests).
+  final String? sourceKeyBind;
 }
 
 /// What a restore replaced and with what, so it can be undone and redone.
@@ -51,12 +61,34 @@ class RestoreException implements Exception {
   String toString() => message;
 }
 
+/// The backup is encrypted, but not with this ledger's key: it may be from
+/// another ledger (its own recovery key opens it), or damaged. Pass the key
+/// the user types to [Backups.inspect] as `backupKey`.
+class RestoreNeedsKeyException extends RestoreException {
+  RestoreNeedsKeyException()
+    : super(
+        'That backup can’t be opened with this ledger’s key · it may be '
+        'from another ledger, or damaged',
+      );
+}
+
+/// What converting the old plain copies did: how many were encrypted, and
+/// which couldn't be (they're still readable, so the user is told).
+typedef ConversionReport = ({int converted, List<File> failed});
+
 /// Backups stay on this machine: a daily copy in the app's own folder, and a
 /// copy saved wherever the user picks. Nothing is uploaded anywhere.
 class Backups {
-  Backups(this.db, {this.keep = 14, this.months = 12});
+  Backups(this.db, {this.dataKey, this.keep = 14, this.months = 12});
 
   final AppDatabase db;
+
+  /// This app's data key (ADR 0001), or null when [db] itself has no
+  /// cipher configured (tests). Every backup [db] writes via `VACUUM INTO`
+  /// stays encrypted with it automatically; this is only needed to read a
+  /// backup from outside that connection (restore) or convert an old plain
+  /// one in place.
+  final Uint8List? dataKey;
 
   /// Daily copies kept: the newest [keep], one per day the app was opened.
   final int keep;
@@ -214,28 +246,74 @@ class Backups {
 
   /// Reads a backup the user picked, without touching it or the ledger: it's
   /// copied into `Backups/`, checked, and upgraded if it came from an older
-  /// version. Throws [RestoreException] when it can't be restored. Pass the
-  /// result to [restore], or to [discard] if the user cancels.
-  Future<RestoreCandidate> inspect(String path, DateTime now) async {
+  /// version. Handles a plain backup, one encrypted with this app's own
+  /// data key, and one encrypted with a different key (ADR 0001: restore
+  /// must handle all three). Throws [RestoreException] when it can't be
+  /// restored. Pass the result to [restore], or to [discard] if the user
+  /// cancels.
+  /// [backupKey] opens a backup made under another ledger's key, after the
+  /// first try threw [RestoreNeedsKeyException].
+  Future<RestoreCandidate> inspect(
+    String path,
+    DateTime now, {
+    Uint8List? backupKey,
+  }) async {
     final dir = await folder();
     if (dir == null) throw RestoreException('Nothing to restore into');
     await dir.create(recursive: true);
     final file = File('${dir.path}/incoming-${fileStamp(now)}.sqlite');
     try {
       await File(path).copy(file.path);
-      final header = await _header(file);
-      if (header == null ||
-          String.fromCharCodes(header.sublist(0, 15)) != 'SQLite format 3') {
-        throw RestoreException('That file isn’t a BetterBudget backup');
+      final looksPlain = await isPlainSqliteFile(file);
+      final String? sourceKeyBind;
+      if (looksPlain) {
+        final header = await _header(file);
+        final version = ByteData.sublistView(header!).getUint32(60);
+        if (version > db.schemaVersion) {
+          throw RestoreException(
+            'That backup is from a newer BetterBudget · update the app first',
+          );
+        }
+        sourceKeyBind = dataKey == null ? null : '';
+      } else {
+        final key = backupKey ?? dataKey;
+        if (key == null) {
+          // No key context to try against a non-plain header (tests, or a
+          // corrupt/foreign file): can't tell the difference, so this is
+          // the same message a truly-invalid file gets.
+          throw RestoreException('That file isn’t a BetterBudget backup');
+        }
+        final int version;
+        try {
+          version = _rawUserVersion(file, key);
+        } catch (e) {
+          throw backupKey == null
+              ? RestoreNeedsKeyException()
+              : RestoreException(
+                  'That key doesn’t open this backup · it may be from '
+                  'another ledger, or damaged',
+                );
+        }
+        if (version > db.schemaVersion) {
+          throw RestoreException(
+            'That backup is from a newer BetterBudget · update the app first',
+          );
+        }
+        sourceKeyBind = rawKeyLiteral(key);
       }
-      final version = ByteData.sublistView(header).getUint32(60);
-      if (version > db.schemaVersion) {
-        throw RestoreException(
-          'That backup is from a newer BetterBudget · update the app first',
-        );
-      }
+      // A local, not `dataKey` (a `this` getter): the setup closure below
+      // crosses into a background isolate, which refuses to send anything
+      // that captures `this` — a Backups holding a live FFI connection.
+      final cipherKey = looksPlain ? null : (backupKey ?? dataKey);
       // Off the UI isolate: a big or odd file mustn't freeze the app.
-      final copy = AppDatabase(NativeDatabase.createInBackground(file));
+      final copy = AppDatabase(
+        NativeDatabase.createInBackground(
+          file,
+          setup: cipherKey == null
+              ? null
+              : (rawDb) => applyCipherKey(rawDb, cipherKey),
+        ),
+      );
       try {
         final check = await copy
             .customSelect('PRAGMA quick_check')
@@ -261,6 +339,7 @@ class Backups {
           madeAt: _madeAt(File(path)),
           transactions: ledger.txns.length,
           accounts: ledger.balanceSheetAccounts.length,
+          sourceKeyBind: sourceKeyBind,
         );
       } on RestoreException {
         rethrow;
@@ -276,6 +355,46 @@ class Backups {
     }
   }
 
+  /// The `user_version` pragma stored in a file's (encrypted) header, read
+  /// with a fresh raw connection so a wrong key throws before any of
+  /// [file]'s data is touched through Drift.
+  static int _rawUserVersion(File file, Uint8List key) {
+    final raw = sqlite3.open(file.path);
+    try {
+      applyCipherKey(raw, key);
+      return raw.select('PRAGMA user_version').first.values.first as int;
+    } finally {
+      raw.close();
+    }
+  }
+
+  /// Converts every plain copy of the ledger still in the app's folder to
+  /// SQLCipher in place (ADR 0001: the old plain copies must be converted
+  /// too, not left behind): the daily copies in `Backups/`, the copies made
+  /// before each schema upgrade beside the database, and any older folder of
+  /// copies. One that can't be converted (damaged, or not a ledger) is
+  /// skipped and reported, never allowed to stop the app from starting.
+  Future<ConversionReport> convertPlainBackups() async {
+    final key = dataKey;
+    final live = await db.filePath();
+    if (key == null || live == null) return (converted: 0, failed: <File>[]);
+    final dir = File(live).parent;
+    var converted = 0;
+    final failed = <File>[];
+    for (final f in dir.listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.sqlite') || f.path == live) continue;
+      if (!await isPlainSqliteFile(f)) continue;
+      try {
+        await convertPlainFileInPlace(f, key);
+        converted++;
+      } catch (e) {
+        debugPrint('Couldn’t encrypt an old copy: $e');
+        failed.add(f);
+      }
+    }
+    return (converted: converted, failed: failed);
+  }
+
   /// The user cancelled: remove the working copy.
   Future<void> discard(RestoreCandidate c) async {
     final dir = await folder();
@@ -284,15 +403,20 @@ class Backups {
 
   /// Replaces the ledger with [c]. What was there is saved first as
   /// `before-restore-….sqlite`, and the restored copy is kept as
-  /// `restored-….sqlite`, so the restore can be undone and redone.
+  /// `restored-….sqlite`, so the restore can be undone and redone. That
+  /// snapshot is taken from this connection *after* the replace, not by
+  /// renaming [c.file] — [c.file] may be plain (a pre-encryption backup),
+  /// and [replaceWith] (undo/redo) assumes every `restored-…`/
+  /// `before-restore-…` file is encrypted with [dataKey], same as this
+  /// connection.
   Future<RestoreRecord> restore(RestoreCandidate c, DateTime now) async {
     final dir = (await folder())!;
     final before = _unused(dir, 'before-restore-', now);
     await db.copyTo(before.path);
-    final restored = _unused(dir, 'restored-', now);
-    await c.file.rename(restored.path);
+    await db.replaceAllFrom(c.file.path, sourceKeyBind: c.sourceKeyBind);
     await _deleteIncoming(dir, c.file);
-    await db.replaceAllFrom(restored.path);
+    final restored = _unused(dir, 'restored-', now);
+    await db.copyTo(restored.path);
     return (before: before, restored: restored);
   }
 
@@ -309,11 +433,17 @@ class Backups {
 
   /// Undo and redo of a restore: puts [file] back, saving what's here first
   /// (as another `before-restore-…`), since anything done after the restore
-  /// that couldn't be undone would otherwise be in no file at all.
+  /// that couldn't be undone would otherwise be in no file at all. [file] is
+  /// always one of this app's own snapshots (`before-restore-…` or
+  /// `restored-…`, both written by [AppDatabase.copyTo] on this connection),
+  /// so it's encrypted with [dataKey] whenever that's set, never plain.
   Future<void> replaceWith(File file, DateTime now) async {
     final dir = (await folder())!;
     await db.copyTo(_unused(dir, 'before-restore-', now).path);
-    await db.replaceAllFrom(file.path);
+    await db.replaceAllFrom(
+      file.path,
+      sourceKeyBind: dataKey == null ? null : rawKeyLiteral(dataKey!),
+    );
   }
 
   /// `<prefix><stamp>.sqlite`, a second later if that name is taken.

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-24**
+**Last updated: 2026-09-29**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -12,9 +12,9 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #15 (Savings). The
-`alpha-clean-start` branch (Start a new ledger, ADR 0005, this update) is pushed for a
-pull request. Keep the pattern: branch, commit, PR, merge. The owner's data
+**Git state:** `main` has everything through PR #16 (Start a new ledger, ADR 0005).
+Open: draft PR #17 `encryption` (built, both reviews done and their fixes in; waiting
+for the owner to try it in the app, then merge). Keep the pattern: branch, commit, PR, merge. The owner's data
 file is at schema version 6.
 
 Visual direction and the register's UX rules are settled in
@@ -52,11 +52,8 @@ scheduled items.
 
 ### Not built yet
 
-- **Encryption.** Plain SQLite for now, and so are the backups in `Backups/` and any
-  saved with "Back up to…": the SQLCipher work must encrypt or remove the old copies,
-  and check that `VACUUM INTO` keeps the key (owner agreed, 2026-09-17). ADR 0001 requires SQLCipher; do the Windows spike
-  first. `package:sqlite3` supports `hooks: user_defines: sqlite3: source: sqlcipher` (or
-  `sqlite3mc`) in `pubspec.yaml`.
+- **Encryption on Windows, Linux and Android** is unverified (no build machines here);
+  macOS and iOS are verified. Print for the recovery key isn't wired (Save and Copy are).
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
 - **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
@@ -78,7 +75,7 @@ scheduled items.
 
 | ADR | Decision |
 | --- | --- |
-| [0001](decisions/0001-database.md) | SQLite via Drift, encrypted with SQLCipher. MNT is exponent 2. |
+| [0001](decisions/0001-database.md) | SQLite via Drift, encrypted in SQLCipher v4 format by SQLite3 Multiple Ciphers. One data key in each device's secure store, derived from a recovery key the user keeps (it opens backups and adds devices). MNT is exponent 2. |
 | [0002](decisions/0002-tdb-import-format.md) | TDB import targets the unformatted Excel export. Column map and dedup key recorded. |
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
 | [0004](decisions/0004-ledger-ui.md) | Midnight look and 24 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view, pay and paydays. |
@@ -176,9 +173,34 @@ start using it"):
 
 - [x] Merge PRs #14 (persona reviews) and #15 (Savings)
 - [x] **A clean start**: Start a new ledger in Settings (ADR 0004 rule 19)
-- [ ] **Encryption for the alpha?** Recommended: plain SQLite with FileVault is fine
-  for the alpha on the owner's Mac; SQLCipher before any file goes to a cloud folder
-  (the phone design, ADR 0005, puts a snapshot there). Waiting for the owner.
+- [ ] **Encryption, in the alpha** (owner, 2026-09-24: "build it right the first time",
+  for macOS, Windows, Linux, iOS and Android). Designed in ADR 0001: SQLite3 Multiple
+  Ciphers writing SQLCipher v4, one data key per ledger in each device's secure store,
+  derived from a recovery key shown once at setup and never stored (Save/Copy,
+  skippable with a coral warning in Settings, owner 2026-09-28); Linux without a Secret Service asks for the recovery key at launch.
+  **Built** (2026-09-29, draft PR #17): keys (`keys.dart`), the cipher and conversion
+  (`encryption.dart`), restore of encrypted, plain and other-key backups, the setup
+  screen (shown once, Save/Copy, key on one line), Settings → Security (status only).
+  **One key per ledger, never replaced** (owner, 2026-09-29: "No. One key or all the
+  data is lost"). **First launch run from a plain v5 ledger on the owner's Mac:** a key
+  is made without asking, the ledger is encrypted and upgraded to v6, and every plain copy
+  in the app's folder is converted (daily copies, upgrade copies beside the database, older
+  folders), with none left readable. Fixed during that run: upgrade copies beside the
+  database were left plain, and a plain ledger with no key asked for a recovery key it
+  never had. **Both reviews done** (2026-09-29), fixes in (ADR 0001, "At launch"):
+  a key is checked against the ledger before it's stored (no lockout on a new Mac or a
+  wrong key; a stored key that stops fitting asks again); nothing is stored or
+  encrypted until Continue; the live file is encrypted as a checked copy and swapped in
+  (the `-wal` included; an older build's cut-short conversion is undone); a damaged old
+  copy is reported, not fatal; no key in error logs; "saved" is kept beside the key,
+  not in the ledger; a stronger check character (every single typo caught) and a
+  Cyrillic hint; wording (phones, the other person, copies off this computer). The
+  owner said yes (2026-09-29) to **Check my recovery key…** in Settings (type it, get
+  yes or no; nothing shown), to **offering a backup on a new computer**, and to
+  **restoring a backup under another key** by typing that key. 227 tests pass.
+  **Next: the owner tries it in the app, then merge #17.** The owner questioned the
+  Settings check ("the key shouldn't be in settings"); it stays unless they say remove
+  it. The stronger check character makes keys saved before it invalid (test data only).
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   Waiting for the owner; it's a new feature, so bring options and sketches.
 
@@ -217,7 +239,7 @@ the next. Details for each item are further down (open items, roadmap, tabled).
 - [ ] 11. **Sorting**
 - [ ] 12. **Cash accounts** (after 1)
 - [ ] 13. **CI** running `flutter test` on pull requests
-- [ ] 14. **Encryption** (SQLCipher, Windows spike first, backups too)
+- [ ] 14. **Encryption**: moved into the alpha (above)
 - [ ] 15. **TDB import** (first: does TDB export CSV or `.xlsx`?)
 
 ### How to work with the owner
@@ -307,6 +329,17 @@ been used for typing but a register undo there hasn't been tried.
   /Applications/Xcode.app/Contents/Developer`, license accepted). If the macOS build fails
   with `tapi error … MacOSX27.0.sdk`, `xcode-select` is pointing at the Command Line Tools
   again, and the native build hook for `objective_c` is picking up the wrong SDK.
+- **Signing:** the Mac and iOS apps sign with the owner's Apple developer team
+  `5FJUXAJX9P` ("Apple Development", automatic), needed for the Keychain entitlement.
+  This Mac needed Apple's WWDR G3 intermediate installed (done 2026-09-28). If Xcode
+  asks for a new provisioning profile, run once from `app/macos`: `xcodebuild -workspace
+  Runner.xcworkspace -scheme Runner -configuration Debug -allowProvisioningUpdates build`.
+- **macOS 27** (2026-09-28) draws text edges slightly differently: goldens were redrawn on
+  it. Goldens made on another macOS version will differ by about 0.1%.
+- **If tests stall** (random widget tests time out after 10 minutes with the CPU idle,
+  even on older commits), restart the Mac: on 2026-09-29 a stuck `dart pub get` and
+  leftover `flutter_tester` processes caused it, and a restart fixed it (227 tests in
+  about 1:45). Check first with `ps -ax | grep -E "flutter|dart"`.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/betterbudget.sqlite`

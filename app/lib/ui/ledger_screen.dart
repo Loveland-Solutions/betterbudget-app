@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
+import '../data/keys.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -17,6 +18,7 @@ import '../domain/readiness.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
+import 'recovery_key_screen.dart';
 import 'register.dart';
 import 'theme.dart';
 
@@ -40,6 +42,12 @@ class LedgerScreen extends StatefulWidget {
     required this.db,
     this.clock = DateTime.now,
     this.backups,
+    this.encrypted = false,
+    this.recoveryKeySaved = false,
+    this.checkRecoveryKey,
+    this.onRecoveryKeyChecked,
+    this.startupNotice,
+    this.offerRestore = false,
   });
 
   final AppDatabase db;
@@ -48,6 +56,26 @@ class LedgerScreen extends StatefulWidget {
   /// out; one is made for "Back up to…" and "Restore from…".
   final Backups? backups;
   final DateTime Function() clock;
+
+  /// The ledger is encrypted (ADR 0001): Settings says so, and whether the
+  /// recovery key was saved when it was shown. False in tests.
+  final bool encrypted;
+
+  /// The recovery key was saved, copied, typed or checked (kept beside the
+  /// data key, not in the ledger).
+  final bool recoveryKeySaved;
+
+  /// Whether a typed key is this ledger's, for "Check my recovery key…".
+  final Future<bool> Function(RecoveryKey key)? checkRecoveryKey;
+  final VoidCallback? onRecoveryKeyChecked;
+
+  /// Said once, as a toast, when the ledger opens: what encrypting its old
+  /// copies did.
+  final String? startupNotice;
+
+  /// A key was just typed on a computer with no ledger: offer to open a
+  /// backup before anything else.
+  final bool offerRestore;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -149,6 +177,58 @@ class _LedgerScreenState extends State<LedgerScreen> {
       suggestCategory: (payee) =>
           db.lastCategoryFor(payee, _entryAccountId ?? _accountId!),
     );
+    _keySaved = widget.recoveryKeySaved;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.startupNotice case final n?) _showToast(n);
+      if (widget.offerRestore) _offerRestore();
+    });
+  }
+
+  late bool _keySaved;
+
+  /// On a new computer, the ledger usually comes from a backup saved with
+  /// Back up to…: offer it first. Starting empty is one click away.
+  Future<void> _offerRestore() async {
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Mid.panel,
+        title: Text('Open your newest backup?', style: onest(17, weight: 600)),
+        content: SizedBox(
+          width: 440,
+          child: Text(
+            'Your recovery key is set up on this computer. If you saved a copy '
+            'with Back up to… on another drive, open the newest one to bring '
+            'your ledger here.',
+            style: onest(13.5, color: Mid.ink2, height: 1.4),
+          ),
+        ),
+        actions: [
+          BarButton(
+            key: const ValueKey('offer-restore-empty'),
+            label: 'Start empty',
+            onTap: () => Navigator.of(context).pop(false),
+          ),
+          FilledButton(
+            key: const ValueKey('offer-restore-open'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Open a backup…'),
+          ),
+        ],
+      ),
+    );
+    if (open == true && mounted) await _restoreFrom();
+  }
+
+  Future<void> _checkRecoveryKey() async {
+    final check = widget.checkRecoveryKey;
+    if (check == null) return;
+    final ok = await showCheckRecoveryKeyDialog(context, check);
+    if (ok && mounted) {
+      setState(() => _keySaved = true);
+      widget.onRecoveryKeyChecked?.call();
+    }
   }
 
   /// Where the new-transaction row posts: the open account, or in All
@@ -1708,9 +1788,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (picked == null) return;
-    final RestoreCandidate candidate;
+    RestoreCandidate? found;
     try {
-      candidate = await _backups.inspect(picked.path, now);
+      found = await _backups.inspect(picked.path, now);
+    } on RestoreNeedsKeyException {
+      // Made under another ledger's key: its own recovery key opens it.
+      if (!mounted) return;
+      await showBackupKeyDialog(context, (key) async {
+        try {
+          found = await _backups.inspect(
+            picked!.path,
+            now,
+            backupKey: deriveDataKey(key),
+          );
+          return null;
+        } on RestoreException catch (e) {
+          return e.message;
+        } catch (e) {
+          debugPrint('Restore check failed: $e');
+          return 'Couldn’t read that backup';
+        }
+      });
+      if (found == null) return;
     } on RestoreException catch (e) {
       _showToast(e.message);
       return;
@@ -1720,6 +1819,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    final candidate = found!;
     final data = _data;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1950,6 +2050,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
                             onNewLedger: _startNewLedger,
+                            encrypted: widget.encrypted,
+                            recoveryKeySaved: _keySaved,
+                            onCheckRecoveryKey: widget.checkRecoveryKey == null
+                                ? null
+                                : _checkRecoveryKey,
                             budget: _BudgetSettings(
                               data: data,
                               onBudgetBy: _budgetBy,
@@ -2428,6 +2533,9 @@ class _SettingsPage extends StatelessWidget {
     required this.onBackUp,
     required this.onRestore,
     required this.onNewLedger,
+    required this.recoveryKeySaved,
+    this.encrypted = false,
+    this.onCheckRecoveryKey,
     this.archived,
     this.budget,
   });
@@ -2442,6 +2550,16 @@ class _SettingsPage extends StatelessWidget {
   final VoidCallback onBackUp;
   final VoidCallback onRestore;
   final VoidCallback onNewLedger;
+
+  /// Whether the recovery key was saved or copied when it was shown (ADR
+  /// 0001): drives the coral warning below.
+  final bool recoveryKeySaved;
+
+  /// Shows the Security section; false in tests.
+  final bool encrypted;
+
+  /// "Check my recovery key…"; null hides the button.
+  final VoidCallback? onCheckRecoveryKey;
 
   @override
   Widget build(BuildContext context) {
@@ -2575,6 +2693,58 @@ class _SettingsPage extends StatelessWidget {
                 if (archived != null) ...[
                   const SizedBox(height: 16),
                   archived!,
+                ],
+                if (encrypted) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                    decoration: BoxDecoration(
+                      color: Mid.panel,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Mid.rule),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Security', style: onest(16, weight: 600)),
+                        const SizedBox(height: 12),
+                        Text(
+                          recoveryKeySaved
+                              ? 'Your ledger and backups are encrypted. Your '
+                                    'recovery key opens them on another '
+                                    'computer, but only the copies you saved '
+                                    'off this one (Back up to…) survive '
+                                    'losing it. BetterBudget doesn’t keep a '
+                                    'copy of the key.'
+                              : 'Your ledger and backups are encrypted. Your '
+                                    'recovery key wasn’t saved or copied when '
+                                    'it was shown, and BetterBudget doesn’t '
+                                    'keep a copy: if this computer is lost, '
+                                    'they can’t be opened.',
+                          key: const ValueKey('security-status'),
+                          style: onest(
+                            13,
+                            color: recoveryKeySaved ? Mid.ink3 : Mid.coral,
+                            height: 1.4,
+                          ),
+                        ),
+                        if (onCheckRecoveryKey != null) ...[
+                          const SizedBox(height: 12),
+                          BarButton(
+                            key: const ValueKey('check-recovery-key'),
+                            label: 'Check my recovery key…',
+                            leading: const Icon(
+                              Icons.key_rounded,
+                              size: 14,
+                              color: Mid.ink3,
+                            ),
+                            onTap: onCheckRecoveryKey!,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 Container(

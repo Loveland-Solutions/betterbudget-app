@@ -91,12 +91,134 @@ These are binding implementation constraints, not suggestions.
   secure store, a user who copies their file to a new machine has data that is intact
   and permanently unreadable. With no cloud copy, that is data loss.
 
+## Encryption design (owner, 2026-09-24: "build it right the first time")
+
+Targets: macOS, Windows, Linux, iOS, Android. The phone apps
+([ADR 0005](0005-mobile-companion.md)) share files through a cloud folder, so a key
+that lives on only one device isn't enough.
+
+### Library
+
+**SQLite3 Multiple Ciphers**, writing the **SQLCipher v4 file format**, selected in
+`pubspec.yaml` (`hooks: user_defines: sqlite3: source: sqlite3mc`). `package:sqlite3`
+builds it for every platform from one setting. It was chosen over the SQLCipher community
+build, which links OpenSSL on Windows, Linux and Android and ships an older SQLite. The
+files are standard SQLCipher v4, so other SQLCipher tools (DB Browser for SQLite's
+SQLCipher build) open them with the key, which keeps "open your own file without us".
+Each connection sets `PRAGMA cipher = 'sqlcipher'`, `PRAGMA legacy = 4`, then the
+key as a raw 256-bit value (`x'…'`), so no slow key stretching on every open.
+
+### Keys
+
+- **One data key**, 256 random bits. It encrypts the database, every backup, and the
+  phone snapshot and inbox files.
+- **A recovery key** the user keeps (about 25 characters in groups, plus a check
+  character against typos). The data key is derived from it (HKDF), so it alone opens the
+  ledger and any backup on any device. Changing it means re-encrypting (`PRAGMA rekey`),
+  which is rare.
+- **Each device stores the data key in its own secure store** (`flutter_secure_storage`),
+  never synced: Keychain "this device only" on macOS and iOS, Android Keystore, Windows
+  DPAPI, and the Secret Service (GNOME Keyring or KWallet) on Linux. **Linux without a
+  Secret Service asks for the recovery key at launch**, the only case where the user types
+  anything (owner, 2026-09-24).
+- **Adding a device:** type the recovery key. Nothing goes over a network.
+- **The recovery key is shown once and never stored** (owner, 2026-09-28: "Treat it
+  like any other key. Save it, copy it whatever, but you can only view it once, and the
+  app doesn't store it"). The setup screen shows it on one line with **Save…** (a text
+  file) and **Copy**, and says it won't be shown again. It's skippable (warn, don't
+  block): a coral line says continuing without saving or copying means it's gone. Only
+  the derived data key is kept, in the secure store, and it's never displayed. HKDF is
+  one-way, so it can't be turned back into the recovery key. **Settings → Security**
+  says the ledger is encrypted and that BetterBudget keeps no copy, in coral if the key
+  wasn't saved or copied. It has no button. A build that stored the key (for "Show
+  recovery key…") deletes that copy at the next launch.
+- **Rejected (owner, 2026-09-28):** "Show recovery key…" in Settings. The owner:
+  "that encryption doesn't seem that great if I'm able to view the master key at will".
+  Anyone at an unlocked computer could copy the key and open every future backup. Also
+  rejected: showing it behind Touch ID or the Mac password, and a QR code on the Mac for
+  adding a device (it would re-show the key). Also rejected (owner, 2026-09-29): **making a new
+  recovery key** (re-encrypting the ledger and backups). "No. One key or all the data
+  is lost." A ledger has one recovery key for its whole life. Lose it, and the
+  ledger and every backup can't be opened on another device. The setup screen's
+  warning says so.
+
+### Converting what's there
+
+The live file is never changed until an encrypted copy has checked out: the `-wal`
+is folded in (`wal_checkpoint(TRUNCATE)`), a copy is encrypted (`rekey`) and checked
+(`quick_check`, same table count), and the copy is renamed over the file. A crash
+before the rename leaves the plain file as it was. A `.before-encryption` copy left
+by an older build's cut-short conversion is put back, or removed if the file is fine.
+Every plain copy in the app's folder is converted too: the daily copies, the copies
+made before each schema upgrade, and older folders. A copy that can't be converted is
+reported by name ("still readable"), never allowed to stop the app from starting. The
+app says how many were converted. A plain backup picked in Restore from… still
+restores, and the result is encrypted.
+
+### At launch (review, 2026-09-29)
+
+- **A key is checked against the ledger before it's stored or used.** A key that
+  doesn't open the ledger is never kept. If a stored key stops fitting (a new Mac by
+  Migration Assistant, where "this device only" keys don't move), the entry screen
+  comes back instead of a blank window.
+- **A new key is shown before anything is stored or encrypted.** A quit or crash on
+  the key screen leaves everything as it was, and the next launch shows a new key. A
+  ledger from before encryption gets its key without being asked for one.
+- **The entry screen says whether a ledger is here.** With an encrypted ledger here,
+  "Start a new ledger instead…" warns in coral and moves it aside
+  (`betterbudget.set-aside-<time>.sqlite`), never deletes it or opens it with a new key.
+- **On a new computer**, after the key is typed, the app offers to open the newest
+  backup (from Back up to…), with Start empty beside it, and no demo data (owner, 2026-09-29).
+- **Check my recovery key…** in Settings → Security (owner, 2026-09-29): type the key
+  and learn whether it opens this ledger. Nothing is ever shown.
+- **A backup under another ledger's key** asks for that key and restores its rows under
+  this ledger's key, so this ledger's key never changes (owner, 2026-09-29).
+- **"Saved" is kept beside the data key, not in the ledger,** so a new ledger or a
+  restore doesn't turn Settings coral. Copy doesn't clear the warning, it changes it to
+  "paste it somewhere off this computer". The clipboard is cleared after a minute.
+- The check character uses weights coprime to 34, so every single mistyped character
+  is caught. Typing in Cyrillic says to switch to ABC. SQLite errors never carry the
+  key into logs.
+
+### Rejected
+
+- **Key only in the device's secure store.** Backups in a cloud folder become unreadable
+  the day the computer dies, and an Android phone can't read a Mac's Keychain.
+- **A passphrase typed at every launch.** Forget it and every copy is lost, and typing it
+  at a till to check a budget is too much. An app lock (Touch ID, Face ID, Windows Hello,
+  phone PIN) can come later on top of the encryption, not instead of it.
+- **The SQLCipher community build.** OpenSSL on three platforms and an older SQLite.
+
+### Test build results (2026-09-24, this Mac)
+
+- SQLite3 Multiple Ciphers 2.5.0 on SQLite 3.53.4 builds and runs on macOS. An **iOS
+  build** (unsigned) bundles `sqlite3mc.framework`. All 179 app tests pass on it.
+- A file with the key is unreadable without it. **`VACUUM INTO` copies stay encrypted**
+  with the same key, so backups need no extra step. **A plain WAL file converts in place**
+  with `rekey`. **Speed:** 40,000 rows written and read back in about the same time
+  encrypted as plain (20–30 ms).
+- **macOS Keychain (2026-09-28):** the app is now signed with the owner's Apple
+  developer team (`5FJUXAJX9P`, "Apple Development", automatic signing) and has
+  `keychain-access-groups` = `$(AppIdentifierPrefix)com.lovelandsolutions.betterbudget`
+  in both entitlements files. The **data-protection keychain** works
+  (`usesDataProtectionKeychain: true`, the default), with `unlocked_this_device` and
+  not synchronizable, and a key written by one build is read by the next. Unsigned
+  (ad hoc) builds fail there with −34018. The login keychain worked unsigned, but it
+  isn't used, so there's nothing to migrate. The iOS project carries the same team.
+- **Signing setup notes:** this Mac lacked Apple's "WWDR G3" intermediate certificate
+  (only the one that expired in 2023 was installed), so the new certificate showed as
+  not valid. Installing `AppleWWDRCAG3.cer` from apple.com/certificateauthority fixed
+  it. The first development provisioning profile needed one `xcodebuild …
+  -allowProvisioningUpdates` run. `flutter build macos` works after that.
+- **Not yet verified:** Windows, Linux and Android. There's no Windows or Linux machine
+  here, no Android SDK on this Mac, and no `linux/` runner in the app yet. The same
+  prebuilt libraries exist for all three. Verify each when its build is first made, or
+  in CI (a GitHub Actions matrix build) once CI exists.
+
 ## Open items
 
-- **Verify SQLCipher on Windows before building on it.** Mobile and macOS are
-  well-trodden; Windows needs a bundled compiled library and has historically been the
-  rough edge. A throwaway spike opening an encrypted DB on all four targets is a cheap
-  answer to an expensive-to-discover problem.
+- **Verify the cipher library on Windows, Linux and Android** (see the test build
+  results above). macOS and iOS are verified.
 - **Attachment storage** (receipt photos as BLOB vs. on disk) is a separate decision.
   It affects whether the single-file backup story holds.
 - **Double-entry vs. transaction + splits** is a separate decision. It does not change
