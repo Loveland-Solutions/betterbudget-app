@@ -528,7 +528,7 @@ List<Widget> _categoryMenu(AccountInfo c, _CategoryActions act) {
       'category-kind',
       act.changeKind,
     ),
-    const Divider(height: 9, color: Mid.rule),
+    Divider(height: 9, color: Mid.rule),
     item('Archive', 'category-archive', act.archive),
     item('Delete…', 'category-delete', act.delete, color: Mid.coral),
   ];
@@ -794,7 +794,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                             weight: 600,
                             color: into == null
                                 ? Mid.coral.withValues(alpha: 0.6)
-                                : Mid.ground,
+                                : Mid.onAccent,
                           ),
                         ),
                       ),

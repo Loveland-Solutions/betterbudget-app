@@ -48,7 +48,7 @@ class BalanceHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(32, 26, 32, 22),
       decoration: BoxDecoration(
-        color: Mid.panel,
+        color: Mid.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Mid.rule),
       ),
@@ -1120,6 +1120,9 @@ class _ForecastPainter extends CustomPainter {
   _ForecastPainter(this.f);
   final Forecast f;
 
+  /// Drawn in these colors; a switch between light and dark repaints.
+  final Palette palette = Mid.palette;
+
   @override
   void paint(Canvas canvas, Size size) {
     final g = _ChartGeometry(f, size);
@@ -1185,7 +1188,7 @@ class _ForecastPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(0, y(f.startBalance)),
       3.5,
-      Paint()..color = Mid.panel,
+      Paint()..color = Mid.card,
     );
     canvas.drawCircle(
       Offset(0, y(f.startBalance)),
@@ -1233,5 +1236,6 @@ class _ForecastPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ForecastPainter old) => old.f != f;
+  bool shouldRepaint(_ForecastPainter old) =>
+      old.f != f || old.palette != palette;
 }

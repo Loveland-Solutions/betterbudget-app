@@ -202,10 +202,10 @@ class _StepRow extends StatelessWidget {
 
   List<Widget> _body(ReadyState state) {
     final current = state == ReadyState.current;
-    Widget fact(String text, {Key? key, Color color = Mid.ink2}) => Text(
+    Widget fact(String text, {Key? key, Color? color}) => Text(
       text,
       key: key,
-      style: onest(13, color: color, tabular: true),
+      style: onest(13, color: color ?? Mid.ink2, tabular: true),
     );
     Widget guide(String text) => Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -429,7 +429,7 @@ class _StepMarker extends StatelessWidget {
         border: Border.all(color: edge),
       ),
       child: state == ReadyState.done
-          ? const Icon(Icons.check_rounded, size: 14, color: Mid.green)
+          ? Icon(Icons.check_rounded, size: 14, color: Mid.green)
           : Text('$number', style: onest(11.5, weight: 600, color: ink)),
     );
   }
@@ -518,7 +518,7 @@ class _FundPicker extends StatelessWidget {
         key: const ValueKey('fund-picker'),
         label: label,
         trailing: Icons.expand_more_rounded,
-        color: r.fundAccounts.isEmpty ? Mid.gold : Mid.ink2,
+        color: r.fundAccounts.isEmpty ? Mid.gold : null,
         onTap: () => menu.isOpen ? menu.close() : menu.open(),
       ),
     );
@@ -602,7 +602,7 @@ class _MonthFieldState extends State<_MonthField> {
             : m.typed
             ? 'Change the month'
             : 'Type your own month',
-        color: m.amount == 0 ? Mid.gold : Mid.ink2,
+        color: m.amount == 0 ? Mid.gold : null,
         onTap: _start,
       );
     }

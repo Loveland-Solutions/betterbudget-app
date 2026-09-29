@@ -571,7 +571,7 @@ class _KeyDialogState extends State<_KeyDialog> {
     backgroundColor: Mid.panel,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(14),
-      side: const BorderSide(color: Mid.rule),
+      side: BorderSide(color: Mid.rule),
     ),
     child: Padding(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),

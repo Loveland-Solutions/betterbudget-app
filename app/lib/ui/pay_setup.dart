@@ -383,12 +383,12 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
       ),
     );
 
-    Widget hint(String text, {Color color = Mid.ink3, Key? key}) => Padding(
+    Widget hint(String text, {Color? color, Key? key}) => Padding(
       padding: const EdgeInsets.only(left: 120, bottom: 10),
       child: Text(
         text,
         key: key,
-        style: onest(12.5, color: color),
+        style: onest(12.5, color: color ?? Mid.ink3),
       ),
     );
 
@@ -396,7 +396,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
       backgroundColor: Mid.panel,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Mid.rule),
+        side: BorderSide(color: Mid.rule),
       ),
       child: CallbackShortcuts(
         bindings: {const SingleActivator(LogicalKeyboardKey.enter): _save},
@@ -933,11 +933,7 @@ class _BudgetSettings extends StatelessWidget {
                   child: BarButton(
                     key: const ValueKey('settings-add-pay'),
                     label: pays.isEmpty ? 'Add your pay' : 'Add other pay',
-                    leading: const Icon(
-                      Icons.add_rounded,
-                      size: 14,
-                      color: Mid.ink3,
-                    ),
+                    leading: Icon(Icons.add_rounded, size: 14, color: Mid.ink3),
                     onTap: onAdd,
                   ),
                 ),

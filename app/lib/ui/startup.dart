@@ -263,9 +263,11 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   Widget build(BuildContext context) => MaterialApp(
     title: 'BetterBudget',
     debugShowCheckedModeBanner: false,
-    theme: midnightTheme(),
+    // Every other color switches in one frame; the page mustn't fade behind.
+    themeAnimationDuration: Duration.zero,
+    theme: appTheme(),
     home: switch (_step) {
-      _Loading() => const Scaffold(backgroundColor: Mid.ground),
+      _Loading() => Scaffold(backgroundColor: Mid.ground),
       _Entry(:final message, :final ledgerHere) => RecoveryKeyEntryScreen(
         key: ValueKey(message),
         message: message,

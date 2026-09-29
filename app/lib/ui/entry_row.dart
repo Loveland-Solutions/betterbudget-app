@@ -1034,7 +1034,7 @@ class _TransferLine extends StatelessWidget {
     padding: const EdgeInsets.only(left: 10),
     child: Row(
       children: [
-        const Icon(Icons.swap_horiz_rounded, size: 14, color: Mid.ink3),
+        Icon(Icons.swap_horiz_rounded, size: 14, color: Mid.ink3),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -1088,7 +1088,7 @@ InputDecoration _decoration(
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(8),
-    borderSide: const BorderSide(color: Mid.blue, width: 1.5),
+    borderSide: BorderSide(color: Mid.blue, width: 1.5),
   ),
 );
 
@@ -1324,7 +1324,7 @@ class _CalendarState extends State<_Calendar> {
       final off = !widget.allowFuture && _future(d);
       final hovered = !off && _same(_hover, d);
       final color = selected
-          ? Colors.white
+          ? Mid.onAccent
           : off
           ? Mid.ink3.withValues(alpha: 0.5)
           : _future(d)
@@ -1571,7 +1571,7 @@ class _AddButtonState extends State<_AddButton> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: ready
-                  ? (_hover ? const Color(0xFF6B90FF) : Mid.blue)
+                  ? (_hover ? Color.lerp(Mid.blue, Mid.ink, 0.15)! : Mid.blue)
                   : (_hover ? Mid.raised : Mid.chip),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -1580,7 +1580,7 @@ class _AddButtonState extends State<_AddButton> {
               style: onest(
                 13,
                 weight: 500,
-                color: ready ? Colors.white : Mid.ink2,
+                color: ready ? Mid.onAccent : Mid.ink2,
               ),
             ),
           ),
@@ -1616,7 +1616,7 @@ class _AccountPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MenuAnchor(
-    style: const MenuStyle(
+    style: MenuStyle(
       backgroundColor: WidgetStatePropertyAll(Mid.raised),
       shape: WidgetStatePropertyAll(
         RoundedRectangleBorder(
@@ -1642,7 +1642,7 @@ class _AccountPicker extends StatelessWidget {
             overlayColor: WidgetStatePropertyAll(Mid.blueWash),
           ),
           trailingIcon: a.id == value?.id
-              ? const Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+              ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
               : null,
           child: Text(
             a.name,
@@ -1710,11 +1710,7 @@ class _AccountPicker extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: Mid.ink3,
-                  ),
+                  Icon(Icons.expand_more_rounded, size: 16, color: Mid.ink3),
                 ],
               ),
             ),
