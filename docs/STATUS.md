@@ -12,7 +12,8 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #18 (pay options, schema v7) and the
+**Git state:** `main` has everything through PR #20 (logo wordmark, Steppe night dark
+mode, light mode and Settings → Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
 merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
 before it encrypted).
@@ -209,12 +210,16 @@ start using it"):
 - [ ] **The owner erases the test data** (Settings → Erase everything and start over,
   keep categories) and starts entering real accounts. Only the owner can do this; it
   runs inside the app with the Keychain key.
-- [ ] **Color and a light mode** (owner, 2026-09-29: Midnight was "a bit too dark").
-  **Built on branch `appearance`:** dark is Steppe night, light is Steppe, both with
-  a gray denim sidebar; Settings → Appearance picks Same as this Mac / Light / Dark
-  (ADR 0004). The logo's wordmark is top left. Still to do: category colors (liked,
-  not built); goldens are dark except `ledger_light.png` and
-  `settings_appearance_light.png`.
+- [x] **Color and a light mode** (PR #20, owner tested 2026-09-29: Light remembered
+  across relaunch, "Same as this Mac" opening dark and following the Mac live to
+  light). Dark is Steppe night, light is Steppe, both with a gray denim sidebar;
+  Settings → Appearance picks Same as this Mac (default) / Light / Dark, kept per
+  computer in an `appearance` file beside the ledger (ADR 0004). The logo's wordmark
+  is top left. Both reviews done, fixes in. 234 tests pass. Goldens are dark except
+  `ledger_light.png` and `settings_appearance_light.png`. Left: category colors
+  (liked, not built); a dark title-bar flash at launch under Light (the window starts
+  dark until the app tells it); `keys_test` "corrects a typed O or I" is flaky
+  (random characters), worth making deterministic.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   **Next feature**: it's new, so bring two or three options with sketches.
 
@@ -307,6 +312,10 @@ been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
 
+- **PR #20 (2026-09-29):** the logo's wordmark top left; Steppe night dark mode;
+  Steppe light mode with the same denim sidebar; Settings → Appearance. `Mid` reads
+  from a `Palette`, the sidebar has its own `Mid.side*`, `AppearanceScope` switches
+  and redraws, the title bar follows over `betterbudget/window`.
 - **2026-09-29:** the macOS app icon is the bee from the new logo, tilted 45° on a white
   tile (`design/icon/app_icon.swift` makes it; rebuild, and if the Dock keeps Flutter's
   icon, re-register the app with `lsregister -f` and `killall Dock`). Logo SVGs added
