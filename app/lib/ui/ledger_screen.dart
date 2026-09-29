@@ -2452,9 +2452,12 @@ class _Sidebar extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: Wordmark(height: 22),
+            child: const Row(
+              children: [
+                Bee(height: 40),
+                SizedBox(width: 10),
+                Wordmark(height: 22),
+              ],
             ),
           ),
           header(
@@ -3553,20 +3556,20 @@ class _PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
     child: Material(
-      color: Mid.red,
+      color: Mid.blue,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
-        hoverColor: Colors.white.withValues(alpha: 0.14),
+        hoverColor: Mid.onAccent.withValues(alpha: 0.12),
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: Colors.white),
+              Icon(icon, size: 16, color: Mid.onAccent),
               const SizedBox(width: 8),
-              Text(label, style: onest(13, weight: 600, color: Colors.white)),
+              Text(label, style: onest(13, weight: 600, color: Mid.onAccent)),
             ],
           ),
         ),
