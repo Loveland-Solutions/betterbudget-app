@@ -20,14 +20,13 @@ class Palette {
     required this.gold,
     required this.green,
     required this.coral,
-    required this.red,
     required this.onAccent,
     required this.wash,
   });
 
   final Brightness brightness;
   final Color ground, panel, card, raised, rule, ink, ink2, ink3;
-  final Color blue, gold, green, coral, red;
+  final Color blue, gold, green, coral;
 
   /// Text and icons on a filled blue, gold or green button or toast.
   final Color onAccent;
@@ -37,7 +36,7 @@ class Palette {
   final Color wash;
 
   /// Steppe night: a blue-black page, steppe sky blue for what you click,
-  /// gold for reconciled or scheduled, red to add.
+  /// gold for reconciled or scheduled.
   static const dark = Palette(
     brightness: Brightness.dark,
     ground: Color(0xFF0D1522),
@@ -52,7 +51,6 @@ class Palette {
     gold: Color(0xFFE8C15A),
     green: Color(0xFF5CCB8E),
     coral: Color(0xFFF08A8A),
-    red: Color(0xFFD8434C),
     onAccent: Color(0xFF0D1522),
     wash: Color(0xFFECEFF4),
   );
@@ -72,9 +70,8 @@ class Palette {
     blue: Color(0xFF1B5BA8),
     gold: Color(0xFF8A6414),
     green: Color(0xFF2E7D4F),
-    // Toward orange, so a shortfall isn't the Add button's red.
+    // Toward orange, so a shortfall doesn't read as a stop sign.
     coral: Color(0xFFB8442A),
-    red: Color(0xFFC8242F),
     onAccent: Color(0xFFFFFFFF),
     wash: Color(0xFF1A2230),
   );
@@ -101,7 +98,6 @@ abstract final class Mid {
   static Color get gold => _p.gold;
   static Color get green => _p.green;
   static Color get coral => _p.coral;
-  static Color get red => _p.red;
   static Color get onAccent => _p.onAccent;
 
   static Color get blueWash => blue.withValues(alpha: isLight ? 0.10 : 0.12);

@@ -12,8 +12,9 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #20 (logo wordmark, Steppe night dark
-mode, light mode and Settings → Appearance), PR #18 (pay options, schema v7) and the
+**Git state:** `main` has everything through PR #21 (blue Add button, the bee beside
+the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
+Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
 merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
 before it encrypted).
@@ -37,7 +38,7 @@ Visual direction and the register's UX rules are settled in
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
 | Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. Money in due today or earlier and not confirmed isn't counted (the header says so in gold and opens it); on payday "Runs out 10.15 unless ₮2,500,000 due today comes". A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
-| Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
+| Entry | Blue Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
 | Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, Confirm on a scheduled row opens it dated today with the amount selected, so a bill that varied is confirmed as it really was |
 | Move to | "Move to" in a row's action bar moves this account's side to another account (entered in the wrong one); it arrives uncleared there; not on reconciled rows, opening balances or adjustments, or onto a transfer's own other side (enforced in the database); undoes with its cleared state |
 | Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database: newest 14 plus the first of each of 12 months, written under a temporary name and renamed once complete. All of it under **Settings** (gear above Net worth; a coral dot when copies stop). "Back up to…" saves a copy anywhere. "Restore from…" checks the file, shows what it holds against what's here, saves what's here first and can be undone. **Start over** (last section of Settings): "Erase everything and start over…" names each account and balance that goes, asks keep or erase the categories (keep by default), saves the old ledger as `before-new-ledger-….sqlite` first, and undoes; an emptied ledger never gets the demo data again |
@@ -312,6 +313,10 @@ been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
 
+- **PR #21 (2026-09-29):** Add buttons are blue (red read as a warning; the `red`
+  token is gone). The logo's bee is back left of the wordmark, no tile
+  (`app/assets/brand/bee.svg`, 40 px): wings recolored like the wordmark, antennae
+  light, body black and gold as in the logo.
 - **PR #20 (2026-09-29):** the logo's wordmark top left; Steppe night dark mode;
   Steppe light mode with the same denim sidebar; Settings → Appearance. `Mid` reads
   from a `Palette`, the sidebar has its own `Mid.side*`, `AppearanceScope` switches

@@ -34,10 +34,9 @@ be quietly undone.
   | card | `#1A2436` | balance header |
   | raised | `#222E44` | hover, menus, active tabs |
   | ink / ink2 / ink3 | `#ECEFF4` / `#AAB3C2` / `#8D97AA` | text, three levels (ink3 lifted to read on the sidebar) |
-  | blue | `#6FA8F0` | interactive, chart line, "Budget" in the wordmark (steppe sky) |
+  | blue | `#6FA8F0` | interactive, chart line, "Budget" in the wordmark (steppe sky), the Add button (dark text) |
   | sun | `#F5C518` | sidebar marks: open section, chosen account's edge |
   | gold | `#E8C15A` | reconciled, scheduled |
-  | red | `#D8434C` | the Add button (white text) |
   | green | `#5CCB8E` | money in |
   | coral | `#F08A8A` | below zero, errors |
 - Rejected on the way: Steppe's bright blue `#1B5BA8` as the dark sidebar ("awful"),
@@ -55,7 +54,10 @@ be quietly undone.
   bright blue sidebar), so only the page changes between modes. Light tokens: ground
   `#F6F1E7` (felt cream), panel and card `#FFFFFF`, raised `#EEE8DC`, ink / ink2 / ink3
   `#1A2230` / `#4E5666` / `#6C7382`, blue `#1B5BA8`, gold `#9A721A`, green `#2E7D4F`,
-  coral `#C0392F`, red `#C8242F`; text on filled buttons is white (`onAccent`).
+  coral `#C0392F`; text on filled buttons is white (`onAccent`).
+- **Add buttons are blue, not red (owner, 2026-09-29):** red reads as a warning. Blue
+  already means "what you click". Rejected: sun yellow (too close to gold, which means
+  reconciled or scheduled) and green (it means money in). There is no red token now.
 - The sidebar has its own constants (`Mid.side*`, `Mid.sun`) because it is dark in
   both modes; the wordmark uses them too. The macOS title bar follows the page color
   over a `betterbudget/window` channel.
@@ -75,6 +77,12 @@ be quietly undone.
   `lib/ui/brand.dart`, cropped SVG in `app/assets/brand/`. On the dark ground its navy
   "Better" becomes ink and royal "Budget" the lifted blue. Rejected: the bee on a small
   white tile beside it, and the logo on the recovery-key screens.
+- **The bee is back, left of the wordmark, with no tile (owner, 2026-09-29).**
+  `app/assets/brand/bee.svg` is the logo's bee cropped. It is recolored like the
+  wordmark (navy wing ink, royal wing lifted blue), and its antennae become `sideInk2`
+  so they show on the denim. It is 40 px tall beside the 22 px wordmark. The body keeps
+  the logo's black and gold stripes: with the black stripes turned light gray, the gold
+  one couldn't be seen (owner).
 
 ### Color: how the dark and light modes were reached (owner, 2026-09-29)
 
@@ -217,7 +225,7 @@ What's known so far:
    complete, otherwise it moves to the first missing field. Started rows outline the
    required fields still empty and say "needs N more". There is a visible Add button.
    Autocomplete gets the first Enter only while a half-typed name has suggestions
-   showing. **The new-transaction row is hidden until the gold Add button (or ⌘N)
+   showing. **The new-transaction row is hidden until the blue Add button (or ⌘N)
    opens it**. Add sits at the right end of the register's tab row, just above where the
    row opens (owner's call; it started in the page header beside search) (owner's call: the always-there blank row was clutter). It opens with the
    cursor in Payee, stays open after each add so a batch goes quickly, and closes on
