@@ -2823,7 +2823,7 @@ class _SettingsPage extends StatelessWidget {
                       Text('Start over', style: onest(16, weight: 600)),
                       const SizedBox(height: 12),
                       Text(
-                        'Done trying things out? This erases every account and '
+                        'This erases every account and '
                         'transaction in this ledger, so you start empty. You '
                         'choose whether your categories stay. What you have '
                         'now is saved in Backups first, and Undo brings it '

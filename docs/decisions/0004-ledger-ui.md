@@ -377,7 +377,8 @@ be quietly undone.
     **Made plain that everything goes** (owner, 2026-09-29: "it needs to be more clear
     that all their old stuff will go away"; option A of three). "Start a new ledger"
     read like adding a second ledger, so it's **"Erase everything and start over…"**,
-    and the card says it erases every account and transaction. The dialog, titled
+    and the card says it erases every account and transaction (no "Done trying
+    things out?" in front: owner removed it, 2026-09-29). The dialog, titled
     "Erase everything and start over?", lists under "All of this is erased:" each
     account by name with its balance as the sidebar shows it ("₮640,200 owed"), the
     transactions with their first and last dates, then pay, reconciles, payees and
