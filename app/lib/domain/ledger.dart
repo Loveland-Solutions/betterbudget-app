@@ -777,7 +777,7 @@ class LedgerData {
       accountId: e.accountId,
       payScheduleId: t.payScheduleId,
       estimate: switch (_schedulesById[t.payScheduleId]) {
-        final p? when p.varies => p.amount,
+        final p? when p.varies => p.amountOn(t.date),
         _ => null,
       },
       lockedIn: e.cleared == Cleared.reconciled

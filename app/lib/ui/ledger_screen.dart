@@ -978,11 +978,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ? null
             : data.periodSchedule,
         names: (id) => data.accounts[id]?.name ?? '',
+        offerNoPay:
+            data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
       ),
     );
     if (result == null || !mounted) return;
     late PayChange change;
     switch (result) {
+      case PayNone():
+        await _setNoRegularPay(true);
       case PayStop():
         if (!await _accountWrite(
           () async => change = await db.stopPaySchedule(existing!.id, today),
@@ -1004,6 +1008,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             accountId: draft.accountId,
             payee: draft.payee,
             amount: draft.amount,
+            amount2: draft.amount2,
             varies: draft.varies,
             rule: draft.rule,
             day1: draft.day1,
@@ -1018,6 +1023,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )) {
           return;
         }
+        // Pay added after "I don't have regular pay": the saying no longer
+        // holds, so stopping this pay later asks again. Undone together.
+        final wasNone = existing == null ? data.prefs[noRegularPayKey] : null;
+        if (wasNone != null) await db.setPreference(noRegularPayKey, null);
         final next = await db.loadLedger();
         final payday = next.txns
             .where((t) => change.created.contains(t.id))
@@ -1027,10 +1036,42 @@ class _LedgerScreenState extends State<LedgerScreen> {
           message: payday == null
               ? 'Pay saved'
               : 'Pay saved · next payday ${fullDate(payday.date)}',
-          undo: () => db.undoPayChange(change),
-          redo: () => db.redoPayChange(change),
+          undo: () async {
+            await db.undoPayChange(change);
+            if (wasNone != null) {
+              await db.setPreference(noRegularPayKey, wasNone);
+            }
+          },
+          redo: () async {
+            await db.redoPayChange(change);
+            if (wasNone != null) {
+              await db.setPreference(noRegularPayKey, null);
+            }
+          },
         );
     }
+  }
+
+  /// "I don't have regular pay" (from the pay setup), or asking again
+  /// (Settings). Only the asking changes: "Add your pay" stays in Settings.
+  Future<void> _setNoRegularPay(bool none) async {
+    final old = _data?.prefs[noRegularPayKey];
+    final value = none ? '1' : null;
+    if (old == value) return;
+    try {
+      await db.setPreference(noRegularPayKey, value);
+    } catch (e) {
+      _showToast('Couldn’t save: $e');
+      return;
+    }
+    _did(
+      none ? 'No regular pay' : 'Asking for pay again',
+      message: none
+          ? 'No regular pay · the app won’t ask for it · Settings changes this'
+          : 'The forecast will ask for your pay again',
+      undo: () => db.setPreference(noRegularPayKey, old),
+      redo: () => db.setPreference(noRegularPayKey, value),
+    );
   }
 
   /// Budget by month, or by [schedule]'s pay periods.
@@ -2060,6 +2101,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               onBudgetBy: _budgetBy,
                               onEdit: (p) => _openPaySetup(existing: p),
                               onAdd: () => _openPaySetup(),
+                              onAskAgain: () => _setNoRegularPay(false),
                             ),
                             archived: data.archivedAccounts.isEmpty
                                 ? null
@@ -2201,7 +2243,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
-              onAddPay: account.isOwed || data.paySchedules.isNotEmpty
+              // "I don't have regular pay" said once stops the asking.
+              onAddPay:
+                  account.isOwed ||
+                      data.paySchedules.isNotEmpty ||
+                      data.prefs[noRegularPayKey] == '1'
                   ? null
                   : () => _openPaySetup(account: account),
               reconcile: _reconcile == null

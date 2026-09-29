@@ -192,35 +192,54 @@ class _BudgetPageState extends State<_BudgetPage> {
 ({String text, bool nudge}) _payNote(LedgerData data, AccountInfo c) {
   if (!c.payday) return (text: 'not a payday', nudge: false);
   final pays = data.paySchedules.where((p) => p.categoryId == c.id).toList();
-  if (pays.isEmpty) return (text: 'payday · pay not set up', nudge: true);
+  if (pays.isEmpty) {
+    // Said once in the pay setup: no regular pay, so nothing to nag about.
+    return data.prefs[noRegularPayKey] == '1'
+        ? (text: 'payday · no regular pay', nudge: false)
+        : (text: 'payday · pay not set up', nudge: true);
+  }
   final p = pays.first;
   final more = pays.length > 1 ? ' · +${pays.length - 1} more pay' : '';
   String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+  // Each paycheck beside what was planned for its own day: split pay's
+  // advance is measured against the advance, not the rest.
   final came = data
       .registerAll(categoryId: c.id)
       .posted
       .where((r) => r.payScheduleId == p.id && r.amount > 0)
-      .map((r) => r.amount)
+      .map(
+        (r) => (
+          amount: r.amount,
+          plan: p.amountOn(p.plannedFor(r.date, paid: r.amount)),
+        ),
+      )
       .toList()
       .reversed
       .toList();
   if (p.varies && came.length >= 6) {
-    final low = came.take(6).reduce((a, b) => a < b ? a : b);
-    if (low * 20 > p.amount * 21) {
+    final last6 = came.take(6);
+    if (last6.every((x) => x.amount * 20 > x.plan * 21)) {
+      final low = last6.map((x) => x.amount).reduce((a, b) => a < b ? a : b);
       return (
-        text:
-            'Your lowest of the last 6 was ${money(low)} · raise the '
-            'estimate?$more',
+        text: p.split
+            ? 'Your last 6 all came in over 5% above the estimate · raise '
+                  'it?$more'
+            : 'Your lowest of the last 6 was ${money(low)} · raise the '
+                  'estimate?$more',
         nudge: true,
       );
     }
   }
-  if (!p.varies && came.length >= 2 && came[0] == came[1]) {
-    final now = came[0];
+  // Pay that's the same: the last two for the same day came in alike.
+  final same = came.isEmpty
+      ? const <({int amount, int plan})>[]
+      : came.where((x) => x.plan == came[0].plan).take(2).toList();
+  if (!p.varies && same.length == 2 && same[0].amount == same[1].amount) {
+    final now = same[0].amount, plan = same[0].plan;
     // More than 2% off the plan either way.
-    if ((now - p.amount).abs() * 50 > p.amount) {
+    if ((now - plan).abs() * 50 > plan) {
       return (
-        text: now < p.amount
+        text: now < plan
             ? 'Last 2 came in at ${money(now)}, less than planned · update '
                   'it?$more'
             : 'Last 2 came in at ${money(now)} · update the amount?$more',
@@ -235,8 +254,8 @@ class _BudgetPageState extends State<_BudgetPage> {
       .firstOrNull;
   return (
     text:
-        'payday · ${money(p.amount)}${p.varies ? ' or more' : ''} '
-        '${p.describe}${next == null ? '' : ' · next ${shortDate(next.date)}'}'
+        'payday · ${p.describeAmounts(money)}'
+        '${next == null ? '' : ' · next ${shortDate(next.date)}'}'
         '$more',
     nudge: false,
   );

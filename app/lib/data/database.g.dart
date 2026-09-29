@@ -785,6 +785,17 @@ class $PaySchedulesTable extends PaySchedules
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _amount2MinorMeta = const VerificationMeta(
+    'amount2Minor',
+  );
+  @override
+  late final GeneratedColumn<int> amount2Minor = GeneratedColumn<int>(
+    'amount2_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _variesMeta = const VerificationMeta('varies');
   @override
   late final GeneratedColumn<bool> varies = GeneratedColumn<bool>(
@@ -905,6 +916,7 @@ class $PaySchedulesTable extends PaySchedules
     accountId,
     payee,
     amountMinor,
+    amount2Minor,
     varies,
     rule,
     day1,
@@ -963,6 +975,15 @@ class $PaySchedulesTable extends PaySchedules
       );
     } else if (isInserting) {
       context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('amount2_minor')) {
+      context.handle(
+        _amount2MinorMeta,
+        amount2Minor.isAcceptableOrUnknown(
+          data['amount2_minor']!,
+          _amount2MinorMeta,
+        ),
+      );
     }
     if (data.containsKey('varies')) {
       context.handle(
@@ -1055,6 +1076,10 @@ class $PaySchedulesTable extends PaySchedules
         DriftSqlType.int,
         data['${effectivePrefix}amount_minor'],
       )!,
+      amount2Minor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount2_minor'],
+      ),
       varies: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}varies'],
@@ -1117,6 +1142,10 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
 
   /// Positive; with [varies], the least it's likely to be.
   final int amountMinor;
+
+  /// Twice a month: what comes on [day2] when it differs (an advance, then
+  /// the rest). Null: the same both days.
+  final int? amount2Minor;
   final bool varies;
   final PayRule rule;
   final int day1;
@@ -1135,6 +1164,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     required this.accountId,
     this.payee,
     required this.amountMinor,
+    this.amount2Minor,
     required this.varies,
     required this.rule,
     required this.day1,
@@ -1156,6 +1186,9 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       map['payee'] = Variable<String>(payee);
     }
     map['amount_minor'] = Variable<int>(amountMinor);
+    if (!nullToAbsent || amount2Minor != null) {
+      map['amount2_minor'] = Variable<int>(amount2Minor);
+    }
     map['varies'] = Variable<bool>(varies);
     {
       map['rule'] = Variable<String>(
@@ -1186,6 +1219,9 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           ? const Value.absent()
           : Value(payee),
       amountMinor: Value(amountMinor),
+      amount2Minor: amount2Minor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(amount2Minor),
       varies: Value(varies),
       rule: Value(rule),
       day1: Value(day1),
@@ -1214,6 +1250,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       accountId: serializer.fromJson<int>(json['accountId']),
       payee: serializer.fromJson<String?>(json['payee']),
       amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      amount2Minor: serializer.fromJson<int?>(json['amount2Minor']),
       varies: serializer.fromJson<bool>(json['varies']),
       rule: $PaySchedulesTable.$converterrule.fromJson(
         serializer.fromJson<String>(json['rule']),
@@ -1237,6 +1274,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       'accountId': serializer.toJson<int>(accountId),
       'payee': serializer.toJson<String?>(payee),
       'amountMinor': serializer.toJson<int>(amountMinor),
+      'amount2Minor': serializer.toJson<int?>(amount2Minor),
       'varies': serializer.toJson<bool>(varies),
       'rule': serializer.toJson<String>(
         $PaySchedulesTable.$converterrule.toJson(rule),
@@ -1258,6 +1296,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     int? accountId,
     Value<String?> payee = const Value.absent(),
     int? amountMinor,
+    Value<int?> amount2Minor = const Value.absent(),
     bool? varies,
     PayRule? rule,
     int? day1,
@@ -1274,6 +1313,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     accountId: accountId ?? this.accountId,
     payee: payee.present ? payee.value : this.payee,
     amountMinor: amountMinor ?? this.amountMinor,
+    amount2Minor: amount2Minor.present ? amount2Minor.value : this.amount2Minor,
     varies: varies ?? this.varies,
     rule: rule ?? this.rule,
     day1: day1 ?? this.day1,
@@ -1296,6 +1336,9 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       amountMinor: data.amountMinor.present
           ? data.amountMinor.value
           : this.amountMinor,
+      amount2Minor: data.amount2Minor.present
+          ? data.amount2Minor.value
+          : this.amount2Minor,
       varies: data.varies.present ? data.varies.value : this.varies,
       rule: data.rule.present ? data.rule.value : this.rule,
       day1: data.day1.present ? data.day1.value : this.day1,
@@ -1321,6 +1364,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           ..write('accountId: $accountId, ')
           ..write('payee: $payee, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('amount2Minor: $amount2Minor, ')
           ..write('varies: $varies, ')
           ..write('rule: $rule, ')
           ..write('day1: $day1, ')
@@ -1342,6 +1386,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     accountId,
     payee,
     amountMinor,
+    amount2Minor,
     varies,
     rule,
     day1,
@@ -1362,6 +1407,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           other.accountId == this.accountId &&
           other.payee == this.payee &&
           other.amountMinor == this.amountMinor &&
+          other.amount2Minor == this.amount2Minor &&
           other.varies == this.varies &&
           other.rule == this.rule &&
           other.day1 == this.day1 &&
@@ -1380,6 +1426,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
   final Value<int> accountId;
   final Value<String?> payee;
   final Value<int> amountMinor;
+  final Value<int?> amount2Minor;
   final Value<bool> varies;
   final Value<PayRule> rule;
   final Value<int> day1;
@@ -1396,6 +1443,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     this.accountId = const Value.absent(),
     this.payee = const Value.absent(),
     this.amountMinor = const Value.absent(),
+    this.amount2Minor = const Value.absent(),
     this.varies = const Value.absent(),
     this.rule = const Value.absent(),
     this.day1 = const Value.absent(),
@@ -1413,6 +1461,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     required int accountId,
     this.payee = const Value.absent(),
     required int amountMinor,
+    this.amount2Minor = const Value.absent(),
     this.varies = const Value.absent(),
     required PayRule rule,
     this.day1 = const Value.absent(),
@@ -1434,6 +1483,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Expression<int>? accountId,
     Expression<String>? payee,
     Expression<int>? amountMinor,
+    Expression<int>? amount2Minor,
     Expression<bool>? varies,
     Expression<String>? rule,
     Expression<int>? day1,
@@ -1451,6 +1501,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       if (accountId != null) 'account_id': accountId,
       if (payee != null) 'payee': payee,
       if (amountMinor != null) 'amount_minor': amountMinor,
+      if (amount2Minor != null) 'amount2_minor': amount2Minor,
       if (varies != null) 'varies': varies,
       if (rule != null) 'rule': rule,
       if (day1 != null) 'day1': day1,
@@ -1470,6 +1521,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Value<int>? accountId,
     Value<String?>? payee,
     Value<int>? amountMinor,
+    Value<int?>? amount2Minor,
     Value<bool>? varies,
     Value<PayRule>? rule,
     Value<int>? day1,
@@ -1487,6 +1539,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       accountId: accountId ?? this.accountId,
       payee: payee ?? this.payee,
       amountMinor: amountMinor ?? this.amountMinor,
+      amount2Minor: amount2Minor ?? this.amount2Minor,
       varies: varies ?? this.varies,
       rule: rule ?? this.rule,
       day1: day1 ?? this.day1,
@@ -1517,6 +1570,9 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     }
     if (amountMinor.present) {
       map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (amount2Minor.present) {
+      map['amount2_minor'] = Variable<int>(amount2Minor.value);
     }
     if (varies.present) {
       map['varies'] = Variable<bool>(varies.value);
@@ -1561,6 +1617,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
           ..write('accountId: $accountId, ')
           ..write('payee: $payee, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('amount2Minor: $amount2Minor, ')
           ..write('varies: $varies, ')
           ..write('rule: $rule, ')
           ..write('day1: $day1, ')
@@ -4060,6 +4117,7 @@ typedef $$PaySchedulesTableCreateCompanionBuilder =
       required int accountId,
       Value<String?> payee,
       required int amountMinor,
+      Value<int?> amount2Minor,
       Value<bool> varies,
       required PayRule rule,
       Value<int> day1,
@@ -4078,6 +4136,7 @@ typedef $$PaySchedulesTableUpdateCompanionBuilder =
       Value<int> accountId,
       Value<String?> payee,
       Value<int> amountMinor,
+      Value<int?> amount2Minor,
       Value<bool> varies,
       Value<PayRule> rule,
       Value<int> day1,
@@ -4168,6 +4227,11 @@ class $$PaySchedulesTableFilterComposer
 
   ColumnFilters<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount2Minor => $composableBuilder(
+    column: $table.amount2Minor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4318,6 +4382,11 @@ class $$PaySchedulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get amount2Minor => $composableBuilder(
+    column: $table.amount2Minor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get varies => $composableBuilder(
     column: $table.varies,
     builder: (column) => ColumnOrderings(column),
@@ -4432,6 +4501,11 @@ class $$PaySchedulesTableAnnotationComposer
 
   GeneratedColumn<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amount2Minor => $composableBuilder(
+    column: $table.amount2Minor,
     builder: (column) => column,
   );
 
@@ -4578,6 +4652,7 @@ class $$PaySchedulesTableTableManager
                 Value<int> accountId = const Value.absent(),
                 Value<String?> payee = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
+                Value<int?> amount2Minor = const Value.absent(),
                 Value<bool> varies = const Value.absent(),
                 Value<PayRule> rule = const Value.absent(),
                 Value<int> day1 = const Value.absent(),
@@ -4594,6 +4669,7 @@ class $$PaySchedulesTableTableManager
                 accountId: accountId,
                 payee: payee,
                 amountMinor: amountMinor,
+                amount2Minor: amount2Minor,
                 varies: varies,
                 rule: rule,
                 day1: day1,
@@ -4612,6 +4688,7 @@ class $$PaySchedulesTableTableManager
                 required int accountId,
                 Value<String?> payee = const Value.absent(),
                 required int amountMinor,
+                Value<int?> amount2Minor = const Value.absent(),
                 Value<bool> varies = const Value.absent(),
                 required PayRule rule,
                 Value<int> day1 = const Value.absent(),
@@ -4628,6 +4705,7 @@ class $$PaySchedulesTableTableManager
                 accountId: accountId,
                 payee: payee,
                 amountMinor: amountMinor,
+                amount2Minor: amount2Minor,
                 varies: varies,
                 rule: rule,
                 day1: day1,

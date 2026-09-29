@@ -10,6 +10,7 @@ typedef PayDraft = ({
   int accountId,
   String? payee,
   int amount,
+  int? amount2,
   bool varies,
   PayRule rule,
   int day1,
@@ -34,6 +35,11 @@ class PayStop extends PaySetupResult {
   const PayStop();
 }
 
+/// "I don't have regular pay": stop asking for it.
+class PayNone extends PaySetupResult {
+  const PayNone();
+}
+
 class _PaySetupDialog extends StatefulWidget {
   const _PaySetupDialog({
     required this.categories,
@@ -45,7 +51,11 @@ class _PaySetupDialog extends StatefulWidget {
     required this.names,
     this.existing,
     this.periodBy,
+    this.offerNoPay = false,
   });
+
+  /// There's no pay anywhere yet: offer "I don't have regular pay".
+  final bool offerNoPay;
 
   /// Another schedule the budget runs by, if one does.
   final PaySchedule? periodBy;
@@ -72,14 +82,20 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   late AccountInfo _category = widget.category;
   late AccountInfo _account = widget.account;
   late final _payee = TextEditingController(text: widget.existing?.payee);
+
+  /// Twice a month with two amounts: [_amount] is the earlier day's, and
+  /// [_amount2] the later day's.
+  late bool _split = widget.existing?.split ?? false;
   late final _amount = TextEditingController(
-    text: widget.existing == null
-        ? ''
-        : formatMoney(
-            widget.existing!.amount,
-            showCents: widget.existing!.amount % 100 != 0,
-          ).replaceAll('₮', ''),
+    text: _typed(widget.existing?.byDay.first.amount),
   );
+  late final _amount2 = TextEditingController(
+    text: _typed(_split ? widget.existing!.byDay.last.amount : null),
+  );
+
+  static String _typed(int? v) => v == null
+      ? ''
+      : formatMoney(v, showCents: v % 100 != 0).replaceAll('₮', '');
   late bool _varies = widget.existing?.varies ?? false;
   late PayRule _rule = widget.existing?.rule ?? PayRule.monthly;
   late final _day1 = TextEditingController(
@@ -103,14 +119,22 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   void initState() {
     super.initState();
     _loadHistory();
-    for (final c in [_amount, _day1, _day2, _weeks, _anchor]) {
+    for (final c in [_amount, _amount2, _day1, _day2, _weeks, _anchor]) {
       c.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_payee, _amount, _day1, _day2, _weeks, _anchor]) {
+    for (final c in [
+      _payee,
+      _amount,
+      _amount2,
+      _day1,
+      _day2,
+      _weeks,
+      _anchor,
+    ]) {
       c.dispose();
     }
     _anchorFocus.dispose();
@@ -123,6 +147,52 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   }
 
   int? get _amountValue => parseAmount(_amount.text);
+
+  /// Back to one amount (the same both days, or another rule): the larger
+  /// of the two stays, since the advance alone would undercount pay.
+  void _oneAmount() {
+    if (!_splitting) return;
+    final a = _amountValue, b = _amount2Value;
+    if (b != null && (a == null || b > a)) _amount.text = _amount2.text;
+    _split = false;
+  }
+
+  int? get _amount2Value => parseAmount(_amount2.text);
+  bool get _splitting => _split && _rule == PayRule.twiceMonthly;
+
+  /// The two days of the month, earlier first, when both read.
+  (int, int)? get _days {
+    final a = _day(_day1), b = _day(_day2);
+    if (a == null || b == null) return null;
+    return a < b ? (a, b) : (b, a);
+  }
+
+  /// "the 10th" or, before the days are in, "the first payday".
+  String _dayName(bool later) => switch (_days) {
+    final d? => 'the ${PaySchedule.ordinal(later ? d.$2 : d.$1)}',
+    null => later ? 'the second payday' : 'the first payday',
+  };
+
+  /// What's saved: twice a month keeps the earlier day as [day2] and its
+  /// amount as amount2, the order the setup shows them in.
+  ({int amount, int? amount2, int day1, int day2}) get _plan {
+    final days = _days;
+    if (_rule != PayRule.twiceMonthly || days == null) {
+      return (
+        amount: _amountValue!,
+        amount2: null,
+        day1: _day(_day1) ?? 25,
+        day2: _day(_day2) ?? 10,
+      );
+    }
+    return (
+      amount: _splitting ? _amount2Value! : _amountValue!,
+      amount2: _splitting ? _amountValue : null,
+      day1: days.$2,
+      day2: days.$1,
+    );
+  }
+
   int? _day(TextEditingController c) {
     final v = int.tryParse(c.text.trim());
     return v == null || v < 1 || v > 31 ? null : v;
@@ -138,7 +208,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   /// What's missing or unreadable, first thing only; null when it can save.
   String? get _problem {
     final a = _amountValue;
-    if (a == null || a <= 0) return 'Put in how much comes';
+    if (a == null || a <= 0) {
+      return _splitting
+          ? 'Put in how much comes on ${_dayName(false)}'
+          : 'Put in how much comes';
+    }
+    final b = _amount2Value;
+    if (_splitting && (b == null || b <= 0)) {
+      return 'Put in how much comes on ${_dayName(true)}';
+    }
     return switch (_rule) {
       PayRule.monthly when _day(_day1) == null => 'Which day of the month?',
       PayRule.twiceMonthly when _day(_day1) == null || _day(_day2) == null =>
@@ -158,10 +236,12 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
           id: 0,
           categoryId: _category.id,
           accountId: _account.id,
-          amount: _amountValue!,
+          amount: _plan.amount,
+          amount2: _plan.amount2,
+          varies: _varies,
           rule: _rule,
-          day1: _day(_day1) ?? 25,
-          day2: _day(_day2) ?? 10,
+          day1: _plan.day1,
+          day2: _plan.day2,
           weeks: _weeksValue ?? 2,
           anchor: _anchorValue,
           weekendBefore: _weekendBefore,
@@ -174,11 +254,12 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
         categoryId: _category.id,
         accountId: _account.id,
         payee: _payee.text,
-        amount: _amountValue!,
+        amount: _plan.amount,
+        amount2: _plan.amount2,
         varies: _varies,
         rule: _rule,
-        day1: _day(_day1) ?? 25,
-        day2: _day(_day2) ?? 10,
+        day1: _plan.day1,
+        day2: _plan.day2,
         weeks: _weeksValue ?? 2,
         anchor: _anchorValue ?? widget.today,
         weekendBefore: _weekendBefore,
@@ -197,7 +278,11 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     final highest = _history.isEmpty
         ? null
         : _history.reduce((a, b) => a > b ? a : b);
-    final above = amount == null ? 0 : _history.where((h) => h < amount).length;
+    // Split pay's history mixes advances and the rest: no one amount to
+    // hold it against.
+    final above = amount == null || _splitting
+        ? 0
+        : _history.where((h) => h < amount).length;
     final preview = _preview;
     final next = preview?.nextAfter(
       widget.today.subtract(const Duration(days: 1)),
@@ -241,6 +326,26 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
             decoration: _fieldDecoration(),
           ),
         );
+
+    Widget amountField(
+      TextEditingController c,
+      String key, {
+      bool autofocus = false,
+    }) => Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        width: 180,
+        height: 30,
+        child: TextField(
+          key: ValueKey(key),
+          controller: c,
+          autofocus: autofocus && widget.existing == null,
+          textAlign: TextAlign.right,
+          style: onest(13.5, tabular: true),
+          decoration: _fieldDecoration(hint: '₮0'),
+        ),
+      ),
+    );
 
     Widget pick(
       List<AccountInfo> from,
@@ -380,23 +485,41 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     ),
                   line(
                     // Each payday, not the month: twice a month is two of these.
-                    _varies ? 'Expect at least' : 'Each payday',
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: 180,
-                        height: 30,
-                        child: TextField(
-                          key: const ValueKey('pay-amount'),
-                          controller: _amount,
-                          autofocus: widget.existing == null,
-                          textAlign: TextAlign.right,
-                          style: onest(13.5, tabular: true),
-                          decoration: _fieldDecoration(hint: '₮0'),
-                        ),
+                    _splitting
+                        ? '${_varies ? 'At least, on' : 'On'} ${_dayName(false)}'
+                        : _varies
+                        ? 'Expect at least'
+                        : 'Each payday',
+                    amountField(_amount, 'pay-amount', autofocus: true),
+                  ),
+                  if (_splitting)
+                    line(
+                      '${_varies ? 'At least, on' : 'On'} ${_dayName(true)}',
+                      amountField(_amount2, 'pay-amount2'),
+                    ),
+                  // Twice a month: an advance one day, the rest the other.
+                  if (_rule == PayRule.twiceMonthly)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 120, bottom: 10),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          choice(
+                            'Same both paydays',
+                            !_split,
+                            () => setState(_oneAmount),
+                            'pay-amount-same',
+                          ),
+                          choice(
+                            'A different amount each day',
+                            _split,
+                            () => setState(() => _split = true),
+                            'pay-amount-split',
+                          ),
+                        ],
                       ),
                     ),
-                  ),
                   if (lowest != null)
                     hint(
                       _history.length == 1
@@ -428,7 +551,10 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                             choice(
                               'Monthly',
                               _rule == PayRule.monthly,
-                              () => setState(() => _rule = PayRule.monthly),
+                              () => setState(() {
+                                _oneAmount();
+                                _rule = PayRule.monthly;
+                              }),
                               'pay-monthly',
                             ),
                             const SizedBox(width: 8),
@@ -443,7 +569,10 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                             choice(
                               'Every few weeks',
                               _rule == PayRule.everyWeeks,
-                              () => setState(() => _rule = PayRule.everyWeeks),
+                              () => setState(() {
+                                _oneAmount();
+                                _rule = PayRule.everyWeeks;
+                              }),
                               'pay-weeks',
                             ),
                           ],
@@ -489,6 +618,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       ],
                     ),
                   ),
+                  // Both days past the 28th meet in short months: one
+                  // payday then, which is worth knowing before it happens.
+                  if (_rule == PayRule.twiceMonthly && (_days?.$1 ?? 0) >= 28)
+                    hint(
+                      'In shorter months both days land on the last day: '
+                      'one payday that month, not two.',
+                      color: Mid.gold,
+                      key: const ValueKey('pay-days-meet'),
+                    ),
                   line(
                     'On a weekend',
                     Row(
@@ -551,9 +689,9 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     child: Text(
                       _problem ??
                           'Next payday ${fullDate(next!)} · '
-                              '${money(amount!)}${_varies ? ' or more' : ''}'
+                              '${money(preview!.amountOn(next))}${_varies ? ' or more' : ''}'
                               // A doubled monthly figure shows before saving.
-                              '${preview!.rule == PayRule.monthly ? '' : ' · about ${money(amount * preview.perYear ~/ 12)} a month'}',
+                              '${preview.rule == PayRule.monthly ? '' : ' · about ${money(preview.perMonth)} a month'}',
                       key: const ValueKey('pay-summary'),
                       style: onest(
                         13,
@@ -564,6 +702,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                   const SizedBox(height: 18),
                   Row(
                     children: [
+                      // Self-employed or between jobs: say so once, and
+                      // nothing asks for pay again (Settings undoes it).
+                      if (widget.existing == null && widget.offerNoPay)
+                        BarButton(
+                          key: const ValueKey('pay-none'),
+                          label: 'I don’t have regular pay',
+                          onTap: () =>
+                              Navigator.of(context).pop(const PayNone()),
+                        ),
                       if (widget.existing != null)
                         BarButton(
                           key: const ValueKey('pay-stop'),
@@ -607,8 +754,12 @@ class _BudgetSettings extends StatelessWidget {
     required this.onBudgetBy,
     required this.onEdit,
     required this.onAdd,
+    required this.onAskAgain,
   });
   final LedgerData data;
+
+  /// Undoes "I don't have regular pay".
+  final VoidCallback onAskAgain;
   final ValueChanged<PaySchedule?> onBudgetBy;
   final ValueChanged<PaySchedule> onEdit;
   final VoidCallback onAdd;
@@ -742,8 +893,8 @@ class _BudgetSettings extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '${name(p.categoryId)} · ${money(p.amount)}'
-                            '${p.varies ? ' or more' : ''} · ${p.describe} · '
+                            '${name(p.categoryId)} · '
+                            '${p.describeAmounts(money, sep: ' · ')} · '
                             'into ${name(p.accountId)}',
                             style: onest(13.5),
                           ),
@@ -752,6 +903,27 @@ class _BudgetSettings extends StatelessWidget {
                           key: ValueKey('edit-pay-${p.id}'),
                           label: 'Edit',
                           onTap: () => onEdit(p),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (pays.isEmpty && data.prefs[noRegularPayKey] == '1')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'You said you don’t have regular pay, so the '
+                            'forecast doesn’t ask for it.',
+                            key: const ValueKey('settings-no-pay'),
+                            style: onest(13.5, color: Mid.ink2),
+                          ),
+                        ),
+                        BarButton(
+                          key: const ValueKey('settings-ask-pay'),
+                          label: 'Ask me again',
+                          onTap: onAskAgain,
                         ),
                       ],
                     ),

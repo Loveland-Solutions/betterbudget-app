@@ -6,6 +6,10 @@ import 'ledger.dart';
 
 enum PayRule { monthly, twiceMonthly, everyWeeks }
 
+/// The preference set by "I don't have regular pay": nothing asks for pay
+/// while there's none (self-employed, between jobs). '1' when set.
+const noRegularPayKey = 'pay.none';
+
 class PaySchedule {
   const PaySchedule({
     required this.id,
@@ -13,6 +17,7 @@ class PaySchedule {
     required this.accountId,
     required this.amount,
     required this.rule,
+    this.amount2,
     this.payee,
     this.varies = false,
     this.day1 = 25,
@@ -34,6 +39,10 @@ class PaySchedule {
   /// Positive minor units. With [varies], the least it's likely to be: the
   /// forecast counts on it, so the low end is the safe one.
   final int amount;
+
+  /// Twice a month only: what comes on [day2], when it isn't [amount] (an
+  /// advance on one day, the rest on the other). Null: the same both days.
+  final int? amount2;
   final bool varies;
   final String? payee;
   final PayRule rule;
@@ -53,6 +62,40 @@ class PaySchedule {
 
   /// Budget by pay period, and this schedule's paydays are its bounds.
   final bool definesPeriod;
+
+  /// Two different amounts, one for each day of the month.
+  bool get split =>
+      rule == PayRule.twiceMonthly && amount2 != null && amount2 != amount;
+
+  /// Split pay by day of the month, the earlier day first:
+  /// `[(day: 10, amount: advance), (day: 25, amount: rest)]`. One entry for
+  /// pay that's the same each payday.
+  List<({int day, int amount})> get byDay {
+    if (!split) return [(day: day1, amount: amount)];
+    final a = (day: day1, amount: amount), b = (day: day2, amount: amount2!);
+    return day1 < day2 ? [a, b] : [b, a];
+  }
+
+  /// What comes on [payday] (a date this schedule lands on, weekend rule
+  /// applied): [amount2] when it's [day2]'s payday.
+  int amountOn(DateTime payday) {
+    if (!split) return amount;
+    final p = dateOnly(payday);
+    for (final n in _nominalDays(_addDays(p, -7))) {
+      final moved = _offWeekend(n.date);
+      if (moved == p) return n.day == day2 ? amount2! : amount;
+      if (moved.isAfter(p)) break;
+    }
+    // Not one of its paydays (a row moved by hand): the nearest plan's.
+    return amountOn(plannedFor(p));
+  }
+
+  /// About what comes in a month: both days' pay for twice a month.
+  int get perMonth => switch (rule) {
+    PayRule.monthly => amount,
+    PayRule.twiceMonthly => amount + (amount2 ?? amount),
+    PayRule.everyWeeks => amount * perYear ~/ 12,
+  };
 
   /// Paydays a year, for the "26 paydays" note.
   int get perYear => switch (rule) {
@@ -97,11 +140,19 @@ class PaySchedule {
   /// The planned payday a paycheck posted on [posted] belongs to: the
   /// nearest one. Pay confirmed two days early (before a holiday) or a few
   /// days late is still that payday, so the next is the one after it.
-  DateTime plannedFor(DateTime posted) {
+  ///
+  /// Split pay with [paid] goes by amount first: an advance confirmed a week
+  /// late is still the advance, not the rest that's due sooner.
+  DateTime plannedFor(DateTime posted, {int? paid}) {
     final p = dateOnly(posted);
     final before = lastOnOrBefore(p);
     final after = nextAfter(p);
     if (before == null) return after;
+    if (split && paid != null) {
+      final b = (amountOn(before) - paid).abs();
+      final a = (amountOn(after) - paid).abs();
+      if (a != b) return b < a ? before : after;
+    }
     return p.difference(before).inHours <= after.difference(p).inHours
         ? before
         : after;
@@ -128,7 +179,12 @@ class PaySchedule {
   };
 
   /// Nominal paydays (before the weekend rule) from [from] on, in order.
-  Iterable<DateTime> _nominalFrom(DateTime from) sync* {
+  Iterable<DateTime> _nominalFrom(DateTime from) =>
+      _nominalDays(from).map((n) => n.date);
+
+  /// [_nominalFrom] with the day of the month each came from (0 for every
+  /// N weeks), so split pay knows which amount a payday is.
+  Iterable<({DateTime date, int day})> _nominalDays(DateTime from) sync* {
     switch (rule) {
       case PayRule.monthly || PayRule.twiceMonthly:
         final days = rule == PayRule.monthly ? [day1] : ([day1, day2]..sort());
@@ -136,7 +192,7 @@ class PaySchedule {
         while (true) {
           for (final day in days) {
             final d = DateTime(y, m, _clampDay(y, m, day));
-            if (!d.isBefore(from)) yield d;
+            if (!d.isBefore(from)) yield (date: d, day: day);
           }
           if (++m > 12) {
             m = 1;
@@ -154,7 +210,7 @@ class PaySchedule {
           d = _addDays(d, step);
         }
         while (true) {
-          yield d;
+          yield (date: d, day: 0);
           d = DateTime(d.year, d.month, d.day + 7 * weeks);
         }
     }
@@ -165,6 +221,19 @@ class PaySchedule {
     return day < 1 ? 1 : (day > last ? last : day);
   }
 
+  /// How much and when, with [money] formatting an amount: "₮2,100,000 or
+  /// more on the 10th and 25th", or split, "₮500,000 on the 10th and
+  /// ₮1,600,000 on the 25th" ("at least" in front when it varies).
+  String describeAmounts(String Function(int) money, {String sep = ' '}) {
+    if (!split) {
+      return '${money(amount)}${varies ? ' or more' : ''}$sep$describe';
+    }
+    final d = byDay;
+    return '${varies ? 'at least ' : ''}${money(d[0].amount)} on the '
+        '${_ordinal(d[0].day)} and ${money(d[1].amount)} on the '
+        '${_ordinal(d[1].day)}';
+  }
+
   /// "monthly on the 25th", "on the 10th and 25th", "every 2 weeks".
   String get describe => switch (rule) {
     PayRule.monthly => 'monthly on the ${_ordinal(day1)}',
@@ -173,6 +242,8 @@ class PaySchedule {
           '${_ordinal(day1 < day2 ? day2 : day1)}',
     PayRule.everyWeeks => weeks == 1 ? 'every week' : 'every $weeks weeks',
   };
+
+  static String ordinal(int n) => _ordinal(n);
 
   static String _ordinal(int n) {
     final mod100 = n % 100;

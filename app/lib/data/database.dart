@@ -59,6 +59,10 @@ class PaySchedules extends Table {
 
   /// Positive; with [varies], the least it's likely to be.
   IntColumn get amountMinor => integer()();
+
+  /// Twice a month: what comes on [day2] when it differs (an advance, then
+  /// the rest). Null: the same both days.
+  IntColumn get amount2Minor => integer().nullable()();
   BoolColumn get varies => boolean().withDefault(const Constant(false))();
   TextColumn get rule => textEnum<PayRule>()();
   IntColumn get day1 => integer().withDefault(const Constant(25))();
@@ -316,7 +320,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -347,6 +351,10 @@ class AppDatabase extends _$AppDatabase {
         if (from < 6) {
           await m.addColumn(accounts, accounts.role);
           await m.createTable(preferences);
+        }
+        // Before v5 the table was just made, with the column already.
+        if (from >= 5 && from < 7) {
+          await m.addColumn(paySchedules, paySchedules.amount2Minor);
         }
       });
     },
@@ -1311,6 +1319,7 @@ class AppDatabase extends _$AppDatabase {
     categoryId: p.categoryId,
     accountId: p.accountId,
     amount: p.amountMinor,
+    amount2: p.amount2Minor,
     varies: p.varies,
     payee: p.payee,
     rule: p.rule,
@@ -1373,6 +1382,7 @@ class AppDatabase extends _$AppDatabase {
     required int categoryId,
     required int accountId,
     required int amount,
+    int? amount2,
     required PayRule rule,
     required DateTime today,
     String? payee,
@@ -1386,7 +1396,9 @@ class AppDatabase extends _$AppDatabase {
   }) => transaction(() async {
     await _assertCategory(categoryId);
     await _assertLive(accountId);
-    if (amount <= 0) throw NotFoundException('Pay is money in');
+    if (amount <= 0 || (amount2 != null && amount2 <= 0)) {
+      throw NotFoundException('Pay is money in');
+    }
     // What it was before anything here is written, for undo.
     final before = id == null
         ? null
@@ -1399,6 +1411,10 @@ class AppDatabase extends _$AppDatabase {
       accountId: Value(accountId),
       payee: Value(payee?.trim().isEmpty ?? true ? null : payee!.trim()),
       amountMinor: Value(amount),
+      // Only twice a month has a second day, and the same twice is one.
+      amount2Minor: Value(
+        rule == PayRule.twiceMonthly && amount2 != amount ? amount2 : null,
+      ),
       varies: Value(varies),
       rule: Value(rule),
       day1: Value(day1),
@@ -1618,80 +1634,96 @@ class AppDatabase extends _$AppDatabase {
   /// confirmed (early or late, it counts as the payday it was for), still
   /// overdue, or deleted by the user (skipped: it doesn't come back). With
   /// nothing at all, from today. Returns what it scheduled, for undo.
-  Future<List<int>> ensurePaydays(DateTime today, {int? only}) => transaction(
-    () async {
-      final created = <int>[];
-      final t = dateOnly(today);
-      final todayKey = dateKey(t);
-      final rows =
-          await (select(paySchedules)..where(
-                (p) =>
-                    p.deletedAt.isNull() &
-                    (only == null ? const Constant(true) : p.id.equals(only)),
-              ))
-              .get();
-      for (final p in rows) {
-        final category = await (select(
-          accounts,
-        )..where((a) => a.id.equals(p.categoryId))).getSingle();
-        final account = await (select(
-          accounts,
-        )..where((a) => a.id.equals(p.accountId))).getSingle();
-        // Nothing lands in an account or category that's gone or put away.
-        if (category.deletedAt != null ||
-            account.deletedAt != null ||
-            category.archivedAt != null ||
-            account.archivedAt != null) {
-          continue;
-        }
-        final linked = await (select(
-          transactions,
-        )..where((x) => x.payScheduleId.equals(p.id))).get();
-        if (linked.any(
-          (x) =>
-              x.deletedAt == null &&
-              x.scheduled &&
-              x.date.compareTo(todayKey) >= 0,
-        )) {
-          continue;
-        }
-        final schedule = _schedule(p);
-        final latest = linked
-            .map(
-              (x) => x.scheduled
+  Future<List<int>> ensurePaydays(DateTime today, {int? only}) =>
+      transaction(() async {
+        final created = <int>[];
+        final t = dateOnly(today);
+        final todayKey = dateKey(t);
+        final rows =
+            await (select(paySchedules)..where(
+                  (p) =>
+                      p.deletedAt.isNull() &
+                      (only == null ? const Constant(true) : p.id.equals(only)),
+                ))
+                .get();
+        for (final p in rows) {
+          final category = await (select(
+            accounts,
+          )..where((a) => a.id.equals(p.categoryId))).getSingle();
+          final account = await (select(
+            accounts,
+          )..where((a) => a.id.equals(p.accountId))).getSingle();
+          // Nothing lands in an account or category that's gone or put away.
+          if (category.deletedAt != null ||
+              account.deletedAt != null ||
+              category.archivedAt != null ||
+              account.archivedAt != null) {
+            continue;
+          }
+          final linked = await (select(
+            transactions,
+          )..where((x) => x.payScheduleId.equals(p.id))).get();
+          if (linked.any(
+            (x) =>
+                x.deletedAt == null &&
+                x.scheduled &&
+                x.date.compareTo(todayKey) >= 0,
+          )) {
+            continue;
+          }
+          final schedule = _schedule(p);
+          // What came, for split pay: an advance confirmed late is the advance.
+          Future<int?> paid(TransactionRow x) async => !schedule.split
+              ? null
+              : (await (select(entries)..where(
+                          (e) =>
+                              e.transactionId.equals(x.id) &
+                              e.accountId.equals(p.accountId),
+                        ))
+                        .getSingleOrNull())
+                    ?.amountMinor;
+          final planned = [
+            for (final x in linked)
+              x.scheduled
                   ? parseDateKey(x.date)
-                  : schedule.plannedFor(parseDateKey(x.date)),
-            )
-            .fold<DateTime?>(null, (m, d) => m == null || d.isAfter(m) ? d : m);
-        final yesterday = DateTime(t.year, t.month, t.day - 1);
-        final from = latest == null || latest.isBefore(yesterday)
-            ? yesterday
-            : latest;
-        final date = schedule.nextAfter(from);
-        created.add(
-          await postTransaction(
-            date: date,
-            payee: p.payee ?? category.name,
-            scheduled: true,
-            payScheduleId: p.id,
-            lines: [
-              (
-                accountId: p.accountId,
-                amount: p.amountMinor,
-                cleared: Cleared.uncleared,
-              ),
-              (
-                accountId: p.categoryId,
-                amount: -p.amountMinor,
-                cleared: Cleared.uncleared,
-              ),
-            ],
-          ),
-        );
-      }
-      return created;
-    },
-  );
+                  : schedule.plannedFor(
+                      parseDateKey(x.date),
+                      paid: await paid(x),
+                    ),
+          ];
+          final latest = planned.fold<DateTime?>(
+            null,
+            (m, d) => m == null || d.isAfter(m) ? d : m,
+          );
+          final yesterday = DateTime(t.year, t.month, t.day - 1);
+          final from = latest == null || latest.isBefore(yesterday)
+              ? yesterday
+              : latest;
+          final date = schedule.nextAfter(from);
+          final amount = schedule.amountOn(date);
+          created.add(
+            await postTransaction(
+              date: date,
+              payee: p.payee ?? category.name,
+              scheduled: true,
+              payScheduleId: p.id,
+              lines: [
+                (
+                  accountId: p.accountId,
+                  amount: amount,
+                  cleared: Cleared.uncleared,
+                ),
+                (
+                  accountId: p.categoryId,
+                  amount: -amount,
+                  cleared: Cleared.uncleared,
+                ),
+              ],
+            ),
+          );
+        }
+        return created;
+      });
 
   // ---------- categories ----------
 

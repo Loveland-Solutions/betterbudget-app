@@ -12,10 +12,10 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #16 (Start a new ledger, ADR 0005).
-Open: draft PR #17 `encryption` (built, both reviews done and their fixes in; waiting
-for the owner to try it in the app, then merge). Keep the pattern: branch, commit, PR, merge. The owner's data
-file is at schema version 6.
+**Git state:** `main` has everything through PR #17 (encryption). Branch `pay-options`:
+two pay amounts twice a month and "I don't have regular pay" (schema v7). Keep the
+pattern: branch, commit, PR, merge. The owner's data file is at schema version 6 until
+they run a v7 build.
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -26,7 +26,7 @@ Visual direction and the register's UX rules are settled in
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite (schema version 4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
+| Storage | Drift/SQLite (schema version 7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings opens the steps to getting prepared (rule 25). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
 | Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
@@ -173,7 +173,7 @@ start using it"):
 
 - [x] Merge PRs #14 (persona reviews) and #15 (Savings)
 - [x] **A clean start**: Start a new ledger in Settings (ADR 0004 rule 19)
-- [ ] **Encryption, in the alpha** (owner, 2026-09-24: "build it right the first time",
+- [x] **Encryption, in the alpha** (merged, PR #17) (owner, 2026-09-24: "build it right the first time",
   for macOS, Windows, Linux, iOS and Android). Designed in ADR 0001: SQLite3 Multiple
   Ciphers writing SQLCipher v4, one data key per ledger in each device's secure store,
   derived from a recovery key shown once at setup and never stored (Save/Copy,
@@ -198,9 +198,8 @@ start using it"):
   owner said yes (2026-09-29) to **Check my recovery key…** in Settings (type it, get
   yes or no; nothing shown), to **offering a backup on a new computer**, and to
   **restoring a backup under another key** by typing that key. 227 tests pass.
-  **Next: the owner tries it in the app, then merge #17.** The owner questioned the
-  Settings check ("the key shouldn't be in settings"); it stays unless they say remove
-  it. The stronger check character makes keys saved before it invalid (test data only).
+  Merged (PR #17). The owner questioned the Settings check ("the key shouldn't be in
+  settings") and then said leave it (2026-09-29). The stronger check character makes keys saved before it invalid (test data only).
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   Waiting for the owner; it's a new feature, so bring options and sketches.
 
@@ -226,10 +225,9 @@ the next. Details for each item are further down (open items, roadmap, tabled).
 - [ ] 4. **Recurring** scheduled items. **Pay is done** (PR #13, rule 24): payday mark,
   pay setup, the next payday always scheduled, budget by month or pay period. Still to
   do: recurring bills (rent, СӨХ, utilities, phone), probably on the same schedule
-  model. **Two pay questions are waiting for the owner** (asked 2026-09-19, both
-  recommended yes): (a) twice a month with **an amount for each day** (advance, then
-  the rest); (b) **"I don't have regular pay"** in the setup, which turns off the "Add
-  your pay" prompt (undo it in Settings), for self-employed users.
+  model. **Both pay follow-ups built** (owner said yes, 2026-09-29; branch
+  `pay-options`, rule 24): twice a month with **an amount for each day**, and **"I
+  don't have regular pay"** (undo in Settings).
 - [ ] 5. A better **"not cleared" note**
 - [ ] 6. **Duplicate check on Confirm**
 - [ ] 7. **Several overdue bills** in All
