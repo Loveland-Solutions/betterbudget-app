@@ -40,6 +40,53 @@ void main() {
     expect(pay.nextAfter(DateTime(2027, 2, 1)), DateTime(2027, 2, 26));
   });
 
+  test('twice a month with an advance, then the rest', () {
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: 1,
+      accountId: 1,
+      amount: 160000000,
+      amount2: 50000000,
+      rule: PayRule.twiceMonthly,
+      day1: 25,
+      day2: 10,
+    );
+    expect(pay.split, isTrue);
+    expect(pay.byDay, [
+      (day: 10, amount: 50000000),
+      (day: 25, amount: 160000000),
+    ]);
+    expect(pay.amountOn(DateTime(2026, 9, 10)), 50000000);
+    expect(pay.amountOn(DateTime(2026, 9, 25)), 160000000);
+    // 10.10 is a Saturday, paid Friday 10.09; 10.25 a Sunday, paid 10.23.
+    expect(pay.amountOn(DateTime(2026, 10, 9)), 50000000);
+    expect(pay.amountOn(DateTime(2026, 10, 23)), 160000000);
+    // A row moved by hand: its nearest payday's amount.
+    expect(pay.amountOn(DateTime(2026, 9, 12)), 50000000);
+    expect(pay.perMonth, 210000000);
+    // The advance confirmed on the 18th (nearer the 25th) is still the 10th's.
+    expect(
+      pay.plannedFor(DateTime(2026, 9, 18), paid: 50000000),
+      DateTime(2026, 9, 10),
+    );
+    expect(
+      pay.plannedFor(DateTime(2026, 9, 18), paid: 160000000),
+      DateTime(2026, 9, 25),
+    );
+    String money(int v) => '₮${v ~/ 100}';
+    expect(
+      pay.describeAmounts(money),
+      '₮500000 on the 10th and ₮1600000 on the 25th',
+    );
+    // The same both days is one amount.
+    expect(s(PayRule.twiceMonthly).split, isFalse);
+    expect(
+      s(PayRule.twiceMonthly).describeAmounts(money),
+      '₮1 on the 10th and 25th',
+    );
+    expect(s(PayRule.twiceMonthly).perMonth, 200);
+  });
+
   test('twice a month, in order whichever day is typed first', () {
     final pay = s(PayRule.twiceMonthly, day1: 25, day2: 10);
     expect(pay.nextAfter(DateTime(2026, 9, 1)), DateTime(2026, 9, 10));

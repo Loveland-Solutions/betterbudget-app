@@ -12,10 +12,12 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #16 (Start a new ledger, ADR 0005).
-Open: draft PR #17 `encryption` (built, both reviews done and their fixes in; waiting
-for the owner to try it in the app, then merge). Keep the pattern: branch, commit, PR, merge. The owner's data
-file is at schema version 6.
+**Git state:** `main` has everything through PR #17 (encryption). Open: PR #18
+`pay-options` (a different amount each paycheck twice a month, "I don't have regular
+pay", "Erase everything and start over"; schema v7). The owner tried it in the app and
+said it looks good (2026-09-29); **merge #18 next**. Keep the pattern: branch, commit,
+PR, merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
+before it encrypted).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -26,7 +28,7 @@ Visual direction and the register's UX rules are settled in
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite (schema version 4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
+| Storage | Drift/SQLite (schema version 7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings opens the steps to getting prepared (rule 25). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
 | Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
@@ -39,7 +41,7 @@ Visual direction and the register's UX rules are settled in
 | Entry | Gold Add button or ⌘N opens the row (stays open for a batch, closes on Esc or when left empty); any field order; Enter from anywhere; memo line under Payee; missing fields outlined; a transfer spells out its direction ("₮640,200.00 from TDB Checking to Golomt Visa") with Swap; payee autocomplete with last-used category; `+` before an amount for money in; calculator (`12000+8500`); `→ Account` as category makes a transfer; future date → scheduled; calendar under the date field (future days gold) |
 | Editing | Double-click a row (or Enter, or Edit in its action bar) opens it in place with date, payee, memo, category and amount, and the cursor in the clicked field; Enter/Save keeps changes, Esc cancels, Undo restores; splits edit date, payee and memo only; reconciled rows edit payee, memo and category only (date and amount locked); moving a date into the future schedules it. Also: inline category menu, click a symbol to clear or unclear, Confirm on a scheduled row opens it dated today with the amount selected, so a bill that varied is confirmed as it really was |
 | Move to | "Move to" in a row's action bar moves this account's side to another account (entered in the wrong one); it arrives uncleared there; not on reconciled rows, opening balances or adjustments, or onto a transfer's own other side (enforced in the database); undoes with its cleared state |
-| Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database: newest 14 plus the first of each of 12 months, written under a temporary name and renamed once complete. All of it under **Settings** (gear above Net worth; a coral dot when copies stop). "Back up to…" saves a copy anywhere. "Restore from…" checks the file, shows what it holds against what's here, saves what's here first and can be undone. **Start over** (last section of Settings): "Start a new ledger…" warns with what goes, keeps the categories by default, saves the old ledger as `before-new-ledger-….sqlite` first, and undoes; an emptied ledger never gets the demo data again |
+| Backups | A copy a day (at launch, checked hourly) in `Backups/` beside the database: newest 14 plus the first of each of 12 months, written under a temporary name and renamed once complete. All of it under **Settings** (gear above Net worth; a coral dot when copies stop). "Back up to…" saves a copy anywhere. "Restore from…" checks the file, shows what it holds against what's here, saves what's here first and can be undone. **Start over** (last section of Settings): "Erase everything and start over…" names each account and balance that goes, asks keep or erase the categories (keep by default), saves the old ledger as `before-new-ledger-….sqlite` first, and undoes; an emptied ledger never gets the demo data again |
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
@@ -67,7 +69,7 @@ scheduled items.
 ### Known bugs and loose ends
 
 - **The owner's own data file** (not the demo seed) has leftovers from testing. The owner
-  says it's all test data now; **Start a new ledger** in Settings clears it for the alpha:
+  says it's all test data now; **Erase everything and start over** in Settings clears it for the alpha:
   - Two "asdfa" test entries (₮3 and ₮4).
   - Two October rows posted before the early-confirm fix.
 
@@ -173,7 +175,7 @@ start using it"):
 
 - [x] Merge PRs #14 (persona reviews) and #15 (Savings)
 - [x] **A clean start**: Start a new ledger in Settings (ADR 0004 rule 19)
-- [ ] **Encryption, in the alpha** (owner, 2026-09-24: "build it right the first time",
+- [x] **Encryption, in the alpha** (merged, PR #17) (owner, 2026-09-24: "build it right the first time",
   for macOS, Windows, Linux, iOS and Android). Designed in ADR 0001: SQLite3 Multiple
   Ciphers writing SQLCipher v4, one data key per ledger in each device's secure store,
   derived from a recovery key shown once at setup and never stored (Save/Copy,
@@ -198,11 +200,18 @@ start using it"):
   owner said yes (2026-09-29) to **Check my recovery key…** in Settings (type it, get
   yes or no; nothing shown), to **offering a backup on a new computer**, and to
   **restoring a backup under another key** by typing that key. 227 tests pass.
-  **Next: the owner tries it in the app, then merge #17.** The owner questioned the
-  Settings check ("the key shouldn't be in settings"); it stays unless they say remove
-  it. The stronger check character makes keys saved before it invalid (test data only).
+  Merged (PR #17). The owner questioned the Settings check ("the key shouldn't be in
+  settings") and then said leave it (2026-09-29). The stronger check character makes keys saved before it invalid (test data only).
+- [x] **Pay follow-ups and a clearer clean start** (PR #18, owner tested 2026-09-29):
+  a different amount each paycheck twice a month; "I don't have regular pay"; the
+  clean start renamed **"Erase everything and start over…"**, naming each account and
+  balance that goes, with keep or erase the categories as a visible choice (ADR 0004
+  rules 19 and 24). Code review done, fixes in. 232 tests pass.
+- [ ] **The owner erases the test data** (Settings → Erase everything and start over,
+  keep categories) and starts entering real accounts. Only the owner can do this; it
+  runs inside the app with the Keychain key.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
-  Waiting for the owner; it's a new feature, so bring options and sketches.
+  **Next feature**: it's new, so bring two or three options with sketches.
 
 The rest of the list below can wait until the owner is using it for real. **Phone apps**
 are designed ([ADR 0005](decisions/0005-mobile-companion.md)) and come after the budget.
@@ -226,10 +235,9 @@ the next. Details for each item are further down (open items, roadmap, tabled).
 - [ ] 4. **Recurring** scheduled items. **Pay is done** (PR #13, rule 24): payday mark,
   pay setup, the next payday always scheduled, budget by month or pay period. Still to
   do: recurring bills (rent, СӨХ, utilities, phone), probably on the same schedule
-  model. **Two pay questions are waiting for the owner** (asked 2026-09-19, both
-  recommended yes): (a) twice a month with **an amount for each day** (advance, then
-  the rest); (b) **"I don't have regular pay"** in the setup, which turns off the "Add
-  your pay" prompt (undo it in Settings), for self-employed users.
+  model. **Both pay follow-ups built** (owner said yes, 2026-09-29; PR #18, rule 24):
+  twice a month with **a different amount each paycheck**, and **"I don't have regular
+  pay"** (undo in Settings).
 - [ ] 5. A better **"not cleared" note**
 - [ ] 6. **Duplicate check on Confirm**
 - [ ] 7. **Several overdue bills** in All

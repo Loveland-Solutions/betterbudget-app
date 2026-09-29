@@ -1751,6 +1751,96 @@ void main() {
       expect((await db.loadLedger()).paySchedules, hasLength(1));
     });
 
+    test('an advance, then the rest: each payday at its own amount', () async {
+      final salary = await categoryId('Salary');
+      final change = await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 160000000,
+        amount2: 50000000,
+        rule: PayRule.twiceMonthly,
+        day1: 25,
+        day2: 10,
+        today: DateTime(2026, 9, 1),
+      );
+      var data = await db.loadLedger();
+      final advance = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == change.created.single);
+      expect(advance.date, DateTime(2026, 9, 10));
+      expect(advance.amount, 50000000);
+      await db.editTransaction(
+        transactionId: advance.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 10),
+        today: DateTime(2026, 9, 10),
+        amount: 50000000,
+        confirm: true,
+      );
+      final rest = await db.ensurePaydays(DateTime(2026, 9, 10));
+      data = await db.loadLedger();
+      final row = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == rest.single);
+      expect(row.date, DateTime(2026, 9, 25));
+      expect(row.amount, 160000000);
+      // Confirmed a week late, on the 18th: still the advance, so the rest
+      // on the 25th stays the next payday.
+      await db.editTransaction(
+        transactionId: row.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 25),
+        today: DateTime(2026, 9, 25),
+        amount: 160000000,
+        confirm: true,
+      );
+      final october = await db.ensurePaydays(DateTime(2026, 9, 25));
+      data = await db.loadLedger();
+      final oct = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == october.single);
+      await db.editTransaction(
+        transactionId: oct.txnId,
+        accountId: checking,
+        date: DateTime(2026, 10, 18),
+        today: DateTime(2026, 10, 18),
+        amount: 50000000,
+        confirm: true,
+      );
+      final late = await db.ensurePaydays(DateTime(2026, 10, 18));
+      data = await db.loadLedger();
+      final after = data
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == late.single);
+      expect(after.date, DateTime(2026, 10, 23)); // 10.25 is a Sunday
+      expect(after.amount, 160000000);
+      // The same amount twice isn't split, and monthly never is.
+      final same = await db.savePaySchedule(
+        id: change.after.id,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000000,
+        amount2: 100000000,
+        rule: PayRule.twiceMonthly,
+        today: DateTime(2026, 9, 10),
+      );
+      expect(same.after.amount2Minor, isNull);
+      final monthly = await db.savePaySchedule(
+        id: change.after.id,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000000,
+        amount2: 50000000,
+        rule: PayRule.monthly,
+        today: DateTime(2026, 9, 10),
+      );
+      expect(monthly.after.amount2Minor, isNull);
+    });
+
     test('only a payday ends the forecast', () async {
       final allowance = await db.createCategory(
         'Child allowance',

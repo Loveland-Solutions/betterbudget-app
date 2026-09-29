@@ -978,11 +978,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ? null
             : data.periodSchedule,
         names: (id) => data.accounts[id]?.name ?? '',
+        offerNoPay:
+            data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
       ),
     );
     if (result == null || !mounted) return;
     late PayChange change;
     switch (result) {
+      case PayNone():
+        await _setNoRegularPay(true);
       case PayStop():
         if (!await _accountWrite(
           () async => change = await db.stopPaySchedule(existing!.id, today),
@@ -1004,6 +1008,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             accountId: draft.accountId,
             payee: draft.payee,
             amount: draft.amount,
+            amount2: draft.amount2,
             varies: draft.varies,
             rule: draft.rule,
             day1: draft.day1,
@@ -1018,6 +1023,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )) {
           return;
         }
+        // Pay added after "I don't have regular pay": the saying no longer
+        // holds, so stopping this pay later asks again. Undone together.
+        final wasNone = existing == null ? data.prefs[noRegularPayKey] : null;
+        if (wasNone != null) await db.setPreference(noRegularPayKey, null);
         final next = await db.loadLedger();
         final payday = next.txns
             .where((t) => change.created.contains(t.id))
@@ -1027,10 +1036,42 @@ class _LedgerScreenState extends State<LedgerScreen> {
           message: payday == null
               ? 'Pay saved'
               : 'Pay saved · next payday ${fullDate(payday.date)}',
-          undo: () => db.undoPayChange(change),
-          redo: () => db.redoPayChange(change),
+          undo: () async {
+            await db.undoPayChange(change);
+            if (wasNone != null) {
+              await db.setPreference(noRegularPayKey, wasNone);
+            }
+          },
+          redo: () async {
+            await db.redoPayChange(change);
+            if (wasNone != null) {
+              await db.setPreference(noRegularPayKey, null);
+            }
+          },
         );
     }
+  }
+
+  /// "I don't have regular pay" (from the pay setup), or asking again
+  /// (Settings). Only the asking changes: "Add your pay" stays in Settings.
+  Future<void> _setNoRegularPay(bool none) async {
+    final old = _data?.prefs[noRegularPayKey];
+    final value = none ? '1' : null;
+    if (old == value) return;
+    try {
+      await db.setPreference(noRegularPayKey, value);
+    } catch (e) {
+      _showToast('Couldn’t save: $e');
+      return;
+    }
+    _did(
+      none ? 'No regular pay' : 'Asking for pay again',
+      message: none
+          ? 'No regular pay · the app won’t ask for it · Settings changes this'
+          : 'The forecast will ask for your pay again',
+      undo: () => db.setPreference(noRegularPayKey, old),
+      redo: () => db.setPreference(noRegularPayKey, value),
+    );
   }
 
   /// Budget by month, or by [schedule]'s pay periods.
@@ -1879,8 +1920,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (_) => _NewLedgerDialog(
+        accounts: [
+          for (final a in data.balanceSheetAccounts)
+            (
+              name: a.archived ? '${a.name} (archived)' : a.name,
+              balance: _balanceText(a, data.balanceOf(a.id)),
+            ),
+        ],
         transactions: data.txns.length,
-        accounts: data.balanceSheetAccounts.length,
+        first: data.txns
+            .map((t) => t.date)
+            .fold<DateTime?>(
+              null,
+              (m, d) => m == null || d.isBefore(m) ? d : m,
+            ),
+        last: data.txns
+            .map((t) => t.date)
+            .fold<DateTime?>(null, (m, d) => m == null || d.isAfter(m) ? d : m),
+        pay: data.paySchedules.length,
         reconciles: data.reconciliations.length,
         categories: data.categories.length,
       ),
@@ -1918,7 +1975,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () => _whileRestoring(
         () => db.startNewLedger(widget.clock(), keepCategories: keep),
       ),
-      message: 'New ledger started · the old one is saved in Backups',
+      message: 'Everything erased · what you had is saved in Backups',
     );
   }
 
@@ -2060,6 +2117,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               onBudgetBy: _budgetBy,
                               onEdit: (p) => _openPaySetup(existing: p),
                               onAdd: () => _openPaySetup(),
+                              onAskAgain: () => _setNoRegularPay(false),
                             ),
                             archived: data.archivedAccounts.isEmpty
                                 ? null
@@ -2201,7 +2259,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
-              onAddPay: account.isOwed || data.paySchedules.isNotEmpty
+              // "I don't have regular pay" said once stops the asking.
+              onAddPay:
+                  account.isOwed ||
+                      data.paySchedules.isNotEmpty ||
+                      data.prefs[noRegularPayKey] == '1'
                   ? null
                   : () => _openPaySetup(account: account),
               reconcile: _reconcile == null
@@ -2761,15 +2823,17 @@ class _SettingsPage extends StatelessWidget {
                       Text('Start over', style: onest(16, weight: 600)),
                       const SizedBox(height: 12),
                       Text(
-                        'Done trying things out? A new ledger has no accounts '
-                        'or transactions, and can keep your categories. What '
-                        'you have now is saved first, and Undo brings it back.',
+                        'This erases every account and '
+                        'transaction in this ledger, so you start empty. You '
+                        'choose whether your categories stay. What you have '
+                        'now is saved in Backups first, and Undo brings it '
+                        'back.',
                         style: onest(13, color: Mid.ink3),
                       ),
                       const SizedBox(height: 12),
                       BarButton(
                         key: const ValueKey('new-ledger'),
-                        label: 'Start a new ledger…',
+                        label: 'Erase everything and start over…',
                         leading: const Icon(
                           Icons.restart_alt_rounded,
                           size: 14,
@@ -2897,17 +2961,30 @@ class _RestoreDialog extends StatelessWidget {
   }
 }
 
-/// Asks before a new ledger replaces everything, with what goes. Keeping
-/// the categories is the default; the box drops them too.
+/// A balance as the sidebar shows it: a card as what's owed, positive, as
+/// the bank does.
+String _balanceText(AccountInfo a, int balance) => a.isOwed
+    ? '${balance > 0 ? '−' : ''}₮${formatWhole(balance)} owed'
+    : '${balance < 0 ? '−' : ''}₮${formatWhole(balance)}';
+
+/// Asks before everything is erased for a clean start, naming what goes:
+/// each account and its balance, the transactions' dates, pay. Whether the
+/// categories stay is a choice in plain sight; keeping them is the default.
 class _NewLedgerDialog extends StatefulWidget {
   const _NewLedgerDialog({
-    required this.transactions,
     required this.accounts,
+    required this.transactions,
+    required this.first,
+    required this.last,
+    required this.pay,
     required this.reconciles,
     required this.categories,
   });
+  final List<({String name, String balance})> accounts;
   final int transactions;
-  final int accounts;
+  final DateTime? first;
+  final DateTime? last;
+  final int pay;
   final int reconciles;
   final int categories;
 
@@ -2918,15 +2995,60 @@ class _NewLedgerDialog extends StatefulWidget {
 class _NewLedgerDialogState extends State<_NewLedgerDialog> {
   bool _keep = true;
 
+  /// Accounts listed by name before "+ N more".
+  static const _shown = 8;
+
   @override
   Widget build(BuildContext context) {
     String n(int v, String one, String many) => '$v ${v == 1 ? one : many}';
-    final goes = [
-      n(widget.transactions, 'transaction', 'transactions'),
-      n(widget.accounts, 'account', 'accounts'),
+    final first = widget.first, last = widget.last;
+    final also = [
+      if (widget.pay > 0) 'Your pay',
       if (widget.reconciles > 0)
         n(widget.reconciles, 'reconcile', 'reconciles'),
-    ].join(' · ');
+      'Payees',
+      'Budget and Savings settings',
+    ];
+    final alsoText = also.join(' · ');
+
+    Widget item(String left, String right, {Key? key}) => Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(left, style: onest(13.5, color: Mid.ink)),
+          ),
+          Text(right, style: onest(13.5, color: Mid.ink, tabular: true)),
+        ],
+      ),
+    );
+
+    Widget choice(
+      String label,
+      bool on,
+      VoidCallback onTap,
+      String key,
+    ) => Hoverable(
+      key: ValueKey(key),
+      onTap: onTap,
+      builder: (hover) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Center(
+          widthFactor: 1,
+          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+        ),
+      ),
+    );
+
     return Dialog(
       backgroundColor: Mid.panel,
       shape: RoundedRectangleBorder(
@@ -2935,14 +3057,14 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
       ),
       child: SizedBox(
         width: 480,
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Start a new ledger?',
+                'Erase everything and start over?',
                 style: onest(
                   17,
                   weight: 600,
@@ -2952,40 +3074,84 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
               ),
               const SizedBox(height: 14),
               Text(
-                'These go: $goes.',
-                key: const ValueKey('new-ledger-goes'),
-                style: onest(13.5, color: Mid.ink, tabular: true),
+                'All of this is erased:',
+                style: onest(13.5, weight: 600, color: Mid.ink),
               ),
               const SizedBox(height: 10),
+              Container(
+                key: const ValueKey('new-ledger-goes'),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                decoration: BoxDecoration(
+                  color: Mid.coral.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Mid.coral.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final a in widget.accounts.take(_shown))
+                      item(a.name, a.balance),
+                    if (widget.accounts.length > _shown)
+                      item(
+                        '+ ${n(widget.accounts.length - _shown, 'more account', 'more accounts')}',
+                        '',
+                      ),
+                    item(
+                      n(widget.transactions, 'transaction', 'transactions'),
+                      first == null || last == null
+                          ? ''
+                          : first == last
+                          ? fullDate(first)
+                          : '${fullDate(first)} – ${fullDate(last)}',
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(alsoText, style: onest(13.5, color: Mid.ink)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
-                'So do pay, payees, and your Budget and Savings settings.',
+                'You start with no accounts and no money in the app.',
                 style: onest(13.5, color: Mid.ink),
               ),
               if (widget.categories > 0) ...[
-                const SizedBox(height: 12),
-                Hoverable(
-                  key: const ValueKey('new-ledger-keep'),
-                  onTap: () => setState(() => _keep = !_keep),
-                  builder: (hover) => Row(
-                    children: [
-                      Icon(
-                        _keep
-                            ? Icons.check_box_rounded
-                            : Icons.check_box_outline_blank_rounded,
-                        size: 18,
-                        color: _keep ? Mid.gold : Mid.ink3,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Keep my ${n(widget.categories, 'category', 'categories')}, '
-                        'with no rows in them',
-                        style: onest(13.5, color: hover ? Mid.ink : Mid.ink2),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 18),
+                Text(
+                  'Your ${n(widget.categories, 'category', 'categories')}',
+                  style: onest(13.5, weight: 600, color: Mid.ink),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    choice(
+                      'Keep them, empty',
+                      _keep,
+                      () => setState(() => _keep = true),
+                      'new-ledger-keep',
+                    ),
+                    choice(
+                      'Erase them too',
+                      !_keep,
+                      () => setState(() => _keep = false),
+                      'new-ledger-drop',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _keep
+                      ? 'Kept with no rows in them, ready for your real '
+                            'accounts.'
+                      : 'You’ll add categories again on the Budget screen.',
+                  key: const ValueKey('new-ledger-categories'),
+                  style: onest(12.5, color: Mid.ink3),
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               Text(
                 'What you have now is saved in Backups first. Undo brings it '
                 'back, and so does Restore from… later.',
@@ -3015,7 +3181,7 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         alignment: Alignment.center,
                         child: Text(
-                          'Start a new ledger',
+                          'Erase everything',
                           style: onest(13, weight: 600, color: Mid.ground),
                         ),
                       ),
@@ -3231,9 +3397,7 @@ class _AccountTileState extends State<_AccountTile> {
             Text(
               // A card shows what's owed, positive, as the bank does; owing
               // isn't a warning.
-              widget.account.isOwed
-                  ? '${widget.balance > 0 ? '−' : ''}₮${formatWhole(widget.balance)} owed'
-                  : '${widget.balance < 0 ? '−' : ''}₮${formatWhole(widget.balance)}',
+              _balanceText(widget.account, widget.balance),
               style: onest(
                 12.5,
                 color: !widget.account.isOwed && widget.balance < 0

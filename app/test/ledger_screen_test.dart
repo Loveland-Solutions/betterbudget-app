@@ -1705,15 +1705,31 @@ void main() {
 
     // Cancel changes nothing.
     await run(find.byKey(const ValueKey('new-ledger')));
-    expect(find.text('Start a new ledger?'), findsOneWidget);
+    expect(find.text('Erase everything and start over?'), findsOneWidget);
+    // Each account by name with its balance, as the sidebar shows it.
+    final goes = find.byKey(const ValueKey('new-ledger-goes'));
+    for (final t in [
+      'TDB Checking',
+      '₮4,182,450',
+      'Golomt Visa',
+      '₮640,200 owed',
+      '19 transactions',
+    ]) {
+      expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
+    }
+    expect(find.text('Your 15 categories'), findsOneWidget);
     expect(
-      find.textContaining('These go: 19 transactions · 4 accounts'),
+      find.text('Kept with no rows in them, ready for your real accounts.'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('new-ledger-drop')));
+    await tester.pumpAndSettle();
     expect(
-      find.text('Keep my 15 categories, with no rows in them'),
+      find.text('You’ll add categories again on the Budget screen.'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('new-ledger-keep')));
+    await tester.pumpAndSettle();
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/new_ledger_dialog.png'),
@@ -1724,7 +1740,7 @@ void main() {
     await run(find.byKey(const ValueKey('new-ledger')));
     await run(find.byKey(const ValueKey('new-ledger-confirm')));
     expect(
-      find.text('New ledger started · the old one is saved in Backups'),
+      find.text('Everything erased · what you had is saved in Backups'),
       findsOneWidget,
     );
     var now = await ledger();
@@ -2835,6 +2851,143 @@ void main() {
       expect(ledger!.paySchedules, isEmpty);
       await tidy(tester, db);
     });
+
+    testWidgets('twice a month: an advance, then the rest', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('pay-twice')));
+      await tester.pumpAndSettle();
+      // The same both days until asked otherwise.
+      expect(find.byKey(const ValueKey('pay-amount2')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('pay-amount-split')));
+      await tester.pumpAndSettle();
+      expect(find.text('On the 10th'), findsOneWidget);
+      expect(find.text('On the 25th'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('pay-amount')),
+        '500000',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Put in how much comes on the 25th'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('pay-amount2')),
+        '1600000',
+      );
+      await tester.pumpAndSettle();
+      // Today is 09.16: the rest on the 25th comes next.
+      expect(
+        find.text(
+          'Next payday 2026.09.25 · ₮1,600,000 · about ₮2,100,000 a month',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/pay_setup_split.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
+      expect(
+        find.text(
+          'Salary · ₮500,000 on the 10th and ₮1,600,000 on the 25th · '
+          'into TDB Checking',
+        ),
+        findsOneWidget,
+      );
+      // Editing it back to one amount keeps the larger, not the advance.
+      await tester.runAsync(() async {
+        await tester.tap(
+          find.byKey(
+            ValueKey(
+              'edit-pay-${(await db.loadLedger()).paySchedules.single.id}',
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('On the 10th'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pay-monthly')));
+      await tester.pumpAndSettle();
+      expect(find.text('Each payday'), findsOneWidget);
+      expect(find.text('1,600,000'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pay-cancel')));
+      await tester.pumpAndSettle();
+      final ledger = await tester.runAsync(db.loadLedger);
+      final pay = ledger!.paySchedules.single;
+      expect(pay.byDay, [
+        (day: 10, amount: 50000000),
+        (day: 25, amount: 160000000),
+      ]);
+      await tidy(tester, db);
+    });
+
+    testWidgets(
+      '“I don’t have regular pay” stops the asking; Settings undoes it',
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await tester.tap(find.text('Cash wallet').first);
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('add-pay')));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        });
+        await tester.pumpAndSettle();
+        await tapAndWait(tester, find.byKey(const ValueKey('pay-none')));
+        expect(
+          find.text(
+            'No regular pay · the app won’t ask for it · Settings changes this',
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('add-pay')), findsNothing);
+        await tester.tap(find.text('Budget'));
+        await tester.pumpAndSettle();
+        expect(find.text('payday · no regular pay'), findsOneWidget);
+
+        await tester.tap(find.byKey(const ValueKey('settings')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
+        await tapAndWait(
+          tester,
+          find.byKey(const ValueKey('settings-ask-pay')),
+        );
+        expect(find.byKey(const ValueKey('settings-no-pay')), findsNothing);
+        // ⌘Z puts "no regular pay" back.
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
+        // Adding pay anyway: the saying goes with it, and comes back on undo.
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        });
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('pay-none')), findsNothing);
+        await tester.enterText(
+          find.byKey(const ValueKey('pay-amount')),
+          '2000000',
+        );
+        await tester.pumpAndSettle();
+        await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
+        expect(
+          (await tester.runAsync(db.loadLedger))!.prefs[noRegularPayKey],
+          isNull,
+        );
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        expect(
+          (await tester.runAsync(db.loadLedger))!.prefs[noRegularPayKey],
+          '1',
+        );
+        await tidy(tester, db);
+      },
+    );
 
     testWidgets('the Budget screen says which income is payday', (
       tester,

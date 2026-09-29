@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -62,6 +63,7 @@ void main() {
         );
         await db.customStatement('DROP TABLE entries_v2');
       }
+      await dropAddedInV7(db);
       await dropAddedInV6(db);
       await dropAddedInV5(db);
       await dropAccountColumnsAddedInV4(db);
@@ -119,6 +121,39 @@ void main() {
     });
   }
 
+  test('upgrades a v6 file: pay keeps its one amount', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final salary = (await db.loadLedger()).categories.firstWhere(
+      (c) => c.name == 'Salary',
+    );
+    final checking = (await db.loadLedger()).openAccounts.first.id;
+    await db.savePaySchedule(
+      categoryId: salary.id,
+      accountId: checking,
+      amount: 100000000,
+      rule: PayRule.twiceMonthly,
+      today: today,
+    );
+    await dropAddedInV7(db);
+    await db.customStatement('PRAGMA user_version = 6');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final pay = (await db.loadLedger()).paySchedules.single;
+    expect(pay.amount, 100000000);
+    expect(pay.split, isFalse);
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v7-from-v6-')),
+    );
+  });
+
   test(
     'upgrades a v5 file: no roles, no answers, Savings starts fresh',
     () async {
@@ -129,6 +164,7 @@ void main() {
       var db = AppDatabase(NativeDatabase(file));
       await seedDemoIfEmpty(db, today);
       final before = await db.loadLedger();
+      await dropAddedInV7(db);
       await dropAddedInV6(db);
       await db.customStatement('PRAGMA user_version = 5');
       await db.close();
@@ -141,7 +177,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v6-from-v5-')),
+        contains(startsWith('betterbudget.before-v7-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -155,6 +191,7 @@ void main() {
 
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
+    await dropAddedInV7(db);
     await dropAddedInV6(db);
     await dropAddedInV5(db);
     await db.customStatement('PRAGMA user_version = 4');
@@ -178,6 +215,7 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final before = await db.loadLedger();
+    await dropAddedInV7(db);
     await dropAddedInV6(db);
     await dropAddedInV5(db);
     await dropAccountColumnsAddedInV4(db);
@@ -198,6 +236,13 @@ void main() {
     await db.setArchived(savings, true);
     expect((await db.loadLedger()).accounts[savings]!.archived, isTrue);
   });
+}
+
+/// The v6 schema: pay has one amount.
+Future<void> dropAddedInV7(AppDatabase db) async {
+  await db.customStatement(
+    'ALTER TABLE pay_schedules DROP COLUMN amount2_minor',
+  );
 }
 
 /// The v5 schema: no account roles or preferences.

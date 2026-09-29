@@ -30,8 +30,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   every cleared-symbol click (toasts are for saved changes; ⌘Z undoes anything), and
   an income name under the forecast's end date (both ends show plain dates), a bank
   balance prefilled with the cleared total, reconciled rows whose payee couldn't be
-  fixed, a row hover as faint as the row stripe, and a separate cash-account counting
-  flow (not wanted yet; on the roadmap).
+  fixed, a row hover as faint as the row stripe, a separate cash-account counting
+  flow (not wanted yet; on the roadmap), and "a different amount each day" for split pay
+  (it's each paycheck).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

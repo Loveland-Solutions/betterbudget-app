@@ -374,6 +374,23 @@ be quietly undone.
     puts it back, and Restore from… can later. It clears the undo history like a
     restore. A ledger emptied this way stays empty: the demo data only fills a file
     that has never had a ledger started in it.
+    **Made plain that everything goes** (owner, 2026-09-29: "it needs to be more clear
+    that all their old stuff will go away"; option A of three). "Start a new ledger"
+    read like adding a second ledger, so it's **"Erase everything and start over…"**,
+    and the card says it erases every account and transaction (no "Done trying
+    things out?" in front: owner removed it, 2026-09-29). The dialog, titled
+    "Erase everything and start over?", lists under "All of this is erased:" each
+    account by name with its balance as the sidebar shows it ("₮640,200 owed"), the
+    transactions with their first and last dates, then pay, reconciles, payees and
+    settings, and says "You start with no accounts and no money in the app." **The
+    categories are a visible choice** (owner: "the option to leave the categories or
+    delete them should be clearly visible"): "Your 15 categories" with "Keep them,
+    empty" (default) or "Erase them too", and a line saying what each means. The
+    button reads "Erase everything"; the toast "Everything erased · what you had is
+    saved in Backups". Still one click, saved first, undoable (warn, don't block).
+    Rejected: stronger words with counts only (B), and a before/after comparison
+    (C). The recovery-key screen's "Start a new ledger instead…" keeps its name: it
+    moves the old ledger aside, not erasing it.
 
 20. **Old items say on the row why Working may be off** (owner's call, option A of
     three, from review finding G). Working leaves out scheduled rows and keeps
@@ -607,6 +624,37 @@ be quietly undone.
       another's.
     - Date arithmetic is in calendar days, safe across daylight saving. A
       restore schedules paydays as a launch does.
+    **Two amounts, and no regular pay** (owner said yes to both, 2026-09-29):
+    - **Twice a month can have a different amount each paycheck** (an advance on
+      the 10th, the rest on the 25th). The default stays one amount: "The same each
+      paycheck" / "A different amount each paycheck" shows under the amount once
+      "Twice a month" is picked, and the second choice turns the amount into
+      "On the 10th" and "On the 25th", earlier day first. (Owner's correction,
+      2026-09-29: "a different amount each day" was misleading; it's each
+      paycheck.) Each payday is
+      scheduled at its own day's amount, a weekend move included; the summary
+      shows the next payday's amount and "about" the two added together. The
+      Budget screen and Settings say "₮500,000 on the 10th and ₮1,600,000 on
+      the 25th". Estimates and nudges compare each paycheck with its own day's
+      plan, so an advance never reads as a short paycheck. The "higher than
+      your last paychecks" warning is off for split pay (its history mixes
+      advances and the rest). The same amount typed twice saves as one.
+      Stored as a second amount on the schedule (schema v7).
+    - **"I don't have regular pay"** sits bottom left in "Add your pay" while
+      there's no pay anywhere (self-employed, between jobs). It turns off the
+      forecast's "Add your pay →" and the Budget screen's gold "pay not set
+      up" (it reads "payday · no regular pay"). Settings says "You said you
+      don't have regular pay, so the forecast doesn't ask for it" with **Ask me
+      again**; "Add your pay" stays in Settings the whole time. ⌘Z undoes
+      either.
+    - From the code review (decided along those lines): going back to one
+      amount (same both days, or another rule) keeps the larger of the two,
+      since the advance alone would undercount pay. Split pay confirmed late
+      belongs to the payday whose amount it matches (an advance on the 18th is
+      still the 10th's, and the rest on the 25th stays scheduled). Both days on
+      the 28th or later warn in gold that shorter months have one payday, not
+      two. Adding pay after "I don't have regular pay" clears the saying, and
+      undo brings it back; the button isn't offered again once it's set.
 25. **Savings is the steps to getting financially prepared** (owner's calls,
     2026-09-19). It follows the order of the Church's *Personal Finances for
     Self-Reliance* course ("What Is My Current Financial Priority?", chapter 5;
