@@ -12,11 +12,9 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #17 (encryption). Open: PR #18
-`pay-options` (a different amount each paycheck twice a month, "I don't have regular
-pay", "Erase everything and start over"; schema v7). The owner tried it in the app and
-said it looks good (2026-09-29); **merge #18 next**. Keep the pattern: branch, commit,
-PR, merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
+**Git state:** `main` has everything through PR #18 (pay options, schema v7) and the
+app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
+merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
 before it encrypted).
 
 Visual direction and the register's UX rules are settled in
@@ -63,7 +61,8 @@ scheduled items.
 - CSV export, app lock.
 - **Mongolian UI strings** (the UI is English; payees are Cyrillic), **phone apps**
   (designed in [ADR 0005](decisions/0005-mobile-companion.md); after the budget),
-  Windows build (scaffolded, never built), a real app icon.
+  Windows build (scaffolded, never built), the bee icon on the phone apps (macOS has
+  it).
 - **CI.** Nothing runs tests on pull requests.
 
 ### Known bugs and loose ends
@@ -210,6 +209,13 @@ start using it"):
 - [ ] **The owner erases the test data** (Settings → Erase everything and start over,
   keep categories) and starts entering real accounts. Only the owner can do this; it
   runs inside the app with the Keychain key.
+- [ ] **Color and a light mode** (owner, 2026-09-29: Midnight is "a bit too dark. We
+  need some color."). In progress, nothing built: see ADR 0004 "Color: being redone"
+  for what's liked and rejected, and the canvas linked there. Liked: category colors,
+  Charcoal & paper for light, Forest & brass for dark with a darker balance card
+  (bronze or charcoal, not chosen). Next: the owner picks; then theme tokens that can
+  switch (`Mid` is ~500 constant uses), following the Mac's setting with a choice in
+  Settings, and every golden redrawn.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   **Next feature**: it's new, so bring two or three options with sketches.
 
@@ -301,6 +307,11 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **2026-09-29:** the macOS app icon is the bee from the new logo, tilted 45° on a white
+  tile (`design/icon/app_icon.swift` makes it; rebuild, and if the Dock keeps Flutter's
+  icon, re-register the app with `lsregister -f` and `killall Dock`). Logo SVGs added
+  and their hidden green fills removed. Color exploration started (see Next step).
 
 - **PR #13 (2026-09-19):** pay (rule 24). Only payday income ends a forecast, and a
   pay setup is prompted from the forecast, the Budget screen and Settings. Pay that
