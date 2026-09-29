@@ -45,6 +45,7 @@ dependencies:
   # connections for the plain-to-cipher conversion and key checks, not just
   # by drift under the hood.
   sqlite3: ^3.5.2
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +72,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # The logo, cropped from assets/logo/ at the repo root.
+  assets:
+    - assets/brand/
 
   fonts:
     - family: Onest

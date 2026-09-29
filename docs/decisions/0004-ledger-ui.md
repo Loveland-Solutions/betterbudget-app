@@ -19,20 +19,46 @@ be quietly undone.
 
 ## Decision
 
-### Visual direction: Midnight
+### Visual direction: Steppe night (dark mode)
 
-- A dark ground derived from the logo navy. Tokens live in `app/lib/ui/theme.dart` (`Mid`).
+- **Chosen by the owner 2026-09-29** (canvas board "Z2 · Night, gray denim sidebar"),
+  replacing Midnight (`#060D1E` ground, `#0B1630` panel: "too dark"). It is the dark
+  pair of Steppe, the light mode under consideration. Tokens live in
+  `app/lib/ui/theme.dart` (`Mid`).
 
   | Token | Hex | Role |
   | --- | --- | --- |
-  | ground | `#060D1E` | window background (brand navy `#03173E`, deepened) |
-  | panel | `#0B1630` | cards |
-  | raised | `#10204A` | hover, menus, active tabs |
-  | ink / ink2 / ink3 | `#EEF1F8` / `#A3AEC6` / `#66728E` | text, three levels |
-  | blue | `#4F7BFF` | interactive (brand royal `#0342B2`, lifted to read on dark) |
-  | gold | `#D9B878` | reconciled, scheduled (brand gold `#C9A96B`) |
-  | green | `#5CCB9A` | money in |
+  | ground | `#0D1522` | page and title bar, blue-black |
+  | side | `#243550` | sidebar, gray denim; chosen account `sideSel` (white 10%) |
+  | panel | `#141D2D` | register, dialogs |
+  | card | `#1A2436` | balance header |
+  | raised | `#222E44` | hover, menus, active tabs |
+  | ink / ink2 / ink3 | `#ECEFF4` / `#AAB3C2` / `#8D97AA` | text, three levels (ink3 lifted to read on the sidebar) |
+  | blue | `#6FA8F0` | interactive, chart line, "Budget" in the wordmark (steppe sky) |
+  | sun | `#F5C518` | sidebar marks: open section, chosen account's edge |
+  | gold | `#E8C15A` | reconciled, scheduled |
+  | red | `#D8434C` | the Add button (white text) |
+  | green | `#5CCB8E` | money in |
   | coral | `#F08A8A` | below zero, errors |
+- Rejected on the way: Steppe's bright blue `#1B5BA8` as the dark sidebar ("awful"),
+  deep steppe blue `#163B6E`, an ink sidebar darker than the page, and Steppe "felt"
+  (warm near-black). The title bar stays the ground color, so a strip of it shows above
+  the sidebar.
+
+### Light mode and the Appearance setting (owner, 2026-09-29)
+
+- **Settings → Appearance: "Same as this Mac" (default), Light, Dark.** Under the
+  first, a line says which one shows now. Kept per computer in a small `appearance`
+  file beside the ledger, not in it, so a phone on the same ledger keeps its own. ⌘Z
+  switches back; no toast (the whole window changing says it happened).
+- **Light is Steppe with the same gray denim sidebar** (owner chose this over Steppe's
+  bright blue sidebar), so only the page changes between modes. Light tokens: ground
+  `#F6F1E7` (felt cream), panel and card `#FFFFFF`, raised `#EEE8DC`, ink / ink2 / ink3
+  `#1A2230` / `#4E5666` / `#6C7382`, blue `#1B5BA8`, gold `#9A721A`, green `#2E7D4F`,
+  coral `#C0392F`, red `#C8242F`; text on filled buttons is white (`onAccent`).
+- The sidebar has its own constants (`Mid.side*`, `Mid.sun`) because it is dark in
+  both modes; the wordmark uses them too. The macOS title bar follows the page color
+  over a `betterbudget/window` channel.
 
 - Brand colors were measured from the pixels of `assets/logo/logo-english.png`: navy
   `#03173E`, royal `#0342B2`, gold `#C9A96B`, slate `#707784`. The logo is now a bee
@@ -44,8 +70,13 @@ be quietly undone.
   Rejected: the bee upright (smaller), and the largest tilt that fits (stinger and
   wing crowd the edge). Made by `design/icon/app_icon.swift`; the phone apps still
   have Flutter's icon.
+- **Logo in the app (owner, 2026-09-29):** the top left of the sidebar shows the
+  logo's wordmark alone (was a gold diamond and "BetterBudget" in Onest):
+  `lib/ui/brand.dart`, cropped SVG in `app/assets/brand/`. On the dark ground its navy
+  "Better" becomes ink and royal "Budget" the lifted blue. Rejected: the bee on a small
+  white tile beside it, and the logo on the recovery-key screens.
 
-### Color: being redone (owner, 2026-09-29, not settled)
+### Color: how the dark mode was reached (owner, 2026-09-29; light mode not settled)
 
 The owner: Midnight is "a bit too dark. We need some color." Sketched on one canvas,
 https://claude.ai/artifact/DuV7bmBYHEiCpG4qBY2Wdb (the ledger screen with demo data).
@@ -70,7 +101,15 @@ What's known so far:
 - Rejected: Dusk (lifted navy), Daylight, navy two-tone, Graphite, Espresso, Plum,
   charcoal with a royal, teal or warm block ("all look kind of gross together"), navy
   with copper, apricot or cream, and three uses of sage `#7FB069`. Oxblood & bone,
-  Steppe and Ink & tangerine are still on the canvas, not picked.
+  Steppe and Ink & tangerine are still on the canvas, not picked. Also rejected
+  ("the worst", 2026-09-29): the three Midnight navies with a pine teal `#355344`
+  sidebar and a dark coffee `#39281E` balance card.
+- **Steppe for light mode is being considered (2026-09-29).** Its dark pair keeps the
+  sun yellow and red and turns the cream to a blue-black ("night", `#0D1522`) or warm
+  near-black ("felt"). Rejected ("awful"): Steppe's bright blue `#1B5BA8` as the dark
+  sidebar. Offered instead: deep steppe blue `#163B6E` (recommended), gray denim
+  `#243550`, or an ink sidebar `#070B13` darker than the page. **Gray denim chosen**
+  (see "Visual direction" above).
 - **Type: Onest, with Manrope as fallback.** Both are bundled; no font is fetched at
   runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tögrög sign
   renders as a box. Browsers hide this by substituting a system font, which is why the

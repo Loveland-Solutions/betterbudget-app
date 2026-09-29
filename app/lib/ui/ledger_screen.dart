@@ -20,6 +20,8 @@ import 'entry_row.dart';
 import 'reconcile.dart';
 import 'recovery_key_screen.dart';
 import 'register.dart';
+import 'appearance.dart';
+import 'brand.dart';
 import 'theme.dart';
 
 part 'accounts.dart';
@@ -1074,6 +1076,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Light, dark or the system's. Kept on this computer, not in the ledger;
+  /// no toast, the whole window changing says it happened. ⌘Z switches back.
+  void _setAppearance(AppearanceController c, Appearance a) {
+    final before = c.value;
+    if (a == before) return;
+    c.set(a);
+    _did(
+      'Appearance',
+      toast: false,
+      undo: () => c.set(before),
+      redo: () => c.set(a),
+    );
+  }
+
   /// Budget by month, or by [schedule]'s pay periods.
   Future<void> _budgetBy(PaySchedule? schedule) async {
     late List<int> before;
@@ -2112,6 +2128,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onCheckRecoveryKey: widget.checkRecoveryKey == null
                                 ? null
                                 : _checkRecoveryKey,
+                            appearance: switch (AppearanceScope.maybeOf(
+                              context,
+                            )) {
+                              null => null,
+                              final c => _AppearanceSettings(
+                                value: c.value,
+                                onChanged: (a) => _setAppearance(c, a),
+                              ),
+                            },
                             budget: _BudgetSettings(
                               data: data,
                               onBudgetBy: _budgetBy,
@@ -2413,8 +2438,9 @@ class _Sidebar extends StatelessWidget {
 
     return Container(
       width: 240,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Mid.rule)),
+      decoration: BoxDecoration(
+        color: Mid.side,
+        border: Border(right: BorderSide(color: Mid.sideRule)),
       ),
       padding: const EdgeInsets.fromLTRB(12, 26, 12, 24),
       child: Column(
@@ -2422,15 +2448,9 @@ class _Sidebar extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
-            child: Row(
-              children: [
-                const Diamond(),
-                const SizedBox(width: 12),
-                Text(
-                  'BetterBudget',
-                  style: onest(16, weight: 600, letterSpacing: -0.2),
-                ),
-              ],
+            child: const Align(
+              alignment: Alignment.centerLeft,
+              child: Wordmark(height: 22),
             ),
           ),
           header(
@@ -2449,7 +2469,7 @@ class _Sidebar extends StatelessWidget {
               for (final g in groups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
-                  child: Text(g.key, style: onest(12, color: Mid.ink3)),
+                  child: Text(g.key, style: onest(12, color: Mid.sideInk3)),
                 ),
                 for (final a in g.value)
                   Padding(
@@ -2489,17 +2509,22 @@ class _Sidebar extends StatelessWidget {
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Mid.rule)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Mid.sideRule)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Net worth', style: onest(12, color: Mid.ink3)),
+                Text('Net worth', style: onest(12, color: Mid.sideInk3)),
                 const SizedBox(height: 4),
                 Text(
                   '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
-                  style: onest(18, weight: 500, tabular: true),
+                  style: onest(
+                    18,
+                    weight: 500,
+                    color: Mid.sideInk,
+                    tabular: true,
+                  ),
                 ),
                 if (archived != 0)
                   Padding(
@@ -2507,7 +2532,7 @@ class _Sidebar extends StatelessWidget {
                     child: Text(
                       'incl. ${_money(archived)} in archived',
                       key: const ValueKey('net-worth-archived'),
-                      style: onest(11.5, color: Mid.ink3, tabular: true),
+                      style: onest(11.5, color: Mid.sideInk3, tabular: true),
                     ),
                   ),
               ],
@@ -2542,7 +2567,7 @@ class _SettingsGear extends StatelessWidget {
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: h && !active ? Mid.hover : Colors.transparent,
+          color: h && !active ? Mid.sideHover : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -2553,7 +2578,7 @@ class _SettingsGear extends StatelessWidget {
                 Icon(
                   Icons.settings_outlined,
                   size: 16,
-                  color: active ? Mid.blue : Mid.ink3,
+                  color: active ? Mid.sun : Mid.sideInk3,
                 ),
                 if (alert)
                   Positioned(
@@ -2563,8 +2588,8 @@ class _SettingsGear extends StatelessWidget {
                       key: const ValueKey('settings-alert'),
                       width: 7,
                       height: 7,
-                      decoration: const BoxDecoration(
-                        color: Mid.coral,
+                      decoration: BoxDecoration(
+                        color: Mid.sideCoral,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -2577,7 +2602,7 @@ class _SettingsGear extends StatelessWidget {
               style: onest(
                 14,
                 weight: active ? 600 : 500,
-                color: active ? Mid.ink : Mid.ink2,
+                color: active ? Mid.sideInk : Mid.sideInk2,
               ),
             ),
           ],
@@ -2600,8 +2625,12 @@ class _SettingsPage extends StatelessWidget {
     this.onCheckRecoveryKey,
     this.archived,
     this.budget,
+    this.appearance,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// Light, dark or the system's; null without an [AppearanceScope] (tests).
+  final Widget? appearance;
 
   /// Budget by month or pay period, and pay schedules.
   final Widget? budget;
@@ -2719,7 +2748,7 @@ class _SettingsPage extends StatelessWidget {
                               BarButton(
                                 key: const ValueKey('back-up'),
                                 label: 'Back up to…',
-                                leading: const Icon(
+                                leading: Icon(
                                   Icons.save_alt_rounded,
                                   size: 14,
                                   color: Mid.ink3,
@@ -2729,7 +2758,7 @@ class _SettingsPage extends StatelessWidget {
                               BarButton(
                                 key: const ValueKey('restore'),
                                 label: 'Restore from…',
-                                leading: const Icon(
+                                leading: Icon(
                                   Icons.settings_backup_restore_rounded,
                                   size: 14,
                                   color: Mid.ink3,
@@ -2752,6 +2781,10 @@ class _SettingsPage extends StatelessWidget {
                   ),
                 ),
                 if (budget != null) ...[const SizedBox(height: 16), budget!],
+                if (appearance != null) ...[
+                  const SizedBox(height: 16),
+                  appearance!,
+                ],
                 if (archived != null) ...[
                   const SizedBox(height: 16),
                   archived!,
@@ -2796,7 +2829,7 @@ class _SettingsPage extends StatelessWidget {
                           BarButton(
                             key: const ValueKey('check-recovery-key'),
                             label: 'Check my recovery key…',
-                            leading: const Icon(
+                            leading: Icon(
                               Icons.key_rounded,
                               size: 14,
                               color: Mid.ink3,
@@ -2834,7 +2867,7 @@ class _SettingsPage extends StatelessWidget {
                       BarButton(
                         key: const ValueKey('new-ledger'),
                         label: 'Erase everything and start over…',
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.restart_alt_rounded,
                           size: 14,
                           color: Mid.ink3,
@@ -2894,7 +2927,7 @@ class _RestoreDialog extends StatelessWidget {
       backgroundColor: Mid.panel,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Mid.rule),
+        side: BorderSide(color: Mid.rule),
       ),
       child: CallbackShortcuts(
         bindings: {
@@ -3182,7 +3215,7 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                         alignment: Alignment.center,
                         child: Text(
                           'Erase everything',
-                          style: onest(13, weight: 600, color: Mid.ground),
+                          style: onest(13, weight: 600, color: Mid.onAccent),
                         ),
                       ),
                     ),
@@ -3229,19 +3262,19 @@ class _SectionHeaderState extends State<_SectionHeader> {
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: _hover && !on ? Mid.hover : Colors.transparent,
+            color: _hover && !on ? Mid.sideHover : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(widget.icon, size: 16, color: on ? Mid.blue : Mid.ink3),
+              Icon(widget.icon, size: 16, color: on ? Mid.sun : Mid.sideInk3),
               const SizedBox(width: 10),
               Text(
                 widget.label,
                 style: onest(
                   14,
                   weight: on ? 600 : 500,
-                  color: on ? Mid.ink : Mid.ink2,
+                  color: on ? Mid.sideInk : Mid.sideInk2,
                 ),
               ),
             ],
@@ -3379,11 +3412,11 @@ class _AccountTileState extends State<_AccountTile> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: widget.active
-              ? Mid.panel
-              : (_hover || _menu.isOpen ? Mid.hover : Colors.transparent),
+              ? Mid.sideSel
+              : (_hover || _menu.isOpen ? Mid.sideHover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
           border: widget.active
-              ? const Border(left: BorderSide(color: Mid.blue, width: 2))
+              ? const Border(left: BorderSide(color: Mid.sun, width: 2))
               : null,
         ),
         child: Column(
@@ -3391,7 +3424,10 @@ class _AccountTileState extends State<_AccountTile> {
           children: [
             Text(
               widget.account.name,
-              style: onest(13.5, color: widget.active ? Mid.ink : Mid.ink2),
+              style: onest(
+                13.5,
+                color: widget.active ? Mid.sideInk : Mid.sideInk2,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -3401,8 +3437,10 @@ class _AccountTileState extends State<_AccountTile> {
               style: onest(
                 12.5,
                 color: !widget.account.isOwed && widget.balance < 0
-                    ? Mid.coral
-                    : Mid.ink3,
+                    ? Mid.sideCoral
+                    // The account being worked in reads clearly on its
+                    // highlight; the others stay quiet.
+                    : (widget.active || _hover ? Mid.sideInk2 : Mid.sideInk3),
                 tabular: true,
               ),
             ),
@@ -3438,7 +3476,7 @@ class _SearchField extends StatelessWidget {
         fillColor: Mid.panel,
         hintText: 'Search payee, memo, amount',
         hintStyle: onest(13, color: Mid.ink3),
-        prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Mid.ink3),
+        prefixIcon: Icon(Icons.search_rounded, size: 16, color: Mid.ink3),
         prefixIconConstraints: const BoxConstraints(minWidth: 36),
         suffixIcon: controller.text.isEmpty
             ? Padding(
@@ -3458,7 +3496,7 @@ class _SearchField extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_isMac)
-                          const Icon(
+                          Icon(
                             Icons.keyboard_command_key_rounded,
                             size: 11,
                             color: Mid.ink3,
@@ -3472,11 +3510,7 @@ class _SearchField extends StatelessWidget {
                 ),
               )
             : IconButton(
-                icon: const Icon(
-                  Icons.close_rounded,
-                  size: 14,
-                  color: Mid.ink3,
-                ),
+                icon: Icon(Icons.close_rounded, size: 14, color: Mid.ink3),
                 onPressed: () {
                   controller.clear();
                   onChanged();
@@ -3489,7 +3523,7 @@ class _SearchField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(9),
-          borderSide: const BorderSide(color: Mid.blue, width: 1.5),
+          borderSide: BorderSide(color: Mid.blue, width: 1.5),
         ),
       ),
     ),
@@ -3515,7 +3549,7 @@ class _PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
     child: Material(
-      color: Mid.gold,
+      color: Mid.red,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
@@ -3526,9 +3560,9 @@ class _PrimaryButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: Mid.ground),
+              Icon(icon, size: 16, color: Colors.white),
               const SizedBox(width: 8),
-              Text(label, style: onest(13, weight: 600, color: Mid.ground)),
+              Text(label, style: onest(13, weight: 600, color: Colors.white)),
             ],
           ),
         ),
@@ -3571,7 +3605,7 @@ class _Toast extends StatelessWidget {
                 children: [
                   Text(
                     toast.message,
-                    style: onest(13.5, weight: 500, color: Mid.ground),
+                    style: onest(13.5, weight: 500, color: Mid.onAccent),
                   ),
                   const SizedBox(width: 12),
                   if (toast.undo != null)
@@ -3582,7 +3616,7 @@ class _Toast extends StatelessWidget {
                         style: onest(
                           13.5,
                           weight: 700,
-                          color: Mid.ground,
+                          color: Mid.onAccent,
                         ).copyWith(decoration: TextDecoration.underline),
                       ),
                     ),
@@ -3591,7 +3625,7 @@ class _Toast extends StatelessWidget {
                     icon: Icon(
                       Icons.close_rounded,
                       size: 16,
-                      color: Mid.ground.withValues(alpha: 0.6),
+                      color: Mid.onAccent.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -3599,6 +3633,78 @@ class _Toast extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Settings → Appearance: System, Light or Dark. Under System, says which one
+/// the computer is showing now, so the choice never looks like it did nothing.
+class _AppearanceSettings extends StatelessWidget {
+  const _AppearanceSettings({required this.value, required this.onChanged});
+  final Appearance value;
+  final ValueChanged<Appearance> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget choice(Appearance a, String label) => Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Hoverable(
+        key: ValueKey('appearance-${a.name}'),
+        onTap: () => onChanged(a),
+        builder: (hover) => Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: a == value
+                ? Mid.blueWash
+                : (hover ? Mid.raised : Colors.transparent),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: a == value ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: onest(13, color: a == value ? Mid.ink : Mid.ink2),
+            ),
+          ),
+        ),
+      ),
+    );
+    final system = _isMac ? 'Same as this Mac' : 'Same as Windows';
+    return Container(
+      key: const ValueKey('settings-appearance'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+      decoration: BoxDecoration(
+        color: Mid.panel,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Appearance', style: onest(16, weight: 600)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              choice(Appearance.system, system),
+              choice(Appearance.light, 'Light'),
+              choice(Appearance.dark, 'Dark'),
+            ],
+          ),
+          if (value == Appearance.system) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Showing ${Mid.isLight ? 'light' : 'dark'} now · changes when '
+              '${_isMac ? 'the Mac' : 'Windows'} does',
+              style: onest(12.5, color: Mid.ink3),
+            ),
+          ],
+        ],
       ),
     );
   }

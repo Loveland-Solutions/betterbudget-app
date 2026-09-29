@@ -3,34 +3,134 @@ import 'package:flutter/material.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 
-/// Midnight. Brand navy #03173E deepened for the ground; royal #0342B2 lifted
-/// to stay legible on it; gold from the mark means reconciled or scheduled.
+/// One set of colors for the whole app. Dark is Steppe night, light is Steppe;
+/// the sidebar is the same gray denim in both (owner, 2026-09-29; ADR 0004).
+class Palette {
+  const Palette({
+    required this.brightness,
+    required this.ground,
+    required this.panel,
+    required this.card,
+    required this.raised,
+    required this.rule,
+    required this.ink,
+    required this.ink2,
+    required this.ink3,
+    required this.blue,
+    required this.gold,
+    required this.green,
+    required this.coral,
+    required this.red,
+    required this.onAccent,
+    required this.wash,
+  });
+
+  final Brightness brightness;
+  final Color ground, panel, card, raised, rule, ink, ink2, ink3;
+  final Color blue, gold, green, coral, red;
+
+  /// Text and icons on a filled blue, gold or green button or toast.
+  final Color onAccent;
+
+  /// The base of the faint chip, hover and row tints: light on dark, dark on
+  /// light.
+  final Color wash;
+
+  /// Steppe night: a blue-black page, steppe sky blue for what you click,
+  /// gold for reconciled or scheduled, red to add.
+  static const dark = Palette(
+    brightness: Brightness.dark,
+    ground: Color(0xFF0D1522),
+    panel: Color(0xFF141D2D),
+    card: Color(0xFF1A2436),
+    raised: Color(0xFF222E44),
+    rule: Color(0x1AECEFF4),
+    ink: Color(0xFFECEFF4),
+    ink2: Color(0xFFAAB3C2),
+    ink3: Color(0xFF8D97AA),
+    blue: Color(0xFF6FA8F0),
+    gold: Color(0xFFE8C15A),
+    green: Color(0xFF5CCB8E),
+    coral: Color(0xFFF08A8A),
+    red: Color(0xFFD8434C),
+    onAccent: Color(0xFF0D1522),
+    wash: Color(0xFFECEFF4),
+  );
+
+  /// Steppe: a warm felt-cream page under white cards, steppe blue for what
+  /// you click, a deeper gold and green that read on white.
+  static const light = Palette(
+    brightness: Brightness.light,
+    ground: Color(0xFFF6F1E7),
+    panel: Color(0xFFFFFFFF),
+    card: Color(0xFFFFFFFF),
+    raised: Color(0xFFEEE8DC),
+    rule: Color(0x1F1A2230),
+    ink: Color(0xFF1A2230),
+    ink2: Color(0xFF4E5666),
+    ink3: Color(0xFF6C7382),
+    blue: Color(0xFF1B5BA8),
+    gold: Color(0xFF8A6414),
+    green: Color(0xFF2E7D4F),
+    // Toward orange, so a shortfall isn't the Add button's red.
+    coral: Color(0xFFB8442A),
+    red: Color(0xFFC8242F),
+    onAccent: Color(0xFFFFFFFF),
+    wash: Color(0xFF1A2230),
+  );
+}
+
+/// The colors in use, read everywhere as `Mid.ink` and so on. [AppearanceScope]
+/// switches them and rebuilds the app.
 abstract final class Mid {
-  static const ground = Color(0xFF060D1E);
-  static const panel = Color(0xFF0B1630);
-  static const raised = Color(0xFF10204A);
-  static const rule = Color(0x12D6E0FF);
-  static const ink = Color(0xFFEEF1F8);
-  static const ink2 = Color(0xFFA3AEC6);
-  static const ink3 = Color(0xFF66728E);
-  static const blue = Color(0xFF4F7BFF);
-  static const gold = Color(0xFFD9B878);
-  static const green = Color(0xFF5CCB9A);
-  static const coral = Color(0xFFF08A8A);
+  static Palette palette = Palette.dark;
+  static Palette get _p => palette;
+  static bool get isLight => _p.brightness == Brightness.light;
 
-  static final blueWash = blue.withValues(alpha: 0.12);
-  static final blueEdge = blue.withValues(alpha: 0.35);
-  static final chip = const Color(0xFFD6E0FF).withValues(alpha: 0.06);
-  static final hover = const Color(0xFFD6E0FF).withValues(alpha: 0.035);
+  static Color get ground => _p.ground;
+  static Color get panel => _p.panel;
 
-  /// Every other register row: a faint lift of the royal blue, so the eye
+  /// The balance header, a step above the register (white in light mode).
+  static Color get card => _p.card;
+  static Color get raised => _p.raised;
+  static Color get rule => _p.rule;
+  static Color get ink => _p.ink;
+  static Color get ink2 => _p.ink2;
+  static Color get ink3 => _p.ink3;
+  static Color get blue => _p.blue;
+  static Color get gold => _p.gold;
+  static Color get green => _p.green;
+  static Color get coral => _p.coral;
+  static Color get red => _p.red;
+  static Color get onAccent => _p.onAccent;
+
+  static Color get blueWash => blue.withValues(alpha: isLight ? 0.10 : 0.12);
+  static Color get blueEdge => blue.withValues(alpha: 0.35);
+  static Color get chip => _p.wash.withValues(alpha: isLight ? 0.06 : 0.08);
+  static Color get hover => _p.wash.withValues(alpha: isLight ? 0.04 : 0.05);
+
+  /// Every other register row: a faint lift of the blue, so the eye
   /// can follow a transaction across the wide row.
-  static final stripe = blue.withValues(alpha: 0.045);
+  static Color get stripe => blue.withValues(alpha: isLight ? 0.04 : 0.05);
 
   /// A register row under the pointer: clearly lighter than [stripe], so
   /// hovering never looks like the row next door. Below the selected row's
   /// [blueWash] and outline.
-  static final rowHover = const Color(0xFFD6E0FF).withValues(alpha: 0.08);
+  static Color get rowHover => _p.wash.withValues(alpha: isLight ? 0.06 : 0.08);
+
+  // The sidebar is gray denim in both modes, so it has its own light text.
+  static const side = Color(0xFF243550);
+  static const sideInk = Color(0xFFECEFF4);
+  static const sideInk2 = Color(0xFFC6CFDD);
+  static const sideInk3 = Color(0xFF98A4B8);
+  static const sideBlue = Color(0xFF6FA8F0);
+  static const sideCoral = Color(0xFFF08A8A);
+  static const sideRule = Color(0x17FFFFFF);
+  static const sideHover = Color(0x0DFFFFFF);
+  static const sideSel = Color(0x1AFFFFFF);
+
+  /// Sun yellow: the sidebar's marks (open section, chosen account's edge).
+  static const sun = Color(0xFFF5C518);
 }
 
 const _weights = {
@@ -43,7 +143,7 @@ const _weights = {
 TextStyle onest(
   double size, {
   int weight = 400,
-  Color color = Mid.ink,
+  Color? color,
   bool tabular = false,
   double? letterSpacing,
   double? height,
@@ -54,21 +154,26 @@ TextStyle onest(
   fontWeight: _weights[weight],
   fontVariations: [FontVariation('wght', weight.toDouble())],
   fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
-  color: color,
+  color: color ?? Mid.ink,
   letterSpacing: letterSpacing,
   height: height,
 );
 
-ThemeData midnightTheme() => ThemeData(
-  brightness: Brightness.dark,
+ThemeData appTheme() => ThemeData(
+  brightness: Mid.palette.brightness,
   scaffoldBackgroundColor: Mid.ground,
   fontFamily: 'Onest',
-  colorScheme: const ColorScheme.dark(
-    primary: Mid.blue,
-    surface: Mid.panel,
-    onSurface: Mid.ink,
-    error: Mid.coral,
-  ),
+  colorScheme:
+      ColorScheme.fromSeed(
+        seedColor: Mid.blue,
+        brightness: Mid.palette.brightness,
+      ).copyWith(
+        primary: Mid.blue,
+        onPrimary: Mid.onAccent,
+        surface: Mid.panel,
+        onSurface: Mid.ink,
+        error: Mid.coral,
+      ),
   tooltipTheme: TooltipThemeData(
     decoration: BoxDecoration(
       color: Mid.raised,
@@ -99,8 +204,8 @@ class Money extends StatelessWidget {
     super.key,
     this.size = 14.5,
     this.weight = 400,
-    this.color = Mid.ink,
-    this.centsColor = Mid.ink3,
+    this.color,
+    this.centsColor,
     this.centsScale = 1,
     this.sign = MoneySign.negativeOnly,
     this.letterSpacing,
@@ -109,8 +214,8 @@ class Money extends StatelessWidget {
   final int minor;
   final double size;
   final int weight;
-  final Color color;
-  final Color centsColor;
+  final Color? color;
+  final Color? centsColor;
   final double centsScale;
   final MoneySign sign;
   final double? letterSpacing;
@@ -140,7 +245,7 @@ class Money extends StatelessWidget {
             style: onest(
               size * centsScale,
               weight: 400,
-              color: centsColor,
+              color: centsColor ?? Mid.ink3,
               tabular: true,
             ),
           ),
@@ -237,12 +342,12 @@ class _CheckPainter extends CustomPainter {
 }
 
 class Diamond extends StatelessWidget {
-  const Diamond({super.key, this.size = 10, this.color = Mid.gold});
+  const Diamond({super.key, this.size = 10, this.color});
   final double size;
-  final Color color;
+  final Color? color;
   @override
   Widget build(BuildContext context) => Transform.rotate(
     angle: 0.785398,
-    child: Container(width: size, height: size, color: color),
+    child: Container(width: size, height: size, color: color ?? Mid.gold),
   );
 }

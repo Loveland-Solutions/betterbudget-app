@@ -32,7 +32,9 @@ class _AddAccountTile extends StatelessWidget {
       builder: (hover) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? Mid.panel : (hover ? Mid.hover : Colors.transparent),
+          color: active
+              ? Mid.sideSel
+              : (hover ? Mid.sideHover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -40,12 +42,15 @@ class _AddAccountTile extends StatelessWidget {
             Icon(
               Icons.add_rounded,
               size: 15,
-              color: hover || active ? Mid.ink2 : Mid.ink3,
+              color: hover || active ? Mid.sideInk2 : Mid.sideInk3,
             ),
             const SizedBox(width: 6),
             Text(
               'Add account',
-              style: onest(13, color: hover || active ? Mid.ink2 : Mid.ink3),
+              style: onest(
+                13,
+                color: hover || active ? Mid.sideInk2 : Mid.sideInk3,
+              ),
             ),
           ],
         ),
@@ -250,7 +255,7 @@ InputDecoration _fieldDecoration({String? hint, bool wrong = false}) =>
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Mid.blue, width: 1.5),
+        borderSide: BorderSide(color: Mid.blue, width: 1.5),
       ),
     );
 
@@ -419,7 +424,7 @@ class _AccountStartState extends State<_AccountStart> {
 /// What can be done to an account, from ⋯ beside its name or a right-click
 /// on it in the sidebar.
 class _AccountActions {
-  const _AccountActions({
+  _AccountActions({
     required this.rename,
     required this.changeKind,
     required this.archive,
@@ -431,7 +436,7 @@ class _AccountActions {
   final VoidCallback delete;
 }
 
-const _menuStyle = MenuStyle(
+MenuStyle get _menuStyle => MenuStyle(
   backgroundColor: WidgetStatePropertyAll(Mid.raised),
   shape: WidgetStatePropertyAll(
     RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
@@ -457,7 +462,7 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
       'menu-kind',
       act.changeKind,
     ),
-    const Divider(height: 9, color: Mid.rule),
+    Divider(height: 9, color: Mid.rule),
     item('Archive…', 'menu-archive', act.archive),
     item('Delete…', 'menu-delete', act.delete, color: Mid.coral),
   ];
@@ -572,7 +577,7 @@ class _AccountTitleState extends State<_AccountTitle> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Mid.blue, width: 1.5),
+                    borderSide: BorderSide(color: Mid.blue, width: 1.5),
                   ),
                 ),
               ),
@@ -704,7 +709,7 @@ class _AccountWarning extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         action,
-                        style: onest(13, weight: 600, color: Mid.ground),
+                        style: onest(13, weight: 600, color: Mid.onAccent),
                       ),
                     ),
                   ),
@@ -846,15 +851,17 @@ class _AllAccountsTile extends StatelessWidget {
     builder: (hover) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: active ? Mid.panel : (hover ? Mid.hover : Colors.transparent),
+        color: active
+            ? Mid.sideSel
+            : (hover ? Mid.sideHover : Colors.transparent),
         borderRadius: BorderRadius.circular(8),
         border: active
-            ? const Border(left: BorderSide(color: Mid.blue, width: 2))
+            ? Border(left: BorderSide(color: Mid.sun, width: 2))
             : null,
       ),
       child: Text(
         'All accounts',
-        style: onest(13.5, color: active ? Mid.ink : Mid.ink2),
+        style: onest(13.5, color: active ? Mid.sideInk : Mid.sideInk2),
       ),
     ),
   );
@@ -892,7 +899,7 @@ class _FilterChip extends StatelessWidget {
                 color: hover ? Mid.raised : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(Icons.close_rounded, size: 14, color: Mid.ink2),
+              child: Icon(Icons.close_rounded, size: 14, color: Mid.ink2),
             ),
           ),
         ),

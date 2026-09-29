@@ -48,7 +48,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: midnightTheme(),
+        theme: appTheme(),
         home: RecoveryKeySetupScreen(
           recoveryKey: key,
           onContinue: (k) async => kept = k,
@@ -90,7 +90,7 @@ void main() {
     bool? kept;
     await tester.pumpWidget(
       MaterialApp(
-        theme: midnightTheme(),
+        theme: appTheme(),
         home: RecoveryKeySetupScreen(
           recoveryKey: RecoveryKey.generate(),
           onContinue: (k) async => kept = k,

@@ -79,7 +79,7 @@ scheduled items.
 | [0001](decisions/0001-database.md) | SQLite via Drift, encrypted in SQLCipher v4 format by SQLite3 Multiple Ciphers. One data key in each device's secure store, derived from a recovery key the user keeps (it opens backups and adds devices). MNT is exponent 2. |
 | [0002](decisions/0002-tdb-import-format.md) | TDB import targets the unformatted Excel export. Column map and dedup key recorded. |
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
-| [0004](decisions/0004-ledger-ui.md) | Midnight look and 24 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view, pay and paydays. |
+| [0004](decisions/0004-ledger-ui.md) | Steppe night look (dark) and 24 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view, pay and paydays. |
 | [0005](decisions/0005-mobile-companion.md) | Phone apps record transactions and show what's left in budgets; not a full budget app. Sync through a user-picked Drive/OneDrive folder with one writer per file (Mac snapshot, one inbox per phone), so no merge. Phones see each other's entries. Entries go straight into the register. |
 
 Full ledger feature map, with what's built marked: [ledger-features.md](ledger-features.md).
@@ -209,13 +209,12 @@ start using it"):
 - [ ] **The owner erases the test data** (Settings → Erase everything and start over,
   keep categories) and starts entering real accounts. Only the owner can do this; it
   runs inside the app with the Keychain key.
-- [ ] **Color and a light mode** (owner, 2026-09-29: Midnight is "a bit too dark. We
-  need some color."). In progress, nothing built: see ADR 0004 "Color: being redone"
-  for what's liked and rejected, and the canvas linked there. Liked: category colors,
-  Charcoal & paper for light, Forest & brass for dark with a darker balance card
-  (bronze or charcoal, not chosen). Next: the owner picks; then theme tokens that can
-  switch (`Mid` is ~500 constant uses), following the Mac's setting with a choice in
-  Settings, and every golden redrawn.
+- [ ] **Color and a light mode** (owner, 2026-09-29: Midnight was "a bit too dark").
+  **Built on branch `appearance`:** dark is Steppe night, light is Steppe, both with
+  a gray denim sidebar; Settings → Appearance picks Same as this Mac / Light / Dark
+  (ADR 0004). The logo's wordmark is top left. Still to do: category colors (liked,
+  not built); goldens are dark except `ledger_light.png` and
+  `settings_appearance_light.png`.
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   **Next feature**: it's new, so bring two or three options with sketches.
 

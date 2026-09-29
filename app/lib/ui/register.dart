@@ -471,7 +471,7 @@ class _Tab extends StatelessWidget {
             ],
             if (closable) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.close_rounded, size: 13, color: Mid.ink2),
+              Icon(Icons.close_rounded, size: 13, color: Mid.ink2),
             ],
           ],
         ),
@@ -505,7 +505,7 @@ class _RowActions extends StatelessWidget {
     final locked = r.cleared == Cleared.reconciled;
     final edit = BarButton(
       label: 'Edit',
-      leading: const Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
+      leading: Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
       onTap: () => actions.onEdit(r),
     );
     final categorize = r.kind == RowKind.simple
@@ -638,7 +638,7 @@ class BarButton extends StatelessWidget {
     required this.onTap,
     this.leading,
     this.trailing,
-    this.color = Mid.ink2,
+    this.color,
     this.active = false,
   });
 
@@ -646,7 +646,7 @@ class BarButton extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? leading;
   final IconData? trailing;
-  final Color color;
+  final Color? color;
   final bool active;
 
   @override
@@ -662,7 +662,7 @@ class BarButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           // Outlined so each reads as a button, not a label.
           border: Border.all(
-            color: (color == Mid.ink2 ? Mid.ink2 : color).withValues(
+            color: (color ?? Mid.ink2).withValues(
               alpha: hover || active ? 0.6 : 0.3,
             ),
           ),
@@ -676,8 +676,8 @@ class BarButton extends StatelessWidget {
               style: onest(
                 13,
                 color: hover || active
-                    ? (color == Mid.ink2 ? Mid.ink : color)
-                    : color,
+                    ? (color ?? Mid.ink)
+                    : (color ?? Mid.ink2),
               ),
             ),
             if (trailing != null) ...[
@@ -973,7 +973,9 @@ class _PostedRow extends StatelessWidget {
                               ? Money(
                                   r.amount,
                                   color: Mid.green,
-                                  centsColor: Mid.green.withValues(alpha: 0.6),
+                                  centsColor: Mid.isLight
+                                      ? Mid.green
+                                      : Mid.green.withValues(alpha: 0.6),
                                   sign: MoneySign.plusForPositive,
                                 )
                               : Money(r.amount, sign: MoneySign.none),
@@ -1065,7 +1067,10 @@ class _ScheduledRow extends StatelessWidget {
           painter: _DashedBorder(
             color: selected
                 ? Mid.blueEdge
-                : Mid.gold.withValues(alpha: hover ? 0.55 : 0.35),
+                // "Not real yet": stronger on white, where a faint dash vanishes.
+                : Mid.gold.withValues(
+                    alpha: (hover ? 0.55 : 0.35) + (Mid.isLight ? 0.2 : 0),
+                  ),
           ),
           child: Container(
             padding: Cols.inset,
@@ -1079,7 +1084,7 @@ class _ScheduledRow extends StatelessWidget {
                   height: 46,
                   child: Row(
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: Cols.status,
                         child: Tooltip(
                           message:
@@ -1173,7 +1178,9 @@ class _ScheduledRow extends StatelessWidget {
                               ? Money(
                                   r.amount,
                                   color: Mid.green,
-                                  centsColor: Mid.green.withValues(alpha: 0.6),
+                                  centsColor: Mid.isLight
+                                      ? Mid.green
+                                      : Mid.green.withValues(alpha: 0.6),
                                   sign: MoneySign.plusForPositive,
                                 )
                               : Money(
@@ -1266,11 +1273,7 @@ class _CategoryChip extends StatelessWidget {
           ),
           if (hover || open) ...[
             const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 14,
-              color: Mid.ink2,
-            ),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: Mid.ink2),
           ],
         ],
       ),
@@ -1298,7 +1301,7 @@ class CategoryMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return MenuAnchor(
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(Mid.raised),
+        backgroundColor: WidgetStatePropertyAll(Mid.raised),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -1317,7 +1320,7 @@ class CategoryMenu extends StatelessWidget {
               overlayColor: WidgetStatePropertyAll(Mid.blueWash),
             ),
             trailingIcon: c.name == current
-                ? const Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
                 : null,
             child: Text(
               c.name,

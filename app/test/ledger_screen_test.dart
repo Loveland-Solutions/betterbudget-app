@@ -6,6 +6,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/register.dart' show SmoothHeight;
@@ -13,6 +14,7 @@ import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,7 +65,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: midnightTheme(),
+          theme: appTheme(),
           home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
         ),
       );
@@ -1495,7 +1497,7 @@ void main() {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           MaterialApp(
-            theme: midnightTheme(),
+            theme: appTheme(),
             home: LedgerScreen(
               db: db,
               backups: backups,
@@ -1547,7 +1549,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             debugShowCheckedModeBanner: false,
-            theme: midnightTheme(),
+            theme: appTheme(),
             home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
           ),
         );
@@ -1673,7 +1675,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: midnightTheme(),
+          theme: appTheme(),
           home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
         ),
       );
@@ -1866,7 +1868,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: midnightTheme(),
+          theme: appTheme(),
           home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 12, 10)),
         ),
       );
@@ -2022,7 +2024,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: midnightTheme(),
+          theme: appTheme(),
           home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 10, 9)),
         ),
       );
@@ -3050,6 +3052,103 @@ void main() {
         DateTime(2026, 10, 16),
       );
       await tidy(tester, db);
+    });
+  });
+
+  group('appearance', () {
+    tearDown(() => Mid.palette = Palette.dark);
+
+    testWidgets('follows the Mac, and Settings picks light or dark', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final db = AppDatabase(NativeDatabase.memory());
+      final appearance = AppearanceController();
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          AppearanceScope(
+            controller: appearance,
+            // A Builder, as the app's startup is: the theme is made again
+            // when the appearance changes.
+            child: Builder(
+              builder: (_) => MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: appTheme(),
+                home: LedgerScreen(
+                  db: db,
+                  clock: () => DateTime(2026, 9, 16, 10),
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      // Same as this Mac, which is light.
+      expect(Mid.isLight, isTrue);
+      expect(
+        Theme.of(tester.element(find.byType(LedgerScreen))).brightness,
+        Brightness.light,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/ledger_light.png'),
+      );
+
+      // The Mac turns dark; the app follows.
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      await tester.pumpAndSettle();
+      expect(Mid.isLight, isFalse);
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      await tester.pumpAndSettle();
+      expect(Mid.isLight, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.text('Same as this Mac'), findsOneWidget);
+      expect(
+        find.text('Showing light now · changes when the Mac does'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/settings_appearance_light.png'),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('appearance-dark')));
+      await tester.pumpAndSettle();
+      expect(appearance.value, Appearance.dark);
+      expect(Mid.isLight, isFalse);
+      expect(find.textContaining('Showing'), findsNothing);
+
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(appearance.value, Appearance.system);
+      expect(Mid.isLight, isTrue);
+      await tidy(tester, db);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    test('the choice is kept in a file on this computer', () async {
+      final dir = await Directory.systemTemp.createTemp('appearance');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/appearance');
+      expect((await AppearanceController.load(file)).value, Appearance.system);
+      await (await AppearanceController.load(file)).set(Appearance.light);
+      expect((await AppearanceController.load(file)).value, Appearance.light);
+      await file.writeAsString('purple');
+      expect((await AppearanceController.load(file)).value, Appearance.system);
     });
   });
 }

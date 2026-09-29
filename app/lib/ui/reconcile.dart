@@ -205,10 +205,7 @@ class ReconcilePanel extends StatelessWidget {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: Mid.blue,
-                          width: 1.5,
-                        ),
+                        borderSide: BorderSide(color: Mid.blue, width: 1.5),
                       ),
                     ),
                   ),
@@ -247,7 +244,7 @@ class ReconcilePanel extends StatelessWidget {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const StatusGlyph(Cleared.cleared, color: Mid.green),
+                          StatusGlyph(Cleared.cleared, color: Mid.green),
                           const SizedBox(width: 6),
                           Text(
                             'Matches',
@@ -362,7 +359,7 @@ class _LockButton extends StatelessWidget {
             style: onest(
               13,
               weight: 600,
-              color: on ? Mid.ground : Mid.gold.withValues(alpha: 0.55),
+              color: on ? Mid.onAccent : Mid.gold.withValues(alpha: 0.55),
             ),
           ),
         ),
