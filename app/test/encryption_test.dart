@@ -42,54 +42,130 @@ void main() {
     });
   });
 
-  test('convertPlainFileInPlace keeps the rows and requires the key after', () async {
-    final file = File('${dir.path}/convert.sqlite');
-    final plainDb = sqlite3.open(file.path)
-      ..execute('PRAGMA journal_mode = WAL')
-      ..execute('CREATE TABLE t (x)')
-      ..execute("INSERT INTO t VALUES ('Номин ₮')");
-    plainDb.close();
-
-    await convertPlainFileInPlace(file, key);
-    expect(await isPlainSqliteFile(file), isFalse);
-
-    final withoutKey = sqlite3.open(file.path);
-    expect(() => withoutKey.select('SELECT * FROM t'), throwsA(anything));
-    withoutKey.close();
-
-    final withWrongKey = sqlite3.open(file.path);
-    applyCipherKey(withWrongKey, otherKey);
-    expect(() => withWrongKey.select('SELECT * FROM t'), throwsA(anything));
-    withWrongKey.close();
-
-    final withKey = sqlite3.open(file.path);
-    applyCipherKey(withKey, key);
-    expect(withKey.select('SELECT x FROM t').first['x'], 'Номин ₮');
-    withKey.close();
-  });
-
   test(
-    'convertPlainFileInPlace removes its safety copy once it checks out',
+    'convertPlainFileInPlace keeps the rows and requires the key after',
     () async {
-      final file = File('${dir.path}/safety.sqlite');
-      sqlite3.open(file.path).execute('CREATE TABLE t (x)');
-      await convertPlainFileInPlace(file, key);
-      expect(File('${file.path}.before-encryption').existsSync(), isFalse);
-    },
-  );
+      final file = File('${dir.path}/convert.sqlite');
+      final plainDb = sqlite3.open(file.path)
+        ..execute('PRAGMA journal_mode = WAL')
+        ..execute('CREATE TABLE t (x)')
+        ..execute("INSERT INTO t VALUES ('Номин ₮')");
+      plainDb.close();
 
-  test(
-    'convertPlainFileInPlace cleans up a stale safety copy from a prior '
-    'crashed attempt before starting',
-    () async {
-      final file = File('${dir.path}/stale.sqlite');
-      sqlite3.open(file.path).execute('CREATE TABLE t (x)');
-      File('${file.path}.before-encryption').writeAsStringSync('leftover');
       await convertPlainFileInPlace(file, key);
       expect(await isPlainSqliteFile(file), isFalse);
-      expect(File('${file.path}.before-encryption').existsSync(), isFalse);
+
+      final withoutKey = sqlite3.open(file.path);
+      expect(() => withoutKey.select('SELECT * FROM t'), throwsA(anything));
+      withoutKey.close();
+
+      final withWrongKey = sqlite3.open(file.path);
+      applyCipherKey(withWrongKey, otherKey);
+      expect(() => withWrongKey.select('SELECT * FROM t'), throwsA(anything));
+      withWrongKey.close();
+
+      final withKey = sqlite3.open(file.path);
+      applyCipherKey(withKey, key);
+      expect(withKey.select('SELECT x FROM t').first['x'], 'Номин ₮');
+      withKey.close();
     },
   );
+
+  test('a conversion leaves no plain copy or temp file behind', () async {
+    final file = File('${dir.path}/tidy.sqlite');
+    sqlite3.open(file.path)
+      ..execute('CREATE TABLE t (x)')
+      ..close();
+    File('${file.path}.encrypting').writeAsStringSync('from a crashed run');
+    await convertPlainFileInPlace(file, key);
+    expect(await isPlainSqliteFile(file), isFalse);
+    expect(
+      dir.listSync().map((f) => f.path.split('/').last),
+      unorderedEquals(['tidy.sqlite']),
+    );
+  });
+
+  test('changes still in the -wal are encrypted too', () async {
+    final file = File('${dir.path}/live.sqlite');
+    // Left open, as if the app had been killed: rows only in the -wal.
+    final live = sqlite3.open(file.path)
+      ..execute('PRAGMA journal_mode = WAL')
+      ..execute('PRAGMA wal_autocheckpoint = 0')
+      ..execute('CREATE TABLE t (x)');
+    for (var i = 0; i < 50; i++) {
+      live.execute('INSERT INTO t VALUES ($i)');
+    }
+    expect(File('${file.path}-wal').lengthSync(), greaterThan(0));
+    // Copy the files as a crash would leave them, then close the original.
+    final crashed = File('${dir.path}/crashed.sqlite');
+    file.copySync(crashed.path);
+    File('${file.path}-wal').copySync('${crashed.path}-wal');
+    live.close();
+
+    await convertPlainFileInPlace(crashed, key);
+    final check = sqlite3.open(crashed.path);
+    applyCipherKey(check, key);
+    expect(check.select('SELECT count(*) AS n FROM t').first['n'], 50);
+    check.close();
+  });
+
+  group('recoverInterruptedConversion', () {
+    test('puts the plain copy back when the file is half encrypted', () async {
+      final file = File('${dir.path}/half.sqlite');
+      final safety = File('${file.path}.before-encryption');
+      sqlite3.open(safety.path)
+        ..execute('CREATE TABLE t (x)')
+        ..execute('INSERT INTO t VALUES (7)')
+        ..close();
+      file.writeAsBytesSync(List.filled(8192, 3)); // not plain, won't open
+      await recoverInterruptedConversion(file, key);
+      expect(safety.existsSync(), isFalse);
+      expect(await isPlainSqliteFile(file), isTrue);
+      await convertPlainFileInPlace(file, key);
+      final check = sqlite3.open(file.path);
+      applyCipherKey(check, key);
+      expect(check.select('SELECT x FROM t').first['x'], 7);
+      check.close();
+    });
+
+    test('removes the plain copy when the file is fine', () async {
+      final file = File('${dir.path}/done.sqlite');
+      final db = sqlite3.open(file.path);
+      applyCipherKey(db, key);
+      db
+        ..execute('CREATE TABLE t (x)')
+        ..close();
+      final safety = File('${file.path}.before-encryption')
+        ..writeAsStringSync('plain copy');
+      await recoverInterruptedConversion(file, key);
+      expect(safety.existsSync(), isFalse);
+      expect(keyOpens(file, key), isTrue);
+    });
+  });
+
+  test('keyOpens says whether a key fits, and errors never show it', () {
+    final file = File('${dir.path}/fits.sqlite');
+    final db = sqlite3.open(file.path);
+    applyCipherKey(db, key);
+    db
+      ..execute('CREATE TABLE t (x)')
+      ..close();
+    expect(keyOpens(file, key), isTrue);
+    expect(keyOpens(file, otherKey), isFalse);
+    expect(keyOpens(File('${dir.path}/none.sqlite'), key), isFalse);
+
+    final wrong = sqlite3.open(file.path);
+    applyCipherKey(wrong, otherKey);
+    final hex = rawKeyLiteral(otherKey).substring(2, 66);
+    try {
+      withoutKeyInErrors(() => wrong.select('SELECT * FROM t'));
+      fail('should not open');
+    } on CipherException catch (e) {
+      expect(e.toString(), isNot(contains(hex)));
+    } finally {
+      wrong.close();
+    }
+  });
 
   test('resolveDataKey derives the same key applyCipherKey can open with', () {
     // deriveDataKey + rawKeyLiteral (exercised via applyCipherKey) is the

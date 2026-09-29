@@ -124,7 +124,7 @@ void main() {
   );
 
   test(
-    'restoring a backup encrypted with a different key is refused',
+    'a backup under another key asks for that key, then restores under ours',
     () async {
       final otherFile = File('${dir.path}/other-key.sqlite');
       final otherDb = AppDatabase(
@@ -139,16 +139,67 @@ void main() {
       final backups = Backups(db, dataKey: key);
       await expectLater(
         backups.inspect(otherFile.path, today),
+        throwsA(isA<RestoreNeedsKeyException>()),
+      );
+      // A key that isn't the backup's either.
+      await expectLater(
+        backups.inspect(
+          otherFile.path,
+          today,
+          backupKey: deriveDataKey(RecoveryKey.generate()),
+        ),
         throwsA(
           isA<RestoreException>().having(
             (e) => e.message,
             'message',
-            'That backup uses a different key',
+            startsWith('That key doesn’t open this backup'),
           ),
         ),
       );
+      final candidate = await backups.inspect(
+        otherFile.path,
+        today,
+        backupKey: otherKey,
+      );
+      final done = await backups.restore(candidate, today);
+      expect((await db.loadLedger()).txns, isNotEmpty);
+      // What restore keeps for undo and redo is under this ledger's key.
+      for (final f in [done.before, done.restored]) {
+        expect(keyOpens(f, key), isTrue);
+        expect(keyOpens(f, otherKey), isFalse);
+      }
     },
   );
+
+  test('every copy the keyed app makes is encrypted', () async {
+    final backups = Backups(db, dataKey: key);
+    final beforeNew = await backups.saveBeforeNewLedger(today);
+    expect(keyOpens(beforeNew, key), isTrue);
+    expect(await isPlainSqliteFile(beforeNew), isFalse);
+    final daily = await backups.automaticIfDue(today);
+    expect(keyOpens(daily!, key), isTrue);
+  });
+
+  test('a damaged old copy is reported, not allowed to stop the app', () async {
+    final backups = Backups(db, dataKey: key);
+    final backupsDir = (await backups.folder())!;
+    await backupsDir.create(recursive: true);
+    final good = File('${backupsDir.path}/betterbudget-20260101-000000.sqlite');
+    sqlite3.open(good.path)
+      ..execute('CREATE TABLE t (x)')
+      ..close();
+    // A plain header over a body that isn't a database.
+    final bad = File('${backupsDir.path}/betterbudget-20260102-000000.sqlite');
+    bad.writeAsBytesSync([
+      ...'SQLite format 3'.codeUnits,
+      0,
+      ...List.filled(4000, 7),
+    ]);
+    final report = await backups.convertPlainBackups();
+    expect(report.converted, 1);
+    expect(report.failed.map((f) => f.path), [bad.path]);
+    expect(keyOpens(good, key), isTrue);
+  });
 
   test(
     'convertPlainBackups converts old plain copies, leaves the rest',
@@ -183,8 +234,9 @@ void main() {
           ..close();
       }
 
-      final converted = await backups.convertPlainBackups();
-      expect(converted, 3);
+      final report = await backups.convertPlainBackups();
+      expect(report.converted, 3);
+      expect(report.failed, isEmpty);
       expect(await isPlainSqliteFile(legacy), isFalse);
       expect(await isPlainSqliteFile(upgrade), isFalse);
       expect(await isPlainSqliteFile(older), isFalse);
@@ -205,7 +257,7 @@ void main() {
     await seedDemoIfEmpty(plainDb, today);
     final backups = Backups(plainDb);
     await backups.automaticIfDue(today);
-    expect(await backups.convertPlainBackups(), 0);
+    expect((await backups.convertPlainBackups()).converted, 0);
     await plainDb.close();
   });
 }

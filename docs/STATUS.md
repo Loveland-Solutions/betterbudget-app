@@ -12,9 +12,9 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #15 (Savings). Open, stacked:
-PR #16 `alpha-clean-start` (Start a new ledger, ADR 0005), then `encryption` on top of
-it (draft PR #17: encryption, built and run on the owner's Mac, not yet reviewed). Keep the pattern: branch, commit, PR, merge. The owner's data
+**Git state:** `main` has everything through PR #16 (Start a new ledger, ADR 0005).
+Open: draft PR #17 `encryption` (built, both reviews done and their fixes in; waiting
+for the owner to try it in the app, then merge). Keep the pattern: branch, commit, PR, merge. The owner's data
 file is at schema version 6.
 
 Visual direction and the register's UX rules are settled in
@@ -187,7 +187,20 @@ start using it"):
   in the app's folder is converted (daily copies, upgrade copies beside the database, older
   folders), with none left readable. Fixed during that run: upgrade copies beside the
   database were left plain, and a plain ledger with no key asked for a recovery key it
-  never had. **Next: both review passes**, then merge.
+  never had. **Both reviews done** (2026-09-29), fixes in (ADR 0001, "At launch"):
+  a key is checked against the ledger before it's stored (no lockout on a new Mac or a
+  wrong key; a stored key that stops fitting asks again); nothing is stored or
+  encrypted until Continue; the live file is encrypted as a checked copy and swapped in
+  (the `-wal` included; an older build's cut-short conversion is undone); a damaged old
+  copy is reported, not fatal; no key in error logs; "saved" is kept beside the key,
+  not in the ledger; a stronger check character (every single typo caught) and a
+  Cyrillic hint; wording (phones, the other person, copies off this computer). The
+  owner said yes (2026-09-29) to **Check my recovery key…** in Settings (type it, get
+  yes or no; nothing shown), to **offering a backup on a new computer**, and to
+  **restoring a backup under another key** by typing that key. 227 tests pass.
+  **Next: the owner tries it in the app, then merge #17.** The owner questioned the
+  Settings check ("the key shouldn't be in settings"); it stays unless they say remove
+  it. The stronger check character makes keys saved before it invalid (test data only).
 - [ ] **Recurring bills** (item 4 below). Recommended in the alpha, splits after.
   Waiting for the owner; it's a new feature, so bring options and sketches.
 
@@ -323,6 +336,10 @@ been used for typing but a register undo there hasn't been tried.
   Runner.xcworkspace -scheme Runner -configuration Debug -allowProvisioningUpdates build`.
 - **macOS 27** (2026-09-28) draws text edges slightly differently: goldens were redrawn on
   it. Goldens made on another macOS version will differ by about 0.1%.
+- **If tests stall** (random widget tests time out after 10 minutes with the CPU idle,
+  even on older commits), restart the Mac: on 2026-09-29 a stuck `dart pub get` and
+  leftover `flutter_tester` processes caused it, and a restart fixed it (227 tests in
+  about 1:45). Check first with `ps -ax | grep -E "flutter|dart"`.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/betterbudget.sqlite`

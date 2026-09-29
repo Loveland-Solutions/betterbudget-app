@@ -144,11 +144,41 @@ key as a raw 256-bit value (`x'…'`), so no slow key stretching on every open.
 
 ### Converting what's there
 
-The plain file is encrypted in place (`PRAGMA journal_mode = DELETE`, then `PRAGMA
-rekey`, then WAL again), after a plain copy is made that is removed once the encrypted
-file checks out. Existing plain backups in `Backups/` are converted too, not left behind,
-and the app says how many. A plain backup picked in Restore from… still restores, and the
-result is encrypted.
+The live file is never changed until an encrypted copy has checked out: the `-wal`
+is folded in (`wal_checkpoint(TRUNCATE)`), a copy is encrypted (`rekey`) and checked
+(`quick_check`, same table count), and the copy is renamed over the file. A crash
+before the rename leaves the plain file as it was. A `.before-encryption` copy left
+by an older build's cut-short conversion is put back, or removed if the file is fine.
+Every plain copy in the app's folder is converted too: the daily copies, the copies
+made before each schema upgrade, and older folders. A copy that can't be converted is
+reported by name ("still readable"), never allowed to stop the app from starting. The
+app says how many were converted. A plain backup picked in Restore from… still
+restores, and the result is encrypted.
+
+### At launch (review, 2026-09-29)
+
+- **A key is checked against the ledger before it's stored or used.** A key that
+  doesn't open the ledger is never kept. If a stored key stops fitting (a new Mac by
+  Migration Assistant, where "this device only" keys don't move), the entry screen
+  comes back instead of a blank window.
+- **A new key is shown before anything is stored or encrypted.** A quit or crash on
+  the key screen leaves everything as it was, and the next launch shows a new key. A
+  ledger from before encryption gets its key without being asked for one.
+- **The entry screen says whether a ledger is here.** With an encrypted ledger here,
+  "Start a new ledger instead…" warns in coral and moves it aside
+  (`betterbudget.set-aside-<time>.sqlite`), never deletes it or opens it with a new key.
+- **On a new computer**, after the key is typed, the app offers to open the newest
+  backup (from Back up to…), with Start empty beside it, and no demo data (owner, 2026-09-29).
+- **Check my recovery key…** in Settings → Security (owner, 2026-09-29): type the key
+  and learn whether it opens this ledger. Nothing is ever shown.
+- **A backup under another ledger's key** asks for that key and restores its rows under
+  this ledger's key, so this ledger's key never changes (owner, 2026-09-29).
+- **"Saved" is kept beside the data key, not in the ledger,** so a new ledger or a
+  restore doesn't turn Settings coral. Copy doesn't clear the warning, it changes it to
+  "paste it somewhere off this computer". The clipboard is cleared after a minute.
+- The check character uses weights coprime to 34, so every single mistyped character
+  is caught. Typing in Cyrillic says to switch to ABC. SQLite errors never carry the
+  key into logs.
 
 ### Rejected
 

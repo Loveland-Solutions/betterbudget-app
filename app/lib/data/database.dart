@@ -303,9 +303,7 @@ class AppDatabase extends _$AppDatabase {
   static Future<AppDatabase> openEncrypted(Uint8List dataKey) async {
     final dir = await getApplicationSupportDirectory();
     final file = File('${dir.path}/betterbudget.sqlite');
-    if (await isPlainSqliteFile(file)) {
-      await convertPlainFileInPlace(file, dataKey);
-    }
+    await prepareLedgerFile(file, dataKey);
     return AppDatabase(
       driftDatabase(
         name: 'betterbudget',
@@ -428,13 +426,20 @@ class AppDatabase extends _$AppDatabase {
           allTables.length == parentsFirst.length,
       'replaceAllFrom is missing a table',
     );
-    if (sourceKeyBind == null) {
-      await customStatement('ATTACH DATABASE ? AS src', [path]);
-    } else {
-      await customStatement('ATTACH DATABASE ? AS src KEY ?', [
-        path,
-        sourceKeyBind,
-      ]);
+    try {
+      if (sourceKeyBind == null) {
+        await customStatement('ATTACH DATABASE ? AS src', [path]);
+      } else {
+        await customStatement('ATTACH DATABASE ? AS src KEY ?', [
+          path,
+          sourceKeyBind,
+        ]);
+      }
+    } on Object catch (e) {
+      // The error's text would include the bound key.
+      throw CipherException(
+        'Couldn’t open the backup to restore (${e.runtimeType})',
+      );
     }
     try {
       await transaction(() async {

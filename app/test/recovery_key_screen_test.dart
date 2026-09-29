@@ -37,6 +37,9 @@ void main() {
         if (call.method == 'Clipboard.setData') {
           clipboard = (call.arguments as Map)['text'] as String;
         }
+        if (call.method == 'Clipboard.getData') {
+          return {'text': clipboard};
+        }
         return null;
       },
     );
@@ -46,7 +49,10 @@ void main() {
       MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: midnightTheme(),
-        home: RecoveryKeySetupScreen(recoveryKey: key, onDone: (k) => kept = k),
+        home: RecoveryKeySetupScreen(
+          recoveryKey: key,
+          onContinue: (k) async => kept = k,
+        ),
       ),
     );
     expect(find.textContaining('This is the only time it’s shown'), findsOne);
@@ -63,10 +69,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(clipboard, key.display);
     expect(find.text('Copied'), findsOne);
-    expect(find.byKey(const ValueKey('recovery-key-warning')), findsNothing);
+    // Copying isn't keeping: the line says to paste it somewhere first.
+    expect(
+      find.textContaining('paste it somewhere off this computer'),
+      findsOne,
+    );
 
     await tester.tap(find.byKey(const ValueKey('recovery-key-continue')));
+    await tester.pump();
     expect(kept, isTrue);
+
+    // A minute later the clipboard no longer holds the key.
+    await tester.pump(const Duration(seconds: 61));
+    expect(clipboard, '');
   });
 
   testWidgets('continuing without saving or copying reports it', (
@@ -78,7 +93,7 @@ void main() {
         theme: midnightTheme(),
         home: RecoveryKeySetupScreen(
           recoveryKey: RecoveryKey.generate(),
-          onDone: (k) => kept = k,
+          onContinue: (k) async => kept = k,
         ),
       ),
     );

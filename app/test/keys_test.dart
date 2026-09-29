@@ -136,14 +136,53 @@ void main() {
       expect(RecoveryKey.parse('ABCDE-FGHJK'), isNull);
     });
 
+    test('catches every single mistyped character, anywhere', () {
+      final key = RecoveryKey.generate(random: Random(3));
+      final body = key.display.replaceAll('-', '');
+      for (var i = 0; i < body.length; i++) {
+        for (final c in RecoveryKey.alphabet.split('')) {
+          if (c == body[i]) continue;
+          final typo = body.replaceRange(i, i + 1, c);
+          expect(RecoveryKey.parse(typo), isNull, reason: 'position $i: $c');
+        }
+      }
+    });
+
+    test('says what is wrong with a typed key', () {
+      final key = RecoveryKey.generate(random: Random(4));
+      expect(RecoveryKey.problem(key.display), isNull);
+      expect(
+        RecoveryKey.problem('АБВГД-ЕЖЗИЙ'),
+        'Your keyboard is typing Cyrillic · switch to ABC to type the key',
+      );
+      expect(
+        RecoveryKey.problem(key.display.substring(0, 20)),
+        startsWith('17 of 25 characters'),
+      );
+      final last = key.display[key.display.length - 1];
+      final other = last == 'A' ? 'B' : 'A';
+      expect(
+        RecoveryKey.problem(
+          key.display.substring(0, key.display.length - 1) + other,
+        ),
+        startsWith('A character is wrong'),
+      );
+    });
+
+    test('keys match only when they are the same', () {
+      final a = deriveDataKey(RecoveryKey.generate());
+      expect(sameKey(a, Uint8List.fromList(a)), isTrue);
+      expect(sameKey(a, deriveDataKey(RecoveryKey.generate())), isFalse);
+      expect(sameKey(a, a.sublist(0, 31)), isFalse);
+    });
+
     test('rejects a bad checksum', () {
       final key = RecoveryKey.generate();
       final body = key.display.replaceAll('-', '');
       final firstChar = body[0];
       // A different valid alphabet character in the first position, unless
       // it happens to already be that character.
-      final swapped =
-          (firstChar == 'A' ? 'B' : 'A') + body.substring(1);
+      final swapped = (firstChar == 'A' ? 'B' : 'A') + body.substring(1);
       expect(RecoveryKey.parse(swapped), isNull);
     });
   });

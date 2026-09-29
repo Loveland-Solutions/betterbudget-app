@@ -46,27 +46,48 @@ class RecoveryKey {
   /// Parses what the user typed: case-insensitive, dashes and spaces
   /// ignored, a typed `O` or `I` corrected to `0`/`1` (neither letter is in
   /// [alphabet], so the correction is unambiguous). Null if it isn't the
-  /// right length or the checksum doesn't match.
+  /// right length or the checksum doesn't match; [problem] says which.
   static RecoveryKey? parse(String input) {
-    final cleaned = input
-        .toUpperCase()
-        .replaceAll(RegExp('[^A-Z0-9]'), '')
-        .replaceAll('O', '0')
-        .replaceAll('I', '1');
+    final cleaned = _clean(input);
     if (cleaned.length != _totalLength) return null;
-    for (final c in cleaned.split('')) {
-      if (!alphabet.contains(c)) return null;
-    }
     final body = cleaned.substring(0, _totalLength - 1);
     final check = cleaned.substring(_totalLength - 1);
     if (_checkChar(body) != check) return null;
     return RecoveryKey._(cleaned);
   }
 
+  /// Why [input] isn't a key, in words fit to show, or null if it is one.
+  static String? problem(String input) {
+    if (RegExp('[\u0400-\u04FF]').hasMatch(input)) {
+      return 'Your keyboard is typing Cyrillic · switch to ABC to type the key';
+    }
+    final cleaned = _clean(input);
+    if (cleaned.length != _totalLength) {
+      return '${cleaned.length} of $_totalLength characters';
+    }
+    if (parse(input) == null) {
+      return 'A character is wrong · check the key against your copy';
+    }
+    return null;
+  }
+
+  static String _clean(String input) => input
+      .toUpperCase()
+      .replaceAll('O', '0')
+      .replaceAll('I', '1')
+      .split('')
+      .where(alphabet.contains)
+      .join();
+
+  /// Weights coprime to the alphabet's 34, so changing any one character
+  /// always changes the check character (B for 8, S for 5).
+  static const _weights = [1, 3, 5, 7, 9, 11, 13, 15, 19, 21, 23, 25, 27];
+
   static String _checkChar(String body) {
     var sum = 0;
     for (var i = 0; i < body.length; i++) {
-      sum = (sum + alphabet.indexOf(body[i]) * (i + 1)) % alphabet.length;
+      final w = _weights[i % _weights.length];
+      sum = (sum + alphabet.indexOf(body[i]) * w) % alphabet.length;
     }
     return alphabet[sum];
   }
@@ -83,6 +104,17 @@ Uint8List deriveDataKey(RecoveryKey key) {
   final info = utf8.encode('betterbudget-v1-sqlcipher-key');
   final t1 = Hmac(sha256, prk).convert([...info, 0x01]).bytes;
   return Uint8List.fromList(t1);
+}
+
+/// Whether two keys are the same, in time that doesn't depend on where they
+/// differ.
+bool sameKey(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff == 0;
 }
 
 /// `x'...'` hex literal SQLCipher's `PRAGMA key` takes as a raw (not
@@ -138,6 +170,19 @@ class KeyStore {
 
   Future<void> writeDataKey(Uint8List key) =>
       _write(_dataKeyKey, base64Encode(key));
+
+  /// Whether the recovery key was saved, copied, typed or checked here. Kept
+  /// beside the data key, not in the ledger, so starting a new ledger or
+  /// restoring a backup doesn't change it.
+  static const _keySavedKey = 'betterbudget.recoveryKeySaved';
+
+  Future<bool?> readKeySaved() async {
+    final v = await _read(_keySavedKey);
+    return v == null ? null : v == '1';
+  }
+
+  Future<void> writeKeySaved(bool saved) =>
+      _write(_keySavedKey, saved ? '1' : '0');
 
   /// Deletes a recovery key an earlier build stored. Never throws: a store
   /// that can't be reached has nothing in it to delete.

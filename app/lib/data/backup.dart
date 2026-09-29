@@ -61,6 +61,21 @@ class RestoreException implements Exception {
   String toString() => message;
 }
 
+/// The backup is encrypted, but not with this ledger's key: it may be from
+/// another ledger (its own recovery key opens it), or damaged. Pass the key
+/// the user types to [Backups.inspect] as `backupKey`.
+class RestoreNeedsKeyException extends RestoreException {
+  RestoreNeedsKeyException()
+    : super(
+        'That backup can’t be opened with this ledger’s key · it may be '
+        'from another ledger, or damaged',
+      );
+}
+
+/// What converting the old plain copies did: how many were encrypted, and
+/// which couldn't be (they're still readable, so the user is told).
+typedef ConversionReport = ({int converted, List<File> failed});
+
 /// Backups stay on this machine: a daily copy in the app's own folder, and a
 /// copy saved wherever the user picks. Nothing is uploaded anywhere.
 class Backups {
@@ -236,7 +251,13 @@ class Backups {
   /// must handle all three). Throws [RestoreException] when it can't be
   /// restored. Pass the result to [restore], or to [discard] if the user
   /// cancels.
-  Future<RestoreCandidate> inspect(String path, DateTime now) async {
+  /// [backupKey] opens a backup made under another ledger's key, after the
+  /// first try threw [RestoreNeedsKeyException].
+  Future<RestoreCandidate> inspect(
+    String path,
+    DateTime now, {
+    Uint8List? backupKey,
+  }) async {
     final dir = await folder();
     if (dir == null) throw RestoreException('Nothing to restore into');
     await dir.create(recursive: true);
@@ -255,7 +276,7 @@ class Backups {
         }
         sourceKeyBind = dataKey == null ? null : '';
       } else {
-        final key = dataKey;
+        final key = backupKey ?? dataKey;
         if (key == null) {
           // No key context to try against a non-plain header (tests, or a
           // corrupt/foreign file): can't tell the difference, so this is
@@ -266,7 +287,12 @@ class Backups {
         try {
           version = _rawUserVersion(file, key);
         } catch (e) {
-          throw RestoreException('That backup uses a different key');
+          throw backupKey == null
+              ? RestoreNeedsKeyException()
+              : RestoreException(
+                  'That key doesn’t open this backup · it may be from '
+                  'another ledger, or damaged',
+                );
         }
         if (version > db.schemaVersion) {
           throw RestoreException(
@@ -278,7 +304,7 @@ class Backups {
       // A local, not `dataKey` (a `this` getter): the setup closure below
       // crosses into a background isolate, which refuses to send anything
       // that captures `this` — a Backups holding a live FFI connection.
-      final cipherKey = looksPlain ? null : dataKey;
+      final cipherKey = looksPlain ? null : (backupKey ?? dataKey);
       // Off the UI isolate: a big or odd file mustn't freeze the app.
       final copy = AppDatabase(
         NativeDatabase.createInBackground(
@@ -346,22 +372,27 @@ class Backups {
   /// SQLCipher in place (ADR 0001: the old plain copies must be converted
   /// too, not left behind): the daily copies in `Backups/`, the copies made
   /// before each schema upgrade beside the database, and any older folder of
-  /// copies. Returns how many were converted, so the app can say.
-  Future<int> convertPlainBackups() async {
+  /// copies. One that can't be converted (damaged, or not a ledger) is
+  /// skipped and reported, never allowed to stop the app from starting.
+  Future<ConversionReport> convertPlainBackups() async {
     final key = dataKey;
-    if (key == null) return 0;
     final live = await db.filePath();
-    if (live == null) return 0;
+    if (key == null || live == null) return (converted: 0, failed: <File>[]);
     final dir = File(live).parent;
     var converted = 0;
+    final failed = <File>[];
     for (final f in dir.listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.sqlite') || f.path == live) continue;
-      if (await isPlainSqliteFile(f)) {
+      if (!await isPlainSqliteFile(f)) continue;
+      try {
         await convertPlainFileInPlace(f, key);
         converted++;
+      } catch (e) {
+        debugPrint('Couldn’t encrypt an old copy: $e');
+        failed.add(f);
       }
     }
-    return converted;
+    return (converted: converted, failed: failed);
   }
 
   /// The user cancelled: remove the working copy.

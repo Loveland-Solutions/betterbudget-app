@@ -62,7 +62,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`
   (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel), `recovery_key_screen.dart` (the key shown
-  once at setup, and the entry screen when a device has no key).
+  once at setup, the entry screen when a device has no key, the key-check dialogs),
+  `startup.dart` (what happens at launch: check the key, show a new key before storing
+  it, convert, open; tested in `test/startup_test.dart`).
 - Widget tests stand in for the macOS open and save dialogs with a fake
   `FileSelectorPlatform` (see the "backups" group); taps that start file work go
   inside `tester.runAsync`.
