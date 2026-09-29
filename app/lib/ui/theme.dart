@@ -163,17 +163,16 @@ ThemeData appTheme() => ThemeData(
   brightness: Mid.palette.brightness,
   scaffoldBackgroundColor: Mid.ground,
   fontFamily: 'Onest',
+  // Not generated from a seed: any Material default stays in the palette.
   colorScheme:
-      ColorScheme.fromSeed(
-        seedColor: Mid.blue,
-        brightness: Mid.palette.brightness,
-      ).copyWith(
-        primary: Mid.blue,
-        onPrimary: Mid.onAccent,
-        surface: Mid.panel,
-        onSurface: Mid.ink,
-        error: Mid.coral,
-      ),
+      (Mid.isLight ? const ColorScheme.light() : const ColorScheme.dark())
+          .copyWith(
+            primary: Mid.blue,
+            onPrimary: Mid.onAccent,
+            surface: Mid.panel,
+            onSurface: Mid.ink,
+            error: Mid.coral,
+          ),
   tooltipTheme: TooltipThemeData(
     decoration: BoxDecoration(
       color: Mid.raised,

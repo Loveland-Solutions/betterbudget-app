@@ -60,8 +60,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   converting plain copies), `keys.dart` (recovery key, data key, secure store),
   `encryption.dart` (cipher pragmas, converting a plain file), plus `demo_seed.dart`.
 - `lib/ui/`: `theme.dart` (`Palette` dark and light, read as `Mid.ink` etc.; the
-  sidebar's own `Mid.side*`), `appearance.dart` (Settings → Appearance, switching
-  and redrawing), `brand.dart` (the wordmark), `Money`, `StatusGlyph`), `ledger_screen.dart`
+  sidebar's own `Mid.side*`; `Money`, `StatusGlyph`), `appearance.dart` (Settings →
+  Appearance, switching and redrawing), `brand.dart` (the wordmark), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
   (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`

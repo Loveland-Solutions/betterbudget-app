@@ -76,7 +76,7 @@ be quietly undone.
   "Better" becomes ink and royal "Budget" the lifted blue. Rejected: the bee on a small
   white tile beside it, and the logo on the recovery-key screens.
 
-### Color: how the dark mode was reached (owner, 2026-09-29; light mode not settled)
+### Color: how the dark and light modes were reached (owner, 2026-09-29)
 
 The owner: Midnight is "a bit too dark. We need some color." Sketched on one canvas,
 https://claude.ai/artifact/DuV7bmBYHEiCpG4qBY2Wdb (the ledger screen with demo data).

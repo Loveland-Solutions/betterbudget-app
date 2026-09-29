@@ -518,7 +518,7 @@ class _FundPicker extends StatelessWidget {
         key: const ValueKey('fund-picker'),
         label: label,
         trailing: Icons.expand_more_rounded,
-        color: r.fundAccounts.isEmpty ? Mid.gold : Mid.ink2,
+        color: r.fundAccounts.isEmpty ? Mid.gold : null,
         onTap: () => menu.isOpen ? menu.close() : menu.open(),
       ),
     );
@@ -602,7 +602,7 @@ class _MonthFieldState extends State<_MonthField> {
             : m.typed
             ? 'Change the month'
             : 'Type your own month',
-        color: m.amount == 0 ? Mid.gold : Mid.ink2,
+        color: m.amount == 0 ? Mid.gold : null,
         onTap: _start,
       );
     }

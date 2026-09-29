@@ -1083,7 +1083,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (a == before) return;
     c.set(a);
     _did(
-      'Appearance',
+      'Appearance: ${switch (a) {
+        Appearance.system => _isMac ? 'Same as this Mac' : 'Same as Windows',
+        Appearance.light => 'Light',
+        Appearance.dark => 'Dark',
+      }}',
       toast: false,
       undo: () => c.set(before),
       redo: () => c.set(a),

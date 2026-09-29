@@ -3062,6 +3062,21 @@ void main() {
       tester,
     ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const window = MethodChannel('betterbudget/window');
+      final looks = <Map<Object?, Object?>>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(window, (
+        call,
+      ) async {
+        looks.add(call.arguments as Map<Object?, Object?>);
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          window,
+          null,
+        ),
+      );
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1;
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
@@ -3078,6 +3093,7 @@ void main() {
             child: Builder(
               builder: (_) => MaterialApp(
                 debugShowCheckedModeBanner: false,
+                themeAnimationDuration: Duration.zero,
                 theme: appTheme(),
                 home: LedgerScreen(
                   db: db,
@@ -3126,6 +3142,11 @@ void main() {
       expect(appearance.value, Appearance.dark);
       expect(Mid.isLight, isFalse);
       expect(find.textContaining('Showing'), findsNothing);
+      // The title bar is told each time.
+      expect(looks.last, {
+        'dark': true,
+        'ground': Palette.dark.ground.toARGB32(),
+      });
 
       await tester.runAsync(() async {
         await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
@@ -3136,7 +3157,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(appearance.value, Appearance.system);
       expect(Mid.isLight, isTrue);
+      await settle(tester);
+      expect(find.text('Undone · Appearance: Dark'), findsOneWidget);
+      expect(looks.last['dark'], false);
+
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(appearance.value, Appearance.dark);
+      expect(Mid.isLight, isFalse);
       await tidy(tester, db);
+      // Checked before tear-downs run; the tear-down covers a failed expect.
       debugDefaultTargetPlatformOverride = null;
     });
 

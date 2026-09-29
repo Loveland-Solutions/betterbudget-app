@@ -33,15 +33,20 @@ class AppearanceController extends ChangeNotifier {
     return AppearanceController(initial: initial, file: file);
   }
 
-  Future<void> set(Appearance a) async {
-    if (a == _value) return;
+  Future<void> _writing = Future.value();
+
+  Future<void> set(Appearance a) {
+    if (a == _value) return _writing;
     _value = a;
     notifyListeners();
-    try {
-      await file?.writeAsString(a.name);
-    } on FileSystemException {
-      // Still applied for this session; it just won't be remembered.
-    }
+    // One write at a time, so quick clicks can't finish out of order.
+    return _writing = _writing.then((_) async {
+      try {
+        await file?.writeAsString(a.name);
+      } on FileSystemException {
+        // Still applied for this session; it just won't be remembered.
+      }
+    });
   }
 }
 
