@@ -768,7 +768,7 @@ void main() {
       await tester.enterText(field('New transaction — payee'), 'Sakura Coffee');
       await enter(tester); // category is filled from the payee's last one
       expect(find.text('Sakura Coffee'), findsNWidgets(2));
-      expect(find.text('₮4,174,450'), findsWidgets);
+      expect(find.text('₮4,174,450.00'), findsWidgets);
       await tidy(tester, db);
     });
 
@@ -1071,7 +1071,7 @@ void main() {
     tester,
   ) async {
     final db = await pumpLedger(tester);
-    expect(find.text('₮640,200 owed'), findsOneWidget); // sidebar
+    expect(find.text('₮640,200.00 owed'), findsOneWidget); // sidebar
     await tester.tap(find.text('Golomt Visa'));
     await tester.pumpAndSettle();
     expect(find.text('Owed'), findsWidgets); // total line and Balance column
@@ -1714,9 +1714,9 @@ void main() {
     final goes = find.byKey(const ValueKey('new-ledger-goes'));
     for (final t in [
       'TDB Checking',
-      '₮4,182,450',
+      '₮4,182,450.00',
       'Golomt Visa',
-      '₮640,200 owed',
+      '₮640,200.00 owed',
       '19 transactions',
     ]) {
       expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
@@ -2130,7 +2130,7 @@ void main() {
         matchesGoldenFile('goldens/account_start.png'),
       );
       await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
-      expect(find.text('₮500,000 owed'), findsOneWidget); // sidebar
+      expect(find.text('₮500,000.00 owed'), findsOneWidget); // sidebar
       expect(find.text('Opening balance'), findsOneWidget);
       // Only what hasn't settled is left to type, so the entry row is open.
       expect(
@@ -2248,14 +2248,14 @@ void main() {
       // Gone from the sidebar; the next account opens; net worth unchanged.
       expect(find.text('₮4,182,450'), findsNothing);
       expect(find.text('Khan Savings'), findsNWidgets(2)); // title, sidebar
-      expect(find.text('₮16,228,750'), findsOneWidget);
+      expect(find.text('₮16,228,750.00'), findsOneWidget);
       expect(find.text('incl. ₮4,182,450 in archived'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
       expect(find.text('Archived accounts'), findsOneWidget);
       await tapAndWait(tester, find.textContaining('Show in sidebar'));
-      expect(find.text('₮4,182,450'), findsOneWidget);
+      expect(find.text('₮4,182,450.00'), findsOneWidget);
       expect(find.text('TDB Checking'), findsNWidgets(2)); // title, sidebar
       await tidy(tester, db);
     });
@@ -3320,13 +3320,13 @@ void main() {
     );
     await tester.enterText(find.byKey(const ValueKey('start-balance')), '250');
     await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
-    expect(find.text(r'$250'), findsNWidgets(2)); // sidebar, net worth
+    expect(find.text(r'$250.00'), findsWidgets); // sidebar, net worth, the page
     expect(find.textContaining(r'Started at $250'), findsOneWidget);
     // Net worth: each currency on its own line.
     expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('net-worth-USD'))).data,
-      r'$250',
+      r'$250.00',
     );
 
     // From TDB Checking, a transfer to Chase asks what arrived there.
@@ -3362,7 +3362,7 @@ void main() {
       (a) => a.name == 'Chase',
     );
     expect(data.balanceOf(chase.id), 125000);
-    expect(find.text(r'$1,250'), findsNWidgets(2)); // sidebar, net worth
+    expect(find.text(r'$1,250.00'), findsWidgets); // sidebar, net worth, the page
     expect(
       find.textContaining(r'Chase: $1,000.00 · ₮3,450.00 per $1'),
       findsOneWidget,

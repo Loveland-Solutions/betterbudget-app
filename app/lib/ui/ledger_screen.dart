@@ -2844,7 +2844,7 @@ class _Sidebar extends StatelessWidget {
                 const SizedBox(height: 4),
                 for (final e in net.entries)
                   Text(
-                    formatRounded(e.value, currency: e.key),
+                    formatMoney(e.value, currency: e.key),
                     key: ValueKey('net-worth-${e.key.code}'),
                     style: onest(
                       net.length > 1 ? 16 : 18,
@@ -3334,8 +3334,8 @@ class _RestoreDialog extends StatelessWidget {
 /// A balance as the sidebar shows it: a card as what's owed, positive, as
 /// the bank does.
 String _balanceText(Words t, AccountInfo a, int balance) => a.isOwed
-    ? t.ledgerOwed(formatRounded(-balance, currency: a.currency))
-    : formatRounded(balance, currency: a.currency);
+    ? t.ledgerOwed(formatMoney(-balance, currency: a.currency))
+    : formatMoney(balance, currency: a.currency);
 
 /// Asks before everything is erased for a clean start, naming what goes:
 /// each account and its balance, the transactions' dates, pay. Whether the

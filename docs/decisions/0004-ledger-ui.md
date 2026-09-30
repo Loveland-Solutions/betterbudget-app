@@ -885,6 +885,9 @@ The owner asked that accounts can be made in MNT (₮) or USD ($). ROADMAP E had
 already decided the rest: totals shown per currency and never converted, and both
 sides of a transfer between currencies. Built on that:
 
+- **The sidebar shows whole amounts, cents included** (owner, 2026-09-30: "I'd prefer
+  to have the whole amount here"): each account's balance and net worth read
+  ₮4,289,291.00 and $9.00. *Rejected:* rounding to whole units there.
 - **Spelled "tugrik" in English** (owner, 2026-09-30: plain English
   letters). *Rejected:* "tögrög".
 - **Chosen when the account is made:** Currency, "₮ Tugrik" or "$ Dollar", under
