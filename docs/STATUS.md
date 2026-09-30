@@ -12,7 +12,8 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #21 (blue Add button, the bee beside
+**Git state:** `main` has everything through PR #23 (Mongolian interface, Settings →
+Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
 the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
@@ -176,6 +177,12 @@ Roughly in the order they will block something.
 **Beyond the alpha** (owner, 2026-09-30): the list to beta and the platforms after it
 (bug link and public releases, the budget page, Savings, MNT and USD, App Store,
 Windows, Linux, phones) is in [ROADMAP.md](ROADMAP.md).
+
+**Mongolian** (owner, 2026-09-30, PR #23): built and approved in the app. Before beta a
+native speaker goes through [mongolian-review.csv](mongolian-review.csv) (ROADMAP A2).
+Screens with no Mongolian screenshot yet: the entry row and its errors, the calendar,
+account add/edit, archive and delete warnings, the recovery-key screens, restore. New
+text always goes in both `.arb` files, as whole sentences.
 
 **The alpha** (owner, 2026-09-24: "I want to get this alpha version finished so I can
 start using it"):
