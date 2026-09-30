@@ -2131,21 +2131,23 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
       expect(find.text('₮500,000.00 owed'), findsOneWidget); // sidebar
-      expect(find.text('Opening balance'), findsOneWidget);
-      // Only what hasn't settled is left to type, so the entry row is open.
-      expect(
-        find.text(
-          'Started at ₮500,000 owed · add only what hasn’t settled yet',
-        ),
-        findsOneWidget,
-      );
+      // Payee and category both say it, singular (owner, 2026-09-30).
+      expect(find.text('Opening balance'), findsNWidgets(2));
+      expect(find.text('Opening balances'), findsNothing);
+      // Only what hasn't cleared is left to type, so the entry row is open,
+      // with no toast: the account was just made (owner, 2026-09-30).
+      expect(find.textContaining('Started at'), findsNothing);
       expect(
         find.widgetWithText(TextField, 'New transaction — payee'),
         findsOneWidget,
       );
 
-      // Undo takes the balance back, then ⌘Z the account.
-      await tapAndWait(tester, find.text('Undo'));
+      // ⌘Z takes the balance back (no toast to click), then the account.
+      // Esc closes the entry row and leaves ⌘Z working, no click needed.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
       expect(find.text('What do you owe on it today?'), findsOneWidget);
       await tester.tap(find.text('What do you owe on it today?'));
       await tester.pumpAndSettle();
@@ -2878,7 +2880,7 @@ void main() {
         '500000',
       );
       await tester.pumpAndSettle();
-      expect(find.text('Put in how much comes on the 25th'), findsOneWidget);
+      expect(find.text('Type how much you’re paid on the 25th'), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('pay-amount2')),
         '1600000',
@@ -3321,7 +3323,6 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('start-balance')), '250');
     await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
     expect(find.text(r'$250.00'), findsWidgets); // sidebar, net worth, the page
-    expect(find.textContaining(r'Started at $250'), findsOneWidget);
     // Net worth: each currency on its own line.
     expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
     expect(

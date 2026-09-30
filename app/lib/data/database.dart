@@ -73,6 +73,9 @@ class PaySchedules extends Table {
   TextColumn get anchor => text().nullable()();
   BoolColumn get weekendBefore => boolean().withDefault(const Constant(true))();
 
+  /// A weekend payday stays on its day, whatever [weekendBefore] says (v9).
+  BoolColumn get weekendKeep => boolean().withDefault(const Constant(false))();
+
   /// The budget runs by this schedule's pay periods (at most one does).
   BoolColumn get definesPeriod =>
       boolean().withDefault(const Constant(false))();
@@ -546,7 +549,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -614,6 +617,10 @@ class AppDatabase extends _$AppDatabase {
             'GROUP BY e.transaction_id)',
           );
           await customStatement('UPDATE transactions SET import_key = NULL');
+        }
+        // Before v5 the table was just made, with the column already.
+        if (from >= 5 && from < 9) {
+          await _addColumnOnce(m, paySchedules, paySchedules.weekendKeep);
         }
       });
     },
@@ -1845,7 +1852,11 @@ class AppDatabase extends _$AppDatabase {
     day2: p.day2,
     weeks: p.weeks,
     anchor: p.anchor == null ? null : parseDateKey(p.anchor!),
-    weekendBefore: p.weekendBefore,
+    weekend: p.weekendKeep
+        ? PayWeekend.keep
+        : p.weekendBefore
+        ? PayWeekend.before
+        : PayWeekend.after,
     definesPeriod: p.definesPeriod,
   );
 
@@ -1909,7 +1920,7 @@ class AppDatabase extends _$AppDatabase {
     int day2 = 10,
     int weeks = 2,
     DateTime? anchor,
-    bool weekendBefore = true,
+    PayWeekend weekend = PayWeekend.before,
     bool definesPeriod = false,
   }) => transaction(() async {
     await _assertCategory(categoryId);
@@ -1939,7 +1950,9 @@ class AppDatabase extends _$AppDatabase {
       day2: Value(day2),
       weeks: Value(weeks),
       anchor: Value(anchor == null ? null : dateKey(dateOnly(anchor))),
-      weekendBefore: Value(weekendBefore),
+      // Keep leaves the older column as it was: before, the default.
+      weekendBefore: Value(weekend != PayWeekend.after),
+      weekendKeep: Value(weekend == PayWeekend.keep),
       definesPeriod: Value(definesPeriod),
       deletedAt: const Value(null),
     );

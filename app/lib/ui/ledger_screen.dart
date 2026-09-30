@@ -601,6 +601,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _entry.focus());
   }
 
+  /// Esc on the new-transaction row: it closes, and ⌘Z works again at
+  /// once. The row drops focus on its way out, which left the screen's keys
+  /// unreachable until a click.
+  void _closeEntry() {
+    setState(() => _adding = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _keysBack();
+    });
+  }
+
   // ---------- editing ----------
 
   /// With [confirming], a scheduled row opens to be confirmed: dated today,
@@ -1084,7 +1094,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             day2: draft.day2,
             weeks: draft.weeks,
             anchor: draft.anchor,
-            weekendBefore: draft.weekendBefore,
+            weekend: draft.weekend,
             definesPeriod: draft.definesPeriod,
             today: today,
           ),
@@ -1340,7 +1350,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 key: const ValueKey('add-transaction'),
                 onTap: _newEntry,
               ),
-              onCloseEntry: () => setState(() => _adding = false),
+              onCloseEntry: _closeEntry,
               actions: RegisterActions(
                 onFilter: (f) => setState(() => _filter = f),
                 onRowTap: _tapRow,
@@ -1503,16 +1513,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(t.ledgerCouldntSaveBalance);
       return;
     }
-    // The bank's number already holds everything settled, so what's left to
-    // type is what hasn't: the entry row opens, and the toast says so.
+    // The bank's number already holds everything cleared, so what's left to
+    // type is what hasn't: the entry row opens. No toast (owner, 2026-09-30):
+    // the account was just made on purpose; ⌘Z still takes the balance back.
     _newEntry();
     _did(
       t.startOpeningBalance,
       undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
       redo: () => db.restoreMany([id]),
-      message: account.isOwed
-          ? t.ledgerStartedAtOwed(_money(typed, account.currency))
-          : t.ledgerStartedAt(_money(typed, account.currency)),
+      toast: false,
     );
   }
 
@@ -2664,7 +2673,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   key: const ValueKey('add-transaction'),
                   onTap: _newEntry,
                 ),
-                onCloseEntry: () => setState(() => _adding = false),
+                onCloseEntry: _closeEntry,
                 actions: RegisterActions(
                   onFilter: (f) => setState(() => _filter = f),
                   onRowTap: _tapRow,

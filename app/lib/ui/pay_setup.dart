@@ -17,7 +17,7 @@ typedef PayDraft = ({
   int day2,
   int weeks,
   DateTime anchor,
-  bool weekendBefore,
+  PayWeekend weekend,
   bool definesPeriod,
 });
 
@@ -136,7 +136,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     text: fullDate(widget.existing?.anchor ?? widget.today),
   );
   final _anchorFocus = FocusNode(debugLabel: 'pay-anchor');
-  late bool _weekendBefore = widget.existing?.weekendBefore ?? true;
+  late PayWeekend _weekend = widget.existing?.weekend ?? PayWeekend.before;
   late bool _byPeriod = widget.existing?.definesPeriod ?? false;
   List<int> _history = const [];
 
@@ -286,7 +286,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
           day2: _plan.day2,
           weeks: _weeksValue ?? 2,
           anchor: _anchorValue,
-          weekendBefore: _weekendBefore,
+          weekend: _weekend,
         );
 
   void _save() {
@@ -304,7 +304,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
         day2: _plan.day2,
         weeks: _weeksValue ?? 2,
         anchor: _anchorValue ?? widget.today,
-        weekendBefore: _weekendBefore,
+        weekend: _weekend,
         definesPeriod: _byPeriod,
       )),
     );
@@ -672,19 +672,23 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     t.setupOnWeekend,
                     Row(
                       children: [
-                        choice(
-                          t.setupFridayBefore,
-                          _weekendBefore,
-                          () => setState(() => _weekendBefore = true),
-                          'pay-friday',
-                        ),
-                        const SizedBox(width: 8),
-                        choice(
-                          t.setupMondayAfter,
-                          !_weekendBefore,
-                          () => setState(() => _weekendBefore = false),
-                          'pay-monday',
-                        ),
+                        for (final (w, label, key) in [
+                          (
+                            PayWeekend.before,
+                            t.setupFridayBefore,
+                            'pay-friday',
+                          ),
+                          (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
+                          (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
+                        ]) ...[
+                          if (w != PayWeekend.before) const SizedBox(width: 8),
+                          choice(
+                            label,
+                            _weekend == w,
+                            () => setState(() => _weekend = w),
+                            key,
+                          ),
+                        ],
                       ],
                     ),
                   ),

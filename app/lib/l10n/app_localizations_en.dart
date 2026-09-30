@@ -451,16 +451,6 @@ class WordsEn extends Words {
   String get ledgerCouldntSaveBalance => 'Couldn’t save the balance';
 
   @override
-  String ledgerStartedAt(String amount) {
-    return 'Started at $amount · add only what hasn’t settled yet';
-  }
-
-  @override
-  String ledgerStartedAtOwed(String amount) {
-    return 'Started at $amount owed · add only what hasn’t settled yet';
-  }
-
-  @override
   String get ledgerCouldntChangeAccount => 'Couldn’t change the account';
 
   @override
@@ -1808,8 +1798,8 @@ class WordsEn extends Words {
   @override
   String rowsStatusTip(String status) {
     String _temp0 = intl.Intl.selectLogic(status, {
-      'uncleared': 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
-      'cleared': 'Cleared — settled at the bank. Click to mark uncleared.',
+      'uncleared': 'Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.',
+      'cleared': 'Cleared — the bank has cleared it. Click to mark uncleared.',
       'other': 'Reconciled — matches a statement, so its date and amount are locked.',
     });
     return '$_temp0';
@@ -1819,9 +1809,9 @@ class WordsEn extends Words {
   String rowsStatusTipIn(String account, String status) {
     String _temp0 = intl.Intl.selectLogic(status, {
       'uncleared':
-          'In $account: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+          'In $account: Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.',
       'cleared':
-          'In $account: Cleared — settled at the bank. Click to mark uncleared.',
+          'In $account: Cleared — the bank has cleared it. Click to mark uncleared.',
       'other':
           'In $account: Reconciled — matches a statement, so its date and amount are locked.',
     });
@@ -2338,20 +2328,20 @@ class WordsEn extends Words {
   String get setupShowEveryRow => 'Show every row · Esc';
 
   @override
-  String get setupAmountMissing => 'Put in how much comes';
+  String get setupAmountMissing => 'Type how much you’re paid';
 
   @override
   String setupAmountMissingOn(String day) {
-    return 'Put in how much comes on the $day';
+    return 'Type how much you’re paid on the $day';
   }
 
   @override
   String get setupAmountMissingFirst =>
-      'Put in how much comes on the first payday';
+      'Type how much you’re paid on the first payday';
 
   @override
   String get setupAmountMissingSecond =>
-      'Put in how much comes on the second payday';
+      'Type how much you’re paid on the second payday';
 
   @override
   String setupOnDay(String day) {
@@ -2499,6 +2489,9 @@ class WordsEn extends Words {
 
   @override
   String get setupMondayAfter => 'Monday after';
+
+  @override
+  String get setupKeepTheDay => 'Keep the day';
 
   @override
   String get setupBudgetBy => 'Budget by';
@@ -2826,7 +2819,7 @@ class WordsEn extends Words {
   String get startOpeningBalance => 'Opening balance';
 
   @override
-  String get startOpeningBalances => 'Opening balances';
+  String get startOpeningBalances => 'Opening balance';
 
   @override
   String get startBalanceAdjustments => 'Balance adjustments';

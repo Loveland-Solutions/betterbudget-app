@@ -214,8 +214,9 @@ What's known so far:
    a line fades non-matching rows; hovering a row's symbol lights up its line; clicking a
    line filters. Discoverable meaning beats a legend or a help screen. **Uncleared
    doesn't mean the bank hasn't seen it.** Banks often show a transaction as *pending*
-   before it clears, so copy must say "not cleared yet" or "not settled", never "not
-   posted" (an owner correction).
+   before it clears, so copy must say "not cleared yet", never "not posted" (an owner
+   correction). Nor "settled" (owner, 2026-09-30: it reads as AI-written): the app's
+   word is **cleared**.
    **On a credit card every amount is what's owed, positive**, as the bank shows it
    (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
    normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
@@ -526,8 +527,12 @@ What's known so far:
     - The start hint shows before anything is typed. On a card it says "what you've
       used, not the available limit". The question follows the date ("What was in it
       on 08.31?").
-    - After a balance, the entry row opens and the toast says "add only what hasn't
-      settled yet", because the bank's number already includes everything settled.
+    - After a balance, the entry row opens, because the bank's number already
+      includes everything cleared. **No toast** (owner's correction, 2026-09-30: the
+      account was just made on purpose; it used to say "Started at … · add only what
+      hasn't settled yet"). ⌘Z still takes the balance back, and Esc on the entry row
+      leaves ⌘Z working without a click. The opening row's category reads **"Opening
+      balance"**, singular like its payee (owner, 2026-09-30; was "Opening balances").
     - **Changing the kind flips an unreconciled opening balance**, since it was typed
       in the kind's own sign. Changing back flips it back.
     - The archive warning separates bills (dropped from every forecast) from scheduled
@@ -646,7 +651,8 @@ What's known so far:
     account it's paid into, who from (optional), whether it's about the same each
     time or varies, the amount, and when it comes (monthly on a day, twice a month,
     or every N weeks from a payday), with a weekend payday moved to the Friday
-    before or the Monday after. It opens from the forecast, from a payday category
+    before or the Monday after, or **kept on its day** (owner, 2026-09-30: "some
+    people are paid on a Saturday"; "Keep the day", schema v9). It opens from the forecast, from a payday category
     on the Budget screen ("payday · pay not set up", gold, until it is; or
     "payday · ₮2,100,000 or more on the 10th and 25th · next 09.25"), and from
     Settings. **The next payday is always scheduled from the plan**: saving

@@ -449,16 +449,6 @@ class WordsMn extends Words {
   String get ledgerCouldntSaveBalance => 'Үлдэгдлийг хадгалж чадсангүй';
 
   @override
-  String ledgerStartedAt(String amount) {
-    return 'Эхний үлдэгдэл $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
-  }
-
-  @override
-  String ledgerStartedAtOwed(String amount) {
-    return 'Эхний өр $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
-  }
-
-  @override
   String get ledgerCouldntChangeAccount => 'Дансыг өөрчилж чадсангүй';
 
   @override
@@ -2411,6 +2401,9 @@ class WordsMn extends Words {
 
   @override
   String get setupMondayAfter => 'Дараагийн даваа';
+
+  @override
+  String get setupKeepTheDay => 'Тэр өдөртөө';
 
   @override
   String get setupBudgetBy => 'Төсвийн үе';

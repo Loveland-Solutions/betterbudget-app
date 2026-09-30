@@ -8,7 +8,7 @@ void main() {
     int day2 = 10,
     int weeks = 2,
     DateTime? anchor,
-    bool before = true,
+    PayWeekend weekend = PayWeekend.before,
   }) => PaySchedule(
     id: 1,
     categoryId: 1,
@@ -19,7 +19,7 @@ void main() {
     day2: day2,
     weeks: weeks,
     anchor: anchor,
-    weekendBefore: before,
+    weekend: weekend,
   );
 
   test('monthly: the day, moved off a weekend', () {
@@ -28,8 +28,30 @@ void main() {
     expect(pay.nextAfter(DateTime(2026, 9, 16)), DateTime(2026, 9, 25));
     expect(pay.nextAfter(DateTime(2026, 9, 25)), DateTime(2026, 10, 23));
     expect(
-      s(PayRule.monthly, before: false).nextAfter(DateTime(2026, 9, 25)),
+      s(
+        PayRule.monthly,
+        weekend: PayWeekend.after,
+      ).nextAfter(DateTime(2026, 9, 25)),
       DateTime(2026, 10, 26),
+    );
+  });
+
+  test('keep the day: a Saturday or Sunday payday stays put', () {
+    // 2026.10.25 is a Sunday, 2026.10.31 a Saturday.
+    final keep = s(PayRule.monthly, weekend: PayWeekend.keep);
+    expect(keep.nextAfter(DateTime(2026, 9, 25)), DateTime(2026, 10, 25));
+    final sat = s(PayRule.monthly, day1: 31, weekend: PayWeekend.keep);
+    expect(sat.nextAfter(DateTime(2026, 10, 20)), DateTime(2026, 10, 31));
+    // Every other Saturday, from Saturday 2026.10.03.
+    final weekly = s(
+      PayRule.everyWeeks,
+      anchor: DateTime(2026, 10, 3),
+      weekend: PayWeekend.keep,
+    );
+    expect(weekly.nextAfter(DateTime(2026, 10, 3)), DateTime(2026, 10, 17));
+    expect(
+      weekly.lastOnOrBefore(DateTime(2026, 10, 20)),
+      DateTime(2026, 10, 17),
     );
   });
 
@@ -140,7 +162,7 @@ void main() {
       s(
         PayRule.monthly,
         day1: 31,
-        before: false,
+        weekend: PayWeekend.after,
       ).nextAfter(DateTime(2026, 10, 20)),
       DateTime(2026, 11, 2),
     );

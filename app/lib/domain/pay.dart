@@ -6,6 +6,10 @@ import 'ledger.dart';
 
 enum PayRule { monthly, twiceMonthly, everyWeeks }
 
+/// Where a payday that falls on a Saturday or Sunday goes: the Friday
+/// before, the Monday after, or nowhere (some are paid on a Saturday).
+enum PayWeekend { before, after, keep }
+
 /// The preference set by "I don't have regular pay": nothing asks for pay
 /// while there's none (self-employed, between jobs). '1' when set.
 const noRegularPayKey = 'pay.none';
@@ -24,7 +28,7 @@ class PaySchedule {
     this.day2 = 10,
     this.weeks = 2,
     this.anchor,
-    this.weekendBefore = true,
+    this.weekend = PayWeekend.before,
     this.definesPeriod = false,
   });
 
@@ -56,9 +60,8 @@ class PaySchedule {
   final int weeks;
   final DateTime? anchor;
 
-  /// A payday on a Saturday or Sunday moves to the Friday before, or with
-  /// false the Monday after.
-  final bool weekendBefore;
+  /// Where a payday on a Saturday or Sunday goes.
+  final PayWeekend weekend;
 
   /// Budget by pay period, and this schedule's paydays are its bounds.
   final bool definesPeriod;
@@ -172,9 +175,12 @@ class PaySchedule {
   static DateTime _addDays(DateTime d, int n) =>
       DateTime(d.year, d.month, d.day + n);
 
-  DateTime _offWeekend(DateTime d) => switch (d.weekday) {
-    DateTime.saturday => _addDays(d, weekendBefore ? -1 : 2),
-    DateTime.sunday => _addDays(d, weekendBefore ? -2 : 1),
+  DateTime _offWeekend(DateTime d) => switch ((d.weekday, weekend)) {
+    (_, PayWeekend.keep) => d,
+    (DateTime.saturday, PayWeekend.before) => _addDays(d, -1),
+    (DateTime.saturday, _) => _addDays(d, 2),
+    (DateTime.sunday, PayWeekend.before) => _addDays(d, -2),
+    (DateTime.sunday, _) => _addDays(d, 1),
     _ => d,
   };
 

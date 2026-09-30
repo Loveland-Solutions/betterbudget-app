@@ -672,18 +672,6 @@ abstract class Words {
   /// **'Couldn’t save the balance'**
   String get ledgerCouldntSaveBalance;
 
-  /// Toast after a new account’s balance is typed; the entry row opens for pending transactions.
-  ///
-  /// In en, this message translates to:
-  /// **'Started at {amount} · add only what hasn’t settled yet'**
-  String ledgerStartedAt(String amount);
-
-  /// Toast after a new card or loan’s balance is typed; amount is what is owed.
-  ///
-  /// In en, this message translates to:
-  /// **'Started at {amount} owed · add only what hasn’t settled yet'**
-  String ledgerStartedAtOwed(String amount);
-
   /// Toast when a change to an account failed.
   ///
   /// In en, this message translates to:
@@ -2576,13 +2564,13 @@ abstract class Words {
   /// Tooltip on the status symbol at the start of a register row. status is uncleared, cleared or reconciled
   ///
   /// In en, this message translates to:
-  /// **'{status, select, uncleared{Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{Cleared — settled at the bank. Click to mark uncleared.} other{Reconciled — matches a statement, so its date and amount are locked.}}'**
+  /// **'{status, select, uncleared{Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.} cleared{Cleared — the bank has cleared it. Click to mark uncleared.} other{Reconciled — matches a statement, so its date and amount are locked.}}'**
   String rowsStatusTip(String status);
 
   /// Tooltip on the status symbol of a transfer, when the status shown is the other side’s. account is the other account’s name; status is uncleared, cleared or reconciled
   ///
   /// In en, this message translates to:
-  /// **'{status, select, uncleared{In {account}: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{In {account}: Cleared — settled at the bank. Click to mark uncleared.} other{In {account}: Reconciled — matches a statement, so its date and amount are locked.}}'**
+  /// **'{status, select, uncleared{In {account}: Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.} cleared{In {account}: Cleared — the bank has cleared it. Click to mark uncleared.} other{In {account}: Reconciled — matches a statement, so its date and amount are locked.}}'**
   String rowsStatusTipIn(String account, String status);
 
   /// Register row of a transfer out: the quiet word shown BEFORE the other account’s name (which is shown bold). Leave empty if your language puts the word after the name
@@ -3302,25 +3290,25 @@ abstract class Words {
   /// Pay setup, note by Save when the amount is empty.
   ///
   /// In en, this message translates to:
-  /// **'Put in how much comes'**
+  /// **'Type how much you’re paid'**
   String get setupAmountMissing;
 
   /// Pay setup (twice a month, different amounts), note when one amount is empty. day is startDayOn: English "10th", Mongolian "10-нд".
   ///
   /// In en, this message translates to:
-  /// **'Put in how much comes on the {day}'**
+  /// **'Type how much you’re paid on the {day}'**
   String setupAmountMissingOn(String day);
 
   /// Pay setup (twice a month, different amounts), note before the days are typed.
   ///
   /// In en, this message translates to:
-  /// **'Put in how much comes on the first payday'**
+  /// **'Type how much you’re paid on the first payday'**
   String get setupAmountMissingFirst;
 
   /// Pay setup (twice a month, different amounts), note before the days are typed.
   ///
   /// In en, this message translates to:
-  /// **'Put in how much comes on the second payday'**
+  /// **'Type how much you’re paid on the second payday'**
   String get setupAmountMissingSecond;
 
   /// Pay setup, label beside one payday's amount (twice a month). Short. day is startDayOn: English "10th", Mongolian "10-нд".
@@ -3562,6 +3550,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Monday after'**
   String get setupMondayAfter;
+
+  /// Pay setup, choice: a weekend payday stays on its Saturday or Sunday (some are paid on a Saturday).
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the day'**
+  String get setupKeepTheDay;
 
   /// Pay setup and Settings → Budget, label: whether a budget covers a month or a pay period. Short.
   ///
@@ -4059,10 +4053,10 @@ abstract class Words {
   /// **'Opening balance'**
   String get startOpeningBalance;
 
-  /// Register row, category column of an account's opening balance (the account the app keeps them in).
+  /// Register row, category column of an account's opening balance (the account the app keeps them in). Singular: each row is one account's.
   ///
   /// In en, this message translates to:
-  /// **'Opening balances'**
+  /// **'Opening balance'**
   String get startOpeningBalances;
 
   /// Register row, category column of the difference a reconcile posted to match a bank statement.

@@ -669,24 +669,6 @@
   "@ledgerCouldntSaveBalance": {
     "description": "Toast when a new account’s starting balance failed to save."
   },
-  "ledgerStartedAt": "Started at {amount} · add only what hasn’t settled yet",
-  "@ledgerStartedAt": {
-    "description": "Toast after a new account’s balance is typed; the entry row opens for pending transactions.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "ledgerStartedAtOwed": "Started at {amount} owed · add only what hasn’t settled yet",
-  "@ledgerStartedAtOwed": {
-    "description": "Toast after a new card or loan’s balance is typed; amount is what is owed.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "ledgerCouldntChangeAccount": "Couldn’t change the account",
   "@ledgerCouldntChangeAccount": {
     "description": "Toast when a change to an account failed."
@@ -2639,7 +2621,7 @@
       }
     }
   },
-  "rowsStatusTip": "{status, select, uncleared{Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{Cleared — settled at the bank. Click to mark uncleared.} other{Reconciled — matches a statement, so its date and amount are locked.}}",
+  "rowsStatusTip": "{status, select, uncleared{Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.} cleared{Cleared — the bank has cleared it. Click to mark uncleared.} other{Reconciled — matches a statement, so its date and amount are locked.}}",
   "@rowsStatusTip": {
     "description": "Tooltip on the status symbol at the start of a register row. status is uncleared, cleared or reconciled",
     "placeholders": {
@@ -2648,7 +2630,7 @@
       }
     }
   },
-  "rowsStatusTipIn": "{status, select, uncleared{In {account}: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{In {account}: Cleared — settled at the bank. Click to mark uncleared.} other{In {account}: Reconciled — matches a statement, so its date and amount are locked.}}",
+  "rowsStatusTipIn": "{status, select, uncleared{In {account}: Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.} cleared{In {account}: Cleared — the bank has cleared it. Click to mark uncleared.} other{In {account}: Reconciled — matches a statement, so its date and amount are locked.}}",
   "@rowsStatusTipIn": {
     "description": "Tooltip on the status symbol of a transfer, when the status shown is the other side’s. account is the other account’s name; status is uncleared, cleared or reconciled",
     "placeholders": {
@@ -3425,11 +3407,11 @@
   "@setupShowEveryRow": {
     "description": "Tooltip on ✕ of a filter chip on All accounts. Esc is the key."
   },
-  "setupAmountMissing": "Put in how much comes",
+  "setupAmountMissing": "Type how much you’re paid",
   "@setupAmountMissing": {
     "description": "Pay setup, note by Save when the amount is empty."
   },
-  "setupAmountMissingOn": "Put in how much comes on the {day}",
+  "setupAmountMissingOn": "Type how much you’re paid on the {day}",
   "@setupAmountMissingOn": {
     "description": "Pay setup (twice a month, different amounts), note when one amount is empty. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
     "placeholders": {
@@ -3438,11 +3420,11 @@
       }
     }
   },
-  "setupAmountMissingFirst": "Put in how much comes on the first payday",
+  "setupAmountMissingFirst": "Type how much you’re paid on the first payday",
   "@setupAmountMissingFirst": {
     "description": "Pay setup (twice a month, different amounts), note before the days are typed."
   },
-  "setupAmountMissingSecond": "Put in how much comes on the second payday",
+  "setupAmountMissingSecond": "Type how much you’re paid on the second payday",
   "@setupAmountMissingSecond": {
     "description": "Pay setup (twice a month, different amounts), note before the days are typed."
   },
@@ -3668,6 +3650,10 @@
   "setupMondayAfter": "Monday after",
   "@setupMondayAfter": {
     "description": "Pay setup, choice: a weekend payday moves to the Monday after."
+  },
+  "setupKeepTheDay": "Keep the day",
+  "@setupKeepTheDay": {
+    "description": "Pay setup, choice: a weekend payday stays on its Saturday or Sunday (some are paid on a Saturday)."
   },
   "setupBudgetBy": "Budget by",
   "@setupBudgetBy": {
@@ -4133,9 +4119,9 @@
   "@startOpeningBalance": {
     "description": "Register row, payee of an account's opening balance."
   },
-  "startOpeningBalances": "Opening balances",
+  "startOpeningBalances": "Opening balance",
   "@startOpeningBalances": {
-    "description": "Register row, category column of an account's opening balance (the account the app keeps them in)."
+    "description": "Register row, category column of an account's opening balance (the account the app keeps them in). Singular: each row is one account's."
   },
   "startBalanceAdjustments": "Balance adjustments",
   "@startBalanceAdjustments": {

@@ -872,6 +872,21 @@ class $PaySchedulesTable extends PaySchedules
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _weekendKeepMeta = const VerificationMeta(
+    'weekendKeep',
+  );
+  @override
+  late final GeneratedColumn<bool> weekendKeep = GeneratedColumn<bool>(
+    'weekend_keep',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("weekend_keep" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _definesPeriodMeta = const VerificationMeta(
     'definesPeriod',
   );
@@ -924,6 +939,7 @@ class $PaySchedulesTable extends PaySchedules
     weeks,
     anchor,
     weekendBefore,
+    weekendKeep,
     definesPeriod,
     createdAt,
     deletedAt,
@@ -1024,6 +1040,15 @@ class $PaySchedulesTable extends PaySchedules
         ),
       );
     }
+    if (data.containsKey('weekend_keep')) {
+      context.handle(
+        _weekendKeepMeta,
+        weekendKeep.isAcceptableOrUnknown(
+          data['weekend_keep']!,
+          _weekendKeepMeta,
+        ),
+      );
+    }
     if (data.containsKey('defines_period')) {
       context.handle(
         _definesPeriodMeta,
@@ -1110,6 +1135,10 @@ class $PaySchedulesTable extends PaySchedules
         DriftSqlType.bool,
         data['${effectivePrefix}weekend_before'],
       )!,
+      weekendKeep: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}weekend_keep'],
+      )!,
       definesPeriod: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}defines_period'],
@@ -1154,6 +1183,9 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
   final String? anchor;
   final bool weekendBefore;
 
+  /// A weekend payday stays on its day, whatever [weekendBefore] says (v9).
+  final bool weekendKeep;
+
   /// The budget runs by this schedule's pay periods (at most one does).
   final bool definesPeriod;
   final int createdAt;
@@ -1172,6 +1204,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     required this.weeks,
     this.anchor,
     required this.weekendBefore,
+    required this.weekendKeep,
     required this.definesPeriod,
     required this.createdAt,
     this.deletedAt,
@@ -1202,6 +1235,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       map['anchor'] = Variable<String>(anchor);
     }
     map['weekend_before'] = Variable<bool>(weekendBefore);
+    map['weekend_keep'] = Variable<bool>(weekendKeep);
     map['defines_period'] = Variable<bool>(definesPeriod);
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -1231,6 +1265,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           ? const Value.absent()
           : Value(anchor),
       weekendBefore: Value(weekendBefore),
+      weekendKeep: Value(weekendKeep),
       definesPeriod: Value(definesPeriod),
       createdAt: Value(createdAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1260,6 +1295,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       weeks: serializer.fromJson<int>(json['weeks']),
       anchor: serializer.fromJson<String?>(json['anchor']),
       weekendBefore: serializer.fromJson<bool>(json['weekendBefore']),
+      weekendKeep: serializer.fromJson<bool>(json['weekendKeep']),
       definesPeriod: serializer.fromJson<bool>(json['definesPeriod']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
@@ -1284,6 +1320,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       'weeks': serializer.toJson<int>(weeks),
       'anchor': serializer.toJson<String?>(anchor),
       'weekendBefore': serializer.toJson<bool>(weekendBefore),
+      'weekendKeep': serializer.toJson<bool>(weekendKeep),
       'definesPeriod': serializer.toJson<bool>(definesPeriod),
       'createdAt': serializer.toJson<int>(createdAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
@@ -1304,6 +1341,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     int? weeks,
     Value<String?> anchor = const Value.absent(),
     bool? weekendBefore,
+    bool? weekendKeep,
     bool? definesPeriod,
     int? createdAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -1321,6 +1359,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     weeks: weeks ?? this.weeks,
     anchor: anchor.present ? anchor.value : this.anchor,
     weekendBefore: weekendBefore ?? this.weekendBefore,
+    weekendKeep: weekendKeep ?? this.weekendKeep,
     definesPeriod: definesPeriod ?? this.definesPeriod,
     createdAt: createdAt ?? this.createdAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1348,6 +1387,9 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       weekendBefore: data.weekendBefore.present
           ? data.weekendBefore.value
           : this.weekendBefore,
+      weekendKeep: data.weekendKeep.present
+          ? data.weekendKeep.value
+          : this.weekendKeep,
       definesPeriod: data.definesPeriod.present
           ? data.definesPeriod.value
           : this.definesPeriod,
@@ -1372,6 +1414,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           ..write('weeks: $weeks, ')
           ..write('anchor: $anchor, ')
           ..write('weekendBefore: $weekendBefore, ')
+          ..write('weekendKeep: $weekendKeep, ')
           ..write('definesPeriod: $definesPeriod, ')
           ..write('createdAt: $createdAt, ')
           ..write('deletedAt: $deletedAt')
@@ -1394,6 +1437,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     weeks,
     anchor,
     weekendBefore,
+    weekendKeep,
     definesPeriod,
     createdAt,
     deletedAt,
@@ -1415,6 +1459,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           other.weeks == this.weeks &&
           other.anchor == this.anchor &&
           other.weekendBefore == this.weekendBefore &&
+          other.weekendKeep == this.weekendKeep &&
           other.definesPeriod == this.definesPeriod &&
           other.createdAt == this.createdAt &&
           other.deletedAt == this.deletedAt);
@@ -1434,6 +1479,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
   final Value<int> weeks;
   final Value<String?> anchor;
   final Value<bool> weekendBefore;
+  final Value<bool> weekendKeep;
   final Value<bool> definesPeriod;
   final Value<int> createdAt;
   final Value<int?> deletedAt;
@@ -1451,6 +1497,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     this.weeks = const Value.absent(),
     this.anchor = const Value.absent(),
     this.weekendBefore = const Value.absent(),
+    this.weekendKeep = const Value.absent(),
     this.definesPeriod = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1469,6 +1516,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     this.weeks = const Value.absent(),
     this.anchor = const Value.absent(),
     this.weekendBefore = const Value.absent(),
+    this.weekendKeep = const Value.absent(),
     this.definesPeriod = const Value.absent(),
     required int createdAt,
     this.deletedAt = const Value.absent(),
@@ -1491,6 +1539,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Expression<int>? weeks,
     Expression<String>? anchor,
     Expression<bool>? weekendBefore,
+    Expression<bool>? weekendKeep,
     Expression<bool>? definesPeriod,
     Expression<int>? createdAt,
     Expression<int>? deletedAt,
@@ -1509,6 +1558,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       if (weeks != null) 'weeks': weeks,
       if (anchor != null) 'anchor': anchor,
       if (weekendBefore != null) 'weekend_before': weekendBefore,
+      if (weekendKeep != null) 'weekend_keep': weekendKeep,
       if (definesPeriod != null) 'defines_period': definesPeriod,
       if (createdAt != null) 'created_at': createdAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1529,6 +1579,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Value<int>? weeks,
     Value<String?>? anchor,
     Value<bool>? weekendBefore,
+    Value<bool>? weekendKeep,
     Value<bool>? definesPeriod,
     Value<int>? createdAt,
     Value<int?>? deletedAt,
@@ -1547,6 +1598,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       weeks: weeks ?? this.weeks,
       anchor: anchor ?? this.anchor,
       weekendBefore: weekendBefore ?? this.weekendBefore,
+      weekendKeep: weekendKeep ?? this.weekendKeep,
       definesPeriod: definesPeriod ?? this.definesPeriod,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1597,6 +1649,9 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     if (weekendBefore.present) {
       map['weekend_before'] = Variable<bool>(weekendBefore.value);
     }
+    if (weekendKeep.present) {
+      map['weekend_keep'] = Variable<bool>(weekendKeep.value);
+    }
     if (definesPeriod.present) {
       map['defines_period'] = Variable<bool>(definesPeriod.value);
     }
@@ -1625,6 +1680,7 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
           ..write('weeks: $weeks, ')
           ..write('anchor: $anchor, ')
           ..write('weekendBefore: $weekendBefore, ')
+          ..write('weekendKeep: $weekendKeep, ')
           ..write('definesPeriod: $definesPeriod, ')
           ..write('createdAt: $createdAt, ')
           ..write('deletedAt: $deletedAt')
@@ -4186,6 +4242,7 @@ typedef $$PaySchedulesTableCreateCompanionBuilder =
       Value<int> weeks,
       Value<String?> anchor,
       Value<bool> weekendBefore,
+      Value<bool> weekendKeep,
       Value<bool> definesPeriod,
       required int createdAt,
       Value<int?> deletedAt,
@@ -4205,6 +4262,7 @@ typedef $$PaySchedulesTableUpdateCompanionBuilder =
       Value<int> weeks,
       Value<String?> anchor,
       Value<bool> weekendBefore,
+      Value<bool> weekendKeep,
       Value<bool> definesPeriod,
       Value<int> createdAt,
       Value<int?> deletedAt,
@@ -4329,6 +4387,11 @@ class $$PaySchedulesTableFilterComposer
 
   ColumnFilters<bool> get weekendBefore => $composableBuilder(
     column: $table.weekendBefore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get weekendKeep => $composableBuilder(
+    column: $table.weekendKeep,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4483,6 +4546,11 @@ class $$PaySchedulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get weekendKeep => $composableBuilder(
+    column: $table.weekendKeep,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get definesPeriod => $composableBuilder(
     column: $table.definesPeriod,
     builder: (column) => ColumnOrderings(column),
@@ -4590,6 +4658,11 @@ class $$PaySchedulesTableAnnotationComposer
 
   GeneratedColumn<bool> get weekendBefore => $composableBuilder(
     column: $table.weekendBefore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get weekendKeep => $composableBuilder(
+    column: $table.weekendKeep,
     builder: (column) => column,
   );
 
@@ -4721,6 +4794,7 @@ class $$PaySchedulesTableTableManager
                 Value<int> weeks = const Value.absent(),
                 Value<String?> anchor = const Value.absent(),
                 Value<bool> weekendBefore = const Value.absent(),
+                Value<bool> weekendKeep = const Value.absent(),
                 Value<bool> definesPeriod = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -4738,6 +4812,7 @@ class $$PaySchedulesTableTableManager
                 weeks: weeks,
                 anchor: anchor,
                 weekendBefore: weekendBefore,
+                weekendKeep: weekendKeep,
                 definesPeriod: definesPeriod,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
@@ -4757,6 +4832,7 @@ class $$PaySchedulesTableTableManager
                 Value<int> weeks = const Value.absent(),
                 Value<String?> anchor = const Value.absent(),
                 Value<bool> weekendBefore = const Value.absent(),
+                Value<bool> weekendKeep = const Value.absent(),
                 Value<bool> definesPeriod = const Value.absent(),
                 required int createdAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -4774,6 +4850,7 @@ class $$PaySchedulesTableTableManager
                 weeks: weeks,
                 anchor: anchor,
                 weekendBefore: weekendBefore,
+                weekendKeep: weekendKeep,
                 definesPeriod: definesPeriod,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
