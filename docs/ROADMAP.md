@@ -86,7 +86,7 @@ through life." Today Savings shows the self-reliance course steps (rule 25).
 Today: one MNT account and two USD accounts. The schema already stores `currency` and
 `rate` on entries (ADR 0003); the UI assumes MNT only.
 - [x] Each account has a currency. Its register, balance and reconcile all use that currency.
-      (Chosen at creation, branch `currencies`, ADR 0004 "Tugrik and dollars".)
+      (Chosen at creation, PR #24, ADR 0004 "Tugrik and dollars".)
 - [x] **Transfers between currencies**: the user enters both sides, what left the MNT
       account and what arrived in the USD account. Double entry stays balanced
       within each currency through a hidden exchange account, so the books still
