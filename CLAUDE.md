@@ -1,7 +1,8 @@
 # BetterBudget — working notes for Claude
 
 Read **[docs/STATUS.md](docs/STATUS.md)** first: what's built, what isn't, known bugs,
-uncommitted work, **the next step the owner asked for**, and setup. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
+uncommitted work, **the next step the owner asked for**, and setup. The road from alpha to
+beta (and the platforms after it) is tracked in **[docs/ROADMAP.md](docs/ROADMAP.md)**. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
 The phone apps' design (record and check only, synced through a cloud folder the OS
 handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-mobile-companion.md)**.
 

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-29**
+**Last updated: 2026-09-30**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -69,10 +69,11 @@ scheduled items.
 
 ### Known bugs and loose ends
 
-- **The owner's own data file** (not the demo seed) has leftovers from testing. The owner
-  says it's all test data now; **Erase everything and start over** in Settings clears it for the alpha:
-  - Two "asdfa" test entries (₮3 and ₮4).
-  - Two October rows posted before the early-confirm fix.
+- **USD accounts show as MNT until ROADMAP E.** The owner has one MNT account and two
+  USD accounts. Any USD account entered now is stored as MNT: it shows ₮, and net worth
+  adds its dollars to the tögrög. The rows themselves are right. E needs a step where
+  the user marks existing accounts as USD, without re-entering anything. (The owner's
+  test data was erased on 2026-09-30.)
 
 ## Settled decisions
 
@@ -152,11 +153,11 @@ Roughly in the order they will block something.
    renamed "Growth". **Owner's direction (2026-09-19):** Savings guides users through the
    first steps of the Church's *Personal Finances for Self-Reliance* course, starting
    with a one-month safety net; see personas.md §2 and the course itself in [self-reliance-course.md](self-reliance-course.md).
-4. **Budget model: envelopes or targets?** Blocks the budget. The double-entry schema
+4. **Budget model: envelopes or targets?** **Decided 2026-09-30: envelopes** ([ROADMAP](ROADMAP.md)). The double-entry schema
    suits envelopes. **The budget runs per pay period or per month, not all time**
    (owner, 2026-09-19; which of the two is still open). A category's rows, opened
    from Budget, should show that period, not all time.
-5. **Multi-currency at launch?** Current lean: data model ready (entries carry
+5. **Multi-currency at launch?** **Decided 2026-09-30: MNT and USD before beta, totals shown in each currency separately** ([ROADMAP](ROADMAP.md) E). Earlier lean: data model ready (entries carry
    `currency` and `rate`), UI MNT-only. **Live risk:** sidebar net worth adds raw
    balances, so a second-currency account (a USD 401(k)) would add cents to tögrög. Both
    personas in [personas.md](personas.md) are US users paid in dollars.
@@ -170,6 +171,10 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**Beyond the alpha** (owner, 2026-09-30): the list to beta and the platforms after it
+(bug link and public releases, the budget page, Savings, MNT and USD, App Store,
+Windows, Linux, phones) is in [ROADMAP.md](ROADMAP.md).
 
 **The alpha** (owner, 2026-09-24: "I want to get this alpha version finished so I can
 start using it"):
@@ -208,9 +213,8 @@ start using it"):
   clean start renamed **"Erase everything and start over…"**, naming each account and
   balance that goes, with keep or erase the categories as a visible choice (ADR 0004
   rules 19 and 24). Code review done, fixes in. 232 tests pass.
-- [ ] **The owner erases the test data** (Settings → Erase everything and start over,
-  keep categories) and starts entering real accounts. Only the owner can do this; it
-  runs inside the app with the Keychain key.
+- [x] **The owner erased the test data** (2026-09-30, Settings → Erase everything and
+  start over). From here the owner's file is **real money**.
 - [x] **Color and a light mode** (PR #20, owner tested 2026-09-29: Light remembered
   across relaunch, "Same as this Mac" opening dark and following the Mac live to
   light). Dark is Steppe night, light is Steppe, both with a gray denim sidebar;
@@ -375,9 +379,9 @@ been used for typing but a register undo there hasn't been tried.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/betterbudget.sqlite`
-  (plus `-wal`, `-shm`). Quit the app and delete all three to reseed demo data. The
-  owner's current file has hand-edited test data in it; see Known bugs. Don't delete or
-  change it without asking.
+  (plus `-wal`, `-shm`). **Since 2026-09-30 this is the owner's real ledger: never
+  delete, reseed, erase or edit it.** Work with demo data in tests, or in a separate
+  copy the owner agrees to.
 - **Rebuild and relaunch:** `pkill -f "BetterBudget.app/Contents/MacOS"; flutter build
   macos --debug && open build/macos/Build/Products/Debug/BetterBudget.app` (from `app/`).
 - **Screenshots of the running app** (for checking UI changes): `screencapture -l<window
