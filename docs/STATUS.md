@@ -74,11 +74,8 @@ scheduled items.
 
 ### Known bugs and loose ends
 
-- **A dollar account made before currencies is stored as ₮** (branch `currencies`):
-  new accounts pick ₮ or $, but an existing one can't be changed yet. Asked the owner
-  (2026-09-30) whether to add Change currency to the account's menu (a warning with
-  the rows and transfers it affects, then undo), which is what this note used to
-  promise.
+- **An account's currency can't be changed after it's made** (branch `currencies`).
+  The owner remade theirs by hand (2026-09-30); Change currency stays on ROADMAP E.
 
 ## Settled decisions
 
@@ -191,9 +188,9 @@ Roughly in the order they will block something.
   wording; rewrite it.
 - [ ] The forecast runs only to the next payday, so **with payday tomorrow it shows one
   day**. Rethink how far it looks (owner: "we need to rethink this"); bring options.
-- [ ] Still open from earlier: Change currency on an existing account (AFCU Checking
-  is stored as ₮), and the two import questions (rows before the opening balance;
-  which date a matched row keeps).
+- [ ] Still open from earlier: the two import questions (rows before the opening
+  balance; which date a matched row keeps). Change currency isn't needed now: the
+  owner remade AFCU Checking as a dollar account (2026-09-30); it stays on ROADMAP E.
 
 **Fixed 2026-09-30:** the ledger wouldn't open ("duplicate column name: import_key").
 An older build (the Release copy from 09-29) opened the v8 ledger and relabeled it v7;
