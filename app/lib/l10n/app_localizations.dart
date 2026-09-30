@@ -1461,19 +1461,19 @@ abstract class Words {
   /// Account header, forecast panel (credit card): line under the headline, scheduled charges and their total
   ///
   /// In en, this message translates to:
-  /// **'{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} before {date}'**
+  /// **'{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} through {date}'**
   String planCardCharges(int charges, String chargeTotal, String date);
 
   /// Account header, forecast panel (credit card): line under the headline, scheduled payments to the card and their total
   ///
   /// In en, this message translates to:
-  /// **'{payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}'**
+  /// **'{payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} through {date}'**
   String planCardPayments(int payments, String paymentTotal, String date);
 
   /// Account header, forecast panel (credit card): line under the headline, scheduled charges and payments
   ///
   /// In en, this message translates to:
-  /// **'{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} · {payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}'**
+  /// **'{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} · {payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} through {date}'**
   String planCardChargesPayments(
     int charges,
     String chargeTotal,
@@ -1524,6 +1524,18 @@ abstract class Words {
   /// **'Lowest {amount} on {date}'**
   String planLowest(String amount, String date);
 
+  /// Forecast headline when no scheduled bill takes the balance below today's Working total.
+  ///
+  /// In en, this message translates to:
+  /// **'Never below today’s {amount}'**
+  String planNeverBelowToday(String amount);
+
+  /// Forecast headline when the lowest point comes after the next paycheck, so it counts on that pay arriving on time and in full.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest {amount} on {date}, after payday'**
+  String planLowestAfterPay(String amount, String date);
+
   /// Account header, forecast panel: line under the headline when nothing is scheduled
   ///
   /// In en, this message translates to:
@@ -1533,25 +1545,25 @@ abstract class Words {
   /// Account header, forecast panel: line under the headline when no bills come before the next income
   ///
   /// In en, this message translates to:
-  /// **'No bills before {date}'**
+  /// **'No bills through {date}'**
   String planNoBillsBefore(String date);
 
   /// Account header, forecast panel: line under the headline, money coming in (transfers, refunds) and no bills
   ///
   /// In en, this message translates to:
-  /// **'+{amount} in before {date}'**
+  /// **'+{amount} in through {date}'**
   String planInBefore(String amount, String date);
 
   /// Account header, forecast panel: clickable line under the headline, the bills before the end date and their total
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date}'**
+  /// **'{count, plural, =1{1 bill} other{{count} bills}} · {amount} through {date}'**
   String planBillsBefore(int count, String amount, String date);
 
   /// Account header, forecast panel: clickable line under the headline, bills and their total, plus money coming in
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date} · +{inAmount} in'**
+  /// **'{count, plural, =1{1 bill} other{{count} bills}} · {amount} through {date} · +{inAmount} in'**
   String planBillsBeforeIn(
     int count,
     String amount,
@@ -1571,6 +1583,12 @@ abstract class Words {
   /// **'Until next income'**
   String get planUntilNextIncome;
 
+  /// Forecast, small label above the headline: it runs from today through the pay period the next paycheck starts, to the payday after it.
+  ///
+  /// In en, this message translates to:
+  /// **'Through the next pay period'**
+  String get planThroughPayPeriod;
+
   /// Account header, forecast panel: gold link after the small title; opens pay setup
   ///
   /// In en, this message translates to:
@@ -1580,7 +1598,7 @@ abstract class Words {
   /// Account header, forecast panel: bill list header (left), the list runs until this date
   ///
   /// In en, this message translates to:
-  /// **'Until {date}'**
+  /// **'Through {date}'**
   String planUntilDate(String date);
 
   /// Account header, forecast panel: bill list and dot card, the column/line with the balance after each bill

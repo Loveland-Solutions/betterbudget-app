@@ -661,6 +661,23 @@ What's known so far:
     prompting after each payday with nothing scheduled (C). **The app keeps asking
     until there's pay:** an account's forecast with no payday to run to says
     "Next 30 days · no payday ahead · Add your pay →" in gold.
+    **The forecast runs through the next pay period** (owner's call, 2026-09-30,
+    option A of three; before, it stopped at the next payday, so with payday
+    tomorrow it showed one day). From today, the next paycheck is a step up (its
+    date labelled under a green line), and the forecast ends as the paycheck after
+    it lands, a date from the pay plan (only the next payday is ever scheduled).
+    The label reads "Through the next pay period". Bills on that last payday count;
+    money in on it doesn't, except a transfer. Without a plan (pay scheduled by
+    hand, or a bonus while the plan's own payday is scheduled) it ends at payday as
+    before. Rejected: at least 30 days, ending on a payday (B), and the next payday
+    unless it's within a week (C). **From the reviews:** the headline says "Never
+    below today's ₮X" when nothing takes the balance under today's, and "Lowest ₮X
+    on 10.01, after payday" when the low leans on the paycheck; the lines under it
+    say "through 10.10" (that day's bills count), not "before"; a moved split
+    paycheck is matched to its payday by amount. Left for later: a "scheduled bills
+    only" note, following the budget's own pay schedule when two earners share an
+    account, cents in the forecast for dollar accounts, and a late paycheck making
+    the span swing (30 days on payday morning, two periods the day after).
     **Pay that varies is an estimate on the low side** (owner: "better to have too
     much money than too little"). The setup's amount reads "Expect at least", with
     the advice that the forecast counts on it. Your last paychecks' lowest and highest

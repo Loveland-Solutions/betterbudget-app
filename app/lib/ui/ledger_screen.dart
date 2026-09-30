@@ -601,6 +601,35 @@ class _LedgerScreenState extends State<LedgerScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _entry.focus());
   }
 
+  /// The payday after [row] by its pay plan, so the forecast can run
+  /// through the whole period. Pay scheduled by hand uses the plan for that
+  /// category and account, unless that plan has its own payday ahead (then
+  /// [row] is extra, a bonus, and the plan's payday is the next one). Null
+  /// with no plan.
+  DateTime? _paydayAfter(
+    LedgerData data,
+    List<RegisterRow> scheduled,
+    RegisterRow row,
+  ) {
+    final plan =
+        data.paySchedules.where((p) => p.id == row.payScheduleId).firstOrNull ??
+        data.paySchedules
+            .where(
+              (p) =>
+                  p.accountId == row.accountId &&
+                  p.categoryId == row.categoryId,
+            )
+            .firstOrNull;
+    if (plan == null) return null;
+    if (row.payScheduleId == null &&
+        scheduled.any((r) => r.payScheduleId == plan.id)) {
+      return null;
+    }
+    // From the payday it was planned as, by amount for split pay: one moved
+    // a few days by hand mustn't make that same payday the next.
+    return plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+  }
+
   /// Esc on the new-transaction row: it closes, and ⌘Z works again at
   /// once. The row drops focus on its way out, which left the screen's keys
   /// unreachable until a click.
@@ -2546,6 +2575,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       today: today,
       scheduled: register.scheduled,
       owed: account.isOwed,
+      paydayAfter: (row) => _paydayAfter(data, register.scheduled, row),
     );
     final activeStatus = switch (_filter) {
       RegisterFilter.uncleared => Cleared.uncleared,

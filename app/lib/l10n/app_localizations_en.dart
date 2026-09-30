@@ -1015,7 +1015,7 @@ class WordsEn extends Words {
       other: '$charges charges',
       one: '1 charge',
     );
-    return '$_temp0 · $chargeTotal before $date';
+    return '$_temp0 · $chargeTotal through $date';
   }
 
   @override
@@ -1026,7 +1026,7 @@ class WordsEn extends Words {
       other: '$payments payments',
       one: '1 payment',
     );
-    return '$_temp0 · $paymentTotal before $date';
+    return '$_temp0 · $paymentTotal through $date';
   }
 
   @override
@@ -1049,7 +1049,7 @@ class WordsEn extends Words {
       other: '$payments payments',
       one: '1 payment',
     );
-    return '$_temp0 · $chargeTotal · $_temp1 · $paymentTotal before $date';
+    return '$_temp0 · $chargeTotal · $_temp1 · $paymentTotal through $date';
   }
 
   @override
@@ -1084,16 +1084,26 @@ class WordsEn extends Words {
   }
 
   @override
+  String planNeverBelowToday(String amount) {
+    return 'Never below today’s $amount';
+  }
+
+  @override
+  String planLowestAfterPay(String amount, String date) {
+    return 'Lowest $amount on $date, after payday';
+  }
+
+  @override
   String get planNoBillsOrIncome => 'No bills or income in the next 30 days';
 
   @override
   String planNoBillsBefore(String date) {
-    return 'No bills before $date';
+    return 'No bills through $date';
   }
 
   @override
   String planInBefore(String amount, String date) {
-    return '+$amount in before $date';
+    return '+$amount in through $date';
   }
 
   @override
@@ -1104,7 +1114,7 @@ class WordsEn extends Words {
       other: '$count bills',
       one: '1 bill',
     );
-    return '$_temp0 · $amount before $date';
+    return '$_temp0 · $amount through $date';
   }
 
   @override
@@ -1120,7 +1130,7 @@ class WordsEn extends Words {
       other: '$count bills',
       one: '1 bill',
     );
-    return '$_temp0 · $amount before $date · +$inAmount in';
+    return '$_temp0 · $amount through $date · +$inAmount in';
   }
 
   @override
@@ -1130,11 +1140,14 @@ class WordsEn extends Words {
   String get planUntilNextIncome => 'Until next income';
 
   @override
+  String get planThroughPayPeriod => 'Through the next pay period';
+
+  @override
   String get planAddPay => ' · no payday ahead · Add your pay →';
 
   @override
   String planUntilDate(String date) {
-    return 'Until $date';
+    return 'Through $date';
   }
 
   @override

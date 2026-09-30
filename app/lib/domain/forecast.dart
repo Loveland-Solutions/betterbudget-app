@@ -1,7 +1,13 @@
 import 'ledger.dart';
 
-/// Answers "will this account make it to the next income?" from scheduled
-/// transactions alone. Deterministic and local: no history, no guessing.
+/// Answers "will this account make it through the next pay period?" from
+/// scheduled transactions and the pay plan. Deterministic and local: no
+/// history, no guessing.
+///
+/// With the payday after the next one known ([nextPayday]), it runs through
+/// the whole period that the next paycheck starts: the paycheck is a step,
+/// and the forecast ends as the one after lands (owner, 2026-09-30: payday
+/// tomorrow used to show one day). Without it, it ends at the next payday.
 ///
 /// On a credit account ([owed]) it answers "what will I owe?" instead:
 /// balances are what's owed, positive, and owing is never a shortfall.
@@ -20,6 +26,7 @@ class Forecast {
     required this.inTotal,
     this.late = const [],
     this.owed = false,
+    this.nextPayday,
   });
 
   final DateTime start;
@@ -27,13 +34,23 @@ class Forecast {
   /// On a credit account, what's owed today.
   final int startBalance;
 
-  /// Payday when one is scheduled, otherwise the fallback horizon.
+  /// The payday after [payday] when it's known, else [payday]'s date, else
+  /// the fallback horizon.
   final DateTime end;
 
   /// Balance after each scheduled bill or money coming in, in date order,
-  /// with the row that caused it. Payday itself isn't a step.
+  /// with the row that caused it. With [nextPayday], the next paycheck is a
+  /// step too; without it, payday ends the forecast and isn't one.
   final List<ForecastStep> steps;
+
+  /// The next paycheck.
   final RegisterRow? payday;
+
+  /// The payday after [payday], from its pay plan: where the forecast ends.
+  final DateTime? nextPayday;
+
+  /// Runs through the pay period [payday] starts, not just up to it.
+  bool get throughPeriod => payday != null && nextPayday != null;
   final int low;
   final DateTime lowDate;
 
@@ -45,8 +62,8 @@ class Forecast {
   final int billTotal;
   final int billCount;
 
-  /// Money coming in before [end] other than payday: transfers from another
-  /// account, refunds. Late money in isn't in it (see [late]).
+  /// Money coming in before [end] other than the next paycheck: transfers
+  /// from another account, refunds. Late money in isn't in it (see [late]).
   final int inTotal;
 
   /// Money in due today or earlier and not confirmed (a late salary, a
@@ -82,6 +99,7 @@ Forecast buildForecast({
   required DateTime today,
   required List<RegisterRow> scheduled,
   bool owed = false,
+  DateTime? Function(RegisterRow payday)? paydayAfter,
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -111,7 +129,45 @@ Forecast buildForecast({
                   r.isIncome && !when(r).isAfter(start.add(_paydayLookahead)),
             )
             .firstOrNull;
-  final end = payday != null ? when(payday) : start.add(_fallbackHorizon);
+  // The payday after it, from its pay plan: only the next payday of a plan
+  // is ever scheduled.
+  var nextPayday = payday == null ? null : paydayAfter?.call(payday);
+  if (payday != null &&
+      nextPayday != null &&
+      !nextPayday.isAfter(when(payday))) {
+    nextPayday = null;
+  }
+  final end =
+      nextPayday ??
+      (payday != null ? when(payday) : start.add(_fallbackHorizon));
+
+  // Bills on the last day count; money in on it doesn't (like the paycheck
+  // that ends it, it may land after them), except a transfer, the user's own
+  // doing. The next paycheck counts only when the forecast runs past it.
+  bool counts(RegisterRow r) {
+    if (when(r).isAfter(end)) return false;
+    if (identical(r, payday)) return nextPayday != null;
+    final lastDayIn =
+        nextPayday != null &&
+        r.amount > 0 &&
+        r.kind != RowKind.transfer &&
+        !when(r).isBefore(end);
+    return !lastDayIn;
+  }
+
+  // In date order; on a payday its bills count before the paycheck (they may
+  // go out first), which is the conservative order.
+  int paidLast(RegisterRow r) => r.isIncome ? 1 : 0;
+  final inRange =
+      [
+        for (final (i, r) in counted.indexed)
+          if (counts(r)) (i: i, r: r),
+      ]..sort((a, b) {
+        final d = when(a.r).compareTo(when(b.r));
+        if (d != 0) return d;
+        final o = paidLast(a.r).compareTo(paidLast(b.r));
+        return o != 0 ? o : a.i.compareTo(b.i);
+      });
 
   // On a card, balances are shown as what's owed.
   int shown(int v) => owed ? -v : v;
@@ -121,14 +177,12 @@ Forecast buildForecast({
   DateTime? firstShort = !owed && working < 0 ? start : null;
   final steps = <ForecastStep>[];
 
-  // Bills landing on payday itself count before the income: conservative.
-  for (final r in counted) {
-    if (identical(r, payday) || when(r).isAfter(end)) continue;
+  for (final (i: _, :r) in inRange) {
     bal += r.amount;
     if (r.amount < 0) {
       billTotal -= r.amount;
       billCount++;
-    } else {
+    } else if (!identical(r, payday)) {
       inTotal += r.amount;
     }
     final label = r.kind == RowKind.transfer ? r.payee : r.categoryLabel;
@@ -154,5 +208,6 @@ Forecast buildForecast({
     inTotal: inTotal,
     late: late,
     owed: owed,
+    nextPayday: nextPayday,
   );
 }

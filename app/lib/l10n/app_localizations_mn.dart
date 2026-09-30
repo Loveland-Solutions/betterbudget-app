@@ -1046,6 +1046,16 @@ class WordsMn extends Words {
   }
 
   @override
+  String planNeverBelowToday(String amount) {
+    return 'Өнөөдрийн $amount-с доош буухгүй';
+  }
+
+  @override
+  String planLowestAfterPay(String amount, String date) {
+    return 'Доод үлдэгдэл $amount · $date, цалингийн дараа';
+  }
+
+  @override
   String get planNoBillsOrIncome => 'Дараагийн 30 хоногт төлбөр, орлого алга';
 
   @override
@@ -1078,6 +1088,9 @@ class WordsMn extends Words {
 
   @override
   String get planUntilNextIncome => 'Дараагийн орлого хүртэл';
+
+  @override
+  String get planThroughPayPeriod => 'Дараагийн цалингийн үе дуустал';
 
   @override
   String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';

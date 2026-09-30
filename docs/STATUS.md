@@ -17,7 +17,7 @@ Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
 the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
-merge. The owner's data file is at schema version 7 (upgraded 2026-09-29, the copy
+merge. The owner's data file is at schema version 9 (2026-09-30); it was at schema version 7 (upgraded 2026-09-29, the copy
 before it encrypted).
 
 Visual direction and the register's UX rules are settled in
@@ -29,7 +29,7 @@ Visual direction and the register's UX rules are settled in
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite (schema version 8: import keys on each account's entry; v7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
+| Storage | Drift/SQLite (schema version 9: a weekend payday can keep its day; v8: import keys on each account's entry; v7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings opens the steps to getting prepared (rule 25). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
 | Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
@@ -177,17 +177,19 @@ Roughly in the order they will block something.
 
 **Tabled by the owner (2026-09-30), to address next**, from using the new build:
 
-- [ ] The opening row's category reads "Opening balances"; it should say **"Opening
-  balance"**.
-- [ ] The gold toast after making an account ("Started at … · add only what hasn't
-  settled yet"): it shouldn't appear at account creation, and "settled" reads as
-  AI-written. Use the app's own word, **cleared**.
-- [ ] Pay's weekend rule offers only Friday before / Monday after. **Some people are
-  paid on a Saturday**: a choice to keep the day.
-- [ ] Settings → Budget by, under Pay period: **"Put in how much comes"** is poor
-  wording; rewrite it.
-- [ ] The forecast runs only to the next payday, so **with payday tomorrow it shows one
-  day**. Rethink how far it looks (owner: "we need to rethink this"); bring options.
+All five built on branch `tabled-0930` (2026-09-30), waiting for the owner to try:
+
+- [x] The opening row's category says **"Opening balance"**.
+- [x] No toast when an account is made (⌘Z still undoes the balance; Esc on the entry
+  row now leaves ⌘Z working without a click). "settled" is gone from the status
+  tooltips too: the app's word is **cleared**.
+- [x] Pay's weekend rule has a third choice, **Keep the day** (schema v9; the owner's
+  ledger upgraded 2026-09-30, the copy before it kept).
+- [x] "Put in how much comes" is now **"Type how much you're paid"**.
+- [x] **The forecast runs through the next pay period** (owner's pick, option A of
+  three; ADR 0004 rule 24): the next paycheck is a step, and it ends as the paycheck
+  after it lands. Both reviews done, their fixes in; left for later is listed in
+  rule 24. 297 tests pass.
 - [x] The two import questions, both option a (2026-09-30): rows before the opening
   balance move it (by default), and a match takes the bank's date across a month.
   Change currency isn't needed now: the owner remade AFCU Checking as a dollar

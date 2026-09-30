@@ -1420,6 +1420,129 @@ void main() {
       expect(f.end, DateTime(2026, 10, 16));
       expect(f.isShort, isFalse);
     });
+
+    group('through the next pay period (owner, 2026-09-30)', () {
+      RegisterRow row(int txn, DateTime date, int amount, {bool pay = false}) =>
+          RegisterRow(
+            txnId: txn,
+            entryId: txn,
+            date: date,
+            payee: 'P',
+            memo: '',
+            amount: amount,
+            cleared: Cleared.uncleared,
+            scheduled: true,
+            kind: RowKind.simple,
+            categoryLabel: pay ? 'Salary' : 'Rent',
+            categoryId: 1,
+            splitLines: const [],
+            incomeCategory: pay,
+            payScheduleId: pay ? 7 : null,
+          );
+      // Today 09.16, payday tomorrow; the plan's next one is 10.17.
+      final salary = row(1, DateTime(2026, 9, 17), 250000000, pay: true);
+      DateTime? after(RegisterRow r) => DateTime(2026, 10, 17);
+
+      test('payday tomorrow shows the month after it, not one day', () {
+        final rent = row(2, DateTime(2026, 9, 20), -180000000);
+        final phone = row(3, DateTime(2026, 10, 17), -3000000);
+        final later = row(4, DateTime(2026, 10, 18), -9000000);
+        final f = buildForecast(
+          working: 10000000,
+          today: today,
+          scheduled: [salary, rent, phone, later],
+          paydayAfter: after,
+        );
+        expect(f.throughPeriod, isTrue);
+        expect(f.payday, same(salary));
+        expect(f.end, DateTime(2026, 10, 17));
+        // The paycheck is a step; a bill on the last payday counts.
+        expect(f.steps.map((s) => s.row), [salary, rent, phone]);
+        expect(f.inTotal, 0); // the paycheck isn't "money in" beside it
+        expect(f.billCount, 2);
+        expect(f.low, 10000000);
+        expect(f.endBalance, 10000000 + 250000000 - 183000000);
+      });
+
+      test('bills on payday go out before the paycheck', () {
+        final same = row(2, DateTime(2026, 9, 17), -30000000);
+        final f = buildForecast(
+          working: 10000000,
+          today: today,
+          scheduled: [salary, same],
+          paydayAfter: after,
+        );
+        expect(f.steps.map((s) => s.row), [same, salary]);
+        expect(f.firstShort, DateTime(2026, 9, 17));
+      });
+
+      test('money in on the last day waits, like the paycheck there', () {
+        // A refund, not pay: no plan, not a payday category.
+        final refund = row(2, DateTime(2026, 10, 17), 5000000);
+        final earlier = row(3, DateTime(2026, 10, 16), 5000000);
+        final f = buildForecast(
+          working: 10000000,
+          today: today,
+          scheduled: [salary, earlier, refund],
+          paydayAfter: after,
+        );
+        expect(f.steps.map((s) => s.row), [salary, earlier]);
+        expect(f.inTotal, 5000000);
+      });
+
+      test('with no plan it still ends at payday', () {
+        final rent = row(2, DateTime(2026, 9, 20), -180000000);
+        final f = buildForecast(
+          working: 10000000,
+          today: today,
+          scheduled: [salary, rent],
+        );
+        expect(f.throughPeriod, isFalse);
+        expect(f.end, DateTime(2026, 9, 17));
+        expect(f.steps, isEmpty);
+      });
+    });
+
+    test('a paycheck moved by hand still finds the payday after', () async {
+      final salary = (await db.loadLedger()).categories.firstWhere(
+        (c) => c.name == 'Salary',
+      );
+      await db.savePaySchedule(
+        categoryId: salary.id,
+        accountId: checking,
+        amount: 100000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      final plan = (await db.loadLedger()).paySchedules.single;
+      // 09.25 moved by hand to 09.23: the next is still 10.23 (a Friday,
+      // 10.25 being a Sunday), not 09.25.
+      expect(
+        plan.nextAfter(plan.plannedFor(DateTime(2026, 9, 23))),
+        DateTime(2026, 10, 23),
+      );
+    });
+
+    test('a late advance on split pay still ends at the rest', () {
+      // Advance on the 10th, the rest on the 25th; the 09.10 advance moved
+      // to 09.18 is nearer 09.25 by date, but it's the advance by amount.
+      const plan = PaySchedule(
+        id: 1,
+        categoryId: 1,
+        accountId: 1,
+        amount: 300,
+        amount2: 100,
+        rule: PayRule.twiceMonthly,
+        day1: 25,
+        day2: 10,
+      );
+      final moved = DateTime(2026, 9, 18);
+      expect(
+        plan.nextAfter(plan.plannedFor(moved, paid: 100)),
+        DateTime(2026, 9, 25),
+      );
+    });
   });
 
   group('accounts', () {
@@ -1953,6 +2076,34 @@ void main() {
         expect(income.single.txnId, manual);
       },
     );
+
+    test('keep the day: saved, then undone and redone exactly', () async {
+      final salary = await categoryId('Salary');
+      final first = await db.savePaySchedule(
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.monthly,
+        weekend: PayWeekend.after,
+        today: today,
+      );
+      final keep = await db.savePaySchedule(
+        id: first.after.id,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.monthly,
+        weekend: PayWeekend.keep,
+        today: today,
+      );
+      Future<PayWeekend> weekend() async =>
+          (await db.loadLedger()).paySchedules.single.weekend;
+      expect(await weekend(), PayWeekend.keep);
+      await db.undoPayChange(keep);
+      expect(await weekend(), PayWeekend.after);
+      await db.redoPayChange(keep);
+      expect(await weekend(), PayWeekend.keep);
+    });
 
     test('a start date later than today is the first payday', () async {
       final salary = await categoryId('Salary');

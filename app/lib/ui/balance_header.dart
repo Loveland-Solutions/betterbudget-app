@@ -505,6 +505,16 @@ class ForecastPanel extends StatelessWidget {
             : t.planRunsOut(on, money(f.low));
       } else if (f.steps.isEmpty) {
         headline = t.planNothingScheduled;
+      } else if (f.low >= f.startBalance) {
+        // Nothing takes it below today: a "lowest" dated today would only
+        // repeat the Working total as if it were a finding.
+        headline = t.planNeverBelowToday(money(f.startBalance));
+      } else if (f.throughPeriod &&
+          f.lowDate.isAfter(
+            f.steps.firstWhere((s) => identical(s.row, payday)).date,
+          )) {
+        // That low leans on the paycheck coming on time, in full.
+        headline = t.planLowestAfterPay(money(f.low), sayDate(t, f.lowDate));
       } else {
         headline = t.planLowest(money(f.low), sayDate(t, f.lowDate));
       }
@@ -515,6 +525,9 @@ class ForecastPanel extends StatelessWidget {
           ? payday == null
                 ? t.planNoBillsOrIncome
                 : t.planNoBillsBefore(end)
+          // Through a pay period the paycheck is a step, not "money in".
+          : f.billCount == 0 && f.inTotal == 0
+          ? t.planNoBillsBefore(end)
           : f.billCount == 0
           ? t.planInBefore(money(f.inTotal), end)
           : f.inTotal > 0
@@ -537,7 +550,11 @@ class ForecastPanel extends StatelessWidget {
           key: const ValueKey('forecast-horizon'),
           children: [
             Text(
-              payday == null ? t.planNext30Days : t.planUntilNextIncome,
+              payday == null
+                  ? t.planNext30Days
+                  : f.throughPeriod
+                  ? t.planThroughPayPeriod
+                  : t.planUntilNextIncome,
               style: onest(12, color: Mid.ink3),
             ),
             if (late.isNotEmpty)
@@ -771,7 +788,9 @@ class _BillsCard extends StatelessWidget {
                   owed: f.owed,
                   onTap: () => onOpen(s.row),
                 ),
-              if (payday != null) ...[
+              // Ending at payday, the paycheck closes the list; running
+              // through the period, it's already a line above.
+              if (payday != null && !f.throughPeriod) ...[
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
@@ -956,7 +975,7 @@ class _ForecastChart extends StatelessWidget {
               onOpen: onOpen,
             ),
           ),
-        if (payday != null)
+        if (payday != null && !f.throughPeriod)
           LayoutId(
             key: const ValueKey('forecast-payday'),
             id: 'payday',
@@ -1244,15 +1263,28 @@ class _ForecastPainter extends CustomPainter {
         ..color = Mid.ink,
     );
 
+    // Paydays: the end, and the next paycheck when it runs past it.
+    final paydayLine = Paint()..color = Mid.green.withValues(alpha: 0.5);
     if (f.payday != null) {
-      canvas.drawLine(
-        Offset(w, 2),
-        Offset(w, h),
-        Paint()..color = Mid.green.withValues(alpha: 0.5),
-      );
+      canvas.drawLine(Offset(w, 2), Offset(w, h), paydayLine);
     }
-    // Just the dates the chart spans. The headline already says what ends it,
-    // and hovering the end date shows that income.
+    // Just dates: where the chart starts and ends, and when the paycheck
+    // comes (hover its dot for the amount). Too close to an end, it's left
+    // off rather than drawn over that end's date.
+    if (f.throughPeriod) {
+      final pd = f.steps.firstWhere((s) => identical(s.row, f.payday)).date;
+      final px = x(pd);
+      canvas.drawLine(Offset(px, 2), Offset(px, h), paydayLine);
+      if (px > 56 && px < w - 56) {
+        _label(
+          canvas,
+          shortDate(pd),
+          Offset(px, h + 6),
+          Mid.ink3,
+          center: true,
+        );
+      }
+    }
     _label(canvas, shortDate(f.start), Offset(0, h + 6), Mid.ink3);
     _label(
       canvas,
@@ -1269,6 +1301,7 @@ class _ForecastPainter extends CustomPainter {
     Offset at,
     Color color, {
     bool alignRight = false,
+    bool center = false,
   }) {
     final tp = TextPainter(
       text: TextSpan(
@@ -1277,7 +1310,14 @@ class _ForecastPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, alignRight ? at.translate(-tp.width, 0) : at);
+    tp.paint(
+      canvas,
+      alignRight
+          ? at.translate(-tp.width, 0)
+          : center
+          ? at.translate(-tp.width / 2, 0)
+          : at,
+    );
   }
 
   @override

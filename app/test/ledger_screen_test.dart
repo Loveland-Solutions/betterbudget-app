@@ -527,7 +527,7 @@ void main() {
   testWidgets('the bill count lists every bill before payday', (tester) async {
     final db = await pumpLedger(tester);
     final link = find.byKey(const ValueKey('forecast-bills'));
-    expect(find.text('3 bills · ₮2,790,200 before 10.10'), findsOneWidget);
+    expect(find.text('3 bills · ₮2,790,200 through 10.10'), findsOneWidget);
     await tester.tap(link);
     await tester.pumpAndSettle();
     // Each bill with the balance after it, then the income that ends it.
@@ -1078,7 +1078,7 @@ void main() {
     expect(find.text('₮640,200.00', findRichText: true), findsWidgets);
     expect(find.textContaining('Below zero'), findsNothing);
     expect(find.text('₮0 owed after 09.25'), findsOneWidget);
-    expect(find.text('1 payment · ₮640,200 before 10.16'), findsOneWidget);
+    expect(find.text('1 payment · ₮640,200 through 10.16'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/ledger_card.png'),
@@ -2835,8 +2835,16 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
       expect(find.text('Pay saved · next payday 2026.09.25'), findsOneWidget);
-      // The forecast runs to it now.
+      // The forecast runs through the period that paycheck starts, to the
+      // one after it (every 2 weeks: 10.09).
       expect(find.byKey(const ValueKey('add-pay')), findsNothing);
+      expect(find.text('Through the next pay period'), findsOneWidget);
+      expect(find.text('No bills through 10.09'), findsOneWidget);
+      expect(find.text('Never below today’s ₮86,500'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_pay_period.png'),
+      );
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
@@ -2880,7 +2888,10 @@ void main() {
         '500000',
       );
       await tester.pumpAndSettle();
-      expect(find.text('Type how much you’re paid on the 25th'), findsOneWidget);
+      expect(
+        find.text('Type how much you’re paid on the 25th'),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byKey(const ValueKey('pay-amount2')),
         '1600000',

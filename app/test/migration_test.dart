@@ -175,14 +175,21 @@ void main() {
       weekend: PayWeekend.after,
       today: today,
     );
+    await db.savePaySchedule(
+      categoryId: salary.id,
+      accountId: data.openAccounts.last.id,
+      amount: 50000000,
+      rule: PayRule.monthly,
+      today: today,
+    );
     await dropAddedInV9(db);
     await db.customStatement('PRAGMA user_version = 8');
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
-    final pay = (await db.loadLedger()).paySchedules.single;
-    expect(pay.weekend, PayWeekend.after);
+    final pays = (await db.loadLedger()).paySchedules;
+    expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
       contains(startsWith('betterbudget.before-v9-from-v8-')),

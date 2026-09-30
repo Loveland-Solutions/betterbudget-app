@@ -1950,7 +1950,8 @@ class AppDatabase extends _$AppDatabase {
       day2: Value(day2),
       weeks: Value(weeks),
       anchor: Value(anchor == null ? null : dateKey(dateOnly(anchor))),
-      // Keep leaves the older column as it was: before, the default.
+      // Keep also writes weekend_before as true (before, the default), so an
+      // older reading of the row alone would move it to the Friday before.
       weekendBefore: Value(weekend != PayWeekend.after),
       weekendKeep: Value(weekend == PayWeekend.keep),
       definesPeriod: Value(definesPeriod),

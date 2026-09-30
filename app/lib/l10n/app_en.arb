@@ -1454,7 +1454,7 @@
       }
     }
   },
-  "planCardCharges": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} before {date}",
+  "planCardCharges": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} through {date}",
   "@planCardCharges": {
     "description": "Account header, forecast panel (credit card): line under the headline, scheduled charges and their total",
     "placeholders": {
@@ -1469,7 +1469,7 @@
       }
     }
   },
-  "planCardPayments": "{payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}",
+  "planCardPayments": "{payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} through {date}",
   "@planCardPayments": {
     "description": "Account header, forecast panel (credit card): line under the headline, scheduled payments to the card and their total",
     "placeholders": {
@@ -1484,7 +1484,7 @@
       }
     }
   },
-  "planCardChargesPayments": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} · {payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}",
+  "planCardChargesPayments": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} · {payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} through {date}",
   "@planCardChargesPayments": {
     "description": "Account header, forecast panel (credit card): line under the headline, scheduled charges and payments",
     "placeholders": {
@@ -1567,11 +1567,32 @@
       }
     }
   },
+  "planNeverBelowToday": "Never below today’s {amount}",
+  "@planNeverBelowToday": {
+    "description": "Forecast headline when no scheduled bill takes the balance below today's Working total.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planLowestAfterPay": "Lowest {amount} on {date}, after payday",
+  "@planLowestAfterPay": {
+    "description": "Forecast headline when the lowest point comes after the next paycheck, so it counts on that pay arriving on time and in full.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planNoBillsOrIncome": "No bills or income in the next 30 days",
   "@planNoBillsOrIncome": {
     "description": "Account header, forecast panel: line under the headline when nothing is scheduled"
   },
-  "planNoBillsBefore": "No bills before {date}",
+  "planNoBillsBefore": "No bills through {date}",
   "@planNoBillsBefore": {
     "description": "Account header, forecast panel: line under the headline when no bills come before the next income",
     "placeholders": {
@@ -1580,7 +1601,7 @@
       }
     }
   },
-  "planInBefore": "+{amount} in before {date}",
+  "planInBefore": "+{amount} in through {date}",
   "@planInBefore": {
     "description": "Account header, forecast panel: line under the headline, money coming in (transfers, refunds) and no bills",
     "placeholders": {
@@ -1592,7 +1613,7 @@
       }
     }
   },
-  "planBillsBefore": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date}",
+  "planBillsBefore": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} through {date}",
   "@planBillsBefore": {
     "description": "Account header, forecast panel: clickable line under the headline, the bills before the end date and their total",
     "placeholders": {
@@ -1607,7 +1628,7 @@
       }
     }
   },
-  "planBillsBeforeIn": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date} · +{inAmount} in",
+  "planBillsBeforeIn": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} through {date} · +{inAmount} in",
   "@planBillsBeforeIn": {
     "description": "Account header, forecast panel: clickable line under the headline, bills and their total, plus money coming in",
     "placeholders": {
@@ -1633,11 +1654,15 @@
   "@planUntilNextIncome": {
     "description": "Account header, forecast panel: small title above the headline"
   },
+  "planThroughPayPeriod": "Through the next pay period",
+  "@planThroughPayPeriod": {
+    "description": "Forecast, small label above the headline: it runs from today through the pay period the next paycheck starts, to the payday after it."
+  },
   "planAddPay": " · no payday ahead · Add your pay →",
   "@planAddPay": {
     "description": "Account header, forecast panel: gold link after the small title; opens pay setup"
   },
-  "planUntilDate": "Until {date}",
+  "planUntilDate": "Through {date}",
   "@planUntilDate": {
     "description": "Account header, forecast panel: bill list header (left), the list runs until this date",
     "placeholders": {
