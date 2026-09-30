@@ -1,8 +1,9 @@
 part of 'ledger_screen.dart';
 
-// The Budget section's first version: the one place categories are added,
-// renamed, archived and deleted (ADR 0004, rule 22). No amounts yet; the
-// budget model (envelopes or targets) adds its columns to these rows later.
+// The Budget section: envelopes, each spending category reading Put in ·
+// Spent · Left for the period on screen, under the money not given out yet
+// (ADR 0004 rule 26). Also the one place categories are added, renamed,
+// archived and deleted (rule 22).
 
 /// What can be done to a category, from ⋯ on its row or a right-click.
 class _CategoryActions {
@@ -27,18 +28,42 @@ class _CategoryActions {
 class _BudgetPage extends StatefulWidget {
   const _BudgetPage({
     required this.data,
+    required this.today,
     required this.actionsFor,
     required this.onCreate,
     required this.onUnarchive,
     required this.onShowRows,
+    required this.onShowAllRows,
+    required this.onSetAmount,
+    required this.onKeysBack,
+    required this.onStartLater,
+    required this.onKeepStart,
+    required this.onShowUncategorized,
   });
-  final LedgerData data;
 
-  /// The usage text was clicked: its rows, in All accounts.
-  final ValueChanged<AccountInfo> onShowRows;
+  /// The first-period offer: start the budget in the next period instead.
+  final void Function(BudgetSpan period, BudgetSpan next) onStartLater;
+  final VoidCallback onKeepStart;
+
+  /// The "Not categorized" line was clicked: its rows.
+  final VoidCallback onShowUncategorized;
+  final LedgerData data;
+  final DateTime today;
+
+  /// Typing ended: ⌘Z and the other keys go back to the screen.
+  final VoidCallback onKeysBack;
+
+  /// Spent was clicked: the category's rows in that period, in All accounts.
+  final void Function(AccountInfo, BudgetSpan) onShowRows;
+
+  /// The usage in the ⋯ menu was picked: every row, all time.
+  final ValueChanged<AccountInfo> onShowAllRows;
   final _CategoryActions Function(AccountInfo) actionsFor;
   final void Function(String name, bool income) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
+
+  /// A Put in amount was typed for the period starting on the date.
+  final void Function(AccountInfo, BudgetSpan, int) onSetAmount;
 
   @override
   State<_BudgetPage> createState() => _BudgetPageState();
@@ -48,40 +73,144 @@ class _BudgetPageState extends State<_BudgetPage> {
   bool _adding = false;
   bool _showArchived = false;
 
+  /// The period on screen; null for the one today is in.
+  BudgetSpan? _period;
+
+  /// The category whose Put in is being typed.
+  int? _editing;
+
+  BudgetSpan get _current =>
+      budgetPeriod(widget.today, widget.data.periodSchedule);
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final data = widget.data;
-    final spending = data.categories.where((c) => !c.isIncome).toList();
+    final by = data.periodSchedule;
+    // Switching between months and pay periods in Settings starts over at
+    // today's period.
+    var period = _period ?? _current;
+    // So does a period that no longer is one (the pay schedule changed):
+    // amounts typed there would land between periods.
+    if (period.label != _current.label ||
+        budgetPeriod(period.start, by).start != period.start) {
+      period = _current;
+    }
+    final isCurrent =
+        !widget.today.isBefore(period.start) &&
+        !widget.today.isAfter(period.end);
+    final budget = Budget.of(
+      data,
+      start: period.start,
+      end: period.end,
+      today: widget.today,
+    );
+    // "Not categorized" holds no money: its rows count in the top line.
+    final spending = data.categories
+        .where((c) => !c.isIncome && !isUncategorized(c))
+        .toList();
     final income = data.categories.where((c) => c.isIncome).toList();
     final archived = data.archivedCategories;
+    final began = budget.began;
+    // "From before" means something once the budget had begun before this
+    // period.
+    final carries = began != null && began.isBefore(period.start);
 
-    Widget group(String title, List<AccountInfo> list) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-          child: Text(title, style: onest(12.5, color: Mid.ink3)),
-        ),
-        for (final c in list)
-          _CategoryRow(
-            key: ValueKey('category-${c.id}'),
-            category: c,
-            usage: data.categoryUsage[c.id],
-            actions: widget.actionsFor(c),
-            onShowRows: () => widget.onShowRows(c),
-            payNote: c.isIncome ? _payNote(t, data, c) : null,
+    String money(int v) => formatMoney(v, currency: budget.currency);
+
+    void edit(int? id) {
+      setState(() => _editing = id);
+      if (id == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onKeysBack();
+        });
+      }
+    }
+
+    void editNext(AccountInfo c) {
+      final i = spending.indexWhere((x) => x.id == c.id);
+      edit(i >= 0 && i + 1 < spending.length ? spending[i + 1].id : null);
+    }
+
+    Widget columns(String title, List<String> heads) => Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: onest(12.5, color: Mid.ink3)),
           ),
-        const SizedBox(height: 14),
-      ],
+          for (final h in heads)
+            SizedBox(
+              width: _amountWidth,
+              child: Text(
+                h,
+                textAlign: TextAlign.right,
+                style: onest(12.5, color: Mid.ink3),
+              ),
+            ),
+          const SizedBox(width: 40),
+        ],
+      ),
     );
+
+    Widget row(AccountInfo c) {
+      final line = budget.lines[c.id];
+      return _CategoryRow(
+        key: ValueKey('category-${c.id}'),
+        category: c,
+        usage: data.categoryUsage[c.id],
+        actions: widget.actionsFor(c),
+        onShowAllRows: () => widget.onShowAllRows(c),
+        onShowRows: () => widget.onShowRows(c, period),
+        payNote: c.isIncome ? _payNote(t, data, c) : null,
+        cameIn: c.isIncome ? budget.cameIn[c.id] ?? 0 : null,
+        line: c.isIncome ? null : line,
+        fromBefore: carries && line != null && line.fromBefore != 0
+            ? t.planFromBefore(money(line.fromBefore))
+            : null,
+        currency: budget.currency,
+        editing: _editing == c.id,
+        onEdit: () => edit(c.id),
+        onAssign: (amount, {required bool next}) {
+          if (amount != null && amount != (line?.assigned ?? 0)) {
+            widget.onSetAmount(c, period, amount);
+          }
+          next ? editNext(c) : edit(null);
+        },
+      );
+    }
+
+    final held = budget.money - budget.notAssigned;
+    final top = budget.notAssigned > 0
+        ? t.planNotAssigned(money(budget.notAssigned))
+        : budget.notAssigned == 0
+        ? t.planAllAssigned
+        // Below zero with nothing held: cards owe more than there is, and
+        // nothing was assigned that could be "too much".
+        : held <= 0 && budget.money < 0
+        ? t.planCardsOwe(money(-budget.money))
+        : t.planAssignedOver(money(-budget.notAssigned));
+    // Started partway through a period, with spending in categories
+    // nothing was assigned to: offer the next period instead (owner's
+    // call). Answered once, it goes.
+    final offerStart =
+        began != null &&
+        data.prefs[BudgetKeys.keptStart] == null &&
+        !began.isBefore(period.start) &&
+        !began.isAfter(period.end) &&
+        widget.today.isAfter(period.start) &&
+        budget.unassignedSpent.count > 0;
+    final other = {
+      for (final a in data.openAccounts)
+        if (a.currency != budget.currency) a.currency,
+    };
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(maxWidth: 820),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -93,6 +222,48 @@ class _BudgetPageState extends State<_BudgetPage> {
                       t.planBudget,
                       style: onest(22, weight: 600, letterSpacing: -0.3),
                     ),
+                    const SizedBox(width: 20),
+                    _PeriodArrow(
+                      key: const ValueKey('period-prev'),
+                      icon: Icons.chevron_left_rounded,
+                      tooltip: t.planPeriodPrev,
+                      onTap: () => setState(() {
+                        _editing = null;
+                        _period = previousBudgetPeriod(period, by);
+                      }),
+                    ),
+                    Text(
+                      t.planPeriodTitle(
+                        _spanName(t, period, widget.today),
+                        shortDate(period.start),
+                        shortDate(period.end),
+                      ),
+                      key: const ValueKey('period-title'),
+                      style: onest(14.5, weight: 500, color: Mid.ink2),
+                    ),
+                    _PeriodArrow(
+                      key: const ValueKey('period-next'),
+                      icon: Icons.chevron_right_rounded,
+                      tooltip: t.planPeriodNext,
+                      onTap: () => setState(() {
+                        _editing = null;
+                        _period = nextBudgetPeriod(period, by);
+                      }),
+                    ),
+                    if (!isCurrent) ...[
+                      const SizedBox(width: 8),
+                      Hoverable(
+                        key: const ValueKey('period-today'),
+                        onTap: () => setState(() {
+                          _editing = null;
+                          _period = null;
+                        }),
+                        builder: (hover) => Text(
+                          t.planBackToToday,
+                          style: onest(13, color: hover ? Mid.blue : Mid.ink3),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     _PrimaryButton(
                       key: const ValueKey('add-category'),
@@ -104,7 +275,66 @@ class _BudgetPageState extends State<_BudgetPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              Tooltip(
+                message: t.planNotAssignedTip(money(budget.money), money(held)),
+                waitDuration: const Duration(milliseconds: 500),
+                child: Text(
+                  top,
+                  key: const ValueKey('not-assigned'),
+                  style: onest(
+                    17,
+                    weight: 600,
+                    color: budget.notAssigned < 0 ? Mid.coral : Mid.ink,
+                    tabular: true,
+                  ),
+                ),
+              ),
+              if (budget.uncategorizedRows > 0) ...[
+                const SizedBox(height: 4),
+                Hoverable(
+                  key: const ValueKey('uncategorized-line'),
+                  onTap: widget.onShowUncategorized,
+                  builder: (hover) => Text(
+                    t.planUncategorized(
+                      '${budget.uncategorizedRows}',
+                      budget.uncategorizedNet > 0
+                          ? '+${money(budget.uncategorizedNet)}'
+                          : money(budget.uncategorizedNet),
+                    ),
+                    style: onest(13, color: hover ? Mid.blue : Mid.gold),
+                  ),
+                ),
+              ],
+              if (offerStart) ...[
+                const SizedBox(height: 10),
+                _StartOffer(
+                  text: t.planStartOffer(
+                    money(budget.unassignedSpent.amount),
+                    '${budget.unassignedSpent.count}',
+                  ),
+                  later: t.planStartLater(
+                    sayDate(t, nextBudgetPeriod(period, by).start),
+                  ),
+                  onLater: () {
+                    final next = nextBudgetPeriod(period, by);
+                    widget.onStartLater(period, next);
+                    setState(() {
+                      _editing = null;
+                      _period = next;
+                    });
+                  },
+                  onKeep: widget.onKeepStart,
+                ),
+              ],
+              if (other.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  t.planOtherCurrency(other.map((c) => c.symbol).join(', ')),
+                  style: onest(12.5, color: Mid.ink3),
+                ),
+              ],
+              const SizedBox(height: 16),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -122,8 +352,18 @@ class _BudgetPageState extends State<_BudgetPage> {
                           onCreate: widget.onCreate,
                           onCancel: () => setState(() => _adding = false),
                         ),
-                      group(t.planSpending, spending),
-                      if (income.isNotEmpty) group(t.planIncome, income),
+                      columns(t.planSpending, [
+                        t.planAssigned,
+                        t.planSpent,
+                        t.planLeft,
+                      ]),
+                      for (final c in spending) row(c),
+                      const SizedBox(height: 14),
+                      if (income.isNotEmpty) ...[
+                        columns(t.planIncome, [t.planCameIn]),
+                        for (final c in income) row(c),
+                        const SizedBox(height: 14),
+                      ],
                       if (archived.isNotEmpty) ...[
                         Hoverable(
                           key: const ValueKey('show-archived-categories'),
@@ -161,6 +401,17 @@ class _BudgetPageState extends State<_BudgetPage> {
                                     _usageText(t, data.categoryUsage[c.id]),
                                     style: onest(12.5, color: Mid.ink3),
                                   ),
+                                  // Money can still sit in an archived one.
+                                  if (budget.lines[c.id]?.left case final left?
+                                      when left != 0) ...[
+                                    const SizedBox(width: 16),
+                                    Money(
+                                      left,
+                                      size: 13,
+                                      currency: budget.currency,
+                                      color: left < 0 ? Mid.coral : Mid.ink2,
+                                    ),
+                                  ],
                                   const SizedBox(width: 16),
                                   BarButton(
                                     key: ValueKey('unarchive-category-${c.id}'),
@@ -181,6 +432,51 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
   }
+}
+
+const double _amountWidth = 136;
+
+/// "This month" or "This pay period" for the one today is in; otherwise
+/// the month's name (with its year when it isn't this year's), or "Pay
+/// period". The dates beside it say which.
+String _spanName(Words t, BudgetSpan p, DateTime today) {
+  if (!today.isBefore(p.start) && !today.isAfter(p.end)) {
+    return periodName(t, p);
+  }
+  if (p.label == payPeriodLabel) return t.planPayPeriod;
+  final m = monthName(t, p.start.month);
+  return p.start.year == today.year ? m : '$m ${p.start.year}';
+}
+
+class _PeriodArrow extends StatelessWidget {
+  const _PeriodArrow({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    waitDuration: const Duration(milliseconds: 500),
+    child: Hoverable(
+      onTap: onTap,
+      builder: (hover) => Container(
+        width: 28,
+        height: 28,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: hover ? Mid.raised : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 20, color: hover ? Mid.ink : Mid.ink2),
+      ),
+    ),
+  );
 }
 
 /// What an income category's line says about pay: "payday · ₮2,100,000 or
@@ -289,10 +585,41 @@ class _CategoryRow extends StatefulWidget {
     required this.usage,
     required this.actions,
     required this.onShowRows,
+    required this.onShowAllRows,
+    required this.currency,
+    required this.editing,
+    required this.onEdit,
+    required this.onAssign,
     this.payNote,
+    this.line,
+    this.cameIn,
+    this.fromBefore,
   });
   final AccountInfo category;
+
+  /// Spent was clicked: this period's rows.
   final VoidCallback onShowRows;
+
+  /// The usage in the menu was picked: every row.
+  final VoidCallback onShowAllRows;
+
+  /// Spending: Put in, Spent and Left for the period on screen.
+  final EnvelopeLine? line;
+
+  /// Income: what came in during the period.
+  final int? cameIn;
+
+  /// "₮500,000 from before", when the category carried money in.
+  final String? fromBefore;
+  final Currency currency;
+
+  /// Its Put in is being typed.
+  final bool editing;
+  final VoidCallback onEdit;
+
+  /// Typing Put in ended: the amount (null when nothing valid was typed or
+  /// it was cancelled), and whether Tab asked for the next category.
+  final void Function(int? amount, {required bool next}) onAssign;
 
   /// Income: whether it's payday, its pay, and any nudge about the estimate.
   final ({String text, bool nudge})? payNote;
@@ -365,6 +692,8 @@ class _CategoryRowState extends State<_CategoryRow> {
       menuChildren: _categoryMenu(
         t,
         c,
+        usage: widget.usage == null ? null : _usageText(t, widget.usage),
+        showRows: widget.onShowAllRows,
         _CategoryActions(
           rename: (_) => _startRename(),
           changeKind: a.changeKind,
@@ -381,8 +710,11 @@ class _CategoryRowState extends State<_CategoryRow> {
           behavior: HitTestBehavior.opaque,
           onSecondaryTapDown: (d) => _menu.open(position: d.localPosition),
           child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: widget.fromBefore == null ? 0 : 5,
+            ),
             decoration: BoxDecoration(
               color: _hover || _menu.isOpen ? Mid.hover : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
@@ -429,7 +761,10 @@ class _CategoryRowState extends State<_CategoryRow> {
                         ),
                 ),
                 if (widget.payNote case final note?) ...[
-                  Flexible(
+                  // Not Flexible: sharing the spare width with the name
+                  // would leave the amount short of its column.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
                     child: Hoverable(
                       key: ValueKey('pay-note-${c.id}'),
                       onTap: widget.actions.pay,
@@ -452,32 +787,94 @@ class _CategoryRowState extends State<_CategoryRow> {
                   ),
                   const SizedBox(width: 12),
                 ],
-                // Its rows, in All accounts: what the count is counting.
-                if (widget.usage == null)
-                  Text(
-                    _usageText(t, widget.usage),
-                    style: onest(12.5, color: Mid.ink3, tabular: true),
-                  )
-                else
-                  Tooltip(
-                    message: t.planShowTheseRows,
-                    waitDuration: const Duration(milliseconds: 500),
-                    child: Hoverable(
-                      key: ValueKey('category-rows-${c.id}'),
-                      onTap: widget.onShowRows,
-                      builder: (hover) => Text(
-                        _usageText(t, widget.usage),
-                        style:
-                            onest(
-                              12.5,
-                              color: hover ? Mid.blue : Mid.ink3,
-                              tabular: true,
-                            ).copyWith(
-                              decoration: hover
-                                  ? TextDecoration.underline
-                                  : null,
-                              decorationColor: Mid.blue,
-                            ),
+                if (widget.line case final line?) ...[
+                  SizedBox(
+                    width: _amountWidth,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _AssignField(
+                        key: ValueKey('assigned-${c.id}'),
+                        amount: line.assigned,
+                        currency: widget.currency,
+                        editing: widget.editing,
+                        onEdit: widget.onEdit,
+                        onDone: widget.onAssign,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: _amountWidth,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Tooltip(
+                        message: t.planShowTheseRows,
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: Hoverable(
+                          key: ValueKey('spent-${c.id}'),
+                          onTap: widget.onShowRows,
+                          // Spending reads as what was spent, no sign; more
+                          // back than spent shows as a plus.
+                          builder: (hover) => Money(
+                            line.spent.abs(),
+                            sign: line.spent < 0
+                                ? MoneySign.plusForPositive
+                                : MoneySign.none,
+                            size: 13.5,
+                            currency: widget.currency,
+                            color: hover
+                                ? Mid.blue
+                                : (line.spent == 0 ? Mid.ink3 : Mid.ink2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: _amountWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Money(
+                          line.left,
+                          key: ValueKey('left-${c.id}'),
+                          size: 13.5,
+                          weight: 600,
+                          currency: widget.currency,
+                          color: line.left < 0
+                              ? Mid.coral
+                              : (line.left == 0 ? Mid.ink3 : Mid.ink),
+                        ),
+                        if (widget.fromBefore case final before?)
+                          Text(
+                            before,
+                            key: ValueKey('from-before-${c.id}'),
+                            style: onest(11.5, color: Mid.ink3, tabular: true),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (widget.cameIn case final came?)
+                  SizedBox(
+                    width: _amountWidth,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Tooltip(
+                        message: t.planShowTheseRows,
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: Hoverable(
+                          key: ValueKey('came-in-${c.id}'),
+                          onTap: widget.onShowRows,
+                          builder: (hover) => Money(
+                            came,
+                            size: 13.5,
+                            currency: widget.currency,
+                            color: hover
+                                ? Mid.blue
+                                : (came == 0 ? Mid.ink3 : Mid.ink2),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -508,7 +905,13 @@ class _CategoryRowState extends State<_CategoryRow> {
   }
 }
 
-List<Widget> _categoryMenu(Words t, AccountInfo c, _CategoryActions act) {
+List<Widget> _categoryMenu(
+  Words t,
+  AccountInfo c,
+  _CategoryActions act, {
+  String? usage,
+  VoidCallback? showRows,
+}) {
   Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
       MenuItemButton(
         key: ValueKey(key),
@@ -520,6 +923,12 @@ List<Widget> _categoryMenu(Words t, AccountInfo c, _CategoryActions act) {
         child: Text(label, style: onest(13, color: color ?? Mid.ink2)),
       );
   return [
+    // How much it's used decides keep, merge or archive, which is what
+    // this menu is for; picking it shows every row.
+    if (usage != null && showRows != null) ...[
+      item(t.planShowAllRows(usage), 'category-rows', showRows),
+      Divider(height: 9, color: Mid.rule),
+    ],
     item(t.planRename, 'category-rename', () => act.rename(c.name)),
     if (act.pay case final pay?) item(t.planPayMenu, 'category-pay', pay),
     if (act.togglePayday case final toggle?)
@@ -815,4 +1224,220 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
       ),
     );
   }
+}
+
+/// A category's Put in: the amount, and a field in its place while typing.
+/// Enter or leaving the field saves, Tab saves and goes to the next
+/// category, Esc cancels. Sums work, as in the entry row (`300000+50000`).
+class _AssignField extends StatefulWidget {
+  const _AssignField({
+    super.key,
+    required this.amount,
+    required this.currency,
+    required this.editing,
+    required this.onEdit,
+    required this.onDone,
+  });
+  final int amount;
+  final Currency currency;
+  final bool editing;
+  final VoidCallback onEdit;
+  final void Function(int? amount, {required bool next}) onDone;
+
+  @override
+  State<_AssignField> createState() => _AssignFieldState();
+}
+
+class _AssignFieldState extends State<_AssignField> {
+  TextEditingController? _text;
+  final _focus = FocusNode(debugLabel: 'put-in');
+  bool _wrong = false;
+
+  /// Ended by a key already: losing focus afterwards mustn't end it again.
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus && _text != null && !_done) _finish(next: false);
+    });
+    if (widget.editing) _open();
+  }
+
+  @override
+  void didUpdateWidget(_AssignField old) {
+    super.didUpdateWidget(old);
+    if (widget.editing && _text == null) _open();
+    if (!widget.editing && _text != null) {
+      // Closed from outside (an arrow, Back to today) mid-typing: what was
+      // typed is kept, as clicking away would.
+      final typed = _text!.text.trim();
+      final amount = typed.isEmpty ? 0 : parseAmount(typed);
+      if (!_done && amount != null && amount != widget.amount) {
+        _done = true;
+        // The old callback: the page may already show another period.
+        final done = old.onDone;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => done(amount, next: false),
+        );
+      }
+      _close();
+    }
+  }
+
+  @override
+  void dispose() {
+    _text?.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _open() {
+    final a = widget.amount;
+    final shown = a == 0
+        ? ''
+        : '${a < 0 ? '-' : ''}${formatWhole(a)}'
+              '${formatCents(a) == '.00' ? '' : formatCents(a)}';
+    _text = TextEditingController(text: shown)
+      ..selection = TextSelection(baseOffset: 0, extentOffset: shown.length);
+    _done = false;
+    _wrong = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  void _close() {
+    final c = _text;
+    _text = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => c?.dispose());
+  }
+
+  void _finish({required bool next}) {
+    final typed = _text?.text.trim() ?? '';
+    // Emptied: nothing goes in.
+    final amount = typed.isEmpty ? 0 : parseAmount(typed);
+    if (amount == null) {
+      // Not an amount: stay, outlined, so the typing isn't lost.
+      setState(() => _wrong = true);
+      _focus.requestFocus();
+      return;
+    }
+    _done = true;
+    widget.onDone(amount, next: next);
+  }
+
+  void _cancel() {
+    _done = true;
+    widget.onDone(null, next: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final text = _text;
+    if (text != null) {
+      return SizedBox(
+        width: _amountWidth - 8,
+        height: 30,
+        child: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): _cancel,
+            const SingleActivator(LogicalKeyboardKey.tab): () =>
+                _finish(next: true),
+          },
+          child: TextField(
+            key: const ValueKey('assign-field'),
+            controller: text,
+            focusNode: _focus,
+            textAlign: TextAlign.right,
+            style: onest(13.5, tabular: true),
+            onChanged: (_) {
+              if (_wrong) setState(() => _wrong = false);
+            },
+            onSubmitted: (_) => _finish(next: false),
+            decoration: _fieldDecoration(wrong: _wrong).copyWith(
+              prefixText: widget.currency.symbol,
+              prefixStyle: onest(13.5, color: Mid.ink3),
+            ),
+          ),
+        ),
+      );
+    }
+    return Tooltip(
+      message: t.planAssignTip,
+      waitDuration: const Duration(milliseconds: 600),
+      child: Hoverable(
+        onTap: widget.onEdit,
+        builder: (hover) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            // Outlined on hover: it's a field, and a click types in it.
+            border: Border.all(
+              color: hover
+                  ? Mid.ink2.withValues(alpha: 0.4)
+                  : Colors.transparent,
+            ),
+          ),
+          child: Money(
+            widget.amount,
+            size: 13.5,
+            currency: widget.currency,
+            color: widget.amount == 0 ? Mid.ink3 : Mid.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The gold note after the first amount lands in a period already under
+/// way: what it counts, and the choice to start in the next period.
+class _StartOffer extends StatelessWidget {
+  const _StartOffer({
+    required this.text,
+    required this.later,
+    required this.onLater,
+    required this.onKeep,
+  });
+  final String text;
+  final String later;
+  final VoidCallback onLater;
+  final VoidCallback onKeep;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('start-offer'),
+    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+    decoration: BoxDecoration(
+      color: Mid.gold.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Mid.gold.withValues(alpha: 0.4)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(text, style: onest(13.5, color: Mid.ink)),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _PrimaryButton(
+              key: const ValueKey('start-later'),
+              label: later,
+              icon: Icons.arrow_forward_rounded,
+              onTap: onLater,
+            ),
+            const SizedBox(width: 8),
+            BarButton(
+              key: const ValueKey('start-keep'),
+              label: context.t.planStartKeep,
+              onTap: onKeep,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }

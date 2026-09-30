@@ -838,6 +838,100 @@ What's known so far:
       student's swings); keeping the "a separate account works best" hint
       when the fund's account is also spent from; the rate and minimum payment
       per debt (with card due dates, personas §1).
+26. **The budget: envelopes with three numbers a line** (owner's calls,
+    2026-09-30; envelopes were decided the same day, ROADMAP "Decided").
+    - **Each category reads Assigned · Spent · Left** for the period on screen
+      (month or pay period, the Settings choice), option A of three. Left is
+      what the envelope holds now, so it includes what carried over ("₮500,000
+      from before" under it when it differs). A line at the top gives the money
+      not assigned to a category yet. Click Assigned to type an amount.
+      (Owner's correction, 2026-09-30: "What does 'put in' even mean?? Change
+      it to 'Assigned'"; "not given out" went with it.) Rejected:
+      Left only, with a bar and the other two numbers in an action bar (B); a
+      list plus a give-out panel for payday (C).
+    - **Overspending carries as minus** (option A of three). A category keeps
+      its own balance below zero: October's −₮32,000 in Dining out starts
+      November's ₮150,000 at ₮118,000. Money can be moved in from another
+      category any time. Rejected: the next period's money not given out
+      absorbs it and the category restarts at zero (B); covered at once from
+      the money not given out, so nothing goes below zero (C).
+    - **Card debt reduces the money** (option A of two). Not given out = cash
+      and bank, minus what cards owe, minus what's in categories. Groceries
+      bought on the card come out of Groceries and nothing else; paying the
+      card moves nothing on the Budget page; card debt from before the budget
+      shows as less to give out on day one. Rejected: a card-payment category
+      per card that fills as the card is used (B), the common convention.
+    **How the first build works** (decided along those lines, 2026-09-30):
+    - ‹ › beside the title step through periods ("This month · 09.01–09.30",
+      "October · 10.01–10.31", "Pay period · …"); "Back to today" returns.
+      Switching Settings between month and pay period starts over at
+      today's period. Amounts are stored by the day their period starts,
+      and a category's balance is every amount less its spending, so
+      switching loses nothing.
+    - Spent shows no sign ("₮276,650.50"); more back than spent shows as
+      "+₮X". A minus there read as a double negative.
+    - **Typing an amount is quiet**, like clearing a row: on payday it's
+      typed a dozen times. ⌘Z takes any back. Enter or clicking away saves,
+      **Tab saves and opens the next category**, Esc cancels; sums work
+      (`100000+50000`); something that isn't an amount stays in the field,
+      outlined, and nothing is saved. Emptying it assigns nothing. Clicking
+      an arrow mid-typing saves it in the period it was typed in. Typing
+      replaces everything the category has anywhere in the period (after
+      a switch between months and pay periods, amounts can sit mid-period),
+      and ⌘Z puts each back on its own day.
+    - **The budget begins in the period the first amount is assigned to**,
+      and that day (and the budget's currency) is saved then, so neither
+      moves on its own later: assigning to an earlier period adds money,
+      it doesn't pull in that period's spending. Spending before the start
+      counts against no category. From then on a category that spends with
+      nothing assigned goes below zero (the money is gone either way), and
+      "₮X from before" shows under Left when the period began with a
+      balance.
+    - **Starting partway through a period offers the next one** (owner's
+      call, 2026-09-30, option A of three; first asked in words the owner
+      called confusing). When the first period is already under way and
+      categories with nothing assigned have spent, a gold note says "You're
+      starting partway through this period: ₮295,090.50 was already spent
+      in 7 categories with nothing assigned, and it counts against them."
+      with **Start the budget on 10.01 instead** (moves what was assigned
+      to the next period, one ⌘Z) and **Keep it as it is**. Rejected:
+      counting all of the period with no note (B), and counting only from
+      the day the first amount was typed (C), which overstates what's left.
+    - The top line reads "₮X not assigned to a category yet", "₮X more
+      assigned than you have" (coral), "Cards owe ₮X more than you have in
+      cash and bank" (coral, when nothing is assigned and cards alone put
+      it below zero), or "Everything is assigned to a category". Its
+      tooltip shows the sum with real numbers. Amounts assigned for a later
+      period count against it now: that money is spoken for.
+    - **"Not categorized" holds no money** (owner's call, option A of two):
+      imported rows waiting there count straight in the top line, and a
+      gold line under it says "12 rows not categorized (−₮84,300), counted
+      in the line above · show them". Rejected: its own line pinned first.
+    - **Mortgages and student loans** (their Savings marks) are left out of
+      the money: they're paid over years. **Their payments come out of a
+      category** (owner's call, option A of three): the loan's menu has
+      "Payments come out of ▸ Housing", and a transfer into the loan from
+      cash, bank or a card is that category's spending. With "No category"
+      the payment just lowers the money not assigned. Rejected: only
+      saying on the page what was paid (B), and counting the loans like
+      cards (C). Other loans count like cards. Only the budget's currency
+      counts; "Accounts in $ aren't in the budget yet" says so (ROADMAP E).
+    - Spent opens the category's rows for that period in All accounts (the
+      chip names the period). The usage ("42 rows · last 09.12") moved to
+      the top of the category's ⋯ menu, where keep, merge and archive are,
+      and opens every row. Income lines show what came in that period.
+    - A merge moves the amounts with the rows; deleting a category, merging
+      it into an income one, or changing it to income gives its money back,
+      and the toast says so with the amount ("₮150,000 assigned to Dining
+      out goes back to not assigned"). An archived category keeps its
+      balance, shown in the archived list. A pay period that no longer is
+      one (the schedule changed) resets to today's.
+    - **Left for later** (from the reviews): "same as last period" for one
+      category or all (every payday otherwise means typing each again); a
+      line summing what's overspent ("₮X over in 3 categories comes out of
+      next period"); pay that lands a day or two early counted in the
+      period it's for; a Spent click showing loan payments (they aren't
+      filed under the category); moving money out of an archived category.
 
 ### Language: English and Mongolian (owner, 2026-09-30)
 

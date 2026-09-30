@@ -11,7 +11,7 @@ import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
-import '../domain/ledger.dart' show dateOnly;
+import '../domain/ledger.dart' show dateKey, dateOnly;
 import 'data_words.dart';
 import 'language.dart';
 import 'ledger_screen.dart';

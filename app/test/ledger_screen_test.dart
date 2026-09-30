@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:betterbudget/domain/budget.dart' show BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
@@ -2347,6 +2348,133 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('envelopes: put in, spent and left; Tab goes on; ⌘Z; periods', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final groceries = id('Groceries'), health = id('Health');
+      String notAssigned() =>
+          tester.widget<Text>(find.byKey(const ValueKey('not-assigned'))).data!;
+      final before = notAssigned();
+      expect(before, endsWith('not assigned to a category yet'));
+      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+
+      // Type Groceries' amount, Tab to the next category, type, Enter.
+      await tester.tap(find.byKey(ValueKey('assigned-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('assign-field')),
+        '900000',
+      );
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('assign-field')),
+        '100000+50000',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(
+        {for (final b in data.budgetAmounts) b.categoryId: b.amount},
+        {groceries: 90000000, health: 15000000},
+      );
+      // Groceries spent ₮276,650.50 this month.
+      expect(find.text('Left'), findsOneWidget);
+      final left = tester.widget<Money>(
+        find.byKey(ValueKey('left-$groceries')),
+      );
+      expect(left.minor, 90000000 - 27665050);
+      expect(notAssigned(), isNot(before));
+      // Quiet: no toast for an amount.
+      expect(find.textContaining('Put ₮'), findsNothing);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_envelopes.png'),
+      );
+
+      // Not an amount: the field stays, outlined, and nothing is saved.
+      await tester.tap(find.byKey(ValueKey('assigned-$health')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('assign-field')), 'abc');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('assign-field')), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('assign-field')), findsNothing);
+
+      // ⌘Z takes back Health's.
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.budgetAmounts.map((b) => b.categoryId), [groceries]);
+
+      // October: what Groceries didn't spend carries in.
+      await tester.tap(find.byKey(const ValueKey('period-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('October · 10.01–10.31'), findsOneWidget);
+      expect(find.byKey(ValueKey('from-before-$groceries')), findsOneWidget);
+      expect(
+        tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).minor,
+        90000000 - 27665050,
+      );
+      await tester.tap(find.byKey(const ValueKey('period-today')));
+      await tester.pumpAndSettle();
+      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+
+      // Started partway through September, with spending in categories
+      // nothing was assigned to: the offer to start in October.
+      expect(find.byKey(const ValueKey('start-offer')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('start-later')));
+      await settle(tester);
+      expect(find.text('October · 10.01–10.31'), findsOneWidget);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.budgetAmounts.single.date, DateTime(2026, 10));
+      expect(data.prefs[BudgetKeys.began], '2026-10-01');
+      expect(find.byKey(const ValueKey('start-offer')), findsNothing);
+      // One ⌘Z puts it back in September.
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.budgetAmounts.single.date, DateTime(2026, 9));
+      expect(data.prefs[BudgetKeys.began], '2026-09-01');
+
+      // Typing, then an arrow: what was typed is saved in the period it
+      // was typed in.
+      await tester.tap(find.byKey(const ValueKey('period-today')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('assigned-$health')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('assign-field')),
+        '70000',
+      );
+      await tester.tap(find.byKey(const ValueKey('period-next')));
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      final h = data.budgetAmounts.firstWhere((b) => b.categoryId == health);
+      expect((h.amount, h.date), (7000000, DateTime(2026, 9)));
+      await tidy(tester, db);
+    });
+
     testWidgets('the Budget screen lists categories with how they are used', (
       tester,
     ) async {
@@ -2663,7 +2791,7 @@ void main() {
       await tidy(tester, db);
     });
 
-    testWidgets('a category’s usage opens its rows, with a total', (
+    testWidgets('a category’s Spent opens its rows, with a total', (
       tester,
     ) async {
       final db = await pumpLedger(tester);
@@ -2673,7 +2801,7 @@ void main() {
       final groceries = ledger!.categories.firstWhere(
         (c) => c.name == 'Groceries',
       );
-      await tester.tap(find.byKey(ValueKey('category-rows-${groceries.id}')));
+      await tester.tap(find.byKey(ValueKey('spent-${groceries.id}')));
       await tester.pumpAndSettle();
       expect(find.text('Category: Groceries'), findsOneWidget);
       // The budget's period: this month, which the chip names.
@@ -2689,6 +2817,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
       expect(find.text('Sakura Coffee'), findsOneWidget);
+
+      // The usage, at the top of its ⋯ menu, opens every row, all time.
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('category-menu-${groceries.id}')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('2 rows · last'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('category-rows')));
+      await tester.pumpAndSettle();
+      expect(find.text('Category: Groceries'), findsOneWidget);
+      expect(find.byKey(const ValueKey('period-chip')), findsNothing);
       await tidy(tester, db);
     });
 

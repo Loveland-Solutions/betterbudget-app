@@ -4897,5 +4897,225 @@
       "date": {},
       "amount": {}
     }
+  },
+  "planAssigned": "Assigned",
+  "@planAssigned": {
+    "description": "Budget page: column title over what's assigned to each spending category this period (rule 26; owner's word, 2026-09-30, for the unclear \"Put in\")"
+  },
+  "planSpent": "Spent",
+  "@planSpent": {
+    "description": "Budget page: column title over what each spending category spent this period"
+  },
+  "planLeft": "Left",
+  "@planLeft": {
+    "description": "Budget page: column title over what each spending category holds now, what carried over included"
+  },
+  "planCameIn": "Came in",
+  "@planCameIn": {
+    "description": "Budget page: column title over what came in under each income category this period"
+  },
+  "planNotAssigned": "{amount} not assigned to a category yet",
+  "@planNotAssigned": {
+    "description": "Budget page, top line: money the user has that isn't assigned to any category",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planAssignedOver": "{amount} more assigned than you have",
+  "@planAssignedOver": {
+    "description": "Budget page, top line in coral: more was assigned to categories than the user has",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planAllAssigned": "Everything is assigned to a category",
+  "@planAllAssigned": {
+    "description": "Budget page, top line: nothing left to assign, nothing over"
+  },
+  "planNotAssignedTip": "{money} you have (cash and bank, less what cards owe), less {held} assigned to categories",
+  "@planNotAssignedTip": {
+    "description": "Budget page: tooltip on the top line, showing how it's worked out",
+    "placeholders": {
+      "money": {
+        "type": "String"
+      },
+      "held": {
+        "type": "String"
+      }
+    }
+  },
+  "planFromBefore": "{amount} from before",
+  "@planFromBefore": {
+    "description": "Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayPeriod": "Pay period",
+  "@planPayPeriod": {
+    "description": "Budget page: the period title when budgeting by pay period and it isn't the current one"
+  },
+  "planPeriodTitle": "{name} · {start}–{end}",
+  "@planPeriodTitle": {
+    "description": "Budget page: the period shown, beside the arrows. name is a month name, \"This month\", \"This pay period\" or \"Pay period\"; start and end are month.day",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "planPeriodPrev": "Previous period",
+  "@planPeriodPrev": {
+    "description": "Budget page: tooltip on the ‹ arrow"
+  },
+  "planPeriodNext": "Next period",
+  "@planPeriodNext": {
+    "description": "Budget page: tooltip on the › arrow"
+  },
+  "planBackToToday": "Back to today",
+  "@planBackToToday": {
+    "description": "Budget page: link beside the period title when another period is showing"
+  },
+  "planAssignTip": "Click to type how much to assign · Tab for the next",
+  "@planAssignTip": {
+    "description": "Budget page: tooltip on a category's Assigned amount"
+  },
+  "planAssignUndo": "Assign {amount} to {category}",
+  "@planAssignUndo": {
+    "description": "Undo history label for typing a category's Assigned amount (shown in Undone/Redone toasts)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planOtherCurrency": "Accounts in {symbol} aren't in the budget yet",
+  "@planOtherCurrency": {
+    "description": "Budget page: note under the top line when some accounts are in the other currency",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "planShowAllRows": "{usage} · show them",
+  "@planShowAllRows": {
+    "description": "Budget page: first item in a category's ⋯ menu; usage is e.g. \"42 rows · last 09.12 · 1 scheduled\"; opens every row, all time",
+    "placeholders": {
+      "usage": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardsOwe": "Cards owe {amount} more than you have in cash and bank",
+  "@planCardsOwe": {
+    "description": "Budget page, top line in coral when nothing is assigned and cards owe more than cash and bank hold",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planUncategorized": "{count} rows not categorized ({amount}), counted in the line above · show them",
+  "@planUncategorized": {
+    "description": "Budget page, under the top line: imported rows waiting in Not categorized; amount is signed (−₮ out, +₮ in); click opens them",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planStartOffer": "You're starting partway through this period: {amount} was already spent in {count} categories with nothing assigned, and it counts against them.",
+  "@planStartOffer": {
+    "description": "Budget page, gold note after the first amount is assigned in a period that already started (owner's call: offer to start next period)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "planStartLater": "Start the budget on {date} instead",
+  "@planStartLater": {
+    "description": "Budget page: button on the first-period note; moves what was assigned to the next period, which is where the budget then starts",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planStartKeep": "Keep it as it is",
+  "@planStartKeep": {
+    "description": "Budget page: button on the first-period note; closes it"
+  },
+  "planStartLaterUndo": "Start the budget on {date}",
+  "@planStartLaterUndo": {
+    "description": "Undo history label and toast for moving the budget's start to the next period",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyBack": "{amount} assigned to {category} goes back to not assigned",
+  "@planMoneyBack": {
+    "description": "Toast after deleting a category, or changing it to income, that held money in the budget",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLoanPaidFrom": "Payments come out of",
+  "@setupLoanPaidFrom": {
+    "description": "Account menu on a mortgage or student loan: submenu title; picks the spending category its payments come out of in the budget"
+  },
+  "setupLoanNoCategory": "No category",
+  "@setupLoanNoCategory": {
+    "description": "Account menu, loan's payments submenu: its payments come out of the money not assigned"
+  },
+  "setupLoanPaidFromUndo": "{loan} paid from {category}",
+  "@setupLoanPaidFromUndo": {
+    "description": "Toast and undo label after picking the category a loan's payments come out of",
+    "placeholders": {
+      "loan": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLoanNoCategoryUndo": "{loan} paid from no category",
+  "@setupLoanNoCategoryUndo": {
+    "description": "Toast and undo label after taking a loan's category off",
+    "placeholders": {
+      "loan": {
+        "type": "String"
+      }
+    }
   }
 }

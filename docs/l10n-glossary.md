@@ -117,6 +117,11 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | employer | ажил олгогч | |
 | (deleted) | (устгасан) | after an account name |
 | Budget by | төсвийн үе: сараар / цалингийн үеэр | |
+| assigned (a budget amount) | хуваарилсан | column title; to assign = хуваарилах |
+| spent / left | зарцуулсан / үлдсэн | the budget's other two columns |
+| not assigned to a category | ангилалд хуваарилаагүй | the budget's top line |
+| came in | орсон | income in a period |
+| from before | өмнөөс | what a category carried in |
 
 ## Word forms
 

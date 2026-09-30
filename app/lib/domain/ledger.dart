@@ -35,6 +35,15 @@ enum AppEquity { openingBalances, adjustments }
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// A calendar date as stored: `YYYY-MM-DD` (ADR 0001).
+String dateKey(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+DateTime parseDateKey(String s) {
+  final p = s.split('-').map(int.parse).toList();
+  return DateTime(p[0], p[1], p[2]);
+}
+
 class AccountInfo {
   const AccountInfo({
     required this.id,
@@ -441,6 +450,23 @@ typedef AccountDeletePreview = ({
 int _byName(AccountInfo a, AccountInfo b) =>
     a.name.toLowerCase().compareTo(b.name.toLowerCase());
 
+/// Money put into a spending category for the budget period starting
+/// [date] (rule 26).
+class BudgetAmount {
+  const BudgetAmount({
+    required this.categoryId,
+    required this.date,
+    required this.amount,
+    this.id,
+  });
+
+  /// Its row, so an undo puts back the same one (a merge's undo finds it).
+  final int? id;
+  final int categoryId;
+  final DateTime date;
+  final int amount;
+}
+
 class LedgerData {
   LedgerData({
     required List<AccountInfo> accounts,
@@ -449,7 +475,11 @@ class LedgerData {
     this.paySchedules = const [],
     this.stoppedPaySchedules = const [],
     this.prefs = const {},
+    this.budgetAmounts = const [],
   }) : accounts = {for (final a in accounts) a.id: a};
+
+  /// What's been put into each spending category, by period (rule 26).
+  final List<BudgetAmount> budgetAmounts;
 
   /// The user's small settings by key, such as the Savings answers.
   final Map<String, String> prefs;

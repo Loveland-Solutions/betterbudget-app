@@ -142,6 +142,23 @@ class Reconciliations extends Table {
   IntColumn get createdAt => integer()();
 }
 
+/// Money put into a spending category for a budget period (rule 26). Keyed
+/// by the day the period starts; a category's balance is every amount put
+/// in less what it spent since the budget began, so switching between
+/// months and pay periods loses nothing. A merge can leave two for the same
+/// category and day, and they add up.
+@DataClassName('BudgetAmountRow')
+class BudgetAmounts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId => integer().references(Accounts, #id)();
+
+  /// Calendar date as `YYYY-MM-DD`: the first day of its period.
+  TextColumn get date => text()();
+
+  /// Negative takes money back out.
+  IntColumn get amountMinor => integer()();
+}
+
 class UnbalancedTransactionException implements Exception {
   UnbalancedTransactionException(this.transactionId, this.sum);
   final int transactionId;
@@ -302,10 +319,18 @@ class PayChange {
 /// What [AppDatabase.deleteCategory] did: the category, and which entries
 /// moved to [into], so undo can move them back.
 class DeletedCategory {
-  const DeletedCategory(this.categoryId, this.into, this.entryIds);
+  const DeletedCategory(
+    this.categoryId,
+    this.into,
+    this.entryIds, [
+    this.budgetIds = const [],
+  ]);
   final int categoryId;
   final int? into;
   final List<int> entryIds;
+
+  /// Budget amounts that moved with a merge.
+  final List<int> budgetIds;
 }
 
 /// What [AppDatabase.deleteAccount] deleted, so undo can put it back.
@@ -497,14 +522,6 @@ String fileStamp(DateTime n) {
   return '${n.year}${two(n.month)}${two(n.day)}-${two(n.hour)}${two(n.minute)}${two(n.second)}';
 }
 
-String dateKey(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-DateTime parseDateKey(String s) {
-  final p = s.split('-').map(int.parse).toList();
-  return DateTime(p[0], p[1], p[2]);
-}
-
 @DriftDatabase(
   tables: [
     Accounts,
@@ -514,6 +531,7 @@ DateTime parseDateKey(String s) {
     Entries,
     Reconciliations,
     Preferences,
+    BudgetAmounts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -549,7 +567,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -622,6 +640,8 @@ class AppDatabase extends _$AppDatabase {
         if (from >= 5 && from < 9) {
           await _addColumnOnce(m, paySchedules, paySchedules.weekendKeep);
         }
+        // Drift makes it IF NOT EXISTS, so a relabeled file is safe too.
+        if (from < 10) await m.createTable(budgetAmounts);
       });
     },
     beforeOpen: (details) async {
@@ -709,6 +729,7 @@ class AppDatabase extends _$AppDatabase {
       'reconciliations',
       'entries',
       'preferences',
+      'budget_amounts',
     ];
     // A table added to the schema must be added here, or a restore drops it.
     assert(
@@ -778,6 +799,7 @@ class AppDatabase extends _$AppDatabase {
       entries,
       reconciliations,
       preferences,
+      budgetAmounts,
     },
   ).watch().asyncMap((_) => loadLedger());
 
@@ -797,6 +819,7 @@ class AppDatabase extends _$AppDatabase {
     final recRows = await select(reconciliations).get();
     final schedules = await select(paySchedules).get();
     final prefRows = await select(preferences).get();
+    final budgetRows = await select(budgetAmounts).get();
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -833,6 +856,15 @@ class AppDatabase extends _$AppDatabase {
           ),
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
+      budgetAmounts: [
+        for (final b in budgetRows)
+          BudgetAmount(
+            id: b.id,
+            categoryId: b.categoryId,
+            date: parseDateKey(b.date),
+            amount: b.amountMinor,
+          ),
+      ],
       txns: [
         for (final t in txnRows)
           TxnData(
@@ -1706,6 +1738,114 @@ class AppDatabase extends _$AppDatabase {
         AccountsCompanion(role: Value(role)),
       );
 
+  /// What [categoryId] has assigned for the period [start]–[end]: every
+  /// amount it has in the period goes, and one dated [start] takes their
+  /// place (none for 0). Returns what went, each on its own date, for
+  /// [restoreBudgetAmounts]. Amounts can sit anywhere in a period after
+  /// Settings switched between months and pay periods.
+  Future<List<BudgetAmount>> setBudgetAmount(
+    int categoryId,
+    DateTime start,
+    DateTime end,
+    int amount,
+  ) => transaction(() async {
+    await _assertCategory(categoryId);
+    final before = await _budgetIn(categoryId, start, end);
+    await _clearBudgetIn(categoryId, start, end);
+    if (amount != 0) {
+      await into(budgetAmounts).insert(
+        BudgetAmountsCompanion.insert(
+          categoryId: categoryId,
+          date: dateKey(dateOnly(start)),
+          amountMinor: amount,
+        ),
+      );
+    }
+    return before;
+  });
+
+  /// Undo for [setBudgetAmount]: [categoryId]'s amounts in [start]–[end]
+  /// back to [before], the same rows on their own dates.
+  Future<void> restoreBudgetAmounts(
+    int categoryId,
+    DateTime start,
+    DateTime end,
+    List<BudgetAmount> before,
+  ) => transaction(() async {
+    await _clearBudgetIn(categoryId, start, end);
+    for (final b in before) {
+      await into(budgetAmounts).insert(
+        BudgetAmountsCompanion.insert(
+          id: Value.absentIfNull(b.id),
+          categoryId: b.categoryId,
+          date: dateKey(dateOnly(b.date)),
+          amountMinor: b.amount,
+        ),
+      );
+    }
+  });
+
+  /// Every amount dated in [start]–[end] moves to [to]. Returns what moved
+  /// with its old date, for [unmoveBudgetAmounts].
+  Future<List<BudgetAmount>> moveBudgetAmounts(
+    DateTime start,
+    DateTime end,
+    DateTime to,
+  ) => transaction(() async {
+    final moved = [
+      for (final b in await (select(
+        budgetAmounts,
+      )..where((b) => _dateIn(b, start, end))).get())
+        _budgetAmount(b),
+    ];
+    await (update(budgetAmounts)..where((b) => _dateIn(b, start, end))).write(
+      BudgetAmountsCompanion(date: Value(dateKey(dateOnly(to)))),
+    );
+    return moved;
+  });
+
+  /// Undo for [moveBudgetAmounts].
+  Future<void> unmoveBudgetAmounts(List<BudgetAmount> moved) =>
+      transaction(() async {
+        for (final b in moved) {
+          await (update(budgetAmounts)..where((r) => r.id.equals(b.id!))).write(
+            BudgetAmountsCompanion(date: Value(dateKey(b.date))),
+          );
+        }
+      });
+
+  Expression<bool> _dateIn(
+    $BudgetAmountsTable b,
+    DateTime start,
+    DateTime end,
+  ) => b.date.isBetweenValues(dateKey(dateOnly(start)), dateKey(dateOnly(end)));
+
+  BudgetAmount _budgetAmount(BudgetAmountRow b) => BudgetAmount(
+    id: b.id,
+    categoryId: b.categoryId,
+    date: parseDateKey(b.date),
+    amount: b.amountMinor,
+  );
+
+  Future<List<BudgetAmount>> _budgetIn(
+    int categoryId,
+    DateTime start,
+    DateTime end,
+  ) async => [
+    for (final b
+        in await (select(budgetAmounts)..where(
+              (b) => b.categoryId.equals(categoryId) & _dateIn(b, start, end),
+            ))
+            .get())
+      _budgetAmount(b),
+  ];
+
+  Future<void> _clearBudgetIn(int categoryId, DateTime start, DateTime end) =>
+      (delete(budgetAmounts)..where(
+            (b) => b.categoryId.equals(categoryId) & _dateIn(b, start, end),
+          ))
+          .go();
+
   /// Sets a preference; null removes it.
   Future<void> setPreference(String key, String? value) => value == null
       ? (delete(preferences)..where((p) => p.key.equals(key))).go()
@@ -1729,6 +1869,7 @@ class AppDatabase extends _$AppDatabase {
   /// categories stay, with no rows in them. The caller saves a copy first.
   Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
       transaction(() async {
+        await delete(budgetAmounts).go();
         await delete(entries).go();
         await delete(reconciliations).go();
         await delete(transactions).go();
@@ -2306,6 +2447,7 @@ class AppDatabase extends _$AppDatabase {
       transaction(() async {
         await _assertCategory(categoryId);
         final moved = <int>[];
+        final budgetMoved = <int>[];
         if (into != null) {
           if (into == categoryId) {
             throw NotFoundException(DbProblem.sameCategory);
@@ -2330,13 +2472,24 @@ class AppDatabase extends _$AppDatabase {
           for (final t in txns) {
             await _touch(t);
           }
+          // What was put in moves too, so a merge keeps the money where it
+          // was going.
+          budgetMoved.addAll(
+            await (selectOnly(budgetAmounts)
+                  ..addColumns([budgetAmounts.id])
+                  ..where(budgetAmounts.categoryId.equals(categoryId)))
+                .map((r) => r.read(budgetAmounts.id)!)
+                .get(),
+          );
+          await (update(budgetAmounts)..where((b) => b.id.isIn(budgetMoved)))
+              .write(BudgetAmountsCompanion(categoryId: Value(into)));
         } else if (await categoryEntryCount(categoryId) > 0) {
           throw LockedException(DbProblem.stillHasRows);
         }
         await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
           AccountsCompanion(deletedAt: Value(_now)),
         );
-        return DeletedCategory(categoryId, into, moved);
+        return DeletedCategory(categoryId, into, moved, budgetMoved);
       });
 
   /// Undo for [deleteCategory]: the category back, and its rows back in it.
@@ -2349,6 +2502,9 @@ class AppDatabase extends _$AppDatabase {
     await (update(entries)
           ..where((e) => e.id.isIn(d.entryIds) & e.accountId.equals(into)))
         .write(EntriesCompanion(accountId: Value(d.categoryId)));
+    await (update(budgetAmounts)
+          ..where((b) => b.id.isIn(d.budgetIds) & b.categoryId.equals(into)))
+        .write(BudgetAmountsCompanion(categoryId: Value(d.categoryId)));
   });
 
   /// Undo for adding an account: deletes it only while nothing is in it.
