@@ -1084,8 +1084,32 @@ class WordsEn extends Words {
   }
 
   @override
-  String planNeverBelowToday(String amount) {
-    return 'Never below today’s $amount';
+  String planUntilPaycheck(String date) {
+    return 'Until your $date paycheck';
+  }
+
+  @override
+  String planLowestToday(String amount) {
+    return 'Lowest $amount, today';
+  }
+
+  @override
+  String get planPay => 'Pay';
+
+  @override
+  String get planNextPay => 'Next pay';
+
+  @override
+  String planNoBillsYet(String date) {
+    return 'No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until $date.';
+  }
+
+  @override
+  String get planAddBill => 'Add a bill →';
+
+  @override
+  String planChartPay(String amount) {
+    return '+$amount pay';
   }
 
   @override
@@ -1135,12 +1159,6 @@ class WordsEn extends Words {
 
   @override
   String get planNext30Days => 'Next 30 days';
-
-  @override
-  String get planUntilNextIncome => 'Until next income';
-
-  @override
-  String get planThroughPayPeriod => 'Through the next pay period';
 
   @override
   String get planAddPay => ' · no payday ahead · Add your pay →';

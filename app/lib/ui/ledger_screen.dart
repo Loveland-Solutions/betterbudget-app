@@ -593,7 +593,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
-  void _newEntry() {
+  /// ⌘N and + open the entry row on today; [on] opens it on another day
+  /// ("Add a bill" in the forecast: tomorrow, so it's scheduled).
+  void _newEntry({DateTime? on}) {
+    _entry.opensOn = on;
     setState(() {
       _section = AppSection.ledger;
       _adding = true;
@@ -2645,6 +2648,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       data.prefs[noRegularPayKey] == '1'
                   ? null
                   : () => _openPaySetup(account: account),
+              onAddBill: () => _newEntry(
+                on: DateTime(today.year, today.month, today.day + 1),
+              ),
               reconcile: _reconcile == null
                   ? null
                   : ReconcilePanel(

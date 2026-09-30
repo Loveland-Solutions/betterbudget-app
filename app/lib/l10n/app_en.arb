@@ -1567,9 +1567,48 @@
       }
     }
   },
-  "planNeverBelowToday": "Never below today’s {amount}",
-  "@planNeverBelowToday": {
-    "description": "Forecast headline when no scheduled bill takes the balance below today's Working total.",
+  "planUntilPaycheck": "Until your {date} paycheck",
+  "@planUntilPaycheck": {
+    "description": "Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planLowestToday": "Lowest {amount}, today",
+  "@planLowestToday": {
+    "description": "Forecast headline when no scheduled bill takes the balance below today's.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPay": "Pay",
+  "@planPay": {
+    "description": "Forecast list: the line for the next paycheck."
+  },
+  "planNextPay": "Next pay",
+  "@planNextPay": {
+    "description": "Forecast list, last line: the payday it runs up to (no amount; it isn't counted)."
+  },
+  "planNoBillsYet": "No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until {date}.",
+  "@planNoBillsYet": {
+    "description": "Forecast, under the list when pay is known but no bills are scheduled.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planAddBill": "Add a bill →",
+  "@planAddBill": {
+    "description": "Forecast link: opens the entry row dated tomorrow, so what's typed is scheduled."
+  },
+  "planChartPay": "+{amount} pay",
+  "@planChartPay": {
+    "description": "Forecast chart, label on the step up where the next paycheck lands.",
     "placeholders": {
       "amount": {
         "type": "String"
@@ -1649,14 +1688,6 @@
   "planNext30Days": "Next 30 days",
   "@planNext30Days": {
     "description": "Account header, forecast panel: small title above the headline when there is no payday ahead"
-  },
-  "planUntilNextIncome": "Until next income",
-  "@planUntilNextIncome": {
-    "description": "Account header, forecast panel: small title above the headline"
-  },
-  "planThroughPayPeriod": "Through the next pay period",
-  "@planThroughPayPeriod": {
-    "description": "Forecast, small label above the headline: it runs from today through the pay period the next paycheck starts, to the payday after it."
   },
   "planAddPay": " · no payday ahead · Add your pay →",
   "@planAddPay": {

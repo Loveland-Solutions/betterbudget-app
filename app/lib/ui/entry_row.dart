@@ -64,6 +64,10 @@ class EntryRowController {
   /// one account is picked once.
   AccountInfo? account;
 
+  /// The date a new row opens on; null for today. "Add a bill" opens it on
+  /// tomorrow, so what's typed there is scheduled, not spent today.
+  DateTime? opensOn;
+
   /// Set by the row: whether anything has been typed or changed.
   bool Function() isDirty = () => false;
 
@@ -233,7 +237,7 @@ class _EntryRowState extends State<EntryRow> {
   bool get _editing => _initial != null;
 
   late final _date = TextEditingController(
-    text: fullDate(_initial?.date ?? widget.today),
+    text: fullDate(_initial?.date ?? widget.controller.opensOn ?? widget.today),
   );
   late final _payee = TextEditingController(text: _initial?.payee ?? '');
   late final _memo = TextEditingController(text: _initial?.memo ?? '');

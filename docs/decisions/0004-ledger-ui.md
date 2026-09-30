@@ -666,12 +666,22 @@ What's known so far:
     tomorrow it showed one day). From today, the next paycheck is a step up (its
     date labelled under a green line), and the forecast ends as the paycheck after
     it lands, a date from the pay plan (only the next payday is ever scheduled).
-    The label reads "Through the next pay period". Bills on that last payday count;
+    The label reads "Until your 10.15 paycheck" (first tried "Through the next pay
+    period"; owner, 2026-09-30: a new user can't tell what it means). Bills on that last payday count;
     money in on it doesn't, except a transfer. Without a plan (pay scheduled by
     hand, or a bonus while the plan's own payday is scheduled) it ends at payday as
     before. Rejected: at least 30 days, ending on a payday (B), and the next payday
-    unless it's within a week (C). **From the reviews:** the headline says "Never
-    below today's ₮X" when nothing takes the balance under today's, and "Lowest ₮X
+    unless it's within a week (C). **It has to read for someone new** (owner's
+    correction, 2026-09-30, on a flat line with a jump under "Never below today's
+    ₮4,289,291": "What does it mean?"; option A of three). With pay but no bills,
+    there's no chart: a list (Today ₮X · 10.01 Pay +₮Y · 10.15 Next pay), then "No
+    bills scheduled yet. Add rent, phone and other bills to see if your money lasts
+    until 10.15." and **Add a bill →**, which opens the entry row dated tomorrow so
+    it's scheduled. With bills, the chart names its amounts beside their points:
+    where it starts, the lowest point, and "+₮Y pay" on the paycheck's step (one
+    that would cover another is left off). Rejected: a labeled chart even with no
+    bills (B), and always a list, no chart (C). **From the reviews:** the headline
+    says "Lowest ₮X, today" when nothing goes under today's balance, and "Lowest ₮X
     on 10.01, after payday" when the low leans on the paycheck; the lines under it
     say "through 10.10" (that day's bills count), not "before"; a moved split
     paycheck is matched to its payday by amount. Left for later: a "scheduled bills

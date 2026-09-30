@@ -2838,13 +2838,28 @@ void main() {
       // The forecast runs through the period that paycheck starts, to the
       // one after it (every 2 weeks: 10.09).
       expect(find.byKey(const ValueKey('add-pay')), findsNothing);
-      expect(find.text('Through the next pay period'), findsOneWidget);
-      expect(find.text('No bills through 10.09'), findsOneWidget);
-      expect(find.text('Never below today’s ₮86,500'), findsOneWidget);
+      // Pay but no bills: in words, not a flat chart (owner, 2026-09-30).
+      expect(find.text('Until your 10.09 paycheck'), findsOneWidget);
+      expect(find.byKey(const ValueKey('forecast-known')), findsOneWidget);
+      expect(find.text('+₮2,100,000'), findsOneWidget);
+      expect(find.text('Next pay'), findsOneWidget);
+      expect(
+        find.text(
+          'No bills scheduled yet. Add rent, phone and other bills to see '
+          'if your money lasts until 10.09.',
+        ),
+        findsOneWidget,
+      );
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_pay_period.png'),
       );
+      // Add a bill opens the entry row on tomorrow, so it's scheduled.
+      await tester.tap(find.byKey(const ValueKey('add-bill')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '2026.09.17'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
@@ -2863,6 +2878,33 @@ void main() {
       await settle(tester);
       final ledger = await tester.runAsync(db.loadLedger);
       expect(ledger!.paySchedules, isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('with bills, the chart names its amounts', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final checking = data.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id;
+        final salary = data.categories.firstWhere((c) => c.name == 'Salary');
+        await db.savePaySchedule(
+          categoryId: salary.id,
+          accountId: checking,
+          amount: 250000000,
+          rule: PayRule.twiceMonthly,
+          day1: 25,
+          day2: 10,
+          today: DateTime(2026, 9, 16),
+        );
+      });
+      await settle(tester);
+      expect(find.textContaining('paycheck'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_labeled.png'),
+      );
       await tidy(tester, db);
     });
 

@@ -36,7 +36,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   (it's each paycheck), a dark theme built from one color in lighter and darker
   shades (surfaces should differ), "tögrög" in English (spell it "tugrik"), and sidebar
   balances rounded to whole units (show the cents), a toast when an account is made,
-  "settled" (the app's word is cleared), and "Put in how much comes" for pay.
+  "settled" (the app's word is cleared), "Put in how much comes" for pay, and a
+  forecast a new user couldn't read (unlabeled chart, "Never below today's").
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

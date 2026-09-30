@@ -1524,11 +1524,47 @@ abstract class Words {
   /// **'Lowest {amount} on {date}'**
   String planLowest(String amount, String date);
 
-  /// Forecast headline when no scheduled bill takes the balance below today's Working total.
+  /// Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).
   ///
   /// In en, this message translates to:
-  /// **'Never below today’s {amount}'**
-  String planNeverBelowToday(String amount);
+  /// **'Until your {date} paycheck'**
+  String planUntilPaycheck(String date);
+
+  /// Forecast headline when no scheduled bill takes the balance below today's.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest {amount}, today'**
+  String planLowestToday(String amount);
+
+  /// Forecast list: the line for the next paycheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get planPay;
+
+  /// Forecast list, last line: the payday it runs up to (no amount; it isn't counted).
+  ///
+  /// In en, this message translates to:
+  /// **'Next pay'**
+  String get planNextPay;
+
+  /// Forecast, under the list when pay is known but no bills are scheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until {date}.'**
+  String planNoBillsYet(String date);
+
+  /// Forecast link: opens the entry row dated tomorrow, so what's typed is scheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a bill →'**
+  String get planAddBill;
+
+  /// Forecast chart, label on the step up where the next paycheck lands.
+  ///
+  /// In en, this message translates to:
+  /// **'+{amount} pay'**
+  String planChartPay(String amount);
 
   /// Forecast headline when the lowest point comes after the next paycheck, so it counts on that pay arriving on time and in full.
   ///
@@ -1576,18 +1612,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Next 30 days'**
   String get planNext30Days;
-
-  /// Account header, forecast panel: small title above the headline
-  ///
-  /// In en, this message translates to:
-  /// **'Until next income'**
-  String get planUntilNextIncome;
-
-  /// Forecast, small label above the headline: it runs from today through the pay period the next paycheck starts, to the payday after it.
-  ///
-  /// In en, this message translates to:
-  /// **'Through the next pay period'**
-  String get planThroughPayPeriod;
 
   /// Account header, forecast panel: gold link after the small title; opens pay setup
   ///
