@@ -12,7 +12,8 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #25 (the items tabled 2026-09-30: the
+**Git state:** `main` has everything through PR #26 (the Budget page's first slice:
+envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
 Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
@@ -189,7 +190,7 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**The budget page, first slice** (2026-09-30, branch `budget-envelopes`): the owner picked
+**The budget page, first slice** (2026-09-30, PR #26): the owner picked
 envelopes with Assigned · Spent · Left, overspending carried as minus, and card debt
 reducing the money (ADR 0004 rule 26); then, from both reviews, starting partway through a
 period offers the next one, "Not categorized" holds no money, and loan payments come out
