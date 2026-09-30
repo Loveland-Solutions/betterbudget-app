@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -102,6 +102,7 @@ scheduled items.
 | [0003](decisions/0003-double-entry-schema.md) | Double-entry storage, categories as accounts, accounting hidden from the UI. |
 | [0004](decisions/0004-ledger-ui.md) | Steppe night look (dark) and 24 ledger rules: purpose, forecast (late money in not counted), one amount column, full dates, clock/check/diamond symbols, header as a cleared + uncleared = working sum, any-order entry, one-row selection with an action bar, session undo with toasts only for saved changes, confirm (opens the bill; still owed), in-place editing that grows smoothly, shortcuts that never steal typing, sectioned sidebar, date calendar, reconcile in the header, transfer direction, Move to, backups in Settings, notes on old rows, accounts managed where they're used (warn, don't block), categories on the Budget screen, an All accounts view, pay and paydays. |
 | [0005](decisions/0005-mobile-companion.md) | Phone apps record transactions and show what's left in budgets; not a full budget app. Sync through a user-picked Drive/OneDrive folder with one writer per file (Mac snapshot, one inbox per phone), so no merge. Phones see each other's entries. Entries go straight into the register. |
+| [0006](decisions/0006-version-numbers.md) | Semantic versions, 0.x until the public release (started at 0.1.0); minor per feature PR, patch per fix. Build number = git commit count, set by a macOS build phase. Settings shows "Version 0.1.0 (134)". |
 
 Full ledger feature map, with what's built marked: [ledger-features.md](ledger-features.md).
 
@@ -390,6 +391,12 @@ been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
 
+- **PR #28 (2026-09-30):** **Version numbers** (ADR 0006). Semantic, started fresh at
+  0.1.0: minor per feature PR, patch per fix, 1.0.0 is the public release. The build
+  number is the commit count, written into the built `Info.plist` by a macOS build
+  phase. Settings shows "Version 0.1.0 (133)" at the bottom (`package_info_plus`, reads
+  the bundle only). No CI: the owner has no paid GitHub plan yet, so builds and
+  releases stay local for now.
 - **PR #24 (2026-09-30):** **Import** from any bank's file (TDB's `.xls` with a reader
   written for it, `.xlsx`, CSV): the file's own columns with a choice over each,
   remembered per account, a balance-chain check, dedup keys on each account's entry
@@ -464,6 +471,8 @@ been used for typing but a register undo there hasn't been tried.
   (plus `-wal`, `-shm`). **Since 2026-09-30 this is the owner's real ledger: never
   delete, reseed, erase or edit it.** Work with demo data in tests, or in a separate
   copy the owner agrees to.
+- **Version:** bump `version:` in `app/pubspec.yaml` in each feature or fix PR (ADR
+  0006); the build number comes from git on its own.
 - **Rebuild and relaunch:** `pkill -f "BetterBudget.app/Contents/MacOS"; flutter build
   macos --debug && open build/macos/Build/Products/Debug/BetterBudget.app` (from `app/`).
 - **Screenshots of the running app** (for checking UI changes): `screencapture -l<window

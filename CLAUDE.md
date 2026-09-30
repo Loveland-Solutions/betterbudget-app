@@ -112,6 +112,8 @@ the owner rather than fixing everything silently:
 cd app && flutter analyze && flutter test
 ```
 
+- Bump `version:` in `app/pubspec.yaml` in each feature PR (minor) or fix PR (patch);
+  the build number comes from git ([ADR 0006](docs/decisions/0006-version-numbers.md)).
 - Visual changes: `flutter test --update-goldens`, then look at the PNGs in
   `test/goldens/`, then rebuild and relaunch the macOS app.
 - Widget tests that touch the database must do the I/O inside `tester.runAsync` (see

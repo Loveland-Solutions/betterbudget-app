@@ -749,6 +749,11 @@ class WordsMn extends Words {
       'Энэ нь дэвтрийн бүх данс, гүйлгээг устгаж, та хоосноос эхэлнэ. Ангиллууд үлдэх эсэхийг та сонгоно. Одоо байгаа өгөгдөл тань эхлээд нөөц хуулбарт хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.';
 
   @override
+  String settingsVersion(String version, String build) {
+    return 'Хувилбар $version ($build)';
+  }
+
+  @override
   String get ledgerEraseAndStartOverButton => 'Бүгдийг устгаж шинээр эхлэх…';
 
   @override

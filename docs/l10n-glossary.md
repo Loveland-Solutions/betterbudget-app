@@ -93,6 +93,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | not categorized | ангилаагүй | the category imported rows wait in |
 | sidebar | хажуугийн цэс | |
 | back up to… / restore from… | нөөцлөх… / нөөцөөс сэргээх… | |
+| version (of the app) | хувилбар | Settings: "Хувилбар 0.1.0 (134)" |
 | daily copy | өдрийн хуулбар | |
 | working (balance) | үлдэгдэл | never "боломжит": that's the bank's available balance, which the app tells people not to type |
 | adjustment | залруулга | from a reconcile |

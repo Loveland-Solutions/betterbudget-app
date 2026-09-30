@@ -1104,6 +1104,12 @@ abstract class Words {
   /// **'This erases every account and transaction in this ledger, so you start empty. You choose whether your categories stay. What you have now is saved in Backups first, and Undo brings it back.'**
   String get ledgerStartOverNote;
 
+  /// Settings, bottom of the page: the app's version and, in brackets, its build number (the repo's commit count). Example: Version 0.1.0 (134).
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} ({build})'**
+  String settingsVersion(String version, String build);
+
   /// Settings → Start over card, button.
   ///
   /// In en, this message translates to:

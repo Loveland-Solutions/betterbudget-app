@@ -22,6 +22,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'xls_fixture.dart';
 
@@ -3813,6 +3814,41 @@ void main() {
     expect(find.textContaining('opening balance now'), findsOneWidget);
     final data = (await tester.runAsync(db.loadLedger))!;
     expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
+  });
+
+  // Last in the file: the mock version can't be unset, and every test above
+  // relies on the line being hidden when there's no bundle to read.
+  testWidgets('Settings shows the version and build number', (tester) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'BetterBudget',
+      packageName: 'com.lovelandsolutions.betterbudget',
+      version: '0.1.0',
+      buildNumber: '134',
+      buildSignature: '',
+    );
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(NativeDatabase.memory());
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(),
+          home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 30, 10)),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('app-version')),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Version 0.1.0 (134)'), findsOneWidget);
     await tidy(tester, db);
   });
 }
