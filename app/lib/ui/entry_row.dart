@@ -20,7 +20,12 @@ class EntryDraft {
     this.keepOwed = false,
     this.newCategory,
     this.account,
+    this.otherAmount,
   });
+
+  /// A transfer to or from an account in another currency: what arrived in
+  /// it or left it, in its currency, unsigned. Null otherwise.
+  final int? otherAmount;
 
   /// All accounts: the account the new row goes in. Null in an account's
   /// own register, where it's that account.
@@ -92,6 +97,7 @@ class EditInitial {
        },
        row = r,
        amount = r.amount,
+       otherAmount = r.otherAmount?.abs(),
        locked = r.locked,
        lockDate = r.locked,
        // A reconciled transfer can't move to another account; a reconciled
@@ -119,6 +125,9 @@ class EditInitial {
       ? '→ ${rowPayee(t, row)}'
       : rowCategory(t, row);
   final int amount;
+
+  /// A transfer between currencies: the other account's side, unsigned.
+  final int? otherAmount;
 
   /// Reconciled (here or on a transfer's other side): the date and amount
   /// match a bank statement.
@@ -193,7 +202,11 @@ class EntryRow extends StatefulWidget {
     this.onCancel,
     this.accountName,
     this.accountChoices,
+    this.currency = Currency.mnt,
   });
+
+  /// The register's account's currency; All accounts uses the picked one's.
+  final Currency currency;
 
   /// The register's account, so a transfer can say which way it goes.
   final String? accountName;
@@ -228,12 +241,18 @@ class _EntryRowState extends State<EntryRow> {
   late final _amount = TextEditingController(
     text: _initial == null ? '' : editableAmount(_initial.amount),
   );
+  late final _otherAmount = TextEditingController(
+    text: _initial?.otherAmount == null
+        ? ''
+        : editableAmount(_initial!.otherAmount!),
+  );
   late final List<TextEditingController> _all = [
     _date,
     _payee,
     _memo,
     _category,
     _amount,
+    _otherAmount,
   ];
   late final Map<TextEditingController, String> _start = {
     for (final c in _all) c: c.text,
@@ -244,6 +263,7 @@ class _EntryRowState extends State<EntryRow> {
   final _categoryFocus = FocusNode(debugLabel: 'entry-category');
   final _accountFocus = FocusNode(debugLabel: 'entry-account');
   final _amountFocus = FocusNode(debugLabel: 'entry-amount');
+  final _otherAmountFocus = FocusNode(debugLabel: 'entry-other-amount');
   String? _error;
   bool _busy = false;
 
@@ -266,6 +286,7 @@ class _EntryRowState extends State<EntryRow> {
     _memoFocus,
     _categoryFocus,
     _amountFocus,
+    _otherAmountFocus,
   ];
 
   /// The "+ New category" line in the list: not an account yet.
@@ -287,6 +308,39 @@ class _EntryRowState extends State<EntryRow> {
 
   /// All accounts, adding: the row asks which account.
   bool get _picking => widget.accountChoices != null && !_editing;
+
+  /// What this row's amount is in.
+  Currency get _hereCurrency => _picking
+      ? (widget.controller.account?.currency ?? widget.currency)
+      : widget.currency;
+
+  /// The account a transfer typed in Category goes to or comes from.
+  AccountInfo? get _transferOther {
+    if (!_isTransfer) return null;
+    final q = _category.text.trim().toLowerCase();
+    return _counterOptions
+        .where((o) => o.account.isBalanceSheet && o.label.toLowerCase() == q)
+        .map((o) => o.account)
+        .firstOrNull;
+  }
+
+  /// A transfer with an account in another currency: both sides are asked
+  /// for, since no rate is stored (ROADMAP E).
+  AccountInfo? get _exchangeWith {
+    if (_initial?.lockCategory ?? false) {
+      final r = _initial!.row;
+      return r.otherCurrency == null
+          ? null
+          : AccountInfo(
+              id: -2,
+              name: r.payee,
+              type: AccountType.asset,
+              currency: r.otherCurrency!,
+            );
+    }
+    final other = _transferOther;
+    return other != null && other.currency != _hereCurrency ? other : null;
+  }
 
   /// The account the row is in, for the transfer sentence.
   String? get _here =>
@@ -427,7 +481,7 @@ class _EntryRowState extends State<EntryRow> {
     return amount == null
         ? context.t.rowsTransferFromTo(from, to)
         : context.t.rowsTransferAmountFromTo(
-            formatMoney(amount.abs()),
+            formatMoney(amount.abs(), currency: _hereCurrency),
             from,
             to,
           );
@@ -612,6 +666,14 @@ class _EntryRowState extends State<EntryRow> {
       (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount && (parsed == null || parsed == 0)) {
       (error, fix) = (t.rowsErrorAmount(raw), _amountFocus);
+    } else if (_exchangeWith case final other?
+        when !lockAmount && (_otherParsed ?? 0) == 0) {
+      (error, fix) = (
+        isInflow
+            ? t.rowsErrorLeftOther(other.name)
+            : t.rowsErrorArrivesOther(other.name),
+        _otherAmountFocus,
+      );
     }
     if (error != null) {
       fix!.requestFocus();
@@ -632,6 +694,7 @@ class _EntryRowState extends State<EntryRow> {
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
         newCategory: counter == null ? _newCategory : null,
         account: _picking ? widget.controller.account : null,
+        otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
       ),
     );
     if (!mounted) return;
@@ -642,6 +705,9 @@ class _EntryRowState extends State<EntryRow> {
       _reset();
     }
   }
+
+  int? get _otherParsed =>
+      parseAmount(_otherAmount.text.trim().replaceFirst(RegExp(r'^\+'), ''));
 
   /// The note (what's missing, the sum, an error) and Add.
   Widget _submitLine(int? preview, bool showsMath) => Row(
@@ -671,8 +737,11 @@ class _EntryRowState extends State<EntryRow> {
       (text, color) = (
         // The new-category note stays in sight while the sum shows.
         _newCategory == null
-            ? t.rowsSum(formatMoney(preview!))
-            : t.rowsSumWithNote(formatMoney(preview!), _newCategoryNote),
+            ? t.rowsSum(formatMoney(preview!, currency: _hereCurrency))
+            : t.rowsSumWithNote(
+                formatMoney(preview!, currency: _hereCurrency),
+                _newCategoryNote,
+              ),
         Mid.ink2,
       );
     } else if (_newCategory != null) {
@@ -894,8 +963,11 @@ class _EntryRowState extends State<EntryRow> {
                                   child: _locked(
                                     // As the register shows it: out plain, in with +.
                                     initial.amount > 0
-                                        ? '+${formatMoney(initial.amount)}'
-                                        : formatMoney(initial.amount.abs()),
+                                        ? '+${formatMoney(initial.amount, currency: _hereCurrency)}'
+                                        : formatMoney(
+                                            initial.amount.abs(),
+                                            currency: _hereCurrency,
+                                          ),
                                     tip: initial.locked
                                         ? reconciledTip
                                         : t.rowsSplitTotalFollows,
@@ -970,6 +1042,18 @@ class _EntryRowState extends State<EntryRow> {
                         onSwap: initial != null && initial.lockAmount
                             ? null
                             : _swapDirection,
+                      ),
+                    if (_exchangeWith case final other?)
+                      _ExchangeLine(
+                        other: other,
+                        inflow: _amount.text.trim().startsWith('+'),
+                        here: _hereCurrency,
+                        hereAmount: preview,
+                        controller: _otherAmount,
+                        focusNode: _otherAmountFocus,
+                        locked: initial != null && initial.lockAmount,
+                        wanted: _hasContent && (_otherParsed ?? 0) == 0,
+                        onSubmitted: _submit,
                       ),
                   ],
                 ),
@@ -1064,6 +1148,92 @@ class _OwedLine extends StatelessWidget {
   }
 }
 
+/// A transfer with an account in another currency: what arrived there (or
+/// left it) in that currency, and the rate the two amounts make.
+class _ExchangeLine extends StatelessWidget {
+  const _ExchangeLine({
+    required this.other,
+    required this.inflow,
+    required this.here,
+    required this.hereAmount,
+    required this.controller,
+    required this.focusNode,
+    required this.locked,
+    required this.wanted,
+    required this.onSubmitted,
+  });
+  final AccountInfo other;
+  final bool inflow;
+  final Currency here;
+  final int? hereAmount;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool locked;
+  final bool wanted;
+  final VoidCallback onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final there = parseAmount(
+      controller.text.trim().replaceFirst(RegExp(r'^\+'), ''),
+    );
+    final per = mntPerDollar(hereAmount, here, there, other.currency);
+    final rate = per == null ? null : formatMoney(per);
+    return Container(
+      key: const ValueKey('exchange-line'),
+      width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(left: 10),
+      child: Row(
+        children: [
+          Icon(Icons.currency_exchange_rounded, size: 14, color: Mid.ink3),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              inflow
+                  ? t.rowsLeftOther(other.name)
+                  : t.rowsArrivesOther(other.name),
+              style: onest(12.5, color: Mid.ink2),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 130,
+            child: locked
+                ? Text(
+                    there == null
+                        ? ''
+                        : formatMoney(there, currency: other.currency),
+                    style: onest(12.5, color: Mid.ink3, tabular: true),
+                  )
+                : _Field(
+                    key: const ValueKey('exchange-amount'),
+                    controller: controller,
+                    focusNode: focusNode,
+                    hint: '${other.currency.symbol}0.00',
+                    tabular: true,
+                    small: true,
+                    align: TextAlign.right,
+                    wanted: wanted,
+                    onSubmitted: (_) => onSubmitted(),
+                  ),
+          ),
+          if (rate != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              t.rowsRatePerDollar(rate),
+              style: onest(12, color: Mid.ink3, tabular: true),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// Which way a transfer goes, under its category and amount, lined up with
 /// the memo line. Swap turns it around.
 class _TransferLine extends StatelessWidget {
@@ -1143,6 +1313,7 @@ InputDecoration _decoration(
 
 class _Field extends StatelessWidget {
   const _Field({
+    super.key,
     required this.controller,
     required this.focusNode,
     required this.hint,

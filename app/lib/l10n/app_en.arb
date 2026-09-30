@@ -3222,13 +3222,19 @@
       }
     }
   },
-  "setupStartOwedHint": "What you’ve used, not the available limit · empty starts at ₮0",
+  "setupStartOwedHint": "What you’ve used, not the available limit · empty starts at {zero}",
   "@setupStartOwedHint": {
-    "description": "First screen of a new card or loan account, note under the fields before typing."
+    "description": "A new card or loan's first screen, under the amount. zero is ₮0 or $0.",
+    "placeholders": {
+      "zero": {}
+    }
   },
-  "setupStartBankHint": "From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0",
+  "setupStartBankHint": "From the bank app, a statement or what you count, not the “available” balance · empty starts at {zero}",
   "@setupStartBankHint": {
-    "description": "First screen of a new bank account, note under the fields before typing."
+    "description": "A new bank account's first screen, under the amount. zero is ₮0 or $0.",
+    "placeholders": {
+      "zero": {}
+    }
   },
   "setupStartAccount": "Start account",
   "@setupStartAccount": {
@@ -4688,6 +4694,80 @@
       "count": {
         "type": "int"
       }
+    }
+  },
+  "rowsLeftOther": "Left {account}:",
+  "@rowsLeftOther": {
+    "description": "Entry row, under a transfer from an account in another currency: before the field for what left it.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsArrivesOther": "Arrives in {account}:",
+  "@rowsArrivesOther": {
+    "description": "Entry row, under a transfer to an account in another currency: before the field for what arrives there.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsErrorLeftOther": "Say how much left {account}",
+  "@rowsErrorLeftOther": {
+    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsErrorArrivesOther": "Say how much arrives in {account}",
+  "@rowsErrorArrivesOther": {
+    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsRatePerDollar": "{rate} per $1",
+  "@rowsRatePerDollar": {
+    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tögrög, like ₮3,450.00.",
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "ledgerDbOtherCurrency": "That account is in another currency",
+  "@ledgerDbOtherCurrency": {
+    "description": "Toast when a row can't move to an account in another currency."
+  },
+  "ledgerDbNeedsOtherAmount": "Say how much arrives in the other currency",
+  "@ledgerDbNeedsOtherAmount": {
+    "description": "Toast when a transfer between currencies has only one amount."
+  },
+  "setupCurrency": "Currency",
+  "@setupCurrency": {
+    "description": "New account page: label before the currency choice."
+  },
+  "setupCurrencyMnt": "₮ Tögrög",
+  "@setupCurrencyMnt": {
+    "description": "New account page: currency choice."
+  },
+  "setupCurrencyUsd": "$ Dollar",
+  "@setupCurrencyUsd": {
+    "description": "New account page: currency choice."
+  },
+  "setupCurrencyHint": "Every amount in this account is in it. Net worth shows each currency on its own line.",
+  "@setupCurrencyHint": {
+    "description": "New account page, under the currency choice."
+  },
+  "savingsOnlyCurrency": "Counted in {symbol} only: accounts in other currencies aren’t in these sums yet.",
+  "@savingsOnlyCurrency": {
+    "description": "Savings, under the steps, when some accounts are in another currency.",
+    "placeholders": {
+      "symbol": {}
+    }
+  },
+  "rowsExchangeNote": "{amount} there · {rate} per $1",
+  "@rowsExchangeNote": {
+    "description": "Register, memo line of a transfer between currencies: what the other account got or sent in its currency, and the rate.",
+    "placeholders": {
+      "amount": {},
+      "rate": {}
     }
   }
 }

@@ -192,6 +192,36 @@ String shortDate(DateTime d) =>
 /// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
 String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
 
+/// The currency the amounts below it are in: an account's page, one row of
+/// All accounts, a dialog about one account. Tögrög when nothing says.
+class CurrencyScope extends InheritedWidget {
+  const CurrencyScope({
+    super.key,
+    required this.currency,
+    required super.child,
+  });
+  final Currency currency;
+
+  static Currency of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CurrencyScope>()?.currency ??
+      Currency.mnt;
+
+  @override
+  bool updateShouldNotify(CurrencyScope old) => old.currency != currency;
+}
+
+/// [minor] in the currency of where it's shown: `₮4,182,450.00`.
+String moneyIn(BuildContext context, int minor, {bool showCents = true}) =>
+    formatMoney(
+      minor,
+      showCents: showCents,
+      currency: CurrencyScope.of(context),
+    );
+
+/// Whole units in the currency of where it's shown: `−₮4,182,450`.
+String roundedIn(BuildContext context, int minor) =>
+    formatRounded(minor, currency: CurrencyScope.of(context));
+
 /// Amount with the cents quieter than the whole part.
 class Money extends StatelessWidget {
   const Money(
@@ -204,7 +234,11 @@ class Money extends StatelessWidget {
     this.centsScale = 1,
     this.sign = MoneySign.negativeOnly,
     this.letterSpacing,
+    this.currency,
   });
+
+  /// Null: the [CurrencyScope]'s.
+  final Currency? currency;
 
   final int minor;
   final double size;
@@ -226,7 +260,8 @@ class Money extends StatelessWidget {
       TextSpan(
         children: [
           TextSpan(
-            text: '$prefix₮${formatWhole(minor)}',
+            text:
+                '$prefix${(currency ?? CurrencyScope.of(context)).symbol}${formatWhole(minor)}',
             style: onest(
               size,
               weight: weight,

@@ -81,6 +81,7 @@ class RegisterPanel extends StatelessWidget {
     required this.hoveredStatus,
     required this.categories,
     required this.transferTargets,
+    this.currency = Currency.mnt,
     this.allAccounts,
     required this.entryController,
     required this.today,
@@ -126,6 +127,9 @@ class RegisterPanel extends StatelessWidget {
   final List<AccountInfo> categories;
   final List<AccountInfo> transferTargets;
 
+  /// The register's account's currency, for the row that adds.
+  final Currency currency;
+
   /// All accounts: each row's account by id. The last column names it, in
   /// place of a running balance that would mix accounts, and the entry row
   /// asks which account a new row goes in.
@@ -138,7 +142,7 @@ class RegisterPanel extends StatelessWidget {
   bool _matches(Words t, RegisterRow r) {
     final q = search.trim().toLowerCase();
     if (q.isEmpty) return true;
-    final digits = q.replaceAll(RegExp(r'[,\s₮]'), '');
+    final digits = q.replaceAll(RegExp(r'[,\s₮$]'), '');
     return rowPayee(t, r).toLowerCase().contains(q) ||
         r.memo.toLowerCase().contains(q) ||
         (_accountOf(r)?.toLowerCase().contains(q) ?? false) ||
@@ -203,6 +207,7 @@ class RegisterPanel extends StatelessWidget {
             .toList(),
         today: today,
         accountName: _accountOf(r) ?? accountName,
+        currency: r.currency,
         initial: EditInitial.fromRow(
           r,
           focus: e.focus,
@@ -359,6 +364,7 @@ class RegisterPanel extends StatelessWidget {
                     transferTargets: transferTargets,
                     today: today,
                     accountName: accountName,
+                    currency: currency,
                     accountChoices: allAccounts == null
                         ? null
                         : transferTargets,
@@ -544,13 +550,18 @@ class _RowActions extends StatelessWidget {
     // A transfer can't move onto its own other side; an opening balance
     // belongs to its account.
     // In All accounts the list has every account, its own included.
-    final targets = accounts
-        .where(
-          (a) =>
-              a.id != r.accountId &&
-              !(r.kind == RowKind.transfer && a.name == r.payee),
-        )
-        .toList();
+    // Only accounts in the same currency: the amount means something else
+    // in another one, and a transfer between currencies stays where it is.
+    final targets = r.otherAmount != null
+        ? const <AccountInfo>[]
+        : accounts
+              .where(
+                (a) =>
+                    a.id != r.accountId &&
+                    a.currency == r.currency &&
+                    !(r.kind == RowKind.transfer && a.name == r.payee),
+              )
+              .toList();
     final move = r.kind != RowKind.opening && targets.isNotEmpty
         ? CategoryMenu(
             categories: targets,
@@ -794,14 +805,38 @@ class _PostedRow extends StatelessWidget {
   final ValueNotifier<Cleared?> hoveredStatus;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => CurrencyScope(
+    currency: row.currency,
+    child: Builder(builder: _build),
+  );
+
+  Widget _build(BuildContext context) {
     final t = context.t;
     final selected = bar != null;
     final r = row;
     final memo = r.kind == RowKind.split && r.memo.isEmpty
         ? r.splitLines
-              .map((l) => '${splitLineName(t, l)} ₮${formatWhole(l.amount)}')
+              .map(
+                (l) =>
+                    '${splitLineName(t, l)} ${r.currency.symbol}${formatWhole(l.amount)}',
+              )
               .join(' · ')
+        : r.otherAmount != null
+        ? [
+            if (r.memo.isNotEmpty) r.memo,
+            t.rowsExchangeNote(
+              formatMoney(r.otherAmount!.abs(), currency: r.otherCurrency!),
+              formatMoney(
+                mntPerDollar(
+                      r.amount,
+                      r.currency,
+                      r.otherAmount,
+                      r.otherCurrency!,
+                    ) ??
+                    0,
+              ),
+            ),
+          ].join(' · ')
         : r.memo;
     final stale = staleNoteIn(t, r, today);
     final statusTip = r.clearedIn == null
@@ -1077,7 +1112,12 @@ class _ScheduledRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => CurrencyScope(
+    currency: row.currency,
+    child: Builder(builder: _build),
+  );
+
+  Widget _build(BuildContext context) {
     final t = context.t;
     final selected = bar != null;
     final r = row;

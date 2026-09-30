@@ -7,6 +7,7 @@
 library;
 
 import 'ledger.dart';
+import 'money.dart';
 
 enum ReadyStep {
   /// One month of living expenses, not pay (course, chapter 6).
@@ -87,11 +88,14 @@ class MonthOfSpending {
   static MonthOfSpending of(LedgerData data, DateTime today) {
     final typed = int.tryParse(data.prefs[ReadyKeys.month] ?? '');
     final end = dateOnly(today);
+    final main = mainCurrency(data);
     bool spending(EntryData e) =>
+        e.currency == main &&
         data.accounts[e.accountId]?.type == AccountType.expense;
     bool loanPayment(TxnData t, EntryData e) {
       final a = data.accounts[e.accountId];
       return a != null &&
+          e.currency == main &&
           e.amount > 0 &&
           (a.role == AccountRole.mortgage ||
               a.role == AccountRole.studentLoan) &&
@@ -156,6 +160,19 @@ class MonthOfSpending {
   }
 }
 
+/// The currency Savings counts in: the one most open accounts are in, ₮ on
+/// a tie. Accounts in the other currency aren't in its sums (the page says
+/// so) until the owner decides how Savings treats two currencies.
+Currency mainCurrency(LedgerData data) {
+  final n = <Currency, int>{};
+  for (final a in data.openAccounts) {
+    n[a.currency] = (n[a.currency] ?? 0) + 1;
+  }
+  return (n[Currency.usd] ?? 0) > (n[Currency.mnt] ?? 0)
+      ? Currency.usd
+      : Currency.mnt;
+}
+
 class Readiness {
   Readiness._({
     required this.month,
@@ -173,8 +190,13 @@ class Readiness {
 
   factory Readiness.of(LedgerData data, DateTime today) {
     // Archived accounts are out of the picker and the lists, so they're out
-    // of the sums too: nothing counts that can't be seen and changed.
-    final open = data.openAccounts;
+    // of the sums too: nothing counts that can't be seen and changed. One
+    // currency, never added across (ROADMAP E).
+    final main = mainCurrency(data);
+    final open = [
+      for (final a in data.openAccounts)
+        if (a.currency == main) a,
+    ];
     final fundAccounts = [
       for (final a in open)
         if (!a.isOwed && a.role == AccountRole.emergencyFund) a,

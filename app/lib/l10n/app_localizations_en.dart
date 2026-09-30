@@ -2185,12 +2185,14 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupStartOwedHint =>
-      'What you’ve used, not the available limit · empty starts at ₮0';
+  String setupStartOwedHint(Object zero) {
+    return 'What you’ve used, not the available limit · empty starts at $zero';
+  }
 
   @override
-  String get setupStartBankHint =>
-      'From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0';
+  String setupStartBankHint(Object zero) {
+    return 'From the bank app, a statement or what you count, not the “available” balance · empty starts at $zero';
+  }
 
   @override
   String get setupStartAccount => 'Start account';
@@ -3214,5 +3216,60 @@ class WordsEn extends Words {
   @override
   String importUnmatchedMore(int count) {
     return '$count more';
+  }
+
+  @override
+  String rowsLeftOther(Object account) {
+    return 'Left $account:';
+  }
+
+  @override
+  String rowsArrivesOther(Object account) {
+    return 'Arrives in $account:';
+  }
+
+  @override
+  String rowsErrorLeftOther(Object account) {
+    return 'Say how much left $account';
+  }
+
+  @override
+  String rowsErrorArrivesOther(Object account) {
+    return 'Say how much arrives in $account';
+  }
+
+  @override
+  String rowsRatePerDollar(Object rate) {
+    return '$rate per \$1';
+  }
+
+  @override
+  String get ledgerDbOtherCurrency => 'That account is in another currency';
+
+  @override
+  String get ledgerDbNeedsOtherAmount =>
+      'Say how much arrives in the other currency';
+
+  @override
+  String get setupCurrency => 'Currency';
+
+  @override
+  String get setupCurrencyMnt => '₮ Tögrög';
+
+  @override
+  String get setupCurrencyUsd => '\$ Dollar';
+
+  @override
+  String get setupCurrencyHint =>
+      'Every amount in this account is in it. Net worth shows each currency on its own line.';
+
+  @override
+  String savingsOnlyCurrency(Object symbol) {
+    return 'Counted in $symbol only: accounts in other currencies aren’t in these sums yet.';
+  }
+
+  @override
+  String rowsExchangeNote(Object amount, Object rate) {
+    return '$amount there · $rate per \$1';
   }
 }

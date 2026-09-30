@@ -3137,17 +3137,17 @@ abstract class Words {
   /// **'Date should look like {example}'**
   String setupDateShouldLook(String example);
 
-  /// First screen of a new card or loan account, note under the fields before typing.
+  /// A new card or loan's first screen, under the amount. zero is ₮0 or $0.
   ///
   /// In en, this message translates to:
-  /// **'What you’ve used, not the available limit · empty starts at ₮0'**
-  String get setupStartOwedHint;
+  /// **'What you’ve used, not the available limit · empty starts at {zero}'**
+  String setupStartOwedHint(Object zero);
 
-  /// First screen of a new bank account, note under the fields before typing.
+  /// A new bank account's first screen, under the amount. zero is ₮0 or $0.
   ///
   /// In en, this message translates to:
-  /// **'From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0'**
-  String get setupStartBankHint;
+  /// **'From the bank app, a statement or what you count, not the “available” balance · empty starts at {zero}'**
+  String setupStartBankHint(Object zero);
 
   /// First screen of a new account, main button.
   ///
@@ -4536,6 +4536,84 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count} more'**
   String importUnmatchedMore(int count);
+
+  /// Entry row, under a transfer from an account in another currency: before the field for what left it.
+  ///
+  /// In en, this message translates to:
+  /// **'Left {account}:'**
+  String rowsLeftOther(Object account);
+
+  /// Entry row, under a transfer to an account in another currency: before the field for what arrives there.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrives in {account}:'**
+  String rowsArrivesOther(Object account);
+
+  /// Entry row error: a transfer between currencies needs the other side's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how much left {account}'**
+  String rowsErrorLeftOther(Object account);
+
+  /// Entry row error: a transfer between currencies needs the other side's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how much arrives in {account}'**
+  String rowsErrorArrivesOther(Object account);
+
+  /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tögrög, like ₮3,450.00.
+  ///
+  /// In en, this message translates to:
+  /// **'{rate} per \$1'**
+  String rowsRatePerDollar(Object rate);
+
+  /// Toast when a row can't move to an account in another currency.
+  ///
+  /// In en, this message translates to:
+  /// **'That account is in another currency'**
+  String get ledgerDbOtherCurrency;
+
+  /// Toast when a transfer between currencies has only one amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how much arrives in the other currency'**
+  String get ledgerDbNeedsOtherAmount;
+
+  /// New account page: label before the currency choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get setupCurrency;
+
+  /// New account page: currency choice.
+  ///
+  /// In en, this message translates to:
+  /// **'₮ Tögrög'**
+  String get setupCurrencyMnt;
+
+  /// New account page: currency choice.
+  ///
+  /// In en, this message translates to:
+  /// **'\$ Dollar'**
+  String get setupCurrencyUsd;
+
+  /// New account page, under the currency choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Every amount in this account is in it. Net worth shows each currency on its own line.'**
+  String get setupCurrencyHint;
+
+  /// Savings, under the steps, when some accounts are in another currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted in {symbol} only: accounts in other currencies aren’t in these sums yet.'**
+  String savingsOnlyCurrency(Object symbol);
+
+  /// Register, memo line of a transfer between currencies: what the other account got or sent in its currency, and the rate.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} there · {rate} per \$1'**
+  String rowsExchangeNote(Object amount, Object rate);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -360,7 +360,7 @@ class _ImportDialogState extends State<_ImportDialog> {
   );
 
   int _shown(int v) => widget.owed ? -v : v;
-  String _money(int v) => formatMoney(v);
+  String _money(int v) => moneyIn(context, v);
 
   Widget _preview(Words t) {
     final read = _read;
@@ -504,7 +504,7 @@ class _ImportDialogState extends State<_ImportDialog> {
         for (final x in u.take(shown))
           t.importUnmatchedItem(
             x.payee,
-            formatMoney(_shown(x.amount)),
+            _money(_shown(x.amount)),
             sayDate(t, x.date),
           ),
         if (u.length > shown) t.importUnmatchedMore(u.length - shown),
@@ -735,7 +735,10 @@ class _Columns extends StatelessWidget {
             ? fullDate(d)
             : '${fullDate(d)} ${d.hour.toString().padLeft(2, '0')}:'
                   '${d.minute.toString().padLeft(2, '0')}',
-      double n => formatMoney((n * 100).round()).replaceFirst('₮', ''),
+      // As the file has it: a figure, no currency sign.
+      double n =>
+        '${n < 0 ? '−' : ''}${formatWhole((n * 100).round())}'
+            '${formatCents((n * 100).round())}',
       bool b => b ? '✓' : '',
       _ => '$v'.trim(),
     };

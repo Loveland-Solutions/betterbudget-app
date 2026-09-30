@@ -3298,4 +3298,75 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     await tidy(tester, db);
   });
+
+  testWidgets('a dollar account: made in dollars, shown in dollars, and a '
+      'transfer to it from tögrög takes both amounts', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('add-account')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-account-name')),
+      'Chase',
+    );
+    await tester.tap(find.byKey(const ValueKey('currency-USD')));
+    await tester.pumpAndSettle();
+    await tapAndWait(tester, find.byKey(const ValueKey('new-account-create')));
+    expect(
+      find.text(
+        'From the bank app, a statement or what you count, not the '
+        '“available” balance · empty starts at \$0',
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byKey(const ValueKey('start-balance')), '250');
+    await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
+    expect(find.text(r'$250'), findsNWidgets(2)); // sidebar, net worth
+    expect(find.textContaining(r'Started at $250'), findsOneWidget);
+    // Net worth: each currency on its own line.
+    expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('net-worth-USD'))).data,
+      r'$250',
+    );
+
+    // From TDB Checking, a transfer to Chase asks what arrived there.
+    await tester.tap(find.text('TDB Checking').first);
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Chase',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '0.00'), '3450000');
+    await tester.pump();
+    expect(find.text('Arrives in Chase:'), findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('exchange-amount')),
+        matching: find.byType(TextField),
+      ),
+      '1000',
+    );
+    await tester.pump();
+    expect(find.text(r'₮3,450.00 per $1'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/entry_exchange.png'),
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    await settle(tester);
+    final data = (await tester.runAsync(db.loadLedger))!;
+    final chase = data.balanceSheetAccounts.firstWhere(
+      (a) => a.name == 'Chase',
+    );
+    expect(data.balanceOf(chase.id), 125000);
+    expect(find.text(r'$1,250'), findsNWidgets(2)); // sidebar, net worth
+    expect(
+      find.textContaining(r'$1,000.00 there · ₮3,450.00 per $1'),
+      findsOneWidget,
+    );
+    await tidy(tester, db);
+  });
 }

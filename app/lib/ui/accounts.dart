@@ -6,16 +6,17 @@ part of 'ledger_screen.dart';
 
 /// Whole tögrög, with the fraction only when there is one: a ₮0.40 leftover
 /// mustn't read as ₮0.
-String _money(int v) => formatMoney(v, showCents: v % 100 != 0);
+String _money(int v, [Currency currency = Currency.mnt]) =>
+    formatMoney(v, showCents: v % 100 != 0, currency: currency);
 
 /// What an account's balance is, in words that fit its kind and sign.
 String _balanceWords(Words t, AccountInfo a, int balance) => a.isOwed
     ? (balance <= 0
-          ? t.setupOwedStill(_money(-balance))
-          : t.setupInCredit(_money(balance)))
+          ? t.setupOwedStill(_money(-balance, a.currency))
+          : t.setupInCredit(_money(balance, a.currency)))
     : (balance >= 0
-          ? t.setupStillIn(_money(balance))
-          : t.setupOverdrawn(_money(-balance)));
+          ? t.setupStillIn(_money(balance, a.currency))
+          : t.setupOverdrawn(_money(-balance, a.currency)));
 
 /// A line said in the reader's language, for lists built where there's no
 /// [BuildContext] to ask for the words.
@@ -65,8 +66,16 @@ class _AddAccountTile extends StatelessWidget {
 
 /// Name and kind. Its balance is asked for on the account's first screen.
 class _NewAccountPage extends StatefulWidget {
-  const _NewAccountPage({required this.onCreate, this.onCancel});
-  final void Function(String name, AccountType type) onCreate;
+  const _NewAccountPage({
+    required this.onCreate,
+    this.onCancel,
+    this.currency = Currency.mnt,
+  });
+  final void Function(String name, AccountType type, Currency currency)
+  onCreate;
+
+  /// Where the choice starts.
+  final Currency currency;
 
   /// Null when there is no account to go back to.
   final VoidCallback? onCancel;
@@ -79,6 +88,7 @@ class _NewAccountPageState extends State<_NewAccountPage> {
   String get _defaultName => context.t.setupNewAccount;
   final _name = TextEditingController();
   var _type = AccountType.asset;
+  late var _currency = widget.currency;
 
   @override
   void dispose() {
@@ -88,17 +98,13 @@ class _NewAccountPageState extends State<_NewAccountPage> {
 
   void _create() {
     final n = _name.text.trim();
-    widget.onCreate(n.isEmpty ? _defaultName : n, _type);
+    widget.onCreate(n.isEmpty ? _defaultName : n, _type, _currency);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    Widget kind(AccountType k, String label) {
-      final on = _type == k;
-      return Hoverable(
-        key: ValueKey('kind-${k.name}'),
-        onTap: () => setState(() => _type = k),
+  Widget _choice(String label, bool on, VoidCallback onTap, String key) =>
+      Hoverable(
+        key: ValueKey(key),
+        onTap: onTap,
         builder: (hover) => Container(
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -115,7 +121,22 @@ class _NewAccountPageState extends State<_NewAccountPage> {
           child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
         ),
       );
-    }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    Widget kind(AccountType k, String label) => _choice(
+      label,
+      _type == k,
+      () => setState(() => _type = k),
+      'kind-${k.name}',
+    );
+    Widget currency(Currency c, String label) => _choice(
+      label,
+      _currency == c,
+      () => setState(() => _currency = c),
+      'currency-${c.code}',
+    );
 
     return CallbackShortcuts(
       bindings: {
@@ -179,11 +200,28 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(left: 100, bottom: 6),
+                        padding: const EdgeInsets.only(left: 100, bottom: 12),
                         child: Text(
                           _type == AccountType.liability
                               ? t.setupKindOwedHint
                               : t.setupKindBankHint,
+                          style: onest(12.5, color: Mid.ink3),
+                        ),
+                      ),
+                      _FormLine(
+                        label: t.setupCurrency,
+                        child: Row(
+                          children: [
+                            currency(Currency.mnt, t.setupCurrencyMnt),
+                            const SizedBox(width: 8),
+                            currency(Currency.usd, t.setupCurrencyUsd),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 100, bottom: 6),
+                        child: Text(
+                          t.setupCurrencyHint,
                           style: onest(12.5, color: Mid.ink3),
                         ),
                       ),
@@ -360,7 +398,7 @@ class _AccountStartState extends State<_AccountStart> {
                     style: onest(13.5, tabular: true),
                     onSubmitted: (_) => _start(),
                     decoration: _fieldDecoration(
-                      hint: '₮0',
+                      hint: '${widget.account.currency.symbol}0',
                       wrong: wrongAmount,
                     ),
                   ),
@@ -396,8 +434,12 @@ class _AccountStartState extends State<_AccountStart> {
                       // starts from it: the number the bank shows. Card apps
                       // show the available limit most prominently.
                       : owed
-                      ? t.setupStartOwedHint
-                      : t.setupStartBankHint,
+                      ? t.setupStartOwedHint(
+                          '${widget.account.currency.symbol}0',
+                        )
+                      : t.setupStartBankHint(
+                          '${widget.account.currency.symbol}0',
+                        ),
                   style: onest(
                     12.5,
                     color: wrongAmount || wrongDate ? Mid.coral : Mid.ink3,
@@ -767,10 +809,10 @@ List<_Say> _deleteWarnings(AccountInfo a, int balance, AccountDeletePreview p) {
   final _Say? worth = balance == 0
       ? null
       : (t) => balance > 0
-            ? t.setupWorthDown(_money(balance.abs()))
+            ? t.setupWorthDown(_money(balance.abs(), a.currency))
             : a.isOwed
-            ? t.setupWorthUpOwed(_money(balance.abs()))
-            : t.setupWorthUp(_money(balance.abs()));
+            ? t.setupWorthUpOwed(_money(balance.abs(), a.currency))
+            : t.setupWorthUp(_money(balance.abs(), a.currency));
   final pending = p.keptScheduled;
   final _Say? pendingLine = pending.isEmpty
       ? null
@@ -823,8 +865,10 @@ class _ArchivedAccounts extends StatelessWidget {
                 Expanded(child: Text(a.name, style: onest(13.5))),
                 Text(
                   a.isOwed
-                      ? context.t.setupAmountOwed(_money(-data.balanceOf(a.id)))
-                      : _money(data.balanceOf(a.id)),
+                      ? context.t.setupAmountOwed(
+                          _money(-data.balanceOf(a.id), a.currency),
+                        )
+                      : _money(data.balanceOf(a.id), a.currency),
                   style: onest(13, color: Mid.ink3, tabular: true),
                 ),
                 const SizedBox(width: 16),

@@ -27,6 +27,13 @@ class _SavingsActions {
   setPref;
 }
 
+/// An amount in Savings' one currency (the page's [CurrencyScope]).
+String _here(BuildContext context, int v) => formatMoney(
+  v,
+  showCents: v % 100 != 0,
+  currency: CurrencyScope.of(context),
+);
+
 class _SavingsPage extends StatelessWidget {
   const _SavingsPage({
     required this.data,
@@ -41,69 +48,83 @@ class _SavingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final r = Readiness.of(data, today);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: 36,
-                child: Row(
-                  children: [
-                    Text(
-                      t.planSavings,
-                      style: onest(22, weight: 600, letterSpacing: -0.3),
-                    ),
-                    const SizedBox(width: 14),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(
-                        r.current == null
-                            ? t.planAllStepsDone
-                            : t.planOneStepAtATime,
-                        key: const ValueKey('savings-subtitle'),
-                        style: onest(13.5, color: Mid.ink3),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Flexible(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Mid.panel,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Mid.rule),
-                  ),
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+    final main = mainCurrency(data);
+    final others = data.openAccounts.any((a) => a.currency != main);
+    return CurrencyScope(
+      currency: main,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 36,
+                  child: Row(
                     children: [
-                      for (final s in ReadyStep.values)
-                        _StepRow(
-                          key: ValueKey('step-${s.name}'),
-                          step: s,
-                          r: r,
-                          data: data,
-                          actions: actions,
-                        ),
+                      Text(
+                        t.planSavings,
+                        style: onest(22, weight: 600, letterSpacing: -0.3),
+                      ),
+                      const SizedBox(width: 14),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                        padding: const EdgeInsets.only(top: 5),
                         child: Text(
-                          t.planCourseNote,
-                          style: onest(12, color: Mid.ink3),
+                          r.current == null
+                              ? t.planAllStepsDone
+                              : t.planOneStepAtATime,
+                          key: const ValueKey('savings-subtitle'),
+                          style: onest(13.5, color: Mid.ink3),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                Flexible(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Mid.panel,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Mid.rule),
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                      children: [
+                        for (final s in ReadyStep.values)
+                          _StepRow(
+                            key: ValueKey('step-${s.name}'),
+                            step: s,
+                            r: r,
+                            data: data,
+                            actions: actions,
+                          ),
+                        if (others)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                            child: Text(
+                              t.savingsOnlyCurrency(main.symbol),
+                              key: const ValueKey('savings-one-currency'),
+                              style: onest(12, color: Mid.ink3),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                          child: Text(
+                            t.planCourseNote,
+                            style: onest(12, color: Mid.ink3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -180,7 +201,7 @@ class _StepRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                ..._body(t, state),
+                ..._body(context, t, state),
               ],
             ),
           ),
@@ -201,7 +222,7 @@ class _StepRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _body(Words t, ReadyState state) {
+  List<Widget> _body(BuildContext context, Words t, ReadyState state) {
     final current = state == ReadyState.current;
     Widget fact(String text, {Key? key, Color? color}) => Text(
       text,
@@ -228,20 +249,20 @@ class _StepRow extends StatelessWidget {
                   ? t.planMonthUnknown(m.days)
                   : t.planMonthNoSpending(m.days))
             : m.typed
-            ? t.planMonthTyped(_money(m.amount))
+            ? t.planMonthTyped(_here(context, m.amount))
             : m.days >= MonthOfSpending.spanDays
-            ? t.planMonthAverage3(_money(m.amount), loans)
-            : t.planMonthAverageDays(_money(m.amount), m.days, loans);
+            ? t.planMonthAverage3(_here(context, m.amount), loans)
+            : t.planMonthAverageDays(_here(context, m.amount), m.days, loans);
         final noFund = r.fundAccounts.isEmpty;
         return [
           if (target > 0 && !noFund) ...[
             fact(
               r.fund >= target
-                  ? t.planFundOf(_money(r.fund), _money(target))
+                  ? t.planFundOf(_here(context, r.fund), _here(context, target))
                   : t.planFundOfToGo(
-                      _money(r.fund),
-                      _money(target),
-                      _money(target - r.fund),
+                      _here(context, r.fund),
+                      _here(context, target),
+                      _here(context, target - r.fund),
                     ),
               key: ValueKey('step-${step.name}-progress'),
               color: Mid.ink,
@@ -311,7 +332,7 @@ class _StepRow extends StatelessWidget {
           fact(
             r.consumerDebts.isEmpty
                 ? t.planNoCardsOwing
-                : t.planAmountOwed(_money(r.consumerOwed)),
+                : t.planAmountOwed(_here(context, r.consumerOwed)),
             key: const ValueKey('step-consumerDebt-owed'),
             color: r.consumerDebts.isEmpty ? Mid.ink2 : Mid.ink,
           ),
@@ -361,7 +382,7 @@ class _StepRow extends StatelessWidget {
           fact(
             r.longLoans.isEmpty
                 ? t.planPaidOff
-                : t.planAmountLeft(_money(r.longOwed)),
+                : t.planAmountLeft(_here(context, r.longOwed)),
           ),
           for (final d in r.longLoans)
             _DebtLine(debt: d, r: r, actions: actions),
@@ -494,7 +515,7 @@ class _FundPicker extends StatelessWidget {
               overlayColor: WidgetStatePropertyAll(Mid.blueWash),
             ),
             child: Text(
-              '${a.name}  ${_money(data.balanceOf(a.id))}',
+              '${a.name}  ${_money(data.balanceOf(a.id), a.currency)}',
               style: onest(13, color: Mid.ink2, tabular: true),
             ),
           ),
@@ -570,7 +591,7 @@ class _MonthFieldState extends State<_MonthField> {
     widget.actions.setPref(
       ReadyKeys.month,
       '$v',
-      context.t.planMonthSet(_money(v)),
+      context.t.planMonthSet(_here(context, v)),
       toast: true,
     );
     _close();
@@ -760,7 +781,7 @@ class _DebtLine extends StatelessWidget {
           SizedBox(
             width: 130,
             child: Text(
-              debt.owed > 0 ? _money(debt.owed) : t.planNothingOwed,
+              debt.owed > 0 ? _here(context, debt.owed) : t.planNothingOwed,
               style: onest(13, color: Mid.ink2, tabular: true),
             ),
           ),

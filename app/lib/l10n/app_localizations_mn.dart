@@ -2106,12 +2106,14 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupStartOwedHint =>
-      'Ашигласан дүн, боломжит лимит биш · хоосон бол ₮0-ээс эхэлнэ';
+  String setupStartOwedHint(Object zero) {
+    return 'Ашигласан дүн, боломжит лимит биш · хоосон бол $zero-ээс эхэлнэ';
+  }
 
   @override
-  String get setupStartBankHint =>
-      'Банкны апп, хуулга эсвэл тоолсон бэлэн мөнгөнөөс; “Боломжит үлдэгдэл” биш · хоосон бол ₮0-ээс эхэлнэ';
+  String setupStartBankHint(Object zero) {
+    return 'Банкны апп, хуулга эсвэл тоолсон бэлэн мөнгөнөөс; “Боломжит үлдэгдэл” биш · хоосон бол $zero-ээс эхэлнэ';
+  }
 
   @override
   String get setupStartAccount => 'Данс эхлүүлэх';
@@ -3071,5 +3073,59 @@ class WordsMn extends Words {
   @override
   String importUnmatchedMore(int count) {
     return 'бусад $count';
+  }
+
+  @override
+  String rowsLeftOther(Object account) {
+    return '$account данснаас гарсан:';
+  }
+
+  @override
+  String rowsArrivesOther(Object account) {
+    return '$account дансанд орох:';
+  }
+
+  @override
+  String rowsErrorLeftOther(Object account) {
+    return '$account данснаас гарсан дүнг бичнэ үү';
+  }
+
+  @override
+  String rowsErrorArrivesOther(Object account) {
+    return '$account дансанд орох дүнг бичнэ үү';
+  }
+
+  @override
+  String rowsRatePerDollar(Object rate) {
+    return '\$1 = $rate';
+  }
+
+  @override
+  String get ledgerDbOtherCurrency => 'Тэр данс өөр валюттай';
+
+  @override
+  String get ledgerDbNeedsOtherAmount => 'Нөгөө валютаар хэд орохыг бичнэ үү';
+
+  @override
+  String get setupCurrency => 'Валют';
+
+  @override
+  String get setupCurrencyMnt => '₮ Төгрөг';
+
+  @override
+  String get setupCurrencyUsd => '\$ Доллар';
+
+  @override
+  String get setupCurrencyHint =>
+      'Энэ дансны бүх дүн энэ валютаар. Цэвэр хөрөнгө валют бүрийг тусад нь харуулна.';
+
+  @override
+  String savingsOnlyCurrency(Object symbol) {
+    return 'Зөвхөн $symbol-ээр тооцсон: бусад валютын данс эдгээр дүнд одоогоор ороогүй.';
+  }
+
+  @override
+  String rowsExchangeNote(Object amount, Object rate) {
+    return 'тэнд $amount · \$1 = $rate';
   }
 }

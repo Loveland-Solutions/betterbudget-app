@@ -2,6 +2,7 @@
 /// Pure Dart: no database, no Flutter.
 library;
 
+import 'money.dart';
 import 'pay.dart';
 
 enum AccountType { asset, liability, income, expense, equity }
@@ -20,6 +21,10 @@ enum RowKind { simple, split, transfer, opening }
 /// words them for the screen.
 const openingBalancesAccountName = 'Opening balances';
 const balanceAdjustmentsName = 'Balance adjustments';
+
+/// Where a transfer between currencies passes through, so each currency's
+/// entries still add up to zero with no rate stored (ROADMAP E).
+const currencyExchangeName = 'Currency exchange';
 
 /// The payee a reconcile adjustment is stored with (`rowPayee` words it).
 const reconcileAdjustmentPayee = 'Reconcile adjustment';
@@ -43,7 +48,12 @@ class AccountInfo {
     this.deleted = false,
     this.payday = false,
     this.role,
+    this.currency = Currency.mnt,
   });
+
+  /// What its money is in. Categories have one too, but only an account's
+  /// means anything: a category holds whatever currency is filed under it.
+  final Currency currency;
 
   /// What it's for on the Savings steps; null for most accounts.
   final AccountRole? role;
@@ -90,10 +100,12 @@ class EntryData {
     required this.amount,
     this.cleared = Cleared.uncleared,
     this.reconciliationId,
+    this.currency = Currency.mnt,
   });
 
   final int id;
   final int accountId;
+  final Currency currency;
 
   /// The reconcile that locked this entry.
   final int? reconciliationId;
@@ -173,7 +185,18 @@ class RegisterRow {
     this.payScheduleId,
     this.balance = 0,
     this.clearedBalance = 0,
+    this.currency = Currency.mnt,
+    this.otherAmount,
+    this.otherCurrency,
   });
+
+  /// What [amount] and the balances are in: the account's currency.
+  final Currency currency;
+
+  /// A transfer between currencies: what the other account sent or got, in
+  /// its own currency, from its own side.
+  final int? otherAmount;
+  final Currency? otherCurrency;
 
   final int txnId;
   final int entryId;
@@ -287,6 +310,9 @@ class RegisterRow {
     payScheduleId: payScheduleId,
     balance: balance,
     clearedBalance: clearedBalance,
+    currency: currency,
+    otherAmount: otherAmount,
+    otherCurrency: otherCurrency,
   );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
@@ -315,6 +341,9 @@ class RegisterRow {
     payScheduleId: payScheduleId,
     balance: b,
     clearedBalance: clearedTotal,
+    currency: currency,
+    otherAmount: otherAmount,
+    otherCurrency: otherCurrency,
   );
 }
 
@@ -749,23 +778,68 @@ class LedgerData {
     );
   }
 
-  /// What's filed under [categoryId], posted rows only: spent for spending
-  /// (positive), received for income (positive).
-  int categoryTotal(int categoryId, {DateTime? from, DateTime? to}) {
-    var sum = 0;
+  /// What's filed under [categoryId], posted rows only, in each currency it
+  /// has (never added across them): spent for spending (positive), received
+  /// for income (positive). MNT alone when there's nothing.
+  Map<Currency, int> categoryTotals(
+    int categoryId, {
+    DateTime? from,
+    DateTime? to,
+  }) {
+    final sums = <Currency, int>{};
     for (final t in txns) {
       if (t.scheduled) continue;
       if (from != null && t.date.isBefore(from)) continue;
       if (to != null && t.date.isAfter(to)) continue;
       for (final e in t.entries) {
-        if (e.accountId == categoryId) sum += e.amount;
+        if (e.accountId == categoryId) {
+          sums[e.currency] = (sums[e.currency] ?? 0) + e.amount;
+        }
       }
     }
-    return accounts[categoryId]?.isIncome ?? false ? -sum : sum;
+    final income = accounts[categoryId]?.isIncome ?? false;
+    if (sums.isEmpty) return {Currency.mnt: 0};
+    return {
+      for (final c in Currency.values)
+        if (sums[c] case final v?) c: income ? -v : v,
+    };
   }
 
+  /// [categoryTotals] in tögrög, for callers that count one currency.
+  int categoryTotal(int categoryId, {DateTime? from, DateTime? to}) =>
+      categoryTotals(categoryId, from: from, to: to)[Currency.mnt] ?? 0;
+
+  /// What the accounts in [of] hold, by currency (net worth, and archived
+  /// money in it). Each currency on its own; a currency nobody holds is left
+  /// out, and MNT stands alone when there are none.
+  Map<Currency, int> balancesByCurrency(Iterable<AccountInfo> of) {
+    final out = <Currency, int>{};
+    for (final a in of) {
+      out[a.currency] = (out[a.currency] ?? 0) + balanceOf(a.id);
+    }
+    if (out.isEmpty) return {Currency.mnt: 0};
+    return {for (final c in Currency.values) c: ?out[c]};
+  }
+
+  /// The hidden account a transfer between currencies passes through.
+  late final int? _exchangeId = accounts.values
+      .where(
+        (a) => a.type == AccountType.equity && a.name == currencyExchangeName,
+      )
+      .firstOrNull
+      ?.id;
+
+  /// A transfer between currencies (it passes through the exchange account).
+  bool isExchange(TxnData t) =>
+      _exchangeId != null && t.entries.any((e) => e.accountId == _exchangeId);
+
   RegisterRow _row(TxnData t, EntryData e) {
-    final others = t.entries.where((o) => o.id != e.id).toList();
+    final others = t.entries
+        .where((o) => o.id != e.id && o.accountId != _exchangeId)
+        .toList();
+    final exchanged = isExchange(t) && others.length == 1
+        ? others.single
+        : null;
     var kind = RowKind.simple;
     var payee = t.payee ?? '';
     var label = '';
@@ -819,6 +893,11 @@ class LedgerData {
 
     final rec = _reconciliationsById[e.reconciliationId];
     return RegisterRow(
+      currency: accounts[e.accountId]!.isBalanceSheet
+          ? accounts[e.accountId]!.currency
+          : e.currency,
+      otherAmount: exchanged?.amount,
+      otherCurrency: exchanged?.currency,
       reconciledOn: rec?.statementDate,
       latestReconcile:
           rec != null &&

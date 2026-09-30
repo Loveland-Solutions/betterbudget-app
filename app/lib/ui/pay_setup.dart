@@ -119,9 +119,8 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     text: _typed(_split ? widget.existing!.byDay.last.amount : null),
   );
 
-  static String _typed(int? v) => v == null
-      ? ''
-      : formatMoney(v, showCents: v % 100 != 0).replaceAll('₮', '');
+  static String _typed(int? v) =>
+      v == null ? '' : formatWhole(v) + (v % 100 == 0 ? '' : formatCents(v));
   late bool _varies = widget.existing?.varies ?? false;
   late PayRule _rule = widget.existing?.rule ?? PayRule.monthly;
   late final _day1 = TextEditingController(
@@ -314,7 +313,8 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+    String money(int v) =>
+        formatMoney(v, showCents: v % 100 != 0, currency: _account.currency);
     final amount = _amountValue;
     final lowest = _history.isEmpty
         ? null
@@ -386,7 +386,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
           autofocus: autofocus && widget.existing == null,
           textAlign: TextAlign.right,
           style: onest(13.5, tabular: true),
-          decoration: _fieldDecoration(hint: '₮0'),
+          decoration: _fieldDecoration(hint: '${_account.currency.symbol}0'),
         ),
       ),
     );
@@ -838,8 +838,6 @@ class _BudgetSettings extends StatelessWidget {
           : a.name;
     }
 
-    String money(int v) => formatMoney(v, showCents: v % 100 != 0);
-
     Widget choice(String label, bool on, VoidCallback onTap, String key) =>
         Padding(
           padding: const EdgeInsets.only(right: 8, bottom: 6),
@@ -958,7 +956,18 @@ class _BudgetSettings extends StatelessWidget {
                           child: Text(
                             t.setupPayLine(
                               name(p.categoryId),
-                              payAmounts(t, p, money, dotted: true),
+                              payAmounts(
+                                t,
+                                p,
+                                (v) => formatMoney(
+                                  v,
+                                  showCents: v % 100 != 0,
+                                  currency:
+                                      data.accounts[p.accountId]?.currency ??
+                                      Currency.mnt,
+                                ),
+                                dotted: true,
+                              ),
                               name(p.accountId),
                             ),
                             style: onest(13.5),

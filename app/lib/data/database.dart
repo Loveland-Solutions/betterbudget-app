@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
+import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../import/mapping.dart';
 import 'encryption.dart';
@@ -167,6 +168,8 @@ enum DbProblem {
   accountDeleted('That account was deleted'),
   neverReconciled('Never reconciled'),
   statementAfterToday('The statement can’t be after today'),
+  otherCurrency('That account is in another currency'),
+  needsOtherAmount('Say what arrives in the other currency'),
 
   /// With the last statement's date as the exception's `through`, and in
   /// English, `09.30`, as its detail.
@@ -714,6 +717,7 @@ class AppDatabase extends _$AppDatabase {
               amount: e.amountMinor,
               cleared: e.cleared,
               reconciliationId: e.reconciliationId,
+              currency: Currency.fromCode(e.currency),
             ),
           );
     }
@@ -733,6 +737,7 @@ class AppDatabase extends _$AppDatabase {
             deleted: a.deletedAt != null,
             payday: a.payday,
             role: a.role,
+            currency: Currency.fromCode(a.currency),
           ),
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
@@ -816,6 +821,7 @@ class AppDatabase extends _$AppDatabase {
           updatedAt: now,
         ),
       );
+      final currency = await _currencyOfLines(lines.map((l) => l.accountId));
       for (final l in lines) {
         await into(entries).insert(
           EntriesCompanion.insert(
@@ -823,6 +829,7 @@ class AppDatabase extends _$AppDatabase {
             accountId: l.accountId,
             amountMinor: l.amount,
             cleared: l.cleared,
+            currency: Value(currency.code),
           ),
         );
       }
@@ -830,6 +837,82 @@ class AppDatabase extends _$AppDatabase {
       return txnId;
     });
   }
+
+  /// The currency of a transaction whose accounts share one: the accounts'
+  /// (a category takes whatever is filed under it). Accounts in two
+  /// currencies need [postExchange].
+  Future<Currency> _currencyOfLines(Iterable<int> accountIds) async {
+    final rows = await (select(
+      accounts,
+    )..where((a) => a.id.isIn(accountIds.toSet()))).get();
+    final found = {
+      for (final a in rows)
+        if (_reconcilable.contains(a.type)) Currency.fromCode(a.currency),
+    };
+    if (found.length > 1) throw LockedException(DbProblem.needsOtherAmount);
+    return found.firstOrNull ?? Currency.mnt;
+  }
+
+  Future<Currency> currencyOf(int accountId) async => Currency.fromCode(
+    (await (select(
+      accounts,
+    )..where((a) => a.id.equals(accountId))).getSingle()).currency,
+  );
+
+  /// A transfer between accounts in two currencies (ROADMAP E): [sent]
+  /// leaves [fromAccountId] in its currency, [received] arrives in
+  /// [toAccountId] in its own. Each currency's side passes through the
+  /// hidden exchange account, so each still adds up to zero; the rate is
+  /// never stored, only shown (sent / received).
+  Future<int> postExchange({
+    required int fromAccountId,
+    required int toAccountId,
+    required DateTime date,
+    required DateTime today,
+    required int sent,
+    required int received,
+    String? payee,
+    String? memo,
+  }) => transaction(() async {
+    await _assertLive(fromAccountId);
+    await _assertLive(toAccountId);
+    if (fromAccountId == toAccountId) {
+      throw LockedException(DbProblem.ownAccount);
+    }
+    final from = await currencyOf(fromAccountId);
+    final to = await currencyOf(toAccountId);
+    if (from == to) throw LockedException(DbProblem.otherCurrency);
+    final exchange = await _equityAccount(currencyExchangeName);
+    final now = _now;
+    final txnId = await into(transactions).insert(
+      TransactionsCompanion.insert(
+        date: dateKey(date),
+        payeeId: Value(await _payeeId(payee)),
+        memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
+        scheduled: Value(dateOnly(date).isAfter(dateOnly(today))),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    for (final (account, amount, currency) in [
+      (fromAccountId, -sent.abs(), from),
+      (exchange, sent.abs(), from),
+      (exchange, -received.abs(), to),
+      (toAccountId, received.abs(), to),
+    ]) {
+      await into(entries).insert(
+        EntriesCompanion.insert(
+          transactionId: txnId,
+          accountId: account,
+          amountMinor: amount,
+          cleared: Cleared.uncleared,
+          currency: Value(currency.code),
+        ),
+      );
+    }
+    await _assertBalanced(txnId);
+    return txnId;
+  });
 
   /// The everyday case: money in or out of [accountId], other side one
   /// category (or another account, which makes it a transfer).
@@ -1071,16 +1154,104 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: Value(_now),
       ),
     );
+    // An edit between currencies adds or drops the exchange entries, so the
+    // snapshot's set of entries comes back exactly.
+    final keep = s.entries.map((e) => e.id).toSet();
+    await (delete(entries)..where(
+          (x) => x.transactionId.equals(s.header.id) & x.id.isNotIn(keep),
+        ))
+        .go();
     for (final e in s.entries) {
-      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+      final n = await (update(entries)..where((x) => x.id.equals(e.id))).write(
         EntriesCompanion(
           accountId: Value(e.accountId),
           amountMinor: Value(e.amountMinor),
+          currency: Value(e.currency),
         ),
       );
+      if (n == 0) await into(entries).insert(e);
     }
     await _assertBalanced(s.header.id);
   });
+
+  /// The part of an edit that involves two currencies: a transfer between
+  /// them, or one being moved to an account in another currency. Returns
+  /// false when neither side is in another currency, for the plain edit.
+  Future<bool> _editAcrossCurrencies({
+    required int transactionId,
+    required List<EntryRow> rows,
+    required EntryRow mine,
+    required int exchangeId,
+    int? amount,
+    int? counterAccountId,
+    int? counterAmount,
+  }) async {
+    final exchange = rows.where((e) => e.accountId == exchangeId).toList();
+    final others = rows
+        .where((e) => e.id != mine.id && e.accountId != exchangeId)
+        .toList();
+    if (others.length != 1) return false;
+    final other = others.single;
+    final targetId = counterAccountId ?? other.accountId;
+    final mineCurrency = Currency.fromCode(mine.currency);
+    final target = await (select(
+      accounts,
+    )..where((a) => a.id.equals(targetId))).getSingle();
+    final targetCurrency = _reconcilable.contains(target.type)
+        ? Currency.fromCode(target.currency)
+        : mineCurrency;
+    final newMine = amount ?? mine.amountMinor;
+    if (targetCurrency == mineCurrency) {
+      if (exchange.isEmpty) return false;
+      // Back to one currency: the exchange legs go.
+      await (delete(
+        entries,
+      )..where((e) => e.id.isIn(exchange.map((x) => x.id)))).go();
+      await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+        EntriesCompanion(amountMinor: Value(newMine)),
+      );
+      await (update(entries)..where((e) => e.id.equals(other.id))).write(
+        EntriesCompanion(
+          accountId: Value(targetId),
+          amountMinor: Value(-newMine),
+          currency: Value(mineCurrency.code),
+        ),
+      );
+      return true;
+    }
+    final newOther = counterAmount == null
+        ? (exchange.isEmpty ? null : other.amountMinor)
+        : -newMine.sign * counterAmount.abs();
+    if (newOther == null) throw LockedException(DbProblem.needsOtherAmount);
+    await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+      EntriesCompanion(amountMinor: Value(newMine)),
+    );
+    await (update(entries)..where((e) => e.id.equals(other.id))).write(
+      EntriesCompanion(
+        accountId: Value(targetId),
+        amountMinor: Value(newOther),
+        currency: Value(targetCurrency.code),
+      ),
+    );
+    await (delete(
+      entries,
+    )..where((e) => e.id.isIn(exchange.map((x) => x.id)))).go();
+    for (final (amount, currency) in [
+      (-newMine, mineCurrency),
+      (-newOther, targetCurrency),
+    ]) {
+      await into(entries).insert(
+        EntriesCompanion.insert(
+          transactionId: transactionId,
+          accountId: exchangeId,
+          amountMinor: amount,
+          cleared: Cleared.uncleared,
+          currency: Value(currency.code),
+        ),
+      );
+    }
+    return true;
+  }
 
   /// Edits a transaction as seen from [accountId]'s register.
   ///
@@ -1107,6 +1278,7 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     int? counterAccountId,
     int? amount,
+    int? counterAmount,
     bool confirm = false,
     bool keepOwed = false,
   }) {
@@ -1122,11 +1294,15 @@ class AppDatabase extends _$AppDatabase {
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
       if (mine == null) throw NotFoundException(DbProblem.notInAccount);
+      final exchangeId = await _equityAccount(currencyExchangeName);
+      final isExchange = rows.any((e) => e.accountId == exchangeId);
       // A reconciled side locks the date, amounts and accounts of the whole
       // transaction, as delete does: a transfer edited from its other account
       // would change the locked side. Payee, memo and category stay editable.
       if ((await _reconciledAmong([transactionId])).isNotEmpty) {
-        final others = rows.where((e) => e.id != mine.id).toList();
+        final others = rows
+            .where((e) => e.id != mine.id && e.accountId != exchangeId)
+            .toList();
         final types = await _accountTypes();
         final movesAccount =
             counterAccountId != null &&
@@ -1134,8 +1310,14 @@ class AppDatabase extends _$AppDatabase {
             counterAccountId != others.single.accountId &&
             (_reconcilable.contains(types[counterAccountId]) ||
                 _reconcilable.contains(types[others.single.accountId]));
+        final otherAmount = others.length == 1
+            ? others.single.amountMinor
+            : null;
         if (dateKey(date) != header.date ||
             (amount != null && amount != mine.amountMinor) ||
+            (isExchange &&
+                counterAmount != null &&
+                counterAmount.abs() != otherAmount?.abs()) ||
             movesAccount) {
           throw LockedException(DbProblem.reconciled);
         }
@@ -1160,7 +1342,19 @@ class AppDatabase extends _$AppDatabase {
       if (counterAccountId == accountId) {
         throw LockedException(DbProblem.ownAccount);
       }
-      if (amount != null || counterAccountId != null) {
+      if (amount != null || counterAccountId != null || counterAmount != null) {
+        if (await _editAcrossCurrencies(
+          transactionId: transactionId,
+          rows: rows,
+          mine: mine,
+          exchangeId: exchangeId,
+          amount: amount,
+          counterAccountId: counterAccountId,
+          counterAmount: counterAmount,
+        )) {
+          await _assertBalanced(transactionId);
+          return null;
+        }
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {
           throw NotFoundException(DbProblem.splitNotEditable);
@@ -1241,12 +1435,19 @@ class AppDatabase extends _$AppDatabase {
     )..where((e) => e.transactionId.equals(transactionId))).get();
     final mine = rows.where((e) => e.accountId == fromAccountId).toList();
     if (mine.length != 1) throw NotFoundException(DbProblem.notInAccount);
+    if (rows.map((e) => e.currency).toSet().length > 1) {
+      throw LockedException(DbProblem.otherCurrency);
+    }
     // An opening balance or a reconcile adjustment belongs to its account.
     if (rows.any((e) => types[e.accountId] == AccountType.equity)) {
       throw LockedException(DbProblem.openingStays);
     }
     if (rows.any((e) => e.accountId == toAccountId)) {
       throw LockedException(DbProblem.alreadyThere);
+    }
+    // The amount means something else in another currency.
+    if (await currencyOf(fromAccountId) != await currencyOf(toAccountId)) {
+      throw LockedException(DbProblem.otherCurrency);
     }
     final record = MoveRecord(
       entryId: mine.single.id,
@@ -1345,17 +1546,22 @@ class AppDatabase extends _$AppDatabase {
   Future<int> createAccount({
     required String name,
     required AccountType type,
+    Currency currency = Currency.mnt,
   }) => transaction(() async {
     final last =
         await (selectOnly(accounts)..addColumns([accounts.sortOrder.max()]))
             .map((r) => r.read(accounts.sortOrder.max()))
             .getSingle();
-    return addAccount(
+    final id = await addAccount(
       name: name.trim(),
       type: type,
       group: groupFor(type),
       sortOrder: (last ?? 0) + 1,
     );
+    await (update(accounts)..where((a) => a.id.equals(id))).write(
+      AccountsCompanion(currency: Value(currency.code)),
+    );
+    return id;
   });
 
   /// Marks what an account is for on the Savings steps; null clears it.
@@ -2647,15 +2853,17 @@ class AppDatabase extends _$AppDatabase {
         await into(payees).insert(PayeesCompanion.insert(name: n));
   }
 
+  /// Each currency's entries add up to zero on their own (ROADMAP E).
   Future<void> _assertBalanced(int txnId) async {
-    final row = await customSelect(
-      'SELECT COALESCE(SUM(amount_minor), 0) AS s, COUNT(*) AS n '
-      'FROM entries WHERE transaction_id = ?',
+    final rows = await customSelect(
+      'SELECT currency, COALESCE(SUM(amount_minor), 0) AS s, COUNT(*) AS n '
+      'FROM entries WHERE transaction_id = ? GROUP BY currency',
       variables: [Variable.withInt(txnId)],
-    ).getSingle();
-    final sum = row.read<int>('s');
-    if (sum != 0 || row.read<int>('n') < 2) {
-      throw UnbalancedTransactionException(txnId, sum);
+    ).get();
+    final count = rows.fold(0, (n, r) => n + r.read<int>('n'));
+    final off = rows.where((r) => r.read<int>('s') != 0).firstOrNull;
+    if (off != null || count < 2) {
+      throw UnbalancedTransactionException(txnId, off?.read<int>('s') ?? 0);
     }
   }
 

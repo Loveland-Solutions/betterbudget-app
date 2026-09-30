@@ -4,6 +4,23 @@ library;
 const int mntExponent = 2;
 const int _scale = 100;
 
+/// The currencies an account can be in. Both have two decimals, so minor
+/// units work the same way; totals across them are never added together
+/// (ROADMAP E: each currency is shown on its own line).
+enum Currency {
+  mnt('MNT', '₮'),
+  usd('USD', r'$');
+
+  const Currency(this.code, this.symbol);
+
+  /// As stored in `accounts.currency` and `entries.currency`.
+  final String code;
+  final String symbol;
+
+  static Currency fromCode(String? code) =>
+      values.where((c) => c.code == code).firstOrNull ?? Currency.mnt;
+}
+
 /// `4182450` for 418245000 minor units, with thousands separators.
 String formatWhole(int minor) {
   final digits = (minor.abs() ~/ _scale).toString();
@@ -19,15 +36,33 @@ String formatWhole(int minor) {
 String formatCents(int minor) =>
     '.${(minor.abs() % _scale).toString().padLeft(2, '0')}';
 
-/// `₮4,182,450.00`, with a leading minus sign for negatives.
-String formatMoney(int minor, {bool showCents = true}) =>
-    '${minor < 0 ? '−' : ''}₮${formatWhole(minor)}${showCents ? formatCents(minor) : ''}';
+/// `₮4,182,450.00` or `$1,250.00`, with a leading minus sign for negatives.
+String formatMoney(
+  int minor, {
+  bool showCents = true,
+  Currency currency = Currency.mnt,
+}) =>
+    '${minor < 0 ? '−' : ''}${currency.symbol}${formatWhole(minor)}${showCents ? formatCents(minor) : ''}';
+
+/// Tögrög per dollar, in minor units, from the two sides of a transfer
+/// between them (either way round). Null until both are there.
+int? mntPerDollar(int? a, Currency ca, int? b, Currency cb) {
+  if (a == null || b == null || a == 0 || b == 0 || ca == cb) return null;
+  final (mnt, usd) = ca == Currency.mnt
+      ? (a.abs(), b.abs())
+      : (b.abs(), a.abs());
+  return (mnt * 100 / usd).round();
+}
+
+/// `₮4,182,450` or `−$1,250`: whole units only.
+String formatRounded(int minor, {Currency currency = Currency.mnt}) =>
+    '${minor < 0 ? '−' : ''}${currency.symbol}${formatWhole(minor)}';
 
 /// Parses what a person types into an amount field, including arithmetic:
 /// `12000+8500`, `3 * 4500`, `1,250.50`. Returns minor units, or null when the
 /// input is not a valid expression. `*` and `/` bind tighter than `+` and `-`.
 int? parseAmount(String input) {
-  final src = input.replaceAll(RegExp(r'[\s,₮]'), '');
+  final src = input.replaceAll(RegExp(r'[\s,₮$]'), '');
   if (src.isEmpty) return null;
   final tokens = RegExp(r'\d+(?:\.\d{0,2})?|\.\d{1,2}|[+\-*/×]')
       .allMatches(src)

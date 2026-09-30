@@ -398,7 +398,8 @@ class _LateNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final total = '₮${formatWhole(late.fold(0, (s, r) => s + r.amount))}';
+    final total =
+        '${CurrencyScope.of(context).symbol}${formatWhole(late.fold(0, (s, r) => s + r.amount))}';
     // "+… in" says which way it goes: late bills use the same gold.
     final String what;
     if (late.length > 1) {
@@ -455,7 +456,8 @@ class ForecastPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final payday = f.payday;
-    String money(int v) => '₮${formatWhole(v)}';
+    final symbol = CurrencyScope.of(context).symbol;
+    String money(int v) => '$symbol${formatWhole(v)}';
     final String headline;
     final String detail;
     if (f.owed) {
@@ -861,7 +863,7 @@ class _BillLineState extends State<_BillLine> {
               SizedBox(
                 width: 104,
                 child: Text(
-                  '${r.amount > 0 ? '+' : ''}${formatMoney(r.amount.abs(), showCents: false)}',
+                  '${r.amount > 0 ? '+' : ''}${moneyIn(context, r.amount.abs(), showCents: false)}',
                   textAlign: TextAlign.right,
                   style: onest(
                     13,
@@ -873,7 +875,7 @@ class _BillLineState extends State<_BillLine> {
               SizedBox(
                 width: 110,
                 child: Text(
-                  '${b < 0 ? '−' : ''}₮${formatWhole(b)}',
+                  roundedIn(context, b),
                   textAlign: TextAlign.right,
                   style: onest(
                     12.5,
@@ -938,7 +940,9 @@ class _ForecastChart extends StatelessWidget {
       children: [
         LayoutId(
           id: 'paint',
-          child: CustomPaint(painter: _ForecastPainter(f)),
+          child: CustomPaint(
+            painter: _ForecastPainter(f, CurrencyScope.of(context)),
+          ),
         ),
         for (var i = 0; i < days.length; i++)
           LayoutId(
@@ -1117,7 +1121,7 @@ class _BillCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Text(
                     // As the register shows it: money out plain, in with +.
-                    '${l.row.amount > 0 ? '+' : ''}${formatMoney(l.row.amount.abs())}',
+                    '${l.row.amount > 0 ? '+' : ''}${moneyIn(context, l.row.amount.abs())}',
                     style: onest(
                       13.5,
                       color: l.row.amount > 0 ? Mid.green : Mid.ink,
@@ -1138,7 +1142,7 @@ class _BillCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${last.balanceAfter < 0 ? '−' : ''}₮${formatWhole(last.balanceAfter)}',
+                  roundedIn(context, last.balanceAfter),
                   style: onest(
                     12.5,
                     color: !owed && last.balanceAfter < 0
@@ -1157,7 +1161,8 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f);
+  _ForecastPainter(this.f, this.currency);
+  final Currency currency;
   final Forecast f;
 
   /// Drawn in these colors; a switch between light and dark repaints.
@@ -1192,7 +1197,7 @@ class _ForecastPainter extends CustomPainter {
         dash,
       );
     }
-    _label(canvas, '₮0', Offset(w + 8, zero - 7), Mid.ink3);
+    _label(canvas, '${currency.symbol}0', Offset(w + 8, zero - 7), Mid.ink3);
 
     if (f.isShort) {
       canvas.save();
@@ -1277,5 +1282,5 @@ class _ForecastPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ForecastPainter old) =>
-      old.f != f || old.palette != palette;
+      old.f != f || old.palette != palette || old.currency != currency;
 }
