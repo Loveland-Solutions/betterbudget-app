@@ -77,6 +77,17 @@ scheduled items.
 
 ### Known bugs and loose ends
 
+- **Text runs out of room on an account page** (owner's screenshot, 2026-09-30,
+  tabled to fix later). Flutter's yellow-and-black overflow stripes show in three places.
+  In the header's key, the Cleared and Uncleared amounts and the cents after Working
+  overflow by about 33 px. The Import button beside Reconcile runs past the key's
+  column by about 4 px. In the register, the Payee column is too narrow: the opening
+  row's "Opening balance" is cut off (25 px over), and a scheduled row's "· scheduled"
+  note runs into the Category column. This happened in a
+  window narrower than the goldens' 1440×900, with a large balance. Likely fix: let the
+  key column and the payee column shrink and ellipsize, keep the amounts' width fixed,
+  and add a narrow-window golden.
+
 - **An account's currency can't be changed after it's made.**
   The owner remade theirs by hand (2026-09-30); Change currency stays on ROADMAP E.
 
