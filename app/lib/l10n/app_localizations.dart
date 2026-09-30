@@ -4896,6 +4896,678 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{loan} paid from no category'**
   String setupLoanNoCategoryUndo(String loan);
+
+  /// Settings → Appearance card, heading above the color schemes to pick from.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors'**
+  String get appearanceColorsTitle;
+
+  /// Undo-menu label after a color scheme is picked. name is the scheme, e.g. "Stormy morning".
+  ///
+  /// In en, this message translates to:
+  /// **'Colors: {name}'**
+  String appearanceColorsUndoLabel(String name);
+
+  /// Settings → Appearance, the first color scheme: the app's own colors (the default). The app's name; keep it as is.
+  ///
+  /// In en, this message translates to:
+  /// **'BetterBudget'**
+  String get schemeBetterBudget;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Monochromatic" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Monochromatic'**
+  String get schemeGroupMonochromatic;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Romantic" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Romantic'**
+  String get schemeGroupRomantic;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Playful" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Playful'**
+  String get schemeGroupPlayful;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Vibrant" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrant'**
+  String get schemeGroupVibrant;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Neutral" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get schemeGroupNeutral;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Tranquil" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Tranquil'**
+  String get schemeGroupTranquil;
+
+  /// Settings → Appearance, heading over a group of color schemes (Figma's "Seasonal" combinations).
+  ///
+  /// In en, this message translates to:
+  /// **'Seasonal'**
+  String get schemeGroupSeasonal;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 1, "Stormy morning"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Stormy morning'**
+  String get schemeStormyMorning;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 2, "Mossy hollow"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Mossy hollow'**
+  String get schemeMossyHollow;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 3, "Blue eclipse"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue eclipse'**
+  String get schemeBlueEclipse;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 4, "Lush forest"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Lush forest'**
+  String get schemeLushForest;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 5, "Green juice"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Green juice'**
+  String get schemeGreenJuice;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 6, "Chili spice"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Chili spice'**
+  String get schemeChiliSpice;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 7, "Chocolate truffle"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Chocolate truffle'**
+  String get schemeChocolateTruffle;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 8, "Ink wash"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Ink wash'**
+  String get schemeInkWash;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 9, "Golden taupe"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Golden taupe'**
+  String get schemeGoldenTaupe;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 10, "Wisteria bloom"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Wisteria bloom'**
+  String get schemeWisteriaBloom;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 11, "Burnt sienna"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Burnt sienna'**
+  String get schemeBurntSienna;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 12, "Blooming romance"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Blooming romance'**
+  String get schemeBloomingRomance;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 13, "Desert dusk"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Desert dusk'**
+  String get schemeDesertDusk;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 14, "Lavender fields"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Lavender fields'**
+  String get schemeLavenderFields;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 15, "Hydrangea"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Hydrangea'**
+  String get schemeHydrangea;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 16, "Cactus flower"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cactus flower'**
+  String get schemeCactusFlower;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 17, "Wildflowers"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Wildflowers'**
+  String get schemeWildflowers;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 18, "Country garden"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Country garden'**
+  String get schemeCountryGarden;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 19, "Lotus garden"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Lotus garden'**
+  String get schemeLotusGarden;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 20, "Iris garden"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Iris garden'**
+  String get schemeIrisGarden;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 21, "Fresh peach"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Fresh peach'**
+  String get schemeFreshPeach;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 22, "Golden hour"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Golden hour'**
+  String get schemeGoldenHour;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 23, "Spiced chai"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Spiced chai'**
+  String get schemeSpicedChai;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 24, "Cherry blossom"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cherry blossom'**
+  String get schemeCherryBlossom;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 25, "Evening rose"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening rose'**
+  String get schemeEveningRose;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 26, "Pastel garden"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Pastel garden'**
+  String get schemePastelGarden;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 27, "Tuscan sunset"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuscan sunset'**
+  String get schemeTuscanSunset;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 28, "Zesty lemon"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Zesty lemon'**
+  String get schemeZestyLemon;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 29, "California beaches"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'California beaches'**
+  String get schemeCaliforniaBeaches;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 30, "Freshly squeezed"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Freshly squeezed'**
+  String get schemeFreshlySqueezed;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 31, "Pistachio dream"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Pistachio dream'**
+  String get schemePistachioDream;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 32, "Mango popsicle"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Mango popsicle'**
+  String get schemeMangoPopsicle;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 33, "Guava"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Guava'**
+  String get schemeGuava;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 34, "Glowing horizon"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Glowing horizon'**
+  String get schemeGlowingHorizon;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 35, "Sunny day"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunny day'**
+  String get schemeSunnyDay;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 36, "Retro sunset"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Retro sunset'**
+  String get schemeRetroSunset;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 37, "Bubblegum pop"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Bubblegum pop'**
+  String get schemeBubblegumPop;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 38, "Cotton candy skies"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cotton candy skies'**
+  String get schemeCottonCandySkies;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 39, "Electric kiwi"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Electric kiwi'**
+  String get schemeElectricKiwi;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 40, "Watermelon splash"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermelon splash'**
+  String get schemeWatermelonSplash;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 41, "Alchemical reaction"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Alchemical reaction'**
+  String get schemeAlchemicalReaction;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 42, "Electropop"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Electropop'**
+  String get schemeElectropop;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 43, "Cool revival"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cool revival'**
+  String get schemeCoolRevival;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 44, "Neon jungle"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon jungle'**
+  String get schemeNeonJungle;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 45, "Sharp edge"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharp edge'**
+  String get schemeSharpEdge;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 46, "Electric fusion"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Electric fusion'**
+  String get schemeElectricFusion;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 47, "Fireworks"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Fireworks'**
+  String get schemeFireworks;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 48, "Space berries"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Space berries'**
+  String get schemeSpaceBerries;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 49, "Pop art"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop art'**
+  String get schemePopArt;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 50, "Urban graffiti"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Urban graffiti'**
+  String get schemeUrbanGraffiti;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 51, "Neon noir"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon noir'**
+  String get schemeNeonNoir;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 52, "Tropical punch"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Tropical punch'**
+  String get schemeTropicalPunch;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 53, "Cobalt sky"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cobalt sky'**
+  String get schemeCobaltSky;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 54, "Technicolor dream"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Technicolor dream'**
+  String get schemeTechnicolorDream;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 55, "Jewel box"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Jewel box'**
+  String get schemeJewelBox;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 56, "Salt and pepper"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Salt and pepper'**
+  String get schemeSaltAndPepper;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 57, "Quite clear"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Quite clear'**
+  String get schemeQuiteClear;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 58, "Gothic noir"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Gothic noir'**
+  String get schemeGothicNoir;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 59, "Yacht club"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Yacht club'**
+  String get schemeYachtClub;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 60, "Quiet luxury"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet luxury'**
+  String get schemeQuietLuxury;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 61, "Night sands"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Night sands'**
+  String get schemeNightSands;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 62, "Harbor haze"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Harbor haze'**
+  String get schemeHarborHaze;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 63, "Old photograph"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Old photograph'**
+  String get schemeOldPhotograph;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 64, "Cappuccino"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cappuccino'**
+  String get schemeCappuccino;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 65, "Breakfast tea"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Breakfast tea'**
+  String get schemeBreakfastTea;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 66, "Cozy campfire"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cozy campfire'**
+  String get schemeCozyCampfire;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 67, "Stone path"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Stone path'**
+  String get schemeStonePath;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 68, "Desert mirage"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Desert mirage'**
+  String get schemeDesertMirage;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 69, "Honeycomb"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Honeycomb'**
+  String get schemeHoneycomb;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 70, "Urban loft"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Urban loft'**
+  String get schemeUrbanLoft;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 71, "Spiced mocha"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Spiced mocha'**
+  String get schemeSpicedMocha;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 72, "Charming seaside"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Charming seaside'**
+  String get schemeCharmingSeaside;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 73, "Calm blue"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Calm blue'**
+  String get schemeCalmBlue;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 74, "Beachfront views"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Beachfront views'**
+  String get schemeBeachfrontViews;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 75, "Under the moonlight"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Under the moonlight'**
+  String get schemeUnderTheMoonlight;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 76, "Lavender lullaby"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Lavender lullaby'**
+  String get schemeLavenderLullaby;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 77, "Minty fresh"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Minty fresh'**
+  String get schemeMintyFresh;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 78, "Retro calm"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Retro calm'**
+  String get schemeRetroCalm;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 79, "Siltstone"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Siltstone'**
+  String get schemeSiltstone;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 80, "Emerald odyssey"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Emerald odyssey'**
+  String get schemeEmeraldOdyssey;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 81, "Ocean tide"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Ocean tide'**
+  String get schemeOceanTide;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 82, "Peach skyline"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Peach skyline'**
+  String get schemePeachSkyline;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 83, "Mountain mist"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Mountain mist'**
+  String get schemeMountainMist;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 84, "Morning dew"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning dew'**
+  String get schemeMorningDew;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 85, "Frozen lake"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Frozen lake'**
+  String get schemeFrozenLake;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 86, "Olive grove"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Olive grove'**
+  String get schemeOliveGrove;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 87, "Coastal morning"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Coastal morning'**
+  String get schemeCoastalMorning;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 88, "Eucalyptus grove"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Eucalyptus grove'**
+  String get schemeEucalyptusGrove;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 89, "Soft spring"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft spring'**
+  String get schemeSoftSpring;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 90, "Autumn leaves"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn leaves'**
+  String get schemeAutumnLeaves;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 91, "Winter chill"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Winter chill'**
+  String get schemeWinterChill;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 92, "Spring energy"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Spring energy'**
+  String get schemeSpringEnergy;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 93, "Pumpkin spice season"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Pumpkin spice season'**
+  String get schemePumpkinSpiceSeason;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 94, "Island oasis"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Island oasis'**
+  String get schemeIslandOasis;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 95, "Autumn orchard"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn orchard'**
+  String get schemeAutumnOrchard;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 96, "Tropical rainforest"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Tropical rainforest'**
+  String get schemeTropicalRainforest;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 97, "Wildflower meadow"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Wildflower meadow'**
+  String get schemeWildflowerMeadow;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 98, "Harvest moon"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Harvest moon'**
+  String get schemeHarvestMoon;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 99, "Winter berry"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Winter berry'**
+  String get schemeWinterBerry;
+
+  /// Settings → Appearance, the name of a color scheme (Figma's combination 100, "Summer breeze"); under its four colors.
+  ///
+  /// In en, this message translates to:
+  /// **'Summer breeze'**
+  String get schemeSummerBreeze;
+
+  /// Settings → Appearance, button beside the color scheme showing: unfolds every scheme to pick from. count is how many (101).
+  ///
+  /// In en, this message translates to:
+  /// **'See all {count} colors'**
+  String appearanceColorsShowAll(int count);
+
+  /// Settings → Appearance, the same button once the schemes are showing: folds them away.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the colors'**
+  String get appearanceColorsHide;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

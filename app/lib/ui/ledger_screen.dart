@@ -25,6 +25,7 @@ import 'reconcile.dart';
 import 'recovery_key_screen.dart';
 import 'register.dart';
 import 'appearance.dart';
+import 'schemes.dart';
 import 'language.dart';
 import 'brand.dart';
 import 'data_words.dart';
@@ -1206,6 +1207,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       toast: false,
       undo: () => c.set(before),
       redo: () => c.set(a),
+    );
+  }
+
+  /// A color scheme, kept on this computer like the appearance; no toast,
+  /// the whole window changing says it happened. ⌘Z goes back.
+  void _setScheme(AppearanceController c, Scheme s) {
+    final before = c.scheme;
+    if (s.id == before.id) return;
+    c.setScheme(s);
+    _did(
+      context.t.appearanceColorsUndoLabel(schemeName(context.t, s)),
+      toast: false,
+      undo: () => c.setScheme(before),
+      redo: () => c.setScheme(s),
     );
   }
 
@@ -2588,6 +2603,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               final c => _AppearanceSettings(
                                 value: c.value,
                                 onChanged: (a) => _setAppearance(c, a),
+                                scheme: c.scheme,
+                                onScheme: (x) => _setScheme(c, x),
                               ),
                             },
                             language: switch (LanguageScope.maybeOf(context)) {
@@ -2921,13 +2938,14 @@ class _Sidebar extends StatelessWidget {
         color: Mid.side,
         border: Border(right: BorderSide(color: Mid.sideRule)),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 26, 12, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
-            child: const Row(
+          // The dark-mode logo: the sidebar is dark in every scheme.
+          const Padding(
+            key: ValueKey('logo'),
+            padding: EdgeInsets.fromLTRB(24, 30, 24, 6),
+            child: Row(
               children: [
                 Bee(height: 40),
                 SizedBox(width: 10),
@@ -2935,106 +2953,129 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          header(
-            AppSection.ledger,
-            Icons.format_list_bulleted_rounded,
-            t.ledgerSectionLedger,
-          ),
-          _Spill(
-            open: section == AppSection.ledger,
-            children: [
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.only(left: 26, bottom: 12),
-                child: _AllAccountsTile(active: allActive, onTap: onAll),
-              ),
-              for (final g in groups.entries) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
-                  child: Text(
-                    groupName(g.key),
-                    style: onest(12, color: Mid.sideInk3),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 22, 12, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header(
+                    AppSection.ledger,
+                    Icons.format_list_bulleted_rounded,
+                    t.ledgerSectionLedger,
                   ),
-                ),
-                for (final a in g.value)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 26),
-                    child: _AccountTile(
-                      account: a,
-                      balance: data.balanceOf(a.id),
-                      active: a.id == selected,
-                      onTap: () => onSelect(a.id),
-                      actions: actionsFor(a),
-                    ),
-                  ),
-                const SizedBox(height: 14),
-              ],
-              _AddAccountTile(active: addingAccount, onTap: onAddAccount),
-              const SizedBox(height: 10),
-            ],
-          ),
-          const SizedBox(height: 2),
-          header(
-            AppSection.budget,
-            Icons.pie_chart_outline_rounded,
-            t.ledgerSectionBudget,
-          ),
-          const SizedBox(height: 2),
-          header(
-            AppSection.savings,
-            Icons.savings_outlined,
-            t.ledgerSectionSavings,
-          ),
-          const Spacer(),
-          // Settings, above Net worth, laid out like a section header so its
-          // icon and label line up with theirs.
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            // Full width, like the section headers, so hover fills the row.
-            child: ValueListenableBuilder(
-              valueListenable: backupHealth,
-              builder: (context, health, _) => _SettingsGear(
-                active: section == AppSection.settings,
-                alert: health.alarmingAt(now()),
-                onTap: () => onSection(AppSection.settings),
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Mid.sideRule)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.ledgerNetWorth, style: onest(12, color: Mid.sideInk3)),
-                const SizedBox(height: 4),
-                for (final e in net.entries)
-                  Text(
-                    formatMoney(e.value, currency: e.key),
-                    key: ValueKey('net-worth-${e.key.code}'),
-                    style: onest(
-                      net.length > 1 ? 16 : 18,
-                      weight: 500,
-                      color: Mid.sideInk,
-                      tabular: true,
-                    ),
-                  ),
-                if (archived.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      t.ledgerInclArchived(
-                        archived.entries
-                            .map((e) => _money(e.value, e.key))
-                            .join(' · '),
+                  _Spill(
+                    open: section == AppSection.ledger,
+                    children: [
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 26, bottom: 12),
+                        child: _AllAccountsTile(
+                          active: allActive,
+                          onTap: onAll,
+                        ),
                       ),
-                      key: const ValueKey('net-worth-archived'),
-                      style: onest(11.5, color: Mid.sideInk3, tabular: true),
+                      for (final g in groups.entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
+                          child: Text(
+                            groupName(g.key),
+                            style: onest(12, color: Mid.sideInk3),
+                          ),
+                        ),
+                        for (final a in g.value)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 26),
+                            child: _AccountTile(
+                              account: a,
+                              balance: data.balanceOf(a.id),
+                              active: a.id == selected,
+                              onTap: () => onSelect(a.id),
+                              actions: actionsFor(a),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                      ],
+                      _AddAccountTile(
+                        active: addingAccount,
+                        onTap: onAddAccount,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  header(
+                    AppSection.budget,
+                    Icons.pie_chart_outline_rounded,
+                    t.ledgerSectionBudget,
+                  ),
+                  const SizedBox(height: 2),
+                  header(
+                    AppSection.savings,
+                    Icons.savings_outlined,
+                    t.ledgerSectionSavings,
+                  ),
+                  const Spacer(),
+                  // Settings, above Net worth, laid out like a section header so its
+                  // icon and label line up with theirs.
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    // Full width, like the section headers, so hover fills the row.
+                    child: ValueListenableBuilder(
+                      valueListenable: backupHealth,
+                      builder: (context, health, _) => _SettingsGear(
+                        active: section == AppSection.settings,
+                        alert: health.alarmingAt(now()),
+                        onTap: () => onSection(AppSection.settings),
+                      ),
                     ),
                   ),
-              ],
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: Mid.sideRule)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.ledgerNetWorth,
+                          style: onest(12, color: Mid.sideInk3),
+                        ),
+                        const SizedBox(height: 4),
+                        for (final e in net.entries)
+                          Text(
+                            formatMoney(e.value, currency: e.key),
+                            key: ValueKey('net-worth-${e.key.code}'),
+                            style: onest(
+                              net.length > 1 ? 16 : 18,
+                              weight: 500,
+                              color: Mid.sideInk,
+                              tabular: true,
+                            ),
+                          ),
+                        if (archived.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              t.ledgerInclArchived(
+                                archived.entries
+                                    .map((e) => _money(e.value, e.key))
+                                    .join(' · '),
+                              ),
+                              key: const ValueKey('net-worth-archived'),
+                              style: onest(
+                                11.5,
+                                color: Mid.sideInk3,
+                                tabular: true,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -3913,7 +3954,7 @@ class _AccountTileState extends State<_AccountTile> {
               : (_hover || _menu.isOpen ? Mid.sideHover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
           border: widget.active
-              ? const Border(left: BorderSide(color: Mid.sun, width: 2))
+              ? Border(left: BorderSide(color: Mid.sun, width: 2))
               : null,
         ),
         child: Column(
@@ -4137,14 +4178,34 @@ class _Toast extends StatelessWidget {
 
 /// Settings → Appearance: System, Light or Dark. Under System, says which one
 /// the computer is showing now, so the choice never looks like it did nothing.
-class _AppearanceSettings extends StatelessWidget {
-  const _AppearanceSettings({required this.value, required this.onChanged});
+/// Below, the color scheme showing, and on request all of them: the app's
+/// own, then Figma's 100 in their groups (owner, 2026-09-30), each as its four
+/// colors over its name. Folded by default so the cards below it (Language,
+/// the recovery key) stay in view.
+class _AppearanceSettings extends StatefulWidget {
+  const _AppearanceSettings({
+    required this.value,
+    required this.onChanged,
+    required this.scheme,
+    required this.onScheme,
+  });
   final Appearance value;
   final ValueChanged<Appearance> onChanged;
+  final Scheme scheme;
+  final ValueChanged<Scheme> onScheme;
+
+  @override
+  State<_AppearanceSettings> createState() => _AppearanceSettingsState();
+}
+
+class _AppearanceSettingsState extends State<_AppearanceSettings> {
+  bool _all = false;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final value = widget.value, scheme = widget.scheme;
+    final onChanged = widget.onChanged, onScheme = widget.onScheme;
     Widget choice(Appearance a, String label) => _SettingChoice(
       key: ValueKey('appearance-${a.name}'),
       label: label,
@@ -4182,10 +4243,126 @@ class _AppearanceSettings extends StatelessWidget {
               style: onest(12.5, color: Mid.ink3),
             ),
           ],
+          const SizedBox(height: 24),
+          Text(t.appearanceColorsTitle, style: onest(14, weight: 600)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (!_all) ...[
+                _SchemeTile(
+                  scheme: scheme,
+                  chosen: true,
+                  onTap: () => setState(() => _all = true),
+                ),
+                const SizedBox(width: 14),
+              ],
+              _SettingChoice(
+                key: const ValueKey('colors-all'),
+                label: _all
+                    ? t.appearanceColorsHide
+                    : t.appearanceColorsShowAll(schemes.length),
+                chosen: false,
+                onTap: () => setState(() => _all = !_all),
+              ),
+            ],
+          ),
+          if (_all) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _SchemeTile(
+                  scheme: betterBudgetScheme,
+                  chosen: scheme.id == betterBudgetScheme.id,
+                  onTap: () => onScheme(betterBudgetScheme),
+                ),
+              ],
+            ),
+          ],
+          if (_all)
+            for (final g in SchemeGroup.values) ...[
+              const SizedBox(height: 18),
+              Text(
+                schemeGroupName(t, g),
+                style: onest(12.5, weight: 500, color: Mid.ink2),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final s in schemes.where((s) => s.group == g))
+                    _SchemeTile(
+                      scheme: s,
+                      chosen: s.id == scheme.id,
+                      onTap: () => onScheme(s),
+                    ),
+                ],
+              ),
+            ],
         ],
       ),
     );
   }
+}
+
+/// A color scheme to pick: its four colors over its name, outlined when it's
+/// the one showing.
+class _SchemeTile extends StatelessWidget {
+  const _SchemeTile({
+    required this.scheme,
+    required this.chosen,
+    required this.onTap,
+  });
+  final Scheme scheme;
+  final bool chosen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Hoverable(
+    key: ValueKey('scheme-${scheme.id}'),
+    onTap: onTap,
+    builder: (hover) => Container(
+      width: 124,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: chosen
+            ? Mid.blueWash
+            : (hover ? Mid.raised : Colors.transparent),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: chosen ? Mid.blue : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 30,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final c in scheme.colors)
+                    Expanded(child: ColoredBox(color: c)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            schemeName(context.t, scheme),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: onest(12, color: chosen ? Mid.ink : Mid.ink2),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// One choice in a row of them (Appearance, Language).

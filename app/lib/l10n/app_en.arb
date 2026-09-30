@@ -5117,5 +5117,463 @@
         "type": "String"
       }
     }
+  },
+  "appearanceColorsTitle": "Colors",
+  "@appearanceColorsTitle": {
+    "description": "Settings → Appearance card, heading above the color schemes to pick from."
+  },
+  "appearanceColorsUndoLabel": "Colors: {name}",
+  "@appearanceColorsUndoLabel": {
+    "description": "Undo-menu label after a color scheme is picked. name is the scheme, e.g. \"Stormy morning\".",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "schemeBetterBudget": "BetterBudget",
+  "@schemeBetterBudget": {
+    "description": "Settings → Appearance, the first color scheme: the app's own colors (the default). The app's name; keep it as is."
+  },
+  "schemeGroupMonochromatic": "Monochromatic",
+  "@schemeGroupMonochromatic": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Monochromatic\" combinations)."
+  },
+  "schemeGroupRomantic": "Romantic",
+  "@schemeGroupRomantic": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Romantic\" combinations)."
+  },
+  "schemeGroupPlayful": "Playful",
+  "@schemeGroupPlayful": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Playful\" combinations)."
+  },
+  "schemeGroupVibrant": "Vibrant",
+  "@schemeGroupVibrant": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Vibrant\" combinations)."
+  },
+  "schemeGroupNeutral": "Neutral",
+  "@schemeGroupNeutral": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Neutral\" combinations)."
+  },
+  "schemeGroupTranquil": "Tranquil",
+  "@schemeGroupTranquil": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Tranquil\" combinations)."
+  },
+  "schemeGroupSeasonal": "Seasonal",
+  "@schemeGroupSeasonal": {
+    "description": "Settings → Appearance, heading over a group of color schemes (Figma's \"Seasonal\" combinations)."
+  },
+  "schemeStormyMorning": "Stormy morning",
+  "@schemeStormyMorning": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 1, \"Stormy morning\"); under its four colors."
+  },
+  "schemeMossyHollow": "Mossy hollow",
+  "@schemeMossyHollow": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 2, \"Mossy hollow\"); under its four colors."
+  },
+  "schemeBlueEclipse": "Blue eclipse",
+  "@schemeBlueEclipse": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 3, \"Blue eclipse\"); under its four colors."
+  },
+  "schemeLushForest": "Lush forest",
+  "@schemeLushForest": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 4, \"Lush forest\"); under its four colors."
+  },
+  "schemeGreenJuice": "Green juice",
+  "@schemeGreenJuice": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 5, \"Green juice\"); under its four colors."
+  },
+  "schemeChiliSpice": "Chili spice",
+  "@schemeChiliSpice": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 6, \"Chili spice\"); under its four colors."
+  },
+  "schemeChocolateTruffle": "Chocolate truffle",
+  "@schemeChocolateTruffle": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 7, \"Chocolate truffle\"); under its four colors."
+  },
+  "schemeInkWash": "Ink wash",
+  "@schemeInkWash": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 8, \"Ink wash\"); under its four colors."
+  },
+  "schemeGoldenTaupe": "Golden taupe",
+  "@schemeGoldenTaupe": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 9, \"Golden taupe\"); under its four colors."
+  },
+  "schemeWisteriaBloom": "Wisteria bloom",
+  "@schemeWisteriaBloom": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 10, \"Wisteria bloom\"); under its four colors."
+  },
+  "schemeBurntSienna": "Burnt sienna",
+  "@schemeBurntSienna": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 11, \"Burnt sienna\"); under its four colors."
+  },
+  "schemeBloomingRomance": "Blooming romance",
+  "@schemeBloomingRomance": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 12, \"Blooming romance\"); under its four colors."
+  },
+  "schemeDesertDusk": "Desert dusk",
+  "@schemeDesertDusk": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 13, \"Desert dusk\"); under its four colors."
+  },
+  "schemeLavenderFields": "Lavender fields",
+  "@schemeLavenderFields": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 14, \"Lavender fields\"); under its four colors."
+  },
+  "schemeHydrangea": "Hydrangea",
+  "@schemeHydrangea": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 15, \"Hydrangea\"); under its four colors."
+  },
+  "schemeCactusFlower": "Cactus flower",
+  "@schemeCactusFlower": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 16, \"Cactus flower\"); under its four colors."
+  },
+  "schemeWildflowers": "Wildflowers",
+  "@schemeWildflowers": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 17, \"Wildflowers\"); under its four colors."
+  },
+  "schemeCountryGarden": "Country garden",
+  "@schemeCountryGarden": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 18, \"Country garden\"); under its four colors."
+  },
+  "schemeLotusGarden": "Lotus garden",
+  "@schemeLotusGarden": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 19, \"Lotus garden\"); under its four colors."
+  },
+  "schemeIrisGarden": "Iris garden",
+  "@schemeIrisGarden": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 20, \"Iris garden\"); under its four colors."
+  },
+  "schemeFreshPeach": "Fresh peach",
+  "@schemeFreshPeach": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 21, \"Fresh peach\"); under its four colors."
+  },
+  "schemeGoldenHour": "Golden hour",
+  "@schemeGoldenHour": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 22, \"Golden hour\"); under its four colors."
+  },
+  "schemeSpicedChai": "Spiced chai",
+  "@schemeSpicedChai": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 23, \"Spiced chai\"); under its four colors."
+  },
+  "schemeCherryBlossom": "Cherry blossom",
+  "@schemeCherryBlossom": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 24, \"Cherry blossom\"); under its four colors."
+  },
+  "schemeEveningRose": "Evening rose",
+  "@schemeEveningRose": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 25, \"Evening rose\"); under its four colors."
+  },
+  "schemePastelGarden": "Pastel garden",
+  "@schemePastelGarden": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 26, \"Pastel garden\"); under its four colors."
+  },
+  "schemeTuscanSunset": "Tuscan sunset",
+  "@schemeTuscanSunset": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 27, \"Tuscan sunset\"); under its four colors."
+  },
+  "schemeZestyLemon": "Zesty lemon",
+  "@schemeZestyLemon": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 28, \"Zesty lemon\"); under its four colors."
+  },
+  "schemeCaliforniaBeaches": "California beaches",
+  "@schemeCaliforniaBeaches": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 29, \"California beaches\"); under its four colors."
+  },
+  "schemeFreshlySqueezed": "Freshly squeezed",
+  "@schemeFreshlySqueezed": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 30, \"Freshly squeezed\"); under its four colors."
+  },
+  "schemePistachioDream": "Pistachio dream",
+  "@schemePistachioDream": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 31, \"Pistachio dream\"); under its four colors."
+  },
+  "schemeMangoPopsicle": "Mango popsicle",
+  "@schemeMangoPopsicle": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 32, \"Mango popsicle\"); under its four colors."
+  },
+  "schemeGuava": "Guava",
+  "@schemeGuava": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 33, \"Guava\"); under its four colors."
+  },
+  "schemeGlowingHorizon": "Glowing horizon",
+  "@schemeGlowingHorizon": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 34, \"Glowing horizon\"); under its four colors."
+  },
+  "schemeSunnyDay": "Sunny day",
+  "@schemeSunnyDay": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 35, \"Sunny day\"); under its four colors."
+  },
+  "schemeRetroSunset": "Retro sunset",
+  "@schemeRetroSunset": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 36, \"Retro sunset\"); under its four colors."
+  },
+  "schemeBubblegumPop": "Bubblegum pop",
+  "@schemeBubblegumPop": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 37, \"Bubblegum pop\"); under its four colors."
+  },
+  "schemeCottonCandySkies": "Cotton candy skies",
+  "@schemeCottonCandySkies": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 38, \"Cotton candy skies\"); under its four colors."
+  },
+  "schemeElectricKiwi": "Electric kiwi",
+  "@schemeElectricKiwi": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 39, \"Electric kiwi\"); under its four colors."
+  },
+  "schemeWatermelonSplash": "Watermelon splash",
+  "@schemeWatermelonSplash": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 40, \"Watermelon splash\"); under its four colors."
+  },
+  "schemeAlchemicalReaction": "Alchemical reaction",
+  "@schemeAlchemicalReaction": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 41, \"Alchemical reaction\"); under its four colors."
+  },
+  "schemeElectropop": "Electropop",
+  "@schemeElectropop": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 42, \"Electropop\"); under its four colors."
+  },
+  "schemeCoolRevival": "Cool revival",
+  "@schemeCoolRevival": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 43, \"Cool revival\"); under its four colors."
+  },
+  "schemeNeonJungle": "Neon jungle",
+  "@schemeNeonJungle": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 44, \"Neon jungle\"); under its four colors."
+  },
+  "schemeSharpEdge": "Sharp edge",
+  "@schemeSharpEdge": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 45, \"Sharp edge\"); under its four colors."
+  },
+  "schemeElectricFusion": "Electric fusion",
+  "@schemeElectricFusion": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 46, \"Electric fusion\"); under its four colors."
+  },
+  "schemeFireworks": "Fireworks",
+  "@schemeFireworks": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 47, \"Fireworks\"); under its four colors."
+  },
+  "schemeSpaceBerries": "Space berries",
+  "@schemeSpaceBerries": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 48, \"Space berries\"); under its four colors."
+  },
+  "schemePopArt": "Pop art",
+  "@schemePopArt": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 49, \"Pop art\"); under its four colors."
+  },
+  "schemeUrbanGraffiti": "Urban graffiti",
+  "@schemeUrbanGraffiti": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 50, \"Urban graffiti\"); under its four colors."
+  },
+  "schemeNeonNoir": "Neon noir",
+  "@schemeNeonNoir": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 51, \"Neon noir\"); under its four colors."
+  },
+  "schemeTropicalPunch": "Tropical punch",
+  "@schemeTropicalPunch": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 52, \"Tropical punch\"); under its four colors."
+  },
+  "schemeCobaltSky": "Cobalt sky",
+  "@schemeCobaltSky": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 53, \"Cobalt sky\"); under its four colors."
+  },
+  "schemeTechnicolorDream": "Technicolor dream",
+  "@schemeTechnicolorDream": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 54, \"Technicolor dream\"); under its four colors."
+  },
+  "schemeJewelBox": "Jewel box",
+  "@schemeJewelBox": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 55, \"Jewel box\"); under its four colors."
+  },
+  "schemeSaltAndPepper": "Salt and pepper",
+  "@schemeSaltAndPepper": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 56, \"Salt and pepper\"); under its four colors."
+  },
+  "schemeQuiteClear": "Quite clear",
+  "@schemeQuiteClear": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 57, \"Quite clear\"); under its four colors."
+  },
+  "schemeGothicNoir": "Gothic noir",
+  "@schemeGothicNoir": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 58, \"Gothic noir\"); under its four colors."
+  },
+  "schemeYachtClub": "Yacht club",
+  "@schemeYachtClub": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 59, \"Yacht club\"); under its four colors."
+  },
+  "schemeQuietLuxury": "Quiet luxury",
+  "@schemeQuietLuxury": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 60, \"Quiet luxury\"); under its four colors."
+  },
+  "schemeNightSands": "Night sands",
+  "@schemeNightSands": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 61, \"Night sands\"); under its four colors."
+  },
+  "schemeHarborHaze": "Harbor haze",
+  "@schemeHarborHaze": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 62, \"Harbor haze\"); under its four colors."
+  },
+  "schemeOldPhotograph": "Old photograph",
+  "@schemeOldPhotograph": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 63, \"Old photograph\"); under its four colors."
+  },
+  "schemeCappuccino": "Cappuccino",
+  "@schemeCappuccino": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 64, \"Cappuccino\"); under its four colors."
+  },
+  "schemeBreakfastTea": "Breakfast tea",
+  "@schemeBreakfastTea": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 65, \"Breakfast tea\"); under its four colors."
+  },
+  "schemeCozyCampfire": "Cozy campfire",
+  "@schemeCozyCampfire": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 66, \"Cozy campfire\"); under its four colors."
+  },
+  "schemeStonePath": "Stone path",
+  "@schemeStonePath": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 67, \"Stone path\"); under its four colors."
+  },
+  "schemeDesertMirage": "Desert mirage",
+  "@schemeDesertMirage": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 68, \"Desert mirage\"); under its four colors."
+  },
+  "schemeHoneycomb": "Honeycomb",
+  "@schemeHoneycomb": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 69, \"Honeycomb\"); under its four colors."
+  },
+  "schemeUrbanLoft": "Urban loft",
+  "@schemeUrbanLoft": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 70, \"Urban loft\"); under its four colors."
+  },
+  "schemeSpicedMocha": "Spiced mocha",
+  "@schemeSpicedMocha": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 71, \"Spiced mocha\"); under its four colors."
+  },
+  "schemeCharmingSeaside": "Charming seaside",
+  "@schemeCharmingSeaside": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 72, \"Charming seaside\"); under its four colors."
+  },
+  "schemeCalmBlue": "Calm blue",
+  "@schemeCalmBlue": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 73, \"Calm blue\"); under its four colors."
+  },
+  "schemeBeachfrontViews": "Beachfront views",
+  "@schemeBeachfrontViews": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 74, \"Beachfront views\"); under its four colors."
+  },
+  "schemeUnderTheMoonlight": "Under the moonlight",
+  "@schemeUnderTheMoonlight": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 75, \"Under the moonlight\"); under its four colors."
+  },
+  "schemeLavenderLullaby": "Lavender lullaby",
+  "@schemeLavenderLullaby": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 76, \"Lavender lullaby\"); under its four colors."
+  },
+  "schemeMintyFresh": "Minty fresh",
+  "@schemeMintyFresh": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 77, \"Minty fresh\"); under its four colors."
+  },
+  "schemeRetroCalm": "Retro calm",
+  "@schemeRetroCalm": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 78, \"Retro calm\"); under its four colors."
+  },
+  "schemeSiltstone": "Siltstone",
+  "@schemeSiltstone": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 79, \"Siltstone\"); under its four colors."
+  },
+  "schemeEmeraldOdyssey": "Emerald odyssey",
+  "@schemeEmeraldOdyssey": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 80, \"Emerald odyssey\"); under its four colors."
+  },
+  "schemeOceanTide": "Ocean tide",
+  "@schemeOceanTide": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 81, \"Ocean tide\"); under its four colors."
+  },
+  "schemePeachSkyline": "Peach skyline",
+  "@schemePeachSkyline": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 82, \"Peach skyline\"); under its four colors."
+  },
+  "schemeMountainMist": "Mountain mist",
+  "@schemeMountainMist": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 83, \"Mountain mist\"); under its four colors."
+  },
+  "schemeMorningDew": "Morning dew",
+  "@schemeMorningDew": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 84, \"Morning dew\"); under its four colors."
+  },
+  "schemeFrozenLake": "Frozen lake",
+  "@schemeFrozenLake": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 85, \"Frozen lake\"); under its four colors."
+  },
+  "schemeOliveGrove": "Olive grove",
+  "@schemeOliveGrove": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 86, \"Olive grove\"); under its four colors."
+  },
+  "schemeCoastalMorning": "Coastal morning",
+  "@schemeCoastalMorning": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 87, \"Coastal morning\"); under its four colors."
+  },
+  "schemeEucalyptusGrove": "Eucalyptus grove",
+  "@schemeEucalyptusGrove": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 88, \"Eucalyptus grove\"); under its four colors."
+  },
+  "schemeSoftSpring": "Soft spring",
+  "@schemeSoftSpring": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 89, \"Soft spring\"); under its four colors."
+  },
+  "schemeAutumnLeaves": "Autumn leaves",
+  "@schemeAutumnLeaves": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 90, \"Autumn leaves\"); under its four colors."
+  },
+  "schemeWinterChill": "Winter chill",
+  "@schemeWinterChill": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 91, \"Winter chill\"); under its four colors."
+  },
+  "schemeSpringEnergy": "Spring energy",
+  "@schemeSpringEnergy": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 92, \"Spring energy\"); under its four colors."
+  },
+  "schemePumpkinSpiceSeason": "Pumpkin spice season",
+  "@schemePumpkinSpiceSeason": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 93, \"Pumpkin spice season\"); under its four colors."
+  },
+  "schemeIslandOasis": "Island oasis",
+  "@schemeIslandOasis": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 94, \"Island oasis\"); under its four colors."
+  },
+  "schemeAutumnOrchard": "Autumn orchard",
+  "@schemeAutumnOrchard": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 95, \"Autumn orchard\"); under its four colors."
+  },
+  "schemeTropicalRainforest": "Tropical rainforest",
+  "@schemeTropicalRainforest": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 96, \"Tropical rainforest\"); under its four colors."
+  },
+  "schemeWildflowerMeadow": "Wildflower meadow",
+  "@schemeWildflowerMeadow": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 97, \"Wildflower meadow\"); under its four colors."
+  },
+  "schemeHarvestMoon": "Harvest moon",
+  "@schemeHarvestMoon": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 98, \"Harvest moon\"); under its four colors."
+  },
+  "schemeWinterBerry": "Winter berry",
+  "@schemeWinterBerry": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 99, \"Winter berry\"); under its four colors."
+  },
+  "schemeSummerBreeze": "Summer breeze",
+  "@schemeSummerBreeze": {
+    "description": "Settings → Appearance, the name of a color scheme (Figma's combination 100, \"Summer breeze\"); under its four colors."
+  },
+  "appearanceColorsShowAll": "See all {count} colors",
+  "@appearanceColorsShowAll": {
+    "description": "Settings → Appearance, button beside the color scheme showing: unfolds every scheme to pick from. count is how many (101).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appearanceColorsHide": "Hide the colors",
+  "@appearanceColorsHide": {
+    "description": "Settings → Appearance, the same button once the schemes are showing: folds them away."
   }
 }

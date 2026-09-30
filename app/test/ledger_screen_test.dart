@@ -8,6 +8,8 @@ import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/ui/appearance.dart';
+import 'package:betterbudget/ui/brand.dart';
+import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/register.dart' show SmoothHeight;
@@ -3259,7 +3261,7 @@ void main() {
   });
 
   group('appearance', () {
-    tearDown(() => Mid.palette = Palette.dark);
+    tearDown(() => Mid.palette = Palette.of(defaultScheme, Brightness.dark));
 
     testWidgets('follows the Mac, and Settings picks light or dark', (
       tester,
@@ -3348,7 +3350,7 @@ void main() {
       // The title bar is told each time.
       expect(looks.last, {
         'dark': true,
-        'ground': Palette.dark.ground.toARGB32(),
+        'ground': Palette.of(defaultScheme, Brightness.dark).ground.toARGB32(),
       });
 
       await tester.runAsync(() async {
@@ -3389,6 +3391,133 @@ void main() {
       expect((await AppearanceController.load(file)).value, Appearance.light);
       await file.writeAsString('purple');
       expect((await AppearanceController.load(file)).value, Appearance.system);
+
+      // The scheme goes on a second line; a file from before has none.
+      await file.writeAsString('dark');
+      final c = await AppearanceController.load(file);
+      expect(c.value, Appearance.dark);
+      expect(c.scheme, defaultScheme);
+      await c.setScheme(schemeById('harbor-haze'));
+      final again = await AppearanceController.load(file);
+      expect(again.value, Appearance.dark);
+      expect(again.scheme.id, 'harbor-haze');
+      // Changing light or dark keeps the scheme.
+      await again.set(Appearance.light);
+      final third = await AppearanceController.load(file);
+      expect(third.value, Appearance.light);
+      expect(third.scheme.id, 'harbor-haze');
+      expect(File('${file.path}.part').existsSync(), isFalse);
+      await file.writeAsString('light\nno-such-scheme\n');
+      expect((await AppearanceController.load(file)).scheme, defaultScheme);
+    });
+
+    testWidgets('Settings picks a color scheme; the logo keeps its colors; '
+        '⌘Z goes back', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final db = AppDatabase(NativeDatabase.memory());
+      final appearance = AppearanceController(initial: Appearance.dark);
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          AppearanceScope(
+            controller: appearance,
+            child: Builder(
+              builder: (_) => MaterialApp(
+                debugShowCheckedModeBanner: false,
+                themeAnimationDuration: Duration.zero,
+                theme: appTheme(),
+                home: LedgerScreen(
+                  db: db,
+                  clock: () => DateTime(2026, 9, 16, 10),
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      // Blue eclipse until someone picks, with the dark-mode logo.
+      expect(Mid.palette, same(Palette.of(defaultScheme, Brightness.dark)));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('logo')),
+          matching: find.byType(Wordmark),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.text('Colors'), findsOneWidget);
+      // Folded: only the scheme showing, so the cards below stay in view.
+      expect(find.text('Monochromatic'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('colors-all')));
+      await tester.pumpAndSettle();
+      expect(find.text('Hide the colors'), findsOneWidget);
+      expect(find.text('Monochromatic'), findsOneWidget);
+      expect(find.text('Seasonal'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/settings_colors.png'),
+      );
+
+      final stormy = schemeById('stormy-morning');
+      await tester.tap(find.byKey(const ValueKey('scheme-stormy-morning')));
+      await tester.pumpAndSettle();
+      expect(appearance.scheme, stormy);
+      expect(Mid.palette, same(Palette.of(stormy, Brightness.dark)));
+
+      // Light and dark still apply to the scheme.
+      await tester.tap(find.byKey(const ValueKey('appearance-light')));
+      await tester.pumpAndSettle();
+      expect(Mid.palette, same(Palette.of(stormy, Brightness.light)));
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/ledger_stormy_light.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('appearance-dark')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/ledger_stormy_dark.png'),
+      );
+
+      Future<void> key({bool shift = false}) => tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      // Back through dark → light → the scheme, to the app's own colors.
+      await key();
+      await tester.pumpAndSettle();
+      await key();
+      await tester.pumpAndSettle();
+      expect(appearance.scheme, stormy);
+      expect(appearance.value, Appearance.dark);
+      await key();
+      await tester.pumpAndSettle();
+      expect(appearance.scheme, defaultScheme);
+      expect(Mid.palette, same(Palette.of(defaultScheme, Brightness.dark)));
+      await settle(tester);
+      expect(find.text('Undone · Colors: Stormy morning'), findsOneWidget);
+      await key(shift: true);
+      await tester.pumpAndSettle();
+      expect(appearance.scheme, stormy);
+      await tidy(tester, db);
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 
