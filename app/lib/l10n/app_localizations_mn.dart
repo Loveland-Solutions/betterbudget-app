@@ -1046,6 +1046,19 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planForecast => 'Урьдчилсан тооцоо';
+
+  @override
+  String get planTodaysBalance => 'Өнөөдрийн үлдэгдэл';
+
+  @override
+  String get planExpectedIncome => 'Хүлээгдэж буй орлого';
+
+  @override
+  String get planNothingBudgeted =>
+      'Төсөв хараахан гаргаагүй байна. Төсвөө бөглөсний дараа энд урьдчилсан тооцоо харагдана.';
+
+  @override
   String planUntilPaycheck(String date) {
     return '$date-ны цалин хүртэл';
   }
@@ -1054,20 +1067,6 @@ class WordsMn extends Words {
   String planLowestToday(String amount) {
     return 'Доод үлдэгдэл $amount · өнөөдөр';
   }
-
-  @override
-  String get planPay => 'Цалин';
-
-  @override
-  String get planNextPay => 'Дараагийн цалин';
-
-  @override
-  String planNoBillsYet(String date) {
-    return 'Төлбөр төлөвлөөгүй байна. Түрээс, утас зэрэг төлбөрөө нэмбэл $date хүртэл мөнгө хүрэх эсэхийг харуулна.';
-  }
-
-  @override
-  String get planAddBill => 'Төлбөр нэмэх →';
 
   @override
   String planChartPay(String amount) {

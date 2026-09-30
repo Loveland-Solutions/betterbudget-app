@@ -1567,6 +1567,22 @@
       }
     }
   },
+  "planForecast": "Forecast",
+  "@planForecast": {
+    "description": "Title of the forecast part of the account header, bold and centered."
+  },
+  "planTodaysBalance": "Today’s balance",
+  "@planTodaysBalance": {
+    "description": "Forecast list, first line: the account's Working balance today."
+  },
+  "planExpectedIncome": "Expected income",
+  "@planExpectedIncome": {
+    "description": "Forecast list: a payday the pay plan expects, with its amount. Deliberately general: the app doesn't know what kind of income it is."
+  },
+  "planNothingBudgeted": "Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.",
+  "@planNothingBudgeted": {
+    "description": "Forecast, under the list when pay is known but nothing is budgeted or scheduled to go out. The owner's wording (2026-09-30)."
+  },
   "planUntilPaycheck": "Until your {date} paycheck",
   "@planUntilPaycheck": {
     "description": "Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).",
@@ -1584,27 +1600,6 @@
         "type": "String"
       }
     }
-  },
-  "planPay": "Pay",
-  "@planPay": {
-    "description": "Forecast list: the line for the next paycheck."
-  },
-  "planNextPay": "Next pay",
-  "@planNextPay": {
-    "description": "Forecast list, last line: the payday it runs up to (no amount; it isn't counted)."
-  },
-  "planNoBillsYet": "No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until {date}.",
-  "@planNoBillsYet": {
-    "description": "Forecast, under the list when pay is known but no bills are scheduled.",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "planAddBill": "Add a bill →",
-  "@planAddBill": {
-    "description": "Forecast link: opens the entry row dated tomorrow, so what's typed is scheduled."
   },
   "planChartPay": "+{amount} pay",
   "@planChartPay": {

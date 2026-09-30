@@ -90,6 +90,7 @@ class RegisterPanel extends StatelessWidget {
     this.adding = false,
     this.onCloseEntry,
     this.addButton,
+    this.searchBox,
     this.reconcileThrough,
     this.owed = false,
     this.accountName,
@@ -109,6 +110,10 @@ class RegisterPanel extends StatelessWidget {
   /// Opens the new-transaction row; sits at the end of the tab row, above
   /// where the row opens.
   final Widget? addButton;
+
+  /// The search box: in the tab row, beside what it narrows (owner,
+  /// 2026-09-30), not at the top of the page.
+  final Widget? searchBox;
 
   /// The new-transaction row is open (from Add or ⌘N).
   final bool adding;
@@ -341,6 +346,10 @@ class RegisterPanel extends StatelessWidget {
                             onFilter: actions.onFilter,
                           ),
                   ),
+                  if (searchBox case final box?) ...[
+                    box,
+                    const SizedBox(width: 10),
+                  ],
                   ?addButton,
                 ],
               ),

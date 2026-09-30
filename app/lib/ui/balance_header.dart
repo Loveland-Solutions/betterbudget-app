@@ -23,14 +23,10 @@ class BalanceHeader extends StatelessWidget {
     this.reconcile,
     this.owed = false,
     this.onAddPay,
-    this.onAddBill,
   });
 
   /// No payday ahead: the forecast offers to put pay in.
   final VoidCallback? onAddPay;
-
-  /// No bills scheduled: the forecast offers to add one.
-  final VoidCallback? onAddBill;
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
@@ -88,7 +84,6 @@ class BalanceHeader extends StatelessWidget {
                 forecast,
                 onOpen: onOpenScheduled,
                 onAddPay: onAddPay,
-                onAddBill: onAddBill,
               ),
             ),
           ],
@@ -452,17 +447,10 @@ String _payeeText(Words t, RegisterRow r) => r.kind != RowKind.transfer
 
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
-  const ForecastPanel(
-    this.f, {
-    super.key,
-    required this.onOpen,
-    this.onAddPay,
-    this.onAddBill,
-  });
+  const ForecastPanel(this.f, {super.key, required this.onOpen, this.onAddPay});
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
   final VoidCallback? onAddPay;
-  final VoidCallback? onAddBill;
 
   @override
   Widget build(BuildContext context) {
@@ -561,15 +549,26 @@ class ForecastPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // What this part of the header is, for someone seeing it first.
+        Center(
+          child: Text(
+            t.planForecast,
+            key: const ValueKey('forecast-title'),
+            style: onest(14, weight: 700, color: Mid.ink),
+          ),
+        ),
+        const SizedBox(height: 6),
         Row(
           key: const ValueKey('forecast-horizon'),
           children: [
-            Text(
-              payday == null
-                  ? t.planNext30Days
-                  : t.planUntilPaycheck(sayDate(t, f.end)),
-              style: onest(12, color: Mid.ink3),
-            ),
+            // The list names its own dates.
+            if (!knownOnly)
+              Text(
+                payday == null
+                    ? t.planNext30Days
+                    : t.planUntilPaycheck(sayDate(t, f.end)),
+                style: onest(12, color: Mid.ink3),
+              ),
             if (late.isNotEmpty)
               Flexible(
                 child: _LateNote(late: late, today: f.start, onOpen: onOpen),
@@ -597,7 +596,7 @@ class ForecastPanel extends StatelessWidget {
         if (knownOnly) ...[
           const SizedBox(height: 8),
           Expanded(
-            child: _KnownList(f: f, onOpen: onOpen, onAddBill: onAddBill),
+            child: _KnownList(f: f, onOpen: onOpen),
           ),
         ] else ...[
           const SizedBox(height: 4),
@@ -633,10 +632,9 @@ class ForecastPanel extends StatelessWidget {
 /// The forecast with pay but no bills: today, what comes in, where it ends,
 /// and what to add. Each line opens its row.
 class _KnownList extends StatelessWidget {
-  const _KnownList({required this.f, required this.onOpen, this.onAddBill});
+  const _KnownList({required this.f, required this.onOpen});
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
-  final VoidCallback? onAddBill;
 
   @override
   Widget build(BuildContext context) {
@@ -686,52 +684,56 @@ class _KnownList extends StatelessWidget {
           : Hoverable(key: key, onTap: () => onOpen(row), builder: (_) => body);
     }
 
-    // Money in on the way (the paycheck, refunds, transfers), then the end.
+    // Today, then each paycheck the plan expects with its amount (which
+    // kind of income it is isn't known, owner 2026-09-30), and any other
+    // money on the way by name.
+    String plus(int v) => '+$symbol${formatWhole(v)}';
     return Column(
       key: const ValueKey('forecast-known'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        line(
-          t.today,
-          '',
-          '$symbol${formatWhole(f.startBalance)}',
-          key: const ValueKey('forecast-known-today'),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            key: const ValueKey('forecast-known-today'),
+            children: [
+              Expanded(
+                child: Text(
+                  t.planTodaysBalance,
+                  style: onest(13, color: Mid.ink2),
+                ),
+              ),
+              Text(
+                '$symbol${formatWhole(f.startBalance)}',
+                style: onest(13, color: Mid.ink, tabular: true),
+              ),
+            ],
+          ),
         ),
         for (final s in f.steps)
           line(
             shortDate(s.date),
-            identical(s.row, payday) ? t.planPay : _payeeText(t, s.row),
-            '+$symbol${formatWhole(s.row.amount)}',
+            identical(s.row, payday)
+                ? t.planExpectedIncome
+                : _payeeText(t, s.row),
+            plus(s.row.amount),
             row: s.row,
           ),
         if (f.throughPeriod)
-          line(shortDate(f.end), t.planNextPay, null)
+          line(
+            shortDate(f.end),
+            t.planExpectedIncome,
+            f.nextPayAmount == null ? null : plus(f.nextPayAmount!),
+          )
         else
           line(
             shortDate(f.end),
-            t.planPay,
-            '+$symbol${formatWhole(payday.amount)}',
+            t.planExpectedIncome,
+            plus(payday.amount),
             row: payday,
           ),
         const SizedBox(height: 8),
-        Text(
-          t.planNoBillsYet(sayDate(t, f.end)),
-          style: onest(12.5, color: Mid.ink3),
-        ),
-        if (onAddBill != null) ...[
-          const SizedBox(height: 4),
-          Hoverable(
-            key: const ValueKey('add-bill'),
-            onTap: onAddBill!,
-            builder: (hover) => Text(
-              t.planAddBill,
-              style: onest(12.5, color: Mid.blue).copyWith(
-                decoration: hover ? TextDecoration.underline : null,
-                decorationColor: Mid.blue,
-              ),
-            ),
-          ),
-        ],
+        Text(t.planNothingBudgeted, style: onest(12.5, color: Mid.ink3)),
       ],
     );
   }

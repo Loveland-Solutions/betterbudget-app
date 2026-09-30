@@ -27,6 +27,7 @@ class Forecast {
     this.late = const [],
     this.owed = false,
     this.nextPayday,
+    this.nextPayAmount,
   });
 
   final DateTime start;
@@ -48,6 +49,10 @@ class Forecast {
 
   /// The payday after [payday], from its pay plan: where the forecast ends.
   final DateTime? nextPayday;
+
+  /// What the plan expects on [nextPayday] (not counted: it ends the
+  /// forecast).
+  final int? nextPayAmount;
 
   /// Runs through the pay period [payday] starts, not just up to it.
   bool get throughPeriod => payday != null && nextPayday != null;
@@ -99,7 +104,7 @@ Forecast buildForecast({
   required DateTime today,
   required List<RegisterRow> scheduled,
   bool owed = false,
-  DateTime? Function(RegisterRow payday)? paydayAfter,
+  ({DateTime date, int amount})? Function(RegisterRow payday)? paydayAfter,
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -131,12 +136,11 @@ Forecast buildForecast({
             .firstOrNull;
   // The payday after it, from its pay plan: only the next payday of a plan
   // is ever scheduled.
-  var nextPayday = payday == null ? null : paydayAfter?.call(payday);
-  if (payday != null &&
-      nextPayday != null &&
-      !nextPayday.isAfter(when(payday))) {
-    nextPayday = null;
+  var after = payday == null ? null : paydayAfter?.call(payday);
+  if (payday != null && after != null && !after.date.isAfter(when(payday))) {
+    after = null;
   }
+  final nextPayday = after?.date;
   final end =
       nextPayday ??
       (payday != null ? when(payday) : start.add(_fallbackHorizon));
@@ -209,5 +213,6 @@ Forecast buildForecast({
     late: late,
     owed: owed,
     nextPayday: nextPayday,
+    nextPayAmount: after?.amount,
   );
 }

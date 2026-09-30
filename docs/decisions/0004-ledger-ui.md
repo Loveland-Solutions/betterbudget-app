@@ -217,6 +217,9 @@ What's known so far:
    before it clears, so copy must say "not cleared yet", never "not posted" (an owner
    correction). Nor "settled" (owner, 2026-09-30: it reads as AI-written): the app's
    word is **cleared**.
+   **Search sits in the register's tab row**, between the tabs and Add (owner,
+   2026-09-30), not at the top of the page: the page starts higher and gives the
+   header more room.
    **On a credit card every amount is what's owed, positive**, as the bank shows it
    (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
    normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
@@ -674,10 +677,13 @@ What's known so far:
     unless it's within a week (C). **It has to read for someone new** (owner's
     correction, 2026-09-30, on a flat line with a jump under "Never below today's
     ₮4,289,291": "What does it mean?"; option A of three). With pay but no bills,
-    there's no chart: a list (Today ₮X · 10.01 Pay +₮Y · 10.15 Next pay), then "No
-    bills scheduled yet. Add rent, phone and other bills to see if your money lasts
-    until 10.15." and **Add a bill →**, which opens the entry row dated tomorrow so
-    it's scheduled. With bills, the chart names its amounts beside their points:
+    there's no chart: a list under a bold, centered **"Forecast"** title: "Today's
+    balance ₮X", then each payday as "10.01 Expected income +₮Y" and "10.15 Expected
+    income +₮Y" (the app doesn't know what kind of income it is; "Pay" and "Next
+    pay" were wrong, since the first one is the next pay), then "Nothing has been
+    budgeted. Once you fill out your budget, this area will show you a forecast."
+    (owner's wording, 2026-09-30; it replaced a hint and an "Add a bill" link they
+    called AI-speak). Every state has the "Forecast" title. With bills, the chart names its amounts beside their points:
     where it starts, the lowest point, and "+₮Y pay" on the paycheck's step (one
     that would cover another is left off). Rejected: a labeled chart even with no
     bills (B), and always a list, no chart (C). **From the reviews:** the headline

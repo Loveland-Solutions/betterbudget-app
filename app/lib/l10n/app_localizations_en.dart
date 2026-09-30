@@ -1084,6 +1084,19 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planForecast => 'Forecast';
+
+  @override
+  String get planTodaysBalance => 'Today’s balance';
+
+  @override
+  String get planExpectedIncome => 'Expected income';
+
+  @override
+  String get planNothingBudgeted =>
+      'Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.';
+
+  @override
   String planUntilPaycheck(String date) {
     return 'Until your $date paycheck';
   }
@@ -1092,20 +1105,6 @@ class WordsEn extends Words {
   String planLowestToday(String amount) {
     return 'Lowest $amount, today';
   }
-
-  @override
-  String get planPay => 'Pay';
-
-  @override
-  String get planNextPay => 'Next pay';
-
-  @override
-  String planNoBillsYet(String date) {
-    return 'No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until $date.';
-  }
-
-  @override
-  String get planAddBill => 'Add a bill →';
 
   @override
   String planChartPay(String amount) {

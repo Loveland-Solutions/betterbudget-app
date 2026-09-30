@@ -1524,6 +1524,30 @@ abstract class Words {
   /// **'Lowest {amount} on {date}'**
   String planLowest(String amount, String date);
 
+  /// Title of the forecast part of the account header, bold and centered.
+  ///
+  /// In en, this message translates to:
+  /// **'Forecast'**
+  String get planForecast;
+
+  /// Forecast list, first line: the account's Working balance today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s balance'**
+  String get planTodaysBalance;
+
+  /// Forecast list: a payday the pay plan expects, with its amount. Deliberately general: the app doesn't know what kind of income it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected income'**
+  String get planExpectedIncome;
+
+  /// Forecast, under the list when pay is known but nothing is budgeted or scheduled to go out. The owner's wording (2026-09-30).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.'**
+  String get planNothingBudgeted;
+
   /// Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).
   ///
   /// In en, this message translates to:
@@ -1535,30 +1559,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Lowest {amount}, today'**
   String planLowestToday(String amount);
-
-  /// Forecast list: the line for the next paycheck.
-  ///
-  /// In en, this message translates to:
-  /// **'Pay'**
-  String get planPay;
-
-  /// Forecast list, last line: the payday it runs up to (no amount; it isn't counted).
-  ///
-  /// In en, this message translates to:
-  /// **'Next pay'**
-  String get planNextPay;
-
-  /// Forecast, under the list when pay is known but no bills are scheduled.
-  ///
-  /// In en, this message translates to:
-  /// **'No bills scheduled yet. Add rent, phone and other bills to see if your money lasts until {date}.'**
-  String planNoBillsYet(String date);
-
-  /// Forecast link: opens the entry row dated tomorrow, so what's typed is scheduled.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a bill →'**
-  String get planAddBill;
 
   /// Forecast chart, label on the step up where the next paycheck lands.
   ///

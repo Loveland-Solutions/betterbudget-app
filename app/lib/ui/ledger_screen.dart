@@ -593,10 +593,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
-  /// ⌘N and + open the entry row on today; [on] opens it on another day
-  /// ("Add a bill" in the forecast: tomorrow, so it's scheduled).
-  void _newEntry({DateTime? on}) {
-    _entry.opensOn = on;
+  void _newEntry() {
     setState(() {
       _section = AppSection.ledger;
       _adding = true;
@@ -609,7 +606,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// category and account, unless that plan has its own payday ahead (then
   /// [row] is extra, a bonus, and the plan's payday is the next one). Null
   /// with no plan.
-  DateTime? _paydayAfter(
+  ({DateTime date, int amount})? _paydayAfter(
     LedgerData data,
     List<RegisterRow> scheduled,
     RegisterRow row,
@@ -630,12 +627,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     // From the payday it was planned as, by amount for split pay: one moved
     // a few days by hand mustn't make that same payday the next.
-    return plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+    final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+    return (date: next, amount: plan.amountOn(next));
   }
 
   /// Esc on the new-transaction row: it closes, and ⌘Z works again at
   /// once. The row drops focus on its way out, which left the screen's keys
   /// unreachable until a click.
+  Widget _searchBox() => _SearchField(
+    controller: _search,
+    focusNode: _searchFocus,
+    onChanged: () => setState(() {}),
+  );
+
   void _closeEntry() {
     setState(() => _adding = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1300,7 +1304,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountInfo accountOf(RegisterRow r) => data.accounts[r.accountId]!;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1309,12 +1313,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
               Text(
                 t.ledgerAllAccounts,
                 style: onest(22, weight: 600, letterSpacing: -0.3),
-              ),
-              const Spacer(),
-              _SearchField(
-                controller: _search,
-                focusNode: _searchFocus,
-                onChanged: () => setState(() {}),
               ),
             ],
           ),
@@ -1376,6 +1374,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               entryController: _entry,
               today: today,
               adding: _adding,
+              searchBox: _searchBox(),
               addButton: _PrimaryButton(
                 label: t.ledgerAdd,
                 icon: Icons.add_rounded,
@@ -2588,7 +2587,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2605,15 +2604,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   renameRequest: _renameRequest,
                 ),
               ),
-              const Spacer(),
-              _SearchField(
-                controller: _search,
-                focusNode: _searchFocus,
-                onChanged: () => setState(() {}),
-              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           if (fresh)
             Align(
               alignment: Alignment.topLeft,
@@ -2648,9 +2641,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       data.prefs[noRegularPayKey] == '1'
                   ? null
                   : () => _openPaySetup(account: account),
-              onAddBill: () => _newEntry(
-                on: DateTime(today.year, today.month, today.day + 1),
-              ),
               reconcile: _reconcile == null
                   ? null
                   : ReconcilePanel(
@@ -2703,6 +2693,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 entryController: _entry,
                 today: today,
                 adding: _adding,
+                searchBox: _searchBox(),
                 addButton: _PrimaryButton(
                   label: context.t.ledgerAdd,
                   icon: Icons.add_rounded,

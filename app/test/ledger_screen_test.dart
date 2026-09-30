@@ -1827,6 +1827,16 @@ void main() {
 
     // Unitel is from today: no note. Skytel is old enough to question.
     final skytel = find.text('Skytel', skipOffstage: false);
+    await tester.scrollUntilVisible(
+      find.text('Skytel'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .last,
+    );
     await tester.ensureVisible(skytel);
     await tester.pumpAndSettle();
     expect(find.text(' · not cleared for 34 days'), findsOneWidget);
@@ -2839,14 +2849,17 @@ void main() {
       // one after it (every 2 weeks: 10.09).
       expect(find.byKey(const ValueKey('add-pay')), findsNothing);
       // Pay but no bills: in words, not a flat chart (owner, 2026-09-30).
-      expect(find.text('Until your 10.09 paycheck'), findsOneWidget);
+      expect(find.text('Forecast'), findsOneWidget);
       expect(find.byKey(const ValueKey('forecast-known')), findsOneWidget);
-      expect(find.text('+₮2,100,000'), findsOneWidget);
-      expect(find.text('Next pay'), findsOneWidget);
+      expect(find.text('Today’s balance'), findsOneWidget);
+      // Both paydays, each with what the plan expects.
+      expect(find.text('Expected income'), findsNWidgets(2));
+      expect(find.text('+₮2,100,000'), findsNWidgets(2));
+      expect(find.text('10.09'), findsOneWidget);
       expect(
         find.text(
-          'No bills scheduled yet. Add rent, phone and other bills to see '
-          'if your money lasts until 10.09.',
+          'Nothing has been budgeted. Once you fill out your budget, this '
+          'area will show you a forecast.',
         ),
         findsOneWidget,
       );
@@ -2854,12 +2867,6 @@ void main() {
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_pay_period.png'),
       );
-      // Add a bill opens the entry row on tomorrow, so it's scheduled.
-      await tester.tap(find.byKey(const ValueKey('add-bill')));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, '2026.09.17'), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();

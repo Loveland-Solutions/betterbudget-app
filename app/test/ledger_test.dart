@@ -1441,7 +1441,8 @@ void main() {
           );
       // Today 09.16, payday tomorrow; the plan's next one is 10.17.
       final salary = row(1, DateTime(2026, 9, 17), 250000000, pay: true);
-      DateTime? after(RegisterRow r) => DateTime(2026, 10, 17);
+      ({DateTime date, int amount})? after(RegisterRow r) =>
+          (date: DateTime(2026, 10, 17), amount: 250000000);
 
       test('payday tomorrow shows the month after it, not one day', () {
         final rent = row(2, DateTime(2026, 9, 20), -180000000);
