@@ -4,7 +4,7 @@ part of 'ledger_screen.dart';
 // Nothing is refused for the user's own good: an archive or delete that
 // leaves something behind says exactly what, and then does it.
 
-/// Whole tögrög, with the fraction only when there is one: a ₮0.40 leftover
+/// Whole tugrik, with the fraction only when there is one: a ₮0.40 leftover
 /// mustn't read as ₮0.
 String _money(int v, [Currency currency = Currency.mnt]) =>
     formatMoney(v, showCents: v % 100 != 0, currency: currency);

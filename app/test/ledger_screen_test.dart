@@ -3300,7 +3300,7 @@ void main() {
   });
 
   testWidgets('a dollar account: made in dollars, shown in dollars, and a '
-      'transfer to it from tögrög takes both amounts', (tester) async {
+      'transfer to it from tugrik takes both amounts', (tester) async {
     final db = await pumpLedger(tester);
     await tester.tap(find.byKey(const ValueKey('add-account')));
     await tester.pumpAndSettle();

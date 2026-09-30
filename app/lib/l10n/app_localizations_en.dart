@@ -2143,8 +2143,7 @@ class WordsEn extends Words {
       'A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.';
 
   @override
-  String get setupKindBankHint =>
-      'Checking, savings or cash. Accounts are in tögrög for now.';
+  String get setupKindBankHint => 'Checking, savings or cash.';
 
   @override
   String get setupCancel => 'Cancel';
@@ -3254,7 +3253,7 @@ class WordsEn extends Words {
   String get setupCurrency => 'Currency';
 
   @override
-  String get setupCurrencyMnt => '₮ Tögrög';
+  String get setupCurrencyMnt => '₮ Tugrik';
 
   @override
   String get setupCurrencyUsd => '\$ Dollar';
@@ -3275,7 +3274,7 @@ class WordsEn extends Words {
 
   @override
   String savingsOnlyMnt(Object accounts) {
-    return 'Not counted here yet: $accounts. Savings counts tögrög only for now.';
+    return 'Not counted here yet: $accounts. Savings counts tugrik only for now.';
   }
 
   @override
@@ -3285,11 +3284,11 @@ class WordsEn extends Words {
 
   @override
   String importFileInMnt(Object account, Object example, Object asIs) {
-    return 'This file looks like it’s in tögrög, and $account is in dollars. Amounts come in as they are: $example would become $asIs.';
+    return 'This file looks like it’s in tugrik, and $account is in dollars. Amounts come in as they are: $example would become $asIs.';
   }
 
   @override
   String importFileInUsd(Object account, Object example, Object asIs) {
-    return 'This file looks like it’s in dollars, and $account is in tögrög. Amounts come in as they are: $example would become $asIs.';
+    return 'This file looks like it’s in dollars, and $account is in tugrik. Amounts come in as they are: $example would become $asIs.';
   }
 }

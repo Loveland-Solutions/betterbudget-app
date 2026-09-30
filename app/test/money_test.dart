@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('formatMoney', () {
-    test('7–8 digit tögrög with cents', () {
+    test('7–8 digit tugrik with cents', () {
       expect(formatMoney(418245000), '₮4,182,450.00');
       expect(formatMoney(514198050), '₮5,141,980.50');
       expect(formatMoney(-64020000), '−₮640,200.00');

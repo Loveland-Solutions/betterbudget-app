@@ -161,7 +161,7 @@ class MonthOfSpending {
 }
 
 /// A month of expenses the user typed, stored as `MNT:300000000` (a bare
-/// number is from before currencies, in tögrög). Null when it's in another
+/// number is from before currencies, in tugrik). Null when it's in another
 /// currency than Savings counts in now.
 int? typedMonth(String? stored, Currency main) {
   if (stored == null) return null;

@@ -492,7 +492,7 @@
   "setupKindBank": "Банкны данс",
   "setupKindOwed": "Карт, зээл",
   "setupKindOwedHint": "Кредит карт, зээл эсвэл Storepay: таны өрийг банк шиг эерэг дүнгээр харуулна.",
-  "setupKindBankHint": "Харилцах данс, хадгаламж эсвэл бэлэн мөнгө. Одоогоор данс зөвхөн төгрөгөөр.",
+  "setupKindBankHint": "Харилцах данс, хадгаламж эсвэл бэлэн мөнгө.",
   "setupCancel": "Болих",
   "setupStartOwedToday": "Өнөөдөр энэ дансны өр хэд вэ?",
   "setupStartInToday": "Өнөөдөр энэ дансны үлдэгдэл хэд вэ?",

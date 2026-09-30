@@ -2064,8 +2064,7 @@ class WordsMn extends Words {
       'Кредит карт, зээл эсвэл Storepay: таны өрийг банк шиг эерэг дүнгээр харуулна.';
 
   @override
-  String get setupKindBankHint =>
-      'Харилцах данс, хадгаламж эсвэл бэлэн мөнгө. Одоогоор данс зөвхөн төгрөгөөр.';
+  String get setupKindBankHint => 'Харилцах данс, хадгаламж эсвэл бэлэн мөнгө.';
 
   @override
   String get setupCancel => 'Болих';

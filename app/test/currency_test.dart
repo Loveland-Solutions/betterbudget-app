@@ -1,4 +1,4 @@
-// Accounts in tögrög and dollars (ROADMAP E): each amount in its account's
+// Accounts in tugrik and dollars (ROADMAP E): each amount in its account's
 // currency, totals never added across currencies, and transfers between
 // them with both sides entered.
 import 'package:betterbudget/data/database.dart';
@@ -203,14 +203,14 @@ void main() {
       expect(data.balanceOf(chase), 99000);
       expect(data.balanceOf(tdb), -345000000);
 
-      // Undo is the snapshot from before: plain tögrög again.
+      // Undo is the snapshot from before: plain tugrik again.
       await db.restoreSnapshot(before);
       data = await db.loadLedger();
       expect(data.balanceOf(chase), 0);
       expect(data.balanceOf(khan), 345000000);
       expect(await currencies(id), ['MNT', 'MNT']);
 
-      // And back from dollars to tögrög by edit, the exchange legs go.
+      // And back from dollars to tugrik by edit, the exchange legs go.
       await db.editTransaction(
         transactionId: id,
         accountId: tdb,
@@ -272,7 +272,7 @@ void main() {
       },
     );
 
-    test('editing a tögrög row makes no exchange account', () async {
+    test('editing a tugrik row makes no exchange account', () async {
       final id = await db.postSimple(
         accountId: tdb,
         date: DateTime(2026, 9, 5),
@@ -333,7 +333,7 @@ void main() {
 
     test('Savings counts the currency most accounts are in', () async {
       final data = await db.loadLedger();
-      expect(mainCurrency(data), Currency.mnt); // one each: tögrög
+      expect(mainCurrency(data), Currency.mnt); // one each: tugrik
       await db.createAccount(
         name: 'Ally',
         type: AccountType.asset,

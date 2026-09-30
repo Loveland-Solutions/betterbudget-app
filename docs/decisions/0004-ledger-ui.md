@@ -119,7 +119,7 @@ What's known so far:
   `#243550`, or an ink sidebar `#070B13` darker than the page. **Gray denim chosen**
   (see "Visual direction" above).
 - **Type: Onest, with Manrope as fallback.** Both are bundled; no font is fetched at
-  runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tögrög sign
+  runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tugrik sign
   renders as a box. Browsers hide this by substituting a system font, which is why the
   HTML mockups looked fine. Any future font change must be checked for ₮, Ө and Ү.
 - The macOS title bar is transparent over the ground color. The native title bar is kept
@@ -522,7 +522,7 @@ What's known so far:
     **From the reviews** (decided along the lines above):
     - The second kind is **"Card or loan"**, with a hint naming loans and Storepay.
       Salary loans, mortgages and buy-now-pay-later all show as owed. The form says
-      accounts are in tögrög for now.
+      accounts are in tugrik for now.
     - The start hint shows before anything is typed. On a card it says "what you've
       used, not the available limit". The question follows the date ("What was in it
       on 08.31?").
@@ -879,13 +879,15 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   makes in the language showing, which the person can rename or delete. It isn't
   called "Unassigned": in an envelope budget that means money waiting for a job.
 
-### Tögrög and dollars (owner, 2026-09-30)
+### Tugrik and dollars (owner, 2026-09-30)
 
 The owner asked that accounts can be made in MNT (₮) or USD ($). ROADMAP E had
 already decided the rest: totals shown per currency and never converted, and both
 sides of a transfer between currencies. Built on that:
 
-- **Chosen when the account is made:** Currency, "₮ Tögrög" or "$ Dollar", under
+- **Spelled "tugrik" in English** (owner, 2026-09-30: plain English
+  letters). *Rejected:* "tögrög".
+- **Chosen when the account is made:** Currency, "₮ Tugrik" or "$ Dollar", under
   Kind. It defaults to the currency most accounts are in (₮ for a first account, not
   whichever account is on screen), a default rather than a required choice. The hint
   says it can't be changed later yet; whether to add that is with the owner.

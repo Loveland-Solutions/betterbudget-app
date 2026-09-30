@@ -193,7 +193,7 @@ String shortDate(DateTime d) =>
 String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
 
 /// The currency the amounts below it are in: an account's page, one row of
-/// All accounts, a dialog about one account. Tögrög when nothing says.
+/// All accounts, a dialog about one account. Tugrik when nothing says.
 class CurrencyScope extends InheritedWidget {
   const CurrencyScope({
     super.key,

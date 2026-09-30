@@ -1378,7 +1378,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       to: period?.end,
     );
     // Each currency on its own, each with its own words: a dollar refund
-    // beside tögrög spending reads as a refund.
+    // beside tugrik spending reads as a refund.
     String kindOf(int v) => c.isIncome
         ? (v >= 0 ? 'received' : 'paidBack')
         : (v >= 0 ? 'spent' : 'refunded');

@@ -91,7 +91,7 @@ with blanks, same fields at columns 0, 4, 7, 11, 16, 21 (counterparty account), 
   and we know it before showing the user a number. ~~This check should block the import
   preview from committing.~~ Under the owner's "warn, don't block" (2026-09-18) it is a
   big warning naming the row and both amounts; the import can still go ahead.
-- **MNT must be stored at exponent 2.** TDB reports tögrög to two decimal places. This
+- **MNT must be stored at exponent 2.** TDB reports tugrik to two decimal places. This
   corrects [ADR 0001](0001-database.md).
 - **A legacy BIFF reader is required, and this is unscoped work.** Both exports are
   OLE2/BIFF compound documents produced by Crystal Reports — the old binary `.xls`

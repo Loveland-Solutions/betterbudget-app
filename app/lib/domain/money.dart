@@ -44,7 +44,7 @@ String formatMoney(
 }) =>
     '${minor < 0 ? '−' : ''}${currency.symbol}${formatWhole(minor)}${showCents ? formatCents(minor) : ''}';
 
-/// Tögrög per dollar, in minor units, from the two sides of a transfer
+/// Tugrik per dollar, in minor units, from the two sides of a transfer
 /// between them (either way round). Null until both are there.
 int? mntPerDollar(int? a, Currency ca, int? b, Currency cb) {
   if (a == null || b == null || a == 0 || b == 0 || ca == cb) return null;

@@ -3158,7 +3158,7 @@
   "@setupKindOwedHint": {
     "description": "New account page, note under the kinds when Card or loan is picked."
   },
-  "setupKindBankHint": "Checking, savings or cash. Accounts are in tögrög for now.",
+  "setupKindBankHint": "Checking, savings or cash.",
   "@setupKindBankHint": {
     "description": "New account page, note under the kinds when Bank account is picked."
   },
@@ -4726,7 +4726,7 @@
   },
   "rowsRatePerDollar": "{rate} per $1",
   "@rowsRatePerDollar": {
-    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tögrög, like ₮3,450.00.",
+    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tugrik, like ₮3,450.00.",
     "placeholders": {
       "rate": {}
     }
@@ -4743,7 +4743,7 @@
   "@setupCurrency": {
     "description": "New account page: label before the currency choice."
   },
-  "setupCurrencyMnt": "₮ Tögrög",
+  "setupCurrencyMnt": "₮ Tugrik",
   "@setupCurrencyMnt": {
     "description": "New account page: currency choice."
   },
@@ -4772,7 +4772,7 @@
       "amount": {}
     }
   },
-  "savingsOnlyMnt": "Not counted here yet: {accounts}. Savings counts tögrög only for now.",
+  "savingsOnlyMnt": "Not counted here yet: {accounts}. Savings counts tugrik only for now.",
   "@savingsOnlyMnt": {
     "description": "Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.",
     "placeholders": {
@@ -4781,23 +4781,23 @@
   },
   "savingsOnlyUsd": "Not counted here yet: {accounts}. Savings counts dollars only for now.",
   "@savingsOnlyUsd": {
-    "description": "Savings, under the steps: accounts in tögrög that aren't in these sums. accounts is names with balances.",
+    "description": "Savings, under the steps: accounts in tugrik that aren't in these sums. accounts is names with balances.",
     "placeholders": {
       "accounts": {}
     }
   },
-  "importFileInMnt": "This file looks like it’s in tögrög, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.",
+  "importFileInMnt": "This file looks like it’s in tugrik, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.",
   "@importFileInMnt": {
-    "description": "Import window warning: the file names tögrög but the account is in dollars. example and asIs are one real row.",
+    "description": "Import window warning: the file names tugrik but the account is in dollars. example and asIs are one real row.",
     "placeholders": {
       "account": {},
       "example": {},
       "asIs": {}
     }
   },
-  "importFileInUsd": "This file looks like it’s in dollars, and {account} is in tögrög. Amounts come in as they are: {example} would become {asIs}.",
+  "importFileInUsd": "This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.",
   "@importFileInUsd": {
-    "description": "Import window warning: the file names dollars but the account is in tögrög. example and asIs are one real row.",
+    "description": "Import window warning: the file names dollars but the account is in tugrik. example and asIs are one real row.",
     "placeholders": {
       "account": {},
       "example": {},

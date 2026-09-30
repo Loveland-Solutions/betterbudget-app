@@ -3074,7 +3074,7 @@ abstract class Words {
   /// New account page, note under the kinds when Bank account is picked.
   ///
   /// In en, this message translates to:
-  /// **'Checking, savings or cash. Accounts are in tögrög for now.'**
+  /// **'Checking, savings or cash.'**
   String get setupKindBankHint;
 
   /// Button that closes a form or dialog without doing anything (new account page, account warnings, pay setup).
@@ -4561,7 +4561,7 @@ abstract class Words {
   /// **'Say how much arrives in {account}'**
   String rowsErrorArrivesOther(Object account);
 
-  /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tögrög, like ₮3,450.00.
+  /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tugrik, like ₮3,450.00.
   ///
   /// In en, this message translates to:
   /// **'{rate} per \$1'**
@@ -4588,7 +4588,7 @@ abstract class Words {
   /// New account page: currency choice.
   ///
   /// In en, this message translates to:
-  /// **'₮ Tögrög'**
+  /// **'₮ Tugrik'**
   String get setupCurrencyMnt;
 
   /// New account page: currency choice.
@@ -4618,25 +4618,25 @@ abstract class Words {
   /// Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.
   ///
   /// In en, this message translates to:
-  /// **'Not counted here yet: {accounts}. Savings counts tögrög only for now.'**
+  /// **'Not counted here yet: {accounts}. Savings counts tugrik only for now.'**
   String savingsOnlyMnt(Object accounts);
 
-  /// Savings, under the steps: accounts in tögrög that aren't in these sums. accounts is names with balances.
+  /// Savings, under the steps: accounts in tugrik that aren't in these sums. accounts is names with balances.
   ///
   /// In en, this message translates to:
   /// **'Not counted here yet: {accounts}. Savings counts dollars only for now.'**
   String savingsOnlyUsd(Object accounts);
 
-  /// Import window warning: the file names tögrög but the account is in dollars. example and asIs are one real row.
+  /// Import window warning: the file names tugrik but the account is in dollars. example and asIs are one real row.
   ///
   /// In en, this message translates to:
-  /// **'This file looks like it’s in tögrög, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.'**
+  /// **'This file looks like it’s in tugrik, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.'**
   String importFileInMnt(Object account, Object example, Object asIs);
 
-  /// Import window warning: the file names dollars but the account is in tögrög. example and asIs are one real row.
+  /// Import window warning: the file names dollars but the account is in tugrik. example and asIs are one real row.
   ///
   /// In en, this message translates to:
-  /// **'This file looks like it’s in dollars, and {account} is in tögrög. Amounts come in as they are: {example} would become {asIs}.'**
+  /// **'This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.'**
   String importFileInUsd(Object account, Object example, Object asIs);
 }
 
