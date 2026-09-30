@@ -805,10 +805,6 @@ class LedgerData {
     };
   }
 
-  /// [categoryTotals] in tögrög, for callers that count one currency.
-  int categoryTotal(int categoryId, {DateTime? from, DateTime? to}) =>
-      categoryTotals(categoryId, from: from, to: to)[Currency.mnt] ?? 0;
-
   /// What the accounts in [of] hold, by currency (net worth, and archived
   /// money in it). Each currency on its own; a currency nobody holds is left
   /// out, and MNT stands alone when there are none.

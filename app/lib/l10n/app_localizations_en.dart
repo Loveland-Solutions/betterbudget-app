@@ -3220,7 +3220,7 @@ class WordsEn extends Words {
 
   @override
   String rowsLeftOther(Object account) {
-    return 'Left $account:';
+    return 'Sent from $account:';
   }
 
   @override
@@ -3230,7 +3230,7 @@ class WordsEn extends Words {
 
   @override
   String rowsErrorLeftOther(Object account) {
-    return 'Say how much left $account';
+    return 'Say how much was sent from $account';
   }
 
   @override
@@ -3248,7 +3248,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerDbNeedsOtherAmount =>
-      'Say how much arrives in the other currency';
+      'Accounts in two currencies need a transfer with both amounts';
 
   @override
   String get setupCurrency => 'Currency';
@@ -3261,15 +3261,35 @@ class WordsEn extends Words {
 
   @override
   String get setupCurrencyHint =>
-      'Every amount in this account is in it. Net worth shows each currency on its own line.';
+      'Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.';
 
   @override
-  String savingsOnlyCurrency(Object symbol) {
-    return 'Counted in $symbol only: accounts in other currencies aren’t in these sums yet.';
+  String rowsExchangeNote(Object account, Object amount, Object rate) {
+    return '$account: $amount · $rate per \$1';
   }
 
   @override
-  String rowsExchangeNote(Object amount, Object rate) {
-    return '$amount there · $rate per \$1';
+  String savingsOtherCurrencyItem(Object account, Object amount) {
+    return '$account  $amount · another currency, not counted yet';
+  }
+
+  @override
+  String savingsOnlyMnt(Object accounts) {
+    return 'Not counted here yet: $accounts. Savings counts tögrög only for now.';
+  }
+
+  @override
+  String savingsOnlyUsd(Object accounts) {
+    return 'Not counted here yet: $accounts. Savings counts dollars only for now.';
+  }
+
+  @override
+  String importFileInMnt(Object account, Object example, Object asIs) {
+    return 'This file looks like it’s in tögrög, and $account is in dollars. Amounts come in as they are: $example would become $asIs.';
+  }
+
+  @override
+  String importFileInUsd(Object account, Object example, Object asIs) {
+    return 'This file looks like it’s in dollars, and $account is in tögrög. Amounts come in as they are: $example would become $asIs.';
   }
 }

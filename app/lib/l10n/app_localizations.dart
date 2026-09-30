@@ -4540,7 +4540,7 @@ abstract class Words {
   /// Entry row, under a transfer from an account in another currency: before the field for what left it.
   ///
   /// In en, this message translates to:
-  /// **'Left {account}:'**
+  /// **'Sent from {account}:'**
   String rowsLeftOther(Object account);
 
   /// Entry row, under a transfer to an account in another currency: before the field for what arrives there.
@@ -4552,7 +4552,7 @@ abstract class Words {
   /// Entry row error: a transfer between currencies needs the other side's amount.
   ///
   /// In en, this message translates to:
-  /// **'Say how much left {account}'**
+  /// **'Say how much was sent from {account}'**
   String rowsErrorLeftOther(Object account);
 
   /// Entry row error: a transfer between currencies needs the other side's amount.
@@ -4576,7 +4576,7 @@ abstract class Words {
   /// Toast when a transfer between currencies has only one amount.
   ///
   /// In en, this message translates to:
-  /// **'Say how much arrives in the other currency'**
+  /// **'Accounts in two currencies need a transfer with both amounts'**
   String get ledgerDbNeedsOtherAmount;
 
   /// New account page: label before the currency choice.
@@ -4600,20 +4600,44 @@ abstract class Words {
   /// New account page, under the currency choice.
   ///
   /// In en, this message translates to:
-  /// **'Every amount in this account is in it. Net worth shows each currency on its own line.'**
+  /// **'Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.'**
   String get setupCurrencyHint;
 
-  /// Savings, under the steps, when some accounts are in another currency.
+  /// Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate.
   ///
   /// In en, this message translates to:
-  /// **'Counted in {symbol} only: accounts in other currencies aren’t in these sums yet.'**
-  String savingsOnlyCurrency(Object symbol);
+  /// **'{account}: {amount} · {rate} per \$1'**
+  String rowsExchangeNote(Object account, Object amount, Object rate);
 
-  /// Register, memo line of a transfer between currencies: what the other account got or sent in its currency, and the rate.
+  /// Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.
   ///
   /// In en, this message translates to:
-  /// **'{amount} there · {rate} per \$1'**
-  String rowsExchangeNote(Object amount, Object rate);
+  /// **'{account}  {amount} · another currency, not counted yet'**
+  String savingsOtherCurrencyItem(Object account, Object amount);
+
+  /// Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted here yet: {accounts}. Savings counts tögrög only for now.'**
+  String savingsOnlyMnt(Object accounts);
+
+  /// Savings, under the steps: accounts in tögrög that aren't in these sums. accounts is names with balances.
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted here yet: {accounts}. Savings counts dollars only for now.'**
+  String savingsOnlyUsd(Object accounts);
+
+  /// Import window warning: the file names tögrög but the account is in dollars. example and asIs are one real row.
+  ///
+  /// In en, this message translates to:
+  /// **'This file looks like it’s in tögrög, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.'**
+  String importFileInMnt(Object account, Object example, Object asIs);
+
+  /// Import window warning: the file names dollars but the account is in tögrög. example and asIs are one real row.
+  ///
+  /// In en, this message translates to:
+  /// **'This file looks like it’s in dollars, and {account} is in tögrög. Amounts come in as they are: {example} would become {asIs}.'**
+  String importFileInUsd(Object account, Object example, Object asIs);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

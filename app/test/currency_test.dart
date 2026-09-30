@@ -5,6 +5,8 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/import/mapping.dart';
+import 'package:betterbudget/import/sheet.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -229,6 +231,106 @@ void main() {
       expect(data.balanceOf(khan), 345000000);
     });
 
+    test(
+      'a memo edit on a reconciled exchange writes no money and undoes',
+      () async {
+        final id = await db.postExchange(
+          fromAccountId: tdb,
+          toAccountId: chase,
+          date: DateTime(2026, 9, 5),
+          today: today,
+          sent: 345000000,
+          received: 100000,
+        );
+        final entry = (await db.snapshot(id)).entries
+            .firstWhere((e) => e.accountId == tdb)
+            .id;
+        await db.customStatement(
+          'UPDATE entries SET cleared = ? WHERE id = ?',
+          [Cleared.reconciled.index, entry],
+        );
+        final before = await db.snapshot(id);
+        // The entry row sends the second amount as it was.
+        await db.editTransaction(
+          transactionId: id,
+          accountId: tdb,
+          date: DateTime(2026, 9, 5),
+          today: today,
+          memo: 'Tuition',
+          amount: -345000000,
+          counterAmount: 100000,
+        );
+        final after = await db.snapshot(id);
+        expect(
+          after.entries.map((e) => e.id).toSet(),
+          before.entries.map((e) => e.id).toSet(),
+        );
+        await db.restoreSnapshot(before);
+        expect((await db.snapshot(id)).header.memo, isNull);
+        await db.restoreSnapshot(after);
+        expect((await db.snapshot(id)).header.memo, 'Tuition');
+      },
+    );
+
+    test('editing a tögrög row makes no exchange account', () async {
+      final id = await db.postSimple(
+        accountId: tdb,
+        date: DateTime(2026, 9, 5),
+        today: today,
+        payee: 'Coffee',
+        counterAccountId: food,
+        amount: -800000,
+      );
+      await db.editTransaction(
+        transactionId: id,
+        accountId: tdb,
+        date: DateTime(2026, 9, 5),
+        today: today,
+        memo: 'with a friend',
+      );
+      final data = await db.loadLedger();
+      expect(
+        data.accounts.values.any((a) => a.name == currencyExchangeName),
+        isFalse,
+      );
+    });
+
+    test('an exchange needs two accounts and two amounts', () async {
+      Future<void> bad(int to, int received) => db.postExchange(
+        fromAccountId: tdb,
+        toAccountId: to,
+        date: DateTime(2026, 9, 5),
+        today: today,
+        sent: 100,
+        received: received,
+      );
+      expect(() => bad(food, 1), throwsA(isA<NotFoundException>()));
+      expect(() => bad(chase, 0), throwsA(isA<LockedException>()));
+    });
+
+    test('a restored file must add up in each currency', () async {
+      final id = await db.postSimple(
+        accountId: tdb,
+        date: DateTime(2026, 9, 5),
+        today: today,
+        payee: 'Coffee',
+        counterAccountId: food,
+        amount: -100,
+      );
+      expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+      // +₮100 and −$100: zero in all, not in each.
+      await db.customStatement(
+        "UPDATE entries SET currency = 'USD' WHERE transaction_id = ? "
+        'AND account_id = ?',
+        [id, food],
+      );
+      expect(
+        (await db.customSelect(AppDatabase.unbalancedSql).get()).single
+            .read<int>('transaction_id'),
+        id,
+      );
+    });
+
     test('Savings counts the currency most accounts are in', () async {
       final data = await db.loadLedger();
       expect(mainCurrency(data), Currency.mnt); // one each: tögrög
@@ -239,5 +341,41 @@ void main() {
       );
       expect(mainCurrency(await db.loadLedger()), Currency.usd);
     });
+  });
+
+  test('a typed month is kept in its currency', () {
+    expect(typedMonth('MNT:300000000', Currency.mnt), 300000000);
+    expect(typedMonth('MNT:300000000', Currency.usd), isNull);
+    expect(typedMonth('300000000', Currency.mnt), 300000000); // from before
+    expect(typedMonth(null, Currency.mnt), isNull);
+  });
+
+  test('a file that names one currency says which', () {
+    expect(
+      fileCurrency(
+        const Sheet([
+          ['Данс: 0000000000 MNT'],
+          ['2026.09.01', '100'],
+        ]),
+      ),
+      Currency.mnt,
+    );
+    expect(
+      fileCurrency(
+        const Sheet([
+          ['Date', 'Amount'],
+          ['2026-09-01', r'$12.00'],
+        ]),
+      ),
+      Currency.usd,
+    );
+    expect(
+      fileCurrency(
+        const Sheet([
+          ['USD', 'MNT'],
+        ]),
+      ),
+      isNull,
+    );
   });
 }

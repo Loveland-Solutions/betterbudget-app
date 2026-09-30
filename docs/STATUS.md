@@ -46,6 +46,7 @@ Visual direction and the register's UX rules are settled in
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
+| Currencies | Each account is in ₮ or $, chosen when it's made (ADR 0004 "Tögrög and dollars"); its amounts show in its symbol everywhere. Net worth and category totals show each currency on its own line. A transfer between currencies takes both amounts (the rate is shown, not stored) through a hidden exchange account. Savings counts the main currency. Schema unchanged (the columns existed) |
 | Import | **Import…** beside Reconcile in the account header (ADR 0002 "Any bank's file", ADR 0004 "Import"): TDB's `.xls` (both exports), `.xlsx` or CSV. The window shows the file's own columns with a choice over each, the app's guess filled in, and the rows below it as New, Matches (a typed row, which becomes cleared) or Already in. It checks the bank's running balance (a coral warning with both amounts if it doesn't add up, and you can still import) and shows the cleared balance after the import against the bank's. Columns are remembered per account; a file of the same layout opens on the rows. Rows come in cleared, with the payee's last income or spending category or "Not categorized". Click a row's tag to add a match as its own row or leave a row out; overlap with earlier imports and typed rows the file lacks are named. One ⌘Z undoes it all. 270 tests. Not yet: rules, own-account transfers matched between two accounts, scheduled bills matched |
 | Language | Settings → Language: Same as this Mac, English or Монгол (per computer, ⌘Z undoes). Every word is in `app/lib/l10n/`; the Mongolian is a draft awaiting a native speaker's check ([review sheet](mongolian-review.csv), [glossary](l10n-glossary.md)). Dates in sentences read "9-р сарын 30"; rows keep 09.30 |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
@@ -73,11 +74,11 @@ scheduled items.
 
 ### Known bugs and loose ends
 
-- **USD accounts show as MNT until ROADMAP E.** The owner has one MNT account and two
-  USD accounts. Any USD account entered now is stored as MNT: it shows ₮, and net worth
-  adds its dollars to the tögrög. The rows themselves are right. E needs a step where
-  the user marks existing accounts as USD, without re-entering anything. (The owner's
-  test data was erased on 2026-09-30.)
+- **A dollar account made before currencies is stored as ₮** (branch `currencies`):
+  new accounts pick ₮ or $, but an existing one can't be changed yet. Asked the owner
+  (2026-09-30) whether to add Change currency to the account's menu (a warning with
+  the rows and transfers it affects, then undo), which is what this note used to
+  promise.
 
 ## Settled decisions
 

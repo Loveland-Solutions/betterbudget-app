@@ -86,7 +86,7 @@ class MonthOfSpending {
   /// against spending; other transfers, card payments (the card's own
   /// spending already counts) and opening balances don't.
   static MonthOfSpending of(LedgerData data, DateTime today) {
-    final typed = int.tryParse(data.prefs[ReadyKeys.month] ?? '');
+    final typed = typedMonth(data.prefs[ReadyKeys.month], mainCurrency(data));
     final end = dateOnly(today);
     final main = mainCurrency(data);
     bool spending(EntryData e) =>
@@ -158,6 +158,19 @@ class MonthOfSpending {
       loanPayments: loans,
     );
   }
+}
+
+/// A month of expenses the user typed, stored as `MNT:300000000` (a bare
+/// number is from before currencies, in tögrög). Null when it's in another
+/// currency than Savings counts in now.
+int? typedMonth(String? stored, Currency main) {
+  if (stored == null) return null;
+  final parts = stored.split(':');
+  final currency = parts.length == 2
+      ? Currency.fromCode(parts[0])
+      : Currency.mnt;
+  if (currency != main) return null;
+  return int.tryParse(parts.last);
 }
 
 /// The currency Savings counts in: the one most open accounts are in, ₮ on

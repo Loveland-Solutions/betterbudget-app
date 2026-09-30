@@ -825,6 +825,7 @@ class _PostedRow extends StatelessWidget {
         ? [
             if (r.memo.isNotEmpty) r.memo,
             t.rowsExchangeNote(
+              rowPayee(t, r),
               formatMoney(r.otherAmount!.abs(), currency: r.otherCurrency!),
               formatMoney(
                 mntPerDollar(

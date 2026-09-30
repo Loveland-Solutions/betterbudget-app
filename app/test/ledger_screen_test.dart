@@ -145,7 +145,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
     var data = (await tester.runAsync(db.loadLedger))!;
-    expect(data.prefs[ReadyKeys.month], '200000000');
+    expect(data.prefs[ReadyKeys.month], 'MNT:200000000');
     final r = Readiness.of(data, DateTime(2026, 9, 16));
     expect(r.fund, data.balanceOf(khan.id));
 
@@ -564,7 +564,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       'Salary',
     );
-    await tester.enterText(find.widgetWithText(TextField, '0.00'), '+500000');
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '+500000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -745,7 +745,7 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openEntry(tester);
-      await tester.enterText(field('0.00'), '8000');
+      await tester.enterText(field('₮0.00'), '8000');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300)); // border fade-in
       expect(find.text('needs 2 more'), findsOneWidget);
@@ -764,7 +764,7 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openEntry(tester);
-      await tester.enterText(field('0.00'), '8000');
+      await tester.enterText(field('₮0.00'), '8000');
       await tester.enterText(field('New transaction — payee'), 'Sakura Coffee');
       await enter(tester); // category is filled from the payee's last one
       expect(find.text('Sakura Coffee'), findsNWidgets(2));
@@ -779,7 +779,7 @@ void main() {
       await openEntry(tester);
       await tester.enterText(field('Category'), 'Dining out');
       await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
-      await tester.enterText(field('0.00'), '42000');
+      await tester.enterText(field('₮0.00'), '42000');
       await tester.pump();
       // The memo line shows while the row is in use.
       await tester.enterText(field('Memo'), 'Lunch with Bat');
@@ -1221,7 +1221,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Dining out',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '42000');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '42000');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -1409,7 +1409,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       '→ Golomt Visa',
     );
-    await tester.enterText(find.widgetWithText(TextField, '0.00'), '640200');
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '640200');
     await tester.pump();
     expect(
       find.text('₮640,200.00 from TDB Checking to Golomt Visa'),
@@ -2058,7 +2058,7 @@ void main() {
       'Tuition',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, '0.00'),
+      find.widgetWithText(TextField, '₮0.00'),
       '2000000+100000',
     );
     // The write is real SQLite I/O, so let it run outside the fake clock.
@@ -2447,7 +2447,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Coffee',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
@@ -2549,7 +2549,7 @@ void main() {
       );
       final category = find.widgetWithText(TextField, 'Category');
       await tester.enterText(category, 'Gro');
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -2631,7 +2631,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Groceries',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '12000');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '12000');
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
@@ -2718,7 +2718,7 @@ void main() {
             'Groceries',
           );
           await tester.enterText(
-            find.widgetWithText(TextField, '0.00'),
+            find.widgetWithText(TextField, '₮0.00'),
             '5000',
           );
           await tester.runAsync(() async {
@@ -3337,7 +3337,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       '→ Chase',
     );
-    await tester.enterText(find.widgetWithText(TextField, '0.00'), '3450000');
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '3450000');
     await tester.pump();
     expect(find.text('Arrives in Chase:'), findsOneWidget);
     await tester.enterText(
@@ -3364,8 +3364,26 @@ void main() {
     expect(data.balanceOf(chase.id), 125000);
     expect(find.text(r'$1,250'), findsNWidgets(2)); // sidebar, net worth
     expect(
-      find.textContaining(r'$1,000.00 there · ₮3,450.00 per $1'),
+      find.textContaining(r'Chase: $1,000.00 · ₮3,450.00 per $1'),
       findsOneWidget,
+    );
+    // The row stays open for the next one, with no second amount left over.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Chase',
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('exchange-amount')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller!
+          .text,
+      '',
     );
     await tidy(tester, db);
   });

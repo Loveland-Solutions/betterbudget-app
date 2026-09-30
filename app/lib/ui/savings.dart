@@ -49,7 +49,11 @@ class _SavingsPage extends StatelessWidget {
     final t = context.t;
     final r = Readiness.of(data, today);
     final main = mainCurrency(data);
-    final others = data.openAccounts.any((a) => a.currency != main);
+    final others = [
+      for (final a in data.openAccounts)
+        if (a.currency != main)
+          '${a.name} ${_money(data.balanceOf(a.id).abs(), a.currency)}',
+    ].join(', ');
     return CurrencyScope(
       currency: main,
       child: Padding(
@@ -103,11 +107,13 @@ class _SavingsPage extends StatelessWidget {
                             data: data,
                             actions: actions,
                           ),
-                        if (others)
+                        if (others.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                             child: Text(
-                              t.savingsOnlyCurrency(main.symbol),
+                              main == Currency.usd
+                                  ? t.savingsOnlyUsd(others)
+                                  : t.savingsOnlyMnt(others),
                               key: const ValueKey('savings-one-currency'),
                               style: onest(12, color: Mid.ink3),
                             ),
@@ -340,7 +346,9 @@ class _StepRow extends StatelessWidget {
           for (final d in r.consumerDebts)
             _DebtLine(debt: d, r: r, actions: actions),
           for (final a in data.openAccounts)
-            if (a.isOwed && a.role == AccountRole.paidMonthly)
+            if (a.isOwed &&
+                a.role == AccountRole.paidMonthly &&
+                a.currency == CurrencyScope.of(context))
               _DebtLine(
                 debt: (account: a, owed: -data.balanceOf(a.id)),
                 r: r,
@@ -488,6 +496,7 @@ class _FundPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final banks = data.openAccounts.where((a) => !a.isOwed).toList();
+    final main = CurrencyScope.of(context);
     final label = r.fundAccounts.isEmpty
         ? t.planPickAccount
         : t.planKeptIn(_names(t, r.fundAccounts.map((a) => a.name)));
@@ -497,14 +506,18 @@ class _FundPicker extends StatelessWidget {
         for (final a in banks)
           MenuItemButton(
             key: ValueKey('fund-${a.id}'),
-            onPressed: () {
-              final on = a.role == AccountRole.emergencyFund;
-              actions.setRole(
-                a,
-                on ? null : AccountRole.emergencyFund,
-                on ? t.planFundOffUndo(a.name) : t.planFundOnUndo(a.name),
-              );
-            },
+            // Savings counts one currency for now: another can't hold the
+            // fund until it can be counted, and the line says so.
+            onPressed: a.currency != main
+                ? null
+                : () {
+                    final on = a.role == AccountRole.emergencyFund;
+                    actions.setRole(
+                      a,
+                      on ? null : AccountRole.emergencyFund,
+                      on ? t.planFundOffUndo(a.name) : t.planFundOnUndo(a.name),
+                    );
+                  },
             leadingIcon: Icon(
               a.role == AccountRole.emergencyFund ? Icons.check_rounded : null,
               size: 16,
@@ -515,8 +528,17 @@ class _FundPicker extends StatelessWidget {
               overlayColor: WidgetStatePropertyAll(Mid.blueWash),
             ),
             child: Text(
-              '${a.name}  ${_money(data.balanceOf(a.id), a.currency)}',
-              style: onest(13, color: Mid.ink2, tabular: true),
+              a.currency == main
+                  ? '${a.name}  ${_money(data.balanceOf(a.id), a.currency)}'
+                  : t.savingsOtherCurrencyItem(
+                      a.name,
+                      _money(data.balanceOf(a.id), a.currency),
+                    ),
+              style: onest(
+                13,
+                color: a.currency == main ? Mid.ink2 : Mid.ink3,
+                tabular: true,
+              ),
             ),
           ),
       ],
@@ -590,7 +612,8 @@ class _MonthFieldState extends State<_MonthField> {
     if (v == null || v <= 0) return setState(() => _wrong = true);
     widget.actions.setPref(
       ReadyKeys.month,
-      '$v',
+      // With its currency, so it can't turn into dollars when Savings does.
+      '${CurrencyScope.of(context).code}:$v',
       context.t.planMonthSet(_here(context, v)),
       toast: true,
     );

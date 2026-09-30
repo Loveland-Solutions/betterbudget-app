@@ -601,6 +601,7 @@ class _EntryRowState extends State<EntryRow> {
       _payee.clear();
       _category.clear();
       _amount.clear();
+      _otherAmount.clear();
       _memo.clear();
       _error = null;
     });
@@ -978,7 +979,7 @@ class _EntryRowState extends State<EntryRow> {
                                   child: _Field(
                                     controller: _amount,
                                     focusNode: _amountFocus,
-                                    hint: '0.00',
+                                    hint: '${_hereCurrency.symbol}0.00',
                                     tabular: true,
                                     align: TextAlign.right,
                                     wanted: _wants('amount'),
@@ -1034,6 +1035,7 @@ class _EntryRowState extends State<EntryRow> {
                         short: shortBy,
                         due: initial!.plannedDate,
                         keep: _keepOwedFor(shortBy),
+                        currency: _hereCurrency,
                         onChanged: (v) => setState(() => _keepOwedChoice = v),
                       ),
                     if (transferLine != null)
@@ -1076,7 +1078,9 @@ class _OwedLine extends StatelessWidget {
     required this.due,
     required this.keep,
     required this.onChanged,
+    this.currency = Currency.mnt,
   });
+  final Currency currency;
   final int short;
   final DateTime due;
   final bool keep;
@@ -1131,7 +1135,11 @@ class _OwedLine extends StatelessWidget {
         children: [
           Text(
             t.rowsLessThanPlanned(
-              formatMoney(short, showCents: short % 100 != 0),
+              formatMoney(
+                short,
+                showCents: short % 100 != 0,
+                currency: currency,
+              ),
             ),
             style: onest(12.5, color: Mid.ink2, tabular: true),
           ),

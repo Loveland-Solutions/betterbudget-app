@@ -85,13 +85,16 @@ through life." Today Savings shows the self-reliance course steps (rule 25).
 ### E. MNT and USD (owner item 4)
 Today: one MNT account and two USD accounts. The schema already stores `currency` and
 `rate` on entries (ADR 0003); the UI assumes MNT only.
-- [ ] Each account has a currency. Its register, balance and reconcile all use that currency.
-- [ ] **Transfers between currencies**: the user enters both sides, what left the MNT
+- [x] Each account has a currency. Its register, balance and reconcile all use that currency.
+      (Chosen at creation, branch `currencies`, ADR 0004 "Tögrög and dollars".)
+- [x] **Transfers between currencies**: the user enters both sides, what left the MNT
       account and what arrived in the USD account. Double entry stays balanced
       within each currency through a hidden exchange account, so the books still
       balance with no rate stored. The rate is shown after the fact ("₮3,450 per $1").
-- [ ] Money formatting for each currency ($ and ₮, where the symbol goes, 2 decimals)
-- [ ] Totals shown in each currency separately (decided): net worth, All accounts, the forecast
+- [x] Money formatting for each currency ($ and ₮, where the symbol goes, 2 decimals)
+- [x] Totals shown in each currency separately (decided): net worth, All accounts, the forecast
+- [ ] Savings with two currencies (counts the main one for now; owner to decide)
+- [ ] Changing an account's currency after it has rows
 - [ ] Budget categories: choose a currency for each category, or keep categories in MNT only.
       Sketch this with C.
 - [ ] US date format as an option (the student persona). STATUS mentions it.

@@ -1377,28 +1377,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
       from: period?.start,
       to: period?.end,
     );
-    // Each currency on its own; the words follow the first one's sign.
-    final total = totals.values.firstWhere((v) => v != 0, orElse: () => 0);
-    final kind = c.isIncome
-        ? (total >= 0 ? 'received' : 'paidBack')
-        : (total >= 0 ? 'spent' : 'refunded');
-    final amount = totals.entries
-        .map(
-          (e) => formatMoney(
-            e.value.abs(),
-            showCents: e.value % 100 != 0,
-            currency: e.key,
-          ),
-        )
-        .join(' · ');
-    // With a period chip the span is on the chip; all time says since when.
-    final what = period != null || register.posted.isEmpty
-        ? t.ledgerFilterTotal(kind, amount)
-        : t.ledgerFilterTotalSince(
-            kind,
-            amount,
-            sayFullDate(t, register.posted.first.date),
-          );
+    // Each currency on its own, each with its own words: a dollar refund
+    // beside tögrög spending reads as a refund.
+    String kindOf(int v) => c.isIncome
+        ? (v >= 0 ? 'received' : 'paidBack')
+        : (v >= 0 ? 'spent' : 'refunded');
+    String money(MapEntry<Currency, int> e) => formatMoney(
+      e.value.abs(),
+      showCents: e.value % 100 != 0,
+      currency: e.key,
+    );
+    final parts = totals.entries.toList();
+    // With a period chip the span is on the chip; all time says since when,
+    // once, after the last.
+    final since = period != null || register.posted.isEmpty
+        ? null
+        : sayFullDate(t, register.posted.first.date);
+    final what = [
+      for (final (i, e) in parts.indexed)
+        since != null && i == parts.length - 1
+            ? t.ledgerFilterTotalSince(kindOf(e.value), money(e), since)
+            : t.ledgerFilterTotal(kindOf(e.value), money(e)),
+    ].join(' · ');
     final sched = register.scheduled.length;
     return [
       t.ledgerFilterRows(posted),
@@ -2402,9 +2402,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               when _newAccount || account == null =>
                             _NewAccountPage(
                               onCreate: _createAccount,
-                              // The account in view's, so a second dollar
-                              // account doesn't need the choice made again.
-                              currency: account?.currency ?? Currency.mnt,
+                              // The one most accounts are in, not whichever
+                              // is on screen: ₮ for a first account.
+                              currency: mainCurrency(data),
                               onCancel: account == null
                                   ? null
                                   : () => setState(() => _newAccount = false),

@@ -393,6 +393,26 @@ class _ImportDialogState extends State<_ImportDialog> {
     ].join(' · ');
 
     final notes = <Widget>[];
+    // Amounts come in as they are, so a file in the other currency would be
+    // a thousand times off: said big, with a real row.
+    final here = CurrencyScope.of(context);
+    final named = fileCurrency(widget.sheet);
+    final sample = plan.rows.where((p) => p.fate != ImportFate.already);
+    if (named != null && named != here && sample.isNotEmpty) {
+      final v = _shown(sample.first.row.amount).abs();
+      final example = formatMoney(v, currency: named);
+      final asIs = formatMoney(v, currency: here);
+      notes.add(
+        _note(
+          Icons.warning_amber_rounded,
+          Mid.coral,
+          named == Currency.mnt
+              ? t.importFileInMnt(widget.accountName, example, asIs)
+              : t.importFileInUsd(widget.accountName, example, asIs),
+          big: true,
+        ),
+      );
+    }
     if (noDate > 0) {
       notes.add(
         Text(t.importCountNoDate(noDate), style: onest(12.5, color: Mid.ink3)),

@@ -3077,7 +3077,7 @@ class WordsMn extends Words {
 
   @override
   String rowsLeftOther(Object account) {
-    return '$account данснаас гарсан:';
+    return '$account данснаас илгээсэн:';
   }
 
   @override
@@ -3087,7 +3087,7 @@ class WordsMn extends Words {
 
   @override
   String rowsErrorLeftOther(Object account) {
-    return '$account данснаас гарсан дүнг бичнэ үү';
+    return '$account данснаас илгээсэн дүнг бичнэ үү';
   }
 
   @override
@@ -3104,7 +3104,8 @@ class WordsMn extends Words {
   String get ledgerDbOtherCurrency => 'Тэр данс өөр валюттай';
 
   @override
-  String get ledgerDbNeedsOtherAmount => 'Нөгөө валютаар хэд орохыг бичнэ үү';
+  String get ledgerDbNeedsOtherAmount =>
+      'Хоёр валютын данс хооронд хоёр дүнтэй шилжүүлэг хийнэ үү';
 
   @override
   String get setupCurrency => 'Валют';
@@ -3113,19 +3114,39 @@ class WordsMn extends Words {
   String get setupCurrencyMnt => '₮ Төгрөг';
 
   @override
-  String get setupCurrencyUsd => '\$ Доллар';
+  String get setupCurrencyUsd => '\$ Ам.доллар';
 
   @override
   String get setupCurrencyHint =>
-      'Энэ дансны бүх дүн энэ валютаар. Цэвэр хөрөнгө валют бүрийг тусад нь харуулна.';
+      'Энэ дансны бүх дүн энэ валютаар бөгөөд одоогоор дараа нь солих боломжгүй. Цэвэр хөрөнгө валют бүрийг тусад нь харуулна.';
 
   @override
-  String savingsOnlyCurrency(Object symbol) {
-    return 'Зөвхөн $symbol-ээр тооцсон: бусад валютын данс эдгээр дүнд одоогоор ороогүй.';
+  String rowsExchangeNote(Object account, Object amount, Object rate) {
+    return '$account: $amount · \$1 = $rate';
   }
 
   @override
-  String rowsExchangeNote(Object amount, Object rate) {
-    return 'тэнд $amount · \$1 = $rate';
+  String savingsOtherCurrencyItem(Object account, Object amount) {
+    return '$account  $amount · өөр валют, одоогоор тооцохгүй';
+  }
+
+  @override
+  String savingsOnlyMnt(Object accounts) {
+    return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн төгрөгөөр тооцно.';
+  }
+
+  @override
+  String savingsOnlyUsd(Object accounts) {
+    return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн доллараар тооцно.';
+  }
+
+  @override
+  String importFileInMnt(Object account, Object example, Object asIs) {
+    return 'Энэ файл төгрөгөөр бичигдсэн бололтой, харин $account данс доллартай. Дүн хэвээрээ орно: $example нь $asIs болно.';
+  }
+
+  @override
+  String importFileInUsd(Object account, Object example, Object asIs) {
+    return 'Энэ файл доллараар бичигдсэн бололтой, харин $account данс төгрөгтэй. Дүн хэвээрээ орно: $example нь $asIs болно.';
   }
 }

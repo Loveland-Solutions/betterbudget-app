@@ -588,9 +588,12 @@ class AppDatabase extends _$AppDatabase {
 
   /// Transactions that don't sum to zero or have fewer than two entries.
   /// Every write refuses to leave one (ADR 0003); a restored file must too.
+  /// Each currency adds up to zero on its own, as every write checks.
   static const unbalancedSql =
       'SELECT transaction_id FROM entries GROUP BY transaction_id '
-      'HAVING SUM(amount_minor) != 0 OR COUNT(*) < 2';
+      'HAVING COUNT(*) < 2 '
+      'UNION SELECT transaction_id FROM entries '
+      'GROUP BY transaction_id, currency HAVING SUM(amount_minor) != 0';
 
   /// Replaces every row with the rows in the database file at [path], in one
   /// transaction, while the app keeps this connection open. The file must
@@ -878,6 +881,14 @@ class AppDatabase extends _$AppDatabase {
     await _assertLive(toAccountId);
     if (fromAccountId == toAccountId) {
       throw LockedException(DbProblem.ownAccount);
+    }
+    final types = await _accountTypes();
+    if (!_reconcilable.contains(types[fromAccountId]) ||
+        !_reconcilable.contains(types[toAccountId])) {
+      throw NotFoundException(DbProblem.notAnAccount);
+    }
+    if (sent == 0 || received == 0) {
+      throw LockedException(DbProblem.needsOtherAmount);
     }
     final from = await currencyOf(fromAccountId);
     final to = await currencyOf(toAccountId);
@@ -1181,7 +1192,7 @@ class AppDatabase extends _$AppDatabase {
     required int transactionId,
     required List<EntryRow> rows,
     required EntryRow mine,
-    required int exchangeId,
+    required int? exchangeId,
     int? amount,
     int? counterAccountId,
     int? counterAmount,
@@ -1201,6 +1212,8 @@ class AppDatabase extends _$AppDatabase {
         ? Currency.fromCode(target.currency)
         : mineCurrency;
     final newMine = amount ?? mine.amountMinor;
+    // A side moved to another account starts over there, as Move to does.
+    final moved = targetId != other.accountId;
     if (targetCurrency == mineCurrency) {
       if (exchange.isEmpty) return false;
       // Back to one currency: the exchange legs go.
@@ -1215,14 +1228,27 @@ class AppDatabase extends _$AppDatabase {
           accountId: Value(targetId),
           amountMinor: Value(-newMine),
           currency: Value(mineCurrency.code),
+          cleared: moved
+              ? const Value(Cleared.uncleared)
+              : const Value.absent(),
         ),
       );
       return true;
     }
-    final newOther = counterAmount == null
-        ? (exchange.isEmpty ? null : other.amountMinor)
-        : -newMine.sign * counterAmount.abs();
-    if (newOther == null) throw LockedException(DbProblem.needsOtherAmount);
+    final otherSize =
+        counterAmount?.abs() ??
+        (exchange.isEmpty ? null : other.amountMinor.abs());
+    if (otherSize == null || otherSize == 0) {
+      throw LockedException(DbProblem.needsOtherAmount);
+    }
+    // Money leaves one side and arrives on the other, whichever way.
+    final newOther = -newMine.sign * otherSize;
+    if (exchange.isNotEmpty &&
+        !moved &&
+        newMine == mine.amountMinor &&
+        newOther == other.amountMinor) {
+      return true; // nothing about the money changed: nothing is written
+    }
     await (update(entries)..where((e) => e.id.equals(mine.id))).write(
       EntriesCompanion(amountMinor: Value(newMine)),
     );
@@ -1231,11 +1257,30 @@ class AppDatabase extends _$AppDatabase {
         accountId: Value(targetId),
         amountMinor: Value(newOther),
         currency: Value(targetCurrency.code),
+        cleared: moved ? const Value(Cleared.uncleared) : const Value.absent(),
       ),
     );
+    // The legs are updated in place when there are two, one per currency,
+    // so an undo finds the same entries it saved.
+    final legMine = exchange
+        .where((e) => e.currency == mineCurrency.code)
+        .firstOrNull;
+    final legOther = exchange
+        .where((e) => e.currency == targetCurrency.code)
+        .firstOrNull;
+    if (exchange.length == 2 && legMine != null && legOther != null) {
+      await (update(entries)..where((e) => e.id.equals(legMine.id))).write(
+        EntriesCompanion(amountMinor: Value(-newMine)),
+      );
+      await (update(entries)..where((e) => e.id.equals(legOther.id))).write(
+        EntriesCompanion(amountMinor: Value(-newOther)),
+      );
+      return true;
+    }
     await (delete(
       entries,
     )..where((e) => e.id.isIn(exchange.map((x) => x.id)))).go();
+    final legs = exchangeId ?? await _equityAccount(currencyExchangeName);
     for (final (amount, currency) in [
       (-newMine, mineCurrency),
       (-newOther, targetCurrency),
@@ -1243,7 +1288,7 @@ class AppDatabase extends _$AppDatabase {
       await into(entries).insert(
         EntriesCompanion.insert(
           transactionId: transactionId,
-          accountId: exchangeId,
+          accountId: legs,
           amountMinor: amount,
           cleared: Cleared.uncleared,
           currency: Value(currency.code),
@@ -1294,7 +1339,9 @@ class AppDatabase extends _$AppDatabase {
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
       if (mine == null) throw NotFoundException(DbProblem.notInAccount);
-      final exchangeId = await _equityAccount(currencyExchangeName);
+      // Looked up, never made here: an edit in a ledger with no dollars
+      // mustn't leave an exchange account behind.
+      final exchangeId = await _findEquity(currencyExchangeName);
       final isExchange = rows.any((e) => e.accountId == exchangeId);
       // A reconciled side locks the date, amounts and accounts of the whole
       // transaction, as delete does: a transfer edited from its other account
@@ -2381,6 +2428,17 @@ class AppDatabase extends _$AppDatabase {
 
   /// Equity, like opening balances: an adjustment isn't spending or income.
   Future<int> _adjustmentsAccount() => _equityAccount(adjustmentsAccountName);
+
+  Future<int?> _findEquity(String name) async =>
+      (await (select(accounts)
+                ..where(
+                  (a) =>
+                      a.name.equals(name) &
+                      a.type.equalsValue(AccountType.equity),
+                )
+                ..limit(1))
+              .getSingleOrNull())
+          ?.id;
 
   Future<int> _equityAccount(String name) async {
     final existing =

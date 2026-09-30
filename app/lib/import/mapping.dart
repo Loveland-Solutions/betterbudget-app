@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 
+import '../domain/money.dart';
 import 'sheet.dart';
 
 /// What a column holds. Everything not named is ignored.
@@ -1027,4 +1028,22 @@ _Chain? _bestChain(Sheet sheet, List<int> rows, List<int> numeric) {
   }
   if (best == null || bestHits * 2 < rows.length - 1) return null;
   return best;
+}
+
+/// The currency a file names, when it names only one: TDB's header row says
+/// "MNT", other files put ₮ or $ in their amounts. Null when it names none
+/// or both.
+Currency? fileCurrency(Sheet sheet) {
+  final mnt = RegExp(r'\bMNT\b|₮|төг', caseSensitive: false);
+  final usd = RegExp(r'\bUSD\b|\$');
+  var m = false, u = false;
+  for (final row in sheet.rows) {
+    for (final c in row) {
+      if (c is! String) continue;
+      m = m || mnt.hasMatch(c);
+      u = u || usd.hasMatch(c);
+    }
+  }
+  if (m == u) return null;
+  return m ? Currency.mnt : Currency.usd;
 }

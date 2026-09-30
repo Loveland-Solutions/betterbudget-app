@@ -879,6 +879,39 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   makes in the language showing, which the person can rename or delete. It isn't
   called "Unassigned": in an envelope budget that means money waiting for a job.
 
+### Tögrög and dollars (owner, 2026-09-30)
+
+The owner asked that accounts can be made in MNT (₮) or USD ($). ROADMAP E had
+already decided the rest: totals shown per currency and never converted, and both
+sides of a transfer between currencies. Built on that:
+
+- **Chosen when the account is made:** Currency, "₮ Tögrög" or "$ Dollar", under
+  Kind. It defaults to the currency most accounts are in (₮ for a first account, not
+  whichever account is on screen), a default rather than a required choice. The hint
+  says it can't be changed later yet; whether to add that is with the owner.
+- **An account's money is in its symbol everywhere:** register, header, forecast,
+  reconcile, pay, import, the sidebar, toasts. In All accounts each row shows its own.
+- **Never added across currencies:** net worth is a line per currency ("₮16,228,750"
+  then "$250"); a category's total reads "₮X · $Y". *Rejected (ROADMAP E):* one
+  total at a typed rate.
+- **A transfer between currencies takes both amounts.** Under the transfer line the
+  entry row asks "Arrives in Chase:" (or "Left Chase:" for money in), and shows the
+  rate once both are in ("₮3,450.00 per $1"). The row then reads "$1,000.00 there ·
+  ₮3,450.00 per $1". Each currency's entries pass through a hidden "Currency
+  exchange" account, so each still adds up to zero and no rate is stored.
+- **Move to** offers only accounts in the same currency; a transfer between
+  currencies stays where it is.
+- **From the reviews:** the amount field's hint carries the symbol (₮0.00, $0.00), so
+  a receipt can't slip into the wrong currency in All accounts; "Sent from Chase:"
+  (not "Left", which read as a balance); the row reads "Chase: $1,000.00 · ₮3,450.00
+  per $1"; an import file that names the other currency gets a big warning with a
+  real row ("₮86,400 would become $86,400"); a category total words each currency
+  ("₮120,000 spent · $20 refunded").
+- **Savings counts one currency** for now: the one most open accounts are in (₮ on
+  a tie). It names what it leaves out ("Not counted here yet: Khan USD $3,000."), the
+  fund picker shows those accounts but can't pick them, and a typed month of spending
+  is kept with its currency. The owner decides how Savings treats two currencies.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

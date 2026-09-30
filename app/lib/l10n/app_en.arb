@@ -4696,7 +4696,7 @@
       }
     }
   },
-  "rowsLeftOther": "Left {account}:",
+  "rowsLeftOther": "Sent from {account}:",
   "@rowsLeftOther": {
     "description": "Entry row, under a transfer from an account in another currency: before the field for what left it.",
     "placeholders": {
@@ -4710,7 +4710,7 @@
       "account": {}
     }
   },
-  "rowsErrorLeftOther": "Say how much left {account}",
+  "rowsErrorLeftOther": "Say how much was sent from {account}",
   "@rowsErrorLeftOther": {
     "description": "Entry row error: a transfer between currencies needs the other side's amount.",
     "placeholders": {
@@ -4735,7 +4735,7 @@
   "@ledgerDbOtherCurrency": {
     "description": "Toast when a row can't move to an account in another currency."
   },
-  "ledgerDbNeedsOtherAmount": "Say how much arrives in the other currency",
+  "ledgerDbNeedsOtherAmount": "Accounts in two currencies need a transfer with both amounts",
   "@ledgerDbNeedsOtherAmount": {
     "description": "Toast when a transfer between currencies has only one amount."
   },
@@ -4751,23 +4751,57 @@
   "@setupCurrencyUsd": {
     "description": "New account page: currency choice."
   },
-  "setupCurrencyHint": "Every amount in this account is in it. Net worth shows each currency on its own line.",
+  "setupCurrencyHint": "Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.",
   "@setupCurrencyHint": {
     "description": "New account page, under the currency choice."
   },
-  "savingsOnlyCurrency": "Counted in {symbol} only: accounts in other currencies aren’t in these sums yet.",
-  "@savingsOnlyCurrency": {
-    "description": "Savings, under the steps, when some accounts are in another currency.",
-    "placeholders": {
-      "symbol": {}
-    }
-  },
-  "rowsExchangeNote": "{amount} there · {rate} per $1",
+  "rowsExchangeNote": "{account}: {amount} · {rate} per $1",
   "@rowsExchangeNote": {
-    "description": "Register, memo line of a transfer between currencies: what the other account got or sent in its currency, and the rate.",
+    "description": "Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate.",
     "placeholders": {
+      "account": {},
       "amount": {},
       "rate": {}
+    }
+  },
+  "savingsOtherCurrencyItem": "{account}  {amount} · another currency, not counted yet",
+  "@savingsOtherCurrencyItem": {
+    "description": "Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.",
+    "placeholders": {
+      "account": {},
+      "amount": {}
+    }
+  },
+  "savingsOnlyMnt": "Not counted here yet: {accounts}. Savings counts tögrög only for now.",
+  "@savingsOnlyMnt": {
+    "description": "Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.",
+    "placeholders": {
+      "accounts": {}
+    }
+  },
+  "savingsOnlyUsd": "Not counted here yet: {accounts}. Savings counts dollars only for now.",
+  "@savingsOnlyUsd": {
+    "description": "Savings, under the steps: accounts in tögrög that aren't in these sums. accounts is names with balances.",
+    "placeholders": {
+      "accounts": {}
+    }
+  },
+  "importFileInMnt": "This file looks like it’s in tögrög, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.",
+  "@importFileInMnt": {
+    "description": "Import window warning: the file names tögrög but the account is in dollars. example and asIs are one real row.",
+    "placeholders": {
+      "account": {},
+      "example": {},
+      "asIs": {}
+    }
+  },
+  "importFileInUsd": "This file looks like it’s in dollars, and {account} is in tögrög. Amounts come in as they are: {example} would become {asIs}.",
+  "@importFileInUsd": {
+    "description": "Import window warning: the file names dollars but the account is in tögrög. example and asIs are one real row.",
+    "placeholders": {
+      "account": {},
+      "example": {},
+      "asIs": {}
     }
   }
 }
