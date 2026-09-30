@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
 import '../domain/pay.dart';
+import '../import/mapping.dart';
 import 'encryption.dart';
 
 part 'database.g.dart';
@@ -91,6 +92,8 @@ class Transactions extends Table {
   TextColumn get date => text()();
   IntColumn get payeeId => integer().nullable().references(Payees, #id)();
   TextColumn get memo => text().nullable()();
+
+  /// Unused since v8: the key is on each account's entry.
   TextColumn get importKey => text().nullable().unique()();
   BoolColumn get scheduled => boolean().withDefault(const Constant(false))();
 
@@ -103,6 +106,7 @@ class Transactions extends Table {
 }
 
 @DataClassName('EntryRow')
+@TableIndex(name: 'entries_import_key', columns: {#importKey}, unique: true)
 class Entries extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get transactionId => integer().references(Transactions, #id)();
@@ -117,6 +121,12 @@ class Entries extends Table {
   /// The reconcile that locked this entry, so it can be taken back later.
   IntColumn get reconciliationId =>
       integer().nullable().references(Reconciliations, #id)();
+
+  /// The bank row this entry came from or was matched to (ADR 0002). On the
+  /// entry, not the transaction, so each side of a transfer matches its own
+  /// bank's file. Unique through `entries_import_key` (SQLite can't add a
+  /// unique column to a table that exists).
+  TextColumn get importKey => text().nullable()();
 }
 
 @DataClassName('ReconciliationRow')
@@ -299,6 +309,118 @@ class DeletedAccount {
   final List<int> transactionIds;
 }
 
+/// What a row of a bank file does on import. The person can turn a match
+/// into its own row, or leave a row out.
+enum ImportFate { add, match, already, leftOut }
+
+/// A row the user typed that a bank row matches.
+class TypedMatch {
+  const TypedMatch({
+    required this.transactionId,
+    required this.entryId,
+    required this.date,
+    required this.payee,
+    required this.cleared,
+    required this.hasMemo,
+  });
+  final int transactionId;
+  final int entryId;
+  final DateTime date;
+  final String payee;
+  final Cleared cleared;
+  final bool hasMemo;
+}
+
+class ImportPlanRow {
+  const ImportPlanRow({
+    required this.row,
+    required this.key,
+    required this.fate,
+    this.match,
+  });
+  final ImportRow row;
+  final String key;
+  final ImportFate fate;
+
+  /// Kept when the person turns the match off, so it can be turned back on.
+  final TypedMatch? match;
+
+  ImportPlanRow withFate(ImportFate f) =>
+      ImportPlanRow(row: row, key: key, fate: f, match: match);
+}
+
+/// A typed row in the file's dates that no bank row matched.
+class UnmatchedTyped {
+  const UnmatchedTyped(this.date, this.payee, this.amount);
+  final DateTime date;
+  final String payee;
+  final int amount;
+}
+
+/// What an import would do, and what around it deserves a look.
+class ImportPlan {
+  const ImportPlan({
+    required this.rows,
+    this.unmatched = const [],
+    this.importedBefore = 0,
+    this.firstDay,
+    this.lastDay,
+  });
+  final List<ImportPlanRow> rows;
+
+  /// Uncleared typed rows dated within the file that nothing matched: the
+  /// bank never had them, or has them at another amount.
+  final List<UnmatchedTyped> unmatched;
+
+  /// Rows imported earlier on this account, dated within the new rows'
+  /// dates. Many means the file may repeat them under different keys.
+  final int importedBefore;
+  final DateTime? firstDay;
+  final DateTime? lastDay;
+
+  ImportPlan withRows(List<ImportPlanRow> r) => ImportPlan(
+    rows: r,
+    unmatched: unmatched,
+    importedBefore: importedBefore,
+    firstDay: firstDay,
+    lastDay: lastDay,
+  );
+}
+
+class MatchedImport {
+  const MatchedImport(
+    this.transactionId,
+    this.entryId,
+    this.before,
+    this.key, {
+    this.memo,
+  });
+  final int transactionId;
+  final int entryId;
+  final Cleared before;
+  final String key;
+
+  /// The bank's text, put in as the memo when the typed row had none.
+  final String? memo;
+}
+
+/// What an import wrote, for undo and redo: new transactions with their
+/// keys, typed rows it matched, and the category it made, if any.
+class ImportRecord {
+  const ImportRecord({
+    required this.added,
+    required this.matched,
+    this.madeCategory,
+    this.uncategorizedCount = 0,
+  });
+  final Map<int, String> added;
+  final List<MatchedImport> matched;
+  final int? madeCategory;
+
+  /// New rows that went to the holding category (made or found).
+  final int uncategorizedCount;
+}
+
 class NotFoundException extends DbException {
   NotFoundException(super.problem);
 }
@@ -361,7 +483,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -396,6 +518,31 @@ class AppDatabase extends _$AppDatabase {
         // Before v5 the table was just made, with the column already.
         if (from >= 5 && from < 7) {
           await m.addColumn(paySchedules, paySchedules.amount2Minor);
+        }
+        if (from < 8) {
+          await m.addColumn(entries, entries.importKey);
+          await m.createIndex(entriesImportKey);
+          // A key on a transaction goes to the side of the account it names
+          // (`a<id>|…`), else its first account side.
+          await customStatement(
+            'UPDATE entries SET import_key = (SELECT t.import_key FROM '
+            'transactions t WHERE t.id = entries.transaction_id) '
+            'WHERE id IN (SELECT e.id FROM entries e '
+            'JOIN transactions t ON t.id = e.transaction_id '
+            "WHERE t.import_key LIKE 'a' || e.account_id || '|%')",
+          );
+          await customStatement(
+            'UPDATE entries SET import_key = (SELECT t.import_key FROM '
+            'transactions t WHERE t.id = entries.transaction_id) '
+            'WHERE id IN (SELECT MIN(e.id) FROM entries e '
+            'JOIN transactions t ON t.id = e.transaction_id '
+            'JOIN accounts a ON a.id = e.account_id '
+            "WHERE t.import_key IS NOT NULL AND a.type IN ('asset', 'liability') "
+            'AND NOT EXISTS (SELECT 1 FROM entries k WHERE '
+            'k.transaction_id = e.transaction_id AND k.import_key IS NOT NULL) '
+            'GROUP BY e.transaction_id)',
+          );
+          await customStatement('UPDATE transactions SET import_key = NULL');
         }
       });
     },
@@ -652,7 +799,6 @@ class AppDatabase extends _$AppDatabase {
     String? payee,
     String? memo,
     bool scheduled = false,
-    String? importKey,
     int? payScheduleId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
   }) {
@@ -665,7 +811,6 @@ class AppDatabase extends _$AppDatabase {
           payeeId: Value(payeeId),
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(scheduled),
-          importKey: Value(importKey),
           payScheduleId: Value(payScheduleId),
           createdAt: now,
           updatedAt: now,
@@ -2158,6 +2303,339 @@ class AppDatabase extends _$AppDatabase {
       'WHERE cleared = $rec AND reconciliation_id IS NULL',
     );
   }
+
+  // ---------- import (ADR 0002) ----------
+
+  /// The preference a bank file's column mapping is kept under, per account.
+  static String importMappingKey(int accountId) => 'import.mapping.$accountId';
+
+  /// What each row of a bank file would do: be added, mark a row the user
+  /// typed as cleared (the same amount within a few days, on an entry not
+  /// imported before), or be skipped as already in the ledger by its key.
+  /// Deleted rows count as already in, so a row the user deleted stays
+  /// deleted.
+  Future<ImportPlan> planImport(
+    int accountId,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) async {
+    final known = <String>{};
+    for (var i = 0; i < keys.length; i += 500) {
+      final chunk = keys.sublist(i, (i + 500).clamp(0, keys.length));
+      final found =
+          await (selectOnly(entries)
+                ..addColumns([entries.importKey])
+                ..where(entries.importKey.isIn(chunk)))
+              .get();
+      known.addAll(found.map((r) => r.read(entries.importKey)!));
+    }
+    // Rows typed on this account near the file's dates, never a starting
+    // balance or an adjustment (the other side is an equity account).
+    // Reconciled ones match too, or they'd come in twice.
+    var from = rows.isEmpty ? DateTime(1900) : dateOnly(rows.first.date);
+    var to = from;
+    for (final r in rows) {
+      final d = dateOnly(r.date);
+      if (d.isBefore(from)) from = d;
+      if (d.isAfter(to)) to = d;
+    }
+    final typed = await customSelect(
+      'SELECT e.id AS entry_id, e.amount_minor AS amount, e.cleared AS cleared, '
+      't.id AS txn_id, t.date AS date, t.memo AS memo, p.name AS payee '
+      'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'LEFT JOIN payees p ON p.id = t.payee_id '
+      'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
+      'AND e.import_key IS NULL AND NOT EXISTS (SELECT 1 FROM entries o '
+      'JOIN accounts a ON a.id = o.account_id WHERE o.transaction_id = t.id '
+      "AND o.id != e.id AND a.type = 'equity') AND t.date BETWEEN ? AND ?",
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(
+          dateKey(from.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(to.add(const Duration(days: matchDaysBefore))),
+        ),
+      ],
+      readsFrom: {entries, transactions, payees, accounts},
+    ).get();
+    final used = <int>{};
+    final plan = <ImportPlanRow>[];
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      if (known.contains(keys[i])) {
+        plan.add(ImportPlanRow(row: r, key: keys[i], fate: ImportFate.already));
+        continue;
+      }
+      final bankDay = dateOnly(r.date);
+      QueryRow? best;
+      var bestGap = 1 << 30;
+      for (final t in typed) {
+        if (used.contains(t.read<int>('entry_id'))) continue;
+        if (t.read<int>('amount') != r.amount) continue;
+        // The bank posts on the day or a few days after; rarely before.
+        final gap = bankDay
+            .difference(parseDateKey(t.read<String>('date')))
+            .inDays;
+        if (gap < -matchDaysBefore || gap > matchDaysAfter) continue;
+        if (gap.abs() < bestGap) {
+          bestGap = gap.abs();
+          best = t;
+        }
+      }
+      if (best == null) {
+        plan.add(ImportPlanRow(row: r, key: keys[i], fate: ImportFate.add));
+        continue;
+      }
+      used.add(best.read<int>('entry_id'));
+      plan.add(
+        ImportPlanRow(
+          row: r,
+          key: keys[i],
+          fate: ImportFate.match,
+          match: TypedMatch(
+            transactionId: best.read<int>('txn_id'),
+            entryId: best.read<int>('entry_id'),
+            date: parseDateKey(best.read<String>('date')),
+            payee: best.read<String?>('payee') ?? '',
+            cleared: Cleared.values[best.read<int>('cleared')],
+            hasMemo: (best.read<String?>('memo') ?? '').trim().isNotEmpty,
+          ),
+        ),
+      );
+    }
+
+    final fresh = plan.where((p) => p.fate != ImportFate.already).toList();
+    if (fresh.isEmpty) return ImportPlan(rows: plan);
+    var first = dateOnly(fresh.first.row.date);
+    var last = first;
+    for (final p in fresh) {
+      final d = dateOnly(p.row.date);
+      if (d.isBefore(first)) first = d;
+      if (d.isAfter(last)) last = d;
+    }
+    bool within(DateTime d) => !d.isBefore(first) && !d.isAfter(last);
+    final unmatched = [
+      for (final t in typed)
+        if (!used.contains(t.read<int>('entry_id')) &&
+            Cleared.values[t.read<int>('cleared')] == Cleared.uncleared &&
+            within(parseDateKey(t.read<String>('date'))))
+          UnmatchedTyped(
+            parseDateKey(t.read<String>('date')),
+            t.read<String?>('payee') ?? '',
+            t.read<int>('amount'),
+          ),
+    ]..sort((a, b) => a.date.compareTo(b.date));
+    final before = await customSelect(
+      'SELECT COUNT(*) AS n FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
+      'AND t.deleted_at IS NULL AND t.date BETWEEN ? AND ?',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(dateKey(first)),
+        Variable.withString(dateKey(last)),
+      ],
+      readsFrom: {entries, transactions},
+    ).getSingle();
+    return ImportPlan(
+      rows: plan,
+      unmatched: unmatched,
+      importedBefore: before.read<int>('n'),
+      firstDay: first,
+      lastDay: last,
+    );
+  }
+
+  /// How far a typed row's date may be from the bank's and still match.
+  static const matchDaysBefore = 3, matchDaysAfter = 10;
+
+  /// Writes [plan] to [accountId] in one go: new rows come in cleared, with
+  /// the category (income or spending, never another account) last used for
+  /// their payee here, else the holding category found by any of
+  /// [uncategorizedNames] or made as the first. Matched rows take the bank's
+  /// key, become cleared, and keep the bank's text as a memo if they had
+  /// none. Rows already in or left out are untouched.
+  Future<ImportRecord> applyImport({
+    required int accountId,
+    required List<ImportPlanRow> plan,
+    required List<String> uncategorizedNames,
+  }) => transaction(() async {
+    await _assertLive(accountId);
+    final categories = {
+      for (final a
+          in await (select(accounts)..where(
+                (a) =>
+                    a.deletedAt.isNull() &
+                    a.archivedAt.isNull() &
+                    a.type.isInValues([
+                      AccountType.income,
+                      AccountType.expense,
+                    ]),
+              ))
+              .get())
+        a.id,
+    };
+    int? made;
+    int? fallback;
+    var holding = 0;
+    Future<int> uncategorized() async {
+      holding++;
+      if (fallback != null) return fallback!;
+      final existing =
+          await (select(accounts)..where(
+                (a) =>
+                    a.name.isIn(uncategorizedNames) &
+                    a.type.equalsValue(AccountType.expense) &
+                    a.deletedAt.isNull() &
+                    a.archivedAt.isNull(),
+              ))
+              .get();
+      if (existing.isNotEmpty) return fallback = existing.first.id;
+      return fallback = made = await createCategory(uncategorizedNames.first);
+    }
+
+    final remembered = <String, int?>{};
+    final added = <int, String>{};
+    final matched = <MatchedImport>[];
+    for (final p in plan) {
+      switch (p.fate) {
+        case ImportFate.already || ImportFate.leftOut:
+          continue;
+        case ImportFate.add:
+          final payee = p.row.payee;
+          final last = remembered.containsKey(payee)
+              ? remembered[payee]
+              : remembered[payee] = await lastCategoryFor(payee, accountId);
+          final category = last != null && categories.contains(last)
+              ? last
+              : await uncategorized();
+          final id = await postTransaction(
+            date: dateOnly(p.row.date),
+            payee: payee,
+            memo: p.row.memo,
+            lines: [
+              (
+                accountId: accountId,
+                amount: p.row.amount,
+                cleared: Cleared.cleared,
+              ),
+              (
+                accountId: category,
+                amount: -p.row.amount,
+                cleared: Cleared.uncleared,
+              ),
+            ],
+          );
+          added[id] = p.key;
+        case ImportFate.match:
+          final m = p.match!;
+          final text = p.row.memo ?? p.row.payee;
+          matched.add(
+            MatchedImport(
+              m.transactionId,
+              m.entryId,
+              m.cleared,
+              p.key,
+              // A reconciled row is locked: it takes the key and nothing else.
+              memo:
+                  m.hasMemo ||
+                      m.cleared == Cleared.reconciled ||
+                      text.trim().isEmpty
+                  ? null
+                  : text.trim(),
+            ),
+          );
+      }
+    }
+    final record = ImportRecord(
+      added: added,
+      matched: matched,
+      madeCategory: made,
+      uncategorizedCount: holding,
+    );
+    await _keyAdded(accountId, record);
+    await _applyMatches(record);
+    return record;
+  });
+
+  Future<void> _keyAdded(int accountId, ImportRecord r) async {
+    for (final e in r.added.entries) {
+      await (update(entries)..where(
+            (x) =>
+                x.transactionId.equals(e.key) & x.accountId.equals(accountId),
+          ))
+          .write(EntriesCompanion(importKey: Value(e.value)));
+    }
+  }
+
+  Future<void> _applyMatches(ImportRecord r) async {
+    for (final m in r.matched) {
+      await (update(entries)..where((e) => e.id.equals(m.entryId))).write(
+        EntriesCompanion(importKey: Value(m.key)),
+      );
+      if (m.before == Cleared.uncleared) {
+        await (update(entries)..where(
+              (e) =>
+                  e.id.equals(m.entryId) &
+                  e.cleared.equalsValue(Cleared.uncleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.cleared)));
+      }
+      await (update(
+        transactions,
+      )..where((t) => t.id.equals(m.transactionId))).write(
+        TransactionsCompanion(
+          memo: m.memo == null ? const Value.absent() : Value(m.memo),
+          updatedAt: Value(_now),
+        ),
+      );
+    }
+  }
+
+  /// Takes an import back: its new rows go (their keys freed, so the same
+  /// file can come in again), matched rows lose the key, their memo from the
+  /// bank, and go back to uncleared; a category it made goes if nothing else
+  /// uses it.
+  Future<void> undoImport(ImportRecord r) => transaction(() async {
+    final ids = r.added.keys.toList();
+    final gone = await softDeleteMany(ids);
+    if (gone.length != ids.length) throw LockedException(DbProblem.reconciled);
+    await (update(entries)..where((e) => e.transactionId.isIn(ids))).write(
+      const EntriesCompanion(importKey: Value(null)),
+    );
+    for (final m in r.matched) {
+      await (update(entries)..where((e) => e.id.equals(m.entryId))).write(
+        const EntriesCompanion(importKey: Value(null)),
+      );
+      // Only a row still cleared goes back: one reconciled since stays.
+      if (m.before == Cleared.uncleared) {
+        await (update(entries)..where(
+              (e) =>
+                  e.id.equals(m.entryId) &
+                  e.cleared.equalsValue(Cleared.cleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.uncleared)));
+      }
+      if (m.memo != null) {
+        await (update(transactions)..where(
+              (t) => t.id.equals(m.transactionId) & t.memo.equals(m.memo!),
+            ))
+            .write(const TransactionsCompanion(memo: Value(null)));
+      }
+    }
+    if (r.madeCategory case final c?) await deleteEmptyAccount(c);
+  });
+
+  Future<void> redoImport(ImportRecord r, int accountId) =>
+      transaction(() async {
+        if (r.madeCategory case final c?) {
+          await undeleteAccount(DeletedAccount(c, const []));
+        }
+        await restoreMany(r.added.keys);
+        await _keyAdded(accountId, r);
+        await _applyMatches(r);
+      });
 
   Future<int?> _payeeId(String? name) async {
     final n = name?.trim();

@@ -16,6 +16,8 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/readiness.dart';
+import '../import/mapping.dart';
+import '../import/sheet.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
@@ -29,6 +31,7 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
+part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'savings.dart';
 
@@ -1717,6 +1720,149 @@ class _LedgerScreenState extends State<LedgerScreen> {
         delete: () => _deleteAccount(data, account),
       );
 
+  /// Import a bank file into [account] (ADR 0002): pick it, read it, show
+  /// the columns and the rows, write what the user confirms as one undoable
+  /// action. The file type used last on this account is offered first.
+  Future<void> _startImport(
+    LedgerData data,
+    AccountInfo account,
+    int cleared,
+  ) async {
+    final t = context.t;
+    if (!_mayLeave()) return;
+    _endReconcile();
+    final saved = SavedMapping.decode(
+      data.prefs[AppDatabase.importMappingKey(account.id)],
+    );
+    final excel = XTypeGroup(
+      label: t.importExcelFiles,
+      extensions: const ['xls', 'xlsx', 'XLS', 'XLSX'],
+      uniformTypeIdentifiers: const [
+        'com.microsoft.excel.xls',
+        'org.openxmlformats.spreadsheetml.sheet',
+      ],
+    );
+    final text = XTypeGroup(
+      label: t.importTextFiles,
+      extensions: const ['csv', 'txt', 'tsv', 'CSV', 'TXT'],
+      uniformTypeIdentifiers: const [
+        'public.comma-separated-values-text',
+        'public.plain-text',
+        'public.tab-separated-values-text',
+      ],
+    );
+    final XFile? picked;
+    try {
+      picked = await openFile(
+        acceptedTypeGroups: saved?.kind == FileKind.csv
+            ? [text, excel]
+            : [excel, text],
+        confirmButtonText: t.ledgerChoose,
+      );
+    } catch (e) {
+      debugPrint('Open dialog failed: $e');
+      _showToast(t.ledgerCouldntOpenFileDialog);
+      return;
+    }
+    if (picked == null || !mounted) return;
+    final Sheet sheet;
+    final FileKind kind;
+    final bool fits;
+    final ImportMapping mapping;
+    try {
+      final bytes = await picked.readAsBytes();
+      kind =
+          fileKindOf(bytes, picked.name) ??
+          (throw const UnreadableFileException('unknown kind'));
+      sheet = readSheet(bytes, picked.name);
+      fits = saved != null && saved.proven && mappingFits(sheet, saved);
+      mapping = fits ? saved.mapping : guessMapping(sheet);
+    } catch (e) {
+      debugPrint('Import read failed: $e');
+      if (mounted) _showToast(t.importCouldntRead(picked.name));
+      return;
+    }
+    if (!fits && !mapping.hasDate) {
+      _showToast(t.importNoDates(picked.name));
+      return;
+    }
+    if (!mounted) return;
+    final pick = await showDialog<ImportPick>(
+      context: context,
+      builder: (_) => _ImportDialog(
+        accountName: account.name,
+        fileName: picked!.name,
+        sheet: sheet,
+        mapping: mapping,
+        fromSaved: fits,
+        accountId: account.id,
+        plan: (rows, keys) => db.planImport(account.id, rows, keys),
+        cleared: cleared,
+        owed: account.isOwed,
+      ),
+    );
+    if (pick == null || !mounted) return;
+    final uncategorized = t.importUncategorized;
+    final ImportRecord record;
+    try {
+      record = await db.applyImport(
+        accountId: account.id,
+        plan: pick.plan,
+        uncategorizedNames: {
+          uncategorized,
+          'Not categorized',
+          'Ангилаагүй',
+        }.toList(),
+      );
+    } catch (e) {
+      debugPrint('Import failed: $e');
+      if (mounted) {
+        _showToast(
+          t.importCouldntImport(switch (e) {
+            final DbException d => dbProblem(t, d),
+            _ => '$e',
+          }),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final newlyCleared = record.matched
+        .where((m) => m.before == Cleared.uncleared)
+        .length;
+    final label = record.added.isNotEmpty
+        ? t.importDone(record.added.length)
+        : t.importMatchedToast(record.matched.length);
+    _did(
+      label,
+      undo: () => db.undoImport(record),
+      redo: () => db.redoImport(record, account.id),
+      message: [
+        label,
+        if (record.added.isNotEmpty && newlyCleared > 0)
+          t.importMatchedToast(newlyCleared),
+        if (record.uncategorizedCount > 0)
+          t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
+      ].join(' · '),
+    );
+    // Remembered for the next file into this account. The rows are in
+    // either way, so a failure here only costs guessing again next time.
+    try {
+      await db.setPreference(
+        AppDatabase.importMappingKey(account.id),
+        SavedMapping(
+          shape: fileShape(sheet, pick.mapping),
+          kind: kind,
+          mapping: pick.mapping,
+          proven: pick.proven,
+        ).encode(),
+      );
+    } catch (e) {
+      debugPrint('Saving the import columns failed: $e');
+    }
+    _keysBack();
+  }
+
   /// Marks what an account is for on the Savings steps.
   Future<void> _setRole(
     AccountInfo account,
@@ -2393,6 +2539,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
               onReconcile: () => _startReconcile(data, account),
+              onImport: () => _startImport(data, account, summary.cleared),
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.

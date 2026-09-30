@@ -4200,6 +4200,342 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'This month'**
   String get startThisMonth;
+
+  /// Account header, beside Reconcile: button that opens a bank file to bring its rows in.
+  ///
+  /// In en, this message translates to:
+  /// **'Import…'**
+  String get importButton;
+
+  /// Import window title. account is the account's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Import into {account}'**
+  String importTitle(Object account);
+
+  /// Open dialog: name of the file type group for .xls and .xlsx.
+  ///
+  /// In en, this message translates to:
+  /// **'Excel files'**
+  String get importExcelFiles;
+
+  /// Open dialog: name of the file type group for .csv and .txt.
+  ///
+  /// In en, this message translates to:
+  /// **'Text files (CSV)'**
+  String get importTextFiles;
+
+  /// Toast when a picked file can't be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx) and CSV files.'**
+  String importCouldntRead(Object file);
+
+  /// Toast when a file has nothing that looks like a transaction.
+  ///
+  /// In en, this message translates to:
+  /// **'{file} has no rows with a date in them.'**
+  String importNoDates(Object file);
+
+  /// Import window, when the file has the same layout as the last one imported into this account.
+  ///
+  /// In en, this message translates to:
+  /// **'Read with the columns you set for this account last time.'**
+  String get importSavedColumns;
+
+  /// Import window: button that shows the file's columns to change what each holds.
+  ///
+  /// In en, this message translates to:
+  /// **'Change columns'**
+  String get importChangeColumns;
+
+  /// Import window, above the file's columns.
+  ///
+  /// In en, this message translates to:
+  /// **'Say what each column holds. The app filled in its best guess; check the date and the amount.'**
+  String get importColumnsHint;
+
+  /// Import window, a column's choice: the column is left out.
+  ///
+  /// In en, this message translates to:
+  /// **'Not used'**
+  String get importRoleIgnore;
+
+  /// Import window, a column's choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get importRoleDate;
+
+  /// Import window, a column's choice: one column with money in and out, signed.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (+ in, − out)'**
+  String get importRoleAmount;
+
+  /// Import window, a column's choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Money in'**
+  String get importRoleIn;
+
+  /// Import window, a column's choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Money out'**
+  String get importRoleOut;
+
+  /// Import window, a column's choice: who the money went to or came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Payee'**
+  String get importRolePayee;
+
+  /// Import window, a column's choice: the bank's description.
+  ///
+  /// In en, this message translates to:
+  /// **'Memo'**
+  String get importRoleMemo;
+
+  /// Import window, a column's choice: the bank's running balance after each row, used to check the reading.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank’s balance'**
+  String get importRoleBalance;
+
+  /// Import window, when no rows can be read yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the date column and the amount (or money in and money out).'**
+  String get importNeedDateAmount;
+
+  /// Import window, before two choices, when a date like 03.04 could be read either way.
+  ///
+  /// In en, this message translates to:
+  /// **'Dates in this file:'**
+  String get importDateOrder;
+
+  /// Import window, date choice. date is the file's first date read this way, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Day first: {date}'**
+  String importDayFirst(Object date);
+
+  /// Import window, date choice. date is the file's first date read this way, in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Month first: {date}'**
+  String importMonthFirst(Object date);
+
+  /// Import window, before two choices, when one column holds the amount.
+  ///
+  /// In en, this message translates to:
+  /// **'In the amount column:'**
+  String get importSignLabel;
+
+  /// Import window, sign choice (the usual).
+  ///
+  /// In en, this message translates to:
+  /// **'minus is money out'**
+  String get importMinusOut;
+
+  /// Import window, sign choice (some card statements).
+  ///
+  /// In en, this message translates to:
+  /// **'plus is money out'**
+  String get importPlusOut;
+
+  /// Import window summary, first clause; clauses are joined with " · ".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new row} other{{count} new rows}}'**
+  String importCountNew(int count);
+
+  /// Import window summary clause.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 matches a row you typed, which becomes cleared} other{{count} match rows you typed, which become cleared}}'**
+  String importCountMatch(int count);
+
+  /// Import window summary clause: rows imported before (by their key), skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} already in the ledger'**
+  String importCountAlready(int count);
+
+  /// Import window: the file's own balance column agrees with the amounts read.
+  ///
+  /// In en, this message translates to:
+  /// **'The bank’s running balance adds up on every row, {opening} to {closing}.'**
+  String importBalanceOk(Object opening, Object closing);
+
+  /// Import window warning: the balance column doesn't agree with the amounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Row {row} of the file: the bank’s balance is {found}, but the amounts before it come to {expected}. A column may be set wrong. You can still import.'**
+  String importBalanceOff(int row, Object found, Object expected);
+
+  /// Import window, after the balance warning, when more than one row is off.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows don’t add up in all.'**
+  String importBalanceOffCount(int count);
+
+  /// Import window: the account's cleared balance after importing equals the file's last balance.
+  ///
+  /// In en, this message translates to:
+  /// **'After this, the cleared balance matches the bank: {amount}.'**
+  String importClearedMatches(Object amount);
+
+  /// Import window: the account's cleared balance after importing differs from the file's last balance.
+  ///
+  /// In en, this message translates to:
+  /// **'After this, the cleared balance is {ours}; the bank’s file ends at {bank}, {diff} apart. Rows from before this file, or ones not cleared, can make the difference.'**
+  String importClearedDiffers(Object ours, Object bank, Object diff);
+
+  /// Import window, preview row tag: this row will be added.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get importFateNew;
+
+  /// Import window, preview row tag: a row the user typed that becomes cleared. date in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches {payee}, {date}'**
+  String importFateMatch(Object payee, Object date);
+
+  /// Import window, preview row tag: imported before, left out.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in'**
+  String get importFateAlready;
+
+  /// Import window, main button. count is new rows plus matched ones.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Import 1 row} other{Import {count} rows}}'**
+  String importDo(int count);
+
+  /// Import window, in place of the main button when every row is already in.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing new in this file'**
+  String get importNothingNew;
+
+  /// Import window button.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get importCancel;
+
+  /// Toast and undo-menu label after an import.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Imported 1 row} other{Imported {count} rows}}'**
+  String importDone(int count);
+
+  /// Part of the import toast, after " · ".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 typed row now cleared} other{{count} typed rows now cleared}}'**
+  String importMatchedToast(int count);
+
+  /// Part of the import toast, after " · ": rows whose payee has no earlier category went to the app's holding category.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in “{name}”'**
+  String importUncategorizedToast(int count, Object name);
+
+  /// Name of the category the app makes for imported rows whose payee has no earlier category. Saved in the language showing when it's made.
+  ///
+  /// In en, this message translates to:
+  /// **'Not categorized'**
+  String get importUncategorized;
+
+  /// Toast when an import fails; nothing was written.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import: {problem}'**
+  String importCouldntImport(Object problem);
+
+  /// Import window, main button when typed rows match too. count is new rows, cleared the typed rows that become cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Import {count} rows · clear {cleared}'**
+  String importDoClear(int count, int cleared);
+
+  /// Import window, main button when nothing is new but typed rows match.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Clear 1 typed row} other{Clear {count} typed rows}}'**
+  String importDoOnlyClear(int count);
+
+  /// Import window summary clause, quiet: lines that aren't transactions.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 line without a date (a heading or total) left out} other{{count} lines without a date (headings, totals) left out}}'**
+  String importCountNoDate(int count);
+
+  /// Import window warning. rows is a list of row numbers, like 12, 15, 40.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Row {rows} of the file has a date but no amount this can read, so it’s left out.} other{Rows {rows} of the file have a date but no amount this can read, so they’re left out.}}'**
+  String importNoAmountRows(int count, Object rows);
+
+  /// Import window summary clause: rows the person clicked to leave out.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} left out by you'**
+  String importCountLeftOut(int count);
+
+  /// Import window, above the rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a row’s New or Matches to add it as its own row or leave it out.'**
+  String get importTagHint;
+
+  /// Import window, preview row tag, when the typed row has no payee. date in words.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches your row of {date}'**
+  String importFateMatchDate(Object date);
+
+  /// Import window, preview row tag: the person chose not to bring this row in.
+  ///
+  /// In en, this message translates to:
+  /// **'Left out'**
+  String get importFateLeftOut;
+
+  /// Import window warning: new rows overlap dates already imported. from/to in words.
+  ///
+  /// In en, this message translates to:
+  /// **'The new rows fall between {from} and {to}, where this account already has {count} imported rows. If this file repeats an earlier one in another form, they’re duplicates.'**
+  String importOverlap(Object from, Object to, int count);
+
+  /// Import window button under the overlap warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the new rows out'**
+  String get importLeaveNewOut;
+
+  /// Import window note: typed rows the bank file doesn't have (another amount, or not posted).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row you typed between {from} and {to} isn’t in this file: {list}. It stays not cleared.} other{{count} rows you typed between {from} and {to} aren’t in this file: {list}. They stay not cleared.}}'**
+  String importUnmatched(int count, Object from, Object to, Object list);
+
+  /// One typed row in the importUnmatched list.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} {amount} on {date}'**
+  String importUnmatchedItem(Object payee, Object amount, Object date);
+
+  /// Last item of the importUnmatched list when it's cut short.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String importUnmatchedMore(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

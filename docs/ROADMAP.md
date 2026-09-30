@@ -131,5 +131,5 @@ since phones show budget amounts.
 - [ ] TestFlight / Play internal testing, then the stores
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)
-Splits, TDB import, search, sorting, cash accounts, better "not cleared" note, duplicate
+Splits, import rules, search, sorting, cash accounts, better "not cleared" note, duplicate
 check on Confirm, several overdue bills, backup reminders, app lock.

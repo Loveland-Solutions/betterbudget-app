@@ -2099,6 +2099,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   final String date;
   final int? payeeId;
   final String? memo;
+
+  /// Unused since v8: the key is on each account's entry.
   final String? importKey;
   final bool scheduled;
 
@@ -2912,6 +2914,17 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
       'REFERENCES reconciliations (id)',
     ),
   );
+  static const VerificationMeta _importKeyMeta = const VerificationMeta(
+    'importKey',
+  );
+  @override
+  late final GeneratedColumn<String> importKey = GeneratedColumn<String>(
+    'import_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2922,6 +2935,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
     rate,
     cleared,
     reconciliationId,
+    importKey,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2989,6 +3003,12 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
         ),
       );
     }
+    if (data.containsKey('import_key')) {
+      context.handle(
+        _importKeyMeta,
+        importKey.isAcceptableOrUnknown(data['import_key']!, _importKeyMeta),
+      );
+    }
     return context;
   }
 
@@ -3032,6 +3052,10 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
         DriftSqlType.int,
         data['${effectivePrefix}reconciliation_id'],
       ),
+      importKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}import_key'],
+      ),
     );
   }
 
@@ -3057,6 +3081,12 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
 
   /// The reconcile that locked this entry, so it can be taken back later.
   final int? reconciliationId;
+
+  /// The bank row this entry came from or was matched to (ADR 0002). On the
+  /// entry, not the transaction, so each side of a transfer matches its own
+  /// bank's file. Unique through `entries_import_key` (SQLite can't add a
+  /// unique column to a table that exists).
+  final String? importKey;
   const EntryRow({
     required this.id,
     required this.transactionId,
@@ -3066,6 +3096,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
     this.rate,
     required this.cleared,
     this.reconciliationId,
+    this.importKey,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3086,6 +3117,9 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
     if (!nullToAbsent || reconciliationId != null) {
       map['reconciliation_id'] = Variable<int>(reconciliationId);
     }
+    if (!nullToAbsent || importKey != null) {
+      map['import_key'] = Variable<String>(importKey);
+    }
     return map;
   }
 
@@ -3101,6 +3135,9 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
       reconciliationId: reconciliationId == null && nullToAbsent
           ? const Value.absent()
           : Value(reconciliationId),
+      importKey: importKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(importKey),
     );
   }
 
@@ -3120,6 +3157,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
         serializer.fromJson<int>(json['cleared']),
       ),
       reconciliationId: serializer.fromJson<int?>(json['reconciliationId']),
+      importKey: serializer.fromJson<String?>(json['importKey']),
     );
   }
   @override
@@ -3136,6 +3174,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
         $EntriesTable.$convertercleared.toJson(cleared),
       ),
       'reconciliationId': serializer.toJson<int?>(reconciliationId),
+      'importKey': serializer.toJson<String?>(importKey),
     };
   }
 
@@ -3148,6 +3187,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
     Value<String?> rate = const Value.absent(),
     Cleared? cleared,
     Value<int?> reconciliationId = const Value.absent(),
+    Value<String?> importKey = const Value.absent(),
   }) => EntryRow(
     id: id ?? this.id,
     transactionId: transactionId ?? this.transactionId,
@@ -3159,6 +3199,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
     reconciliationId: reconciliationId.present
         ? reconciliationId.value
         : this.reconciliationId,
+    importKey: importKey.present ? importKey.value : this.importKey,
   );
   EntryRow copyWithCompanion(EntriesCompanion data) {
     return EntryRow(
@@ -3176,6 +3217,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
       reconciliationId: data.reconciliationId.present
           ? data.reconciliationId.value
           : this.reconciliationId,
+      importKey: data.importKey.present ? data.importKey.value : this.importKey,
     );
   }
 
@@ -3189,7 +3231,8 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
           ..write('currency: $currency, ')
           ..write('rate: $rate, ')
           ..write('cleared: $cleared, ')
-          ..write('reconciliationId: $reconciliationId')
+          ..write('reconciliationId: $reconciliationId, ')
+          ..write('importKey: $importKey')
           ..write(')'))
         .toString();
   }
@@ -3204,6 +3247,7 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
     rate,
     cleared,
     reconciliationId,
+    importKey,
   );
   @override
   bool operator ==(Object other) =>
@@ -3216,7 +3260,8 @@ class EntryRow extends DataClass implements Insertable<EntryRow> {
           other.currency == this.currency &&
           other.rate == this.rate &&
           other.cleared == this.cleared &&
-          other.reconciliationId == this.reconciliationId);
+          other.reconciliationId == this.reconciliationId &&
+          other.importKey == this.importKey);
 }
 
 class EntriesCompanion extends UpdateCompanion<EntryRow> {
@@ -3228,6 +3273,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
   final Value<String?> rate;
   final Value<Cleared> cleared;
   final Value<int?> reconciliationId;
+  final Value<String?> importKey;
   const EntriesCompanion({
     this.id = const Value.absent(),
     this.transactionId = const Value.absent(),
@@ -3237,6 +3283,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
     this.rate = const Value.absent(),
     this.cleared = const Value.absent(),
     this.reconciliationId = const Value.absent(),
+    this.importKey = const Value.absent(),
   });
   EntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -3247,6 +3294,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
     this.rate = const Value.absent(),
     required Cleared cleared,
     this.reconciliationId = const Value.absent(),
+    this.importKey = const Value.absent(),
   }) : transactionId = Value(transactionId),
        accountId = Value(accountId),
        amountMinor = Value(amountMinor),
@@ -3260,6 +3308,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
     Expression<String>? rate,
     Expression<int>? cleared,
     Expression<int>? reconciliationId,
+    Expression<String>? importKey,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3270,6 +3319,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
       if (rate != null) 'rate': rate,
       if (cleared != null) 'cleared': cleared,
       if (reconciliationId != null) 'reconciliation_id': reconciliationId,
+      if (importKey != null) 'import_key': importKey,
     });
   }
 
@@ -3282,6 +3332,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
     Value<String?>? rate,
     Value<Cleared>? cleared,
     Value<int?>? reconciliationId,
+    Value<String?>? importKey,
   }) {
     return EntriesCompanion(
       id: id ?? this.id,
@@ -3292,6 +3343,7 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
       rate: rate ?? this.rate,
       cleared: cleared ?? this.cleared,
       reconciliationId: reconciliationId ?? this.reconciliationId,
+      importKey: importKey ?? this.importKey,
     );
   }
 
@@ -3324,6 +3376,9 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
     if (reconciliationId.present) {
       map['reconciliation_id'] = Variable<int>(reconciliationId.value);
     }
+    if (importKey.present) {
+      map['import_key'] = Variable<String>(importKey.value);
+    }
     return map;
   }
 
@@ -3337,7 +3392,8 @@ class EntriesCompanion extends UpdateCompanion<EntryRow> {
           ..write('currency: $currency, ')
           ..write('rate: $rate, ')
           ..write('cleared: $cleared, ')
-          ..write('reconciliationId: $reconciliationId')
+          ..write('reconciliationId: $reconciliationId, ')
+          ..write('importKey: $importKey')
           ..write(')'))
         .toString();
   }
@@ -3563,6 +3619,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $EntriesTable entries = $EntriesTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
+  late final Index entriesImportKey = Index(
+    'entries_import_key',
+    'CREATE UNIQUE INDEX entries_import_key ON entries (import_key)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3575,6 +3635,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reconciliations,
     entries,
     preferences,
+    entriesImportKey,
   ];
 }
 
@@ -6066,6 +6127,7 @@ typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<String?> rate,
   required Cleared cleared,
   Value<int?> reconciliationId,
+  Value<String?> importKey,
 });
 typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<int> id,
@@ -6076,6 +6138,7 @@ typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<String?> rate,
   Value<Cleared> cleared,
   Value<int?> reconciliationId,
+  Value<String?> importKey,
 });
 
 final class $$EntriesTableReferences
@@ -6169,6 +6232,11 @@ class $$EntriesTableFilterComposer
         column: $table.cleared,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get importKey => $composableBuilder(
+    column: $table.importKey,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$TransactionsTableFilterComposer get transactionId {
     final $$TransactionsTableFilterComposer composer = $composerBuilder(
@@ -6274,6 +6342,11 @@ class $$EntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get importKey => $composableBuilder(
+    column: $table.importKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$TransactionsTableOrderingComposer get transactionId {
     final $$TransactionsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6369,6 +6442,9 @@ class $$EntriesTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<Cleared, int> get cleared =>
       $composableBuilder(column: $table.cleared, builder: (column) => column);
+
+  GeneratedColumn<String> get importKey =>
+      $composableBuilder(column: $table.importKey, builder: (column) => column);
 
   $$TransactionsTableAnnotationComposer get transactionId {
     final $$TransactionsTableAnnotationComposer composer = $composerBuilder(
@@ -6480,6 +6556,7 @@ class $$EntriesTableTableManager
                 Value<String?> rate = const Value.absent(),
                 Value<Cleared> cleared = const Value.absent(),
                 Value<int?> reconciliationId = const Value.absent(),
+                Value<String?> importKey = const Value.absent(),
               }) => EntriesCompanion(
                 id: id,
                 transactionId: transactionId,
@@ -6489,6 +6566,7 @@ class $$EntriesTableTableManager
                 rate: rate,
                 cleared: cleared,
                 reconciliationId: reconciliationId,
+                importKey: importKey,
               ),
           createCompanionCallback:
               ({
@@ -6500,6 +6578,7 @@ class $$EntriesTableTableManager
                 Value<String?> rate = const Value.absent(),
                 required Cleared cleared,
                 Value<int?> reconciliationId = const Value.absent(),
+                Value<String?> importKey = const Value.absent(),
               }) => EntriesCompanion.insert(
                 id: id,
                 transactionId: transactionId,
@@ -6509,6 +6588,7 @@ class $$EntriesTableTableManager
                 rate: rate,
                 cleared: cleared,
                 reconciliationId: reconciliationId,
+                importKey: importKey,
               ),
           withReferenceMapper: (p0) => p0
               .map(

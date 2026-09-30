@@ -831,6 +831,54 @@ Before beta the owner asked for a Mongolian option. The choices:
   new account left unnamed is saved as "New account" or "Шинэ данс", whichever
   is showing, and stays that way until renamed.
 
+### Import: the bank file's own columns (owner, 2026-09-30)
+
+Mongolian banks don't export OFX or QFX, so import reads whatever file the bank gives
+(TDB's `.xls`, `.xlsx`, CSV) and the person says what each column holds. The owner's
+two assumptions: files are tables, and a person keeps using the same export for an
+account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
+
+- **Option A, file first (chosen).** The window shows the file's own columns and its
+  first rows, with a choice over each column: Date, Amount (+ in, − out), Money in,
+  Money out, Payee, Memo, Bank's balance, Not used. The file's name for a column sits
+  under the choice. Rows that won't come in (headings, totals, blank lines) show
+  dimmed. *Rejected, option B:* the app's fields listed, each with a menu of the
+  file's columns. It hides the data behind menus, so you can't see what you're matching.
+- **The app guesses first.** Each column's choice starts at the app's best guess, and
+  the bank's running balance proves the amounts are read right. A date like 03.04
+  that reads both ways gets two choices, each showing the date it would make. One amount column
+  gets a choice of which sign is money out.
+- **Remembered per account.** Confirming saves the columns for that account. A later
+  file of the same layout opens straight on the rows with "Read with the columns you
+  set for this account last time" and Change columns. The open dialog offers the
+  file type used last on that account first.
+- **One window: columns above, rows below.** The summary reads "63 new rows · 12 match
+  rows you typed, which become cleared · 4 already in the ledger · 3 rows with no
+  date or amount left out". Each row is tagged New, Matches (the typed row's payee
+  and date) or Already in. Enter or **Import 63 rows** writes it; a file with nothing
+  new says so in place of the button.
+- **Warn, don't block.** If the bank's balance doesn't add up, a big coral line says
+  which row and both numbers, and the import still goes ahead on a click. A second line
+  compares the cleared balance after the import with the file's last balance.
+- **Where it starts:** Import… beside Reconcile in the account header (both are about
+  matching the bank). ⌘Z undoes the whole import as one action. The toast names the
+  rows, the typed rows now cleared, and "Not categorized" when it was used.
+- **From the reviews (2026-09-30):** each row's tag can be clicked. A match becomes
+  its own row, then Left out; a new row is Left out and back. When the new rows fall on
+  days this account already has imported rows, a big coral line names the dates and the
+  count, with **Leave the new rows out**. Typed rows in the file's dates that nothing
+  matched are listed in gold ("…aren't in this file: Номин ₮12,000.00 on 09.14"),
+  since the bank never had them or has them at another amount. The cleared-balance line
+  gives the gap. Lines without a date (headings, totals) are counted quietly; a row with a
+  date but no readable amount is named in coral. The button says what happens: "Import
+  63 rows · clear 12". Columns saved from a file whose balance didn't add up are shown
+  again next time, not skipped.
+- **Categories:** each new row gets the income or spending category last used with its
+  payee on that account (never another account, so an own-name payee can't turn rows
+  into transfers); otherwise **Not categorized** (Ангилаагүй), an ordinary category the app
+  makes in the language showing, which the person can rename or delete. It isn't
+  called "Unassigned": in an envelope budget that means money waiting for a job.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

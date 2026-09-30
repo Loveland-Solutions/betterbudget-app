@@ -2927,4 +2927,292 @@ class WordsEn extends Words {
 
   @override
   String get startThisMonth => 'This month';
+
+  @override
+  String get importButton => 'Import…';
+
+  @override
+  String importTitle(Object account) {
+    return 'Import into $account';
+  }
+
+  @override
+  String get importExcelFiles => 'Excel files';
+
+  @override
+  String get importTextFiles => 'Text files (CSV)';
+
+  @override
+  String importCouldntRead(Object file) {
+    return 'Couldn’t read $file. BetterBudget reads Excel (.xls, .xlsx) and CSV files.';
+  }
+
+  @override
+  String importNoDates(Object file) {
+    return '$file has no rows with a date in them.';
+  }
+
+  @override
+  String get importSavedColumns =>
+      'Read with the columns you set for this account last time.';
+
+  @override
+  String get importChangeColumns => 'Change columns';
+
+  @override
+  String get importColumnsHint =>
+      'Say what each column holds. The app filled in its best guess; check the date and the amount.';
+
+  @override
+  String get importRoleIgnore => 'Not used';
+
+  @override
+  String get importRoleDate => 'Date';
+
+  @override
+  String get importRoleAmount => 'Amount (+ in, − out)';
+
+  @override
+  String get importRoleIn => 'Money in';
+
+  @override
+  String get importRoleOut => 'Money out';
+
+  @override
+  String get importRolePayee => 'Payee';
+
+  @override
+  String get importRoleMemo => 'Memo';
+
+  @override
+  String get importRoleBalance => 'Bank’s balance';
+
+  @override
+  String get importNeedDateAmount =>
+      'Choose the date column and the amount (or money in and money out).';
+
+  @override
+  String get importDateOrder => 'Dates in this file:';
+
+  @override
+  String importDayFirst(Object date) {
+    return 'Day first: $date';
+  }
+
+  @override
+  String importMonthFirst(Object date) {
+    return 'Month first: $date';
+  }
+
+  @override
+  String get importSignLabel => 'In the amount column:';
+
+  @override
+  String get importMinusOut => 'minus is money out';
+
+  @override
+  String get importPlusOut => 'plus is money out';
+
+  @override
+  String importCountNew(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new rows',
+      one: '1 new row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importCountMatch(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count match rows you typed, which become cleared',
+      one: '1 matches a row you typed, which becomes cleared',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importCountAlready(int count) {
+    return '$count already in the ledger';
+  }
+
+  @override
+  String importBalanceOk(Object opening, Object closing) {
+    return 'The bank’s running balance adds up on every row, $opening to $closing.';
+  }
+
+  @override
+  String importBalanceOff(int row, Object found, Object expected) {
+    return 'Row $row of the file: the bank’s balance is $found, but the amounts before it come to $expected. A column may be set wrong. You can still import.';
+  }
+
+  @override
+  String importBalanceOffCount(int count) {
+    return '$count rows don’t add up in all.';
+  }
+
+  @override
+  String importClearedMatches(Object amount) {
+    return 'After this, the cleared balance matches the bank: $amount.';
+  }
+
+  @override
+  String importClearedDiffers(Object ours, Object bank, Object diff) {
+    return 'After this, the cleared balance is $ours; the bank’s file ends at $bank, $diff apart. Rows from before this file, or ones not cleared, can make the difference.';
+  }
+
+  @override
+  String get importFateNew => 'New';
+
+  @override
+  String importFateMatch(Object payee, Object date) {
+    return 'Matches $payee, $date';
+  }
+
+  @override
+  String get importFateAlready => 'Already in';
+
+  @override
+  String importDo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Import $count rows',
+      one: 'Import 1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importNothingNew => 'Nothing new in this file';
+
+  @override
+  String get importCancel => 'Cancel';
+
+  @override
+  String importDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Imported $count rows',
+      one: 'Imported 1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importMatchedToast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count typed rows now cleared',
+      one: '1 typed row now cleared',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importUncategorizedToast(int count, Object name) {
+    return '$count in “$name”';
+  }
+
+  @override
+  String get importUncategorized => 'Not categorized';
+
+  @override
+  String importCouldntImport(Object problem) {
+    return 'Couldn’t import: $problem';
+  }
+
+  @override
+  String importDoClear(int count, int cleared) {
+    return 'Import $count rows · clear $cleared';
+  }
+
+  @override
+  String importDoOnlyClear(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Clear $count typed rows',
+      one: 'Clear 1 typed row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importCountNoDate(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines without a date (headings, totals) left out',
+      one: '1 line without a date (a heading or total) left out',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importNoAmountRows(int count, Object rows) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Rows $rows of the file have a date but no amount this can read, so they’re left out.',
+      one:
+          'Row $rows of the file has a date but no amount this can read, so it’s left out.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importCountLeftOut(int count) {
+    return '$count left out by you';
+  }
+
+  @override
+  String get importTagHint =>
+      'Click a row’s New or Matches to add it as its own row or leave it out.';
+
+  @override
+  String importFateMatchDate(Object date) {
+    return 'Matches your row of $date';
+  }
+
+  @override
+  String get importFateLeftOut => 'Left out';
+
+  @override
+  String importOverlap(Object from, Object to, int count) {
+    return 'The new rows fall between $from and $to, where this account already has $count imported rows. If this file repeats an earlier one in another form, they’re duplicates.';
+  }
+
+  @override
+  String get importLeaveNewOut => 'Leave the new rows out';
+
+  @override
+  String importUnmatched(int count, Object from, Object to, Object list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count rows you typed between $from and $to aren’t in this file: $list. They stay not cleared.',
+      one:
+          '1 row you typed between $from and $to isn’t in this file: $list. It stays not cleared.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importUnmatchedItem(Object payee, Object amount, Object date) {
+    return '$payee $amount on $date';
+  }
+
+  @override
+  String importUnmatchedMore(int count) {
+    return '$count more';
+  }
 }

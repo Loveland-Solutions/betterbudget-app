@@ -88,6 +88,8 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | date | огноо | |
 | from / to | -аас / руу | build whole sentences; don't glue pieces |
 | row | мөр | |
+| import (a bank file) | файлаас оруулах | button "Файлаас оруулах…"; done = орууллаа |
+| not categorized | ангилаагүй | the category imported rows wait in |
 | sidebar | хажуугийн цэс | |
 | back up to… / restore from… | нөөцлөх… / нөөцөөс сэргээх… | |
 | daily copy | өдрийн хуулбар | |

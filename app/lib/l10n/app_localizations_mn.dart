@@ -2842,4 +2842,234 @@ class WordsMn extends Words {
 
   @override
   String get startThisMonth => 'Энэ сар';
+
+  @override
+  String get importButton => 'Файлаас оруулах…';
+
+  @override
+  String importTitle(Object account) {
+    return '$account дансанд оруулах';
+  }
+
+  @override
+  String get importExcelFiles => 'Excel файл';
+
+  @override
+  String get importTextFiles => 'Текст файл (CSV)';
+
+  @override
+  String importCouldntRead(Object file) {
+    return '$file файлыг уншиж чадсангүй. BetterBudget нь Excel (.xls, .xlsx) болон CSV файл уншдаг.';
+  }
+
+  @override
+  String importNoDates(Object file) {
+    return '$file файлд огноотой мөр алга.';
+  }
+
+  @override
+  String get importSavedColumns =>
+      'Энэ дансанд өмнө тохируулсан баганаар уншлаа.';
+
+  @override
+  String get importChangeColumns => 'Багана өөрчлөх';
+
+  @override
+  String get importColumnsHint =>
+      'Багана бүрт юу байгааг сонгоно уу. Програм урьдчилан бөглөсөн тул огноо, дүнг шалгана уу.';
+
+  @override
+  String get importRoleIgnore => 'Ашиглахгүй';
+
+  @override
+  String get importRoleDate => 'Огноо';
+
+  @override
+  String get importRoleAmount => 'Дүн (+ орлого, − зарлага)';
+
+  @override
+  String get importRoleIn => 'Орлого';
+
+  @override
+  String get importRoleOut => 'Зарлага';
+
+  @override
+  String get importRolePayee => 'Харилцагч';
+
+  @override
+  String get importRoleMemo => 'Тэмдэглэл';
+
+  @override
+  String get importRoleBalance => 'Банкны үлдэгдэл';
+
+  @override
+  String get importNeedDateAmount =>
+      'Огноо болон дүнгийн (эсвэл орлого, зарлагын) баганыг сонгоно уу.';
+
+  @override
+  String get importDateOrder => 'Энэ файлын огноо:';
+
+  @override
+  String importDayFirst(Object date) {
+    return 'Өдөр нь эхэндээ: $date';
+  }
+
+  @override
+  String importMonthFirst(Object date) {
+    return 'Сар нь эхэндээ: $date';
+  }
+
+  @override
+  String get importSignLabel => 'Дүнгийн баганад:';
+
+  @override
+  String get importMinusOut => 'хасах тэмдэг нь зарлага';
+
+  @override
+  String get importPlusOut => 'нэмэх тэмдэг нь зарлага';
+
+  @override
+  String importCountNew(int count) {
+    return '$count шинэ мөр';
+  }
+
+  @override
+  String importCountMatch(int count) {
+    return '$count нь таны бичсэн мөртэй таарч, баталгаажна';
+  }
+
+  @override
+  String importCountAlready(int count) {
+    return '$count нь дэвтэрт аль хэдийн бий';
+  }
+
+  @override
+  String importBalanceOk(Object opening, Object closing) {
+    return 'Банкны үлдэгдэл мөр бүрт таарч байна: $opening → $closing.';
+  }
+
+  @override
+  String importBalanceOff(int row, Object found, Object expected) {
+    return 'Файлын $row-р мөр: банкны үлдэгдэл $found, харин өмнөх дүнгүүдээр $expected гарч байна. Аль нэг багана буруу сонгогдсон байж магадгүй. Гэсэн ч оруулж болно.';
+  }
+
+  @override
+  String importBalanceOffCount(int count) {
+    return 'Нийт $count мөр таарахгүй байна.';
+  }
+
+  @override
+  String importClearedMatches(Object amount) {
+    return 'Үүний дараа баталгаажсан үлдэгдэл банкныхтай таарна: $amount.';
+  }
+
+  @override
+  String importClearedDiffers(Object ours, Object bank, Object diff) {
+    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна: $diff зөрүүтэй. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+  }
+
+  @override
+  String get importFateNew => 'Шинэ';
+
+  @override
+  String importFateMatch(Object payee, Object date) {
+    return 'Таны бичсэн: $payee, $date';
+  }
+
+  @override
+  String get importFateAlready => 'Аль хэдийн бий';
+
+  @override
+  String importDo(int count) {
+    return '$count мөр оруулах';
+  }
+
+  @override
+  String get importNothingNew => 'Энэ файлд шинэ зүйл алга';
+
+  @override
+  String get importCancel => 'Болих';
+
+  @override
+  String importDone(int count) {
+    return '$count мөр орууллаа';
+  }
+
+  @override
+  String importMatchedToast(int count) {
+    return 'таны бичсэн $count мөр баталгаажлаа';
+  }
+
+  @override
+  String importUncategorizedToast(int count, Object name) {
+    return '$count нь “$name” ангилалд';
+  }
+
+  @override
+  String get importUncategorized => 'Ангилаагүй';
+
+  @override
+  String importCouldntImport(Object problem) {
+    return 'Оруулж чадсангүй: $problem';
+  }
+
+  @override
+  String importDoClear(int count, int cleared) {
+    return '$count мөр оруулах · $cleared баталгаажуулах';
+  }
+
+  @override
+  String importDoOnlyClear(int count) {
+    return 'Бичсэн $count мөрийг баталгаажуулах';
+  }
+
+  @override
+  String importCountNoDate(int count) {
+    return 'огноогүй $count мөр (гарчиг, дүн) орхисон';
+  }
+
+  @override
+  String importNoAmountRows(int count, Object rows) {
+    return 'Файлын $count мөрөнд ($rows-р мөр) огноо байгаа ч уншигдах дүн алга тул орхисон.';
+  }
+
+  @override
+  String importCountLeftOut(int count) {
+    return '$count-г та орхисон';
+  }
+
+  @override
+  String get importTagHint =>
+      'Мөрийн «Шинэ» эсвэл «Таарсан»-ыг дарж тусдаа мөр болгох эсвэл орхиж болно.';
+
+  @override
+  String importFateMatchDate(Object date) {
+    return 'Таны $date-ны мөртэй таарсан';
+  }
+
+  @override
+  String get importFateLeftOut => 'Орхино';
+
+  @override
+  String importOverlap(Object from, Object to, int count) {
+    return 'Шинэ мөрүүд $from-$to хооронд байгаа бөгөөд энэ дансанд тэр хугацаанд аль хэдийн $count оруулсан мөр бий. Энэ файл өмнөхийг өөр хэлбэрээр давтаж байвал тэдгээр нь давхардал болно.';
+  }
+
+  @override
+  String get importLeaveNewOut => 'Шинэ мөрүүдийг орхих';
+
+  @override
+  String importUnmatched(int count, Object from, Object to, Object list) {
+    return '$from-$to хооронд таны бичсэн $count мөр энэ файлд алга: $list. Хүлээгдэж буй хэвээр үлдэнэ.';
+  }
+
+  @override
+  String importUnmatchedItem(Object payee, Object amount, Object date) {
+    return '$payee $amount, $date';
+  }
+
+  @override
+  String importUnmatchedMore(int count) {
+    return 'бусад $count';
+  }
 }

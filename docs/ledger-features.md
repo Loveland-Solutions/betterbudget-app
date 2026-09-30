@@ -10,7 +10,7 @@ Settled items graduate to [docs/decisions](decisions/); UI rules are in
 | --- | --- |
 | A. Core record | Built: double-entry, integer minor units, soft delete, transfers. Splits are displayed but can't be created yet. No tags or attachments. |
 | B. Manual entry | Built: keyboard-first any-order row, payee autocomplete with last category, calculator. Not yet: templates, recurring, duplicate-last, mobile keypad. |
-| C. Import | Not started. |
+| C. Import | Built (ADR 0002 "Any bank's file", ADR 0004 "Import"): `.xls`, `.xlsx`, CSV, columns per account, preview, dedup, undo. Rules not yet. |
 | D. Register | Built: running balance, filters and search, inline category edit, an action bar under the clicked row (multi-select removed for now), cleared/reconciled symbols, working/cleared/reconciled header. **Changed:** no month grouping or subtotals (ADR 0004). Editing opens the row in place with all fields (ADR 0004 rule 12). Not yet: sorting by column (roadmap). |
 | E. Reconciliation | Built: reconcile against a statement date and balance in the header, lock only at zero, locking (no edit, clear or delete, on either side of a transfer), take back the newest reconcile any time (ADR 0004 rule 16). Not yet: adjustment when it won't match, cash wallet count. |
 | F. Payees, categories, rules | Payees table only. No merge, category tree or rules. |

@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'xls_fixture.dart';
+
 Future<void> _loadFont(String family, String path) async {
   final bytes = await File(path).readAsBytes();
   await (FontLoader(
@@ -3187,5 +3189,113 @@ void main() {
       await file.writeAsString('purple');
       expect((await AppearanceController.load(file)).value, Appearance.system);
     });
+  });
+
+  testWidgets('import: pick a bank file, check its columns, import, undo; '
+      'the next file skips the columns', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import'),
+    ))!;
+    // Made-up rows in TDB's plain layout: no header row, a totals footer.
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (0, 0): 'Данс: 0000000000 MNT',
+          (1, 0): DateTime(2026, 9, 14, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 12500.0,
+          (1, 5): '5000000001 Номин ХХК',
+          (1, 6): 987500.0,
+          (1, 7): 'POS 10000001: НОМИН',
+          (2, 0): DateTime(2026, 9, 15, 13, 30),
+          (2, 2): 250000.0,
+          (2, 3): 0.0,
+          (2, 6): 1237500.0,
+          (2, 7): 'Буцаалт',
+          (3, 0): DateTime(2026, 9, 15, 18, 0),
+          (3, 2): 0.0,
+          (3, 3): 7000.0,
+          (3, 6): 1230500.0,
+          (3, 7): 'QPay Туршилтын кофе',
+          (4, 0): 'Нийт:',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    Future<int> imported() async => (await tester.runAsync(
+      () async => (await db.loadLedger()).txns
+          .where((t) => t.payee == 'QPay Туршилтын кофе')
+          .length,
+    ))!;
+
+    // Cancelled: nothing opens.
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.byType(Dialog), findsNothing);
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('Import into TDB Checking'), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-role-3')), findsOneWidget);
+    expect(find.textContaining('3 new rows'), findsOneWidget);
+    expect(
+      find.textContaining('The bank’s running balance adds up on every row'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(Dialog),
+      matchesGoldenFile('goldens/import_columns.png'),
+    );
+
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.textContaining('Imported 3 rows'), findsOneWidget);
+    expect(await imported(), 1);
+    expect(find.text('Номин ХХК'), findsOneWidget);
+
+    // ⌘Z takes the whole import back.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Undone · Imported 3 rows'), findsOneWidget);
+    expect(await imported(), 0);
+
+    // The same layout again: straight to the rows, with the saved columns.
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.text('Read with the columns you set for this account last time.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('import-role-3')), findsNothing);
+    expect(find.textContaining('3 new rows'), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-cancel')));
+    expect(find.byType(Dialog), findsNothing);
+    await tidy(tester, db);
   });
 }

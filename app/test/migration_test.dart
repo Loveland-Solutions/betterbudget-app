@@ -39,6 +39,7 @@ void main() {
         'UPDATE entries SET cleared = $rec WHERE id = ?',
         [visaOpening.read<int>('id')],
       );
+      await dropAddedInV8(db);
       if (from == 1) {
         final sql =
             (await db
@@ -139,6 +140,7 @@ void main() {
       rule: PayRule.twiceMonthly,
       today: today,
     );
+    await dropAddedInV8(db);
     await dropAddedInV7(db);
     await db.customStatement('PRAGMA user_version = 6');
     await db.close();
@@ -150,8 +152,44 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v7-from-v6-')),
+      contains(startsWith('betterbudget.before-v8-from-v6-')),
     );
+  });
+
+  test('upgrades a v7 file: an import key moves to the account side', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final data = await db.loadLedger();
+    final checking = data.balanceSheetAccounts
+        .firstWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final txn = data.txns.firstWhere(
+      (t) => !t.scheduled && t.entries.any((e) => e.accountId == checking),
+    );
+    await dropAddedInV8(db);
+    await db.customStatement(
+      "UPDATE transactions SET import_key = 'a1|2026-09-01|-100|5' WHERE id = ?",
+      [txn.id],
+    );
+    await db.customStatement('PRAGMA user_version = 7');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final rows = await db
+        .customSelect(
+          'SELECT account_id FROM entries WHERE import_key IS NOT NULL',
+        )
+        .get();
+    expect(rows.map((r) => r.read<int>('account_id')), [checking]);
+    final left = await db
+        .customSelect('SELECT 1 FROM transactions WHERE import_key IS NOT NULL')
+        .get();
+    expect(left, isEmpty);
   });
 
   test(
@@ -164,6 +202,7 @@ void main() {
       var db = AppDatabase(NativeDatabase(file));
       await seedDemoIfEmpty(db, today);
       final before = await db.loadLedger();
+      await dropAddedInV8(db);
       await dropAddedInV7(db);
       await dropAddedInV6(db);
       await db.customStatement('PRAGMA user_version = 5');
@@ -177,7 +216,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v7-from-v5-')),
+        contains(startsWith('betterbudget.before-v8-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -191,6 +230,7 @@ void main() {
 
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
+    await dropAddedInV8(db);
     await dropAddedInV7(db);
     await dropAddedInV6(db);
     await dropAddedInV5(db);
@@ -215,6 +255,7 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final before = await db.loadLedger();
+    await dropAddedInV8(db);
     await dropAddedInV7(db);
     await dropAddedInV6(db);
     await dropAddedInV5(db);
@@ -239,6 +280,32 @@ void main() {
 }
 
 /// The v6 schema: pay has one amount.
+/// The v7 schema: import keys sat on transactions, not entries. A unique
+/// column can't be dropped, so entries is rebuilt without it.
+Future<void> dropAddedInV8(AppDatabase db) async {
+  final sql =
+      (await db
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE name = 'entries'",
+              )
+              .getSingle())
+          .read<String>('sql');
+  final v7 = sql.replaceFirst(RegExp(r',\s*"import_key" TEXT NULL'), '');
+  expect(v7, isNot(sql));
+  final cols = (await db.customSelect('PRAGMA table_info(entries)').get())
+      .map((r) => r.read<String>('name'))
+      .where((n) => n != 'import_key')
+      .join(', ');
+  await db.customStatement('PRAGMA foreign_keys = OFF');
+  await db.customStatement('ALTER TABLE entries RENAME TO entries_v8');
+  await db.customStatement(v7);
+  await db.customStatement(
+    'INSERT INTO entries ($cols) SELECT $cols FROM entries_v8',
+  );
+  await db.customStatement('DROP TABLE entries_v8');
+  await db.customStatement('PRAGMA foreign_keys = ON');
+}
+
 Future<void> dropAddedInV7(AppDatabase db) async {
   await db.customStatement(
     'ALTER TABLE pay_schedules DROP COLUMN amount2_minor',
