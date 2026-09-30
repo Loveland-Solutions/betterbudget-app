@@ -3485,4 +3485,344 @@ class WordsEn extends Words {
   String setupLoanNoCategoryUndo(String loan) {
     return '$loan paid from no category';
   }
+
+  @override
+  String get appearanceColorsTitle => 'Colors';
+
+  @override
+  String appearanceColorsUndoLabel(String name) {
+    return 'Colors: $name';
+  }
+
+  @override
+  String get schemeBetterBudget => 'BetterBudget';
+
+  @override
+  String get schemeGroupMonochromatic => 'Monochromatic';
+
+  @override
+  String get schemeGroupRomantic => 'Romantic';
+
+  @override
+  String get schemeGroupPlayful => 'Playful';
+
+  @override
+  String get schemeGroupVibrant => 'Vibrant';
+
+  @override
+  String get schemeGroupNeutral => 'Neutral';
+
+  @override
+  String get schemeGroupTranquil => 'Tranquil';
+
+  @override
+  String get schemeGroupSeasonal => 'Seasonal';
+
+  @override
+  String get schemeStormyMorning => 'Stormy morning';
+
+  @override
+  String get schemeMossyHollow => 'Mossy hollow';
+
+  @override
+  String get schemeBlueEclipse => 'Blue eclipse';
+
+  @override
+  String get schemeLushForest => 'Lush forest';
+
+  @override
+  String get schemeGreenJuice => 'Green juice';
+
+  @override
+  String get schemeChiliSpice => 'Chili spice';
+
+  @override
+  String get schemeChocolateTruffle => 'Chocolate truffle';
+
+  @override
+  String get schemeInkWash => 'Ink wash';
+
+  @override
+  String get schemeGoldenTaupe => 'Golden taupe';
+
+  @override
+  String get schemeWisteriaBloom => 'Wisteria bloom';
+
+  @override
+  String get schemeBurntSienna => 'Burnt sienna';
+
+  @override
+  String get schemeBloomingRomance => 'Blooming romance';
+
+  @override
+  String get schemeDesertDusk => 'Desert dusk';
+
+  @override
+  String get schemeLavenderFields => 'Lavender fields';
+
+  @override
+  String get schemeHydrangea => 'Hydrangea';
+
+  @override
+  String get schemeCactusFlower => 'Cactus flower';
+
+  @override
+  String get schemeWildflowers => 'Wildflowers';
+
+  @override
+  String get schemeCountryGarden => 'Country garden';
+
+  @override
+  String get schemeLotusGarden => 'Lotus garden';
+
+  @override
+  String get schemeIrisGarden => 'Iris garden';
+
+  @override
+  String get schemeFreshPeach => 'Fresh peach';
+
+  @override
+  String get schemeGoldenHour => 'Golden hour';
+
+  @override
+  String get schemeSpicedChai => 'Spiced chai';
+
+  @override
+  String get schemeCherryBlossom => 'Cherry blossom';
+
+  @override
+  String get schemeEveningRose => 'Evening rose';
+
+  @override
+  String get schemePastelGarden => 'Pastel garden';
+
+  @override
+  String get schemeTuscanSunset => 'Tuscan sunset';
+
+  @override
+  String get schemeZestyLemon => 'Zesty lemon';
+
+  @override
+  String get schemeCaliforniaBeaches => 'California beaches';
+
+  @override
+  String get schemeFreshlySqueezed => 'Freshly squeezed';
+
+  @override
+  String get schemePistachioDream => 'Pistachio dream';
+
+  @override
+  String get schemeMangoPopsicle => 'Mango popsicle';
+
+  @override
+  String get schemeGuava => 'Guava';
+
+  @override
+  String get schemeGlowingHorizon => 'Glowing horizon';
+
+  @override
+  String get schemeSunnyDay => 'Sunny day';
+
+  @override
+  String get schemeRetroSunset => 'Retro sunset';
+
+  @override
+  String get schemeBubblegumPop => 'Bubblegum pop';
+
+  @override
+  String get schemeCottonCandySkies => 'Cotton candy skies';
+
+  @override
+  String get schemeElectricKiwi => 'Electric kiwi';
+
+  @override
+  String get schemeWatermelonSplash => 'Watermelon splash';
+
+  @override
+  String get schemeAlchemicalReaction => 'Alchemical reaction';
+
+  @override
+  String get schemeElectropop => 'Electropop';
+
+  @override
+  String get schemeCoolRevival => 'Cool revival';
+
+  @override
+  String get schemeNeonJungle => 'Neon jungle';
+
+  @override
+  String get schemeSharpEdge => 'Sharp edge';
+
+  @override
+  String get schemeElectricFusion => 'Electric fusion';
+
+  @override
+  String get schemeFireworks => 'Fireworks';
+
+  @override
+  String get schemeSpaceBerries => 'Space berries';
+
+  @override
+  String get schemePopArt => 'Pop art';
+
+  @override
+  String get schemeUrbanGraffiti => 'Urban graffiti';
+
+  @override
+  String get schemeNeonNoir => 'Neon noir';
+
+  @override
+  String get schemeTropicalPunch => 'Tropical punch';
+
+  @override
+  String get schemeCobaltSky => 'Cobalt sky';
+
+  @override
+  String get schemeTechnicolorDream => 'Technicolor dream';
+
+  @override
+  String get schemeJewelBox => 'Jewel box';
+
+  @override
+  String get schemeSaltAndPepper => 'Salt and pepper';
+
+  @override
+  String get schemeQuiteClear => 'Quite clear';
+
+  @override
+  String get schemeGothicNoir => 'Gothic noir';
+
+  @override
+  String get schemeYachtClub => 'Yacht club';
+
+  @override
+  String get schemeQuietLuxury => 'Quiet luxury';
+
+  @override
+  String get schemeNightSands => 'Night sands';
+
+  @override
+  String get schemeHarborHaze => 'Harbor haze';
+
+  @override
+  String get schemeOldPhotograph => 'Old photograph';
+
+  @override
+  String get schemeCappuccino => 'Cappuccino';
+
+  @override
+  String get schemeBreakfastTea => 'Breakfast tea';
+
+  @override
+  String get schemeCozyCampfire => 'Cozy campfire';
+
+  @override
+  String get schemeStonePath => 'Stone path';
+
+  @override
+  String get schemeDesertMirage => 'Desert mirage';
+
+  @override
+  String get schemeHoneycomb => 'Honeycomb';
+
+  @override
+  String get schemeUrbanLoft => 'Urban loft';
+
+  @override
+  String get schemeSpicedMocha => 'Spiced mocha';
+
+  @override
+  String get schemeCharmingSeaside => 'Charming seaside';
+
+  @override
+  String get schemeCalmBlue => 'Calm blue';
+
+  @override
+  String get schemeBeachfrontViews => 'Beachfront views';
+
+  @override
+  String get schemeUnderTheMoonlight => 'Under the moonlight';
+
+  @override
+  String get schemeLavenderLullaby => 'Lavender lullaby';
+
+  @override
+  String get schemeMintyFresh => 'Minty fresh';
+
+  @override
+  String get schemeRetroCalm => 'Retro calm';
+
+  @override
+  String get schemeSiltstone => 'Siltstone';
+
+  @override
+  String get schemeEmeraldOdyssey => 'Emerald odyssey';
+
+  @override
+  String get schemeOceanTide => 'Ocean tide';
+
+  @override
+  String get schemePeachSkyline => 'Peach skyline';
+
+  @override
+  String get schemeMountainMist => 'Mountain mist';
+
+  @override
+  String get schemeMorningDew => 'Morning dew';
+
+  @override
+  String get schemeFrozenLake => 'Frozen lake';
+
+  @override
+  String get schemeOliveGrove => 'Olive grove';
+
+  @override
+  String get schemeCoastalMorning => 'Coastal morning';
+
+  @override
+  String get schemeEucalyptusGrove => 'Eucalyptus grove';
+
+  @override
+  String get schemeSoftSpring => 'Soft spring';
+
+  @override
+  String get schemeAutumnLeaves => 'Autumn leaves';
+
+  @override
+  String get schemeWinterChill => 'Winter chill';
+
+  @override
+  String get schemeSpringEnergy => 'Spring energy';
+
+  @override
+  String get schemePumpkinSpiceSeason => 'Pumpkin spice season';
+
+  @override
+  String get schemeIslandOasis => 'Island oasis';
+
+  @override
+  String get schemeAutumnOrchard => 'Autumn orchard';
+
+  @override
+  String get schemeTropicalRainforest => 'Tropical rainforest';
+
+  @override
+  String get schemeWildflowerMeadow => 'Wildflower meadow';
+
+  @override
+  String get schemeHarvestMoon => 'Harvest moon';
+
+  @override
+  String get schemeWinterBerry => 'Winter berry';
+
+  @override
+  String get schemeSummerBreeze => 'Summer breeze';
+
+  @override
+  String appearanceColorsShowAll(int count) {
+    return 'See all $count colors';
+  }
+
+  @override
+  String get appearanceColorsHide => 'Hide the colors';
 }

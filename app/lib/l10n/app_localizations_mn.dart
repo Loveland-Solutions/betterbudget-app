@@ -3326,4 +3326,344 @@ class WordsMn extends Words {
   String setupLoanNoCategoryUndo(String loan) {
     return '$loan-ийг ангилалгүй төлнө';
   }
+
+  @override
+  String get appearanceColorsTitle => 'Өнгө';
+
+  @override
+  String appearanceColorsUndoLabel(String name) {
+    return 'Өнгө: $name';
+  }
+
+  @override
+  String get schemeBetterBudget => 'BetterBudget';
+
+  @override
+  String get schemeGroupMonochromatic => 'Нэг өнгийн';
+
+  @override
+  String get schemeGroupRomantic => 'Романтик';
+
+  @override
+  String get schemeGroupPlayful => 'Хөгжилтэй';
+
+  @override
+  String get schemeGroupVibrant => 'Тод';
+
+  @override
+  String get schemeGroupNeutral => 'Саармаг';
+
+  @override
+  String get schemeGroupTranquil => 'Тайван';
+
+  @override
+  String get schemeGroupSeasonal => 'Улирлын';
+
+  @override
+  String get schemeStormyMorning => 'Шуургатай өглөө';
+
+  @override
+  String get schemeMossyHollow => 'Хөвдтэй хонхор';
+
+  @override
+  String get schemeBlueEclipse => 'Цэнхэр хиртэлт';
+
+  @override
+  String get schemeLushForest => 'Өтгөн ой';
+
+  @override
+  String get schemeGreenJuice => 'Ногоон жүүс';
+
+  @override
+  String get schemeChiliSpice => 'Чинжүү';
+
+  @override
+  String get schemeChocolateTruffle => 'Шоколадан трюфель';
+
+  @override
+  String get schemeInkWash => 'Бэхэн будаг';
+
+  @override
+  String get schemeGoldenTaupe => 'Алтлаг бор саарал';
+
+  @override
+  String get schemeWisteriaBloom => 'Глицинийн цэцэг';
+
+  @override
+  String get schemeBurntSienna => 'Шатсан шавар';
+
+  @override
+  String get schemeBloomingRomance => 'Цэцэглэх хайр';
+
+  @override
+  String get schemeDesertDusk => 'Цөлийн бүрэнхий';
+
+  @override
+  String get schemeLavenderFields => 'Лавандын талбай';
+
+  @override
+  String get schemeHydrangea => 'Гортензи';
+
+  @override
+  String get schemeCactusFlower => 'Кактусын цэцэг';
+
+  @override
+  String get schemeWildflowers => 'Хээрийн цэцэг';
+
+  @override
+  String get schemeCountryGarden => 'Хөдөөгийн цэцэрлэг';
+
+  @override
+  String get schemeLotusGarden => 'Бадамлянхуан цэцэрлэг';
+
+  @override
+  String get schemeIrisGarden => 'Цахилдагийн цэцэрлэг';
+
+  @override
+  String get schemeFreshPeach => 'Шинэхэн тоор';
+
+  @override
+  String get schemeGoldenHour => 'Алтан цаг';
+
+  @override
+  String get schemeSpicedChai => 'Амтлагчтай цай';
+
+  @override
+  String get schemeCherryBlossom => 'Интоорын цэцэг';
+
+  @override
+  String get schemeEveningRose => 'Үдшийн сарнай';
+
+  @override
+  String get schemePastelGarden => 'Зөөлөн өнгийн цэцэрлэг';
+
+  @override
+  String get schemeTuscanSunset => 'Тосканы нар жаргалт';
+
+  @override
+  String get schemeZestyLemon => 'Хурц нимбэг';
+
+  @override
+  String get schemeCaliforniaBeaches => 'Калифорнийн далайн эрэг';
+
+  @override
+  String get schemeFreshlySqueezed => 'Шинэ шахсан жүүс';
+
+  @override
+  String get schemePistachioDream => 'Пистачины мөрөөдөл';
+
+  @override
+  String get schemeMangoPopsicle => 'Манготой зайрмаг';
+
+  @override
+  String get schemeGuava => 'Гуава';
+
+  @override
+  String get schemeGlowingHorizon => 'Гэрэлтэх тэнгэрийн хаяа';
+
+  @override
+  String get schemeSunnyDay => 'Нартай өдөр';
+
+  @override
+  String get schemeRetroSunset => 'Ретро нар жаргалт';
+
+  @override
+  String get schemeBubblegumPop => 'Бохь';
+
+  @override
+  String get schemeCottonCandySkies => 'Чихэр хөвөн тэнгэр';
+
+  @override
+  String get schemeElectricKiwi => 'Цахилгаан киви';
+
+  @override
+  String get schemeWatermelonSplash => 'Тарвасны цацал';
+
+  @override
+  String get schemeAlchemicalReaction => 'Алхимийн урвал';
+
+  @override
+  String get schemeElectropop => 'Электропоп';
+
+  @override
+  String get schemeCoolRevival => 'Сэрүүн сэргэлт';
+
+  @override
+  String get schemeNeonJungle => 'Неон ширэнгэ';
+
+  @override
+  String get schemeSharpEdge => 'Хурц ирмэг';
+
+  @override
+  String get schemeElectricFusion => 'Цахилгаан нэгдэл';
+
+  @override
+  String get schemeFireworks => 'Салют';
+
+  @override
+  String get schemeSpaceBerries => 'Сансрын жимс';
+
+  @override
+  String get schemePopArt => 'Поп арт';
+
+  @override
+  String get schemeUrbanGraffiti => 'Хотын граффити';
+
+  @override
+  String get schemeNeonNoir => 'Неон нуар';
+
+  @override
+  String get schemeTropicalPunch => 'Халуун орны пунш';
+
+  @override
+  String get schemeCobaltSky => 'Кобальт тэнгэр';
+
+  @override
+  String get schemeTechnicolorDream => 'Өнгөт мөрөөдөл';
+
+  @override
+  String get schemeJewelBox => 'Эрдэнийн хайрцаг';
+
+  @override
+  String get schemeSaltAndPepper => 'Давс, перц';
+
+  @override
+  String get schemeQuiteClear => 'Тун тунгалаг';
+
+  @override
+  String get schemeGothicNoir => 'Готик нуар';
+
+  @override
+  String get schemeYachtClub => 'Дарвуулт завины клуб';
+
+  @override
+  String get schemeQuietLuxury => 'Нам гүм тансаг';
+
+  @override
+  String get schemeNightSands => 'Шөнийн элс';
+
+  @override
+  String get schemeHarborHaze => 'Боомтын манан';
+
+  @override
+  String get schemeOldPhotograph => 'Хуучин гэрэл зураг';
+
+  @override
+  String get schemeCappuccino => 'Капучино';
+
+  @override
+  String get schemeBreakfastTea => 'Өглөөний цай';
+
+  @override
+  String get schemeCozyCampfire => 'Дулаан гал';
+
+  @override
+  String get schemeStonePath => 'Чулуун зам';
+
+  @override
+  String get schemeDesertMirage => 'Цөлийн зэрэглээ';
+
+  @override
+  String get schemeHoneycomb => 'Зөгийн сархинаг';
+
+  @override
+  String get schemeUrbanLoft => 'Хотын дээврийн өрөө';
+
+  @override
+  String get schemeSpicedMocha => 'Амтлагчтай мокко';
+
+  @override
+  String get schemeCharmingSeaside => 'Сэтгэл татам далайн эрэг';
+
+  @override
+  String get schemeCalmBlue => 'Тайван цэнхэр';
+
+  @override
+  String get schemeBeachfrontViews => 'Эрэг дээрх үзэмж';
+
+  @override
+  String get schemeUnderTheMoonlight => 'Сарны гэрэлд';
+
+  @override
+  String get schemeLavenderLullaby => 'Лавандын бүүвэй';
+
+  @override
+  String get schemeMintyFresh => 'Сэрүүн гаа';
+
+  @override
+  String get schemeRetroCalm => 'Ретро тайван';
+
+  @override
+  String get schemeSiltstone => 'Лаг чулуу';
+
+  @override
+  String get schemeEmeraldOdyssey => 'Маргад аялал';
+
+  @override
+  String get schemeOceanTide => 'Далайн түрлэг';
+
+  @override
+  String get schemePeachSkyline => 'Тоорын тэнгэр';
+
+  @override
+  String get schemeMountainMist => 'Уулын манан';
+
+  @override
+  String get schemeMorningDew => 'Өглөөний шүүдэр';
+
+  @override
+  String get schemeFrozenLake => 'Хөлдсөн нуур';
+
+  @override
+  String get schemeOliveGrove => 'Чидуны төгөл';
+
+  @override
+  String get schemeCoastalMorning => 'Эргийн өглөө';
+
+  @override
+  String get schemeEucalyptusGrove => 'Эвкалиптын төгөл';
+
+  @override
+  String get schemeSoftSpring => 'Зөөлөн хавар';
+
+  @override
+  String get schemeAutumnLeaves => 'Намрын навч';
+
+  @override
+  String get schemeWinterChill => 'Өвлийн хүйтэн';
+
+  @override
+  String get schemeSpringEnergy => 'Хаврын эрч';
+
+  @override
+  String get schemePumpkinSpiceSeason => 'Хулууны улирал';
+
+  @override
+  String get schemeIslandOasis => 'Арлын баян бүрд';
+
+  @override
+  String get schemeAutumnOrchard => 'Намрын жимсний цэцэрлэг';
+
+  @override
+  String get schemeTropicalRainforest => 'Халуун орны ширэнгэ ой';
+
+  @override
+  String get schemeWildflowerMeadow => 'Хээрийн цэцэгт нуга';
+
+  @override
+  String get schemeHarvestMoon => 'Ургацын сар';
+
+  @override
+  String get schemeWinterBerry => 'Өвлийн жимс';
+
+  @override
+  String get schemeSummerBreeze => 'Зуны сэвшээ';
+
+  @override
+  String appearanceColorsShowAll(int count) {
+    return 'Бүх $count өнгийг харах';
+  }
+
+  @override
+  String get appearanceColorsHide => 'Өнгийг нуух';
 }

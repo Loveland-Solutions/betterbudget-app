@@ -76,13 +76,68 @@ be quietly undone.
   logo's wordmark alone (was a gold diamond and "BetterBudget" in Onest):
   `lib/ui/brand.dart`, cropped SVG in `app/assets/brand/`. On the dark ground its navy
   "Better" becomes ink and royal "Budget" the lifted blue. Rejected: the bee on a small
-  white tile beside it, and the logo on the recovery-key screens.
+  white tile beside it, and the logo on the recovery-key screens. *(Superseded
+  2026-09-30: the sidebar shows a dark-mode logo; see "Color schemes".)*
 - **The bee is back, left of the wordmark, with no tile (owner, 2026-09-29).**
   `app/assets/brand/bee.svg` is the logo's bee cropped. It is recolored like the
   wordmark (navy wing ink, royal wing lifted blue), and its antennae become `sideInk2`
   so they show on the denim. It is 40 px tall beside the 22 px wordmark. The body keeps
   the logo's black and gold stripes: with the black stripes turned light gray, the gold
   one couldn't be seen (owner).
+
+### Color schemes, and the logo in its own colors (owner, 2026-09-30)
+
+- **The owner couldn't pick one palette, so the user picks** (owner: "let the user
+  choose. Use every color scheme from this page",
+  figma.com/resource-library/color-combinations). Settings → Appearance, under
+  Same as this Mac / Light / Dark, has **Colors**: BetterBudget (the app's own
+  Steppe pair) and then Figma's 100 combinations in its seven groups and
+  order (Monochromatic, Romantic, Playful, Vibrant, Neutral, Tranquil, Seasonal),
+  each tile its four colors over its name. A click switches the whole window; no
+  toast; ⌘Z goes back. Kept per computer on the `appearance` file's second line.
+  The colors are in `lib/ui/schemes.dart`; nothing is fetched.
+- The hex codes are the ones printed on Figma's images. Two printed codes don't
+  match their swatch ("#CC550" in Golden hour, "#00F0FF" under Bubblegum pop's pale
+  cyan), so those two are the swatch's color.
+- **A scheme sets the colors; Light / Dark still applies** (owner chose this over
+  "the scheme decides light or dark"). `Palette.of` turns four colors into a light
+  and a dark palette: the darkest color becomes the sidebar (made dark enough for its
+  light text), the most colorful one what you click (the Add button, links, the
+  chart), the next most colorful the sidebar's marks, and the page takes the darkest's
+  hue in dark mode and the lightest's in light mode. Surfaces and text sit at the
+  same brightness as the Steppe pair, and every color is moved lighter or darker
+  until it reads (text 4.5:1 or more, tested for every scheme in both modes).
+- **Money's colors never change with the scheme:** green money in, coral below
+  zero, gold reconciled or scheduled, so a scheme can't make a shortfall look fine.
+- **From both reviews (2026-09-30):** what you click (and so the forecast line, a
+  card's owed line, a selected bill's edge) never takes a red, orange, gold, green or
+  gray from a scheme: the next most colorful swatch is used, or the steppe sky blue
+  when none is left (37 of the 100, the warm, green and gray ones). It gets some
+  saturation so it never looks like text. The sidebar's marks may be gold, never red
+  or green (a red edge on the chosen account read as a problem). Tested for all 200 palettes.
+- **The picker is folded** (review): Colors shows the scheme in use and "See all 101
+  colors"; unfolded, every tile and "Hide the colors". Otherwise 100 tiles pushed
+  Language and the recovery-key warning far down Settings. Not done: tiles drawn as
+  the app would look rather than Figma's four swatches (they are what the owner
+  asked to choose from).
+- The `appearance` file is written beside itself and renamed, so a crash mid-write
+  can't reset it. An older build reading a file with a scheme falls back to "Same as
+  this Mac" (downgrades only).
+- **A dark-mode logo in the sidebar** (owner, 2026-09-30). The sidebar is dark in
+  every scheme, so it shows the logo drawn for dark backgrounds: "Better" near-white
+  `#F2F5FA` where the logo is navy, "Budget" a lighter royal `#6FA3FF` (the royal's
+  hue), antennae `#D9DEE7`/`#C4CAD5`, and the body's gold and black as drawn. It is
+  the same in every scheme (brand colors, not the scheme's). Files: `assets/logo/*
+  (dark).svg` beside the originals, and `app/assets/brand/{bee,wordmark}-dark.svg`;
+  a test checks it reads on all 202 sidebars. Rejected on the way the same day: the
+  original colors on a light band across the sidebar's top ("I don't like the white
+  stripe"), the original colors with a soft white glow around them ("That logo isn't
+  working"), and the original colors straight on the sidebar ("Better" vanishes).
+  Earlier (2026-09-29) the logo took the scheme's sidebar ink and blue; the owner
+  asked to go back to the logo's colors, which is what the dark-mode logo keeps.
+- **Blue eclipse is the default** (owner, 2026-09-30: "I like blue eclipse. Let's
+  make it default"): shown until someone picks, and for a file from before schemes.
+  BetterBudget's Steppe pair stays first in the picker.
 
 ### Color: how the dark and light modes were reached (owner, 2026-09-29)
 

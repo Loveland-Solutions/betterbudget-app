@@ -3,34 +3,47 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'schemes.dart';
 import 'theme.dart';
 
 /// Light, dark, or whatever the computer is set to (Settings → Appearance).
 enum Appearance { system, light, dark }
 
-/// The appearance chosen on this computer. It lives in a small file beside
-/// the ledger, not in it: a phone opening the same ledger keeps its own.
+/// The appearance and color scheme chosen on this computer. They live in a
+/// small file beside the ledger, not in it: a phone opening the same ledger
+/// keeps its own.
 class AppearanceController extends ChangeNotifier {
-  AppearanceController({Appearance initial = Appearance.system, this.file})
-    : _value = initial;
+  AppearanceController({
+    Appearance initial = Appearance.system,
+    this._scheme = defaultScheme,
+    this.file,
+  }) : _value = initial;
 
   /// Where the choice is kept; null keeps it for this session only (tests).
   final File? file;
   Appearance _value;
   Appearance get value => _value;
+  Scheme _scheme;
+  Scheme get scheme => _scheme;
 
+  /// The file holds the appearance, and on a second line the scheme's id.
+  /// Files from before schemes have only the first line.
   static Future<AppearanceController> load(File file) async {
     var initial = Appearance.system;
+    var scheme = defaultScheme;
     try {
-      final saved = (await file.readAsString()).trim();
+      final lines = (await file.readAsString()).trim().split('\n');
       initial = Appearance.values.firstWhere(
-        (a) => a.name == saved,
+        (a) => a.name == lines.first.trim(),
         orElse: () => Appearance.system,
       );
+      if (lines.length > 1) scheme = schemeById(lines[1].trim());
     } on FileSystemException {
-      // Never chosen: follow the system.
+      // Never chosen: follow the system, in the default colors.
+    } on FormatException {
+      // Not text: start over from the defaults.
     }
-    return AppearanceController(initial: initial, file: file);
+    return AppearanceController(initial: initial, scheme: scheme, file: file);
   }
 
   Future<void> _writing = Future.value();
@@ -38,11 +51,28 @@ class AppearanceController extends ChangeNotifier {
   Future<void> set(Appearance a) {
     if (a == _value) return _writing;
     _value = a;
+    return _changed();
+  }
+
+  Future<void> setScheme(Scheme s) {
+    if (s.id == _scheme.id) return _writing;
+    _scheme = s;
+    return _changed();
+  }
+
+  Future<void> _changed() {
     notifyListeners();
+    final text = '${_value.name}\n${_scheme.id}\n';
     // One write at a time, so quick clicks can't finish out of order.
     return _writing = _writing.then((_) async {
       try {
-        await file?.writeAsString(a.name);
+        final f = file;
+        if (f == null) return;
+        // Written beside it and renamed, so a crash mid-write can't leave
+        // half a file.
+        final part = File('${f.path}.part');
+        await part.writeAsString(text, flush: true);
+        await part.rename(f.path);
       } on FileSystemException {
         // Still applied for this session; it just won't be remembered.
       }
@@ -65,16 +95,14 @@ class AppearanceScope extends StatefulWidget {
       .dependOnInheritedWidgetOfExactType<_AppearanceInherited>()
       ?.controller;
 
-  /// The palette an appearance shows right now.
-  static Palette resolve(Appearance a) => switch (a) {
-    Appearance.light => Palette.light,
-    Appearance.dark => Palette.dark,
-    Appearance.system =>
-      WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-              Brightness.light
-          ? Palette.light
-          : Palette.dark,
-  };
+  /// The palette an appearance and scheme show right now.
+  static Palette resolve(Appearance a, [Scheme s = defaultScheme]) =>
+      Palette.of(s, switch (a) {
+        Appearance.light => Brightness.light,
+        Appearance.dark => Brightness.dark,
+        Appearance.system =>
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      });
 
   @override
   State<AppearanceScope> createState() => _AppearanceScopeState();
@@ -89,7 +117,10 @@ class _AppearanceScopeState extends State<AppearanceScope>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_apply);
-    Mid.palette = AppearanceScope.resolve(widget.controller.value);
+    Mid.palette = AppearanceScope.resolve(
+      widget.controller.value,
+      widget.controller.scheme,
+    );
     _tellWindow();
   }
 
@@ -104,7 +135,10 @@ class _AppearanceScopeState extends State<AppearanceScope>
   void didChangePlatformBrightness() => _apply();
 
   void _apply() {
-    final p = AppearanceScope.resolve(widget.controller.value);
+    final p = AppearanceScope.resolve(
+      widget.controller.value,
+      widget.controller.scheme,
+    );
     if (!mounted) return;
     setState(() {});
     if (identical(p, Mid.palette)) return;
@@ -138,6 +172,7 @@ class _AppearanceScopeState extends State<AppearanceScope>
   Widget build(BuildContext context) => _AppearanceInherited(
     controller: widget.controller,
     value: widget.controller.value,
+    scheme: widget.controller.scheme,
     child: widget.child,
   );
 }
@@ -146,11 +181,14 @@ class _AppearanceInherited extends InheritedWidget {
   const _AppearanceInherited({
     required this.controller,
     required this.value,
+    required this.scheme,
     required super.child,
   });
   final AppearanceController controller;
   final Appearance value;
+  final Scheme scheme;
 
   @override
-  bool updateShouldNotify(_AppearanceInherited old) => old.value != value;
+  bool updateShouldNotify(_AppearanceInherited old) =>
+      old.value != value || old.scheme != scheme;
 }
