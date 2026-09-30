@@ -188,9 +188,10 @@ Roughly in the order they will block something.
   wording; rewrite it.
 - [ ] The forecast runs only to the next payday, so **with payday tomorrow it shows one
   day**. Rethink how far it looks (owner: "we need to rethink this"); bring options.
-- [ ] Still open from earlier: the two import questions (rows before the opening
-  balance; which date a matched row keeps). Change currency isn't needed now: the
-  owner remade AFCU Checking as a dollar account (2026-09-30); it stays on ROADMAP E.
+- [x] The two import questions, both option a (2026-09-30): rows before the opening
+  balance move it (by default), and a match takes the bank's date across a month.
+  Change currency isn't needed now: the owner remade AFCU Checking as a dollar
+  account; it stays on ROADMAP E.
 
 **Fixed 2026-09-30:** the ledger wouldn't open ("duplicate column name: import_key").
 An older build (the Release copy from 09-29) opened the v8 ledger and relabeled it v7;

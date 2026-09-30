@@ -3295,4 +3295,51 @@ class WordsEn extends Words {
   @override
   String get ledgerNewerLedger =>
       'it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.';
+
+  @override
+  String importBeforeOpening(int count, Object amount, Object date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count rows are dated before this account’s opening balance ($amount on $date), which already counts them.',
+      one:
+          '1 row is dated before this account’s opening balance ($amount on $date), which already counts it.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importBeforeOpeningLocked(int count, Object amount, Object date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count rows are dated before this account’s opening balance ($amount on $date), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.',
+      one:
+          '1 row is dated before this account’s opening balance ($amount on $date), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importMoveOpening(Object date, Object amount) {
+    return 'Move the opening balance to $date at $amount';
+  }
+
+  @override
+  String get importKeepOpening => 'Leave it (those rows count twice)';
+
+  @override
+  String get importLeaveBeforeOut => 'Leave those rows out';
+
+  @override
+  String importFateRedated(Object date) {
+    return 'dated $date, the bank’s';
+  }
+
+  @override
+  String importOpeningMovedToast(Object date, Object amount) {
+    return 'opening balance now $amount on $date';
+  }
 }

@@ -11,6 +11,7 @@ typedef ImportPick = ({
   ImportMapping mapping,
   List<ImportPlanRow> plan,
   bool proven,
+  ({DateTime date, int amount})? moveOpening,
 });
 
 class _ImportDialog extends StatefulWidget {
@@ -51,6 +52,42 @@ class _ImportDialogState extends State<_ImportDialog> {
   ImportPlan? _plan;
   int _asked = 0;
 
+  /// Rows dated before the opening balance: move it before them (the
+  /// default, owner 2026-09-30) or leave it and count them twice.
+  bool _moveOpening = true;
+
+  /// New rows the opening balance already holds, and where it would move
+  /// so today's balance stays: the day before them, less what they add.
+  ({List<ImportPlanRow> rows, DateTime date, int amount})? get _beforeOpening {
+    final plan = _plan;
+    final opening = plan?.opening;
+    if (plan == null || opening == null) return null;
+    final rows = [
+      for (final p in plan.rows)
+        if (p.fate == ImportFate.add &&
+            dateOnly(p.row.date).isBefore(opening.date))
+          p,
+    ];
+    if (rows.isEmpty) return null;
+    final first = rows
+        .map((p) => dateOnly(p.row.date))
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return (
+      rows: rows,
+      date: first.subtract(const Duration(days: 1)),
+      amount: opening.amount - rows.fold(0, (s, p) => s + p.row.amount),
+    );
+  }
+
+  ({DateTime date, int amount})? get _openingMove {
+    final b = _beforeOpening;
+    final opening = _plan?.opening;
+    if (b == null || !_moveOpening || opening == null || opening.locked) {
+      return null;
+    }
+    return (date: b.date, amount: b.amount);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +127,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       mapping: _mapping,
       plan: plan.rows,
       proven: check == null || check.ok,
+      moveOpening: _openingMove,
     ));
   }
 
@@ -329,7 +367,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(label, style: onest(13, color: Mid.ink2)),
+        if (label.isNotEmpty) Text(label, style: onest(13, color: Mid.ink2)),
         for (final (text, on, tap, key) in choices)
           Hoverable(
             key: ValueKey(key),
@@ -393,6 +431,69 @@ class _ImportDialogState extends State<_ImportDialog> {
     ].join(' · ');
 
     final notes = <Widget>[];
+    final before = _beforeOpening;
+    final opening = plan.opening;
+    if (before != null && opening != null) {
+      notes.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _note(
+              Icons.warning_amber_rounded,
+              Mid.coral,
+              opening.locked
+                  ? t.importBeforeOpeningLocked(
+                      before.rows.length,
+                      _money(_shown(opening.amount)),
+                      sayFullDate(t, opening.date),
+                    )
+                  : t.importBeforeOpening(
+                      before.rows.length,
+                      _money(_shown(opening.amount)),
+                      sayFullDate(t, opening.date),
+                    ),
+              big: true,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 18),
+              child: opening.locked
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: BarButton(
+                        key: const ValueKey('import-leave-before-out'),
+                        label: t.importLeaveBeforeOut,
+                        onTap: () => setState(
+                          () => _plan = plan.withRows([
+                            for (final p in plan.rows)
+                              before.rows.contains(p)
+                                  ? p.withFate(ImportFate.leftOut)
+                                  : p,
+                          ]),
+                        ),
+                      ),
+                    )
+                  : _choiceRow('', [
+                      (
+                        t.importMoveOpening(
+                          sayFullDate(t, before.date),
+                          _money(_shown(before.amount)),
+                        ),
+                        _moveOpening,
+                        () => setState(() => _moveOpening = true),
+                        'import-move-opening',
+                      ),
+                      (
+                        t.importKeepOpening,
+                        !_moveOpening,
+                        () => setState(() => _moveOpening = false),
+                        'import-keep-opening',
+                      ),
+                    ]),
+            ),
+          ],
+        ),
+      );
+    }
     // Amounts come in as they are, so a file in the other currency would be
     // a thousand times off: said big, with a real row.
     final here = CurrencyScope.of(context);
@@ -462,6 +563,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       }
       // What the account's cleared balance will be, against the bank's.
       var ours = widget.cleared;
+      if (_openingMove case final m?) ours += m.amount - opening!.amount;
       for (final p in plan.rows) {
         if (p.fate == ImportFate.add) ours += p.row.amount;
         if (p.fate == ImportFate.match &&
@@ -609,9 +711,14 @@ class _PlanLine extends StatelessWidget {
     final (tag, tagColor) = switch (p.fate) {
       ImportFate.add => (t.importFateNew, Mid.blue),
       ImportFate.match => (
-        p.match!.payee.isEmpty
-            ? t.importFateMatchDate(sayDate(t, p.match!.date))
-            : t.importFateMatch(p.match!.payee, sayDate(t, p.match!.date)),
+        [
+          p.match!.payee.isEmpty
+              ? t.importFateMatchDate(sayDate(t, p.match!.date))
+              : t.importFateMatch(p.match!.payee, sayDate(t, p.match!.date)),
+          // Another month: it takes the bank's date.
+          if (matchedDate(p.match!, r.date) != p.match!.date)
+            t.importFateRedated(sayDate(t, dateOnly(r.date))),
+        ].join(' · '),
         Mid.green,
       ),
       ImportFate.already => (t.importFateAlready, Mid.ink3),

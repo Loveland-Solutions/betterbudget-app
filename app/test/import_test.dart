@@ -674,6 +674,82 @@ void main() {
       );
     });
 
+    test('rows before the opening balance: it moves before them, and undo '
+        'puts it back', () async {
+      await db.postOpeningBalance(
+        accountId: bank,
+        date: DateTime(2026, 9, 30),
+        balance: 100000000,
+      );
+      final rows = [row(5, -2000000, 'A'), row(10, 5000000, 'B')];
+      final p = await db.planImport(bank, rows, importKeys(bank, rows));
+      expect(p.opening!.date, DateTime(2026, 9, 30));
+      expect(p.opening!.amount, 100000000);
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: p.rows,
+        uncategorizedNames: ['Not categorized'],
+        moveOpening: (date: DateTime(2026, 9, 4), amount: 97000000),
+      );
+      var data = await db.loadLedger();
+      // Today's balance is what it was: the opening balance holds the rest.
+      expect(data.balanceOf(bank), 100000000);
+      expect(
+        (await db.snapshot(r.openingMove!.transactionId)).header.date,
+        '2026-09-04',
+      );
+      await db.undoImport(r);
+      data = await db.loadLedger();
+      expect(data.balanceOf(bank), 100000000);
+      expect(
+        (await db.snapshot(r.openingMove!.transactionId)).header.date,
+        '2026-09-30',
+      );
+      await db.redoImport(r, bank);
+      expect((await db.loadLedger()).balanceOf(bank), 100000000);
+    });
+
+    test(
+      'a match keeps the typed date unless the bank\'s is another month',
+      () async {
+        Future<int> typed(int day, int month) => db.postSimple(
+          accountId: bank,
+          date: DateTime(2026, month, day),
+          today: DateTime(2026, 10, 30),
+          payee: 'X',
+          counterAccountId: groceries,
+          amount: -100000 * day,
+        );
+        final same = await typed(3, 9);
+        final across = await typed(29, 9);
+        final rows = [
+          ImportRow(
+            sourceRow: 0,
+            date: DateTime(2026, 9, 5),
+            amount: -300000,
+            payee: 'X',
+          ),
+          ImportRow(
+            sourceRow: 1,
+            date: DateTime(2026, 10, 2),
+            amount: -2900000,
+            payee: 'X',
+          ),
+        ];
+        final p = await plan(rows);
+        expect(p.every((x) => x.fate == ImportFate.match), isTrue);
+        final r = await db.applyImport(
+          accountId: bank,
+          plan: p,
+          uncategorizedNames: ['Not categorized'],
+        );
+        expect((await db.snapshot(same)).header.date, '2026-09-03');
+        expect((await db.snapshot(across)).header.date, '2026-10-02');
+        await db.undoImport(r);
+        expect((await db.snapshot(across)).header.date, '2026-09-29');
+      },
+    );
+
     test('a typed row too far from the bank date is not matched', () async {
       await db.postSimple(
         accountId: bank,

@@ -4644,6 +4644,48 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.'**
   String get ledgerNewerLedger;
+
+  /// Import window warning: new rows dated before the account's opening balance would count twice.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them.}}'**
+  String importBeforeOpening(int count, Object amount, Object date);
+
+  /// Import window warning, when the opening balance is reconciled and can't move.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}'**
+  String importBeforeOpeningLocked(int count, Object amount, Object date);
+
+  /// Import window choice (the default): move the opening balance before the file's rows, at the amount that keeps today's balance.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the opening balance to {date} at {amount}'**
+  String importMoveOpening(Object date, Object amount);
+
+  /// Import window choice: keep the opening balance where it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave it (those rows count twice)'**
+  String get importKeepOpening;
+
+  /// Import window button: leave out the rows dated before a reconciled opening balance.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave those rows out'**
+  String get importLeaveBeforeOut;
+
+  /// Import window, preview tag after a match: the typed row takes the bank's date, which is in another month.
+  ///
+  /// In en, this message translates to:
+  /// **'dated {date}, the bank’s'**
+  String importFateRedated(Object date);
+
+  /// Part of the import toast, after " · ": the opening balance moved before the file's rows.
+  ///
+  /// In en, this message translates to:
+  /// **'opening balance now {amount} on {date}'**
+  String importOpeningMovedToast(Object date, Object amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

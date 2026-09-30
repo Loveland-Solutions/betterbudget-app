@@ -209,7 +209,8 @@ the file's columns once per account, and the app remembers. The screen is in
   so a reconciled one isn't brought in twice; it only takes the key) that has no key, isn't scheduled and has exactly the same
   amount, dated from 3 days after to 10 days before the bank's date. The closest date
   wins, and each typed row matches at most once. The match keeps the user's
-  payee, category and date, takes the key, and becomes cleared. Scheduled rows (bills,
+  payee, category and date (the bank's date when it's in another month, owner
+  2026-09-30), takes the key, and becomes cleared. Scheduled rows (bills,
   paydays) aren't matched yet.
 - **Checked on the owner's real files (2026-09-30):** the plain and the formatted TDB
   export give identical rows, keys, payees and memos (79 of 79), both with an exact

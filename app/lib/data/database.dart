@@ -368,8 +368,12 @@ class ImportPlan {
     this.importedBefore = 0,
     this.firstDay,
     this.lastDay,
+    this.opening,
   });
   final List<ImportPlanRow> rows;
+
+  /// The account's opening balance, when it has one.
+  final OpeningBalance? opening;
 
   /// Uncleared typed rows dated within the file that nothing matched: the
   /// bank never had them, or has them at another amount.
@@ -387,7 +391,44 @@ class ImportPlan {
     importedBefore: importedBefore,
     firstDay: firstDay,
     lastDay: lastDay,
+    opening: opening,
   );
+}
+
+/// An account's opening balance row: where it sits and what it holds.
+class OpeningBalance {
+  const OpeningBalance({
+    required this.transactionId,
+    required this.date,
+    required this.amount,
+    required this.locked,
+  });
+  final int transactionId;
+  final DateTime date;
+
+  /// On the account's side.
+  final int amount;
+
+  /// Reconciled: its date and amount stay.
+  final bool locked;
+}
+
+/// Where an import moved the opening balance, for undo and redo.
+typedef OpeningMove = ({
+  int transactionId,
+  DateTime fromDate,
+  int fromAmount,
+  DateTime toDate,
+  int toAmount,
+});
+
+/// A matched row's date: the typed one, unless the bank's falls in another
+/// month (owner, 2026-09-30), so a reconcile for that month matches the
+/// bank's statement. A reconciled row keeps its date.
+DateTime matchedDate(TypedMatch m, DateTime bank) {
+  final b = dateOnly(bank);
+  if (m.cleared == Cleared.reconciled) return m.date;
+  return b.year == m.date.year && b.month == m.date.month ? m.date : b;
 }
 
 class MatchedImport {
@@ -397,11 +438,17 @@ class MatchedImport {
     this.before,
     this.key, {
     this.memo,
+    this.dateBefore,
+    this.dateAfter,
   });
   final int transactionId;
   final int entryId;
   final Cleared before;
   final String key;
+
+  /// Set when the match took the bank's date (another month).
+  final DateTime? dateBefore;
+  final DateTime? dateAfter;
 
   /// The bank's text, put in as the memo when the typed row had none.
   final String? memo;
@@ -415,8 +462,12 @@ class ImportRecord {
     required this.matched,
     this.madeCategory,
     this.uncategorizedCount = 0,
+    this.openingMove,
   });
   final Map<int, String> added;
+
+  /// The opening balance moved before the file's rows, when it was.
+  final OpeningMove? openingMove;
   final List<MatchedImport> matched;
   final int? madeCategory;
 
@@ -2700,8 +2751,9 @@ class AppDatabase extends _$AppDatabase {
       );
     }
 
+    final opening = await _openingOf(accountId);
     final fresh = plan.where((p) => p.fate != ImportFate.already).toList();
-    if (fresh.isEmpty) return ImportPlan(rows: plan);
+    if (fresh.isEmpty) return ImportPlan(rows: plan, opening: opening);
     var first = dateOnly(fresh.first.row.date);
     var last = first;
     for (final p in fresh) {
@@ -2739,7 +2791,53 @@ class AppDatabase extends _$AppDatabase {
       importedBefore: before.read<int>('n'),
       firstDay: first,
       lastDay: last,
+      opening: opening,
     );
+  }
+
+  /// [accountId]'s opening balance (its earliest row against Opening
+  /// balances), or null.
+  Future<OpeningBalance?> _openingOf(int accountId) async {
+    final row = await customSelect(
+      'SELECT t.id AS txn_id, t.date AS date, e.amount_minor AS amount, '
+      'e.cleared AS cleared FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'JOIN entries o ON o.transaction_id = t.id AND o.id != e.id '
+      'JOIN accounts a ON a.id = o.account_id '
+      "WHERE e.account_id = ? AND t.deleted_at IS NULL AND a.type = 'equity' "
+      'AND a.name = ? ORDER BY t.date, t.id LIMIT 1',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(openingBalancesName),
+      ],
+      readsFrom: {entries, transactions, accounts},
+    ).getSingleOrNull();
+    if (row == null) return null;
+    return OpeningBalance(
+      transactionId: row.read<int>('txn_id'),
+      date: parseDateKey(row.read<String>('date')),
+      amount: row.read<int>('amount'),
+      locked: row.read<int>('cleared') == Cleared.reconciled.index,
+    );
+  }
+
+  Future<void> _setOpening(int transactionId, DateTime date, int amount) async {
+    await (update(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).write(
+      TransactionsCompanion(date: Value(dateKey(date)), updatedAt: Value(_now)),
+    );
+    final rows = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(transactionId))).get();
+    final types = await _accountTypes();
+    for (final e in rows) {
+      final equity = types[e.accountId] == AccountType.equity;
+      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+        EntriesCompanion(amountMinor: Value(equity ? -amount : amount)),
+      );
+    }
+    await _assertBalanced(transactionId);
   }
 
   /// How far a typed row's date may be from the bank's and still match.
@@ -2755,6 +2853,7 @@ class AppDatabase extends _$AppDatabase {
     required int accountId,
     required List<ImportPlanRow> plan,
     required List<String> uncategorizedNames,
+    ({DateTime date, int amount})? moveOpening,
   }) => transaction(() async {
     await _assertLive(accountId);
     final categories = {
@@ -2826,12 +2925,15 @@ class AppDatabase extends _$AppDatabase {
         case ImportFate.match:
           final m = p.match!;
           final text = p.row.memo ?? p.row.payee;
+          final redated = matchedDate(m, p.row.date);
           matched.add(
             MatchedImport(
               m.transactionId,
               m.entryId,
               m.cleared,
               p.key,
+              dateBefore: redated == m.date ? null : m.date,
+              dateAfter: redated == m.date ? null : redated,
               // A reconciled row is locked: it takes the key and nothing else.
               memo:
                   m.hasMemo ||
@@ -2843,11 +2945,28 @@ class AppDatabase extends _$AppDatabase {
           );
       }
     }
+    OpeningMove? openingMove;
+    final opening = moveOpening == null ? null : await _openingOf(accountId);
+    if (moveOpening != null && opening != null && !opening.locked) {
+      openingMove = (
+        transactionId: opening.transactionId,
+        fromDate: opening.date,
+        fromAmount: opening.amount,
+        toDate: dateOnly(moveOpening.date),
+        toAmount: moveOpening.amount,
+      );
+      await _setOpening(
+        opening.transactionId,
+        openingMove.toDate,
+        openingMove.toAmount,
+      );
+    }
     final record = ImportRecord(
       added: added,
       matched: matched,
       madeCategory: made,
       uncategorizedCount: holding,
+      openingMove: openingMove,
     );
     await _keyAdded(accountId, record);
     await _applyMatches(record);
@@ -2882,6 +3001,9 @@ class AppDatabase extends _$AppDatabase {
       )..where((t) => t.id.equals(m.transactionId))).write(
         TransactionsCompanion(
           memo: m.memo == null ? const Value.absent() : Value(m.memo),
+          date: m.dateAfter == null
+              ? const Value.absent()
+              : Value(dateKey(m.dateAfter!)),
           updatedAt: Value(_now),
         ),
       );
@@ -2918,6 +3040,13 @@ class AppDatabase extends _$AppDatabase {
             ))
             .write(const TransactionsCompanion(memo: Value(null)));
       }
+      if (m.dateBefore != null) {
+        await (update(transactions)..where((t) => t.id.equals(m.transactionId)))
+            .write(TransactionsCompanion(date: Value(dateKey(m.dateBefore!))));
+      }
+    }
+    if (r.openingMove case final o?) {
+      await _setOpening(o.transactionId, o.fromDate, o.fromAmount);
     }
     if (r.madeCategory case final c?) await deleteEmptyAccount(c);
   });
@@ -2930,6 +3059,9 @@ class AppDatabase extends _$AppDatabase {
         await restoreMany(r.added.keys);
         await _keyAdded(accountId, r);
         await _applyMatches(r);
+        if (r.openingMove case final o?) {
+          await _setOpening(o.transactionId, o.toDate, o.toAmount);
+        }
       });
 
   Future<int?> _payeeId(String? name) async {

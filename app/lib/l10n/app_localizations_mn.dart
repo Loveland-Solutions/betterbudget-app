@@ -3152,4 +3152,36 @@ class WordsMn extends Words {
   @override
   String get ledgerNewerLedger =>
       'үүнийг BetterBudget-ийн шинэ хувилбар хадгалсан байна. Тэр хувилбараар нээнэ үү; энд юу ч өөрчлөгдөөгүй.';
+
+  @override
+  String importBeforeOpening(int count, Object amount, Object date) {
+    return '$count мөр энэ дансны эхний үлдэгдлээс ($date, $amount) өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон.';
+  }
+
+  @override
+  String importBeforeOpeningLocked(int count, Object amount, Object date) {
+    return '$count мөр энэ дансны эхний үлдэгдлээс ($date, $amount) өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон. Эхний үлдэгдэл тулгагдсан тул өөрчлөгдөхгүй; оруулбал давхар тооцогдоно.';
+  }
+
+  @override
+  String importMoveOpening(Object date, Object amount) {
+    return 'Эхний үлдэгдлийг $date-нд $amount болгох';
+  }
+
+  @override
+  String get importKeepOpening =>
+      'Хэвээр үлдээх (тэдгээр мөр давхар тооцогдоно)';
+
+  @override
+  String get importLeaveBeforeOut => 'Тэдгээр мөрийг орхих';
+
+  @override
+  String importFateRedated(Object date) {
+    return 'банкны огноо $date-г авна';
+  }
+
+  @override
+  String importOpeningMovedToast(Object date, Object amount) {
+    return 'эхний үлдэгдэл одоо $date-нд $amount';
+  }
 }

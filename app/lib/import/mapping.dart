@@ -987,6 +987,7 @@ _Chain? _bestChain(Sheet sheet, List<int> rows, List<int> numeric) {
   if (rows.length < 2) return null;
   _Chain? best;
   var bestHits = 0;
+  var bestScore = 0;
   // Each column read once: the search below tries every combination.
   final amounts = {
     for (final c in numeric)
@@ -1007,6 +1008,12 @@ _Chain? _bestChain(Sheet sheet, List<int> rows, List<int> numeric) {
       for (final b in [null, ...numeric]) {
         if (b == bal || b == a) continue;
         var hits = 0;
+        // On a tie, the reading that gives more rows an amount: in and out
+        // together beat money in alone.
+        var covered = 0;
+        for (var i = 0; i < rows.length; i++) {
+          if ((amt(i, a, b) ?? 0) != 0) covered++;
+        }
         for (var i = 1; i < rows.length; i++) {
           final prev = balances[i - 1];
           final cur = balances[i];
@@ -1019,7 +1026,9 @@ _Chain? _bestChain(Sheet sheet, List<int> rows, List<int> numeric) {
           }
         }
         // In-then-out beats out-then-in only by what the numbers say.
-        if (hits > bestHits) {
+        final score = hits * (rows.length + 1) + covered;
+        if (hits > 0 && score > bestScore) {
+          bestScore = score;
           bestHits = hits;
           best = _Chain(a, b, bal);
         }

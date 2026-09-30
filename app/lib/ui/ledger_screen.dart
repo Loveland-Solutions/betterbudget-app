@@ -1848,6 +1848,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       record = await db.applyImport(
         accountId: account.id,
         plan: pick.plan,
+        moveOpening: pick.moveOpening,
         uncategorizedNames: {
           uncategorized,
           'Not categorized',
@@ -1883,6 +1884,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
           t.importMatchedToast(newlyCleared),
         if (record.uncategorizedCount > 0)
           t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
+        if (record.openingMove case final o?)
+          t.importOpeningMovedToast(
+            sayDate(t, o.toDate),
+            formatMoney(
+              account.isOwed ? -o.toAmount : o.toAmount,
+              currency: account.currency,
+            ),
+          ),
       ].join(' · '),
     );
     // Remembered for the next file into this account. The rows are in

@@ -4807,5 +4807,58 @@
   "ledgerNewerLedger": "it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.",
   "@ledgerNewerLedger": {
     "description": "After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused."
+  },
+  "importBeforeOpening": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them.}}",
+  "@importBeforeOpening": {
+    "description": "Import window warning: new rows dated before the account's opening balance would count twice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importBeforeOpeningLocked": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}",
+  "@importBeforeOpeningLocked": {
+    "description": "Import window warning, when the opening balance is reconciled and can't move.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importMoveOpening": "Move the opening balance to {date} at {amount}",
+  "@importMoveOpening": {
+    "description": "Import window choice (the default): move the opening balance before the file's rows, at the amount that keeps today's balance.",
+    "placeholders": {
+      "date": {},
+      "amount": {}
+    }
+  },
+  "importKeepOpening": "Leave it (those rows count twice)",
+  "@importKeepOpening": {
+    "description": "Import window choice: keep the opening balance where it is."
+  },
+  "importLeaveBeforeOut": "Leave those rows out",
+  "@importLeaveBeforeOut": {
+    "description": "Import window button: leave out the rows dated before a reconciled opening balance."
+  },
+  "importFateRedated": "dated {date}, the bank’s",
+  "@importFateRedated": {
+    "description": "Import window, preview tag after a match: the typed row takes the bank's date, which is in another month.",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "importOpeningMovedToast": "opening balance now {amount} on {date}",
+  "@importOpeningMovedToast": {
+    "description": "Part of the import toast, after \" · \": the opening balance moved before the file's rows.",
+    "placeholders": {
+      "date": {},
+      "amount": {}
+    }
   }
 }

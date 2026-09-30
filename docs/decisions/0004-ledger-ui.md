@@ -873,6 +873,17 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   date but no readable amount is named in coral. The button says what happens: "Import
   63 rows · clear 12". Columns saved from a file whose balance didn't add up are shown
   again next time, not skipped.
+- **Rows before the opening balance (owner, 2026-09-30, option a):** a big coral
+  line with the numbers ("3 rows are dated before this account's opening balance
+  (₮1,023,000.00 on 2026.09.16), which already counts them"), and by default **Move
+  the opening balance to 2026.09.09 at ₮1,000,000.00**: the day before the file, less
+  what its rows add, so today's balance doesn't change. "Leave it (those rows count
+  twice)" is the other choice; ⌘Z undoes either. A reconciled opening balance stays,
+  with Leave those rows out. *Rejected (b):* importing only rows after it by default.
+- **A match's date (owner, 2026-09-30, option a):** the typed date stays unless the
+  bank's is in another month; then it takes the bank's, so the month's reconcile
+  matches the statement. The preview says so ("dated 10.02, the bank's"). *Rejected:*
+  always the bank's date (b); always the typed one (c).
 - **Categories:** each new row gets the income or spending category last used with its
   payee on that account (never another account, so an own-name payee can't turn rows
   into transfers); otherwise **Not categorized** (Ангилаагүй), an ordinary category the app
