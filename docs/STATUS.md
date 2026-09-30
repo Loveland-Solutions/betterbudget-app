@@ -12,13 +12,15 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #23 (Mongolian interface, Settings →
+**Git state:** `main` has everything through PR #25 (the items tabled 2026-09-30: the
+forecast through the next pay period, Keep the day, search in the tab row, wording),
+PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
 Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
 the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
-merge. The owner's data file is at schema version 9 (2026-09-30); it was at schema version 7 (upgraded 2026-09-29, the copy
-before it encrypted).
+merge. The owner's data file is at schema version 9 (upgraded 2026-09-30, the copy
+before it kept beside it).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -177,7 +179,7 @@ Roughly in the order they will block something.
 
 **Tabled by the owner (2026-09-30), to address next**, from using the new build:
 
-All five built on branch `tabled-0930` (2026-09-30), waiting for the owner to try:
+All five done and merged (PR #25, 2026-09-30):
 
 - [x] The opening row's category says **"Opening balance"**.
 - [x] No toast when an account is made (⌘Z still undoes the balance; Esc on the entry
@@ -189,7 +191,16 @@ All five built on branch `tabled-0930` (2026-09-30), waiting for the owner to tr
 - [x] **The forecast runs through the next pay period** (owner's pick, option A of
   three; ADR 0004 rule 24): the next paycheck is a step, and it ends as the paycheck
   after it lands. Both reviews done, their fixes in; left for later is listed in
-  rule 24. 297 tests pass.
+  rule 24.
+- [x] **The forecast reads for someone new** (owner's corrections, same day): a bold
+  "Forecast" title; with pay but no bills, a list (Today's balance, each payday as
+  "Expected income" with its amount) and the owner's sentence "Nothing has been
+  budgeted. Once you fill out your budget, this area will show you a forecast.";
+  with bills, the chart names its start, lowest point and "+₮X pay". **Loose end:**
+  no budget exists yet, so that sentence shows whenever no bills are scheduled;
+  when the budget is built it should switch on the budget instead.
+- [x] **Search moved into the register's tab row** (between the tabs and Add), with
+  less padding at the top of the page (owner, same day). 298 tests pass.
 - [x] The two import questions, both option a (2026-09-30): rows before the opening
   balance move it (by default), and a match takes the bank's date across a month.
   Change currency isn't needed now: the owner remade AFCU Checking as a dollar
