@@ -15,6 +15,19 @@ enum AccountRole { emergencyFund, mortgage, studentLoan, paidMonthly }
 
 enum RowKind { simple, split, transfer, opening }
 
+/// The equity accounts the app makes itself, by the name each is stored
+/// under. The names are in English; `rowCategory` in ui/data_words.dart
+/// words them for the screen.
+const openingBalancesAccountName = 'Opening balances';
+const balanceAdjustmentsName = 'Balance adjustments';
+
+/// The payee a reconcile adjustment is stored with (`rowPayee` words it).
+const reconcileAdjustmentPayee = 'Reconcile adjustment';
+
+/// An opening row against one of the app's own equity accounts: a starting
+/// balance, or the difference a reconcile posted to match a statement.
+enum AppEquity { openingBalances, adjustments }
+
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
 class AccountInfo {
@@ -58,7 +71,8 @@ class AccountInfo {
   bool get isBalanceSheet =>
       type == AccountType.asset || type == AccountType.liability;
 
-  /// How other accounts' rows name it.
+  /// How other accounts' rows name it, in English (`accountLabel` in
+  /// ui/data_words.dart words it for the screen).
   String get label => deleted ? '$name (deleted)' : name;
 
   /// A credit account: what's owed reads as a positive amount, the way the
@@ -126,6 +140,11 @@ class Reconciliation {
   final int balance;
 }
 
+/// One category of a split row, in the row's sign convention. [deleted] is
+/// the account's plain name when it's been deleted ([name] then says so in
+/// English).
+typedef SplitLine = ({String name, int amount, String? deleted});
+
 class RegisterRow {
   const RegisterRow({
     required this.txnId,
@@ -146,6 +165,8 @@ class RegisterRow {
     this.latestReconcile = false,
     this.incomeCategory = false,
     this.otherClosed = false,
+    this.deletedOther,
+    this.equity,
     this.accountId = 0,
     this.clearedIn,
     this.estimate,
@@ -163,11 +184,26 @@ class RegisterRow {
   final Cleared cleared;
   final bool scheduled;
   final RowKind kind;
+
+  /// "Transfer" and "3 categories" are in English here; `rowCategory` in
+  /// ui/data_words.dart words them for the screen, as `rowPayee` does an
+  /// opening balance's "Opening balance".
   final String categoryLabel;
 
   /// Set only for simple rows, where the category can be edited inline.
   final int? categoryId;
-  final List<({String name, int amount})> splitLines;
+
+  /// [SplitLine.name] is in English for a deleted account; its
+  /// [SplitLine.deleted] holds the plain name, for the UI to word.
+  final List<SplitLine> splitLines;
+
+  /// A transfer whose other account is deleted: that account's name. [payee]
+  /// then reads "… (deleted)" in English; the UI words it from this.
+  final String? deletedOther;
+
+  /// An opening row against an equity account the app made: which one.
+  /// [categoryLabel] then holds its stored English name, for the UI to word.
+  final AppEquity? equity;
 
   /// The payee as stored. [payee] is what the row shows, which for a
   /// transfer is the other account.
@@ -243,6 +279,8 @@ class RegisterRow {
     latestReconcile: latestReconcile,
     incomeCategory: incomeCategory,
     otherClosed: otherClosed,
+    deletedOther: deletedOther,
+    equity: equity,
     accountId: accountId,
     clearedIn: clearedIn,
     estimate: estimate,
@@ -270,6 +308,8 @@ class RegisterRow {
     latestReconcile: latestReconcile,
     incomeCategory: incomeCategory,
     otherClosed: otherClosed,
+    deletedOther: deletedOther,
+    equity: equity,
     accountId: accountId,
     estimate: estimate,
     payScheduleId: payScheduleId,
@@ -292,29 +332,46 @@ int daysBefore(DateTime date, DateTime today) =>
       today.day,
     ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
 
-/// "not cleared for 34 days", on an uncleared row that old; otherwise null.
-String? staleNote(RegisterRow r, DateTime today) {
+/// Days an uncleared row has waited, when that's long enough to say so;
+/// otherwise null.
+int? staleDays(RegisterRow r, DateTime today) {
   if (r.scheduled || r.cleared != Cleared.uncleared) return null;
   final days = daysBefore(r.date, today);
-  return days >= staleUnclearedDays ? 'not cleared for $days days' : null;
+  return days >= staleUnclearedDays ? days : null;
 }
 
-/// "due 7 days ago" on a scheduled row past its date, which isn't in
-/// Working until it's confirmed; otherwise null.
-String? overdueNote(RegisterRow r, DateTime today) {
+/// "not cleared for 34 days" ([staleDays]), in English; the UI words it with
+/// `staleNoteIn` (ui/data_words.dart).
+String? staleNote(RegisterRow r, DateTime today) =>
+    switch (staleDays(r, today)) {
+      final days? => 'not cleared for $days days',
+      null => null,
+    };
+
+/// Days a scheduled row is past its date (it isn't in Working until it's
+/// confirmed); otherwise null.
+int? overdueDays(RegisterRow r, DateTime today) {
   if (!r.scheduled) return null;
   final days = daysBefore(r.date, today);
-  return days <= 0
-      ? null
-      : (days == 1 ? 'due yesterday' : 'due $days days ago');
+  return days <= 0 ? null : days;
 }
+
+/// "due 7 days ago" ([overdueDays]), in English; the UI words it with
+/// `overdueNoteIn` (ui/data_words.dart).
+String? overdueNote(RegisterRow r, DateTime today) =>
+    switch (overdueDays(r, today)) {
+      1 => 'due yesterday',
+      final days? => 'due $days days ago',
+      null => null,
+    };
 
 enum ReconcileCause { notCleared, datedAfter, clearedEarly }
 
+/// [row] is the row as its register shows it, for the UI to name.
 typedef ReconcileHint = ({
   int txnId,
   DateTime date,
-  String payee,
+  RegisterRow row,
   ReconcileCause cause,
 });
 
@@ -588,19 +645,12 @@ class LedgerData {
           _ => null,
         };
         if (cause != null) {
-          found.add((
-            txnId: t.id,
-            date: t.date,
-            payee: _rowPayee(t, e),
-            cause: cause,
-          ));
+          found.add((txnId: t.id, date: t.date, row: _row(t, e), cause: cause));
         }
       }
     }
     return found.length == 1 ? found.single : null;
   }
-
-  String _rowPayee(TxnData t, EntryData e) => _row(t, e).payee;
 
   /// Posted rows oldest first with running balances, and scheduled rows
   /// soonest first (their balance is projected on from the working balance).
@@ -722,7 +772,9 @@ class LedgerData {
     var incomeCategory = false;
     var otherClosed = false;
     int? categoryId;
-    var lines = <({String name, int amount})>[];
+    String? deletedOther;
+    AppEquity? equity;
+    var lines = <SplitLine>[];
 
     if (others.length == 1) {
       final other = accounts[others.single.accountId]!;
@@ -730,10 +782,16 @@ class LedgerData {
         kind = RowKind.opening;
         payee = payee.isEmpty ? 'Opening balance' : payee;
         label = other.name;
+        equity = switch (other.name) {
+          openingBalancesAccountName => AppEquity.openingBalances,
+          balanceAdjustmentsName => AppEquity.adjustments,
+          _ => null,
+        };
       } else if (other.isBalanceSheet) {
         kind = RowKind.transfer;
         payee = other.label;
         label = 'Transfer';
+        if (other.deleted) deletedOther = other.name;
         // Not in the account lists, so the editor can't name it again.
         otherClosed = other.archived || other.deleted;
       } else {
@@ -748,7 +806,13 @@ class LedgerData {
       // Split lines in this account's sign convention, so they sum to [amount].
       lines = [
         for (final o in others)
-          (name: accounts[o.accountId]!.label, amount: -o.amount),
+          (
+            name: accounts[o.accountId]!.label,
+            amount: -o.amount,
+            deleted: accounts[o.accountId]!.deleted
+                ? accounts[o.accountId]!.name
+                : null,
+          ),
       ];
       label = '${others.length} categories';
     }
@@ -774,6 +838,8 @@ class LedgerData {
       txnPayee: t.payee,
       incomeCategory: incomeCategory,
       otherClosed: otherClosed,
+      deletedOther: deletedOther,
+      equity: equity,
       accountId: e.accountId,
       payScheduleId: t.payScheduleId,
       estimate: switch (_schedulesById[t.payScheduleId]) {

@@ -40,6 +40,32 @@ class PayNone extends PaySetupResult {
   const PayNone();
 }
 
+/// Stand-ins for the boxes in a sentence like "On the [25]": the words
+/// around a box come from one message, so each language puts them in its
+/// own order.
+const _fieldMarks = ['\uE000', '\uE001'];
+
+/// [text] as a row of words and [fields], each field where its mark is.
+List<Widget> _withFields(String text, List<Widget> fields) {
+  final out = <Widget>[];
+  var rest = text;
+  while (rest.isNotEmpty) {
+    var at = -1, which = -1;
+    for (var i = 0; i < fields.length; i++) {
+      final j = rest.indexOf(_fieldMarks[i]);
+      if (j >= 0 && (at < 0 || j < at)) (at, which) = (j, i);
+    }
+    if (at < 0) {
+      out.add(Text(rest, style: onest(13.5)));
+      break;
+    }
+    if (at > 0) out.add(Text(rest.substring(0, at), style: onest(13.5)));
+    out.add(fields[which]);
+    rest = rest.substring(at + 1);
+  }
+  return out;
+}
+
 class _PaySetupDialog extends StatefulWidget {
   const _PaySetupDialog({
     required this.categories,
@@ -167,10 +193,26 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     return a < b ? (a, b) : (b, a);
   }
 
-  /// "the 10th" or, before the days are in, "the first payday".
-  String _dayName(bool later) => switch (_days) {
-    final d? => 'the ${PaySchedule.ordinal(later ? d.$2 : d.$1)}',
-    null => later ? 'the second payday' : 'the first payday',
+  /// The label beside one payday's amount: "On the 10th" or, before the
+  /// days are in, "On the first payday"; "At least, on …" when pay varies.
+  String _onDay(Words t, bool later) {
+    final atLeast = _varies;
+    if (_days case final d?) {
+      final day = payDay(t, later ? d.$2 : d.$1);
+      return atLeast ? t.setupAtLeastOnDay(day) : t.setupOnDay(day);
+    }
+    return switch ((later, atLeast)) {
+      (false, false) => t.setupOnFirst,
+      (true, false) => t.setupOnSecond,
+      (false, true) => t.setupAtLeastOnFirst,
+      (true, true) => t.setupAtLeastOnSecond,
+    };
+  }
+
+  /// Asks for one payday's amount, named as [_onDay] names it.
+  String _amountMissing(Words t, bool later) => switch (_days) {
+    final d? => t.setupAmountMissingOn(payDay(t, later ? d.$2 : d.$1)),
+    null => later ? t.setupAmountMissingSecond : t.setupAmountMissingFirst,
   };
 
   /// What's saved: twice a month keeps the earlier day as [day2] and its
@@ -206,26 +248,27 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   DateTime? get _anchorValue => parseEntryDate(_anchor.text, widget.today);
 
   /// What's missing or unreadable, first thing only; null when it can save.
-  String? get _problem {
+  String? get _problem => _problemIn(context.t);
+
+  String? _problemIn(Words t) {
     final a = _amountValue;
     if (a == null || a <= 0) {
-      return _splitting
-          ? 'Put in how much comes on ${_dayName(false)}'
-          : 'Put in how much comes';
+      return _splitting ? _amountMissing(t, false) : t.setupAmountMissing;
     }
     final b = _amount2Value;
     if (_splitting && (b == null || b <= 0)) {
-      return 'Put in how much comes on ${_dayName(true)}';
+      return _amountMissing(t, true);
     }
     return switch (_rule) {
-      PayRule.monthly when _day(_day1) == null => 'Which day of the month?',
+      PayRule.monthly when _day(_day1) == null => t.setupWhichDay,
       PayRule.twiceMonthly when _day(_day1) == null || _day(_day2) == null =>
-        'Which two days of the month?',
+        t.setupWhichTwoDays,
       PayRule.twiceMonthly when _day(_day1) == _day(_day2) =>
-        'Two different days of the month',
-      PayRule.everyWeeks when _weeksValue == null => 'Every how many weeks?',
-      PayRule.everyWeeks when _anchorValue == null =>
-        'When is a payday? (${fullDate(widget.today)})',
+        t.setupTwoDifferentDays,
+      PayRule.everyWeeks when _weeksValue == null => t.setupHowManyWeeks,
+      PayRule.everyWeeks when _anchorValue == null => t.setupWhenPayday(
+        fullDate(widget.today),
+      ),
       _ => null,
     };
   }
@@ -270,6 +313,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     String money(int v) => formatMoney(v, showCents: v % 100 != 0);
     final amount = _amountValue;
     final lowest = _history.isEmpty
@@ -414,13 +458,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.existing == null ? 'Add your pay' : 'Your pay',
+                    widget.existing == null
+                        ? t.setupAddYourPay
+                        : t.setupYourPay,
                     style: onest(17, weight: 600, letterSpacing: -0.2),
                   ),
                   const SizedBox(height: 16),
                   if (widget.categories.length > 1)
                     line(
-                      'Filed under',
+                      t.setupFiledUnder,
                       Align(
                         alignment: Alignment.centerLeft,
                         child: pick(widget.categories, _category, (c) {
@@ -430,7 +476,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       ),
                     ),
                   line(
-                    'Paid into',
+                    t.setupPaidInto,
                     Align(
                       alignment: Alignment.centerLeft,
                       child: pick(widget.accounts, _account, (a) {
@@ -440,7 +486,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     ),
                   ),
                   line(
-                    'From',
+                    t.setupFrom,
                     Align(
                       alignment: Alignment.centerLeft,
                       child: SizedBox(
@@ -451,26 +497,26 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                           controller: _payee,
                           style: onest(13.5),
                           decoration: _fieldDecoration(
-                            hint: 'Employer (optional)',
+                            hint: t.setupEmployerHint,
                           ),
                         ),
                       ),
                     ),
                   ),
                   line(
-                    'Pay is',
+                    t.setupPayIs,
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
                         choice(
-                          'About the same each time',
+                          t.setupPaySame,
                           !_varies,
                           () => setState(() => _varies = false),
                           'pay-same',
                         ),
                         choice(
-                          'It varies',
+                          t.setupPayVaries,
                           _varies,
                           () => setState(() => _varies = true),
                           'pay-varies',
@@ -478,25 +524,18 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       ],
                     ),
                   ),
-                  if (_varies)
-                    hint(
-                      'Hourly, shifts, overtime: it changes each time. Leave '
-                      'bonuses out; they aren’t every payday.',
-                    ),
+                  if (_varies) hint(t.setupVariesHint),
                   line(
                     // Each payday, not the month: twice a month is two of these.
                     _splitting
-                        ? '${_varies ? 'At least, on' : 'On'} ${_dayName(false)}'
+                        ? _onDay(t, false)
                         : _varies
-                        ? 'Expect at least'
-                        : 'Each payday',
+                        ? t.setupExpectAtLeast
+                        : t.setupEachPayday,
                     amountField(_amount, 'pay-amount', autofocus: true),
                   ),
                   if (_splitting)
-                    line(
-                      '${_varies ? 'At least, on' : 'On'} ${_dayName(true)}',
-                      amountField(_amount2, 'pay-amount2'),
-                    ),
+                    line(_onDay(t, true), amountField(_amount2, 'pay-amount2')),
                   // Twice a month: an advance one day, the rest the other.
                   if (_rule == PayRule.twiceMonthly)
                     Padding(
@@ -506,13 +545,13 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                         runSpacing: 6,
                         children: [
                           choice(
-                            'The same each paycheck',
+                            t.setupSameEachPaycheck,
                             !_split,
                             () => setState(_oneAmount),
                             'pay-amount-same',
                           ),
                           choice(
-                            'A different amount each paycheck',
+                            t.setupDifferentEachPaycheck,
                             _split,
                             () => setState(() => _split = true),
                             'pay-amount-split',
@@ -523,33 +562,34 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                   if (lowest != null)
                     hint(
                       _history.length == 1
-                          ? 'Your last paycheck: ${money(lowest)}'
-                          : 'Your last ${_history.length}: lowest '
-                                '${money(lowest)} · highest ${money(highest!)}',
+                          ? t.setupLastPaycheck(money(lowest))
+                          : t.setupLastPaychecks(
+                              _history.length,
+                              money(lowest),
+                              money(highest!),
+                            ),
                       key: const ValueKey('pay-history'),
                     ),
-                  if (_varies)
-                    hint(
-                      'The forecast counts on this, so the low end is safer: '
-                      'finding more on payday is better than finding less.',
-                    ),
+                  if (_varies) hint(t.setupLowEndSafer),
                   // Warn, don't block: a higher estimate still saves.
                   if (_varies && above > 0)
                     hint(
-                      'Higher than $above of your last ${_history.length} '
-                      'paychecks: the forecast may look better than it’ll be.',
+                      t.setupHigherThan(above, _history.length),
                       color: Mid.gold,
                       key: const ValueKey('pay-high'),
                     ),
                   line(
-                    'When',
+                    t.setupWhen,
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        // Wraps when the words run long (Mongolian).
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             choice(
-                              'Monthly',
+                              t.setupMonthly,
                               _rule == PayRule.monthly,
                               () => setState(() {
                                 _oneAmount();
@@ -557,17 +597,15 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                               }),
                               'pay-monthly',
                             ),
-                            const SizedBox(width: 8),
                             choice(
-                              'Twice a month',
+                              t.setupTwiceMonthly,
                               _rule == PayRule.twiceMonthly,
                               () =>
                                   setState(() => _rule = PayRule.twiceMonthly),
                               'pay-twice',
                             ),
-                            const SizedBox(width: 8),
                             choice(
-                              'Every few weeks',
+                              t.setupEveryFewWeeks,
                               _rule == PayRule.everyWeeks,
                               () => setState(() {
                                 _oneAmount();
@@ -580,39 +618,43 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                         const SizedBox(height: 8),
                         Row(
                           children: switch (_rule) {
-                            PayRule.monthly => [
-                              Text('On the ', style: onest(13.5)),
-                              small(_day1, 'pay-day1'),
-                            ],
-                            PayRule.twiceMonthly => [
-                              Text('On the ', style: onest(13.5)),
-                              small(_day2, 'pay-day2'),
-                              Text('  and the ', style: onest(13.5)),
-                              small(_day1, 'pay-day1'),
-                            ],
-                            PayRule.everyWeeks => [
-                              Text('Every ', style: onest(13.5)),
-                              small(_weeks, 'pay-weeks-n', width: 44),
-                              Text(
-                                _weeksValue == 1
-                                    ? ' week, from '
-                                    : ' weeks, from ',
-                                style: onest(13.5),
+                            PayRule.monthly => _withFields(
+                              t.setupOnDayField(_fieldMarks[0]),
+                              [small(_day1, 'pay-day1')],
+                            ),
+                            PayRule.twiceMonthly => _withFields(
+                              t.setupOnDaysField(
+                                _fieldMarks[0],
+                                _fieldMarks[1],
                               ),
-                              SizedBox(
-                                width: 130,
-                                height: 30,
-                                child: DateField(
-                                  key: const ValueKey('pay-anchor'),
-                                  controller: _anchor,
-                                  focusNode: _anchorFocus,
-                                  today: widget.today,
-                                  small: true,
-                                  onSubmitted: _save,
-                                  onPicked: () {},
+                              [
+                                small(_day2, 'pay-day2'),
+                                small(_day1, 'pay-day1'),
+                              ],
+                            ),
+                            PayRule.everyWeeks => _withFields(
+                              t.setupEveryWeeksField(
+                                _weeksValue ?? 0,
+                                _fieldMarks[0],
+                                _fieldMarks[1],
+                              ),
+                              [
+                                small(_weeks, 'pay-weeks-n', width: 44),
+                                SizedBox(
+                                  width: 130,
+                                  height: 30,
+                                  child: DateField(
+                                    key: const ValueKey('pay-anchor'),
+                                    controller: _anchor,
+                                    focusNode: _anchorFocus,
+                                    today: widget.today,
+                                    small: true,
+                                    onSubmitted: _save,
+                                    onPicked: () {},
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           },
                         ),
                       ],
@@ -622,24 +664,23 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                   // payday then, which is worth knowing before it happens.
                   if (_rule == PayRule.twiceMonthly && (_days?.$1 ?? 0) >= 28)
                     hint(
-                      'In shorter months both days land on the last day: '
-                      'one payday that month, not two.',
+                      t.setupDaysMeet,
                       color: Mid.gold,
                       key: const ValueKey('pay-days-meet'),
                     ),
                   line(
-                    'On a weekend',
+                    t.setupOnWeekend,
                     Row(
                       children: [
                         choice(
-                          'Friday before',
+                          t.setupFridayBefore,
                           _weekendBefore,
                           () => setState(() => _weekendBefore = true),
                           'pay-friday',
                         ),
                         const SizedBox(width: 8),
                         choice(
-                          'Monday after',
+                          t.setupMondayAfter,
                           !_weekendBefore,
                           () => setState(() => _weekendBefore = false),
                           'pay-monday',
@@ -648,18 +689,18 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     ),
                   ),
                   line(
-                    'Budget by',
+                    t.setupBudgetBy,
                     Row(
                       children: [
                         choice(
-                          'Month',
+                          t.setupMonth,
                           !_byPeriod,
                           () => setState(() => _byPeriod = false),
                           'pay-by-month',
                         ),
                         const SizedBox(width: 8),
                         choice(
-                          'Pay period',
+                          t.setupPayPeriod,
                           _byPeriod,
                           () => setState(() => _byPeriod = true),
                           'pay-by-period',
@@ -671,16 +712,14 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                   // "not this pay", so say what's in effect.
                   if (widget.periodBy case final other? when !_byPeriod)
                     hint(
-                      'The budget follows '
-                      '${other.payee ?? widget.names(other.categoryId)}’s pay '
-                      'periods. Pay period here moves it to this pay.',
+                      t.setupPeriodOther(
+                        other.payee ?? widget.names(other.categoryId),
+                      ),
                       key: const ValueKey('pay-period-other'),
                     ),
                   if (preview != null && preview.perYear > 24)
                     hint(
-                      '${preview.perYear} paydays a year: two months a year '
-                      'have three. Budgeting by pay period follows your '
-                      'paychecks.',
+                      t.setupPaydaysAYear(preview.perYear),
                       key: const ValueKey('pay-26'),
                     ),
                   const SizedBox(height: 4),
@@ -688,10 +727,30 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     padding: const EdgeInsets.only(left: 120),
                     child: Text(
                       _problem ??
-                          'Next payday ${fullDate(next!)} · '
-                              '${money(preview!.amountOn(next))}${_varies ? ' or more' : ''}'
-                              // A doubled monthly figure shows before saving.
-                              '${preview.rule == PayRule.monthly ? '' : ' · about ${money(preview.perMonth)} a month'}',
+                          switch ((
+                            _varies,
+                            // A doubled monthly figure shows before saving.
+                            preview!.rule == PayRule.monthly,
+                          )) {
+                            (false, true) => t.setupNextPayday(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                            ),
+                            (true, true) => t.setupNextPaydayOrMore(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                            ),
+                            (false, false) => t.setupNextPaydayMonthly(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                              money(preview.perMonth),
+                            ),
+                            (true, false) => t.setupNextPaydayOrMoreMonthly(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                              money(preview.perMonth),
+                            ),
+                          },
                       key: const ValueKey('pay-summary'),
                       style: onest(
                         13,
@@ -707,14 +766,14 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       if (widget.existing == null && widget.offerNoPay)
                         BarButton(
                           key: const ValueKey('pay-none'),
-                          label: 'I don’t have regular pay',
+                          label: t.setupNoRegularPay,
                           onTap: () =>
                               Navigator.of(context).pop(const PayNone()),
                         ),
                       if (widget.existing != null)
                         BarButton(
                           key: const ValueKey('pay-stop'),
-                          label: 'Stop scheduling pay',
+                          label: t.setupStopPay,
                           color: Mid.coral,
                           onTap: () =>
                               Navigator.of(context).pop(const PayStop()),
@@ -722,14 +781,14 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       const Spacer(),
                       BarButton(
                         key: const ValueKey('pay-cancel'),
-                        label: 'Cancel',
+                        label: t.setupCancel,
                         onTap: () => Navigator.of(context).pop(),
                       ),
                       Opacity(
                         opacity: _problem == null ? 1 : 0.5,
                         child: _PrimaryButton(
                           key: const ValueKey('pay-save'),
-                          label: 'Save pay',
+                          label: t.setupSavePay,
                           icon: Icons.check_rounded,
                           tooltip: 'Enter',
                           onTap: _save,
@@ -766,15 +825,16 @@ class _BudgetSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final pays = data.paySchedules;
     final by = data.periodSchedule;
     String name(int id) {
       final a = data.accounts[id];
       if (a == null) return '';
       return a.deleted
-          ? '${a.name} (deleted)'
+          ? t.startDeletedAccount(a.name)
           : a.archived
-          ? '${a.name} (archived · no paydays until it’s back)'
+          ? t.setupNameArchived(a.name)
           : a.name;
     }
 
@@ -838,17 +898,17 @@ class _BudgetSettings extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Budget', style: onest(16, weight: 600)),
+          Text(t.setupBudget, style: onest(16, weight: 600)),
           const SizedBox(height: 14),
           line(
-            'Budget by',
+            t.setupBudgetBy,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(
                   children: [
                     choice(
-                      'Month',
+                      t.setupMonth,
                       by == null,
                       () => onBudgetBy(null),
                       'budget-by-month',
@@ -858,10 +918,15 @@ class _BudgetSettings extends StatelessWidget {
                     for (final p in pays)
                       choice(
                         pays.length == 1
-                            ? 'Pay period'
+                            ? t.setupPayPeriod
                             // The employer is how people tell two apart.
-                            : 'Pay period · '
-                                  '${p.payee ?? '${name(p.categoryId)} into ${name(p.accountId)}'}',
+                            : t.setupPayPeriodOf(
+                                p.payee ??
+                                    t.setupCategoryInto(
+                                      name(p.categoryId),
+                                      name(p.accountId),
+                                    ),
+                              ),
                         by?.id == p.id,
                         () => onBudgetBy(p),
                         'budget-by-${p.id}',
@@ -870,19 +935,17 @@ class _BudgetSettings extends StatelessWidget {
                 ),
                 Text(
                   pays.isEmpty
-                      ? 'Pay periods come from your pay: add it below to '
-                            'budget by them.'
+                      ? t.setupPeriodsFromPay
                       : by == null
-                      ? 'Each budget runs from the 1st to the month’s end.'
-                      : 'Each budget runs from one payday to the day before '
-                            'the next (${by.describe}).',
+                      ? t.setupRunsMonth
+                      : t.setupRunsPeriod(payWhen(t, by)),
                   style: onest(12.5, color: Mid.ink3),
                 ),
               ],
             ),
           ),
           line(
-            'Pay',
+            t.setupPay,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -893,15 +956,17 @@ class _BudgetSettings extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '${name(p.categoryId)} · '
-                            '${p.describeAmounts(money, sep: ' · ')} · '
-                            'into ${name(p.accountId)}',
+                            t.setupPayLine(
+                              name(p.categoryId),
+                              payAmounts(t, p, money, dotted: true),
+                              name(p.accountId),
+                            ),
                             style: onest(13.5),
                           ),
                         ),
                         BarButton(
                           key: ValueKey('edit-pay-${p.id}'),
-                          label: 'Edit',
+                          label: t.setupEdit,
                           onTap: () => onEdit(p),
                         ),
                       ],
@@ -914,15 +979,14 @@ class _BudgetSettings extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'You said you don’t have regular pay, so the '
-                            'forecast doesn’t ask for it.',
+                            t.setupSaidNoPay,
                             key: const ValueKey('settings-no-pay'),
                             style: onest(13.5, color: Mid.ink2),
                           ),
                         ),
                         BarButton(
                           key: const ValueKey('settings-ask-pay'),
-                          label: 'Ask me again',
+                          label: t.setupAskAgain,
                           onTap: onAskAgain,
                         ),
                       ],
@@ -932,7 +996,9 @@ class _BudgetSettings extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: BarButton(
                     key: const ValueKey('settings-add-pay'),
-                    label: pays.isEmpty ? 'Add your pay' : 'Add other pay',
+                    label: pays.isEmpty
+                        ? t.setupAddYourPay
+                        : t.setupAddOtherPay,
                     leading: Icon(Icons.add_rounded, size: 14, color: Mid.ink3),
                     onTap: onAdd,
                   ),

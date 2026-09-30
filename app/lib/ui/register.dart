@@ -4,7 +4,9 @@ import 'package:flutter/scheduler.dart';
 
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import 'data_words.dart';
 import 'entry_row.dart';
+import 'language.dart';
 import 'theme.dart';
 
 enum RegisterFilter { all, uncleared, cleared, reconciled, scheduled }
@@ -132,14 +134,15 @@ class RegisterPanel extends StatelessWidget {
   final DateTime today;
   final RegisterActions actions;
 
-  bool _matches(RegisterRow r) {
+  /// Matches what the row shows, in the language shown.
+  bool _matches(Words t, RegisterRow r) {
     final q = search.trim().toLowerCase();
     if (q.isEmpty) return true;
     final digits = q.replaceAll(RegExp(r'[,\s₮]'), '');
-    return r.payee.toLowerCase().contains(q) ||
+    return rowPayee(t, r).toLowerCase().contains(q) ||
         r.memo.toLowerCase().contains(q) ||
         (_accountOf(r)?.toLowerCase().contains(q) ?? false) ||
-        r.categoryLabel.toLowerCase().contains(q) ||
+        rowCategory(t, r).toLowerCase().contains(q) ||
         (digits.isNotEmpty &&
             RegExp(r'^\d+$').hasMatch(digits) &&
             formatWhole(r.amount).replaceAll(',', '').contains(digits));
@@ -149,6 +152,7 @@ class RegisterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final uncleared = posted
         .where((r) => r.cleared == Cleared.uncleared)
         .length;
@@ -165,9 +169,9 @@ class RegisterPanel extends StatelessWidget {
               ? status == null || r.cleared == status
               : r.cleared != Cleared.reconciled && !r.date.isAfter(through),
         )
-        .where(_matches)
+        .where((r) => _matches(t, r))
         .toList();
-    final visibleScheduled = scheduled.where(_matches).toList();
+    final visibleScheduled = scheduled.where((r) => _matches(t, r)).toList();
     final showScheduled = through == null && filter == RegisterFilter.scheduled;
     final showNext =
         through == null &&
@@ -224,7 +228,9 @@ class RegisterPanel extends StatelessWidget {
 
     final children = <Widget>[];
     if (showScheduled) {
-      if (visibleScheduled.isEmpty) children.add(_empty('Nothing scheduled'));
+      if (visibleScheduled.isEmpty) {
+        children.add(_empty(t.rowsNothingScheduled));
+      }
       for (final r in visibleScheduled) {
         children.add(
           keyed(
@@ -258,8 +264,8 @@ class RegisterPanel extends StatelessWidget {
                   extra: _accountOf(next) != null
                       ? null
                       : (visibleScheduled.length > 1
-                            ? 'next of ${visibleScheduled.length} scheduled'
-                            : 'scheduled'),
+                            ? t.rowsNextOfScheduled(visibleScheduled.length)
+                            : t.rowsScheduledOnly),
                   accountName: _accountOf(next),
                   onMore: () => actions.onFilter(RegisterFilter.scheduled),
                   bar: bar(next),
@@ -271,7 +277,9 @@ class RegisterPanel extends StatelessWidget {
       if (visiblePosted.isEmpty) {
         children.add(
           _empty(
-            search.isEmpty ? 'No transactions' : 'Nothing matches “$search”',
+            search.isEmpty
+                ? t.rowsNoTransactions
+                : t.rowsNothingMatches(search),
           ),
         );
       }
@@ -318,7 +326,7 @@ class RegisterPanel extends StatelessWidget {
                   Expanded(
                     child: through != null
                         ? Text(
-                            'Not reconciled, through ${fullDate(through)}',
+                            t.rowsNotReconciledThrough(sayFullDate(t, through)),
                             style: onest(13, color: Mid.ink2),
                           )
                         : _Tabs(
@@ -335,10 +343,10 @@ class RegisterPanel extends StatelessWidget {
           ),
           _HeaderRow(
             balance: allAccounts != null
-                ? 'Account'
+                ? t.rowsColumnAccount
                 : through != null
-                ? 'Cleared balance'
-                : (owed ? 'Owed' : 'Balance'),
+                ? t.rowsColumnClearedBalance
+                : (owed ? t.rowsColumnOwed : t.rowsColumnBalance),
           ),
           SmoothHeight(
             duration: MediaQuery.disableAnimationsOf(context)
@@ -397,22 +405,23 @@ class _Tabs extends StatelessWidget {
       RegisterFilter.reconciled => Cleared.reconciled,
       _ => null,
     };
+    final t = context.t;
     return Row(
       children: [
         _Tab(
-          'All',
+          t.rowsTabAll,
           null,
           filter == RegisterFilter.all,
           () => onFilter(RegisterFilter.all),
         ),
         _Tab(
-          'Uncleared',
+          t.rowsTabUncleared,
           uncleared,
           filter == RegisterFilter.uncleared,
           () => onFilter(RegisterFilter.uncleared),
         ),
         _Tab(
-          'Scheduled',
+          t.rowsTabScheduled,
           scheduled,
           filter == RegisterFilter.scheduled,
           () => onFilter(RegisterFilter.scheduled),
@@ -421,7 +430,7 @@ class _Tabs extends StatelessWidget {
         // tab only while it's the active filter, with a way back out.
         if (statusTab != null)
           _Tab(
-            StatusGlyph.label(statusTab),
+            clearedName(t, statusTab),
             null,
             true,
             () => onFilter(RegisterFilter.all),
@@ -501,10 +510,11 @@ class _RowActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final r = row;
     final locked = r.cleared == Cleared.reconciled;
     final edit = BarButton(
-      label: 'Edit',
+      label: t.rowsEdit,
       leading: Icon(Icons.edit_rounded, size: 13, color: Mid.ink3),
       onTap: () => actions.onEdit(r),
     );
@@ -513,7 +523,7 @@ class _RowActions extends StatelessWidget {
             categories: categories,
             onPicked: (c) => actions.onSetCategory(r, c),
             builder: (open, toggle) => BarButton(
-              label: 'Categorize',
+              label: t.rowsCategorize,
               trailing: Icons.keyboard_arrow_down_rounded,
               active: open,
               onTap: toggle,
@@ -522,12 +532,12 @@ class _RowActions extends StatelessWidget {
         : null;
     final clearButton = r.cleared == Cleared.uncleared
         ? BarButton(
-            label: 'Mark cleared',
+            label: t.rowsMarkCleared,
             leading: const StatusGlyph(Cleared.cleared),
             onTap: () => actions.onToggleCleared(r),
           )
         : BarButton(
-            label: 'Mark uncleared',
+            label: t.rowsMarkUncleared,
             leading: const StatusGlyph(Cleared.uncleared),
             onTap: () => actions.onToggleCleared(r),
           );
@@ -547,7 +557,7 @@ class _RowActions extends StatelessWidget {
             onPicked: (a) => actions.onMove(r, a),
             builder: (open, toggle) => BarButton(
               key: const ValueKey('move-to'),
-              label: 'Move to',
+              label: t.rowsMoveTo,
               trailing: Icons.keyboard_arrow_down_rounded,
               active: open,
               onTap: toggle,
@@ -575,8 +585,8 @@ class _RowActions extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 4, right: 12),
                 child: Text(
                   r.reconciledOn == null
-                      ? 'Reconciled · date and amount locked'
-                      : 'Reconciled on ${shortDate(r.reconciledOn!)} · date and amount locked',
+                      ? t.rowsReconciledLocked
+                      : t.rowsReconciledOnLocked(sayDate(t, r.reconciledOn!)),
                   style: onest(13, color: Mid.ink3),
                 ),
               ),
@@ -585,7 +595,7 @@ class _RowActions extends StatelessWidget {
               if (r.latestReconcile)
                 BarButton(
                   key: const ValueKey('unreconcile'),
-                  label: 'Undo this reconcile',
+                  label: t.rowsUndoThisReconcile,
                   onTap: () => actions.onUnreconcile(r),
                 ),
             ]
@@ -596,7 +606,7 @@ class _RowActions extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Text(
-                  'Reconciled in ${r.lockedIn} · date and amount locked',
+                  t.rowsReconciledInLocked(r.lockedIn!),
                   style: onest(13, color: Mid.ink3),
                 ),
               ),
@@ -606,7 +616,7 @@ class _RowActions extends StatelessWidget {
               if (!r.scheduled) clearButton,
               ?move,
               BarButton(
-                label: 'Delete',
+                label: t.rowsDelete,
                 color: Mid.coral,
                 onTap: () => actions.onDelete(r),
               ),
@@ -699,6 +709,7 @@ class _HeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final s = onest(12, color: Mid.ink3);
     return Padding(
       padding: Cols.outer,
@@ -711,19 +722,23 @@ class _HeaderRow extends StatelessWidget {
             const SizedBox(width: Cols.gap),
             SizedBox(
               width: Cols.date,
-              child: Text('Date', style: s),
+              child: Text(t.rowsColumnDate, style: s),
             ),
             const SizedBox(width: Cols.gap),
-            Expanded(child: Text('Payee', style: s)),
+            Expanded(child: Text(t.rowsColumnPayee, style: s)),
             const SizedBox(width: Cols.gap),
             SizedBox(
               width: Cols.category,
-              child: Text('Category', style: s),
+              child: Text(t.rowsColumnCategory, style: s),
             ),
             const SizedBox(width: Cols.gap),
             SizedBox(
               width: Cols.amount,
-              child: Text('Amount', style: s, textAlign: TextAlign.right),
+              child: Text(
+                t.rowsColumnAmount,
+                style: s,
+                textAlign: TextAlign.right,
+              ),
             ),
             const SizedBox(width: Cols.gap),
             SizedBox(
@@ -780,22 +795,21 @@ class _PostedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final selected = bar != null;
     final r = row;
     final memo = r.kind == RowKind.split && r.memo.isEmpty
         ? r.splitLines
-              .map((l) => '${l.name} ₮${formatWhole(l.amount)}')
+              .map((l) => '${splitLineName(t, l)} ₮${formatWhole(l.amount)}')
               .join(' · ')
         : r.memo;
-    final stale = staleNote(r, today);
-    final statusTip =
-        (r.clearedIn == null ? '' : 'In ${r.clearedIn}: ') +
-        switch (r.cleared) {
-          Cleared.uncleared => 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
-          Cleared.cleared =>
-            'Cleared — settled at the bank. Click to mark uncleared.',
-          Cleared.reconciled => 'Reconciled — matches a statement, so its date and amount are locked.',
-        };
+    final stale = staleNoteIn(t, r, today);
+    final statusTip = r.clearedIn == null
+        ? t.rowsStatusTip(r.cleared.name)
+        : t.rowsStatusTipIn(r.clearedIn!, r.cleared.name);
+    final (toBefore, toAfter) = r.amount < 0
+        ? (t.rowsTransferToBefore, t.rowsTransferToAfter)
+        : (t.rowsTransferFromBefore, t.rowsTransferFromAfter);
 
     return ValueListenableBuilder<Cleared?>(
       valueListenable: hoveredStatus,
@@ -875,21 +889,32 @@ class _PostedRow extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                if (r.kind == RowKind.transfer) ...[
+                                // The direction word goes before or after
+                                // the account's name, as the language has it.
+                                if (r.kind == RowKind.transfer &&
+                                    toBefore.isNotEmpty) ...[
                                   Text(
-                                    r.amount < 0 ? 'To' : 'From',
+                                    toBefore,
                                     style: onest(14.5, color: Mid.ink3),
                                   ),
                                   const SizedBox(width: 6),
                                 ],
                                 Flexible(
                                   child: Text(
-                                    r.payee,
+                                    rowPayee(t, r),
                                     style: onest(14.5, weight: 500),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                if (r.kind == RowKind.transfer &&
+                                    toAfter.isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    toAfter,
+                                    style: onest(14.5, color: Mid.ink3),
+                                  ),
+                                ],
                                 if (r.kind == RowKind.transfer ||
                                     r.kind == RowKind.split) ...[
                                   const SizedBox(width: 8),
@@ -957,7 +982,7 @@ class _PostedRow extends StatelessWidget {
                                     horizontal: 10,
                                   ),
                                   child: Text(
-                                    r.categoryLabel,
+                                    rowCategory(t, r),
                                     style: onest(12.5, color: Mid.ink3),
                                   ),
                                 ),
@@ -1053,12 +1078,15 @@ class _ScheduledRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final selected = bar != null;
     final r = row;
     final label = r.kind == RowKind.transfer
-        ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
-        : r.payee;
-    final overdue = overdueNote(r, today);
+        ? (r.amount < 0
+              ? t.rowsScheduledTransferTo(rowPayee(t, r))
+              : t.rowsScheduledTransferFrom(rowPayee(t, r)))
+        : rowPayee(t, r);
+    final overdue = overdueNoteIn(t, r, today);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Hoverable(
@@ -1087,8 +1115,7 @@ class _ScheduledRow extends StatelessWidget {
                       SizedBox(
                         width: Cols.status,
                         child: Tooltip(
-                          message:
-                              'Scheduled — not in any balance until confirmed',
+                          message: t.rowsScheduledTip,
                           child: Icon(
                             Icons.event_repeat_rounded,
                             size: 14,
@@ -1164,7 +1191,7 @@ class _ScheduledRow extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: Text(
-                            r.categoryLabel,
+                            rowCategory(t, r),
                             style: onest(12.5, color: Mid.ink3),
                           ),
                         ),
@@ -1209,7 +1236,7 @@ class _ScheduledRow extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'Confirm',
+                                t.rowsConfirm,
                                 style: onest(13, weight: 500, color: Mid.gold),
                               ),
                             ),

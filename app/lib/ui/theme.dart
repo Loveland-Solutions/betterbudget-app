@@ -263,12 +263,6 @@ class StatusGlyph extends StatelessWidget {
   final Cleared status;
   final Color? color;
 
-  static String label(Cleared s) => switch (s) {
-    Cleared.uncleared => 'Uncleared',
-    Cleared.cleared => 'Cleared',
-    Cleared.reconciled => 'Reconciled',
-  };
-
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 12,

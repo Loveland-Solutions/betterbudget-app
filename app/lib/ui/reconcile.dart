@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import 'data_words.dart';
 import 'entry_row.dart';
+import 'language.dart';
 import 'register.dart' show BarButton;
 import 'theme.dart';
 
@@ -81,6 +83,7 @@ class ReconcilePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session;
+    final t = context.t;
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): onCancel},
       child: ListenableBuilder(
@@ -126,13 +129,13 @@ class ReconcilePanel extends StatelessWidget {
                   children: [
                     const StatusGlyph(Cleared.reconciled),
                     const SizedBox(width: 8),
-                    Text('Reconcile', style: onest(14, weight: 600)),
+                    Text(t.rowsReconcileTitle, style: onest(14, weight: 600)),
                   ],
                 ),
               ),
               const SizedBox(height: 6),
               line(
-                'Statement date',
+                t.rowsStatementDate,
                 // Fixed heights: the header sizes itself from its contents'
                 // intrinsic heights, which text fields under-report.
                 SizedBox(
@@ -160,7 +163,7 @@ class ReconcilePanel extends StatelessWidget {
                       ),
               ),
               line(
-                s.owed ? 'Bank says you owe' : 'Bank balance',
+                s.owed ? t.rowsBankSaysYouOwe : t.rowsBankBalance,
                 SizedBox(
                   width: 170,
                   height: 30,
@@ -214,7 +217,7 @@ class ReconcilePanel extends StatelessWidget {
                     ? Text(
                         // Bank apps show an "available" balance too, which
                         // takes off pending holds and won't match.
-                        'Not the “available” balance',
+                        t.rowsNotAvailableBalance,
                         style: onest(12.5, color: Mid.ink3),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -222,7 +225,7 @@ class ReconcilePanel extends StatelessWidget {
                     : null,
               ),
               line(
-                'Cleared here',
+                t.rowsClearedHere,
                 Money(
                   bank(c.cleared),
                   size: 13,
@@ -237,7 +240,7 @@ class ReconcilePanel extends StatelessWidget {
                 color: Mid.ink3.withValues(alpha: 0.45),
               ),
               line(
-                'Off by',
+                t.rowsOffBy,
                 off == null
                     ? Text('—', style: onest(13, color: Mid.ink3))
                     : off == 0
@@ -247,7 +250,7 @@ class ReconcilePanel extends StatelessWidget {
                           StatusGlyph(Cleared.cleared, color: Mid.green),
                           const SizedBox(width: 6),
                           Text(
-                            'Matches',
+                            t.rowsMatches,
                             style: onest(13, weight: 500, color: Mid.green),
                           ),
                         ],
@@ -264,10 +267,10 @@ class ReconcilePanel extends StatelessWidget {
                     ? null
                     : Text(
                         switch ((s.owed, bank(off) < 0)) {
-                          (false, true) => 'Bank is lower',
-                          (false, false) => 'Bank is higher',
-                          (true, true) => 'Bank says you owe less',
-                          (true, false) => 'Bank says you owe more',
+                          (false, true) => t.rowsBankIsLower,
+                          (false, false) => t.rowsBankIsHigher,
+                          (true, true) => t.rowsBankSaysOweLess,
+                          (true, false) => t.rowsBankSaysOweMore,
                         },
                         style: onest(12.5, color: Mid.ink2),
                         maxLines: 1,
@@ -279,14 +282,23 @@ class ReconcilePanel extends StatelessWidget {
                   padding: const EdgeInsets.only(left: _label, top: 2),
                   child: Text(
                     switch (c.hint) {
-                      null => 'Clear the rows your bank shows',
+                      null => t.rowsHintClearRows,
                       final h => switch (h.cause) {
-                        ReconcileCause.notCleared =>
-                          '${h.payee} on ${shortDate(h.date)} is ${money(off.abs())} and isn’t cleared',
-                        ReconcileCause.datedAfter =>
-                          '${h.payee} is ${money(off.abs())} but dated ${shortDate(h.date)}, after the statement',
-                        ReconcileCause.clearedEarly =>
-                          '${h.payee} on ${shortDate(h.date)} is ${money(off.abs())} and cleared here · not at the bank yet?',
+                        ReconcileCause.notCleared => t.rowsHintNotCleared(
+                          rowPayee(t, h.row),
+                          sayDate(t, h.date),
+                          money(off.abs()),
+                        ),
+                        ReconcileCause.datedAfter => t.rowsHintDatedAfter(
+                          rowPayee(t, h.row),
+                          sayDate(t, h.date),
+                          money(off.abs()),
+                        ),
+                        ReconcileCause.clearedEarly => t.rowsHintClearedEarly(
+                          rowPayee(t, h.row),
+                          sayDate(t, h.date),
+                          money(off.abs()),
+                        ),
                       },
                     },
                     key: const ValueKey('reconcile-hint'),
@@ -302,7 +314,7 @@ class ReconcilePanel extends StatelessWidget {
                   children: [
                     BarButton(
                       key: const ValueKey('reconcile-cancel'),
-                      label: 'Cancel',
+                      label: t.rowsCancel,
                       onTap: onCancel,
                     ),
                     // Not matching: the way out is a visible, named
@@ -311,15 +323,16 @@ class ReconcilePanel extends StatelessWidget {
                     if (canAdjust)
                       BarButton(
                         key: const ValueKey('reconcile-adjust'),
-                        label:
-                            'Add ${money(bank(off).abs())} adjustment and lock',
+                        label: t.rowsAddAdjustmentAndLock(
+                          money(bank(off).abs()),
+                        ),
                         onTap: onAdjust,
                       )
                     else
                       _LockButton(
                         label: c.toLock == 0
-                            ? 'Mark reconciled'
-                            : 'Lock ${c.toLock} ${c.toLock == 1 ? 'transaction' : 'transactions'}',
+                            ? t.rowsMarkReconciled
+                            : t.rowsLockTransactions(c.toLock),
                         onTap: ready ? onLock : null,
                       ),
                   ],

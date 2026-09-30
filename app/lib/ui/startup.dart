@@ -12,6 +12,8 @@ import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../domain/ledger.dart' show dateOnly;
+import 'data_words.dart';
+import 'language.dart';
 import 'ledger_screen.dart';
 import 'recovery_key_screen.dart';
 import 'theme.dart';
@@ -28,9 +30,13 @@ sealed class _Step {}
 
 class _Loading extends _Step {}
 
+/// Why the entry screen asks for a key. Worded at build time, under the
+/// MaterialApp that knows the language.
+enum _EntryWhy { keptKeyWrong, ledgerHere, noLedger }
+
 class _Entry extends _Step {
-  _Entry(this.message, {required this.ledgerHere});
-  final String message;
+  _Entry(this.why, {required this.ledgerHere});
+  final _EntryWhy why;
   final bool ledgerHere;
 }
 
@@ -41,16 +47,18 @@ class _Setup extends _Step {
 }
 
 class _Running extends _Step {
-  _Running(this.opened, this.dataKey, {this.notice, this.newDevice = false});
+  _Running(this.opened, this.dataKey, {this.newDevice = false});
   final OpenedLedger opened;
   final Uint8List dataKey;
-  final String? notice;
   final bool newDevice;
 }
 
+/// A launch that couldn't finish, with what went wrong: [keyNotKept] (the
+/// key couldn't be stored, nothing encrypted) or opening failed.
 class _Failed extends _Step {
-  _Failed(this.message);
-  final String message;
+  _Failed(this.error, {this.keyNotKept = false});
+  final Object error;
+  final bool keyNotKept;
 }
 
 class BetterBudgetStartup extends StatefulWidget {
@@ -104,13 +112,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
         await widget.store.forgetStoredRecoveryKey();
         _keySaved = await widget.store.readKeySaved() ?? false;
         if (encrypted && !keyOpens(_file, dataKey)) {
-          _go(
-            _Entry(
-              'The key kept on this computer doesn’t open the ledger here. '
-              'Type the ledger’s recovery key to open it.',
-              ledgerHere: true,
-            ),
-          );
+          _go(_Entry(_EntryWhy.keptKeyWrong, ledgerHere: true));
           return;
         }
         await _open(dataKey);
@@ -120,42 +122,42 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
           // A ledger from before encryption has nothing to recover.
           _go(_Setup(RecoveryKey.generate(), convertingExisting: true));
         } else {
-          _go(_Entry(_entryMessage(encrypted), ledgerHere: encrypted));
+          _go(
+            _Entry(
+              encrypted ? _EntryWhy.ledgerHere : _EntryWhy.noLedger,
+              ledgerHere: encrypted,
+            ),
+          );
         }
     }
   }
 
-  String _entryMessage(bool ledgerHere) {
-    final everyLaunch = _canPersist
-        ? ''
-        : 'This computer has no keychain BetterBudget can use, so it asks for '
-              'your recovery key each time it opens. ';
-    return ledgerHere
-        ? '${everyLaunch}There’s a ledger on this computer. Type its recovery '
-              'key to open it.'
-        : '${everyLaunch}This computer doesn’t have a ledger yet. If you’ve '
-              'used BetterBudget before, type your recovery key, then open a '
-              'backup you saved with Back up to….';
-  }
+  String _entryMessage(Words t, _EntryWhy why) => switch (why) {
+    _EntryWhy.keptKeyWrong => t.startEntryKeptKeyWrong,
+    // Without a keychain it's asked for at every launch, and says why.
+    _EntryWhy.ledgerHere =>
+      _canPersist ? t.startEntryLedgerHere : t.startEntryLedgerHereEveryLaunch,
+    _EntryWhy.noLedger =>
+      _canPersist ? t.startEntryNoLedger : t.startEntryNoLedgerEveryLaunch,
+  };
 
   void _go(_Step step) {
     if (mounted) setState(() => _step = step);
   }
 
   /// A typed key: used only if it opens the ledger here (when there is one).
-  Future<String?> _onKey(RecoveryKey recovery) async {
+  /// Says why not in [t]'s words.
+  Future<String?> _onKey(Words t, RecoveryKey recovery) async {
     final key = deriveDataKey(recovery);
     final here = await _encryptedLedgerHere();
-    if (here && !keyOpens(_file, key)) {
-      return 'That key doesn’t open the ledger on this computer';
-    }
+    if (here && !keyOpens(_file, key)) return t.startKeyWrongHere;
     try {
       if (_canPersist) {
         await widget.store.writeDataKey(key);
         await widget.store.writeKeySaved(true);
       }
     } catch (e) {
-      return 'Couldn’t keep the key on this computer · ${e.runtimeType}';
+      return t.startCouldntKeepKey('${e.runtimeType}');
     }
     _keySaved = true;
     await _open(key, newDevice: !_file.existsSync());
@@ -190,12 +192,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
         await widget.store.writeKeySaved(kept);
       }
     } catch (e) {
-      _go(
-        _Failed(
-          'Couldn’t keep the key on this computer · ${e.runtimeType}. '
-          'Nothing was encrypted.',
-        ),
-      );
+      _go(_Failed(e, keyNotKept: true));
       return;
     }
     _keySaved = kept;
@@ -222,17 +219,10 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       }
     } catch (e) {
       debugPrint('Opening the ledger failed: $e');
-      _go(_Failed('Couldn’t open the ledger · $e'));
+      _go(_Failed(e));
       return;
     }
-    _go(
-      _Running(
-        opened,
-        key,
-        notice: _notice(opened.report),
-        newDevice: newDevice,
-      ),
-    );
+    _go(_Running(opened, key, newDevice: newDevice));
   }
 
   static Future<bool> _savedInLedger(AppDatabase db) async =>
@@ -244,19 +234,25 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
               .get())
           .any((r) => r.read<String>('value') == '1');
 
-  static String? _notice(ConversionReport r) {
-    String copies(int n) => n == 1 ? '1 old copy' : '$n old copies';
+  static String? _notice(Words t, ConversionReport r) {
     final failed = r.failed;
     if (failed.isNotEmpty) {
       final names = failed
           .map((f) => f.path.split(Platform.pathSeparator).last)
           .join(', ');
-      return '${copies(failed.length)} couldn’t be encrypted and '
-          '${failed.length == 1 ? 'is' : 'are'} still readable: $names';
+      return t.startCopiesFailed(failed.length, names);
     }
-    return r.converted > 0
-        ? 'Encrypted ${copies(r.converted)} of your ledger'
-        : null;
+    return r.converted > 0 ? t.startCopiesEncrypted(r.converted) : null;
+  }
+
+  static String _failure(Words t, _Failed f) {
+    if (f.keyNotKept) {
+      return t.startCouldntKeepKeyNothingEncrypted('${f.error.runtimeType}');
+    }
+    final e = f.error;
+    return t.startCouldntOpen(
+      e is CipherException ? cipherProblem(t, e) : '$e',
+    );
   }
 
   @override
@@ -266,55 +262,56 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     // Every other color switches in one frame; the page mustn't fade behind.
     themeAnimationDuration: Duration.zero,
     theme: appTheme(),
-    home: switch (_step) {
-      _Loading() => Scaffold(backgroundColor: Mid.ground),
-      _Entry(:final message, :final ledgerHere) => RecoveryKeyEntryScreen(
-        key: ValueKey(message),
-        message: message,
-        ledgerHere: ledgerHere,
-        setAsideName: _setAsideName,
-        onKey: _onKey,
-        onSetUpNew: _onSetUpNew,
-      ),
-      _Setup(:final key, :final convertingExisting) => RecoveryKeySetupScreen(
-        recoveryKey: key,
-        convertingExisting: convertingExisting,
-        clock: widget.clock,
-        onContinue: (kept) => _onSetupDone(key, kept),
-      ),
-      _Running(
-        :final opened,
-        :final dataKey,
-        :final notice,
-        :final newDevice,
-      ) =>
-        LedgerScreen(
-          db: opened.db,
-          backups: opened.backups,
-          clock: widget.clock,
-          encrypted: true,
-          recoveryKeySaved: _keySaved,
-          checkRecoveryKey: (k) async => sameKey(deriveDataKey(k), dataKey),
-          onRecoveryKeyChecked: () {
-            _keySaved = true;
-            if (_canPersist) widget.store.writeKeySaved(true);
-          },
-          startupNotice: notice,
-          offerRestore: newDevice,
-        ),
-      _Failed(:final message) => Scaffold(
-        backgroundColor: Mid.ground,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              message,
-              key: const ValueKey('startup-failed'),
-              style: onest(14, color: Mid.coral),
-            ),
+    locale: LanguageScope.maybeOf(context)?.locale,
+    supportedLocales: supportedLocales,
+    localizationsDelegates: Words.localizationsDelegates,
+    localeListResolutionCallback: (preferred, _) => resolveLocale(preferred),
+    // Under the MaterialApp, where the chosen language is known.
+    home: Builder(builder: (context) => _screen(context.t)),
+  );
+
+  Widget _screen(Words t) => switch (_step) {
+    _Loading() => Scaffold(backgroundColor: Mid.ground),
+    _Entry(:final why, :final ledgerHere) => RecoveryKeyEntryScreen(
+      key: ValueKey(why),
+      message: _entryMessage(t, why),
+      ledgerHere: ledgerHere,
+      setAsideName: _setAsideName,
+      onKey: (k) => _onKey(t, k),
+      onSetUpNew: _onSetUpNew,
+    ),
+    _Setup(:final key, :final convertingExisting) => RecoveryKeySetupScreen(
+      recoveryKey: key,
+      convertingExisting: convertingExisting,
+      clock: widget.clock,
+      onContinue: (kept) => _onSetupDone(key, kept),
+    ),
+    _Running(:final opened, :final dataKey, :final newDevice) => LedgerScreen(
+      db: opened.db,
+      backups: opened.backups,
+      clock: widget.clock,
+      encrypted: true,
+      recoveryKeySaved: _keySaved,
+      checkRecoveryKey: (k) async => sameKey(deriveDataKey(k), dataKey),
+      onRecoveryKeyChecked: () {
+        _keySaved = true;
+        if (_canPersist) widget.store.writeKeySaved(true);
+      },
+      startupNotice: _notice(t, opened.report),
+      offerRestore: newDevice,
+    ),
+    final _Failed f => Scaffold(
+      backgroundColor: Mid.ground,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            _failure(t, f),
+            key: const ValueKey('startup-failed'),
+            style: onest(14, color: Mid.coral),
           ),
         ),
       ),
-    },
-  );
+    ),
+  };
 }

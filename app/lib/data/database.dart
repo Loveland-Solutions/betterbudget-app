@@ -136,11 +136,49 @@ class UnbalancedTransactionException implements Exception {
   String toString() => 'Transaction $transactionId sums to $sum, not 0';
 }
 
-class LockedException implements Exception {
-  LockedException(this.message);
-  final String message;
+/// Why a write was refused, as a code the UI words in the chosen language;
+/// [english] is the plain message, kept for logs and tests.
+enum DbProblem {
+  reconciled('Reconciled · the date and amount match a bank statement'),
+  ownAccount('It can’t move money to its own account'),
+  futureConfirm('It can’t be confirmed on a future date'),
+  openingStays('An opening balance or adjustment stays put'),
+  alreadyThere('It already moves money in that account'),
+  changedSince('It changed since'),
+  stillHasRows('It still has rows; pick where they go'),
+  notSingleCategory('Not a single-category transaction'),
+  notInAccount('Not in this account'),
+  notAnAccount('Not an account'),
+  splitNotEditable('Split lines can’t be edited yet'),
+  payIsIn('Pay is money in'),
+  notCategoryKind('Not a category kind'),
+  notCategory('Not a category'),
+  sameCategory('Same category'),
+  accountDeleted('That account was deleted'),
+  neverReconciled('Never reconciled'),
+  statementAfterToday('The statement can’t be after today'),
+
+  /// With the last statement's date as the exception's `through`, and in
+  /// English, `09.30`, as its detail.
+  alreadyReconciledThrough('Already reconciled through');
+
+  const DbProblem(this.english);
+  final String english;
+}
+
+/// A refused write: its [problem], and for some a [detail] such as a date.
+abstract class DbException implements Exception {
+  DbException(this.problem, [this.detail]);
+  final DbProblem problem;
+  final String? detail;
+  String get message =>
+      detail == null ? problem.english : '${problem.english} $detail';
   @override
   String toString() => message;
+}
+
+class LockedException extends DbException {
+  LockedException(super.problem);
 }
 
 /// The cleared balance doesn't match the statement; [off] is statement
@@ -154,11 +192,17 @@ class ReconcileMismatchException implements Exception {
 
 /// A statement date the reconcile can't take: after today, or before the
 /// account's last statement (reconciles unwind newest first).
-class ReconcileDateException implements Exception {
-  ReconcileDateException(this.message);
-  final String message;
-  @override
-  String toString() => message;
+class ReconcileDateException extends DbException {
+  ReconcileDateException(DbProblem problem, {this.through})
+    : super(
+        problem,
+        through == null
+            ? null
+            : dateKey(through).substring(5).replaceAll('-', '.'),
+      );
+
+  /// The account's last statement date, when the date is before it.
+  final DateTime? through;
 }
 
 /// One reconcile's statement.
@@ -255,11 +299,8 @@ class DeletedAccount {
   final List<int> transactionIds;
 }
 
-class NotFoundException implements Exception {
-  NotFoundException(this.message);
-  final String message;
-  @override
-  String toString() => message;
+class NotFoundException extends DbException {
+  NotFoundException(super.problem);
 }
 
 /// `20260917-153000`, for backup file names.
@@ -661,7 +702,7 @@ class AppDatabase extends _$AppDatabase {
       await _assertLive(accountId);
       await _assertLive(counterAccountId);
       if (counterAccountId == accountId) {
-        throw LockedException('It can’t move money to its own account');
+        throw LockedException(DbProblem.ownAccount);
       }
       return postTransaction(
         date: date,
@@ -692,7 +733,7 @@ class AppDatabase extends _$AppDatabase {
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final others = rows.where((e) => e.accountId != accountId).toList();
       if (rows.length != 2 || others.length != 1) {
-        throw NotFoundException('Not a single-category transaction');
+        throw NotFoundException(DbProblem.notSingleCategory);
       }
       await (update(entries)..where((e) => e.id.equals(others.single.id)))
           .write(EntriesCompanion(accountId: Value(categoryId)));
@@ -827,9 +868,6 @@ class AppDatabase extends _$AppDatabase {
 
   static const _reconcilable = [AccountType.asset, AccountType.liability];
 
-  static const _lockedMessage =
-      'Reconciled · the date and amount match a bank statement';
-
   Future<Map<int, AccountType>> _accountTypes() async => {
     for (final a in await select(accounts).get()) a.id: a.type,
   };
@@ -875,7 +913,7 @@ class AppDatabase extends _$AppDatabase {
           now.header.scheduled != s.header.scheduled ||
           now.header.deletedAt != s.header.deletedAt ||
           !same(s.entries, now.entries)) {
-        throw LockedException(_lockedMessage);
+        throw LockedException(DbProblem.reconciled);
       }
     }
     await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
@@ -929,7 +967,7 @@ class AppDatabase extends _$AppDatabase {
   }) {
     return transaction(() async {
       if (confirm && dateOnly(date).isAfter(dateOnly(today))) {
-        throw LockedException('It can’t be confirmed on a future date');
+        throw LockedException(DbProblem.futureConfirm);
       }
       final header = await (select(
         transactions,
@@ -938,7 +976,7 @@ class AppDatabase extends _$AppDatabase {
         entries,
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
-      if (mine == null) throw NotFoundException('Not in this account');
+      if (mine == null) throw NotFoundException(DbProblem.notInAccount);
       // A reconciled side locks the date, amounts and accounts of the whole
       // transaction, as delete does: a transfer edited from its other account
       // would change the locked side. Payee, memo and category stay editable.
@@ -954,7 +992,7 @@ class AppDatabase extends _$AppDatabase {
         if (dateKey(date) != header.date ||
             (amount != null && amount != mine.amountMinor) ||
             movesAccount) {
-          throw LockedException(_lockedMessage);
+          throw LockedException(DbProblem.reconciled);
         }
       }
 
@@ -975,12 +1013,12 @@ class AppDatabase extends _$AppDatabase {
 
       if (counterAccountId != null) await _assertLive(counterAccountId);
       if (counterAccountId == accountId) {
-        throw LockedException('It can’t move money to its own account');
+        throw LockedException(DbProblem.ownAccount);
       }
       if (amount != null || counterAccountId != null) {
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {
-          throw NotFoundException('Split lines can’t be edited yet');
+          throw NotFoundException(DbProblem.splitNotEditable);
         }
         final newAmount = amount ?? mine.amountMinor;
         await (update(entries)..where((e) => e.id.equals(mine.id))).write(
@@ -1048,22 +1086,22 @@ class AppDatabase extends _$AppDatabase {
     )..where((a) => a.id.equals(toAccountId))).getSingleOrNull();
     if (!_reconcilable.contains(types[toAccountId]) ||
         target?.deletedAt != null) {
-      throw NotFoundException('Not an account');
+      throw NotFoundException(DbProblem.notAnAccount);
     }
     if ((await _reconciledAmong([transactionId])).isNotEmpty) {
-      throw LockedException(_lockedMessage);
+      throw LockedException(DbProblem.reconciled);
     }
     final rows = await (select(
       entries,
     )..where((e) => e.transactionId.equals(transactionId))).get();
     final mine = rows.where((e) => e.accountId == fromAccountId).toList();
-    if (mine.length != 1) throw NotFoundException('Not in this account');
+    if (mine.length != 1) throw NotFoundException(DbProblem.notInAccount);
     // An opening balance or a reconcile adjustment belongs to its account.
     if (rows.any((e) => types[e.accountId] == AccountType.equity)) {
-      throw LockedException('An opening balance or adjustment stays put');
+      throw LockedException(DbProblem.openingStays);
     }
     if (rows.any((e) => e.accountId == toAccountId)) {
-      throw LockedException('It already moves money in that account');
+      throw LockedException(DbProblem.alreadyThere);
     }
     final record = MoveRecord(
       entryId: mine.single.id,
@@ -1106,7 +1144,7 @@ class AppDatabase extends _$AppDatabase {
     if (e == null ||
         e.accountId != expectAt ||
         (await _reconciledAmong([m.transactionId])).isNotEmpty) {
-      throw LockedException('It changed since');
+      throw LockedException(DbProblem.changedSince);
     }
     await _setEntryAccount(m.entryId, moveTo, cleared);
     await _touch(m.transactionId);
@@ -1121,7 +1159,7 @@ class AppDatabase extends _$AppDatabase {
   /// Reconciled transactions are locked and throw [LockedException].
   Future<void> softDelete(int transactionId) async {
     if (await softDeleteMany([transactionId]) case []) {
-      throw LockedException(_lockedMessage);
+      throw LockedException(DbProblem.reconciled);
     }
   }
 
@@ -1152,7 +1190,7 @@ class AppDatabase extends _$AppDatabase {
 
   // ---------- accounts ----------
 
-  static const openingBalancesName = 'Opening balances';
+  static const openingBalancesName = openingBalancesAccountName;
 
   /// The sidebar group a new or changed account goes in.
   static String groupFor(AccountType type) =>
@@ -1397,7 +1435,7 @@ class AppDatabase extends _$AppDatabase {
     await _assertCategory(categoryId);
     await _assertLive(accountId);
     if (amount <= 0 || (amount2 != null && amount2 <= 0)) {
-      throw NotFoundException('Pay is money in');
+      throw NotFoundException(DbProblem.payIsIn);
     }
     // What it was before anything here is written, for undo.
     final before = id == null
@@ -1736,7 +1774,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> setCategoryType(int categoryId, AccountType type) =>
       transaction(() async {
         if (type != AccountType.income && type != AccountType.expense) {
-          throw NotFoundException('Not a category kind');
+          throw NotFoundException(DbProblem.notCategoryKind);
         }
         await _assertCategory(categoryId);
         await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
@@ -1753,7 +1791,7 @@ class AppDatabase extends _$AppDatabase {
     if (a == null ||
         a.deletedAt != null ||
         (a.type != AccountType.income && a.type != AccountType.expense)) {
-      throw NotFoundException('Not a category');
+      throw NotFoundException(DbProblem.notCategory);
     }
   }
 
@@ -1775,7 +1813,9 @@ class AppDatabase extends _$AppDatabase {
         await _assertCategory(categoryId);
         final moved = <int>[];
         if (into != null) {
-          if (into == categoryId) throw NotFoundException('Same category');
+          if (into == categoryId) {
+            throw NotFoundException(DbProblem.sameCategory);
+          }
           await _assertCategory(into);
           moved.addAll(
             await (selectOnly(entries)
@@ -1797,7 +1837,7 @@ class AppDatabase extends _$AppDatabase {
             await _touch(t);
           }
         } else if (await categoryEntryCount(categoryId) > 0) {
-          throw LockedException('It still has rows; pick where they go');
+          throw LockedException(DbProblem.stillHasRows);
         }
         await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
           AccountsCompanion(deletedAt: Value(_now)),
@@ -1840,7 +1880,7 @@ class AppDatabase extends _$AppDatabase {
       accounts,
     )..where((a) => a.id.equals(accountId))).getSingleOrNull();
     if (a == null || a.deletedAt != null) {
-      throw NotFoundException('That account was deleted');
+      throw NotFoundException(DbProblem.accountDeleted);
     }
   }
 
@@ -1904,7 +1944,7 @@ class AppDatabase extends _$AppDatabase {
   }) => transaction(() async {
     final through = dateKey(dateOnly(statementDate));
     if (dateOnly(statementDate).isAfter(dateOnly(today))) {
-      throw ReconcileDateException('The statement can’t be after today');
+      throw ReconcileDateException(DbProblem.statementAfterToday);
     }
     final last =
         await (selectOnly(reconciliations)
@@ -1914,7 +1954,8 @@ class AppDatabase extends _$AppDatabase {
             .getSingle();
     if (last != null && through.compareTo(last) < 0) {
       throw ReconcileDateException(
-        'Already reconciled through ${last.substring(5).replaceAll('-', '.')}',
+        DbProblem.alreadyReconciledThrough,
+        through: parseDateKey(last),
       );
     }
     final rows = await customSelect(
@@ -1984,8 +2025,8 @@ class AppDatabase extends _$AppDatabase {
     return record;
   });
 
-  static const adjustmentPayee = 'Reconcile adjustment';
-  static const adjustmentsAccountName = 'Balance adjustments';
+  static const adjustmentPayee = reconcileAdjustmentPayee;
+  static const adjustmentsAccountName = balanceAdjustmentsName;
 
   /// Equity, like opening balances: an adjustment isn't spending or income.
   Future<int> _adjustmentsAccount() => _equityAccount(adjustmentsAccountName);
@@ -2018,7 +2059,9 @@ class AppDatabase extends _$AppDatabase {
                     (r) => OrderingTerm.desc(r.id),
                   ]))
                 .get();
-        if (newestFirst.isEmpty) throw NotFoundException('Never reconciled');
+        if (newestFirst.isEmpty) {
+          throw NotFoundException(DbProblem.neverReconciled);
+        }
         final statements = <Statement>[];
         var ids = <int>[];
         for (final r in newestFirst) {

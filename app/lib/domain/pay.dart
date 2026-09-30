@@ -223,7 +223,8 @@ class PaySchedule {
 
   /// How much and when, with [money] formatting an amount: "₮2,100,000 or
   /// more on the 10th and 25th", or split, "₮500,000 on the 10th and
-  /// ₮1,600,000 on the 25th" ("at least" in front when it varies).
+  /// ₮1,600,000 on the 25th" ("at least" in front when it varies). English;
+  /// `payAmounts` in ui/data_words.dart words it for the screen.
   String describeAmounts(String Function(int) money, {String sep = ' '}) {
     if (!split) {
       return '${money(amount)}${varies ? ' or more' : ''}$sep$describe';
@@ -234,7 +235,8 @@ class PaySchedule {
         '${_ordinal(d[1].day)}';
   }
 
-  /// "monthly on the 25th", "on the 10th and 25th", "every 2 weeks".
+  /// "monthly on the 25th", "on the 10th and 25th", "every 2 weeks". English;
+  /// `payWhen` in ui/data_words.dart words it for the screen.
   String get describe => switch (rule) {
     PayRule.monthly => 'monthly on the ${_ordinal(day1)}',
     PayRule.twiceMonthly =>
@@ -260,7 +262,9 @@ class PaySchedule {
 }
 
 /// What the budget runs by: calendar months, or a pay schedule's periods.
-/// Today it decides the span a category's rows open with.
+/// Today it decides the span a category's rows open with. [label] is in
+/// English, [payPeriodLabel] or [monthLabel]; `periodName` in
+/// ui/data_words.dart words it for the screen.
 ({DateTime start, DateTime end, String label}) budgetPeriod(
   DateTime today,
   PaySchedule? by,
@@ -268,11 +272,15 @@ class PaySchedule {
   final t = dateOnly(today);
   final period = by?.periodOf(t);
   if (period != null) {
-    return (start: period.start, end: period.end, label: 'this pay period');
+    return (start: period.start, end: period.end, label: payPeriodLabel);
   }
   return (
     start: DateTime(t.year, t.month),
     end: DateTime(t.year, t.month + 1, 0),
-    label: 'this month',
+    label: monthLabel,
   );
 }
+
+/// [budgetPeriod]'s labels, in English.
+const payPeriodLabel = 'this pay period';
+const monthLabel = 'this month';

@@ -12,8 +12,14 @@ import 'keys.dart';
 /// A SQLite error with its statement and arguments left out: those can
 /// carry the key (`PRAGMA key`, `ATTACH … KEY ?`), and errors get logged.
 class CipherException implements Exception {
-  CipherException(this.message);
+  CipherException(this.message, {this.uncheckedCopyOf});
+
+  /// Technical, in English: shown only after a plain-language lead-in.
   final String message;
+
+  /// Set when the encrypted copy of this file (its name) failed the check
+  /// after converting, so the UI can say so in the user's language.
+  final String? uncheckedCopyOf;
   @override
   String toString() => message;
 }
@@ -120,6 +126,7 @@ Future<void> convertPlainFileInPlace(File file, Uint8List key) async {
       if (ok != 'ok' || n != tables) {
         throw CipherException(
           'The encrypted copy of ${_name(file)} didn’t check out',
+          uncheckedCopyOf: _name(file),
         );
       }
     } finally {

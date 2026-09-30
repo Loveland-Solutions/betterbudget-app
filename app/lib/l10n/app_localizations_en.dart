@@ -1,0 +1,2930 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class WordsEn extends Words {
+  WordsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get languageTitle => 'Language';
+
+  @override
+  String get languageSameAsMac => 'Same as this Mac';
+
+  @override
+  String get languageSameAsWindows => 'Same as Windows';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageMongolian => 'Монгол';
+
+  @override
+  String languageShowingNow(String language, String system) {
+    return 'Showing $language now · changes when $system does';
+  }
+
+  @override
+  String languageUndoLabel(String choice) {
+    return 'Language: $choice';
+  }
+
+  @override
+  String get theMac => 'the Mac';
+
+  @override
+  String get windowsName => 'Windows';
+
+  @override
+  String dayMonth(String month, String day, int monthNumber, int dayNumber) {
+    return '$month.$day';
+  }
+
+  @override
+  String dayMonthYear(
+    String year,
+    String month,
+    String day,
+    int monthNumber,
+    int dayNumber,
+  ) {
+    return '$year.$month.$day';
+  }
+
+  @override
+  String calendarMonth(String month, String year, int monthNumber) {
+    return '$month $year';
+  }
+
+  @override
+  String get monthNames =>
+      'January|February|March|April|May|June|July|August|September|October|November|December';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get ledgerOfferRestoreTitle => 'Open your newest backup?';
+
+  @override
+  String get ledgerOfferRestoreBody =>
+      'Your recovery key is set up on this computer. If you saved a copy with Back up to… on another drive, open the newest one to bring your ledger here.';
+
+  @override
+  String get ledgerStartEmpty => 'Start empty';
+
+  @override
+  String get ledgerOpenABackup => 'Open a backup…';
+
+  @override
+  String ledgerAdded(String name) {
+    return '$name added';
+  }
+
+  @override
+  String ledgerAddedTo(String name, String account) {
+    return '$name added to $account';
+  }
+
+  @override
+  String ledgerNewCategory(String name) {
+    return 'new category “$name”';
+  }
+
+  @override
+  String ledgerNewIncomeCategory(String name) {
+    return 'new income category “$name”';
+  }
+
+  @override
+  String ledgerScheduledFor(String date) {
+    return 'scheduled for $date';
+  }
+
+  @override
+  String get ledgerNotInThisView => 'not in this view';
+
+  @override
+  String ledgerScheduledToast(String date) {
+    return 'Scheduled for $date · not in balances until confirmed';
+  }
+
+  @override
+  String ledgerCouldntSave(String error) {
+    return 'Couldn’t save: $error';
+  }
+
+  @override
+  String ledgerUndoNewerFirst(String shortcut) {
+    return 'Undo the newer changes first · $shortcut';
+  }
+
+  @override
+  String get ledgerNothingToUndo => 'Nothing to undo';
+
+  @override
+  String get ledgerNothingToRedo => 'Nothing to redo';
+
+  @override
+  String ledgerCouldntUndo(String action) {
+    return 'Couldn’t undo “$action” · it changed since';
+  }
+
+  @override
+  String ledgerCouldntRedo(String action) {
+    return 'Couldn’t redo “$action” · it changed since';
+  }
+
+  @override
+  String ledgerUndone(String action) {
+    return 'Undone · $action';
+  }
+
+  @override
+  String ledgerRedone(String action) {
+    return 'Redone · $action';
+  }
+
+  @override
+  String get ledgerUndo => 'Undo';
+
+  @override
+  String get ledgerSaveOrDiscard =>
+      'Save with Enter, or press Esc to discard your changes';
+
+  @override
+  String get ledgerFinishReconcileFirst =>
+      'Finish or cancel the reconcile first';
+
+  @override
+  String ledgerConfirmed(String name) {
+    return '$name confirmed';
+  }
+
+  @override
+  String ledgerConfirmedAmount(String when, String name, String amount) {
+    String _temp0 = intl.Intl.selectLogic(when, {
+      'early': '$name confirmed early · $amount',
+      'other': '$name confirmed · $amount',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerConfirmedAmountPlanned(
+    String when,
+    String name,
+    String amount,
+    String planned,
+  ) {
+    String _temp0 = intl.Intl.selectLogic(when, {
+      'early': '$name confirmed early · $amount, planned $planned',
+      'other': '$name confirmed · $amount, planned $planned',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerStillOwed(String amount, String date) {
+    return '$amount still owed, due $date';
+  }
+
+  @override
+  String ledgerPostedToday(String date) {
+    return 'posted today, $date';
+  }
+
+  @override
+  String ledgerPostedOn(String date) {
+    return 'posted $date';
+  }
+
+  @override
+  String ledgerUnderEstimate(String amount) {
+    return '$amount under the estimate · lower it on the Budget screen';
+  }
+
+  @override
+  String ledgerEdited(String name) {
+    return '$name edited';
+  }
+
+  @override
+  String ledgerMovedToFuture(String date) {
+    return 'Moved to $date · now scheduled, out of balances until confirmed';
+  }
+
+  @override
+  String get ledgerChangesSaved => 'Changes saved';
+
+  @override
+  String ledgerTypeADate(String example) {
+    return 'Type a date like $example';
+  }
+
+  @override
+  String get ledgerStatementAfterToday => 'The statement can’t be after today';
+
+  @override
+  String ledgerAlreadyReconciled(String date) {
+    return 'Already reconciled through $date';
+  }
+
+  @override
+  String get ledgerClearedRowsChanged =>
+      'The cleared rows changed · check the difference again';
+
+  @override
+  String ledgerReconciledThrough(String account, String date) {
+    return '$account reconciled through $date';
+  }
+
+  @override
+  String ledgerLocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count locked',
+      one: '1 locked',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerAdjustmentAdded(String amount) {
+    return '$amount adjustment added';
+  }
+
+  @override
+  String ledgerReconcileUndone(String date) {
+    return 'Reconcile of $date undone';
+  }
+
+  @override
+  String ledgerBackToCleared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows back to cleared',
+      one: '1 row back to cleared',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerMarkedCleared(String name) {
+    return '$name marked cleared';
+  }
+
+  @override
+  String ledgerMarkedUncleared(String name) {
+    return '$name marked uncleared';
+  }
+
+  @override
+  String ledgerCantDeleteTransfer(String account) {
+    return 'Can’t delete · this transfer is reconciled in $account';
+  }
+
+  @override
+  String get ledgerCantDeleteReconciled =>
+      'Can’t delete · it matches a bank statement';
+
+  @override
+  String ledgerDeleted(String name) {
+    return '$name deleted';
+  }
+
+  @override
+  String ledgerCantMove(String reason) {
+    return 'Can’t move · $reason';
+  }
+
+  @override
+  String get ledgerCouldntMove => 'Couldn’t move it';
+
+  @override
+  String ledgerMovedTo(String name, String account) {
+    return '$name moved to $account';
+  }
+
+  @override
+  String ledgerTransferToMovedTo(String payee, String account) {
+    return 'Transfer to $payee moved to $account';
+  }
+
+  @override
+  String ledgerTransferFromMovedTo(String payee, String account) {
+    return 'Transfer from $payee moved to $account';
+  }
+
+  @override
+  String get ledgerUnclearedThere => 'uncleared there until it clears';
+
+  @override
+  String get ledgerAddIncomeCategoryFirst =>
+      'Add an income category on the Budget screen first';
+
+  @override
+  String get ledgerAddBankAccountFirst => 'Add a bank account first';
+
+  @override
+  String get ledgerPayStopped => 'Pay stopped';
+
+  @override
+  String get ledgerPayStoppedToast =>
+      'Pay no longer scheduled · paydays already past stay';
+
+  @override
+  String get ledgerPaySaved => 'Pay saved';
+
+  @override
+  String ledgerPaySavedNext(String date) {
+    return 'Pay saved · next payday $date';
+  }
+
+  @override
+  String get ledgerNoRegularPay => 'No regular pay';
+
+  @override
+  String get ledgerAskingForPayAgain => 'Asking for pay again';
+
+  @override
+  String get ledgerNoRegularPayToast =>
+      'No regular pay · the app won’t ask for it · Settings changes this';
+
+  @override
+  String get ledgerAskForPayAgainToast =>
+      'The forecast will ask for your pay again';
+
+  @override
+  String get ledgerBudgetByMonth => 'Budget by month';
+
+  @override
+  String get ledgerBudgetByPayPeriod => 'Budget by pay period';
+
+  @override
+  String get ledgerAppearanceTitle => 'Appearance';
+
+  @override
+  String get ledgerAppearanceLight => 'Light';
+
+  @override
+  String get ledgerAppearanceDark => 'Dark';
+
+  @override
+  String ledgerAppearanceUndoLabel(String choice) {
+    return 'Appearance: $choice';
+  }
+
+  @override
+  String ledgerShowingLightNow(String system) {
+    return 'Showing light now · changes when $system does';
+  }
+
+  @override
+  String ledgerShowingDarkNow(String system) {
+    return 'Showing dark now · changes when $system does';
+  }
+
+  @override
+  String get ledgerAllAccounts => 'All accounts';
+
+  @override
+  String ledgerCategoryChip(String name) {
+    return 'Category: $name';
+  }
+
+  @override
+  String get ledgerAdd => 'Add';
+
+  @override
+  String ledgerFilterRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows',
+      one: '1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterTotal(String kind, String amount) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'received': '$amount received',
+      'paidBack': '$amount paid back',
+      'refunded': '$amount refunded',
+      'other': '$amount spent',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterTotalSince(String kind, String amount, String date) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'received': '$amount received since $date',
+      'paidBack': '$amount paid back since $date',
+      'refunded': '$amount refunded since $date',
+      'other': '$amount spent since $date',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterScheduled(int count) {
+    return '$count scheduled';
+  }
+
+  @override
+  String get ledgerCouldntAddAccount => 'Couldn’t add the account';
+
+  @override
+  String get ledgerCouldntSaveBalance => 'Couldn’t save the balance';
+
+  @override
+  String ledgerStartedAt(String amount) {
+    return 'Started at $amount · add only what hasn’t settled yet';
+  }
+
+  @override
+  String ledgerStartedAtOwed(String amount) {
+    return 'Started at $amount owed · add only what hasn’t settled yet';
+  }
+
+  @override
+  String get ledgerCouldntChangeAccount => 'Couldn’t change the account';
+
+  @override
+  String get ledgerCouldntChangePay => 'Couldn’t change the pay';
+
+  @override
+  String get ledgerCouldntChangeBudgetPeriod =>
+      'Couldn’t change the budget period';
+
+  @override
+  String get ledgerCouldntChangeCategory => 'Couldn’t change the category';
+
+  @override
+  String ledgerRenamed(String old, String name) {
+    return 'Renamed $old to $name';
+  }
+
+  @override
+  String ledgerIsNowCardOrLoan(String name) {
+    return '$name is now a card or loan';
+  }
+
+  @override
+  String ledgerIsNowBankAccount(String name) {
+    return '$name is now a bank account';
+  }
+
+  @override
+  String get ledgerOpeningBalanceFlipped =>
+      'its opening balance flipped with it';
+
+  @override
+  String ledgerArchiveTitle(String name) {
+    return 'Archive $name?';
+  }
+
+  @override
+  String ledgerArchiveAction(String name) {
+    return 'Archive $name';
+  }
+
+  @override
+  String ledgerArchived(String name) {
+    return '$name archived';
+  }
+
+  @override
+  String ledgerBackInSidebar(String name) {
+    return '$name back in the sidebar';
+  }
+
+  @override
+  String ledgerAccountArchivedToast(String name) {
+    return '$name archived · Settings brings it back';
+  }
+
+  @override
+  String ledgerDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String ledgerDeleteAction(String name) {
+    return 'Delete $name';
+  }
+
+  @override
+  String ledgerMarksPayday(String name) {
+    return '$name marks payday';
+  }
+
+  @override
+  String ledgerIsntPayday(String name) {
+    return '$name isn’t a payday';
+  }
+
+  @override
+  String ledgerIsPaydayToast(String name) {
+    return '$name is a payday · forecasts run to it';
+  }
+
+  @override
+  String ledgerIsntPaydayToast(String name) {
+    return '$name isn’t a payday · forecasts run past it';
+  }
+
+  @override
+  String ledgerAlreadyCategory(String name) {
+    return '$name is already a category';
+  }
+
+  @override
+  String ledgerIsNowIncome(String name) {
+    return '$name is now income';
+  }
+
+  @override
+  String ledgerIsNowSpending(String name) {
+    return '$name is now spending';
+  }
+
+  @override
+  String ledgerIsNowIncomeToast(String name) {
+    return '$name is now income · it ends forecasts, like payday';
+  }
+
+  @override
+  String ledgerBackInMenus(String name) {
+    return '$name back in the menus';
+  }
+
+  @override
+  String ledgerCategoryArchivedToast(String name) {
+    return '$name archived · its rows keep it; new rows can’t pick it';
+  }
+
+  @override
+  String ledgerMergedInto(String name, String target) {
+    return '$name merged into $target';
+  }
+
+  @override
+  String ledgerRowsMoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows moved',
+      one: '1 row moved',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerDeletedRowsMovedTo(String name, int count, String target) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows',
+      one: '1 row',
+    );
+    return '$name deleted · $_temp0 moved to $target';
+  }
+
+  @override
+  String get ledgerBackUpButton => 'Back Up';
+
+  @override
+  String get ledgerCouldntOpenSaveDialog => 'Couldn’t open the save dialog';
+
+  @override
+  String get ledgerCouldntBackUp =>
+      'Couldn’t back up · check the drive has room and try again';
+
+  @override
+  String ledgerBackedUp(String file) {
+    return 'Backed up · $file';
+  }
+
+  @override
+  String get ledgerBackupFileType => 'BetterBudget backup';
+
+  @override
+  String get ledgerChoose => 'Choose';
+
+  @override
+  String get ledgerCouldntOpenFileDialog => 'Couldn’t open the file dialog';
+
+  @override
+  String get ledgerCouldntReadBackup => 'Couldn’t read that backup';
+
+  @override
+  String get ledgerCouldntRestore => 'Couldn’t restore · nothing was changed';
+
+  @override
+  String ledgerRestoredFrom(String date) {
+    return 'Restored the copy from $date';
+  }
+
+  @override
+  String get ledgerWhatYouHadIsSaved => 'what you had is saved';
+
+  @override
+  String ledgerArchivedName(String name) {
+    return '$name (archived)';
+  }
+
+  @override
+  String get ledgerCouldntStartNewLedger =>
+      'Couldn’t start a new ledger · nothing was changed';
+
+  @override
+  String get ledgerNewLedgerStarted => 'New ledger started';
+
+  @override
+  String get ledgerEverythingErased =>
+      'Everything erased · what you had is saved in Backups';
+
+  @override
+  String ledgerCouldntOpenLedger(String error) {
+    return 'Couldn’t open the ledger: $error';
+  }
+
+  @override
+  String get ledgerGroupAccounts => 'Accounts';
+
+  @override
+  String get ledgerGroupCashBank => 'Cash & bank';
+
+  @override
+  String get ledgerGroupCredit => 'Credit';
+
+  @override
+  String get ledgerSectionLedger => 'Ledger';
+
+  @override
+  String get ledgerSectionBudget => 'Budget';
+
+  @override
+  String get ledgerSectionSavings => 'Savings';
+
+  @override
+  String get ledgerNetWorth => 'Net worth';
+
+  @override
+  String ledgerInclArchived(String amount) {
+    return 'incl. $amount in archived';
+  }
+
+  @override
+  String get ledgerDailyCopyFailing => 'The daily copy is failing';
+
+  @override
+  String get ledgerSettings => 'Settings';
+
+  @override
+  String get ledgerBackupsTitle => 'Backups';
+
+  @override
+  String get ledgerDailyCopy => 'Daily copy';
+
+  @override
+  String ledgerTimeAt(String day, String time) {
+    return '$day $time';
+  }
+
+  @override
+  String ledgerDailyCopyFailingSince(String when) {
+    return 'Failing · the last one is from $when. Check the disk has room, and back up to another drive.';
+  }
+
+  @override
+  String get ledgerDailyCopyFailingNone =>
+      'Failing. Check the disk has room, and back up to another drive.';
+
+  @override
+  String get ledgerDailyCopyNone =>
+      'None yet · one is made each day the app is open';
+
+  @override
+  String ledgerDailyCopyWhen(String when) {
+    return '$when · on this computer';
+  }
+
+  @override
+  String get ledgerKept => 'Kept';
+
+  @override
+  String get ledgerKeptWhich =>
+      'The newest 14, plus the first of each month for a year';
+
+  @override
+  String get ledgerBackUpTo => 'Back up to…';
+
+  @override
+  String get ledgerRestoreFrom => 'Restore from…';
+
+  @override
+  String get ledgerBackupsNote =>
+      'The daily copies are on this computer, so they won’t help if it’s lost or breaks: back up to another drive or a USB stick now and then. Restoring saves what you have first, and Undo brings it back.';
+
+  @override
+  String get ledgerSecurityTitle => 'Security';
+
+  @override
+  String get ledgerSecurityKeySaved =>
+      'Your ledger and backups are encrypted. Your recovery key opens them on another computer, but only the copies you saved off this one (Back up to…) survive losing it. BetterBudget doesn’t keep a copy of the key.';
+
+  @override
+  String get ledgerSecurityKeyNotSaved =>
+      'Your ledger and backups are encrypted. Your recovery key wasn’t saved or copied when it was shown, and BetterBudget doesn’t keep a copy: if this computer is lost, they can’t be opened.';
+
+  @override
+  String get ledgerCheckRecoveryKey => 'Check my recovery key…';
+
+  @override
+  String get ledgerStartOverTitle => 'Start over';
+
+  @override
+  String get ledgerStartOverNote =>
+      'This erases every account and transaction in this ledger, so you start empty. You choose whether your categories stay. What you have now is saved in Backups first, and Undo brings it back.';
+
+  @override
+  String get ledgerEraseAndStartOverButton =>
+      'Erase everything and start over…';
+
+  @override
+  String get ledgerRestoreTitle => 'Restore this backup?';
+
+  @override
+  String get ledgerBackupFrom => 'Backup from';
+
+  @override
+  String get ledgerItHolds => 'It holds';
+
+  @override
+  String get ledgerHereNow => 'Here now';
+
+  @override
+  String ledgerCounts(int transactions, int accounts) {
+    String _temp0 = intl.Intl.pluralLogic(
+      transactions,
+      locale: localeName,
+      other: '$transactions transactions',
+      one: '1 transaction',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      accounts,
+      locale: localeName,
+      other: '$accounts accounts',
+      one: '1 account',
+    );
+    return '$_temp0 · $_temp1';
+  }
+
+  @override
+  String get ledgerRestoreNote =>
+      'Everything here is replaced by the backup. What you have now is saved first, and Undo brings it back.';
+
+  @override
+  String get ledgerCancel => 'Cancel';
+
+  @override
+  String get ledgerRestore => 'Restore';
+
+  @override
+  String ledgerOwed(String amount) {
+    return '$amount owed';
+  }
+
+  @override
+  String get ledgerYourPay => 'Your pay';
+
+  @override
+  String ledgerReconciles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reconciles',
+      one: '1 reconcile',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerPayees => 'Payees';
+
+  @override
+  String get ledgerBudgetSavingsSettings => 'Budget and Savings settings';
+
+  @override
+  String ledgerMoreAccounts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more accounts',
+      one: '1 more account',
+    );
+    return '+ $_temp0';
+  }
+
+  @override
+  String ledgerTransactionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions',
+      one: '1 transaction',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerEraseTitle => 'Erase everything and start over?';
+
+  @override
+  String get ledgerAllOfThisErased => 'All of this is erased:';
+
+  @override
+  String get ledgerStartWithNothing =>
+      'You start with no accounts and no money in the app.';
+
+  @override
+  String ledgerYourCategories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count categories',
+      one: '1 category',
+    );
+    return 'Your $_temp0';
+  }
+
+  @override
+  String get ledgerKeepThemEmpty => 'Keep them, empty';
+
+  @override
+  String get ledgerEraseThemToo => 'Erase them too';
+
+  @override
+  String get ledgerKeptNoRows =>
+      'Kept with no rows in them, ready for your real accounts.';
+
+  @override
+  String get ledgerAddCategoriesAgain =>
+      'You’ll add categories again on the Budget screen.';
+
+  @override
+  String get ledgerEraseNote =>
+      'What you have now is saved in Backups first. Undo brings it back, and so does Restore from… later.';
+
+  @override
+  String get ledgerEraseEverything => 'Erase everything';
+
+  @override
+  String get ledgerSearchHint => 'Search payee, memo, amount';
+
+  @override
+  String ledgerPeriodChip(String period, String start, String end) {
+    return '$period · $start–$end';
+  }
+
+  @override
+  String get ledgerDbReconciled =>
+      'Reconciled · the date and amount match a bank statement';
+
+  @override
+  String get ledgerDbOwnAccount => 'It can’t move money to its own account';
+
+  @override
+  String get ledgerDbFutureConfirm => 'It can’t be confirmed on a future date';
+
+  @override
+  String get ledgerDbOpeningStays =>
+      'An opening balance or adjustment stays put';
+
+  @override
+  String get ledgerDbAlreadyThere => 'It already moves money in that account';
+
+  @override
+  String get ledgerDbNotInAccount => 'Not in this account';
+
+  @override
+  String get ledgerDbNotAnAccount => 'Not an account';
+
+  @override
+  String get ledgerDbSplitNotEditable => 'Split lines can’t be edited yet';
+
+  @override
+  String get ledgerDbChangedSince => 'It changed since';
+
+  @override
+  String get ledgerDbStillHasRows => 'It still has rows; pick where they go';
+
+  @override
+  String get ledgerDbNotSingleCategory => 'Not a single-category transaction';
+
+  @override
+  String get ledgerDbPayIsIn => 'Pay is money in';
+
+  @override
+  String get ledgerDbNotCategoryKind => 'Not a category kind';
+
+  @override
+  String get ledgerDbNotCategory => 'Not a category';
+
+  @override
+  String get ledgerDbSameCategory => 'Same category';
+
+  @override
+  String get ledgerDbAccountDeleted => 'That account was deleted';
+
+  @override
+  String get ledgerDbNeverReconciled => 'Never reconciled';
+
+  @override
+  String get planEverythingCleared => 'Everything has cleared';
+
+  @override
+  String planNotClearedYet(int count) {
+    return '$count not cleared yet';
+  }
+
+  @override
+  String get planWorking => 'Working';
+
+  @override
+  String get planOwed => 'Owed';
+
+  @override
+  String get planNeverReconciled => 'Never reconciled';
+
+  @override
+  String planLastReconciled(String date) {
+    return 'Last reconciled on $date';
+  }
+
+  @override
+  String get planReconcile => 'Reconcile';
+
+  @override
+  String planLateSeveral(String amount, int count) {
+    return '+$amount in, $count not arrived';
+  }
+
+  @override
+  String planLateToday(String amount) {
+    return '+$amount in, due today';
+  }
+
+  @override
+  String planLateDays(String amount, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days late',
+      one: '1 day late',
+    );
+    return '+$amount in, $_temp0';
+  }
+
+  @override
+  String get planLateNotCounted => ' · not counted';
+
+  @override
+  String get planNothingScheduled => 'Nothing scheduled';
+
+  @override
+  String planCreditAfter(String amount, String date) {
+    return '$amount in credit after $date';
+  }
+
+  @override
+  String planOwedAfterDate(String amount, String date) {
+    return '$amount owed after $date';
+  }
+
+  @override
+  String planCardCharges(int charges, String chargeTotal, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      charges,
+      locale: localeName,
+      other: '$charges charges',
+      one: '1 charge',
+    );
+    return '$_temp0 · $chargeTotal before $date';
+  }
+
+  @override
+  String planCardPayments(int payments, String paymentTotal, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      payments,
+      locale: localeName,
+      other: '$payments payments',
+      one: '1 payment',
+    );
+    return '$_temp0 · $paymentTotal before $date';
+  }
+
+  @override
+  String planCardChargesPayments(
+    int charges,
+    String chargeTotal,
+    int payments,
+    String paymentTotal,
+    String date,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      charges,
+      locale: localeName,
+      other: '$charges charges',
+      one: '1 charge',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      payments,
+      locale: localeName,
+      other: '$payments payments',
+      one: '1 payment',
+    );
+    return '$_temp0 · $chargeTotal · $_temp1 · $paymentTotal before $date';
+  }
+
+  @override
+  String get planCardNothing => 'No charges or payments in the next 30 days';
+
+  @override
+  String get planBelowZeroNow => 'Below zero now';
+
+  @override
+  String planBelowZeroShort(String amount) {
+    return 'Below zero now · up to $amount short';
+  }
+
+  @override
+  String planBelowZeroUnless(String amount) {
+    return 'Below zero now unless $amount due today comes';
+  }
+
+  @override
+  String planRunsOutUnless(String date, String amount) {
+    return 'Runs out $date unless $amount due today comes';
+  }
+
+  @override
+  String planRunsOut(String date, String amount) {
+    return 'Runs out on $date · up to $amount short';
+  }
+
+  @override
+  String planLowest(String amount, String date) {
+    return 'Lowest $amount on $date';
+  }
+
+  @override
+  String get planNoBillsOrIncome => 'No bills or income in the next 30 days';
+
+  @override
+  String planNoBillsBefore(String date) {
+    return 'No bills before $date';
+  }
+
+  @override
+  String planInBefore(String amount, String date) {
+    return '+$amount in before $date';
+  }
+
+  @override
+  String planBillsBefore(int count, String amount, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills',
+      one: '1 bill',
+    );
+    return '$_temp0 · $amount before $date';
+  }
+
+  @override
+  String planBillsBeforeIn(
+    int count,
+    String amount,
+    String date,
+    String inAmount,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills',
+      one: '1 bill',
+    );
+    return '$_temp0 · $amount before $date · +$inAmount in';
+  }
+
+  @override
+  String get planNext30Days => 'Next 30 days';
+
+  @override
+  String get planUntilNextIncome => 'Until next income';
+
+  @override
+  String get planAddPay => ' · no payday ahead · Add your pay →';
+
+  @override
+  String planUntilDate(String date) {
+    return 'Until $date';
+  }
+
+  @override
+  String get planBalanceAfter => 'Balance after';
+
+  @override
+  String get planOwedAfter => 'Owed after';
+
+  @override
+  String planTransferTo(String account) {
+    return 'To $account';
+  }
+
+  @override
+  String planTransferFrom(String account) {
+    return 'From $account';
+  }
+
+  @override
+  String planAtLeastEstimate(String category) {
+    return '$category · at least, an estimate';
+  }
+
+  @override
+  String get planBudget => 'Budget';
+
+  @override
+  String get planAddCategory => 'Add category';
+
+  @override
+  String get planAddCategoryTip => 'Add a category';
+
+  @override
+  String get planSpending => 'Spending';
+
+  @override
+  String get planIncome => 'Income';
+
+  @override
+  String planShowArchived(int count) {
+    return 'Show archived ($count)';
+  }
+
+  @override
+  String planHideArchived(int count) {
+    return 'Hide archived ($count)';
+  }
+
+  @override
+  String get planShowInMenus => 'Show in menus';
+
+  @override
+  String get planNotPayday => 'not a payday';
+
+  @override
+  String get planPaydayNoRegular => 'payday · no regular pay';
+
+  @override
+  String get planPaydayNotSetUp => 'payday · pay not set up';
+
+  @override
+  String planMorePay(int count) {
+    return ' · +$count more pay';
+  }
+
+  @override
+  String get planRaiseSplit =>
+      'Your last 6 all came in over 5% above the estimate · raise it?';
+
+  @override
+  String planRaiseLowest(String amount) {
+    return 'Your lowest of the last 6 was $amount · raise the estimate?';
+  }
+
+  @override
+  String planLastTwoLess(String amount) {
+    return 'Last 2 came in at $amount, less than planned · update it?';
+  }
+
+  @override
+  String planLastTwoMore(String amount) {
+    return 'Last 2 came in at $amount · update the amount?';
+  }
+
+  @override
+  String planPaydayPay(String pay) {
+    return 'payday · $pay';
+  }
+
+  @override
+  String planPaydayPayNext(String pay, String date) {
+    return 'payday · $pay · next $date';
+  }
+
+  @override
+  String get planNoRows => 'no rows';
+
+  @override
+  String planUsageRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows',
+      one: '1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planUsageRowsLast(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows',
+      one: '1 row',
+    );
+    return '$_temp0 · last $date';
+  }
+
+  @override
+  String planUsageScheduled(int count) {
+    return '$count scheduled';
+  }
+
+  @override
+  String get planClickToRename => 'Click to rename';
+
+  @override
+  String get planShowTheseRows => 'Show these rows';
+
+  @override
+  String get planRename => 'Rename';
+
+  @override
+  String get planPayMenu => 'Pay…';
+
+  @override
+  String get planUnmarkPayday => 'Not a payday';
+
+  @override
+  String get planMarkPayday => 'Mark as payday';
+
+  @override
+  String get planChangeToSpending => 'Change to spending';
+
+  @override
+  String get planChangeToIncome => 'Change to income';
+
+  @override
+  String get planArchive => 'Archive';
+
+  @override
+  String get planDeleteMenu => 'Delete…';
+
+  @override
+  String get planCategoryName => 'Category name';
+
+  @override
+  String get planCancel => 'Cancel';
+
+  @override
+  String get planAdd => 'Add';
+
+  @override
+  String get planIncomeEndsForecast => 'Income ends a forecast, like payday.';
+
+  @override
+  String get planNothingFiled => 'Nothing is filed under it yet.';
+
+  @override
+  String get planOnlyDeletedFiled =>
+      'Only deleted rows are filed under it. They move to:';
+
+  @override
+  String planRowsFiled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows are filed under it. They move to:',
+      one: '1 row is filed under it. It moves to:',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planRowsFiledScheduled(int count, int scheduled) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count rows are filed under it, $scheduled of them scheduled. They move to:',
+      one:
+          '1 row is filed under it, $scheduled of them scheduled. It moves to:',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planIntoIncome(String name) {
+    return '$name is income: these rows will count as money in.';
+  }
+
+  @override
+  String planIntoIncomeScheduled(String name) {
+    return '$name is income: these rows will count as money in, and the scheduled ones will end forecasts.';
+  }
+
+  @override
+  String planIntoSpending(String name) {
+    return '$name is spending: these rows will no longer count as income.';
+  }
+
+  @override
+  String planIntoSpendingScheduled(String name) {
+    return '$name is spending: these rows will no longer count as income or end forecasts.';
+  }
+
+  @override
+  String planMergeTitle(String name, String into) {
+    return 'Merge $name into $into?';
+  }
+
+  @override
+  String planDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get planNoOtherCategory =>
+      'There’s no other category to move them to. Add one first.';
+
+  @override
+  String get planPickCategory => 'Pick a category';
+
+  @override
+  String planDeleteButton(String name) {
+    return 'Delete $name';
+  }
+
+  @override
+  String planMergeButton(String into) {
+    return 'Merge into $into';
+  }
+
+  @override
+  String planMoveAndDelete(String into) {
+    return 'Move to $into and delete';
+  }
+
+  @override
+  String get planSavings => 'Savings';
+
+  @override
+  String get planAllStepsDone => 'Every step is done';
+
+  @override
+  String get planOneStepAtATime => 'Getting prepared, one step at a time';
+
+  @override
+  String get planCourseNote =>
+      'In the order of Personal Finances for Self-Reliance: each step makes the next one safer.';
+
+  @override
+  String get planStepOneMonth => 'One month of expenses set aside';
+
+  @override
+  String get planStepHealth => 'Health coverage';
+
+  @override
+  String get planStepConsumerDebt => 'No consumer debt';
+
+  @override
+  String planStepMoreMonths(int months) {
+    return '$months months of expenses set aside';
+  }
+
+  @override
+  String get planStepRetirement => 'Saving for retirement';
+
+  @override
+  String get planStepLongLoans => 'Paying off the mortgage and student loans';
+
+  @override
+  String get planNow => 'Now';
+
+  @override
+  String get planSetAside => 'Set aside';
+
+  @override
+  String planSetAsideUndo(String step) {
+    return '“$step” set aside';
+  }
+
+  @override
+  String planBackInStepsUndo(String step) {
+    return '“$step” back in the steps';
+  }
+
+  @override
+  String planMonthUnknown(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return 'A month of your spending isn’t known yet ($_temp0 of rows). Type it, or come back in a few weeks.';
+  }
+
+  @override
+  String planMonthNoSpending(int days) {
+    return 'No spending in the last $days days to go by. Type a month of your expenses.';
+  }
+
+  @override
+  String planMonthTyped(String amount) {
+    return 'A month of expenses: $amount, as you typed it';
+  }
+
+  @override
+  String planMonthAverage3(String amount, String loans) {
+    String _temp0 = intl.Intl.selectLogic(loans, {
+      'yes': ', loan payments included',
+      'other': '',
+    });
+    return 'A month of expenses: $amount, the average of the last 3 months$_temp0';
+  }
+
+  @override
+  String planMonthAverageDays(String amount, int days, String loans) {
+    String _temp0 = intl.Intl.selectLogic(loans, {
+      'yes': ', loan payments included',
+      'other': '',
+    });
+    return 'A month of expenses: $amount, the average of the last $days days$_temp0';
+  }
+
+  @override
+  String planFundOf(String fund, String target) {
+    return '$fund of $target';
+  }
+
+  @override
+  String planFundOfToGo(String fund, String target, String left) {
+    return '$fund of $target · $left to go';
+  }
+
+  @override
+  String get planWhichAccount =>
+      'Which account holds it? Pick one below. A savings account you can reach but don’t spend from works best.';
+
+  @override
+  String get planKeepReachable =>
+      'Keep it where you can reach it. If you use it, fill it back up before anything else.';
+
+  @override
+  String planMinimumsOn(String names) {
+    return 'Until it’s full, pay only the minimums on $names.';
+  }
+
+  @override
+  String get planEnoughForJobLoss =>
+      'Enough to get through losing a job or a long illness.';
+
+  @override
+  String get planHealthYes => 'You have it';
+
+  @override
+  String get planHealthWhat =>
+      'Insurance, or some other way to get medical care';
+
+  @override
+  String get planRetirementYes => 'You’re putting money into it';
+
+  @override
+  String get planRetirementWhat =>
+      'Into a retirement plan, from your pay or on your own';
+
+  @override
+  String get planEmployerMatch =>
+      'If your employer matches what you put in, put in at least enough to get all of it.';
+
+  @override
+  String get planIHaveIt => 'I have it';
+
+  @override
+  String get planIAm => 'I am';
+
+  @override
+  String planAnswerYesUndo(String step) {
+    return '$step: yes';
+  }
+
+  @override
+  String planAnswerNotYetUndo(String step) {
+    return '$step: not yet';
+  }
+
+  @override
+  String get planNoCardsOwing => 'No cards or loans owing';
+
+  @override
+  String planAmountOwed(String amount) {
+    return '$amount owed';
+  }
+
+  @override
+  String get planPayExtraGuide =>
+      'Pay extra on one at a time, smallest balance or highest interest first; both get you there. When one is paid off, put its payment toward the next.';
+
+  @override
+  String get planLongNone => 'You have none';
+
+  @override
+  String get planLongAsk => 'Do you have a mortgage or student loans?';
+
+  @override
+  String get planLongMarkThere =>
+      'If a loan under No consumer debt is one, mark it there.';
+
+  @override
+  String get planIHaveNone => 'I have none';
+
+  @override
+  String get planPayingExtraOnThem => 'Paying extra on them';
+
+  @override
+  String get planNotYet => 'Not yet';
+
+  @override
+  String get planNoLongLoansUndo => 'No mortgage or student loans';
+
+  @override
+  String get planPayingExtraUndo => 'Paying extra on loans';
+
+  @override
+  String get planLoansNotYetUndo => 'Loans: not yet';
+
+  @override
+  String get planNotPayingExtraUndo => 'Not paying extra on loans';
+
+  @override
+  String get planPaidOff => 'Paid off';
+
+  @override
+  String planAmountLeft(String amount) {
+    return '$amount left';
+  }
+
+  @override
+  String get planPayingExtra => 'Paying extra';
+
+  @override
+  String planNamesAnd(String first, String last) {
+    return '$first and $last';
+  }
+
+  @override
+  String get planPickAccount => 'Pick the account';
+
+  @override
+  String planKeptIn(String names) {
+    return 'Kept in $names';
+  }
+
+  @override
+  String planFundOffUndo(String account) {
+    return '$account no longer holds the emergency fund';
+  }
+
+  @override
+  String planFundOnUndo(String account) {
+    return '$account holds the emergency fund';
+  }
+
+  @override
+  String get planMonthBackToAverage =>
+      'A month of expenses: back to your average';
+
+  @override
+  String planMonthSet(String amount) {
+    return 'A month of expenses: $amount';
+  }
+
+  @override
+  String get planTypeMonth => 'Type a month of expenses';
+
+  @override
+  String get planChangeMonth => 'Change the month';
+
+  @override
+  String get planTypeOwnMonth => 'Type your own month';
+
+  @override
+  String get planMonthHint => 'A month of expenses';
+
+  @override
+  String get planSave => 'Save';
+
+  @override
+  String get planEmptyToAverage => 'Empty goes back to your average';
+
+  @override
+  String planMonthsChoice(int count) {
+    return '$count months';
+  }
+
+  @override
+  String planAimingFor(int count) {
+    return 'Aiming for $count months';
+  }
+
+  @override
+  String get planRoleMortgage => 'Mortgage';
+
+  @override
+  String get planRoleStudentLoan => 'Student loan';
+
+  @override
+  String get planRolePaidMonthly => 'Paid in full every month';
+
+  @override
+  String get planRoleConsumer => 'Consumer debt';
+
+  @override
+  String planCountsAsMortgage(String account) {
+    return '$account counts as mortgage';
+  }
+
+  @override
+  String planCountsAsStudentLoan(String account) {
+    return '$account counts as student loan';
+  }
+
+  @override
+  String planCountsAsPaidMonthly(String account) {
+    return '$account counts as paid in full every month';
+  }
+
+  @override
+  String planCountsAsConsumer(String account) {
+    return '$account counts as consumer debt';
+  }
+
+  @override
+  String get planNothingOwed => 'nothing owed';
+
+  @override
+  String planPayingExtraOn(String account) {
+    return 'Paying extra on $account';
+  }
+
+  @override
+  String get planPayExtraOnThis => 'Pay extra on this one';
+
+  @override
+  String get planPayExtraHere => 'Pay extra here';
+
+  @override
+  String planCarried(String date) {
+    return 'Owed every day since $date: a balance is carrying over. It’s left out of consumer debt only because it’s marked paid in full.';
+  }
+
+  @override
+  String get planBringBack => 'Bring it back';
+
+  @override
+  String get planSetStepAside => 'Set this step aside';
+
+  @override
+  String get rowsNothingScheduled => 'Nothing scheduled';
+
+  @override
+  String rowsNextOfScheduled(int count) {
+    return 'next of $count scheduled';
+  }
+
+  @override
+  String get rowsScheduledOnly => 'scheduled';
+
+  @override
+  String get rowsNoTransactions => 'No transactions';
+
+  @override
+  String rowsNothingMatches(String search) {
+    return 'Nothing matches “$search”';
+  }
+
+  @override
+  String rowsNotReconciledThrough(String date) {
+    return 'Not reconciled, through $date';
+  }
+
+  @override
+  String get rowsColumnDate => 'Date';
+
+  @override
+  String get rowsColumnPayee => 'Payee';
+
+  @override
+  String get rowsColumnCategory => 'Category';
+
+  @override
+  String get rowsColumnAmount => 'Amount';
+
+  @override
+  String get rowsColumnBalance => 'Balance';
+
+  @override
+  String get rowsColumnOwed => 'Owed';
+
+  @override
+  String get rowsColumnClearedBalance => 'Cleared balance';
+
+  @override
+  String get rowsColumnAccount => 'Account';
+
+  @override
+  String get rowsTabAll => 'All';
+
+  @override
+  String get rowsTabUncleared => 'Uncleared';
+
+  @override
+  String get rowsTabScheduled => 'Scheduled';
+
+  @override
+  String get rowsEdit => 'Edit';
+
+  @override
+  String get rowsCategorize => 'Categorize';
+
+  @override
+  String get rowsMarkCleared => 'Mark cleared';
+
+  @override
+  String get rowsMarkUncleared => 'Mark uncleared';
+
+  @override
+  String get rowsMoveTo => 'Move to';
+
+  @override
+  String get rowsDelete => 'Delete';
+
+  @override
+  String get rowsReconciledLocked => 'Reconciled · date and amount locked';
+
+  @override
+  String rowsReconciledOnLocked(String date) {
+    return 'Reconciled on $date · date and amount locked';
+  }
+
+  @override
+  String get rowsUndoThisReconcile => 'Undo this reconcile';
+
+  @override
+  String rowsReconciledInLocked(String account) {
+    return 'Reconciled in $account · date and amount locked';
+  }
+
+  @override
+  String rowsStatusTip(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'uncleared': 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+      'cleared': 'Cleared — settled at the bank. Click to mark uncleared.',
+      'other': 'Reconciled — matches a statement, so its date and amount are locked.',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsStatusTipIn(String account, String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'uncleared':
+          'In $account: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+      'cleared':
+          'In $account: Cleared — settled at the bank. Click to mark uncleared.',
+      'other':
+          'In $account: Reconciled — matches a statement, so its date and amount are locked.',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get rowsTransferToBefore => 'To';
+
+  @override
+  String get rowsTransferToAfter => '';
+
+  @override
+  String get rowsTransferFromBefore => 'From';
+
+  @override
+  String get rowsTransferFromAfter => '';
+
+  @override
+  String rowsScheduledTransferTo(String account) {
+    return 'To $account';
+  }
+
+  @override
+  String rowsScheduledTransferFrom(String account) {
+    return 'From $account';
+  }
+
+  @override
+  String get rowsScheduledTip =>
+      'Scheduled — not in any balance until confirmed';
+
+  @override
+  String get rowsConfirm => 'Confirm';
+
+  @override
+  String rowsNewCategoryOption(String name) {
+    return '+ New category “$name”';
+  }
+
+  @override
+  String rowsDidYouMeanTransfer(String account) {
+    return 'Did you mean “→ $account”?';
+  }
+
+  @override
+  String rowsNotACategoryPickOne(String typed, String first) {
+    return '“$typed” isn’t a category · pick $first, or + New category';
+  }
+
+  @override
+  String rowsNotACategoryPickTwo(String typed, String first, String second) {
+    return '“$typed” isn’t a category · pick $first or $second, or + New category';
+  }
+
+  @override
+  String get rowsNewCategoryNote => 'new category';
+
+  @override
+  String get rowsNewIncomeCategoryNote => 'new income category';
+
+  @override
+  String rowsTransferFromTo(String from, String to) {
+    return 'From $from to $to';
+  }
+
+  @override
+  String rowsTransferAmountFromTo(String amount, String from, String to) {
+    return '$amount from $from to $to';
+  }
+
+  @override
+  String get rowsErrorDate => 'Date should look like 2026.09.16';
+
+  @override
+  String get rowsErrorSameAccount => 'Can’t transfer to the same account';
+
+  @override
+  String rowsErrorNoAccount(String name) {
+    return 'No account “$name”';
+  }
+
+  @override
+  String rowsErrorAmount(String typed) {
+    return 'Can’t read “$typed” as an amount';
+  }
+
+  @override
+  String get rowsSave => 'Save';
+
+  @override
+  String get rowsAdd => 'Add';
+
+  @override
+  String rowsSum(String sum) {
+    return '= $sum';
+  }
+
+  @override
+  String rowsSumWithNote(String sum, String note) {
+    return '= $sum · $note';
+  }
+
+  @override
+  String rowsNeeds(String field) {
+    String _temp0 = intl.Intl.selectLogic(field, {
+      'when': 'needs date',
+      'account': 'needs account',
+      'payee': 'needs payee',
+      'category': 'needs category',
+      'other': 'needs amount',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsNeedsMore(int count) {
+    return 'needs $count more';
+  }
+
+  @override
+  String rowsKeyToCancel(String key) {
+    return '$key to cancel';
+  }
+
+  @override
+  String get rowsReconciledTip =>
+      'Reconciled · this matches a bank statement, so it can’t change';
+
+  @override
+  String get rowsSplitLinesNotBuilt => 'Editing split lines isn’t built yet';
+
+  @override
+  String get rowsOpeningBalanceTip =>
+      'An opening balance belongs to its account';
+
+  @override
+  String get rowsAdjustmentTip => 'An adjustment belongs to its account';
+
+  @override
+  String get rowsOtherAccountDeleted => 'The other account is deleted';
+
+  @override
+  String get rowsOtherAccountArchived => 'The other account is archived';
+
+  @override
+  String get rowsSplitTotalFollows => 'A split’s total follows its lines';
+
+  @override
+  String get rowsHintPayee => 'Payee';
+
+  @override
+  String get rowsHintNewPayee => 'New transaction — payee';
+
+  @override
+  String get rowsHintMemo => 'Memo';
+
+  @override
+  String get rowsHintCategory => 'Category';
+
+  @override
+  String get rowsHintDate => 'Date';
+
+  @override
+  String get rowsHintAccount => 'Account';
+
+  @override
+  String rowsLessThanPlanned(String amount) {
+    return '$amount less than planned:';
+  }
+
+  @override
+  String rowsStillOwedDue(String date) {
+    return 'Still owed, due $date';
+  }
+
+  @override
+  String get rowsPaidInFull => 'Paid in full';
+
+  @override
+  String get rowsTurnItAround => 'Turn it around';
+
+  @override
+  String get rowsSwap => 'Swap';
+
+  @override
+  String get rowsPreviousMonth => 'Previous month';
+
+  @override
+  String get rowsNextMonth => 'Next month';
+
+  @override
+  String get rowsWeekdayInitials => 'Mo|Tu|We|Th|Fr|Sa|Su';
+
+  @override
+  String get rowsAfterTodayScheduled => 'After today · it will be scheduled';
+
+  @override
+  String rowsOrPressKey(String key) {
+    return 'Or press $key in any field';
+  }
+
+  @override
+  String get rowsReconcileTitle => 'Reconcile';
+
+  @override
+  String get rowsStatementDate => 'Statement date';
+
+  @override
+  String get rowsBankSaysYouOwe => 'Bank says you owe';
+
+  @override
+  String get rowsBankBalance => 'Bank balance';
+
+  @override
+  String get rowsNotAvailableBalance => 'Not the “available” balance';
+
+  @override
+  String get rowsClearedHere => 'Cleared here';
+
+  @override
+  String get rowsOffBy => 'Off by';
+
+  @override
+  String get rowsMatches => 'Matches';
+
+  @override
+  String get rowsBankIsLower => 'Bank is lower';
+
+  @override
+  String get rowsBankIsHigher => 'Bank is higher';
+
+  @override
+  String get rowsBankSaysOweLess => 'Bank says you owe less';
+
+  @override
+  String get rowsBankSaysOweMore => 'Bank says you owe more';
+
+  @override
+  String get rowsHintClearRows => 'Clear the rows your bank shows';
+
+  @override
+  String rowsHintNotCleared(String payee, String date, String amount) {
+    return '$payee on $date is $amount and isn’t cleared';
+  }
+
+  @override
+  String rowsHintDatedAfter(String payee, String date, String amount) {
+    return '$payee is $amount but dated $date, after the statement';
+  }
+
+  @override
+  String rowsHintClearedEarly(String payee, String date, String amount) {
+    return '$payee on $date is $amount and cleared here · not at the bank yet?';
+  }
+
+  @override
+  String get rowsCancel => 'Cancel';
+
+  @override
+  String rowsAddAdjustmentAndLock(String amount) {
+    return 'Add $amount adjustment and lock';
+  }
+
+  @override
+  String get rowsMarkReconciled => 'Mark reconciled';
+
+  @override
+  String rowsLockTransactions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Lock $count transactions',
+      one: 'Lock 1 transaction',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupOwedStill(String amount) {
+    return 'You still owe $amount on it.';
+  }
+
+  @override
+  String setupInCredit(String amount) {
+    return 'It’s $amount in credit: the bank owes you.';
+  }
+
+  @override
+  String setupStillIn(String amount) {
+    return '$amount is still in it.';
+  }
+
+  @override
+  String setupOverdrawn(String amount) {
+    return 'It’s $amount overdrawn.';
+  }
+
+  @override
+  String get setupAddAccount => 'Add account';
+
+  @override
+  String get setupNewAccount => 'New account';
+
+  @override
+  String get setupName => 'Name';
+
+  @override
+  String get setupKind => 'Kind';
+
+  @override
+  String get setupKindBank => 'Bank account';
+
+  @override
+  String get setupKindOwed => 'Card or loan';
+
+  @override
+  String get setupKindOwedHint =>
+      'A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.';
+
+  @override
+  String get setupKindBankHint =>
+      'Checking, savings or cash. Accounts are in tögrög for now.';
+
+  @override
+  String get setupCancel => 'Cancel';
+
+  @override
+  String get setupStartOwedToday => 'What do you owe on it today?';
+
+  @override
+  String get setupStartInToday => 'What’s in this account today?';
+
+  @override
+  String setupStartOwedOn(String date) {
+    return 'What did you owe on it on $date?';
+  }
+
+  @override
+  String setupStartInOn(String date) {
+    return 'What was in it on $date?';
+  }
+
+  @override
+  String get setupYouOwe => 'You owe';
+
+  @override
+  String get setupBalance => 'Balance';
+
+  @override
+  String get setupOn => 'On';
+
+  @override
+  String setupCantRead(String text) {
+    return 'Can’t read “$text” as an amount';
+  }
+
+  @override
+  String setupDateShouldLook(String example) {
+    return 'Date should look like $example';
+  }
+
+  @override
+  String get setupStartOwedHint =>
+      'What you’ve used, not the available limit · empty starts at ₮0';
+
+  @override
+  String get setupStartBankHint =>
+      'From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0';
+
+  @override
+  String get setupStartAccount => 'Start account';
+
+  @override
+  String get setupRename => 'Rename';
+
+  @override
+  String get setupToBank => 'Change to bank account';
+
+  @override
+  String get setupToOwed => 'Change to card or loan';
+
+  @override
+  String get setupArchiveMenu => 'Archive…';
+
+  @override
+  String get setupDeleteMenu => 'Delete…';
+
+  @override
+  String get setupClickToRename => 'Click to rename';
+
+  @override
+  String setupArchiveBalance(String balance) {
+    return '$balance It stays in net worth, but the account won’t be in the sidebar.';
+  }
+
+  @override
+  String setupArchiveScheduled(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scheduled rows ($list) won’t show in any forecast.',
+      one: '1 scheduled row ($list) won’t show in any forecast.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupArchiveTransfers(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count scheduled transfers stay on the other account’s forecast ($list). Delete them there if cancelled.',
+      one:
+          '1 scheduled transfer stays on the other account’s forecast ($list). Delete it there if cancelled.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get setupDeleteNoRows =>
+      'This deletes the account. It has no rows of its own.';
+
+  @override
+  String setupDeleteRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'This deletes the account and its $count rows.',
+      one: 'This deletes the account and its 1 row.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupDeleteRowsReconciled(int count, int reconciled) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'This deletes the account and its $count rows, $reconciled of them reconciled.',
+      one:
+          'This deletes the account and its 1 row, $reconciled of them reconciled.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupWorthDown(String amount) {
+    return 'Net worth goes down by $amount.';
+  }
+
+  @override
+  String setupWorthUp(String amount) {
+    return 'Net worth goes up by $amount.';
+  }
+
+  @override
+  String setupWorthUpOwed(String amount) {
+    return 'Net worth goes up by $amount, since what you owe on it is no longer counted.';
+  }
+
+  @override
+  String setupDeletePending(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count are still scheduled ($list). Confirmed later, they move money from an account that no longer exists; delete them there if cancelled.',
+      one:
+          'One is still scheduled ($list). Confirmed later, it moves money from an account that no longer exists; delete it there if cancelled.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupKeptOne(int count, String other, String label) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Its $count transfers with $other stay on $other as “$label”.',
+      one: 'Its 1 transfer with $other stay on $other as “$label”.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupKeptMany(String label, String list) {
+    return 'Its transfers stay on the other accounts as “$label”: $list.';
+  }
+
+  @override
+  String setupKeptOn(int count, String account) {
+    return '$count on $account';
+  }
+
+  @override
+  String get setupArchived => 'Archived accounts';
+
+  @override
+  String setupAmountOwed(String amount) {
+    return '$amount owed';
+  }
+
+  @override
+  String get setupShowInSidebar => 'Show in sidebar';
+
+  @override
+  String get setupAllAccounts => 'All accounts';
+
+  @override
+  String get setupShowEveryRow => 'Show every row · Esc';
+
+  @override
+  String get setupAmountMissing => 'Put in how much comes';
+
+  @override
+  String setupAmountMissingOn(String day) {
+    return 'Put in how much comes on the $day';
+  }
+
+  @override
+  String get setupAmountMissingFirst =>
+      'Put in how much comes on the first payday';
+
+  @override
+  String get setupAmountMissingSecond =>
+      'Put in how much comes on the second payday';
+
+  @override
+  String setupOnDay(String day) {
+    return 'On the $day';
+  }
+
+  @override
+  String setupAtLeastOnDay(String day) {
+    return 'At least, on the $day';
+  }
+
+  @override
+  String get setupOnFirst => 'On the first payday';
+
+  @override
+  String get setupOnSecond => 'On the second payday';
+
+  @override
+  String get setupAtLeastOnFirst => 'At least, on the first payday';
+
+  @override
+  String get setupAtLeastOnSecond => 'At least, on the second payday';
+
+  @override
+  String get setupWhichDay => 'Which day of the month?';
+
+  @override
+  String get setupWhichTwoDays => 'Which two days of the month?';
+
+  @override
+  String get setupTwoDifferentDays => 'Two different days of the month';
+
+  @override
+  String get setupHowManyWeeks => 'Every how many weeks?';
+
+  @override
+  String setupWhenPayday(String example) {
+    return 'When is a payday? ($example)';
+  }
+
+  @override
+  String get setupAddYourPay => 'Add your pay';
+
+  @override
+  String get setupYourPay => 'Your pay';
+
+  @override
+  String get setupFiledUnder => 'Filed under';
+
+  @override
+  String get setupPaidInto => 'Paid into';
+
+  @override
+  String get setupFrom => 'From';
+
+  @override
+  String get setupEmployerHint => 'Employer (optional)';
+
+  @override
+  String get setupPayIs => 'Pay is';
+
+  @override
+  String get setupPaySame => 'About the same each time';
+
+  @override
+  String get setupPayVaries => 'It varies';
+
+  @override
+  String get setupVariesHint =>
+      'Hourly, shifts, overtime: it changes each time. Leave bonuses out; they aren’t every payday.';
+
+  @override
+  String get setupExpectAtLeast => 'Expect at least';
+
+  @override
+  String get setupEachPayday => 'Each payday';
+
+  @override
+  String get setupSameEachPaycheck => 'The same each paycheck';
+
+  @override
+  String get setupDifferentEachPaycheck => 'A different amount each paycheck';
+
+  @override
+  String setupLastPaycheck(String amount) {
+    return 'Your last paycheck: $amount';
+  }
+
+  @override
+  String setupLastPaychecks(int count, String lowest, String highest) {
+    return 'Your last $count: lowest $lowest · highest $highest';
+  }
+
+  @override
+  String get setupLowEndSafer =>
+      'The forecast counts on this, so the low end is safer: finding more on payday is better than finding less.';
+
+  @override
+  String setupHigherThan(int above, int count) {
+    return 'Higher than $above of your last $count paychecks: the forecast may look better than it’ll be.';
+  }
+
+  @override
+  String get setupWhen => 'When';
+
+  @override
+  String get setupMonthly => 'Monthly';
+
+  @override
+  String get setupTwiceMonthly => 'Twice a month';
+
+  @override
+  String get setupEveryFewWeeks => 'Every few weeks';
+
+  @override
+  String setupOnDayField(String field) {
+    return 'On the $field';
+  }
+
+  @override
+  String setupOnDaysField(String first, String second) {
+    return 'On the $first  and the $second';
+  }
+
+  @override
+  String setupEveryWeeksField(int count, String weeks, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $weeks weeks, from $date',
+      one: 'Every $weeks week, from $date',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get setupDaysMeet =>
+      'In shorter months both days land on the last day: one payday that month, not two.';
+
+  @override
+  String get setupOnWeekend => 'On a weekend';
+
+  @override
+  String get setupFridayBefore => 'Friday before';
+
+  @override
+  String get setupMondayAfter => 'Monday after';
+
+  @override
+  String get setupBudgetBy => 'Budget by';
+
+  @override
+  String get setupMonth => 'Month';
+
+  @override
+  String get setupPayPeriod => 'Pay period';
+
+  @override
+  String setupPeriodOther(String name) {
+    return 'The budget follows $name’s pay periods. Pay period here moves it to this pay.';
+  }
+
+  @override
+  String setupPaydaysAYear(int count) {
+    return '$count paydays a year: two months a year have three. Budgeting by pay period follows your paychecks.';
+  }
+
+  @override
+  String setupNextPayday(String date, String amount) {
+    return 'Next payday $date · $amount';
+  }
+
+  @override
+  String setupNextPaydayOrMore(String date, String amount) {
+    return 'Next payday $date · $amount or more';
+  }
+
+  @override
+  String setupNextPaydayMonthly(String date, String amount, String perMonth) {
+    return 'Next payday $date · $amount · about $perMonth a month';
+  }
+
+  @override
+  String setupNextPaydayOrMoreMonthly(
+    String date,
+    String amount,
+    String perMonth,
+  ) {
+    return 'Next payday $date · $amount or more · about $perMonth a month';
+  }
+
+  @override
+  String get setupNoRegularPay => 'I don’t have regular pay';
+
+  @override
+  String get setupStopPay => 'Stop scheduling pay';
+
+  @override
+  String get setupSavePay => 'Save pay';
+
+  @override
+  String setupNameArchived(String name) {
+    return '$name (archived · no paydays until it’s back)';
+  }
+
+  @override
+  String get setupBudget => 'Budget';
+
+  @override
+  String setupPayPeriodOf(String who) {
+    return 'Pay period · $who';
+  }
+
+  @override
+  String setupCategoryInto(String category, String account) {
+    return '$category into $account';
+  }
+
+  @override
+  String get setupPeriodsFromPay =>
+      'Pay periods come from your pay: add it below to budget by them.';
+
+  @override
+  String get setupRunsMonth =>
+      'Each budget runs from the 1st to the month’s end.';
+
+  @override
+  String setupRunsPeriod(String when) {
+    return 'Each budget runs from one payday to the day before the next ($when).';
+  }
+
+  @override
+  String get setupPay => 'Pay';
+
+  @override
+  String setupPayLine(String category, String amounts, String account) {
+    return '$category · $amounts · into $account';
+  }
+
+  @override
+  String get setupEdit => 'Edit';
+
+  @override
+  String get setupSaidNoPay =>
+      'You said you don’t have regular pay, so the forecast doesn’t ask for it.';
+
+  @override
+  String get setupAskAgain => 'Ask me again';
+
+  @override
+  String get setupAddOtherPay => 'Add other pay';
+
+  @override
+  String get startKeyFileName => 'BetterBudget recovery key.txt';
+
+  @override
+  String get startSave => 'Save';
+
+  @override
+  String startKeyFileText(String key, String date) {
+    return 'BetterBudget recovery key\n\n$key\n\nMade $date.\n\nIt opens your BetterBudget ledger and its backups on another computer, or on a phone that records spending. BetterBudget doesn’t keep a copy, and it can’t be replaced: without it, the ledger can’t be opened anywhere else.\n\nKeep it somewhere safe, away from this computer, where the other person who manages the money can find it. Don’t keep this file in the same folder as your backups.\n';
+  }
+
+  @override
+  String get startKeyTitle => 'Your recovery key';
+
+  @override
+  String get startKeyIntro =>
+      'BetterBudget encrypts your ledger and its backups. This key opens them on another computer, and on each phone that records spending. This is the only time it’s shown: BetterBudget doesn’t keep a copy, and it can’t be replaced.';
+
+  @override
+  String get startKeyWhere =>
+      'Keep it away from this computer, where the other person who manages the money can find it: printed with your important papers, or on another drive.';
+
+  @override
+  String get startSaveEllipsis => 'Save…';
+
+  @override
+  String get startSaved => 'Saved';
+
+  @override
+  String get startCopy => 'Copy';
+
+  @override
+  String get startCopied => 'Copied';
+
+  @override
+  String get startOldCopies =>
+      'Copies you saved elsewhere with Back up to… before today aren’t encrypted. Replace them with a new Back up to….';
+
+  @override
+  String get startCopiedWarning =>
+      'Copied · paste it somewhere off this computer before you continue. The clipboard is cleared in a minute.';
+
+  @override
+  String get startNotKeptWarning =>
+      'If you continue without saving or copying it, it’s gone: BetterBudget can’t show it again, and if this computer is lost, your ledger and its backups can’t be opened.';
+
+  @override
+  String get startContinue => 'Continue';
+
+  @override
+  String get startEnterTitle => 'Enter your recovery key';
+
+  @override
+  String get startNewLedgerInstead => 'Start a new ledger instead…';
+
+  @override
+  String get startNewToApp => 'New to BetterBudget? Set up a ledger';
+
+  @override
+  String get startSetAsideTitle => 'Start a new ledger?';
+
+  @override
+  String startSetAsideBodyNamed(String name) {
+    return 'The ledger already on this computer can only be opened with its own recovery key. It won’t be deleted: it’s moved aside as $name, in BetterBudget’s folder, so you can open it later if you find its key.';
+  }
+
+  @override
+  String get startSetAsideBody =>
+      'The ledger already on this computer can only be opened with its own recovery key. It won’t be deleted: it’s moved aside, in BetterBudget’s folder, so you can open it later if you find its key.';
+
+  @override
+  String get startCancel => 'Cancel';
+
+  @override
+  String get startSetAsideConfirm => 'Move it aside and start new';
+
+  @override
+  String get startCheckTitle => 'Check your recovery key';
+
+  @override
+  String get startCheckBody =>
+      'Type the key you saved. BetterBudget checks whether it opens this ledger. It never shows the key.';
+
+  @override
+  String get startCheckAction => 'Check';
+
+  @override
+  String get startCheckNo => 'No · this key doesn’t open this ledger';
+
+  @override
+  String get startCheckYes => 'Yes · this key opens this ledger';
+
+  @override
+  String get startBackupKeyTitle => 'This backup has its own key';
+
+  @override
+  String get startBackupKeyBody =>
+      'It isn’t encrypted with this ledger’s key. It may be from another ledger: type that ledger’s recovery key to restore it. Your own key doesn’t change.';
+
+  @override
+  String get startBackupKeyAction => 'Open backup';
+
+  @override
+  String get startClose => 'Close';
+
+  @override
+  String get startKeyCyrillic =>
+      'Your keyboard is typing Cyrillic · switch to ABC to type the key';
+
+  @override
+  String startKeyLength(int typed, int total) {
+    return '$typed of $total characters';
+  }
+
+  @override
+  String get startKeyChecksum =>
+      'A character is wrong · check the key against your copy';
+
+  @override
+  String get startEntryKeptKeyWrong =>
+      'The key kept on this computer doesn’t open the ledger here. Type the ledger’s recovery key to open it.';
+
+  @override
+  String get startEntryLedgerHere =>
+      'There’s a ledger on this computer. Type its recovery key to open it.';
+
+  @override
+  String get startEntryNoLedger =>
+      'This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….';
+
+  @override
+  String get startEntryLedgerHereEveryLaunch =>
+      'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. There’s a ledger on this computer. Type its recovery key to open it.';
+
+  @override
+  String get startEntryNoLedgerEveryLaunch =>
+      'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….';
+
+  @override
+  String get startKeyWrongHere =>
+      'That key doesn’t open the ledger on this computer';
+
+  @override
+  String startCouldntKeepKey(String error) {
+    return 'Couldn’t keep the key on this computer · $error';
+  }
+
+  @override
+  String startCouldntKeepKeyNothingEncrypted(String error) {
+    return 'Couldn’t keep the key on this computer · $error. Nothing was encrypted.';
+  }
+
+  @override
+  String startCouldntOpen(String error) {
+    return 'Couldn’t open the ledger · $error';
+  }
+
+  @override
+  String startCopiesFailed(int count, String names) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count old copies couldn’t be encrypted and are still readable: $names',
+      one: '1 old copy couldn’t be encrypted and is still readable: $names',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String startCopiesEncrypted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Encrypted $count old copies of your ledger',
+      one: 'Encrypted 1 old copy of your ledger',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String startEncryptedCopyFailed(String name) {
+    return 'The encrypted copy of $name didn’t check out';
+  }
+
+  @override
+  String get startRestoreNothingInto => 'Nothing to restore into';
+
+  @override
+  String get startRestoreNewer =>
+      'That backup is from a newer BetterBudget · update the app first';
+
+  @override
+  String get startRestoreNotABackup => 'That file isn’t a BetterBudget backup';
+
+  @override
+  String get startRestoreNeedsKey =>
+      'That backup can’t be opened with this ledger’s key · it may be from another ledger, or damaged';
+
+  @override
+  String get startRestoreWrongKey =>
+      'That key doesn’t open this backup · it may be from another ledger, or damaged';
+
+  @override
+  String get startRestoreDamaged => 'That backup is damaged';
+
+  @override
+  String get startRestoreNoAccounts => 'That backup has no accounts in it';
+
+  @override
+  String get startUncleared => 'Uncleared';
+
+  @override
+  String get startCleared => 'Cleared';
+
+  @override
+  String get startReconciled => 'Reconciled';
+
+  @override
+  String get startOpeningBalance => 'Opening balance';
+
+  @override
+  String get startOpeningBalances => 'Opening balances';
+
+  @override
+  String get startBalanceAdjustments => 'Balance adjustments';
+
+  @override
+  String get startReconcileAdjustment => 'Reconcile adjustment';
+
+  @override
+  String get startTransfer => 'Transfer';
+
+  @override
+  String startSplitCategories(int count) {
+    return '$count categories';
+  }
+
+  @override
+  String startDeletedAccount(String name) {
+    return '$name (deleted)';
+  }
+
+  @override
+  String startStaleNote(int days) {
+    return 'not cleared for $days days';
+  }
+
+  @override
+  String get startDueYesterday => 'due yesterday';
+
+  @override
+  String startDueDaysAgo(int days) {
+    return 'due $days days ago';
+  }
+
+  @override
+  String startDayOn(String ordinal, int day, String isTwo) {
+    return '$ordinal';
+  }
+
+  @override
+  String startPayMonthly(String day) {
+    return 'monthly on the $day';
+  }
+
+  @override
+  String startPayTwiceMonthly(String first, String second, int firstDay) {
+    return 'on the $first and $second';
+  }
+
+  @override
+  String get startPayEveryWeek => 'every week';
+
+  @override
+  String startPayEveryWeeks(int weeks) {
+    return 'every $weeks weeks';
+  }
+
+  @override
+  String startPayAmountWhen(String amount, String when) {
+    return '$amount $when';
+  }
+
+  @override
+  String startPayAmountOrMoreWhen(String amount, String when) {
+    return '$amount or more $when';
+  }
+
+  @override
+  String startPayAmountDotWhen(String amount, String when) {
+    return '$amount · $when';
+  }
+
+  @override
+  String startPayAmountOrMoreDotWhen(String amount, String when) {
+    return '$amount or more · $when';
+  }
+
+  @override
+  String startPaySplit(
+    String first,
+    String firstDay,
+    String second,
+    String secondDay,
+  ) {
+    return '$first on the $firstDay and $second on the $secondDay';
+  }
+
+  @override
+  String startPaySplitAtLeast(
+    String first,
+    String firstDay,
+    String second,
+    String secondDay,
+  ) {
+    return 'at least $first on the $firstDay and $second on the $secondDay';
+  }
+
+  @override
+  String get startThisPayPeriod => 'This pay period';
+
+  @override
+  String get startThisMonth => 'This month';
+}
