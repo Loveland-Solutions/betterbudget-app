@@ -46,7 +46,9 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
       and platform filled in. **No ledger data, ever.** The app makes no network call
       itself: the browser opens the link, and only when the user clicks it (unbreakable rule).
 - [ ] Issue templates in the public repo (bug, idea)
-- [ ] Releases: notarized macOS download attached to a GitHub release. Downloads outside
+- [x] Version numbers in the app (0.1.0, shown in Settings; ADR 0006), 2026-09-30.
+- [ ] Releases: notarized macOS download attached to a GitHub release (tag-driven; see
+      ADR 0006 before setting up CI). Downloads outside
       the App Store come first because they're faster to ship.
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.

@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/backup.dart';
 import '../data/database.dart';
@@ -188,6 +189,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
           db.lastCategoryFor(payee, _entryAccountId ?? _accountId!),
     );
     _keySaved = widget.recoveryKeySaved;
+    PackageInfo.fromPlatform().then(
+      (p) {
+        if (mounted) setState(() => _version = (p.version, p.buildNumber));
+      },
+      // No bundle to read (widget tests): Settings leaves the line out.
+      onError: (_) {},
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.startupNotice case final n?) _showToast(n);
@@ -196,6 +204,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   late bool _keySaved;
+
+  /// The app's version and build number from its bundle, for Settings.
+  (String, String)? _version;
 
   /// On a new computer, the ledger usually comes from a backup saved with
   /// Back up to…: offer it first. Starting empty is one click away.
@@ -2591,6 +2602,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onBackUp: _backUpTo,
                             onRestore: _restoreFrom,
                             onNewLedger: _startNewLedger,
+                            version: _version,
                             encrypted: widget.encrypted,
                             recoveryKeySaved: _keySaved,
                             onCheckRecoveryKey: widget.checkRecoveryKey == null
@@ -3161,6 +3173,7 @@ class _SettingsPage extends StatelessWidget {
     required this.onRestore,
     required this.onNewLedger,
     required this.recoveryKeySaved,
+    this.version,
     this.encrypted = false,
     this.onCheckRecoveryKey,
     this.archived,
@@ -3190,6 +3203,10 @@ class _SettingsPage extends StatelessWidget {
   /// Whether the recovery key was saved or copied when it was shown (ADR
   /// 0001): drives the coral warning below.
   final bool recoveryKeySaved;
+
+  /// Version and build number, shown at the bottom so a bug report can say
+  /// which build it came from; null when unknown (tests).
+  final (String, String)? version;
 
   /// Shows the Security section; false in tests.
   final bool encrypted;
@@ -3425,6 +3442,14 @@ class _SettingsPage extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (version case (final name, final build)) ...[
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    t.settingsVersion(name, build),
+                    key: const ValueKey('app-version'),
+                    style: onest(13, color: Mid.ink3),
+                  ),
+                ],
               ],
             ),
           ),

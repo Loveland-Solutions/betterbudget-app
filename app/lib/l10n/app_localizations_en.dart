@@ -753,6 +753,11 @@ class WordsEn extends Words {
       'This erases every account and transaction in this ledger, so you start empty. You choose whether your categories stay. What you have now is saved in Backups first, and Undo brings it back.';
 
   @override
+  String settingsVersion(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
   String get ledgerEraseAndStartOverButton =>
       'Erase everything and start over…';
 

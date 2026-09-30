@@ -1127,6 +1127,14 @@
   "@ledgerStartOverNote": {
     "description": "Settings → Start over card, text."
   },
+  "settingsVersion": "Version {version} ({build})",
+  "@settingsVersion": {
+    "description": "Settings, bottom of the page: the app's version and, in brackets, its build number (the repo's commit count). Example: Version 0.1.0 (134).",
+    "placeholders": {
+      "version": {"type": "String", "example": "0.1.0"},
+      "build": {"type": "String", "example": "134"}
+    }
+  },
   "ledgerEraseAndStartOverButton": "Erase everything and start over…",
   "@ledgerEraseAndStartOverButton": {
     "description": "Settings → Start over card, button."
