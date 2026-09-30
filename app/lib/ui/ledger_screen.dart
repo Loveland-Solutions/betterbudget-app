@@ -16,6 +16,8 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/readiness.dart';
+import '../import/mapping.dart';
+import '../import/sheet.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
@@ -29,6 +31,7 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
+part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'savings.dart';
 
@@ -289,16 +292,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // One write: a crash between them can't leave an empty category.
       await db.transaction(() async {
         made = await _makeCategory(d);
-        id = await db.postSimple(
-          accountId: d.account?.id ?? _accountId!,
-          date: d.date,
-          today: today,
-          payee: d.payee,
-          // The new-transaction row always supplies one or the other.
-          counterAccountId: made ?? d.counter!.id,
-          amount: d.amount!,
-          memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
-        );
+        final here = d.account?.id ?? _accountId!;
+        final other = d.otherAmount;
+        final amount = d.amount!;
+        id = other != null && d.counter != null
+            // Between currencies: both sides, from the side money leaves.
+            ? await db.postExchange(
+                fromAccountId: amount < 0 ? here : d.counter!.id,
+                toAccountId: amount < 0 ? d.counter!.id : here,
+                sent: amount < 0 ? amount.abs() : other,
+                received: amount < 0 ? other : amount.abs(),
+                date: d.date,
+                today: today,
+                payee: d.payee,
+                memo: d.memo,
+              )
+            : await db.postSimple(
+                accountId: here,
+                date: d.date,
+                today: today,
+                payee: d.payee,
+                // The new-transaction row always supplies one or the other.
+                counterAccountId: made ?? d.counter!.id,
+                amount: amount,
+                memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
+              );
       });
       _entry.payeeNames = await db.payeeNames();
       final pair = _alsoCategory(
@@ -650,6 +668,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           memo: d.memo,
           counterAccountId: made ?? d.counter?.id,
           amount: d.amount,
+          counterAmount: d.otherAmount,
           confirm: confirming,
           keepOwed: d.keepOwed,
         );
@@ -667,7 +686,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _cancelEdit();
     final name = d.payee.isEmpty ? rowPayee(t, row) : d.payee;
     if (confirming) {
-      String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
+      String money(int v) => formatMoney(
+        v.abs(),
+        showCents: v % 100 != 0,
+        currency: _data?.accounts[row.accountId]?.currency ?? Currency.mnt,
+      );
       final amount = d.amount ?? row.amount;
       final early = row.date.isAfter(today);
       // A payday confirmed: its schedule's next one, from the plan. Only
@@ -859,7 +882,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (n != 0) t.ledgerLocked(n),
         if (done.adjustmentTxnId != null)
           t.ledgerAdjustmentAdded(
-            formatMoney(shownOff.abs(), showCents: off % 100 != 0),
+            formatMoney(
+              shownOff.abs(),
+              showCents: off % 100 != 0,
+              currency: account.currency,
+            ),
           ),
       ].join(' · '),
     );
@@ -1345,24 +1372,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ({DateTime start, DateTime end, String label})? period,
   ) {
     final posted = register.posted.length;
-    final total = data.categoryTotal(
+    final totals = data.categoryTotals(
       c.id,
       from: period?.start,
       to: period?.end,
     );
-    String money(int v) => formatMoney(v, showCents: v % 100 != 0);
-    final kind = c.isIncome
-        ? (total >= 0 ? 'received' : 'paidBack')
-        : (total >= 0 ? 'spent' : 'refunded');
-    final amount = money(total.abs());
-    // With a period chip the span is on the chip; all time says since when.
-    final what = period != null || register.posted.isEmpty
-        ? t.ledgerFilterTotal(kind, amount)
-        : t.ledgerFilterTotalSince(
-            kind,
-            amount,
-            sayFullDate(t, register.posted.first.date),
-          );
+    // Each currency on its own, each with its own words: a dollar refund
+    // beside tugrik spending reads as a refund.
+    String kindOf(int v) => c.isIncome
+        ? (v >= 0 ? 'received' : 'paidBack')
+        : (v >= 0 ? 'spent' : 'refunded');
+    String money(MapEntry<Currency, int> e) => formatMoney(
+      e.value.abs(),
+      showCents: e.value % 100 != 0,
+      currency: e.key,
+    );
+    final parts = totals.entries.toList();
+    // With a period chip the span is on the chip; all time says since when,
+    // once, after the last.
+    final since = period != null || register.posted.isEmpty
+        ? null
+        : sayFullDate(t, register.posted.first.date);
+    final what = [
+      for (final (i, e) in parts.indexed)
+        since != null && i == parts.length - 1
+            ? t.ledgerFilterTotalSince(kindOf(e.value), money(e), since)
+            : t.ledgerFilterTotal(kindOf(e.value), money(e)),
+    ].join(' · ');
     final sched = register.scheduled.length;
     return [
       t.ledgerFilterRows(posted),
@@ -1410,10 +1446,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
-  Future<void> _createAccount(String name, AccountType type) async {
+  Future<void> _createAccount(
+    String name,
+    AccountType type,
+    Currency currency,
+  ) async {
     final int id;
     try {
-      id = await db.createAccount(name: name, type: type);
+      id = await db.createAccount(name: name, type: type, currency: currency);
     } catch (e) {
       debugPrint('Add account failed: $e');
       if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
@@ -1471,8 +1511,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
       redo: () => db.restoreMany([id]),
       message: account.isOwed
-          ? t.ledgerStartedAtOwed(_money(typed))
-          : t.ledgerStartedAt(_money(typed)),
+          ? t.ledgerStartedAtOwed(_money(typed, account.currency))
+          : t.ledgerStartedAt(_money(typed, account.currency)),
     );
   }
 
@@ -1716,6 +1756,161 @@ class _LedgerScreenState extends State<LedgerScreen> {
         archive: () => _archive(data, account),
         delete: () => _deleteAccount(data, account),
       );
+
+  /// Import a bank file into [account] (ADR 0002): pick it, read it, show
+  /// the columns and the rows, write what the user confirms as one undoable
+  /// action. The file type used last on this account is offered first.
+  Future<void> _startImport(
+    LedgerData data,
+    AccountInfo account,
+    int cleared,
+  ) async {
+    final t = context.t;
+    if (!_mayLeave()) return;
+    _endReconcile();
+    final saved = SavedMapping.decode(
+      data.prefs[AppDatabase.importMappingKey(account.id)],
+    );
+    final excel = XTypeGroup(
+      label: t.importExcelFiles,
+      extensions: const ['xls', 'xlsx', 'XLS', 'XLSX'],
+      uniformTypeIdentifiers: const [
+        'com.microsoft.excel.xls',
+        'org.openxmlformats.spreadsheetml.sheet',
+      ],
+    );
+    final text = XTypeGroup(
+      label: t.importTextFiles,
+      extensions: const ['csv', 'txt', 'tsv', 'CSV', 'TXT'],
+      uniformTypeIdentifiers: const [
+        'public.comma-separated-values-text',
+        'public.plain-text',
+        'public.tab-separated-values-text',
+      ],
+    );
+    final XFile? picked;
+    try {
+      picked = await openFile(
+        acceptedTypeGroups: saved?.kind == FileKind.csv
+            ? [text, excel]
+            : [excel, text],
+        confirmButtonText: t.ledgerChoose,
+      );
+    } catch (e) {
+      debugPrint('Open dialog failed: $e');
+      _showToast(t.ledgerCouldntOpenFileDialog);
+      return;
+    }
+    if (picked == null || !mounted) return;
+    final Sheet sheet;
+    final FileKind kind;
+    final bool fits;
+    final ImportMapping mapping;
+    try {
+      final bytes = await picked.readAsBytes();
+      kind =
+          fileKindOf(bytes, picked.name) ??
+          (throw const UnreadableFileException('unknown kind'));
+      sheet = readSheet(bytes, picked.name);
+      fits = saved != null && saved.proven && mappingFits(sheet, saved);
+      mapping = fits ? saved.mapping : guessMapping(sheet);
+    } catch (e) {
+      debugPrint('Import read failed: $e');
+      if (mounted) _showToast(t.importCouldntRead(picked.name));
+      return;
+    }
+    if (!fits && !mapping.hasDate) {
+      _showToast(t.importNoDates(picked.name));
+      return;
+    }
+    if (!mounted) return;
+    final pick = await showDialog<ImportPick>(
+      context: context,
+      builder: (_) => CurrencyScope(
+        currency: account.currency,
+        child: _ImportDialog(
+          accountName: account.name,
+          fileName: picked!.name,
+          sheet: sheet,
+          mapping: mapping,
+          fromSaved: fits,
+          accountId: account.id,
+          plan: (rows, keys) => db.planImport(account.id, rows, keys),
+          cleared: cleared,
+          owed: account.isOwed,
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    final uncategorized = t.importUncategorized;
+    final ImportRecord record;
+    try {
+      record = await db.applyImport(
+        accountId: account.id,
+        plan: pick.plan,
+        moveOpening: pick.moveOpening,
+        uncategorizedNames: {
+          uncategorized,
+          'Not categorized',
+          'Ангилаагүй',
+        }.toList(),
+      );
+    } catch (e) {
+      debugPrint('Import failed: $e');
+      if (mounted) {
+        _showToast(
+          t.importCouldntImport(switch (e) {
+            final DbException d => dbProblem(t, d),
+            _ => '$e',
+          }),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final newlyCleared = record.matched
+        .where((m) => m.before == Cleared.uncleared)
+        .length;
+    final label = record.added.isNotEmpty
+        ? t.importDone(record.added.length)
+        : t.importMatchedToast(record.matched.length);
+    _did(
+      label,
+      undo: () => db.undoImport(record),
+      redo: () => db.redoImport(record, account.id),
+      message: [
+        label,
+        if (record.added.isNotEmpty && newlyCleared > 0)
+          t.importMatchedToast(newlyCleared),
+        if (record.uncategorizedCount > 0)
+          t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
+        if (record.openingMove case final o?)
+          t.importOpeningMovedToast(
+            sayDate(t, o.toDate),
+            formatMoney(
+              account.isOwed ? -o.toAmount : o.toAmount,
+              currency: account.currency,
+            ),
+          ),
+      ].join(' · '),
+    );
+    // Remembered for the next file into this account. The rows are in
+    // either way, so a failure here only costs guessing again next time.
+    try {
+      await db.setPreference(
+        AppDatabase.importMappingKey(account.id),
+        SavedMapping(
+          shape: fileShape(sheet, pick.mapping),
+          kind: kind,
+          mapping: pick.mapping,
+          proven: pick.proven,
+        ).encode(),
+      );
+    } catch (e) {
+      debugPrint('Saving the import columns failed: $e');
+    }
+    _keysBack();
+  }
 
   /// Marks what an account is for on the Savings steps.
   Future<void> _setRole(
@@ -2157,6 +2352,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   child: Text(
                     context.t.ledgerCouldntOpenLedger(switch (snap.error) {
                       final CipherException e => cipherProblem(context.t, e),
+                      NewerLedgerException _ => context.t.ledgerNewerLedger,
                       final e => '$e',
                     }),
                     style: onest(14, color: Mid.coral),
@@ -2216,12 +2412,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               when _newAccount || account == null =>
                             _NewAccountPage(
                               onCreate: _createAccount,
+                              // The one most accounts are in, not whichever
+                              // is on screen: ₮ for a first account.
+                              currency: mainCurrency(data),
                               onCancel: account == null
                                   ? null
                                   : () => setState(() => _newAccount = false),
                             ),
                           AppSection.ledger when _all => _allBody(data),
-                          AppSection.ledger => _body(data, account!),
+                          AppSection.ledger => CurrencyScope(
+                            currency: account!.currency,
+                            child: _body(data, account),
+                          ),
                           AppSection.settings => _SettingsPage(
                             health: _backups.health,
                             now: widget.clock,
@@ -2393,6 +2595,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
               onReconcile: () => _startReconcile(data, account),
+              onImport: () => _startImport(data, account, summary.cleared),
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
@@ -2451,6 +2654,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 transferTargets: data.openAccounts
                     .where((a) => a.id != account.id)
                     .toList(),
+                currency: account.currency,
                 entryController: _entry,
                 today: today,
                 adding: _adding,
@@ -2538,16 +2742,12 @@ class _Sidebar extends StatelessWidget {
       'Credit' => t.ledgerGroupCredit,
       final other => other,
     };
-    // Archived accounts still hold money, or debt.
-    final net = data.balanceSheetAccounts.fold(
-      0,
-      (s, a) => s + data.balanceOf(a.id),
-    );
+    // Archived accounts still hold money, or debt. Each currency on its
+    // own line: they're never added together (ROADMAP E).
+    final net = data.balancesByCurrency(data.balanceSheetAccounts);
     // So net worth isn't a mystery sum of the accounts above it.
-    final archived = data.archivedAccounts.fold(
-      0,
-      (s, a) => s + data.balanceOf(a.id),
-    );
+    final archived = data.balancesByCurrency(data.archivedAccounts)
+      ..removeWhere((_, v) => v == 0);
 
     Widget header(AppSection sec, IconData icon, String label) =>
         _SectionHeader(
@@ -2652,20 +2852,26 @@ class _Sidebar extends StatelessWidget {
               children: [
                 Text(t.ledgerNetWorth, style: onest(12, color: Mid.sideInk3)),
                 const SizedBox(height: 4),
-                Text(
-                  '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
-                  style: onest(
-                    18,
-                    weight: 500,
-                    color: Mid.sideInk,
-                    tabular: true,
+                for (final e in net.entries)
+                  Text(
+                    formatMoney(e.value, currency: e.key),
+                    key: ValueKey('net-worth-${e.key.code}'),
+                    style: onest(
+                      net.length > 1 ? 16 : 18,
+                      weight: 500,
+                      color: Mid.sideInk,
+                      tabular: true,
+                    ),
                   ),
-                ),
-                if (archived != 0)
+                if (archived.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      t.ledgerInclArchived(_money(archived)),
+                      t.ledgerInclArchived(
+                        archived.entries
+                            .map((e) => _money(e.value, e.key))
+                            .join(' · '),
+                      ),
                       key: const ValueKey('net-worth-archived'),
                       style: onest(11.5, color: Mid.sideInk3, tabular: true),
                     ),
@@ -3138,8 +3344,8 @@ class _RestoreDialog extends StatelessWidget {
 /// A balance as the sidebar shows it: a card as what's owed, positive, as
 /// the bank does.
 String _balanceText(Words t, AccountInfo a, int balance) => a.isOwed
-    ? t.ledgerOwed('${balance > 0 ? '−' : ''}₮${formatWhole(balance)}')
-    : '${balance < 0 ? '−' : ''}₮${formatWhole(balance)}';
+    ? t.ledgerOwed(formatMoney(-balance, currency: a.currency))
+    : formatMoney(balance, currency: a.currency);
 
 /// Asks before everything is erased for a clean start, naming what goes:
 /// each account and its balance, the transactions' dates, pay. Whether the

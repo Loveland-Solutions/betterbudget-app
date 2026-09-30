@@ -42,6 +42,8 @@ dependencies:
   path_provider: ^2.1.6
   intl: ^0.20.3
   file_selector: ^1.1.0
+  archive: ^3.6.1
+  xml: ^7.0.1
   flutter_secure_storage: ^11.2.0
   crypto: ^3.0.6
   # Used directly in lib/data/ (encryption.dart, backup.dart) to open raw

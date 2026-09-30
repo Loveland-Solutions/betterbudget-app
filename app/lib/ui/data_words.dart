@@ -168,6 +168,8 @@ String dbProblem(Words t, DbException e) => switch (e.problem) {
   DbProblem.accountDeleted => t.ledgerDbAccountDeleted,
   DbProblem.neverReconciled => t.ledgerDbNeverReconciled,
   DbProblem.statementAfterToday => t.ledgerStatementAfterToday,
+  DbProblem.otherCurrency => t.ledgerDbOtherCurrency,
+  DbProblem.needsOtherAmount => t.ledgerDbNeedsOtherAmount,
   DbProblem.alreadyReconciledThrough => switch (e) {
     ReconcileDateException(:final through?) => t.ledgerAlreadyReconciled(
       sayDate(t, through),

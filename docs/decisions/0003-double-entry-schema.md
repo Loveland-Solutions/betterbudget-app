@@ -80,7 +80,7 @@ accepted in exchange for the correctness guarantees above.
 
 ## Open items
 
-- **The budget model is still undecided** — envelope-style (assign every tögrög to a
+- **The budget model is still undecided** — envelope-style (assign every tugrik to a
   category and watch it drain) versus target-style (set a limit, compare against actual).
   This model serves envelopes especially well, since envelope budgeting wants money to
   live somewhere, but the choice should be pressure-tested against this schema before the

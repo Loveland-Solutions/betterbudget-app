@@ -119,7 +119,7 @@ What's known so far:
   `#243550`, or an ink sidebar `#070B13` darker than the page. **Gray denim chosen**
   (see "Visual direction" above).
 - **Type: Onest, with Manrope as fallback.** Both are bundled; no font is fetched at
-  runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tögrög sign
+  runtime. **Onest has no ₮ (U+20AE) glyph.** Without the fallback every tugrik sign
   renders as a box. Browsers hide this by substituting a system font, which is why the
   HTML mockups looked fine. Any future font change must be checked for ₮, Ө and Ү.
 - The macOS title bar is transparent over the ground color. The native title bar is kept
@@ -522,7 +522,7 @@ What's known so far:
     **From the reviews** (decided along the lines above):
     - The second kind is **"Card or loan"**, with a hint naming loans and Storepay.
       Salary loans, mortgages and buy-now-pay-later all show as owed. The form says
-      accounts are in tögrög for now.
+      accounts are in tugrik for now.
     - The start hint shows before anything is typed. On a card it says "what you've
       used, not the available limit". The question follows the date ("What was in it
       on 08.31?").
@@ -830,6 +830,103 @@ Before beta the owner asked for a Mongolian option. The choices:
 - The app's own names (opening balances, adjustments) follow the language; a
   new account left unnamed is saved as "New account" or "Шинэ данс", whichever
   is showing, and stays that way until renamed.
+
+### Import: the bank file's own columns (owner, 2026-09-30)
+
+Mongolian banks don't export OFX or QFX, so import reads whatever file the bank gives
+(TDB's `.xls`, `.xlsx`, CSV) and the person says what each column holds. The owner's
+two assumptions: files are tables, and a person keeps using the same export for an
+account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
+
+- **Option A, file first (chosen).** The window shows the file's own columns and its
+  first rows, with a choice over each column: Date, Amount (+ in, − out), Money in,
+  Money out, Payee, Memo, Bank's balance, Not used. The file's name for a column sits
+  under the choice. Rows that won't come in (headings, totals, blank lines) show
+  dimmed. *Rejected, option B:* the app's fields listed, each with a menu of the
+  file's columns. It hides the data behind menus, so you can't see what you're matching.
+- **The app guesses first.** Each column's choice starts at the app's best guess, and
+  the bank's running balance proves the amounts are read right. A date like 03.04
+  that reads both ways gets two choices, each showing the date it would make. One amount column
+  gets a choice of which sign is money out.
+- **Remembered per account.** Confirming saves the columns for that account. A later
+  file of the same layout opens straight on the rows with "Read with the columns you
+  set for this account last time" and Change columns. The open dialog offers the
+  file type used last on that account first.
+- **One window: columns above, rows below.** The summary reads "63 new rows · 12 match
+  rows you typed, which become cleared · 4 already in the ledger · 3 rows with no
+  date or amount left out". Each row is tagged New, Matches (the typed row's payee
+  and date) or Already in. Enter or **Import 63 rows** writes it; a file with nothing
+  new says so in place of the button.
+- **Warn, don't block.** If the bank's balance doesn't add up, a big coral line says
+  which row and both numbers, and the import still goes ahead on a click. A second line
+  compares the cleared balance after the import with the file's last balance.
+- **Where it starts:** Import… beside Reconcile in the account header (both are about
+  matching the bank). ⌘Z undoes the whole import as one action. The toast names the
+  rows, the typed rows now cleared, and "Not categorized" when it was used.
+- **From the reviews (2026-09-30):** each row's tag can be clicked. A match becomes
+  its own row, then Left out; a new row is Left out and back. When the new rows fall on
+  days this account already has imported rows, a big coral line names the dates and the
+  count, with **Leave the new rows out**. Typed rows in the file's dates that nothing
+  matched are listed in gold ("…aren't in this file: Номин ₮12,000.00 on 09.14"),
+  since the bank never had them or has them at another amount. The cleared-balance line
+  gives the gap. Lines without a date (headings, totals) are counted quietly; a row with a
+  date but no readable amount is named in coral. The button says what happens: "Import
+  63 rows · clear 12". Columns saved from a file whose balance didn't add up are shown
+  again next time, not skipped.
+- **Rows before the opening balance (owner, 2026-09-30, option a):** a big coral
+  line with the numbers ("3 rows are dated before this account's opening balance
+  (₮1,023,000.00 on 2026.09.16), which already counts them"), and by default **Move
+  the opening balance to 2026.09.09 at ₮1,000,000.00**: the day before the file, less
+  what its rows add, so today's balance doesn't change. "Leave it (those rows count
+  twice)" is the other choice; ⌘Z undoes either. A reconciled opening balance stays,
+  with Leave those rows out. *Rejected (b):* importing only rows after it by default.
+- **A match's date (owner, 2026-09-30, option a):** the typed date stays unless the
+  bank's is in another month; then it takes the bank's, so the month's reconcile
+  matches the statement. The preview says so ("dated 10.02, the bank's"). *Rejected:*
+  always the bank's date (b); always the typed one (c).
+- **Categories:** each new row gets the income or spending category last used with its
+  payee on that account (never another account, so an own-name payee can't turn rows
+  into transfers); otherwise **Not categorized** (Ангилаагүй), an ordinary category the app
+  makes in the language showing, which the person can rename or delete. It isn't
+  called "Unassigned": in an envelope budget that means money waiting for a job.
+
+### Tugrik and dollars (owner, 2026-09-30)
+
+The owner asked that accounts can be made in MNT (₮) or USD ($). ROADMAP E had
+already decided the rest: totals shown per currency and never converted, and both
+sides of a transfer between currencies. Built on that:
+
+- **The sidebar shows whole amounts, cents included** (owner, 2026-09-30: "I'd prefer
+  to have the whole amount here"): each account's balance and net worth read
+  ₮4,289,291.00 and $9.00. *Rejected:* rounding to whole units there.
+- **Spelled "tugrik" in English** (owner, 2026-09-30: plain English
+  letters). *Rejected:* "tögrög".
+- **Chosen when the account is made:** Currency, "₮ Tugrik" or "$ Dollar", under
+  Kind. It defaults to the currency most accounts are in (₮ for a first account, not
+  whichever account is on screen), a default rather than a required choice. The hint
+  says it can't be changed later yet; whether to add that is with the owner.
+- **An account's money is in its symbol everywhere:** register, header, forecast,
+  reconcile, pay, import, the sidebar, toasts. In All accounts each row shows its own.
+- **Never added across currencies:** net worth is a line per currency ("₮16,228,750"
+  then "$250"); a category's total reads "₮X · $Y". *Rejected (ROADMAP E):* one
+  total at a typed rate.
+- **A transfer between currencies takes both amounts.** Under the transfer line the
+  entry row asks "Arrives in Chase:" (or "Left Chase:" for money in), and shows the
+  rate once both are in ("₮3,450.00 per $1"). The row then reads "$1,000.00 there ·
+  ₮3,450.00 per $1". Each currency's entries pass through a hidden "Currency
+  exchange" account, so each still adds up to zero and no rate is stored.
+- **Move to** offers only accounts in the same currency; a transfer between
+  currencies stays where it is.
+- **From the reviews:** the amount field's hint carries the symbol (₮0.00, $0.00), so
+  a receipt can't slip into the wrong currency in All accounts; "Sent from Chase:"
+  (not "Left", which read as a balance); the row reads "Chase: $1,000.00 · ₮3,450.00
+  per $1"; an import file that names the other currency gets a big warning with a
+  real row ("₮86,400 would become $86,400"); a category total words each currency
+  ("₮120,000 spent · $20 refunded").
+- **Savings counts one currency** for now: the one most open accounts are in (₮ on
+  a tie). It names what it leaves out ("Not counted here yet: Khan USD $3,000."), the
+  fund picker shows those accounts but can't pick them, and a typed month of spending
+  is kept with its currency. The owner decides how Savings treats two currencies.
 
 ## Consequences
 

@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'xls_fixture.dart';
+
 Future<void> _loadFont(String family, String path) async {
   final bytes = await File(path).readAsBytes();
   await (FontLoader(
@@ -143,7 +145,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
     var data = (await tester.runAsync(db.loadLedger))!;
-    expect(data.prefs[ReadyKeys.month], '200000000');
+    expect(data.prefs[ReadyKeys.month], 'MNT:200000000');
     final r = Readiness.of(data, DateTime(2026, 9, 16));
     expect(r.fund, data.balanceOf(khan.id));
 
@@ -562,7 +564,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       'Salary',
     );
-    await tester.enterText(find.widgetWithText(TextField, '0.00'), '+500000');
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '+500000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -743,7 +745,7 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openEntry(tester);
-      await tester.enterText(field('0.00'), '8000');
+      await tester.enterText(field('₮0.00'), '8000');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300)); // border fade-in
       expect(find.text('needs 2 more'), findsOneWidget);
@@ -762,11 +764,11 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openEntry(tester);
-      await tester.enterText(field('0.00'), '8000');
+      await tester.enterText(field('₮0.00'), '8000');
       await tester.enterText(field('New transaction — payee'), 'Sakura Coffee');
       await enter(tester); // category is filled from the payee's last one
       expect(find.text('Sakura Coffee'), findsNWidgets(2));
-      expect(find.text('₮4,174,450'), findsWidgets);
+      expect(find.text('₮4,174,450.00'), findsWidgets);
       await tidy(tester, db);
     });
 
@@ -777,7 +779,7 @@ void main() {
       await openEntry(tester);
       await tester.enterText(field('Category'), 'Dining out');
       await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
-      await tester.enterText(field('0.00'), '42000');
+      await tester.enterText(field('₮0.00'), '42000');
       await tester.pump();
       // The memo line shows while the row is in use.
       await tester.enterText(field('Memo'), 'Lunch with Bat');
@@ -1069,7 +1071,7 @@ void main() {
     tester,
   ) async {
     final db = await pumpLedger(tester);
-    expect(find.text('₮640,200 owed'), findsOneWidget); // sidebar
+    expect(find.text('₮640,200.00 owed'), findsOneWidget); // sidebar
     await tester.tap(find.text('Golomt Visa'));
     await tester.pumpAndSettle();
     expect(find.text('Owed'), findsWidgets); // total line and Balance column
@@ -1219,7 +1221,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Dining out',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '42000');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '42000');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -1407,7 +1409,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       '→ Golomt Visa',
     );
-    await tester.enterText(find.widgetWithText(TextField, '0.00'), '640200');
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '640200');
     await tester.pump();
     expect(
       find.text('₮640,200.00 from TDB Checking to Golomt Visa'),
@@ -1712,9 +1714,9 @@ void main() {
     final goes = find.byKey(const ValueKey('new-ledger-goes'));
     for (final t in [
       'TDB Checking',
-      '₮4,182,450',
+      '₮4,182,450.00',
       'Golomt Visa',
-      '₮640,200 owed',
+      '₮640,200.00 owed',
       '19 transactions',
     ]) {
       expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
@@ -2056,7 +2058,7 @@ void main() {
       'Tuition',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, '0.00'),
+      find.widgetWithText(TextField, '₮0.00'),
       '2000000+100000',
     );
     // The write is real SQLite I/O, so let it run outside the fake clock.
@@ -2128,7 +2130,7 @@ void main() {
         matchesGoldenFile('goldens/account_start.png'),
       );
       await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
-      expect(find.text('₮500,000 owed'), findsOneWidget); // sidebar
+      expect(find.text('₮500,000.00 owed'), findsOneWidget); // sidebar
       expect(find.text('Opening balance'), findsOneWidget);
       // Only what hasn't settled is left to type, so the entry row is open.
       expect(
@@ -2246,14 +2248,14 @@ void main() {
       // Gone from the sidebar; the next account opens; net worth unchanged.
       expect(find.text('₮4,182,450'), findsNothing);
       expect(find.text('Khan Savings'), findsNWidgets(2)); // title, sidebar
-      expect(find.text('₮16,228,750'), findsOneWidget);
+      expect(find.text('₮16,228,750.00'), findsOneWidget);
       expect(find.text('incl. ₮4,182,450 in archived'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
       expect(find.text('Archived accounts'), findsOneWidget);
       await tapAndWait(tester, find.textContaining('Show in sidebar'));
-      expect(find.text('₮4,182,450'), findsOneWidget);
+      expect(find.text('₮4,182,450.00'), findsOneWidget);
       expect(find.text('TDB Checking'), findsNWidgets(2)); // title, sidebar
       await tidy(tester, db);
     });
@@ -2445,7 +2447,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Coffee',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
@@ -2547,7 +2549,7 @@ void main() {
       );
       final category = find.widgetWithText(TextField, 'Category');
       await tester.enterText(category, 'Gro');
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '6500');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -2629,7 +2631,7 @@ void main() {
         find.widgetWithText(TextField, 'Category'),
         'Groceries',
       );
-      await tester.enterText(find.widgetWithText(TextField, '0.00'), '12000');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '12000');
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
@@ -2716,7 +2718,7 @@ void main() {
             'Groceries',
           );
           await tester.enterText(
-            find.widgetWithText(TextField, '0.00'),
+            find.widgetWithText(TextField, '₮0.00'),
             '5000',
           );
           await tester.runAsync(() async {
@@ -3187,5 +3189,301 @@ void main() {
       await file.writeAsString('purple');
       expect((await AppearanceController.load(file)).value, Appearance.system);
     });
+  });
+
+  testWidgets('import: pick a bank file, check its columns, import, undo; '
+      'the next file skips the columns', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import'),
+    ))!;
+    // Made-up rows in TDB's plain layout: no header row, a totals footer.
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (0, 0): 'Данс: 0000000000 MNT',
+          (1, 0): DateTime(2026, 9, 14, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 12500.0,
+          (1, 5): '5000000001 Номин ХХК',
+          (1, 6): 987500.0,
+          (1, 7): 'POS 10000001: НОМИН',
+          (2, 0): DateTime(2026, 9, 15, 13, 30),
+          (2, 2): 250000.0,
+          (2, 3): 0.0,
+          (2, 6): 1237500.0,
+          (2, 7): 'Буцаалт',
+          (3, 0): DateTime(2026, 9, 15, 18, 0),
+          (3, 2): 0.0,
+          (3, 3): 7000.0,
+          (3, 6): 1230500.0,
+          (3, 7): 'QPay Туршилтын кофе',
+          (4, 0): 'Нийт:',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    Future<int> imported() async => (await tester.runAsync(
+      () async => (await db.loadLedger()).txns
+          .where((t) => t.payee == 'QPay Туршилтын кофе')
+          .length,
+    ))!;
+
+    // Cancelled: nothing opens.
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.byType(Dialog), findsNothing);
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('Import into TDB Checking'), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-role-3')), findsOneWidget);
+    expect(find.textContaining('3 new rows'), findsOneWidget);
+    expect(
+      find.textContaining('The bank’s running balance adds up on every row'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(Dialog),
+      matchesGoldenFile('goldens/import_columns.png'),
+    );
+
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.textContaining('Imported 3 rows'), findsOneWidget);
+    expect(await imported(), 1);
+    expect(find.text('Номин ХХК'), findsOneWidget);
+
+    // ⌘Z takes the whole import back.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Undone · Imported 3 rows'), findsOneWidget);
+    expect(await imported(), 0);
+
+    // The same layout again: straight to the rows, with the saved columns.
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.text('Read with the columns you set for this account last time.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('import-role-3')), findsNothing);
+    expect(find.textContaining('3 new rows'), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-cancel')));
+    expect(find.byType(Dialog), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a dollar account: made in dollars, shown in dollars, and a '
+      'transfer to it from tugrik takes both amounts', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('add-account')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-account-name')),
+      'Chase',
+    );
+    await tester.tap(find.byKey(const ValueKey('currency-USD')));
+    await tester.pumpAndSettle();
+    await tapAndWait(tester, find.byKey(const ValueKey('new-account-create')));
+    expect(
+      find.text(
+        'From the bank app, a statement or what you count, not the '
+        '“available” balance · empty starts at \$0',
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byKey(const ValueKey('start-balance')), '250');
+    await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
+    expect(find.text(r'$250.00'), findsWidgets); // sidebar, net worth, the page
+    expect(find.textContaining(r'Started at $250'), findsOneWidget);
+    // Net worth: each currency on its own line.
+    expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('net-worth-USD'))).data,
+      r'$250.00',
+    );
+
+    // From TDB Checking, a transfer to Chase asks what arrived there.
+    await tester.tap(find.text('TDB Checking').first);
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Chase',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '3450000');
+    await tester.pump();
+    expect(find.text('Arrives in Chase:'), findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('exchange-amount')),
+        matching: find.byType(TextField),
+      ),
+      '1000',
+    );
+    await tester.pump();
+    expect(find.text(r'₮3,450.00 per $1'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/entry_exchange.png'),
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    await settle(tester);
+    final data = (await tester.runAsync(db.loadLedger))!;
+    final chase = data.balanceSheetAccounts.firstWhere(
+      (a) => a.name == 'Chase',
+    );
+    expect(data.balanceOf(chase.id), 125000);
+    expect(
+      find.text(r'$1,250.00'),
+      findsWidgets,
+    ); // sidebar, net worth, the page
+    expect(
+      find.textContaining(r'Chase: $1,000.00 · ₮3,450.00 per $1'),
+      findsOneWidget,
+    );
+    // The row stays open for the next one, with no second amount left over.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Chase',
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('exchange-amount')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller!
+          .text,
+      '',
+    );
+    await tidy(tester, db);
+  });
+
+  testWidgets('import: rows before the opening balance move it, by default', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-open'),
+    ))!;
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (1, 0): DateTime(2026, 9, 10, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 20000.0,
+          (1, 6): 980000.0,
+          (1, 7): 'Кофе',
+          (2, 0): DateTime(2026, 9, 12, 13, 30),
+          (2, 2): 50000.0,
+          (2, 3): 0.0,
+          (2, 6): 1030000.0,
+          (2, 7): 'Буцаалт',
+          (3, 0): DateTime(2026, 9, 13, 18, 0),
+          (3, 2): 0.0,
+          (3, 3): 7000.0,
+          (3, 6): 1023000.0,
+          (3, 7): 'Такси',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+    final id = (await tester.runAsync(() async {
+      final id = await db.createAccount(
+        name: 'State Bank',
+        type: AccountType.asset,
+      );
+      await db.postOpeningBalance(
+        accountId: id,
+        date: DateTime(2026, 9, 16),
+        balance: 102300000,
+      );
+      return id;
+    }))!;
+    await settle(tester);
+    await tester.tap(find.text('State Bank'));
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.textContaining(
+        '3 rows are dated before this account’s opening balance',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Move the opening balance to 2026.09.09 at ₮1,000,000.00'),
+      findsOneWidget,
+    );
+    // The bank's balance before its first row agrees: nothing counted twice.
+    expect(
+      find.textContaining(
+        'the cleared balance matches the bank: ₮1,023,000.00',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(Dialog),
+      matchesGoldenFile('goldens/import_before_opening.png'),
+    );
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('opening balance now'), findsOneWidget);
+    final data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
   });
 }

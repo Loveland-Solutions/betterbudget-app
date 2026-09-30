@@ -203,7 +203,11 @@ class _BudgetPageState extends State<_BudgetPage> {
   }
   final p = pays.first;
   final more = pays.length > 1 ? t.planMorePay(pays.length - 1) : '';
-  String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+  String money(int v) => formatMoney(
+    v,
+    showCents: v % 100 != 0,
+    currency: data.accounts[p.accountId]?.currency ?? Currency.mnt,
+  );
   // Each paycheck beside what was planned for its own day: split pay's
   // advance is measured against the advance, not the rest.
   final came = data

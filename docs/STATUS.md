@@ -29,7 +29,7 @@ Visual direction and the register's UX rules are settled in
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite (schema version 7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
+| Storage | Drift/SQLite (schema version 8: import keys on each account's entry; v7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings opens the steps to getting prepared (rule 25). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
 | Categories | The Budget section's first version (no amounts yet): Spending and Income, each category with "42 rows · last 09.12 · 1 scheduled". Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
@@ -46,9 +46,11 @@ Visual direction and the register's UX rules are settled in
 | Selection | One row at a time (multi-select removed, may return with import). Clicking a row attaches a bar under it with what applies: Edit, Categorize, Mark cleared or uncleared, Delete, ✕; keys Enter, C, Delete, Esc. Reconciled rows can't be edited or deleted, and a transfer reconciled on one side is locked on both (enforced in the database) |
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
+| Currencies | Each account is in ₮ or $, chosen when it's made (ADR 0004 "Tugrik and dollars"); its amounts show in its symbol everywhere. Net worth and category totals show each currency on its own line. A transfer between currencies takes both amounts (the rate is shown, not stored) through a hidden exchange account. Savings counts the main currency. Schema unchanged (the columns existed) |
+| Import | **Import…** beside Reconcile in the account header (ADR 0002 "Any bank's file", ADR 0004 "Import"): TDB's `.xls` (both exports), `.xlsx` or CSV. The window shows the file's own columns with a choice over each, the app's guess filled in, and the rows below it as New, Matches (a typed row, which becomes cleared) or Already in. It checks the bank's running balance (a coral warning with both amounts if it doesn't add up, and you can still import) and shows the cleared balance after the import against the bank's. Columns are remembered per account; a file of the same layout opens on the rows. Rows come in cleared, with the payee's last income or spending category or "Not categorized". Click a row's tag to add a match as its own row or leave a row out; overlap with earlier imports and typed rows the file lacks are named. One ⌘Z undoes it all. 270 tests. Not yet: rules, own-account transfers matched between two accounts, scheduled bills matched |
 | Language | Settings → Language: Same as this Mac, English or Монгол (per computer, ⌘Z undoes). Every word is in `app/lib/l10n/`; the Mongolian is a draft awaiting a native speaker's check ([review sheet](mongolian-review.csv), [glossary](l10n-glossary.md)). Dates in sentences read "9-р сарын 30"; rows keep 09.30 |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 174 (2026-09-24), including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 288 (2026-09-30): import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -60,7 +62,8 @@ scheduled items.
   macOS and iOS are verified. Print for the recovery key isn't wired (Save and Copy are).
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
-- **Import** (TDB per ADR 0002), **recurring** schedules (scheduled
+- **Import rules** (payee → category), matching scheduled bills and own-account
+  transfers on import; **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
 - CSV export, app lock.
 - **Phone apps**
@@ -71,11 +74,8 @@ scheduled items.
 
 ### Known bugs and loose ends
 
-- **USD accounts show as MNT until ROADMAP E.** The owner has one MNT account and two
-  USD accounts. Any USD account entered now is stored as MNT: it shows ₮, and net worth
-  adds its dollars to the tögrög. The rows themselves are right. E needs a step where
-  the user marks existing accounts as USD, without re-entering anything. (The owner's
-  test data was erased on 2026-09-30.)
+- **An account's currency can't be changed after it's made.**
+  The owner remade theirs by hand (2026-09-30); Change currency stays on ROADMAP E.
 
 ## Settled decisions
 
@@ -141,9 +141,8 @@ row's date-order balance? Where do scheduled rows go when not sorted by date?
 
 Roughly in the order they will block something.
 
-1. **Does TDB's internet banking offer CSV or modern `.xlsx`?** Both current exports are
-   legacy BIFF `.xls`, which has no mature Dart reader. **Check before starting a BIFF
-   reader.**
+1. ~~Does TDB's internet banking offer CSV or modern `.xlsx`?~~ Moot: the `.xls` reader
+   is built (2026-09-30).
 2. **What does the ledger still need before the budget?** The owner is steering this by
    feel. Likely candidates: splits, accounts/categories management, import, recurring,
    plus search and sorting on the roadmap. Ask rather than assume.
@@ -161,11 +160,13 @@ Roughly in the order they will block something.
    from Budget, should show that period, not all time.
 5. **Multi-currency at launch?** **Decided 2026-09-30: MNT and USD before beta, totals shown in each currency separately** ([ROADMAP](ROADMAP.md) E). Earlier lean: data model ready (entries carry
    `currency` and `rate`), UI MNT-only. **Live risk:** sidebar net worth adds raw
-   balances, so a second-currency account (a USD 401(k)) would add cents to tögrög. Both
+   balances, so a second-currency account (a USD 401(k)) would add cents to tugrik. Both
    personas in [personas.md](personas.md) are US users paid in dollars.
-6. **Is the dedup key stable across overlapping exports?** Two overlapping TDB exports
-   would settle it.
-7. **Which other banks import at launch?** Khan, Golomt, Khas, State Bank, M Bank.
+6. **Is the dedup key stable across overlapping exports?** Two of the owner's exports
+   shared all 78 overlapping keys (2026-09-30). Two deliberately overlapping periods would
+   settle it.
+7. **Which other banks import at launch?** Any bank's table (`.xls`, `.xlsx`, CSV) maps
+   by its columns now; a real Khan or Golomt file is still worth a try.
 8. **Cash-heavy or card-heavy users?** Decides whether wallet-count reconciliation is core.
 9. **Does BetterBudget get its own wordmark?** `assets/logo/` is the Loveland Solutions
    company mark. The app uses a gold diamond plus "BetterBudget" as a placeholder.
@@ -173,6 +174,29 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**Tabled by the owner (2026-09-30), to address next**, from using the new build:
+
+- [ ] The opening row's category reads "Opening balances"; it should say **"Opening
+  balance"**.
+- [ ] The gold toast after making an account ("Started at … · add only what hasn't
+  settled yet"): it shouldn't appear at account creation, and "settled" reads as
+  AI-written. Use the app's own word, **cleared**.
+- [ ] Pay's weekend rule offers only Friday before / Monday after. **Some people are
+  paid on a Saturday**: a choice to keep the day.
+- [ ] Settings → Budget by, under Pay period: **"Put in how much comes"** is poor
+  wording; rewrite it.
+- [ ] The forecast runs only to the next payday, so **with payday tomorrow it shows one
+  day**. Rethink how far it looks (owner: "we need to rethink this"); bring options.
+- [x] The two import questions, both option a (2026-09-30): rows before the opening
+  balance move it (by default), and a match takes the bank's date across a month.
+  Change currency isn't needed now: the owner remade AFCU Checking as a dollar
+  account; it stays on ROADMAP E.
+
+**Fixed 2026-09-30:** the ledger wouldn't open ("duplicate column name: import_key").
+An older build (the Release copy from 09-29) opened the v8 ledger and relabeled it v7;
+the next v8 launch tried to add the column again. Upgrades now skip what's already
+there, and a build refuses a ledger saved by a newer one instead of relabeling it.
 
 **Beyond the alpha** (owner, 2026-09-30): the list to beta and the platforms after it
 (bug link and public releases, the budget page, Savings, MNT and USD, App Store,
@@ -271,7 +295,12 @@ the next. Details for each item are further down (open items, roadmap, tabled).
 - [ ] 12. **Cash accounts** (after 1)
 - [ ] 13. **CI** running `flutter test` on pull requests
 - [ ] 14. **Encryption**: moved into the alpha (above)
-- [ ] 15. **TDB import** (first: does TDB export CSV or `.xlsx`?)
+- [x] 15. **Import**, any bank's file (owner, 2026-09-30, option A): merged (PR #24),
+  both reviews done and their fixes in; rows before the opening balance move it, and
+  a match takes the bank's date across a month (owner's picks). Later:
+  rules, the category shown per row, cleaning QPay/POS payees, warning when the file's
+  account number isn't this account's, flagging scheduled bills the file pays, and
+  keeping incoming money out of spending in "Not categorized" before the budget.
 
 ### How to work with the owner
 
@@ -324,6 +353,15 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **PR #24 (2026-09-30):** **Import** from any bank's file (TDB's `.xls` with a reader
+  written for it, `.xlsx`, CSV): the file's own columns with a choice over each,
+  remembered per account, a balance-chain check, dedup keys on each account's entry
+  (schema v8), matching typed rows, one undo. **Tugrik and dollar accounts**: chosen
+  at creation, each account in its symbol, totals per currency, transfers between
+  currencies with both amounts. The sidebar shows cents. Upgrades skip what's
+  already there, and a build refuses a ledger saved by a newer one (an old Release
+  copy had relabeled the owner's ledger). 288 tests.
 
 - **PR #21 (2026-09-29):** Add buttons are blue (red read as a warning; the `red`
   token is gone). The logo's bee is back left of the wordmark, no tile

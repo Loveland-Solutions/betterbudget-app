@@ -97,7 +97,11 @@ class ReconcilePanel extends StatelessWidget {
           final canAdjust = off != null && off != 0 && c.dateProblem == null;
           // Shown the way the bank shows it.
           int bank(int v) => s.owed ? -v : v;
-          String money(int v) => formatMoney(v, showCents: v % 100 != 0);
+          String money(int v) => formatMoney(
+            v,
+            showCents: v % 100 != 0,
+            currency: CurrencyScope.of(context),
+          );
 
           Widget line(String label, Widget value, {Widget? note}) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),

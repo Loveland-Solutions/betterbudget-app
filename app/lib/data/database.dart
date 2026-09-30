@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ledger.dart';
+import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../import/mapping.dart';
 import 'encryption.dart';
 
 part 'database.g.dart';
@@ -91,6 +93,8 @@ class Transactions extends Table {
   TextColumn get date => text()();
   IntColumn get payeeId => integer().nullable().references(Payees, #id)();
   TextColumn get memo => text().nullable()();
+
+  /// Unused since v8: the key is on each account's entry.
   TextColumn get importKey => text().nullable().unique()();
   BoolColumn get scheduled => boolean().withDefault(const Constant(false))();
 
@@ -103,6 +107,7 @@ class Transactions extends Table {
 }
 
 @DataClassName('EntryRow')
+@TableIndex(name: 'entries_import_key', columns: {#importKey}, unique: true)
 class Entries extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get transactionId => integer().references(Transactions, #id)();
@@ -117,6 +122,12 @@ class Entries extends Table {
   /// The reconcile that locked this entry, so it can be taken back later.
   IntColumn get reconciliationId =>
       integer().nullable().references(Reconciliations, #id)();
+
+  /// The bank row this entry came from or was matched to (ADR 0002). On the
+  /// entry, not the transaction, so each side of a transfer matches its own
+  /// bank's file. Unique through `entries_import_key` (SQLite can't add a
+  /// unique column to a table that exists).
+  TextColumn get importKey => text().nullable()();
 }
 
 @DataClassName('ReconciliationRow')
@@ -157,6 +168,8 @@ enum DbProblem {
   accountDeleted('That account was deleted'),
   neverReconciled('Never reconciled'),
   statementAfterToday('The statement can’t be after today'),
+  otherCurrency('That account is in another currency'),
+  needsOtherAmount('Say what arrives in the other currency'),
 
   /// With the last statement's date as the exception's `through`, and in
   /// English, `09.30`, as its detail.
@@ -299,6 +312,178 @@ class DeletedAccount {
   final List<int> transactionIds;
 }
 
+/// What a row of a bank file does on import. The person can turn a match
+/// into its own row, or leave a row out.
+enum ImportFate { add, match, already, leftOut }
+
+/// A row the user typed that a bank row matches.
+class TypedMatch {
+  const TypedMatch({
+    required this.transactionId,
+    required this.entryId,
+    required this.date,
+    required this.payee,
+    required this.cleared,
+    required this.hasMemo,
+  });
+  final int transactionId;
+  final int entryId;
+  final DateTime date;
+  final String payee;
+  final Cleared cleared;
+  final bool hasMemo;
+}
+
+class ImportPlanRow {
+  const ImportPlanRow({
+    required this.row,
+    required this.key,
+    required this.fate,
+    this.match,
+  });
+  final ImportRow row;
+  final String key;
+  final ImportFate fate;
+
+  /// Kept when the person turns the match off, so it can be turned back on.
+  final TypedMatch? match;
+
+  ImportPlanRow withFate(ImportFate f) =>
+      ImportPlanRow(row: row, key: key, fate: f, match: match);
+}
+
+/// A typed row in the file's dates that no bank row matched.
+class UnmatchedTyped {
+  const UnmatchedTyped(this.date, this.payee, this.amount);
+  final DateTime date;
+  final String payee;
+  final int amount;
+}
+
+/// What an import would do, and what around it deserves a look.
+class ImportPlan {
+  const ImportPlan({
+    required this.rows,
+    this.unmatched = const [],
+    this.importedBefore = 0,
+    this.firstDay,
+    this.lastDay,
+    this.opening,
+  });
+  final List<ImportPlanRow> rows;
+
+  /// The account's opening balance, when it has one.
+  final OpeningBalance? opening;
+
+  /// Uncleared typed rows dated within the file that nothing matched: the
+  /// bank never had them, or has them at another amount.
+  final List<UnmatchedTyped> unmatched;
+
+  /// Rows imported earlier on this account, dated within the new rows'
+  /// dates. Many means the file may repeat them under different keys.
+  final int importedBefore;
+  final DateTime? firstDay;
+  final DateTime? lastDay;
+
+  ImportPlan withRows(List<ImportPlanRow> r) => ImportPlan(
+    rows: r,
+    unmatched: unmatched,
+    importedBefore: importedBefore,
+    firstDay: firstDay,
+    lastDay: lastDay,
+    opening: opening,
+  );
+}
+
+/// An account's opening balance row: where it sits and what it holds.
+class OpeningBalance {
+  const OpeningBalance({
+    required this.transactionId,
+    required this.date,
+    required this.amount,
+    required this.locked,
+  });
+  final int transactionId;
+  final DateTime date;
+
+  /// On the account's side.
+  final int amount;
+
+  /// Reconciled: its date and amount stay.
+  final bool locked;
+}
+
+/// Where an import moved the opening balance, for undo and redo.
+typedef OpeningMove = ({
+  int transactionId,
+  DateTime fromDate,
+  int fromAmount,
+  DateTime toDate,
+  int toAmount,
+});
+
+/// A matched row's date: the typed one, unless the bank's falls in another
+/// month (owner, 2026-09-30), so a reconcile for that month matches the
+/// bank's statement. A reconciled row keeps its date.
+DateTime matchedDate(TypedMatch m, DateTime bank) {
+  final b = dateOnly(bank);
+  if (m.cleared == Cleared.reconciled) return m.date;
+  return b.year == m.date.year && b.month == m.date.month ? m.date : b;
+}
+
+class MatchedImport {
+  const MatchedImport(
+    this.transactionId,
+    this.entryId,
+    this.before,
+    this.key, {
+    this.memo,
+    this.dateBefore,
+    this.dateAfter,
+  });
+  final int transactionId;
+  final int entryId;
+  final Cleared before;
+  final String key;
+
+  /// Set when the match took the bank's date (another month).
+  final DateTime? dateBefore;
+  final DateTime? dateAfter;
+
+  /// The bank's text, put in as the memo when the typed row had none.
+  final String? memo;
+}
+
+/// What an import wrote, for undo and redo: new transactions with their
+/// keys, typed rows it matched, and the category it made, if any.
+class ImportRecord {
+  const ImportRecord({
+    required this.added,
+    required this.matched,
+    this.madeCategory,
+    this.uncategorizedCount = 0,
+    this.openingMove,
+  });
+  final Map<int, String> added;
+
+  /// The opening balance moved before the file's rows, when it was.
+  final OpeningMove? openingMove;
+  final List<MatchedImport> matched;
+  final int? madeCategory;
+
+  /// New rows that went to the holding category (made or found).
+  final int uncategorizedCount;
+}
+
+/// The ledger was saved by a newer BetterBudget than this one. Nothing was
+/// changed.
+class NewerLedgerException implements Exception {
+  NewerLedgerException(this.version);
+  final int version;
+  @override
+  String toString() => 'NewerLedgerException: saved as version $version';
+}
+
 class NotFoundException extends DbException {
   NotFoundException(super.problem);
 }
@@ -361,28 +546,33 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
+      // Opened by an older build than the one that last saved it: refuse,
+      // before anything is written. Going on would mark it as the older
+      // version while its newer columns stay, and the newer build could
+      // then no longer open it (2026-09-30).
+      if (from > to) throw NewerLedgerException(from);
       await _backupBeforeUpgrade(from);
       // Drift doesn't wrap upgrades; a failure halfway must leave the old
       // version intact so the next launch can try again.
       await transaction(() async {
         if (from < 2) {
-          await m.addColumn(entries, entries.reconciliationId);
+          await _addColumnOnce(m, entries, entries.reconciliationId);
           await linkReconciledEntries();
         }
         if (from < 3) await repairReconciledEntries();
         if (from < 4) {
-          await m.addColumn(accounts, accounts.archivedAt);
-          await m.addColumn(accounts, accounts.deletedAt);
+          await _addColumnOnce(m, accounts, accounts.archivedAt);
+          await _addColumnOnce(m, accounts, accounts.deletedAt);
         }
         if (from < 5) {
-          await m.addColumn(accounts, accounts.payday);
+          await _addColumnOnce(m, accounts, accounts.payday);
           await m.createTable(paySchedules);
-          await m.addColumn(transactions, transactions.payScheduleId);
+          await _addColumnOnce(m, transactions, transactions.payScheduleId);
           // Every income row ended the forecast before; nothing changes
           // until the user unmarks one.
           await customStatement(
@@ -390,12 +580,40 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 6) {
-          await m.addColumn(accounts, accounts.role);
+          await _addColumnOnce(m, accounts, accounts.role);
           await m.createTable(preferences);
         }
         // Before v5 the table was just made, with the column already.
         if (from >= 5 && from < 7) {
-          await m.addColumn(paySchedules, paySchedules.amount2Minor);
+          await _addColumnOnce(m, paySchedules, paySchedules.amount2Minor);
+        }
+        if (from < 8) {
+          await _addColumnOnce(m, entries, entries.importKey);
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS entries_import_key '
+            'ON entries (import_key)',
+          );
+          // A key on a transaction goes to the side of the account it names
+          // (`a<id>|…`), else its first account side.
+          await customStatement(
+            'UPDATE entries SET import_key = (SELECT t.import_key FROM '
+            'transactions t WHERE t.id = entries.transaction_id) '
+            'WHERE id IN (SELECT e.id FROM entries e '
+            'JOIN transactions t ON t.id = e.transaction_id '
+            "WHERE t.import_key LIKE 'a' || e.account_id || '|%')",
+          );
+          await customStatement(
+            'UPDATE entries SET import_key = (SELECT t.import_key FROM '
+            'transactions t WHERE t.id = entries.transaction_id) '
+            'WHERE id IN (SELECT MIN(e.id) FROM entries e '
+            'JOIN transactions t ON t.id = e.transaction_id '
+            'JOIN accounts a ON a.id = e.account_id '
+            "WHERE t.import_key IS NOT NULL AND a.type IN ('asset', 'liability') "
+            'AND NOT EXISTS (SELECT 1 FROM entries k WHERE '
+            'k.transaction_id = e.transaction_id AND k.import_key IS NOT NULL) '
+            'GROUP BY e.transaction_id)',
+          );
+          await customStatement('UPDATE transactions SET import_key = NULL');
         }
       });
     },
@@ -406,6 +624,20 @@ class AppDatabase extends _$AppDatabase {
   );
 
   int get _now => DateTime.now().millisecondsSinceEpoch;
+
+  /// Adds [column] unless [table] has it already: an upgrade that ran, or a
+  /// file an older build relabeled, mustn't stop the ledger opening.
+  Future<void> _addColumnOnce(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    final have = await customSelect(
+      'PRAGMA table_info("${table.actualTableName}")',
+    ).get();
+    if (have.any((r) => r.read<String>('name') == column.name)) return;
+    await m.addColumn(table, column);
+  }
 
   /// Copies the database next to itself before a schema upgrade, e.g.
   /// `betterbudget.before-v3-from-v2-20260917-153000.sqlite`. In-memory
@@ -438,9 +670,12 @@ class AppDatabase extends _$AppDatabase {
 
   /// Transactions that don't sum to zero or have fewer than two entries.
   /// Every write refuses to leave one (ADR 0003); a restored file must too.
+  /// Each currency adds up to zero on its own, as every write checks.
   static const unbalancedSql =
       'SELECT transaction_id FROM entries GROUP BY transaction_id '
-      'HAVING SUM(amount_minor) != 0 OR COUNT(*) < 2';
+      'HAVING COUNT(*) < 2 '
+      'UNION SELECT transaction_id FROM entries '
+      'GROUP BY transaction_id, currency HAVING SUM(amount_minor) != 0';
 
   /// Replaces every row with the rows in the database file at [path], in one
   /// transaction, while the app keeps this connection open. The file must
@@ -567,6 +802,7 @@ class AppDatabase extends _$AppDatabase {
               amount: e.amountMinor,
               cleared: e.cleared,
               reconciliationId: e.reconciliationId,
+              currency: Currency.fromCode(e.currency),
             ),
           );
     }
@@ -586,6 +822,7 @@ class AppDatabase extends _$AppDatabase {
             deleted: a.deletedAt != null,
             payday: a.payday,
             role: a.role,
+            currency: Currency.fromCode(a.currency),
           ),
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
@@ -652,7 +889,6 @@ class AppDatabase extends _$AppDatabase {
     String? payee,
     String? memo,
     bool scheduled = false,
-    String? importKey,
     int? payScheduleId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
   }) {
@@ -665,12 +901,12 @@ class AppDatabase extends _$AppDatabase {
           payeeId: Value(payeeId),
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(scheduled),
-          importKey: Value(importKey),
           payScheduleId: Value(payScheduleId),
           createdAt: now,
           updatedAt: now,
         ),
       );
+      final currency = await _currencyOfLines(lines.map((l) => l.accountId));
       for (final l in lines) {
         await into(entries).insert(
           EntriesCompanion.insert(
@@ -678,6 +914,7 @@ class AppDatabase extends _$AppDatabase {
             accountId: l.accountId,
             amountMinor: l.amount,
             cleared: l.cleared,
+            currency: Value(currency.code),
           ),
         );
       }
@@ -685,6 +922,90 @@ class AppDatabase extends _$AppDatabase {
       return txnId;
     });
   }
+
+  /// The currency of a transaction whose accounts share one: the accounts'
+  /// (a category takes whatever is filed under it). Accounts in two
+  /// currencies need [postExchange].
+  Future<Currency> _currencyOfLines(Iterable<int> accountIds) async {
+    final rows = await (select(
+      accounts,
+    )..where((a) => a.id.isIn(accountIds.toSet()))).get();
+    final found = {
+      for (final a in rows)
+        if (_reconcilable.contains(a.type)) Currency.fromCode(a.currency),
+    };
+    if (found.length > 1) throw LockedException(DbProblem.needsOtherAmount);
+    return found.firstOrNull ?? Currency.mnt;
+  }
+
+  Future<Currency> currencyOf(int accountId) async => Currency.fromCode(
+    (await (select(
+      accounts,
+    )..where((a) => a.id.equals(accountId))).getSingle()).currency,
+  );
+
+  /// A transfer between accounts in two currencies (ROADMAP E): [sent]
+  /// leaves [fromAccountId] in its currency, [received] arrives in
+  /// [toAccountId] in its own. Each currency's side passes through the
+  /// hidden exchange account, so each still adds up to zero; the rate is
+  /// never stored, only shown (sent / received).
+  Future<int> postExchange({
+    required int fromAccountId,
+    required int toAccountId,
+    required DateTime date,
+    required DateTime today,
+    required int sent,
+    required int received,
+    String? payee,
+    String? memo,
+  }) => transaction(() async {
+    await _assertLive(fromAccountId);
+    await _assertLive(toAccountId);
+    if (fromAccountId == toAccountId) {
+      throw LockedException(DbProblem.ownAccount);
+    }
+    final types = await _accountTypes();
+    if (!_reconcilable.contains(types[fromAccountId]) ||
+        !_reconcilable.contains(types[toAccountId])) {
+      throw NotFoundException(DbProblem.notAnAccount);
+    }
+    if (sent == 0 || received == 0) {
+      throw LockedException(DbProblem.needsOtherAmount);
+    }
+    final from = await currencyOf(fromAccountId);
+    final to = await currencyOf(toAccountId);
+    if (from == to) throw LockedException(DbProblem.otherCurrency);
+    final exchange = await _equityAccount(currencyExchangeName);
+    final now = _now;
+    final txnId = await into(transactions).insert(
+      TransactionsCompanion.insert(
+        date: dateKey(date),
+        payeeId: Value(await _payeeId(payee)),
+        memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
+        scheduled: Value(dateOnly(date).isAfter(dateOnly(today))),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    for (final (account, amount, currency) in [
+      (fromAccountId, -sent.abs(), from),
+      (exchange, sent.abs(), from),
+      (exchange, -received.abs(), to),
+      (toAccountId, received.abs(), to),
+    ]) {
+      await into(entries).insert(
+        EntriesCompanion.insert(
+          transactionId: txnId,
+          accountId: account,
+          amountMinor: amount,
+          cleared: Cleared.uncleared,
+          currency: Value(currency.code),
+        ),
+      );
+    }
+    await _assertBalanced(txnId);
+    return txnId;
+  });
 
   /// The everyday case: money in or out of [accountId], other side one
   /// category (or another account, which makes it a transfer).
@@ -926,16 +1247,138 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: Value(_now),
       ),
     );
+    // An edit between currencies adds or drops the exchange entries, so the
+    // snapshot's set of entries comes back exactly.
+    final keep = s.entries.map((e) => e.id).toSet();
+    await (delete(entries)..where(
+          (x) => x.transactionId.equals(s.header.id) & x.id.isNotIn(keep),
+        ))
+        .go();
     for (final e in s.entries) {
-      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+      final n = await (update(entries)..where((x) => x.id.equals(e.id))).write(
         EntriesCompanion(
           accountId: Value(e.accountId),
           amountMinor: Value(e.amountMinor),
+          currency: Value(e.currency),
         ),
       );
+      if (n == 0) await into(entries).insert(e);
     }
     await _assertBalanced(s.header.id);
   });
+
+  /// The part of an edit that involves two currencies: a transfer between
+  /// them, or one being moved to an account in another currency. Returns
+  /// false when neither side is in another currency, for the plain edit.
+  Future<bool> _editAcrossCurrencies({
+    required int transactionId,
+    required List<EntryRow> rows,
+    required EntryRow mine,
+    required int? exchangeId,
+    int? amount,
+    int? counterAccountId,
+    int? counterAmount,
+  }) async {
+    final exchange = rows.where((e) => e.accountId == exchangeId).toList();
+    final others = rows
+        .where((e) => e.id != mine.id && e.accountId != exchangeId)
+        .toList();
+    if (others.length != 1) return false;
+    final other = others.single;
+    final targetId = counterAccountId ?? other.accountId;
+    final mineCurrency = Currency.fromCode(mine.currency);
+    final target = await (select(
+      accounts,
+    )..where((a) => a.id.equals(targetId))).getSingle();
+    final targetCurrency = _reconcilable.contains(target.type)
+        ? Currency.fromCode(target.currency)
+        : mineCurrency;
+    final newMine = amount ?? mine.amountMinor;
+    // A side moved to another account starts over there, as Move to does.
+    final moved = targetId != other.accountId;
+    if (targetCurrency == mineCurrency) {
+      if (exchange.isEmpty) return false;
+      // Back to one currency: the exchange legs go.
+      await (delete(
+        entries,
+      )..where((e) => e.id.isIn(exchange.map((x) => x.id)))).go();
+      await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+        EntriesCompanion(amountMinor: Value(newMine)),
+      );
+      await (update(entries)..where((e) => e.id.equals(other.id))).write(
+        EntriesCompanion(
+          accountId: Value(targetId),
+          amountMinor: Value(-newMine),
+          currency: Value(mineCurrency.code),
+          cleared: moved
+              ? const Value(Cleared.uncleared)
+              : const Value.absent(),
+        ),
+      );
+      return true;
+    }
+    final otherSize =
+        counterAmount?.abs() ??
+        (exchange.isEmpty ? null : other.amountMinor.abs());
+    if (otherSize == null || otherSize == 0) {
+      throw LockedException(DbProblem.needsOtherAmount);
+    }
+    // Money leaves one side and arrives on the other, whichever way.
+    final newOther = -newMine.sign * otherSize;
+    if (exchange.isNotEmpty &&
+        !moved &&
+        newMine == mine.amountMinor &&
+        newOther == other.amountMinor) {
+      return true; // nothing about the money changed: nothing is written
+    }
+    await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+      EntriesCompanion(amountMinor: Value(newMine)),
+    );
+    await (update(entries)..where((e) => e.id.equals(other.id))).write(
+      EntriesCompanion(
+        accountId: Value(targetId),
+        amountMinor: Value(newOther),
+        currency: Value(targetCurrency.code),
+        cleared: moved ? const Value(Cleared.uncleared) : const Value.absent(),
+      ),
+    );
+    // The legs are updated in place when there are two, one per currency,
+    // so an undo finds the same entries it saved.
+    final legMine = exchange
+        .where((e) => e.currency == mineCurrency.code)
+        .firstOrNull;
+    final legOther = exchange
+        .where((e) => e.currency == targetCurrency.code)
+        .firstOrNull;
+    if (exchange.length == 2 && legMine != null && legOther != null) {
+      await (update(entries)..where((e) => e.id.equals(legMine.id))).write(
+        EntriesCompanion(amountMinor: Value(-newMine)),
+      );
+      await (update(entries)..where((e) => e.id.equals(legOther.id))).write(
+        EntriesCompanion(amountMinor: Value(-newOther)),
+      );
+      return true;
+    }
+    await (delete(
+      entries,
+    )..where((e) => e.id.isIn(exchange.map((x) => x.id)))).go();
+    final legs = exchangeId ?? await _equityAccount(currencyExchangeName);
+    for (final (amount, currency) in [
+      (-newMine, mineCurrency),
+      (-newOther, targetCurrency),
+    ]) {
+      await into(entries).insert(
+        EntriesCompanion.insert(
+          transactionId: transactionId,
+          accountId: legs,
+          amountMinor: amount,
+          cleared: Cleared.uncleared,
+          currency: Value(currency.code),
+        ),
+      );
+    }
+    return true;
+  }
 
   /// Edits a transaction as seen from [accountId]'s register.
   ///
@@ -962,6 +1405,7 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     int? counterAccountId,
     int? amount,
+    int? counterAmount,
     bool confirm = false,
     bool keepOwed = false,
   }) {
@@ -977,11 +1421,17 @@ class AppDatabase extends _$AppDatabase {
       )..where((e) => e.transactionId.equals(transactionId))).get();
       final mine = rows.where((e) => e.accountId == accountId).firstOrNull;
       if (mine == null) throw NotFoundException(DbProblem.notInAccount);
+      // Looked up, never made here: an edit in a ledger with no dollars
+      // mustn't leave an exchange account behind.
+      final exchangeId = await _findEquity(currencyExchangeName);
+      final isExchange = rows.any((e) => e.accountId == exchangeId);
       // A reconciled side locks the date, amounts and accounts of the whole
       // transaction, as delete does: a transfer edited from its other account
       // would change the locked side. Payee, memo and category stay editable.
       if ((await _reconciledAmong([transactionId])).isNotEmpty) {
-        final others = rows.where((e) => e.id != mine.id).toList();
+        final others = rows
+            .where((e) => e.id != mine.id && e.accountId != exchangeId)
+            .toList();
         final types = await _accountTypes();
         final movesAccount =
             counterAccountId != null &&
@@ -989,8 +1439,14 @@ class AppDatabase extends _$AppDatabase {
             counterAccountId != others.single.accountId &&
             (_reconcilable.contains(types[counterAccountId]) ||
                 _reconcilable.contains(types[others.single.accountId]));
+        final otherAmount = others.length == 1
+            ? others.single.amountMinor
+            : null;
         if (dateKey(date) != header.date ||
             (amount != null && amount != mine.amountMinor) ||
+            (isExchange &&
+                counterAmount != null &&
+                counterAmount.abs() != otherAmount?.abs()) ||
             movesAccount) {
           throw LockedException(DbProblem.reconciled);
         }
@@ -1015,7 +1471,19 @@ class AppDatabase extends _$AppDatabase {
       if (counterAccountId == accountId) {
         throw LockedException(DbProblem.ownAccount);
       }
-      if (amount != null || counterAccountId != null) {
+      if (amount != null || counterAccountId != null || counterAmount != null) {
+        if (await _editAcrossCurrencies(
+          transactionId: transactionId,
+          rows: rows,
+          mine: mine,
+          exchangeId: exchangeId,
+          amount: amount,
+          counterAccountId: counterAccountId,
+          counterAmount: counterAmount,
+        )) {
+          await _assertBalanced(transactionId);
+          return null;
+        }
         final others = rows.where((e) => e.id != mine.id).toList();
         if (others.length != 1) {
           throw NotFoundException(DbProblem.splitNotEditable);
@@ -1096,12 +1564,19 @@ class AppDatabase extends _$AppDatabase {
     )..where((e) => e.transactionId.equals(transactionId))).get();
     final mine = rows.where((e) => e.accountId == fromAccountId).toList();
     if (mine.length != 1) throw NotFoundException(DbProblem.notInAccount);
+    if (rows.map((e) => e.currency).toSet().length > 1) {
+      throw LockedException(DbProblem.otherCurrency);
+    }
     // An opening balance or a reconcile adjustment belongs to its account.
     if (rows.any((e) => types[e.accountId] == AccountType.equity)) {
       throw LockedException(DbProblem.openingStays);
     }
     if (rows.any((e) => e.accountId == toAccountId)) {
       throw LockedException(DbProblem.alreadyThere);
+    }
+    // The amount means something else in another currency.
+    if (await currencyOf(fromAccountId) != await currencyOf(toAccountId)) {
+      throw LockedException(DbProblem.otherCurrency);
     }
     final record = MoveRecord(
       entryId: mine.single.id,
@@ -1200,17 +1675,22 @@ class AppDatabase extends _$AppDatabase {
   Future<int> createAccount({
     required String name,
     required AccountType type,
+    Currency currency = Currency.mnt,
   }) => transaction(() async {
     final last =
         await (selectOnly(accounts)..addColumns([accounts.sortOrder.max()]))
             .map((r) => r.read(accounts.sortOrder.max()))
             .getSingle();
-    return addAccount(
+    final id = await addAccount(
       name: name.trim(),
       type: type,
       group: groupFor(type),
       sortOrder: (last ?? 0) + 1,
     );
+    await (update(accounts)..where((a) => a.id.equals(id))).write(
+      AccountsCompanion(currency: Value(currency.code)),
+    );
+    return id;
   });
 
   /// Marks what an account is for on the Savings steps; null clears it.
@@ -2031,6 +2511,17 @@ class AppDatabase extends _$AppDatabase {
   /// Equity, like opening balances: an adjustment isn't spending or income.
   Future<int> _adjustmentsAccount() => _equityAccount(adjustmentsAccountName);
 
+  Future<int?> _findEquity(String name) async =>
+      (await (select(accounts)
+                ..where(
+                  (a) =>
+                      a.name.equals(name) &
+                      a.type.equalsValue(AccountType.equity),
+                )
+                ..limit(1))
+              .getSingleOrNull())
+          ?.id;
+
   Future<int> _equityAccount(String name) async {
     final existing =
         await (select(accounts)
@@ -2159,6 +2650,420 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  // ---------- import (ADR 0002) ----------
+
+  /// The preference a bank file's column mapping is kept under, per account.
+  static String importMappingKey(int accountId) => 'import.mapping.$accountId';
+
+  /// What each row of a bank file would do: be added, mark a row the user
+  /// typed as cleared (the same amount within a few days, on an entry not
+  /// imported before), or be skipped as already in the ledger by its key.
+  /// Deleted rows count as already in, so a row the user deleted stays
+  /// deleted.
+  Future<ImportPlan> planImport(
+    int accountId,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) async {
+    final known = <String>{};
+    for (var i = 0; i < keys.length; i += 500) {
+      final chunk = keys.sublist(i, (i + 500).clamp(0, keys.length));
+      final found =
+          await (selectOnly(entries)
+                ..addColumns([entries.importKey])
+                ..where(entries.importKey.isIn(chunk)))
+              .get();
+      known.addAll(found.map((r) => r.read(entries.importKey)!));
+    }
+    // Rows typed on this account near the file's dates, never a starting
+    // balance or an adjustment (the other side is an equity account).
+    // Reconciled ones match too, or they'd come in twice.
+    var from = rows.isEmpty ? DateTime(1900) : dateOnly(rows.first.date);
+    var to = from;
+    for (final r in rows) {
+      final d = dateOnly(r.date);
+      if (d.isBefore(from)) from = d;
+      if (d.isAfter(to)) to = d;
+    }
+    final typed = await customSelect(
+      'SELECT e.id AS entry_id, e.amount_minor AS amount, e.cleared AS cleared, '
+      't.id AS txn_id, t.date AS date, t.memo AS memo, p.name AS payee '
+      'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'LEFT JOIN payees p ON p.id = t.payee_id '
+      'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
+      'AND e.import_key IS NULL AND NOT EXISTS (SELECT 1 FROM entries o '
+      'JOIN accounts a ON a.id = o.account_id WHERE o.transaction_id = t.id '
+      "AND o.id != e.id AND a.type = 'equity') AND t.date BETWEEN ? AND ?",
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(
+          dateKey(from.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(to.add(const Duration(days: matchDaysBefore))),
+        ),
+      ],
+      readsFrom: {entries, transactions, payees, accounts},
+    ).get();
+    final used = <int>{};
+    final plan = <ImportPlanRow>[];
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      if (known.contains(keys[i])) {
+        plan.add(ImportPlanRow(row: r, key: keys[i], fate: ImportFate.already));
+        continue;
+      }
+      final bankDay = dateOnly(r.date);
+      QueryRow? best;
+      var bestGap = 1 << 30;
+      for (final t in typed) {
+        if (used.contains(t.read<int>('entry_id'))) continue;
+        if (t.read<int>('amount') != r.amount) continue;
+        // The bank posts on the day or a few days after; rarely before.
+        final gap = bankDay
+            .difference(parseDateKey(t.read<String>('date')))
+            .inDays;
+        if (gap < -matchDaysBefore || gap > matchDaysAfter) continue;
+        if (gap.abs() < bestGap) {
+          bestGap = gap.abs();
+          best = t;
+        }
+      }
+      if (best == null) {
+        plan.add(ImportPlanRow(row: r, key: keys[i], fate: ImportFate.add));
+        continue;
+      }
+      used.add(best.read<int>('entry_id'));
+      plan.add(
+        ImportPlanRow(
+          row: r,
+          key: keys[i],
+          fate: ImportFate.match,
+          match: TypedMatch(
+            transactionId: best.read<int>('txn_id'),
+            entryId: best.read<int>('entry_id'),
+            date: parseDateKey(best.read<String>('date')),
+            payee: best.read<String?>('payee') ?? '',
+            cleared: Cleared.values[best.read<int>('cleared')],
+            hasMemo: (best.read<String?>('memo') ?? '').trim().isNotEmpty,
+          ),
+        ),
+      );
+    }
+
+    final opening = await _openingOf(accountId);
+    final fresh = plan.where((p) => p.fate != ImportFate.already).toList();
+    if (fresh.isEmpty) return ImportPlan(rows: plan, opening: opening);
+    var first = dateOnly(fresh.first.row.date);
+    var last = first;
+    for (final p in fresh) {
+      final d = dateOnly(p.row.date);
+      if (d.isBefore(first)) first = d;
+      if (d.isAfter(last)) last = d;
+    }
+    bool within(DateTime d) => !d.isBefore(first) && !d.isAfter(last);
+    final unmatched = [
+      for (final t in typed)
+        if (!used.contains(t.read<int>('entry_id')) &&
+            Cleared.values[t.read<int>('cleared')] == Cleared.uncleared &&
+            within(parseDateKey(t.read<String>('date'))))
+          UnmatchedTyped(
+            parseDateKey(t.read<String>('date')),
+            t.read<String?>('payee') ?? '',
+            t.read<int>('amount'),
+          ),
+    ]..sort((a, b) => a.date.compareTo(b.date));
+    final before = await customSelect(
+      'SELECT COUNT(*) AS n FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
+      'AND t.deleted_at IS NULL AND t.date BETWEEN ? AND ?',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(dateKey(first)),
+        Variable.withString(dateKey(last)),
+      ],
+      readsFrom: {entries, transactions},
+    ).getSingle();
+    return ImportPlan(
+      rows: plan,
+      unmatched: unmatched,
+      importedBefore: before.read<int>('n'),
+      firstDay: first,
+      lastDay: last,
+      opening: opening,
+    );
+  }
+
+  /// [accountId]'s opening balance (its earliest row against Opening
+  /// balances), or null.
+  Future<OpeningBalance?> _openingOf(int accountId) async {
+    final row = await customSelect(
+      'SELECT t.id AS txn_id, t.date AS date, e.amount_minor AS amount, '
+      'e.cleared AS cleared FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'JOIN entries o ON o.transaction_id = t.id AND o.id != e.id '
+      'JOIN accounts a ON a.id = o.account_id '
+      "WHERE e.account_id = ? AND t.deleted_at IS NULL AND a.type = 'equity' "
+      'AND a.name = ? ORDER BY t.date, t.id LIMIT 1',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(openingBalancesName),
+      ],
+      readsFrom: {entries, transactions, accounts},
+    ).getSingleOrNull();
+    if (row == null) return null;
+    return OpeningBalance(
+      transactionId: row.read<int>('txn_id'),
+      date: parseDateKey(row.read<String>('date')),
+      amount: row.read<int>('amount'),
+      locked: row.read<int>('cleared') == Cleared.reconciled.index,
+    );
+  }
+
+  Future<void> _setOpening(int transactionId, DateTime date, int amount) async {
+    await (update(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).write(
+      TransactionsCompanion(date: Value(dateKey(date)), updatedAt: Value(_now)),
+    );
+    final rows = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(transactionId))).get();
+    final types = await _accountTypes();
+    for (final e in rows) {
+      final equity = types[e.accountId] == AccountType.equity;
+      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+        EntriesCompanion(amountMinor: Value(equity ? -amount : amount)),
+      );
+    }
+    await _assertBalanced(transactionId);
+  }
+
+  /// How far a typed row's date may be from the bank's and still match.
+  static const matchDaysBefore = 3, matchDaysAfter = 10;
+
+  /// Writes [plan] to [accountId] in one go: new rows come in cleared, with
+  /// the category (income or spending, never another account) last used for
+  /// their payee here, else the holding category found by any of
+  /// [uncategorizedNames] or made as the first. Matched rows take the bank's
+  /// key, become cleared, and keep the bank's text as a memo if they had
+  /// none. Rows already in or left out are untouched.
+  Future<ImportRecord> applyImport({
+    required int accountId,
+    required List<ImportPlanRow> plan,
+    required List<String> uncategorizedNames,
+    ({DateTime date, int amount})? moveOpening,
+  }) => transaction(() async {
+    await _assertLive(accountId);
+    final categories = {
+      for (final a
+          in await (select(accounts)..where(
+                (a) =>
+                    a.deletedAt.isNull() &
+                    a.archivedAt.isNull() &
+                    a.type.isInValues([
+                      AccountType.income,
+                      AccountType.expense,
+                    ]),
+              ))
+              .get())
+        a.id,
+    };
+    int? made;
+    int? fallback;
+    var holding = 0;
+    Future<int> uncategorized() async {
+      holding++;
+      if (fallback != null) return fallback!;
+      final existing =
+          await (select(accounts)..where(
+                (a) =>
+                    a.name.isIn(uncategorizedNames) &
+                    a.type.equalsValue(AccountType.expense) &
+                    a.deletedAt.isNull() &
+                    a.archivedAt.isNull(),
+              ))
+              .get();
+      if (existing.isNotEmpty) return fallback = existing.first.id;
+      return fallback = made = await createCategory(uncategorizedNames.first);
+    }
+
+    final remembered = <String, int?>{};
+    final added = <int, String>{};
+    final matched = <MatchedImport>[];
+    for (final p in plan) {
+      switch (p.fate) {
+        case ImportFate.already || ImportFate.leftOut:
+          continue;
+        case ImportFate.add:
+          final payee = p.row.payee;
+          final last = remembered.containsKey(payee)
+              ? remembered[payee]
+              : remembered[payee] = await lastCategoryFor(payee, accountId);
+          final category = last != null && categories.contains(last)
+              ? last
+              : await uncategorized();
+          final id = await postTransaction(
+            date: dateOnly(p.row.date),
+            payee: payee,
+            memo: p.row.memo,
+            lines: [
+              (
+                accountId: accountId,
+                amount: p.row.amount,
+                cleared: Cleared.cleared,
+              ),
+              (
+                accountId: category,
+                amount: -p.row.amount,
+                cleared: Cleared.uncleared,
+              ),
+            ],
+          );
+          added[id] = p.key;
+        case ImportFate.match:
+          final m = p.match!;
+          final text = p.row.memo ?? p.row.payee;
+          final redated = matchedDate(m, p.row.date);
+          matched.add(
+            MatchedImport(
+              m.transactionId,
+              m.entryId,
+              m.cleared,
+              p.key,
+              dateBefore: redated == m.date ? null : m.date,
+              dateAfter: redated == m.date ? null : redated,
+              // A reconciled row is locked: it takes the key and nothing else.
+              memo:
+                  m.hasMemo ||
+                      m.cleared == Cleared.reconciled ||
+                      text.trim().isEmpty
+                  ? null
+                  : text.trim(),
+            ),
+          );
+      }
+    }
+    OpeningMove? openingMove;
+    final opening = moveOpening == null ? null : await _openingOf(accountId);
+    if (moveOpening != null && opening != null && !opening.locked) {
+      openingMove = (
+        transactionId: opening.transactionId,
+        fromDate: opening.date,
+        fromAmount: opening.amount,
+        toDate: dateOnly(moveOpening.date),
+        toAmount: moveOpening.amount,
+      );
+      await _setOpening(
+        opening.transactionId,
+        openingMove.toDate,
+        openingMove.toAmount,
+      );
+    }
+    final record = ImportRecord(
+      added: added,
+      matched: matched,
+      madeCategory: made,
+      uncategorizedCount: holding,
+      openingMove: openingMove,
+    );
+    await _keyAdded(accountId, record);
+    await _applyMatches(record);
+    return record;
+  });
+
+  Future<void> _keyAdded(int accountId, ImportRecord r) async {
+    for (final e in r.added.entries) {
+      await (update(entries)..where(
+            (x) =>
+                x.transactionId.equals(e.key) & x.accountId.equals(accountId),
+          ))
+          .write(EntriesCompanion(importKey: Value(e.value)));
+    }
+  }
+
+  Future<void> _applyMatches(ImportRecord r) async {
+    for (final m in r.matched) {
+      await (update(entries)..where((e) => e.id.equals(m.entryId))).write(
+        EntriesCompanion(importKey: Value(m.key)),
+      );
+      if (m.before == Cleared.uncleared) {
+        await (update(entries)..where(
+              (e) =>
+                  e.id.equals(m.entryId) &
+                  e.cleared.equalsValue(Cleared.uncleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.cleared)));
+      }
+      await (update(
+        transactions,
+      )..where((t) => t.id.equals(m.transactionId))).write(
+        TransactionsCompanion(
+          memo: m.memo == null ? const Value.absent() : Value(m.memo),
+          date: m.dateAfter == null
+              ? const Value.absent()
+              : Value(dateKey(m.dateAfter!)),
+          updatedAt: Value(_now),
+        ),
+      );
+    }
+  }
+
+  /// Takes an import back: its new rows go (their keys freed, so the same
+  /// file can come in again), matched rows lose the key, their memo from the
+  /// bank, and go back to uncleared; a category it made goes if nothing else
+  /// uses it.
+  Future<void> undoImport(ImportRecord r) => transaction(() async {
+    final ids = r.added.keys.toList();
+    final gone = await softDeleteMany(ids);
+    if (gone.length != ids.length) throw LockedException(DbProblem.reconciled);
+    await (update(entries)..where((e) => e.transactionId.isIn(ids))).write(
+      const EntriesCompanion(importKey: Value(null)),
+    );
+    for (final m in r.matched) {
+      await (update(entries)..where((e) => e.id.equals(m.entryId))).write(
+        const EntriesCompanion(importKey: Value(null)),
+      );
+      // Only a row still cleared goes back: one reconciled since stays.
+      if (m.before == Cleared.uncleared) {
+        await (update(entries)..where(
+              (e) =>
+                  e.id.equals(m.entryId) &
+                  e.cleared.equalsValue(Cleared.cleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.uncleared)));
+      }
+      if (m.memo != null) {
+        await (update(transactions)..where(
+              (t) => t.id.equals(m.transactionId) & t.memo.equals(m.memo!),
+            ))
+            .write(const TransactionsCompanion(memo: Value(null)));
+      }
+      if (m.dateBefore != null) {
+        await (update(transactions)..where((t) => t.id.equals(m.transactionId)))
+            .write(TransactionsCompanion(date: Value(dateKey(m.dateBefore!))));
+      }
+    }
+    if (r.openingMove case final o?) {
+      await _setOpening(o.transactionId, o.fromDate, o.fromAmount);
+    }
+    if (r.madeCategory case final c?) await deleteEmptyAccount(c);
+  });
+
+  Future<void> redoImport(ImportRecord r, int accountId) =>
+      transaction(() async {
+        if (r.madeCategory case final c?) {
+          await undeleteAccount(DeletedAccount(c, const []));
+        }
+        await restoreMany(r.added.keys);
+        await _keyAdded(accountId, r);
+        await _applyMatches(r);
+        if (r.openingMove case final o?) {
+          await _setOpening(o.transactionId, o.toDate, o.toAmount);
+        }
+      });
+
   Future<int?> _payeeId(String? name) async {
     final n = name?.trim();
     if (n == null || n.isEmpty) return null;
@@ -2169,15 +3074,17 @@ class AppDatabase extends _$AppDatabase {
         await into(payees).insert(PayeesCompanion.insert(name: n));
   }
 
+  /// Each currency's entries add up to zero on their own (ROADMAP E).
   Future<void> _assertBalanced(int txnId) async {
-    final row = await customSelect(
-      'SELECT COALESCE(SUM(amount_minor), 0) AS s, COUNT(*) AS n '
-      'FROM entries WHERE transaction_id = ?',
+    final rows = await customSelect(
+      'SELECT currency, COALESCE(SUM(amount_minor), 0) AS s, COUNT(*) AS n '
+      'FROM entries WHERE transaction_id = ? GROUP BY currency',
       variables: [Variable.withInt(txnId)],
-    ).getSingle();
-    final sum = row.read<int>('s');
-    if (sum != 0 || row.read<int>('n') < 2) {
-      throw UnbalancedTransactionException(txnId, sum);
+    ).get();
+    final count = rows.fold(0, (n, r) => n + r.read<int>('n'));
+    final off = rows.where((r) => r.read<int>('s') != 0).firstOrNull;
+    if (off != null || count < 2) {
+      throw UnbalancedTransactionException(txnId, off?.read<int>('s') ?? 0);
     }
   }
 

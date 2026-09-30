@@ -33,8 +33,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   balance prefilled with the cleared total, reconciled rows whose payee couldn't be
   fixed, a row hover as faint as the row stripe, a separate cash-account counting
   flow (not wanted yet; on the roadmap), "a different amount each day" for split pay
-  (it's each paycheck), and a dark theme built from one color in lighter and darker
-  shades (surfaces should differ).
+  (it's each paycheck), a dark theme built from one color in lighter and darker
+  shades (surfaces should differ), "tögrög" in English (spell it "tugrik"), and sidebar
+  balances rounded to whole units (show the cents).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
@@ -60,6 +61,11 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger,
   converting plain copies), `keys.dart` (recovery key, data key, secure store),
   `encryption.dart` (cipher pragmas, converting a plain file), plus `demo_seed.dart`.
+- `lib/import/`: pure Dart, reading bank files into a grid (`xls.dart` BIFF8,
+  `xlsx.dart`, `csv.dart`, `sheet.dart`) and `mapping.dart` (which column is which,
+  guessing, reading rows, the balance check, import keys). The dialog is
+  `ui/import_dialog.dart`; writes are the import section of `database.dart`. Tests build
+  `.xls` files with `test/xls_fixture.dart`; never commit a real statement.
 - `lib/l10n/`: every word on screen, `app_en.arb` and `app_mn.arb` (each English entry
   says where it shows); `flutter gen-l10n` builds the `Words` class. Terms and tone:
   [docs/l10n-glossary.md](docs/l10n-glossary.md). New text goes in both files; English

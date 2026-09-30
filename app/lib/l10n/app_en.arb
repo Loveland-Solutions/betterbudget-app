@@ -3158,7 +3158,7 @@
   "@setupKindOwedHint": {
     "description": "New account page, note under the kinds when Card or loan is picked."
   },
-  "setupKindBankHint": "Checking, savings or cash. Accounts are in tögrög for now.",
+  "setupKindBankHint": "Checking, savings or cash.",
   "@setupKindBankHint": {
     "description": "New account page, note under the kinds when Bank account is picked."
   },
@@ -3222,13 +3222,19 @@
       }
     }
   },
-  "setupStartOwedHint": "What you’ve used, not the available limit · empty starts at ₮0",
+  "setupStartOwedHint": "What you’ve used, not the available limit · empty starts at {zero}",
   "@setupStartOwedHint": {
-    "description": "First screen of a new card or loan account, note under the fields before typing."
+    "description": "A new card or loan's first screen, under the amount. zero is ₮0 or $0.",
+    "placeholders": {
+      "zero": {}
+    }
   },
-  "setupStartBankHint": "From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0",
+  "setupStartBankHint": "From the bank app, a statement or what you count, not the “available” balance · empty starts at {zero}",
   "@setupStartBankHint": {
-    "description": "First screen of a new bank account, note under the fields before typing."
+    "description": "A new bank account's first screen, under the amount. zero is ₮0 or $0.",
+    "placeholders": {
+      "zero": {}
+    }
   },
   "setupStartAccount": "Start account",
   "@setupStartAccount": {
@@ -4326,5 +4332,533 @@
   "startThisMonth": "This month",
   "@startThisMonth": {
     "description": "Name of the budget span when budgeting by calendar month, e.g. on a filter chip before its dates."
+  },
+  "importButton": "Import…",
+  "@importButton": {
+    "description": "Account header, beside Reconcile: button that opens a bank file to bring its rows in."
+  },
+  "importTitle": "Import into {account}",
+  "@importTitle": {
+    "description": "Import window title. account is the account's name.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "importExcelFiles": "Excel files",
+  "@importExcelFiles": {
+    "description": "Open dialog: name of the file type group for .xls and .xlsx."
+  },
+  "importTextFiles": "Text files (CSV)",
+  "@importTextFiles": {
+    "description": "Open dialog: name of the file type group for .csv and .txt."
+  },
+  "importCouldntRead": "Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx) and CSV files.",
+  "@importCouldntRead": {
+    "description": "Toast when a picked file can't be read.",
+    "placeholders": {
+      "file": {}
+    }
+  },
+  "importNoDates": "{file} has no rows with a date in them.",
+  "@importNoDates": {
+    "description": "Toast when a file has nothing that looks like a transaction.",
+    "placeholders": {
+      "file": {}
+    }
+  },
+  "importSavedColumns": "Read with the columns you set for this account last time.",
+  "@importSavedColumns": {
+    "description": "Import window, when the file has the same layout as the last one imported into this account."
+  },
+  "importChangeColumns": "Change columns",
+  "@importChangeColumns": {
+    "description": "Import window: button that shows the file's columns to change what each holds."
+  },
+  "importColumnsHint": "Say what each column holds. The app filled in its best guess; check the date and the amount.",
+  "@importColumnsHint": {
+    "description": "Import window, above the file's columns."
+  },
+  "importRoleIgnore": "Not used",
+  "@importRoleIgnore": {
+    "description": "Import window, a column's choice: the column is left out."
+  },
+  "importRoleDate": "Date",
+  "@importRoleDate": {
+    "description": "Import window, a column's choice."
+  },
+  "importRoleAmount": "Amount (+ in, − out)",
+  "@importRoleAmount": {
+    "description": "Import window, a column's choice: one column with money in and out, signed."
+  },
+  "importRoleIn": "Money in",
+  "@importRoleIn": {
+    "description": "Import window, a column's choice."
+  },
+  "importRoleOut": "Money out",
+  "@importRoleOut": {
+    "description": "Import window, a column's choice."
+  },
+  "importRolePayee": "Payee",
+  "@importRolePayee": {
+    "description": "Import window, a column's choice: who the money went to or came from."
+  },
+  "importRoleMemo": "Memo",
+  "@importRoleMemo": {
+    "description": "Import window, a column's choice: the bank's description."
+  },
+  "importRoleBalance": "Bank’s balance",
+  "@importRoleBalance": {
+    "description": "Import window, a column's choice: the bank's running balance after each row, used to check the reading."
+  },
+  "importNeedDateAmount": "Choose the date column and the amount (or money in and money out).",
+  "@importNeedDateAmount": {
+    "description": "Import window, when no rows can be read yet."
+  },
+  "importDateOrder": "Dates in this file:",
+  "@importDateOrder": {
+    "description": "Import window, before two choices, when a date like 03.04 could be read either way."
+  },
+  "importDayFirst": "Day first: {date}",
+  "@importDayFirst": {
+    "description": "Import window, date choice. date is the file's first date read this way, in words.",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "importMonthFirst": "Month first: {date}",
+  "@importMonthFirst": {
+    "description": "Import window, date choice. date is the file's first date read this way, in words.",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "importSignLabel": "In the amount column:",
+  "@importSignLabel": {
+    "description": "Import window, before two choices, when one column holds the amount."
+  },
+  "importMinusOut": "minus is money out",
+  "@importMinusOut": {
+    "description": "Import window, sign choice (the usual)."
+  },
+  "importPlusOut": "plus is money out",
+  "@importPlusOut": {
+    "description": "Import window, sign choice (some card statements)."
+  },
+  "importCountNew": "{count, plural, =1{1 new row} other{{count} new rows}}",
+  "@importCountNew": {
+    "description": "Import window summary, first clause; clauses are joined with \" · \".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importCountMatch": "{count, plural, =1{1 matches a row you typed, which becomes cleared} other{{count} match rows you typed, which become cleared}}",
+  "@importCountMatch": {
+    "description": "Import window summary clause.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importCountAlready": "{count} already in the ledger",
+  "@importCountAlready": {
+    "description": "Import window summary clause: rows imported before (by their key), skipped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importBalanceOk": "The bank’s running balance adds up on every row, {opening} to {closing}.",
+  "@importBalanceOk": {
+    "description": "Import window: the file's own balance column agrees with the amounts read.",
+    "placeholders": {
+      "opening": {},
+      "closing": {}
+    }
+  },
+  "importBalanceOff": "Row {row} of the file: the bank’s balance is {found}, but the amounts before it come to {expected}. A column may be set wrong. You can still import.",
+  "@importBalanceOff": {
+    "description": "Import window warning: the balance column doesn't agree with the amounts.",
+    "placeholders": {
+      "row": {
+        "type": "int"
+      },
+      "found": {},
+      "expected": {}
+    }
+  },
+  "importBalanceOffCount": "{count} rows don’t add up in all.",
+  "@importBalanceOffCount": {
+    "description": "Import window, after the balance warning, when more than one row is off.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importClearedMatches": "After this, the cleared balance matches the bank: {amount}.",
+  "@importClearedMatches": {
+    "description": "Import window: the account's cleared balance after importing equals the file's last balance.",
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "importClearedDiffers": "After this, the cleared balance is {ours}; the bank’s file ends at {bank}, {diff} apart. Rows from before this file, or ones not cleared, can make the difference.",
+  "@importClearedDiffers": {
+    "description": "Import window: the account's cleared balance after importing differs from the file's last balance.",
+    "placeholders": {
+      "ours": {},
+      "bank": {},
+      "diff": {}
+    }
+  },
+  "importFateNew": "New",
+  "@importFateNew": {
+    "description": "Import window, preview row tag: this row will be added."
+  },
+  "importFateMatch": "Matches {payee}, {date}",
+  "@importFateMatch": {
+    "description": "Import window, preview row tag: a row the user typed that becomes cleared. date in words.",
+    "placeholders": {
+      "payee": {},
+      "date": {}
+    }
+  },
+  "importFateAlready": "Already in",
+  "@importFateAlready": {
+    "description": "Import window, preview row tag: imported before, left out."
+  },
+  "importDo": "{count, plural, =1{Import 1 row} other{Import {count} rows}}",
+  "@importDo": {
+    "description": "Import window, main button. count is new rows plus matched ones.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothingNew": "Nothing new in this file",
+  "@importNothingNew": {
+    "description": "Import window, in place of the main button when every row is already in."
+  },
+  "importCancel": "Cancel",
+  "@importCancel": {
+    "description": "Import window button."
+  },
+  "importDone": "{count, plural, =1{Imported 1 row} other{Imported {count} rows}}",
+  "@importDone": {
+    "description": "Toast and undo-menu label after an import.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importMatchedToast": "{count, plural, =1{1 typed row now cleared} other{{count} typed rows now cleared}}",
+  "@importMatchedToast": {
+    "description": "Part of the import toast, after \" · \".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importUncategorizedToast": "{count} in “{name}”",
+  "@importUncategorizedToast": {
+    "description": "Part of the import toast, after \" · \": rows whose payee has no earlier category went to the app's holding category.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {}
+    }
+  },
+  "importUncategorized": "Not categorized",
+  "@importUncategorized": {
+    "description": "Name of the category the app makes for imported rows whose payee has no earlier category. Saved in the language showing when it's made."
+  },
+  "importCouldntImport": "Couldn’t import: {problem}",
+  "@importCouldntImport": {
+    "description": "Toast when an import fails; nothing was written.",
+    "placeholders": {
+      "problem": {}
+    }
+  },
+  "importDoClear": "Import {count} rows · clear {cleared}",
+  "@importDoClear": {
+    "description": "Import window, main button when typed rows match too. count is new rows, cleared the typed rows that become cleared.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "cleared": {
+        "type": "int"
+      }
+    }
+  },
+  "importDoOnlyClear": "{count, plural, =1{Clear 1 typed row} other{Clear {count} typed rows}}",
+  "@importDoOnlyClear": {
+    "description": "Import window, main button when nothing is new but typed rows match.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importCountNoDate": "{count, plural, =1{1 line without a date (a heading or total) left out} other{{count} lines without a date (headings, totals) left out}}",
+  "@importCountNoDate": {
+    "description": "Import window summary clause, quiet: lines that aren't transactions.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importNoAmountRows": "{count, plural, =1{Row {rows} of the file has a date but no amount this can read, so it’s left out.} other{Rows {rows} of the file have a date but no amount this can read, so they’re left out.}}",
+  "@importNoAmountRows": {
+    "description": "Import window warning. rows is a list of row numbers, like 12, 15, 40.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "rows": {}
+    }
+  },
+  "importCountLeftOut": "{count} left out by you",
+  "@importCountLeftOut": {
+    "description": "Import window summary clause: rows the person clicked to leave out.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importTagHint": "Click a row’s New or Matches to add it as its own row or leave it out.",
+  "@importTagHint": {
+    "description": "Import window, above the rows."
+  },
+  "importFateMatchDate": "Matches your row of {date}",
+  "@importFateMatchDate": {
+    "description": "Import window, preview row tag, when the typed row has no payee. date in words.",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "importFateLeftOut": "Left out",
+  "@importFateLeftOut": {
+    "description": "Import window, preview row tag: the person chose not to bring this row in."
+  },
+  "importOverlap": "The new rows fall between {from} and {to}, where this account already has {count} imported rows. If this file repeats an earlier one in another form, they’re duplicates.",
+  "@importOverlap": {
+    "description": "Import window warning: new rows overlap dates already imported. from/to in words.",
+    "placeholders": {
+      "from": {},
+      "to": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importLeaveNewOut": "Leave the new rows out",
+  "@importLeaveNewOut": {
+    "description": "Import window button under the overlap warning."
+  },
+  "importUnmatched": "{count, plural, =1{1 row you typed between {from} and {to} isn’t in this file: {list}. It stays not cleared.} other{{count} rows you typed between {from} and {to} aren’t in this file: {list}. They stay not cleared.}}",
+  "@importUnmatched": {
+    "description": "Import window note: typed rows the bank file doesn't have (another amount, or not posted).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "from": {},
+      "to": {},
+      "list": {}
+    }
+  },
+  "importUnmatchedItem": "{payee} {amount} on {date}",
+  "@importUnmatchedItem": {
+    "description": "One typed row in the importUnmatched list.",
+    "placeholders": {
+      "payee": {},
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importUnmatchedMore": "{count} more",
+  "@importUnmatchedMore": {
+    "description": "Last item of the importUnmatched list when it's cut short.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rowsLeftOther": "Sent from {account}:",
+  "@rowsLeftOther": {
+    "description": "Entry row, under a transfer from an account in another currency: before the field for what left it.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsArrivesOther": "Arrives in {account}:",
+  "@rowsArrivesOther": {
+    "description": "Entry row, under a transfer to an account in another currency: before the field for what arrives there.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsErrorLeftOther": "Say how much was sent from {account}",
+  "@rowsErrorLeftOther": {
+    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsErrorArrivesOther": "Say how much arrives in {account}",
+  "@rowsErrorArrivesOther": {
+    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "placeholders": {
+      "account": {}
+    }
+  },
+  "rowsRatePerDollar": "{rate} per $1",
+  "@rowsRatePerDollar": {
+    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tugrik, like ₮3,450.00.",
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "ledgerDbOtherCurrency": "That account is in another currency",
+  "@ledgerDbOtherCurrency": {
+    "description": "Toast when a row can't move to an account in another currency."
+  },
+  "ledgerDbNeedsOtherAmount": "Accounts in two currencies need a transfer with both amounts",
+  "@ledgerDbNeedsOtherAmount": {
+    "description": "Toast when a transfer between currencies has only one amount."
+  },
+  "setupCurrency": "Currency",
+  "@setupCurrency": {
+    "description": "New account page: label before the currency choice."
+  },
+  "setupCurrencyMnt": "₮ Tugrik",
+  "@setupCurrencyMnt": {
+    "description": "New account page: currency choice."
+  },
+  "setupCurrencyUsd": "$ Dollar",
+  "@setupCurrencyUsd": {
+    "description": "New account page: currency choice."
+  },
+  "setupCurrencyHint": "Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.",
+  "@setupCurrencyHint": {
+    "description": "New account page, under the currency choice."
+  },
+  "rowsExchangeNote": "{account}: {amount} · {rate} per $1",
+  "@rowsExchangeNote": {
+    "description": "Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate.",
+    "placeholders": {
+      "account": {},
+      "amount": {},
+      "rate": {}
+    }
+  },
+  "savingsOtherCurrencyItem": "{account}  {amount} · another currency, not counted yet",
+  "@savingsOtherCurrencyItem": {
+    "description": "Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.",
+    "placeholders": {
+      "account": {},
+      "amount": {}
+    }
+  },
+  "savingsOnlyMnt": "Not counted here yet: {accounts}. Savings counts tugrik only for now.",
+  "@savingsOnlyMnt": {
+    "description": "Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.",
+    "placeholders": {
+      "accounts": {}
+    }
+  },
+  "savingsOnlyUsd": "Not counted here yet: {accounts}. Savings counts dollars only for now.",
+  "@savingsOnlyUsd": {
+    "description": "Savings, under the steps: accounts in tugrik that aren't in these sums. accounts is names with balances.",
+    "placeholders": {
+      "accounts": {}
+    }
+  },
+  "importFileInMnt": "This file looks like it’s in tugrik, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.",
+  "@importFileInMnt": {
+    "description": "Import window warning: the file names tugrik but the account is in dollars. example and asIs are one real row.",
+    "placeholders": {
+      "account": {},
+      "example": {},
+      "asIs": {}
+    }
+  },
+  "importFileInUsd": "This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.",
+  "@importFileInUsd": {
+    "description": "Import window warning: the file names dollars but the account is in tugrik. example and asIs are one real row.",
+    "placeholders": {
+      "account": {},
+      "example": {},
+      "asIs": {}
+    }
+  },
+  "ledgerNewerLedger": "it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.",
+  "@ledgerNewerLedger": {
+    "description": "After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused."
+  },
+  "importBeforeOpening": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them.}}",
+  "@importBeforeOpening": {
+    "description": "Import window warning: new rows dated before the account's opening balance would count twice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importBeforeOpeningLocked": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}",
+  "@importBeforeOpeningLocked": {
+    "description": "Import window warning, when the opening balance is reconciled and can't move.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importMoveOpening": "Move the opening balance to {date} at {amount}",
+  "@importMoveOpening": {
+    "description": "Import window choice (the default): move the opening balance before the file's rows, at the amount that keeps today's balance.",
+    "placeholders": {
+      "date": {},
+      "amount": {}
+    }
+  },
+  "importKeepOpening": "Leave it (those rows count twice)",
+  "@importKeepOpening": {
+    "description": "Import window choice: keep the opening balance where it is."
+  },
+  "importLeaveBeforeOut": "Leave those rows out",
+  "@importLeaveBeforeOut": {
+    "description": "Import window button: leave out the rows dated before a reconciled opening balance."
+  },
+  "importFateRedated": "dated {date}, the bank’s",
+  "@importFateRedated": {
+    "description": "Import window, preview tag after a match: the typed row takes the bank's date, which is in another month.",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "importOpeningMovedToast": "opening balance now {amount} on {date}",
+  "@importOpeningMovedToast": {
+    "description": "Part of the import toast, after \" · \": the opening balance moved before the file's rows.",
+    "placeholders": {
+      "date": {},
+      "amount": {}
+    }
   }
 }

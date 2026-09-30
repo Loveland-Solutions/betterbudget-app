@@ -69,7 +69,7 @@ are a `Нийт:` totals footer and a `Хуудас:` page footer, both of which
 | Col | Header | Type | Notes |
 | --- | --- | --- | --- |
 | 0 | Огноо | Excel serial datetime | datemode 0 (1900 system); carries time |
-| 1 | Теллер | text | teller/channel code, e.g. `490 - 50` |
+| 1 | Теллер | text | teller/channel code, e.g. `100 - 10` (invented) |
 | 2 | Орлого | number | credit in; `0.0` when unused |
 | 3 | Зарлага | number | debit out; `0.0` when unused |
 | 4 | Ханш | number | FX rate; `1.0` throughout an MNT account |
@@ -88,9 +88,10 @@ with blanks, same fields at columns 0, 4, 7, 11, 16, 21 (counterparty account), 
   plus credits minus debits must land exactly on the stated closing balance, and the
   per-row balance chain must reconcile. Verified on the sample: exact match, zero drift
   across all 79 rows. If our arithmetic disagrees with the bank's, we have mis-parsed —
-  and we know it before showing the user a number. This check should block the import
-  preview from committing.
-- **MNT must be stored at exponent 2.** TDB reports tögrög to two decimal places. This
+  and we know it before showing the user a number. ~~This check should block the import
+  preview from committing.~~ Under the owner's "warn, don't block" (2026-09-18) it is a
+  big warning naming the row and both amounts; the import can still go ahead.
+- **MNT must be stored at exponent 2.** TDB reports tugrik to two decimal places. This
   corrects [ADR 0001](0001-database.md).
 - **A legacy BIFF reader is required, and this is unscoped work.** Both exports are
   OLE2/BIFF compound documents produced by Crystal Reports — the old binary `.xls`
@@ -103,8 +104,8 @@ with blanks, same fields at columns 0, 4, 7, 11, 16, 21 (counterparty account), 
   account number; 5 had no counterparty at all. Payee identification cannot rely on it
   and must fall back to the description field.
 - **Descriptions carry structured content worth mining** for the rules engine: QPay
-  references, POS terminal identifiers, bank-masked card numbers (`490249XXXXXX7599`),
-  and embedded fee notes (`CHARGE: 380.00 ₮`). Fees generally also arrive as their own
+  references, POS terminal identifiers, bank-masked card numbers (`4000XXXXXXXX0000`, invented),
+  and embedded fee notes (`CHARGE: <amount> ₮`). Fees generally also arrive as their own
   separate transactions.
 - **Own-account transfers are identifiable** — the account holder's own name appears as
   the counterparty — which feeds transfer auto-matching.
@@ -163,17 +164,67 @@ balance-chain check above catches the same condition within a single file.
 ("63 new, 16 already imported"). Never a silent drop. A synthesised key will eventually be
 wrong, so the user must be able to see the decision and override it.
 
+## Any bank's file (owner, 2026-09-30)
+
+The owner asked for import that works for any bank, not TDB only: the person matches
+the file's columns once per account, and the app remembers. The screen is in
+[ADR 0004](0004-ledger-ui.md), "Import".
+
+- **Every file becomes a grid of cells** (`app/lib/import/`): a BIFF8 `.xls` reader
+  written for this (OLE2 container, SST with CONTINUE, LABELSST, LABEL, NUMBER, RK,
+  MULRK, FORMULA results, dates by XF number format), `.xlsx` (zip and XML), and
+  CSV (comma, semicolon, tab or bar; UTF-8, UTF-16 with a byte-order mark, or
+  Windows-1251). The mapping only sees cells, never the file.
+- **Columns, not banks.** A mapping names the date, amount (one signed column or money in and out),
+  payee, memo and bank's balance by column. Rows whose date cell isn't a date are left
+  out and counted, which drops headings, `Нийт:` and `Хуудас:` footers and blank spacer
+  rows without a per-bank rule. Files listed newest first are turned around.
+- **Guessing:** the date column is the one with the most dates; the header row is the
+  nearest row above the first transaction holding only short text without figures
+  (TDB's plain export has none, its metadata row has account numbers in it). Named
+  columns are matched by the banks' words (Орлого, Зарлага, Үлдэгдэл, Гүйлгээний утга,
+  Харьцсан данс, and English equivalents). A print-layout name a column or two from its
+  figures goes to the nearest column with data. Otherwise, the amount and balance come
+  from the number columns whose running balance adds up on the most rows, in
+  either order. A column that often starts with an account number is the payee. When
+  the counterparty's name sits in an unnamed column beside the account numbers, the name
+  column is the payee. The longest remaining words are the memo.
+- **Payee:** the counterparty without the account number in front (the rule above,
+  widened to any first token of six or more digits, or an IBAN). With no
+  counterparty, the description is the payee and there's no memo.
+- **Remembered per account** in preferences (`import.mapping.<account id>`), with the
+  file's shape: the header names when there is a header row, otherwise what each
+  column mostly holds (`DTNNNTNT.` for TDB's plain export). A file of the same shape
+  uses the saved columns.
+- **Keys are on entries** (schema v8, `entries.import_key` with a unique index; SQLite
+  can't add a unique column), so each side of a transfer matches its own bank's file.
+  The old `transactions.import_key` is unused.
+- **Card files** that show what's owed as a positive balance: when the chain adds up
+  with the balances turned around, they're read that way.
+- **Dedup key, any bank:** `a<account>|<date, with time when the file has it>|<amount>|<balance>`.
+  Without a balance column: `…|<amount>|<payee>|<memo>`. Rows alike in one file get
+  `#2`, `#3` in file order. Keys on deleted rows still count, so a row the user deleted
+  stays deleted on the next import. Undoing an import frees its keys.
+- **Matching typed rows:** a bank row matches a row on the same account (any state,
+  so a reconciled one isn't brought in twice; it only takes the key) that has no key, isn't scheduled and has exactly the same
+  amount, dated from 3 days after to 10 days before the bank's date. The closest date
+  wins, and each typed row matches at most once. The match keeps the user's
+  payee, category and date (the bank's date when it's in another month, owner
+  2026-09-30), takes the key, and becomes cleared. Scheduled rows (bills,
+  paydays) aren't matched yet.
+- **Checked on the owner's real files (2026-09-30):** the plain and the formatted TDB
+  export give identical rows, keys, payees and memos (79 of 79), both with an exact
+  balance chain. Two different exports shared all 78 overlapping keys, the first
+  evidence that the key is stable across overlapping exports.
+
 ## Open items
 
-- **Check whether TDB's internet banking offers CSV or modern `.xlsx` anywhere.** If it
-  does, steering users there instead removes the BIFF reader dependency entirely. This
-  should be confirmed before that work starts.
-- **Verify key stability across overlapping exports.** The key is confirmed unique
-  *within* one statement period, but not yet confirmed stable *across* periods — which
-  is the property the design actually depends on. Two deliberately overlapping exports
-  (e.g. Sep 1–10 and Sep 5–20) would settle it: the shared days must produce identical
-  keys in both files.
-- Equivalent format analysis for the other launch-relevant banks (Khan, Golomt, Khas,
-  State Bank, M Bank).
+- ~~Check whether TDB's internet banking offers CSV or modern `.xlsx` anywhere.~~ Moot:
+  the BIFF reader is built (2026-09-30).
+- **Verify key stability across overlapping exports.** Two of the owner's exports
+  shared all 78 overlapping keys (2026-09-30). Two deliberately overlapping periods
+  (e.g. Sep 1–10 and Sep 5–20) would settle it for good.
+- ~~Equivalent format analysis for the other launch-relevant banks.~~ The column
+  mapping reads them without it; a real Khan or Golomt file is still worth a test.
 - Sample data in this repo must be redacted fixtures, never real statements. See
   `.gitignore`.

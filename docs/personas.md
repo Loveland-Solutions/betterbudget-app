@@ -159,7 +159,7 @@ researched from the Church's manual before anything is designed.
 3. **Net worth on any date** is already derivable (sum entries up to that date); no
    history table is needed. Draw it as steps, since values change only on update dates.
 4. **Currency is a live bug risk now.** Net worth adds up raw balances, so a USD
-   401(k) would add cents to tögrög. Decide open question 5 first: a typed rate with a
+   401(k) would add cents to tugrik. Decide open question 5 first: a typed rate with a
    date, and always show which rate was used.
 5. **Splits and recurring come first.** A paystub split (gross, net, 401(k), match,
    taxes) and a mortgage split (principal, interest) are what make the savings rate
