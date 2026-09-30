@@ -449,16 +449,6 @@ class WordsMn extends Words {
   String get ledgerCouldntSaveBalance => 'Үлдэгдлийг хадгалж чадсангүй';
 
   @override
-  String ledgerStartedAt(String amount) {
-    return 'Эхний үлдэгдэл $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
-  }
-
-  @override
-  String ledgerStartedAtOwed(String amount) {
-    return 'Эхний өр $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
-  }
-
-  @override
   String get ledgerCouldntChangeAccount => 'Дансыг өөрчилж чадсангүй';
 
   @override
@@ -1056,6 +1046,39 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planForecast => 'Урьдчилсан тооцоо';
+
+  @override
+  String get planTodaysBalance => 'Өнөөдрийн үлдэгдэл';
+
+  @override
+  String get planExpectedIncome => 'Хүлээгдэж буй орлого';
+
+  @override
+  String get planNothingBudgeted =>
+      'Төсөв хараахан гаргаагүй байна. Төсвөө бөглөсний дараа энд урьдчилсан тооцоо харагдана.';
+
+  @override
+  String planUntilPaycheck(String date) {
+    return '$date-ны цалин хүртэл';
+  }
+
+  @override
+  String planLowestToday(String amount) {
+    return 'Доод үлдэгдэл $amount · өнөөдөр';
+  }
+
+  @override
+  String planChartPay(String amount) {
+    return '+$amount цалин';
+  }
+
+  @override
+  String planLowestAfterPay(String amount, String date) {
+    return 'Доод үлдэгдэл $amount · $date, цалингийн дараа';
+  }
+
+  @override
   String get planNoBillsOrIncome => 'Дараагийн 30 хоногт төлбөр, орлого алга';
 
   @override
@@ -1085,9 +1108,6 @@ class WordsMn extends Words {
 
   @override
   String get planNext30Days => 'Дараагийн 30 хоног';
-
-  @override
-  String get planUntilNextIncome => 'Дараагийн орлого хүртэл';
 
   @override
   String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
@@ -2411,6 +2431,9 @@ class WordsMn extends Words {
 
   @override
   String get setupMondayAfter => 'Дараагийн даваа';
+
+  @override
+  String get setupKeepTheDay => 'Тэр өдөртөө';
 
   @override
   String get setupBudgetBy => 'Төсвийн үе';

@@ -39,6 +39,7 @@ void main() {
         'UPDATE entries SET cleared = $rec WHERE id = ?',
         [visaOpening.read<int>('id')],
       );
+      await dropAddedInV9(db);
       await dropAddedInV8(db);
       if (from == 1) {
         final sql =
@@ -140,6 +141,7 @@ void main() {
       rule: PayRule.twiceMonthly,
       today: today,
     );
+    await dropAddedInV9(db);
     await dropAddedInV8(db);
     await dropAddedInV7(db);
     await db.customStatement('PRAGMA user_version = 6');
@@ -152,7 +154,45 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v8-from-v6-')),
+      contains(startsWith('betterbudget.before-v9-from-v6-')),
+    );
+  });
+
+  test('upgrades a v8 file: a weekend payday still moves', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final data = await db.loadLedger();
+    final salary = data.categories.firstWhere((c) => c.name == 'Salary');
+    await db.savePaySchedule(
+      categoryId: salary.id,
+      accountId: data.openAccounts.first.id,
+      amount: 100000000,
+      rule: PayRule.monthly,
+      weekend: PayWeekend.after,
+      today: today,
+    );
+    await db.savePaySchedule(
+      categoryId: salary.id,
+      accountId: data.openAccounts.last.id,
+      amount: 50000000,
+      rule: PayRule.monthly,
+      today: today,
+    );
+    await dropAddedInV9(db);
+    await db.customStatement('PRAGMA user_version = 8');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final pays = (await db.loadLedger()).paySchedules;
+    expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v9-from-v8-')),
     );
   });
 
@@ -170,6 +210,7 @@ void main() {
     final txn = data.txns.firstWhere(
       (t) => !t.scheduled && t.entries.any((e) => e.accountId == checking),
     );
+    await dropAddedInV9(db);
     await dropAddedInV8(db);
     await db.customStatement(
       "UPDATE transactions SET import_key = 'a1|2026-09-01|-100|5' WHERE id = ?",
@@ -240,6 +281,7 @@ void main() {
       var db = AppDatabase(NativeDatabase(file));
       await seedDemoIfEmpty(db, today);
       final before = await db.loadLedger();
+      await dropAddedInV9(db);
       await dropAddedInV8(db);
       await dropAddedInV7(db);
       await dropAddedInV6(db);
@@ -254,7 +296,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v8-from-v5-')),
+        contains(startsWith('betterbudget.before-v9-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -268,6 +310,7 @@ void main() {
 
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
+    await dropAddedInV9(db);
     await dropAddedInV8(db);
     await dropAddedInV7(db);
     await dropAddedInV6(db);
@@ -293,6 +336,7 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final before = await db.loadLedger();
+    await dropAddedInV9(db);
     await dropAddedInV8(db);
     await dropAddedInV7(db);
     await dropAddedInV6(db);
@@ -320,6 +364,13 @@ void main() {
 /// The v6 schema: pay has one amount.
 /// The v7 schema: import keys sat on transactions, not entries. A unique
 /// column can't be dropped, so entries is rebuilt without it.
+/// The v8 schema: a weekend payday always moved.
+Future<void> dropAddedInV9(AppDatabase db) async {
+  await db.customStatement(
+    'ALTER TABLE pay_schedules DROP COLUMN weekend_keep',
+  );
+}
+
 Future<void> dropAddedInV8(AppDatabase db) async {
   final sql =
       (await db

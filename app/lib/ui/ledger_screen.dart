@@ -601,6 +601,52 @@ class _LedgerScreenState extends State<LedgerScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _entry.focus());
   }
 
+  /// The payday after [row] by its pay plan, so the forecast can run
+  /// through the whole period. Pay scheduled by hand uses the plan for that
+  /// category and account, unless that plan has its own payday ahead (then
+  /// [row] is extra, a bonus, and the plan's payday is the next one). Null
+  /// with no plan.
+  ({DateTime date, int amount})? _paydayAfter(
+    LedgerData data,
+    List<RegisterRow> scheduled,
+    RegisterRow row,
+  ) {
+    final plan =
+        data.paySchedules.where((p) => p.id == row.payScheduleId).firstOrNull ??
+        data.paySchedules
+            .where(
+              (p) =>
+                  p.accountId == row.accountId &&
+                  p.categoryId == row.categoryId,
+            )
+            .firstOrNull;
+    if (plan == null) return null;
+    if (row.payScheduleId == null &&
+        scheduled.any((r) => r.payScheduleId == plan.id)) {
+      return null;
+    }
+    // From the payday it was planned as, by amount for split pay: one moved
+    // a few days by hand mustn't make that same payday the next.
+    final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+    return (date: next, amount: plan.amountOn(next));
+  }
+
+  /// Esc on the new-transaction row: it closes, and ⌘Z works again at
+  /// once. The row drops focus on its way out, which left the screen's keys
+  /// unreachable until a click.
+  Widget _searchBox() => _SearchField(
+    controller: _search,
+    focusNode: _searchFocus,
+    onChanged: () => setState(() {}),
+  );
+
+  void _closeEntry() {
+    setState(() => _adding = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _keysBack();
+    });
+  }
+
   // ---------- editing ----------
 
   /// With [confirming], a scheduled row opens to be confirmed: dated today,
@@ -1084,7 +1130,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             day2: draft.day2,
             weeks: draft.weeks,
             anchor: draft.anchor,
-            weekendBefore: draft.weekendBefore,
+            weekend: draft.weekend,
             definesPeriod: draft.definesPeriod,
             today: today,
           ),
@@ -1258,7 +1304,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountInfo accountOf(RegisterRow r) => data.accounts[r.accountId]!;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1267,12 +1313,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
               Text(
                 t.ledgerAllAccounts,
                 style: onest(22, weight: 600, letterSpacing: -0.3),
-              ),
-              const Spacer(),
-              _SearchField(
-                controller: _search,
-                focusNode: _searchFocus,
-                onChanged: () => setState(() {}),
               ),
             ],
           ),
@@ -1334,13 +1374,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
               entryController: _entry,
               today: today,
               adding: _adding,
+              searchBox: _searchBox(),
               addButton: _PrimaryButton(
                 label: t.ledgerAdd,
                 icon: Icons.add_rounded,
                 key: const ValueKey('add-transaction'),
                 onTap: _newEntry,
               ),
-              onCloseEntry: () => setState(() => _adding = false),
+              onCloseEntry: _closeEntry,
               actions: RegisterActions(
                 onFilter: (f) => setState(() => _filter = f),
                 onRowTap: _tapRow,
@@ -1503,16 +1544,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(t.ledgerCouldntSaveBalance);
       return;
     }
-    // The bank's number already holds everything settled, so what's left to
-    // type is what hasn't: the entry row opens, and the toast says so.
+    // The bank's number already holds everything cleared, so what's left to
+    // type is what hasn't: the entry row opens. No toast (owner, 2026-09-30):
+    // the account was just made on purpose; ⌘Z still takes the balance back.
     _newEntry();
     _did(
       t.startOpeningBalance,
       undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
       redo: () => db.restoreMany([id]),
-      message: account.isOwed
-          ? t.ledgerStartedAtOwed(_money(typed, account.currency))
-          : t.ledgerStartedAt(_money(typed, account.currency)),
+      toast: false,
     );
   }
 
@@ -2537,6 +2577,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       today: today,
       scheduled: register.scheduled,
       owed: account.isOwed,
+      paydayAfter: (row) => _paydayAfter(data, register.scheduled, row),
     );
     final activeStatus = switch (_filter) {
       RegisterFilter.uncleared => Cleared.uncleared,
@@ -2546,7 +2587,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2563,15 +2604,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   renameRequest: _renameRequest,
                 ),
               ),
-              const Spacer(),
-              _SearchField(
-                controller: _search,
-                focusNode: _searchFocus,
-                onChanged: () => setState(() {}),
-              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           if (fresh)
             Align(
               alignment: Alignment.topLeft,
@@ -2658,13 +2693,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 entryController: _entry,
                 today: today,
                 adding: _adding,
+                searchBox: _searchBox(),
                 addButton: _PrimaryButton(
                   label: context.t.ledgerAdd,
                   icon: Icons.add_rounded,
                   key: const ValueKey('add-transaction'),
                   onTap: _newEntry,
                 ),
-                onCloseEntry: () => setState(() => _adding = false),
+                onCloseEntry: _closeEntry,
                 actions: RegisterActions(
                   onFilter: (f) => setState(() => _filter = f),
                   onRowTap: _tapRow,

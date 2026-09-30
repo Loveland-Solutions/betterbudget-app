@@ -451,16 +451,6 @@ class WordsEn extends Words {
   String get ledgerCouldntSaveBalance => 'Couldn’t save the balance';
 
   @override
-  String ledgerStartedAt(String amount) {
-    return 'Started at $amount · add only what hasn’t settled yet';
-  }
-
-  @override
-  String ledgerStartedAtOwed(String amount) {
-    return 'Started at $amount owed · add only what hasn’t settled yet';
-  }
-
-  @override
   String get ledgerCouldntChangeAccount => 'Couldn’t change the account';
 
   @override
@@ -1025,7 +1015,7 @@ class WordsEn extends Words {
       other: '$charges charges',
       one: '1 charge',
     );
-    return '$_temp0 · $chargeTotal before $date';
+    return '$_temp0 · $chargeTotal through $date';
   }
 
   @override
@@ -1036,7 +1026,7 @@ class WordsEn extends Words {
       other: '$payments payments',
       one: '1 payment',
     );
-    return '$_temp0 · $paymentTotal before $date';
+    return '$_temp0 · $paymentTotal through $date';
   }
 
   @override
@@ -1059,7 +1049,7 @@ class WordsEn extends Words {
       other: '$payments payments',
       one: '1 payment',
     );
-    return '$_temp0 · $chargeTotal · $_temp1 · $paymentTotal before $date';
+    return '$_temp0 · $chargeTotal · $_temp1 · $paymentTotal through $date';
   }
 
   @override
@@ -1094,16 +1084,49 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planForecast => 'Forecast';
+
+  @override
+  String get planTodaysBalance => 'Today’s balance';
+
+  @override
+  String get planExpectedIncome => 'Expected income';
+
+  @override
+  String get planNothingBudgeted =>
+      'Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.';
+
+  @override
+  String planUntilPaycheck(String date) {
+    return 'Until your $date paycheck';
+  }
+
+  @override
+  String planLowestToday(String amount) {
+    return 'Lowest $amount, today';
+  }
+
+  @override
+  String planChartPay(String amount) {
+    return '+$amount pay';
+  }
+
+  @override
+  String planLowestAfterPay(String amount, String date) {
+    return 'Lowest $amount on $date, after payday';
+  }
+
+  @override
   String get planNoBillsOrIncome => 'No bills or income in the next 30 days';
 
   @override
   String planNoBillsBefore(String date) {
-    return 'No bills before $date';
+    return 'No bills through $date';
   }
 
   @override
   String planInBefore(String amount, String date) {
-    return '+$amount in before $date';
+    return '+$amount in through $date';
   }
 
   @override
@@ -1114,7 +1137,7 @@ class WordsEn extends Words {
       other: '$count bills',
       one: '1 bill',
     );
-    return '$_temp0 · $amount before $date';
+    return '$_temp0 · $amount through $date';
   }
 
   @override
@@ -1130,21 +1153,18 @@ class WordsEn extends Words {
       other: '$count bills',
       one: '1 bill',
     );
-    return '$_temp0 · $amount before $date · +$inAmount in';
+    return '$_temp0 · $amount through $date · +$inAmount in';
   }
 
   @override
   String get planNext30Days => 'Next 30 days';
 
   @override
-  String get planUntilNextIncome => 'Until next income';
-
-  @override
   String get planAddPay => ' · no payday ahead · Add your pay →';
 
   @override
   String planUntilDate(String date) {
-    return 'Until $date';
+    return 'Through $date';
   }
 
   @override
@@ -1808,8 +1828,8 @@ class WordsEn extends Words {
   @override
   String rowsStatusTip(String status) {
     String _temp0 = intl.Intl.selectLogic(status, {
-      'uncleared': 'Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
-      'cleared': 'Cleared — settled at the bank. Click to mark uncleared.',
+      'uncleared': 'Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.',
+      'cleared': 'Cleared — the bank has cleared it. Click to mark uncleared.',
       'other': 'Reconciled — matches a statement, so its date and amount are locked.',
     });
     return '$_temp0';
@@ -1819,9 +1839,9 @@ class WordsEn extends Words {
   String rowsStatusTipIn(String account, String status) {
     String _temp0 = intl.Intl.selectLogic(status, {
       'uncleared':
-          'In $account: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.',
+          'In $account: Uncleared — the bank hasn’t cleared it yet, even if it shows there as pending. Click once it clears.',
       'cleared':
-          'In $account: Cleared — settled at the bank. Click to mark uncleared.',
+          'In $account: Cleared — the bank has cleared it. Click to mark uncleared.',
       'other':
           'In $account: Reconciled — matches a statement, so its date and amount are locked.',
     });
@@ -2338,20 +2358,20 @@ class WordsEn extends Words {
   String get setupShowEveryRow => 'Show every row · Esc';
 
   @override
-  String get setupAmountMissing => 'Put in how much comes';
+  String get setupAmountMissing => 'Type how much you’re paid';
 
   @override
   String setupAmountMissingOn(String day) {
-    return 'Put in how much comes on the $day';
+    return 'Type how much you’re paid on the $day';
   }
 
   @override
   String get setupAmountMissingFirst =>
-      'Put in how much comes on the first payday';
+      'Type how much you’re paid on the first payday';
 
   @override
   String get setupAmountMissingSecond =>
-      'Put in how much comes on the second payday';
+      'Type how much you’re paid on the second payday';
 
   @override
   String setupOnDay(String day) {
@@ -2499,6 +2519,9 @@ class WordsEn extends Words {
 
   @override
   String get setupMondayAfter => 'Monday after';
+
+  @override
+  String get setupKeepTheDay => 'Keep the day';
 
   @override
   String get setupBudgetBy => 'Budget by';
@@ -2826,7 +2849,7 @@ class WordsEn extends Words {
   String get startOpeningBalance => 'Opening balance';
 
   @override
-  String get startOpeningBalances => 'Opening balances';
+  String get startOpeningBalances => 'Opening balance';
 
   @override
   String get startBalanceAdjustments => 'Balance adjustments';

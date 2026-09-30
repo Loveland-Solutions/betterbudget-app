@@ -527,7 +527,7 @@ void main() {
   testWidgets('the bill count lists every bill before payday', (tester) async {
     final db = await pumpLedger(tester);
     final link = find.byKey(const ValueKey('forecast-bills'));
-    expect(find.text('3 bills · ₮2,790,200 before 10.10'), findsOneWidget);
+    expect(find.text('3 bills · ₮2,790,200 through 10.10'), findsOneWidget);
     await tester.tap(link);
     await tester.pumpAndSettle();
     // Each bill with the balance after it, then the income that ends it.
@@ -1078,7 +1078,7 @@ void main() {
     expect(find.text('₮640,200.00', findRichText: true), findsWidgets);
     expect(find.textContaining('Below zero'), findsNothing);
     expect(find.text('₮0 owed after 09.25'), findsOneWidget);
-    expect(find.text('1 payment · ₮640,200 before 10.16'), findsOneWidget);
+    expect(find.text('1 payment · ₮640,200 through 10.16'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/ledger_card.png'),
@@ -1827,6 +1827,16 @@ void main() {
 
     // Unitel is from today: no note. Skytel is old enough to question.
     final skytel = find.text('Skytel', skipOffstage: false);
+    await tester.scrollUntilVisible(
+      find.text('Skytel'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .last,
+    );
     await tester.ensureVisible(skytel);
     await tester.pumpAndSettle();
     expect(find.text(' · not cleared for 34 days'), findsOneWidget);
@@ -2131,21 +2141,23 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
       expect(find.text('₮500,000.00 owed'), findsOneWidget); // sidebar
-      expect(find.text('Opening balance'), findsOneWidget);
-      // Only what hasn't settled is left to type, so the entry row is open.
-      expect(
-        find.text(
-          'Started at ₮500,000 owed · add only what hasn’t settled yet',
-        ),
-        findsOneWidget,
-      );
+      // Payee and category both say it, singular (owner, 2026-09-30).
+      expect(find.text('Opening balance'), findsNWidgets(2));
+      expect(find.text('Opening balances'), findsNothing);
+      // Only what hasn't cleared is left to type, so the entry row is open,
+      // with no toast: the account was just made (owner, 2026-09-30).
+      expect(find.textContaining('Started at'), findsNothing);
       expect(
         find.widgetWithText(TextField, 'New transaction — payee'),
         findsOneWidget,
       );
 
-      // Undo takes the balance back, then ⌘Z the account.
-      await tapAndWait(tester, find.text('Undo'));
+      // ⌘Z takes the balance back (no toast to click), then the account.
+      // Esc closes the entry row and leaves ⌘Z working, no click needed.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
       expect(find.text('What do you owe on it today?'), findsOneWidget);
       await tester.tap(find.text('What do you owe on it today?'));
       await tester.pumpAndSettle();
@@ -2833,8 +2845,28 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
       expect(find.text('Pay saved · next payday 2026.09.25'), findsOneWidget);
-      // The forecast runs to it now.
+      // The forecast runs through the period that paycheck starts, to the
+      // one after it (every 2 weeks: 10.09).
       expect(find.byKey(const ValueKey('add-pay')), findsNothing);
+      // Pay but no bills: in words, not a flat chart (owner, 2026-09-30).
+      expect(find.text('Forecast'), findsOneWidget);
+      expect(find.byKey(const ValueKey('forecast-known')), findsOneWidget);
+      expect(find.text('Today’s balance'), findsOneWidget);
+      // Both paydays, each with what the plan expects.
+      expect(find.text('Expected income'), findsNWidgets(2));
+      expect(find.text('+₮2,100,000'), findsNWidgets(2));
+      expect(find.text('10.09'), findsOneWidget);
+      expect(
+        find.text(
+          'Nothing has been budgeted. Once you fill out your budget, this '
+          'area will show you a forecast.',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_pay_period.png'),
+      );
 
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
@@ -2853,6 +2885,33 @@ void main() {
       await settle(tester);
       final ledger = await tester.runAsync(db.loadLedger);
       expect(ledger!.paySchedules, isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('with bills, the chart names its amounts', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final checking = data.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id;
+        final salary = data.categories.firstWhere((c) => c.name == 'Salary');
+        await db.savePaySchedule(
+          categoryId: salary.id,
+          accountId: checking,
+          amount: 250000000,
+          rule: PayRule.twiceMonthly,
+          day1: 25,
+          day2: 10,
+          today: DateTime(2026, 9, 16),
+        );
+      });
+      await settle(tester);
+      expect(find.textContaining('paycheck'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_labeled.png'),
+      );
       await tidy(tester, db);
     });
 
@@ -2878,7 +2937,10 @@ void main() {
         '500000',
       );
       await tester.pumpAndSettle();
-      expect(find.text('Put in how much comes on the 25th'), findsOneWidget);
+      expect(
+        find.text('Type how much you’re paid on the 25th'),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byKey(const ValueKey('pay-amount2')),
         '1600000',
@@ -3321,7 +3383,6 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('start-balance')), '250');
     await tapAndWait(tester, find.byKey(const ValueKey('start-account')));
     expect(find.text(r'$250.00'), findsWidgets); // sidebar, net worth, the page
-    expect(find.textContaining(r'Started at $250'), findsOneWidget);
     // Net worth: each currency on its own line.
     expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
     expect(

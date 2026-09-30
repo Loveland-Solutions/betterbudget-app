@@ -193,7 +193,7 @@ void main() {
     final en = lookupWords(const Locale('en'));
     final mn = lookupWords(const Locale('mn'));
     expect(rowPayee(en, opening), 'Opening balance');
-    expect(rowCategory(en, opening), 'Opening balances');
+    expect(rowCategory(en, opening), 'Opening balance');
     expect(rowPayee(en, adjustment), 'Reconcile adjustment');
     expect(rowCategory(en, adjustment), 'Balance adjustments');
     expect(rowPayee(mn, opening), 'Эхний үлдэгдэл');

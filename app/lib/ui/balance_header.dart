@@ -505,6 +505,14 @@ class ForecastPanel extends StatelessWidget {
             : t.planRunsOut(on, money(f.low));
       } else if (f.steps.isEmpty) {
         headline = t.planNothingScheduled;
+      } else if (f.low >= f.startBalance) {
+        headline = t.planLowestToday(money(f.startBalance));
+      } else if (f.throughPeriod &&
+          f.lowDate.isAfter(
+            f.steps.firstWhere((s) => identical(s.row, payday)).date,
+          )) {
+        // That low leans on the paycheck coming on time, in full.
+        headline = t.planLowestAfterPay(money(f.low), sayDate(t, f.lowDate));
       } else {
         headline = t.planLowest(money(f.low), sayDate(t, f.lowDate));
       }
@@ -515,6 +523,9 @@ class ForecastPanel extends StatelessWidget {
           ? payday == null
                 ? t.planNoBillsOrIncome
                 : t.planNoBillsBefore(end)
+          // Through a pay period the paycheck is a step, not "money in".
+          : f.billCount == 0 && f.inTotal == 0
+          ? t.planNoBillsBefore(end)
           : f.billCount == 0
           ? t.planInBefore(money(f.inTotal), end)
           : f.inTotal > 0
@@ -529,17 +540,35 @@ class ForecastPanel extends StatelessWidget {
 
     // Late money in, named so a warning without it makes sense.
     final late = f.late;
+    // Pay is known but no bills are: a chart would be a flat line with a
+    // jump, meaning nothing to someone new. Say what's known in words, and
+    // what to add for the forecast to be worth something.
+    final knownOnly =
+        !f.owed && payday != null && f.billCount == 0 && !f.shortNow;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // What this part of the header is, for someone seeing it first.
+        Center(
+          child: Text(
+            t.planForecast,
+            key: const ValueKey('forecast-title'),
+            style: onest(14, weight: 700, color: Mid.ink),
+          ),
+        ),
+        const SizedBox(height: 6),
         Row(
           key: const ValueKey('forecast-horizon'),
           children: [
-            Text(
-              payday == null ? t.planNext30Days : t.planUntilNextIncome,
-              style: onest(12, color: Mid.ink3),
-            ),
+            // The list names its own dates.
+            if (!knownOnly)
+              Text(
+                payday == null
+                    ? t.planNext30Days
+                    : t.planUntilPaycheck(sayDate(t, f.end)),
+                style: onest(12, color: Mid.ink3),
+              ),
             if (late.isNotEmpty)
               Flexible(
                 child: _LateNote(late: late, today: f.start, onOpen: onOpen),
@@ -564,30 +593,147 @@ class ForecastPanel extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          headline,
-          style: onest(
-            18,
-            weight: 500,
-            color: f.isShort ? Mid.coral : Mid.ink,
-            tabular: true,
+        if (knownOnly) ...[
+          const SizedBox(height: 8),
+          Expanded(
+            child: _KnownList(f: f, onOpen: onOpen),
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        ] else ...[
+          const SizedBox(height: 4),
+          Text(
+            headline,
+            style: onest(
+              18,
+              weight: 500,
+              color: f.isShort ? Mid.coral : Mid.ink,
+              tabular: true,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          if (f.steps.isEmpty)
+            Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
+          else
+            _BillsLink(label: detail, f: f, onOpen: onOpen),
+          const SizedBox(height: 14),
+          Expanded(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 96),
+              child: _ForecastChart(f: f, onOpen: onOpen),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The forecast with pay but no bills: today, what comes in, where it ends,
+/// and what to add. Each line opens its row.
+class _KnownList extends StatelessWidget {
+  const _KnownList({required this.f, required this.onOpen});
+  final Forecast f;
+  final ValueChanged<RegisterRow> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final symbol = CurrencyScope.of(context).symbol;
+    final payday = f.payday!;
+    Widget line(
+      String date,
+      String what,
+      String? amount, {
+      RegisterRow? row,
+      Key? key,
+    }) {
+      final body = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(
+                date,
+                style: onest(13, color: Mid.ink3, tabular: true),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                what,
+                style: onest(13, color: Mid.ink2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (amount != null)
+              Text(
+                amount,
+                style: onest(
+                  13,
+                  color: amount.startsWith('+') ? Mid.green : Mid.ink,
+                  tabular: true,
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 4),
-        if (f.steps.isEmpty)
-          Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
+      );
+      return row == null
+          ? KeyedSubtree(key: key, child: body)
+          : Hoverable(key: key, onTap: () => onOpen(row), builder: (_) => body);
+    }
+
+    // Today, then each paycheck the plan expects with its amount (which
+    // kind of income it is isn't known, owner 2026-09-30), and any other
+    // money on the way by name.
+    String plus(int v) => '+$symbol${formatWhole(v)}';
+    return Column(
+      key: const ValueKey('forecast-known'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            key: const ValueKey('forecast-known-today'),
+            children: [
+              Expanded(
+                child: Text(
+                  t.planTodaysBalance,
+                  style: onest(13, color: Mid.ink2),
+                ),
+              ),
+              Text(
+                '$symbol${formatWhole(f.startBalance)}',
+                style: onest(13, color: Mid.ink, tabular: true),
+              ),
+            ],
+          ),
+        ),
+        for (final s in f.steps)
+          line(
+            shortDate(s.date),
+            identical(s.row, payday)
+                ? t.planExpectedIncome
+                : _payeeText(t, s.row),
+            plus(s.row.amount),
+            row: s.row,
+          ),
+        if (f.throughPeriod)
+          line(
+            shortDate(f.end),
+            t.planExpectedIncome,
+            f.nextPayAmount == null ? null : plus(f.nextPayAmount!),
+          )
         else
-          _BillsLink(label: detail, f: f, onOpen: onOpen),
-        const SizedBox(height: 14),
-        Expanded(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 96),
-            child: _ForecastChart(f: f, onOpen: onOpen),
+          line(
+            shortDate(f.end),
+            t.planExpectedIncome,
+            plus(payday.amount),
+            row: payday,
           ),
-        ),
+        const SizedBox(height: 8),
+        Text(t.planNothingBudgeted, style: onest(12.5, color: Mid.ink3)),
       ],
     );
   }
@@ -771,7 +917,9 @@ class _BillsCard extends StatelessWidget {
                   owed: f.owed,
                   onTap: () => onOpen(s.row),
                 ),
-              if (payday != null) ...[
+              // Ending at payday, the paycheck closes the list; running
+              // through the period, it's already a line above.
+              if (payday != null && !f.throughPeriod) ...[
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
@@ -911,7 +1059,8 @@ class _ChartGeometry {
       (d.difference(f.start).inDays /
           f.end.difference(f.start).inDays.clamp(1, 1000)) *
       w;
-  double y(int v) => 6 + (1 - (v - _lo) / (_hi - _lo)) * (h - 12);
+  // Room above the highest point and below the lowest for their amounts.
+  double y(int v) => 20 + (1 - (v - _lo) / (_hi - _lo)) * (h - 38);
 }
 
 /// Bills that land on the same day share one dot.
@@ -941,7 +1090,16 @@ class _ForecastChart extends StatelessWidget {
         LayoutId(
           id: 'paint',
           child: CustomPaint(
-            painter: _ForecastPainter(f, CurrencyScope.of(context)),
+            painter: _ForecastPainter(
+              f,
+              CurrencyScope.of(context),
+              payLabel: f.throughPeriod
+                  ? context.t.planChartPay(
+                      '${CurrencyScope.of(context).symbol}'
+                      '${formatWhole(f.payday!.amount)}',
+                    )
+                  : null,
+            ),
           ),
         ),
         for (var i = 0; i < days.length; i++)
@@ -956,7 +1114,7 @@ class _ForecastChart extends StatelessWidget {
               onOpen: onOpen,
             ),
           ),
-        if (payday != null)
+        if (payday != null && !f.throughPeriod)
           LayoutId(
             key: const ValueKey('forecast-payday'),
             id: 'payday',
@@ -1161,9 +1319,12 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f, this.currency);
+  _ForecastPainter(this.f, this.currency, {this.payLabel});
   final Currency currency;
   final Forecast f;
+
+  /// "+₮5,973,750 pay" on the paycheck's step, running through the period.
+  final String? payLabel;
 
   /// Drawn in these colors; a switch between light and dark repaints.
   final Palette palette = Mid.palette;
@@ -1244,15 +1405,84 @@ class _ForecastPainter extends CustomPainter {
         ..color = Mid.ink,
     );
 
+    // Paydays: the end, and the next paycheck when it runs past it.
+    final paydayLine = Paint()..color = Mid.green.withValues(alpha: 0.5);
     if (f.payday != null) {
-      canvas.drawLine(
-        Offset(w, 2),
-        Offset(w, h),
-        Paint()..color = Mid.green.withValues(alpha: 0.5),
+      canvas.drawLine(Offset(w, 2), Offset(w, h), paydayLine);
+    }
+    // Amounts where they matter, so the line reads without hovering: where
+    // it starts, the paycheck, and the lowest point. Each sits beside its
+    // point, never across a step or the payday line, in the first free spot
+    // it prefers; one that would cover another is left off.
+    final placed = <Rect>[];
+    void tag(
+      String text,
+      Offset at,
+      Color color,
+      List<(bool right, bool above)> spots,
+    ) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: onest(11, color: color, tabular: true),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      for (final (right, above) in spots) {
+        final r = Rect.fromLTWH(
+          right ? at.dx + 5 : at.dx - 5 - tp.width,
+          above ? at.dy - tp.height - 3 : at.dy + 3,
+          tp.width,
+          tp.height,
+        );
+        if (r.left < 0 || r.right > w || r.top < 0 || r.bottom > h) continue;
+        if (placed.any((o) => o.inflate(3).overlaps(r))) continue;
+        placed.add(r);
+        tp.paint(canvas, r.topLeft);
+        return;
+      }
+    }
+
+    String amount(int v) => formatRounded(v, currency: currency);
+    // First: the low point is the one that matters most.
+    if (!f.owed && f.low < f.startBalance) {
+      tag(
+        amount(f.low),
+        Offset(x(f.lowDate), y(f.low)),
+        f.low < 0 ? Mid.coral : Mid.ink2,
+        [(false, false), (true, false), (false, true), (true, true)],
       );
     }
-    // Just the dates the chart spans. The headline already says what ends it,
-    // and hovering the end date shows that income.
+    if (payLabel != null) {
+      final s = f.steps.firstWhere((s) => identical(s.row, f.payday));
+      tag(payLabel!, Offset(x(s.date), y(s.balance)), Mid.green, [
+        (true, true),
+        (false, true),
+        (true, false),
+      ]);
+    }
+    tag(amount(f.startBalance), Offset(0, y(f.startBalance)), Mid.ink3, [
+      (true, true),
+      (true, false),
+    ]);
+
+    // Just dates: where the chart starts and ends, and when the paycheck
+    // comes (hover its dot for the amount). Too close to an end, it's left
+    // off rather than drawn over that end's date.
+    if (f.throughPeriod) {
+      final pd = f.steps.firstWhere((s) => identical(s.row, f.payday)).date;
+      final px = x(pd);
+      canvas.drawLine(Offset(px, 2), Offset(px, h), paydayLine);
+      if (px > 56 && px < w - 56) {
+        _label(
+          canvas,
+          shortDate(pd),
+          Offset(px, h + 6),
+          Mid.ink3,
+          center: true,
+        );
+      }
+    }
     _label(canvas, shortDate(f.start), Offset(0, h + 6), Mid.ink3);
     _label(
       canvas,
@@ -1269,6 +1499,7 @@ class _ForecastPainter extends CustomPainter {
     Offset at,
     Color color, {
     bool alignRight = false,
+    bool center = false,
   }) {
     final tp = TextPainter(
       text: TextSpan(
@@ -1277,10 +1508,20 @@ class _ForecastPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, alignRight ? at.translate(-tp.width, 0) : at);
+    tp.paint(
+      canvas,
+      alignRight
+          ? at.translate(-tp.width, 0)
+          : center
+          ? at.translate(-tp.width / 2, 0)
+          : at,
+    );
   }
 
   @override
   bool shouldRepaint(_ForecastPainter old) =>
-      old.f != f || old.palette != palette || old.currency != currency;
+      old.f != f ||
+      old.palette != palette ||
+      old.currency != currency ||
+      old.payLabel != payLabel;
 }
