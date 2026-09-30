@@ -3291,4 +3291,8 @@ class WordsEn extends Words {
   String importFileInUsd(Object account, Object example, Object asIs) {
     return 'This file looks like it’s in dollars, and $account is in tugrik. Amounts come in as they are: $example would become $asIs.';
   }
+
+  @override
+  String get ledgerNewerLedger =>
+      'it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.';
 }

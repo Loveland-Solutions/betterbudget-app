@@ -4638,6 +4638,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.'**
   String importFileInUsd(Object account, Object example, Object asIs);
+
+  /// After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused.
+  ///
+  /// In en, this message translates to:
+  /// **'it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.'**
+  String get ledgerNewerLedger;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

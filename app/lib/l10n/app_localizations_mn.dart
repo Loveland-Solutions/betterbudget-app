@@ -3148,4 +3148,8 @@ class WordsMn extends Words {
   String importFileInUsd(Object account, Object example, Object asIs) {
     return 'Энэ файл доллараар бичигдсэн бололтой, харин $account данс төгрөгтэй. Дүн хэвээрээ орно: $example нь $asIs болно.';
   }
+
+  @override
+  String get ledgerNewerLedger =>
+      'үүнийг BetterBudget-ийн шинэ хувилбар хадгалсан байна. Тэр хувилбараар нээнэ үү; энд юу ч өөрчлөгдөөгүй.';
 }

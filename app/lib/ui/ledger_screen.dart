@@ -2343,6 +2343,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   child: Text(
                     context.t.ledgerCouldntOpenLedger(switch (snap.error) {
                       final CipherException e => cipherProblem(context.t, e),
+                      NewerLedgerException _ => context.t.ledgerNewerLedger,
                       final e => '$e',
                     }),
                     style: onest(14, color: Mid.coral),

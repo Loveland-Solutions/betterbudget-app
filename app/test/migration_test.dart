@@ -192,6 +192,44 @@ void main() {
     expect(left, isEmpty);
   });
 
+  test('a v8 file an older build relabeled v7 opens with its rows', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final before = (await db.loadLedger()).txns.length;
+    // What the old build did: the version number, and nothing else.
+    await db.customStatement('PRAGMA user_version = 7');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    expect((await db.loadLedger()).txns.length, before);
+    final version = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(version.read<int>('user_version'), db.schemaVersion);
+  });
+
+  test('a ledger from a newer build is refused and left as it was', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    await db.customStatement('PRAGMA user_version = 99');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
+    await db.close();
+    final raw = sqlite3.open(file.path);
+    addTearDown(raw.close);
+    expect(raw.select('PRAGMA user_version').first.values.first, 99);
+    expect(dir.listSync().where((f) => f.path.contains('.before-')), isEmpty);
+  });
+
   test(
     'upgrades a v5 file: no roles, no answers, Savings starts fresh',
     () async {

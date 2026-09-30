@@ -3362,7 +3362,10 @@ void main() {
       (a) => a.name == 'Chase',
     );
     expect(data.balanceOf(chase.id), 125000);
-    expect(find.text(r'$1,250.00'), findsWidgets); // sidebar, net worth, the page
+    expect(
+      find.text(r'$1,250.00'),
+      findsWidgets,
+    ); // sidebar, net worth, the page
     expect(
       find.textContaining(r'Chase: $1,000.00 · ₮3,450.00 per $1'),
       findsOneWidget,

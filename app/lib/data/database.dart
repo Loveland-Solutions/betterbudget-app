@@ -424,6 +424,15 @@ class ImportRecord {
   final int uncategorizedCount;
 }
 
+/// The ledger was saved by a newer BetterBudget than this one. Nothing was
+/// changed.
+class NewerLedgerException implements Exception {
+  NewerLedgerException(this.version);
+  final int version;
+  @override
+  String toString() => 'NewerLedgerException: saved as version $version';
+}
+
 class NotFoundException extends DbException {
   NotFoundException(super.problem);
 }
@@ -491,23 +500,28 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
+      // Opened by an older build than the one that last saved it: refuse,
+      // before anything is written. Going on would mark it as the older
+      // version while its newer columns stay, and the newer build could
+      // then no longer open it (2026-09-30).
+      if (from > to) throw NewerLedgerException(from);
       await _backupBeforeUpgrade(from);
       // Drift doesn't wrap upgrades; a failure halfway must leave the old
       // version intact so the next launch can try again.
       await transaction(() async {
         if (from < 2) {
-          await m.addColumn(entries, entries.reconciliationId);
+          await _addColumnOnce(m, entries, entries.reconciliationId);
           await linkReconciledEntries();
         }
         if (from < 3) await repairReconciledEntries();
         if (from < 4) {
-          await m.addColumn(accounts, accounts.archivedAt);
-          await m.addColumn(accounts, accounts.deletedAt);
+          await _addColumnOnce(m, accounts, accounts.archivedAt);
+          await _addColumnOnce(m, accounts, accounts.deletedAt);
         }
         if (from < 5) {
-          await m.addColumn(accounts, accounts.payday);
+          await _addColumnOnce(m, accounts, accounts.payday);
           await m.createTable(paySchedules);
-          await m.addColumn(transactions, transactions.payScheduleId);
+          await _addColumnOnce(m, transactions, transactions.payScheduleId);
           // Every income row ended the forecast before; nothing changes
           // until the user unmarks one.
           await customStatement(
@@ -515,16 +529,19 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 6) {
-          await m.addColumn(accounts, accounts.role);
+          await _addColumnOnce(m, accounts, accounts.role);
           await m.createTable(preferences);
         }
         // Before v5 the table was just made, with the column already.
         if (from >= 5 && from < 7) {
-          await m.addColumn(paySchedules, paySchedules.amount2Minor);
+          await _addColumnOnce(m, paySchedules, paySchedules.amount2Minor);
         }
         if (from < 8) {
-          await m.addColumn(entries, entries.importKey);
-          await m.createIndex(entriesImportKey);
+          await _addColumnOnce(m, entries, entries.importKey);
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS entries_import_key '
+            'ON entries (import_key)',
+          );
           // A key on a transaction goes to the side of the account it names
           // (`a<id>|…`), else its first account side.
           await customStatement(
@@ -556,6 +573,20 @@ class AppDatabase extends _$AppDatabase {
   );
 
   int get _now => DateTime.now().millisecondsSinceEpoch;
+
+  /// Adds [column] unless [table] has it already: an upgrade that ran, or a
+  /// file an older build relabeled, mustn't stop the ledger opening.
+  Future<void> _addColumnOnce(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    final have = await customSelect(
+      'PRAGMA table_info("${table.actualTableName}")',
+    ).get();
+    if (have.any((r) => r.read<String>('name') == column.name)) return;
+    await m.addColumn(table, column);
+  }
 
   /// Copies the database next to itself before a schema upgrade, e.g.
   /// `betterbudget.before-v3-from-v2-20260917-153000.sqlite`. In-memory

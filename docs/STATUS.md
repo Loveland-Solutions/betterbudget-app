@@ -178,6 +178,28 @@ Roughly in the order they will block something.
 
 ## Next step
 
+**Tabled by the owner (2026-09-30), to address next**, from using the new build:
+
+- [ ] The opening row's category reads "Opening balances"; it should say **"Opening
+  balance"**.
+- [ ] The gold toast after making an account ("Started at … · add only what hasn't
+  settled yet"): it shouldn't appear at account creation, and "settled" reads as
+  AI-written. Use the app's own word, **cleared**.
+- [ ] Pay's weekend rule offers only Friday before / Monday after. **Some people are
+  paid on a Saturday**: a choice to keep the day.
+- [ ] Settings → Budget by, under Pay period: **"Put in how much comes"** is poor
+  wording; rewrite it.
+- [ ] The forecast runs only to the next payday, so **with payday tomorrow it shows one
+  day**. Rethink how far it looks (owner: "we need to rethink this"); bring options.
+- [ ] Still open from earlier: Change currency on an existing account (AFCU Checking
+  is stored as ₮), and the two import questions (rows before the opening balance;
+  which date a matched row keeps).
+
+**Fixed 2026-09-30:** the ledger wouldn't open ("duplicate column name: import_key").
+An older build (the Release copy from 09-29) opened the v8 ledger and relabeled it v7;
+the next v8 launch tried to add the column again. Upgrades now skip what's already
+there, and a build refuses a ledger saved by a newer one instead of relabeling it.
+
 **Beyond the alpha** (owner, 2026-09-30): the list to beta and the platforms after it
 (bug link and public releases, the budget page, Savings, MNT and USD, App Store,
 Windows, Linux, phones) is in [ROADMAP.md](ROADMAP.md).

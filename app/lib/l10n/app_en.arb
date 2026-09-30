@@ -4803,5 +4803,9 @@
       "example": {},
       "asIs": {}
     }
+  },
+  "ledgerNewerLedger": "it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.",
+  "@ledgerNewerLedger": {
+    "description": "After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused."
   }
 }
