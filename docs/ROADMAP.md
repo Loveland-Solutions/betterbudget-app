@@ -63,13 +63,18 @@ Budget types, as understood (owner, correct me):
   and the time left. Linked to Savings (D).
 
 Work:
-- [ ] Sketch the Budget page (envelopes, decided)
-- [ ] Budget amounts per category per period (month or pay period, set in Settings)
-- [ ] Rollover, including what happens after overspending: sketched as options
+- [x] Sketch the Budget page (envelopes, decided): Put in · Spent · Left a line,
+      overspending carries as minus, card debt reduces the money (ADR 0004 rule 26)
+- [x] Budget amounts per category per period (month or pay period, set in Settings)
+- [x] Rollover, including what happens after overspending: sketched as options
+      (carries as minus, rule 26)
 - [ ] The four budget types above
 - [ ] Bills due less often than monthly (annual, quarterly, every N months)
-- [ ] A category's rows, opened from Budget, show that period (STATUS open question 4)
-- [ ] Money not yet budgeted, shown plainly
+- [x] A category's rows, opened from Budget, show that period (STATUS open question 4)
+- [x] Money not yet budgeted, shown plainly
+- [ ] Move money between categories ("Money can be moved in from another
+      category any time", rule 26); today it's two typed amounts
+- [ ] The forecast's "Nothing has been budgeted" sentence switches on the budget
 - [ ] Both reviews
 
 ### D. Savings, the differentiator (owner item 3)

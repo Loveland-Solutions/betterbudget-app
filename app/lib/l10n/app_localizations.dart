@@ -4722,6 +4722,180 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'opening balance now {amount} on {date}'**
   String importOpeningMovedToast(Object date, Object amount);
+
+  /// Budget page: column title over what's assigned to each spending category this period (rule 26; owner's word, 2026-09-30, for the unclear "Put in")
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get planAssigned;
+
+  /// Budget page: column title over what each spending category spent this period
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get planSpent;
+
+  /// Budget page: column title over what each spending category holds now, what carried over included
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get planLeft;
+
+  /// Budget page: column title over what came in under each income category this period
+  ///
+  /// In en, this message translates to:
+  /// **'Came in'**
+  String get planCameIn;
+
+  /// Budget page, top line: money the user has that isn't assigned to any category
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} not assigned to a category yet'**
+  String planNotAssigned(String amount);
+
+  /// Budget page, top line in coral: more was assigned to categories than the user has
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more assigned than you have'**
+  String planAssignedOver(String amount);
+
+  /// Budget page, top line: nothing left to assign, nothing over
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is assigned to a category'**
+  String get planAllAssigned;
+
+  /// Budget page: tooltip on the top line, showing how it's worked out
+  ///
+  /// In en, this message translates to:
+  /// **'{money} you have (cash and bank, less what cards owe), less {held} assigned to categories'**
+  String planNotAssignedTip(String money, String held);
+
+  /// Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} from before'**
+  String planFromBefore(String amount);
+
+  /// Budget page: the period title when budgeting by pay period and it isn't the current one
+  ///
+  /// In en, this message translates to:
+  /// **'Pay period'**
+  String get planPayPeriod;
+
+  /// Budget page: the period shown, beside the arrows. name is a month name, "This month", "This pay period" or "Pay period"; start and end are month.day
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {start}–{end}'**
+  String planPeriodTitle(String name, String start, String end);
+
+  /// Budget page: tooltip on the ‹ arrow
+  ///
+  /// In en, this message translates to:
+  /// **'Previous period'**
+  String get planPeriodPrev;
+
+  /// Budget page: tooltip on the › arrow
+  ///
+  /// In en, this message translates to:
+  /// **'Next period'**
+  String get planPeriodNext;
+
+  /// Budget page: link beside the period title when another period is showing
+  ///
+  /// In en, this message translates to:
+  /// **'Back to today'**
+  String get planBackToToday;
+
+  /// Budget page: tooltip on a category's Assigned amount
+  ///
+  /// In en, this message translates to:
+  /// **'Click to type how much to assign · Tab for the next'**
+  String get planAssignTip;
+
+  /// Undo history label for typing a category's Assigned amount (shown in Undone/Redone toasts)
+  ///
+  /// In en, this message translates to:
+  /// **'Assign {amount} to {category}'**
+  String planAssignUndo(String amount, String category);
+
+  /// Budget page: note under the top line when some accounts are in the other currency
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts in {symbol} aren\'t in the budget yet'**
+  String planOtherCurrency(String symbol);
+
+  /// Budget page: first item in a category's ⋯ menu; usage is e.g. "42 rows · last 09.12 · 1 scheduled"; opens every row, all time
+  ///
+  /// In en, this message translates to:
+  /// **'{usage} · show them'**
+  String planShowAllRows(String usage);
+
+  /// Budget page, top line in coral when nothing is assigned and cards owe more than cash and bank hold
+  ///
+  /// In en, this message translates to:
+  /// **'Cards owe {amount} more than you have in cash and bank'**
+  String planCardsOwe(String amount);
+
+  /// Budget page, under the top line: imported rows waiting in Not categorized; amount is signed (−₮ out, +₮ in); click opens them
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows not categorized ({amount}), counted in the line above · show them'**
+  String planUncategorized(String count, String amount);
+
+  /// Budget page, gold note after the first amount is assigned in a period that already started (owner's call: offer to start next period)
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re starting partway through this period: {amount} was already spent in {count} categories with nothing assigned, and it counts against them.'**
+  String planStartOffer(String amount, String count);
+
+  /// Budget page: button on the first-period note; moves what was assigned to the next period, which is where the budget then starts
+  ///
+  /// In en, this message translates to:
+  /// **'Start the budget on {date} instead'**
+  String planStartLater(String date);
+
+  /// Budget page: button on the first-period note; closes it
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it as it is'**
+  String get planStartKeep;
+
+  /// Undo history label and toast for moving the budget's start to the next period
+  ///
+  /// In en, this message translates to:
+  /// **'Start the budget on {date}'**
+  String planStartLaterUndo(String date);
+
+  /// Toast after deleting a category, or changing it to income, that held money in the budget
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} assigned to {category} goes back to not assigned'**
+  String planMoneyBack(String amount, String category);
+
+  /// Account menu on a mortgage or student loan: submenu title; picks the spending category its payments come out of in the budget
+  ///
+  /// In en, this message translates to:
+  /// **'Payments come out of'**
+  String get setupLoanPaidFrom;
+
+  /// Account menu, loan's payments submenu: its payments come out of the money not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'No category'**
+  String get setupLoanNoCategory;
+
+  /// Toast and undo label after picking the category a loan's payments come out of
+  ///
+  /// In en, this message translates to:
+  /// **'{loan} paid from {category}'**
+  String setupLoanPaidFromUndo(String loan, String category);
+
+  /// Toast and undo label after taking a loan's category off
+  ///
+  /// In en, this message translates to:
+  /// **'{loan} paid from no category'**
+  String setupLoanNoCategoryUndo(String loan);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

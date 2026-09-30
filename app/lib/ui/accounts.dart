@@ -476,11 +476,22 @@ class _AccountActions {
     required this.changeKind,
     required this.archive,
     required this.delete,
+    this.loanPaidFrom,
   });
   final VoidCallback rename;
   final VoidCallback changeKind;
   final VoidCallback archive;
   final VoidCallback delete;
+
+  /// A mortgage or student loan: the spending categories its payments can
+  /// come out of in the budget, the one they do (null: none), and picking
+  /// one (null: none). Rule 26.
+  final ({
+    List<AccountInfo> categories,
+    int? current,
+    ValueChanged<AccountInfo?> pick,
+  })?
+  loanPaidFrom;
 }
 
 MenuStyle get _menuStyle => MenuStyle(
@@ -514,6 +525,35 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
       'menu-kind',
       act.changeKind,
     ),
+    if (act.loanPaidFrom case final loan?)
+      SubmenuButton(
+        key: const ValueKey('menu-loan-category'),
+        menuStyle: _menuStyle,
+        menuChildren: [
+          for (final c in [null, ...loan.categories])
+            MenuItemButton(
+              key: ValueKey('loan-category-${c?.id ?? 'none'}'),
+              onPressed: () => loan.pick(c),
+              leadingIcon: Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: c?.id == loan.current ? Mid.blue : Colors.transparent,
+              ),
+              child: Builder(
+                builder: (context) => Text(
+                  c?.name ?? context.t.setupLoanNoCategory,
+                  style: onest(13, color: Mid.ink2),
+                ),
+              ),
+            ),
+        ],
+        child: Builder(
+          builder: (context) => Text(
+            context.t.setupLoanPaidFrom,
+            style: onest(13, color: Mid.ink2),
+          ),
+        ),
+      ),
     Divider(height: 9, color: Mid.rule),
     item((t) => t.setupArchiveMenu, 'menu-archive', act.archive),
     item((t) => t.setupDeleteMenu, 'menu-delete', act.delete, color: Mid.coral),
@@ -667,6 +707,7 @@ class _AccountTitleState extends State<_AccountTitle> {
               changeKind: widget.actions.changeKind,
               archive: widget.actions.archive,
               delete: widget.actions.delete,
+              loanPaidFrom: widget.actions.loanPaidFrom,
             ),
           ),
           builder: (context, menu, _) => Hoverable(

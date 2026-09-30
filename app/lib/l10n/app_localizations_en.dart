@@ -3365,4 +3365,124 @@ class WordsEn extends Words {
   String importOpeningMovedToast(Object date, Object amount) {
     return 'opening balance now $amount on $date';
   }
+
+  @override
+  String get planAssigned => 'Assigned';
+
+  @override
+  String get planSpent => 'Spent';
+
+  @override
+  String get planLeft => 'Left';
+
+  @override
+  String get planCameIn => 'Came in';
+
+  @override
+  String planNotAssigned(String amount) {
+    return '$amount not assigned to a category yet';
+  }
+
+  @override
+  String planAssignedOver(String amount) {
+    return '$amount more assigned than you have';
+  }
+
+  @override
+  String get planAllAssigned => 'Everything is assigned to a category';
+
+  @override
+  String planNotAssignedTip(String money, String held) {
+    return '$money you have (cash and bank, less what cards owe), less $held assigned to categories';
+  }
+
+  @override
+  String planFromBefore(String amount) {
+    return '$amount from before';
+  }
+
+  @override
+  String get planPayPeriod => 'Pay period';
+
+  @override
+  String planPeriodTitle(String name, String start, String end) {
+    return '$name · $start–$end';
+  }
+
+  @override
+  String get planPeriodPrev => 'Previous period';
+
+  @override
+  String get planPeriodNext => 'Next period';
+
+  @override
+  String get planBackToToday => 'Back to today';
+
+  @override
+  String get planAssignTip =>
+      'Click to type how much to assign · Tab for the next';
+
+  @override
+  String planAssignUndo(String amount, String category) {
+    return 'Assign $amount to $category';
+  }
+
+  @override
+  String planOtherCurrency(String symbol) {
+    return 'Accounts in $symbol aren\'t in the budget yet';
+  }
+
+  @override
+  String planShowAllRows(String usage) {
+    return '$usage · show them';
+  }
+
+  @override
+  String planCardsOwe(String amount) {
+    return 'Cards owe $amount more than you have in cash and bank';
+  }
+
+  @override
+  String planUncategorized(String count, String amount) {
+    return '$count rows not categorized ($amount), counted in the line above · show them';
+  }
+
+  @override
+  String planStartOffer(String amount, String count) {
+    return 'You\'re starting partway through this period: $amount was already spent in $count categories with nothing assigned, and it counts against them.';
+  }
+
+  @override
+  String planStartLater(String date) {
+    return 'Start the budget on $date instead';
+  }
+
+  @override
+  String get planStartKeep => 'Keep it as it is';
+
+  @override
+  String planStartLaterUndo(String date) {
+    return 'Start the budget on $date';
+  }
+
+  @override
+  String planMoneyBack(String amount, String category) {
+    return '$amount assigned to $category goes back to not assigned';
+  }
+
+  @override
+  String get setupLoanPaidFrom => 'Payments come out of';
+
+  @override
+  String get setupLoanNoCategory => 'No category';
+
+  @override
+  String setupLoanPaidFromUndo(String loan, String category) {
+    return '$loan paid from $category';
+  }
+
+  @override
+  String setupLoanNoCategoryUndo(String loan) {
+    return '$loan paid from no category';
+  }
 }

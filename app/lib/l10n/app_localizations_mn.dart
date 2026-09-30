@@ -3207,4 +3207,123 @@ class WordsMn extends Words {
   String importOpeningMovedToast(Object date, Object amount) {
     return 'эхний үлдэгдэл одоо $date-нд $amount';
   }
+
+  @override
+  String get planAssigned => 'Хуваарилсан';
+
+  @override
+  String get planSpent => 'Зарцуулсан';
+
+  @override
+  String get planLeft => 'Үлдсэн';
+
+  @override
+  String get planCameIn => 'Орсон';
+
+  @override
+  String planNotAssigned(String amount) {
+    return '$amount ангилалд хуваарилаагүй байна';
+  }
+
+  @override
+  String planAssignedOver(String amount) {
+    return 'Байгаа мөнгөнөөс $amount илүү хуваарилсан';
+  }
+
+  @override
+  String get planAllAssigned => 'Бүх мөнгө ангилалд хуваарилагдсан';
+
+  @override
+  String planNotAssignedTip(String money, String held) {
+    return 'Танд байгаа $money (бэлэн мөнгө, банк, картын өрийг хасаад), үүнээс ангилалд хуваарилсан $held-г хассан';
+  }
+
+  @override
+  String planFromBefore(String amount) {
+    return 'өмнөөс $amount';
+  }
+
+  @override
+  String get planPayPeriod => 'Цалингийн үе';
+
+  @override
+  String planPeriodTitle(String name, String start, String end) {
+    return '$name · $start–$end';
+  }
+
+  @override
+  String get planPeriodPrev => 'Өмнөх үе';
+
+  @override
+  String get planPeriodNext => 'Дараагийн үе';
+
+  @override
+  String get planBackToToday => 'Өнөөдөр рүү буцах';
+
+  @override
+  String get planAssignTip => 'Дарж хуваарилах дүнгээ бичих · Tab дараагийнх';
+
+  @override
+  String planAssignUndo(String amount, String category) {
+    return '$category: $amount хуваарилсан';
+  }
+
+  @override
+  String planOtherCurrency(String symbol) {
+    return '$symbol-ийн дансууд төсөвт хараахан ороогүй';
+  }
+
+  @override
+  String planShowAllRows(String usage) {
+    return '$usage · харуулах';
+  }
+
+  @override
+  String planCardsOwe(String amount) {
+    return 'Картын өр бэлэн мөнгө, банкны үлдэгдлээс $amount-өөр их байна';
+  }
+
+  @override
+  String planUncategorized(String count, String amount) {
+    return '$count мөр ангилаагүй ($amount), дээрх дүнд тооцсон · харуулах';
+  }
+
+  @override
+  String planStartOffer(String amount, String count) {
+    return 'Та энэ үеийн дундаас эхэлж байна: юу ч хуваарилаагүй $count ангилалд $amount аль хэдийн зарцуулсан бөгөөд тэдгээрээс хасагдана.';
+  }
+
+  @override
+  String planStartLater(String date) {
+    return 'Төсвийг $date-нээс эхлүүлэх';
+  }
+
+  @override
+  String get planStartKeep => 'Хэвээр үлдээх';
+
+  @override
+  String planStartLaterUndo(String date) {
+    return 'Төсвийг $date-нээс эхлүүлсэн';
+  }
+
+  @override
+  String planMoneyBack(String amount, String category) {
+    return '$category-д хуваарилсан $amount хуваарилаагүй мөнгө рүү буцна';
+  }
+
+  @override
+  String get setupLoanPaidFrom => 'Төлбөр аль ангиллаас гарах';
+
+  @override
+  String get setupLoanNoCategory => 'Ангилалгүй';
+
+  @override
+  String setupLoanPaidFromUndo(String loan, String category) {
+    return '$loan-ийг $category-оос төлнө';
+  }
+
+  @override
+  String setupLoanNoCategoryUndo(String loan) {
+    return '$loan-ийг ангилалгүй төлнө';
+  }
 }

@@ -11,6 +11,7 @@ import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
+import '../domain/budget.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -129,9 +130,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// All accounts, narrowed to the rows filed under this category.
   int? _categoryFilter;
 
-  /// All accounts, narrowed to the budget's current period (month or pay
-  /// period): a category opened from Budget starts there.
-  bool _periodFilter = false;
+  /// All accounts, narrowed to a budget period (month or pay period): a
+  /// category's Spent opened from Budget shows the period it was in.
+  BudgetSpan? _periodFilter;
 
   /// Bumped by Rename in the sidebar's right-click menu: the account opens
   /// with its name ready to edit in the header.
@@ -498,11 +499,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (row == null) {
       // Esc with nothing selected takes the category filter off.
       if (event.logicalKey == LogicalKeyboardKey.escape &&
-          (_categoryFilter != null || _periodFilter) &&
+          (_categoryFilter != null || _periodFilter != null) &&
           _all) {
         setState(() {
           _categoryFilter = null;
-          _periodFilter = false;
+          _periodFilter = null;
         });
         return KeyEventResult.handled;
       }
@@ -1252,9 +1253,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   // ---------- all accounts ----------
 
-  /// All accounts, optionally narrowed to a category (from the Budget
-  /// screen's usage text).
-  void _openAll({int? category, bool period = false}) {
+  /// All accounts, optionally narrowed to a category and a budget period
+  /// (from the Budget screen).
+  void _openAll({int? category, BudgetSpan? period}) {
     if (!_mayLeave()) return;
     setState(() {
       _endReconcile();
@@ -1275,10 +1276,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     final filter = data.accounts[_categoryFilter];
     final all = data.registerAll(categoryId: filter?.id);
-    // The budget's period: this month, or this pay period.
-    final period = _periodFilter
-        ? budgetPeriod(today, data.periodSchedule)
-        : null;
+    // A budget period: a month, or a pay period.
+    final period = _periodFilter;
     bool inPeriod(RegisterRow r) =>
         period == null ||
         (!r.date.isBefore(period.start) && !r.date.isAfter(period.end));
@@ -1332,11 +1331,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   _FilterChip(
                     key: const ValueKey('period-chip'),
                     label: t.ledgerPeriodChip(
-                      periodName(t, period),
+                      _spanName(t, period, today),
                       shortDate(period.start),
                       shortDate(period.end),
                     ),
-                    onClear: () => setState(() => _periodFilter = false),
+                    onClear: () => setState(() => _periodFilter = null),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -1592,6 +1591,104 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   // ---------- categories ----------
 
+  /// What [c] has assigned for [period]. Quiet, like clearing a row: on
+  /// payday it's typed a dozen times in a row, and ⌘Z takes any of them
+  /// back. The first amount ever also fixes the day the budget began and
+  /// its currency, so neither moves on its own later.
+  Future<void> _setBudgetAmount(
+    AccountInfo c,
+    BudgetSpan period,
+    int amount,
+  ) async {
+    final t = context.t;
+    final data = _data!;
+    final first = data.prefs[BudgetKeys.began] == null;
+    final currency = Budget.currencyOf(data);
+    final start = period.start, end = period.end;
+    Future<List<BudgetAmount>> write() async {
+      final before = await db.setBudgetAmount(c.id, start, end, amount);
+      if (first) {
+        await db.setPreference(BudgetKeys.began, dateKey(start));
+        await db.setPreference(BudgetKeys.currency, currency.code);
+      }
+      return before;
+    }
+
+    late List<BudgetAmount> before;
+    if (!await _accountWrite(
+      () async => before = await write(),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      t.planAssignUndo(formatMoney(amount, currency: currency), c.name),
+      toast: false,
+      undo: () async {
+        await db.restoreBudgetAmounts(c.id, start, end, before);
+        if (first) {
+          await db.setPreference(BudgetKeys.began, null);
+          await db.setPreference(BudgetKeys.currency, null);
+        }
+      },
+      redo: () async => before = await write(),
+    );
+  }
+
+  /// The first-period offer, taken: what was assigned in [period] moves to
+  /// the next period, and the budget begins there.
+  Future<void> _startBudgetLater(BudgetSpan period, BudgetSpan next) async {
+    final t = context.t;
+    final began = _data!.prefs[BudgetKeys.began];
+    late List<BudgetAmount> moved;
+    Future<void> write() async {
+      moved = await db.moveBudgetAmounts(period.start, period.end, next.start);
+      await db.setPreference(BudgetKeys.began, dateKey(next.start));
+    }
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    _did(
+      t.planStartLaterUndo(sayDate(t, next.start)),
+      undo: () async {
+        await db.unmoveBudgetAmounts(moved);
+        await db.setPreference(BudgetKeys.began, began);
+      },
+      redo: write,
+    );
+  }
+
+  /// The loan's payments come out of [category] (null: of the money not
+  /// assigned).
+  Future<void> _setLoanCategory(AccountInfo loan, AccountInfo? category) async {
+    final t = context.t;
+    final key = '${BudgetKeys.loanPrefix}${loan.id}';
+    final old = _data?.prefs[key];
+    final value = category?.id.toString();
+    if (old == value) return;
+    if (!await _accountWrite(() => db.setPreference(key, value))) return;
+    _did(
+      category == null
+          ? t.setupLoanNoCategoryUndo(loan.name)
+          : t.setupLoanPaidFromUndo(loan.name, category.name),
+      undo: () => db.setPreference(key, old),
+      redo: () => db.setPreference(key, value),
+    );
+  }
+
+  /// "₮150,000 assigned to Dining out goes back to not assigned", when [c]
+  /// holds money in this period's budget; null when it holds none.
+  String? _moneyBack(LedgerData data, AccountInfo c) {
+    if (c.isIncome) return null;
+    final p = budgetPeriod(today, data.periodSchedule);
+    final b = Budget.of(data, start: p.start, end: p.end, today: today);
+    final left = b.lines[c.id]?.left ?? 0;
+    if (left == 0) return null;
+    return context.t.planMoneyBack(
+      formatMoney(left, currency: b.currency),
+      c.name,
+    );
+  }
+
   _CategoryActions _categoryActions(LedgerData data, AccountInfo c) =>
       _CategoryActions(
         rename: (name) => _renameCategory(data, c, name),
@@ -1686,6 +1783,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Future<void> _changeCategoryKind(AccountInfo c) async {
     final t = context.t;
+    final back = _data == null ? null : _moneyBack(_data!, c);
     final old = c.type;
     final next = c.isIncome ? AccountType.expense : AccountType.income;
     if (!await _accountWrite(
@@ -1699,7 +1797,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ? t.ledgerIsNowIncome(c.name)
           : t.ledgerIsNowSpending(c.name),
       message: next == AccountType.income
-          ? t.ledgerIsNowIncomeToast(c.name)
+          ? [t.ledgerIsNowIncomeToast(c.name), ?back].join(' · ')
           : null,
       undo: () => db.setCategoryType(c.id, old),
       redo: () => db.setCategoryType(c.id, next),
@@ -1766,16 +1864,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     final moved = (u?.rows ?? 0) + (u?.scheduled ?? 0);
+    // Its money goes back unless a spending category takes it.
+    final back = target == null || target.isIncome ? _moneyBack(data, c) : null;
+    final said = target == null || (!merging && moved == 0)
+        ? t.ledgerDeleted(c.name)
+        : merging
+        ? [
+            t.ledgerMergedInto(c.name, target.name),
+            if (moved != 0) t.ledgerRowsMoved(moved),
+          ].join(' · ')
+        : t.ledgerDeletedRowsMovedTo(c.name, moved, target.name);
     _did(
       t.ledgerDeleted(c.name),
-      message: target == null || (!merging && moved == 0)
-          ? t.ledgerDeleted(c.name)
-          : merging
-          ? [
-              t.ledgerMergedInto(c.name, target.name),
-              if (moved != 0) t.ledgerRowsMoved(moved),
-            ].join(' · ')
-          : t.ledgerDeletedRowsMovedTo(c.name, moved, target.name),
+      message: [said, ?back].join(' · '),
       undo: () => db.undeleteCategory(done),
       redo: () async => done = await db.deleteCategory(c.id, into: target?.id),
     );
@@ -1795,6 +1896,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
         changeKind: () => _changeKind(account),
         archive: () => _archive(data, account),
         delete: () => _deleteAccount(data, account),
+        loanPaidFrom: Budget.isLongLoan(account)
+            ? (
+                categories: data.categories
+                    .where((c) => !c.isIncome && !isUncategorized(c))
+                    .toList(),
+                current: Budget.loanCategory(data, account.id),
+                pick: (c) => _setLoanCategory(account, c),
+              )
+            : null,
       );
 
   /// Import a bank file into [account] (ADR 0002): pick it, read it, show
@@ -1889,11 +1999,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         accountId: account.id,
         plan: pick.plan,
         moveOpening: pick.moveOpening,
-        uncategorizedNames: {
-          uncategorized,
-          'Not categorized',
-          'Ангилаагүй',
-        }.toList(),
+        uncategorizedNames: {uncategorized, ...uncategorizedNames}.toList(),
       );
     } catch (e) {
       debugPrint('Import failed: $e');
@@ -2507,8 +2613,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           ),
                           AppSection.budget => _BudgetPage(
                             data: data,
-                            onShowRows: (c) =>
-                                _openAll(category: c.id, period: true),
+                            today: today,
+                            onShowRows: (c, period) =>
+                                _openAll(category: c.id, period: period),
+                            onShowAllRows: (c) => _openAll(category: c.id),
+                            onSetAmount: _setBudgetAmount,
+                            onStartLater: _startBudgetLater,
+                            onKeepStart: () => _setPref(
+                              BudgetKeys.keptStart,
+                              '1',
+                              context.t.planStartKeep,
+                            ),
+                            onShowUncategorized: () {
+                              final c = data.categories
+                                  .where(isUncategorized)
+                                  .firstOrNull;
+                              if (c != null) _openAll(category: c.id);
+                            },
+                            onKeysBack: _keysBack,
                             actionsFor: (c) => _categoryActions(data, c),
                             onCreate: _createCategory,
                             onUnarchive: (c) => _archiveCategory(c, false),
