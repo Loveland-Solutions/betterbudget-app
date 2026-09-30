@@ -56,20 +56,26 @@ class RecoveryKey {
     return RecoveryKey._(cleaned);
   }
 
-  /// Why [input] isn't a key, in words fit to show, or null if it is one.
-  static String? problem(String input) {
+  /// Why [input] isn't a key, or null if it is one. The UI words it
+  /// (`keyProblem` in ui/data_words.dart).
+  static KeyProblem? check(String input) {
     if (RegExp('[\u0400-\u04FF]').hasMatch(input)) {
-      return 'Your keyboard is typing Cyrillic · switch to ABC to type the key';
+      return const KeyProblem(KeyProblemKind.cyrillic);
     }
     final cleaned = _clean(input);
     if (cleaned.length != _totalLength) {
-      return '${cleaned.length} of $_totalLength characters';
+      return KeyProblem(
+        KeyProblemKind.length,
+        typed: cleaned.length,
+        total: _totalLength,
+      );
     }
-    if (parse(input) == null) {
-      return 'A character is wrong · check the key against your copy';
-    }
+    if (parse(input) == null) return const KeyProblem(KeyProblemKind.checksum);
     return null;
   }
+
+  /// [check], in English.
+  static String? problem(String input) => check(input)?.english;
 
   static String _clean(String input) => input
       .toUpperCase()
@@ -91,6 +97,34 @@ class RecoveryKey {
     }
     return alphabet[sum];
   }
+}
+
+enum KeyProblemKind {
+  /// The keyboard is typing Cyrillic; the key is Latin letters and digits.
+  cyrillic,
+
+  /// Too few or too many characters: [KeyProblem.typed] of
+  /// [KeyProblem.total].
+  length,
+
+  /// The right length, but the check character doesn't match.
+  checksum,
+}
+
+/// Why a typed recovery key isn't one.
+class KeyProblem {
+  const KeyProblem(this.kind, {this.typed = 0, this.total = 0});
+  final KeyProblemKind kind;
+  final int typed;
+  final int total;
+
+  String get english => switch (kind) {
+    KeyProblemKind.cyrillic =>
+      'Your keyboard is typing Cyrillic · switch to ABC to type the key',
+    KeyProblemKind.length => '$typed of $total characters',
+    KeyProblemKind.checksum =>
+      'A character is wrong · check the key against your copy',
+  };
 }
 
 /// The 256-bit key that encrypts the database and every backup, derived

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
+import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
@@ -21,7 +22,9 @@ import 'reconcile.dart';
 import 'recovery_key_screen.dart';
 import 'register.dart';
 import 'appearance.dart';
+import 'language.dart';
 import 'brand.dart';
+import 'data_words.dart';
 import 'theme.dart';
 
 part 'accounts.dart';
@@ -192,30 +195,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// On a new computer, the ledger usually comes from a backup saved with
   /// Back up to…: offer it first. Starting empty is one click away.
   Future<void> _offerRestore() async {
+    final t = context.t;
     final open = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Mid.panel,
-        title: Text('Open your newest backup?', style: onest(17, weight: 600)),
+        title: Text(t.ledgerOfferRestoreTitle, style: onest(17, weight: 600)),
         content: SizedBox(
           width: 440,
           child: Text(
-            'Your recovery key is set up on this computer. If you saved a copy '
-            'with Back up to… on another drive, open the newest one to bring '
-            'your ledger here.',
+            t.ledgerOfferRestoreBody,
             style: onest(13.5, color: Mid.ink2, height: 1.4),
           ),
         ),
         actions: [
           BarButton(
             key: const ValueKey('offer-restore-empty'),
-            label: 'Start empty',
+            label: t.ledgerStartEmpty,
             onTap: () => Navigator.of(context).pop(false),
           ),
           FilledButton(
             key: const ValueKey('offer-restore-open'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Open a backup…'),
+            child: Text(t.ledgerOpenABackup),
           ),
         ],
       ),
@@ -280,6 +282,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
 
   Future<String?> _post(EntryDraft d) async {
+    final t = context.t;
     int? made;
     try {
       late final int id;
@@ -310,29 +313,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
           (_all &&
               _categoryFilter != null &&
               (made ?? d.counter?.id) != _categoryFilter);
-      final where = d.account == null ? '' : ' to ${d.account!.name}';
+      final added = d.account == null
+          ? t.ledgerAdded(d.payee)
+          : t.ledgerAddedTo(d.payee, d.account!.name);
       _did(
-        '${d.payee} added',
+        t.ledgerAdded(d.payee),
         undo: pair.undo,
         redo: pair.redo,
         toast: made != null || hidden,
-        message: made != null
-            ? '${d.payee} added$where · new ${d.amount! > 0 ? 'income ' : ''}'
-                  'category “${d.newCategory}”'
-                  '${d.date.isAfter(today) ? ' · scheduled for ${fullDate(d.date)}' : ''}'
-                  '${hidden ? ' · not in this view' : ''}'
-            : hidden
-            ? '${d.payee} added$where · not in this view'
+        // Whole clauses joined by " · ", as every toast is.
+        message: made != null || hidden
+            ? [
+                added,
+                if (made != null)
+                  d.amount! > 0
+                      ? t.ledgerNewIncomeCategory(d.newCategory!)
+                      : t.ledgerNewCategory(d.newCategory!),
+                if (made != null && d.date.isAfter(today))
+                  t.ledgerScheduledFor(sayFullDate(t, d.date)),
+                if (hidden) t.ledgerNotInThisView,
+              ].join(' · ')
             : null,
       );
       if (made == null && !hidden && d.date.isAfter(today)) {
-        _showToast(
-          'Scheduled for ${fullDate(d.date)} · not in balances until confirmed',
-        );
+        _showToast(t.ledgerScheduledToast(sayFullDate(t, d.date)));
       }
       return null;
+    } on DbException catch (e) {
+      return t.ledgerCouldntSave(dbProblem(t, e));
     } catch (e) {
-      return 'Couldn’t save: $e';
+      return t.ledgerCouldntSave('$e');
     }
   }
 
@@ -356,7 +366,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           // restoring its state would silently wipe the newer changes.
           if (!identical(_history.lastOrNull, action)) {
             _showToast(
-              'Undo the newer changes first · ${_isMac ? '⌘Z' : 'Ctrl+Z'}',
+              context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'),
             );
             return;
           }
@@ -377,36 +387,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final a = _history.lastOrNull;
     if (a == null) {
-      _showToast('Nothing to undo');
+      _showToast(context.t.ledgerNothingToUndo);
       return;
     }
     _history.removeLast();
     try {
       await a.undo();
     } catch (e) {
-      _showToast('Couldn’t undo “${a.label}” · it changed since');
+      if (mounted) _showToast(context.t.ledgerCouldntUndo(a.label));
       return;
     }
     _redo.add(a);
-    _showToast('Undone · ${a.label}');
+    if (mounted) _showToast(context.t.ledgerUndone(a.label));
   }
 
   Future<void> _redoLast() async {
     if (_restoring) return;
     final a = _redo.lastOrNull;
     if (a == null) {
-      _showToast('Nothing to redo');
+      _showToast(context.t.ledgerNothingToRedo);
       return;
     }
     _redo.removeLast();
     try {
       await a.redo();
     } catch (e) {
-      _showToast('Couldn’t redo “${a.label}” · it changed since');
+      if (mounted) _showToast(context.t.ledgerCouldntRedo(a.label));
       return;
     }
     _history.add(a);
-    _showToast('Redone · ${a.label}');
+    if (mounted) _showToast(context.t.ledgerRedone(a.label));
   }
 
   void _showToast(String message, {Future<void> Function()? undo}) {
@@ -505,7 +515,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _tapRow(int id, EditField field) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast('Save with Enter, or press Esc to discard your changes');
+        _showToast(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -535,12 +545,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The register hides scheduled rows while reconciling, and keys would act
     // on a row nobody can see.
     if (_reconcile != null) {
-      _showToast('Finish or cancel the reconcile first');
+      _showToast(context.t.ledgerFinishReconcileFirst);
       return;
     }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast('Save with Enter, or press Esc to discard your changes');
+        _showToast(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -599,7 +609,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startConfirm(RegisterRow r) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast('Save with Enter, or press Esc to discard your changes');
+        _showToast(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -623,6 +633,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     EntryDraft d, {
     bool confirming = false,
   }) async {
+    final t = context.t;
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
     final int? owedId;
@@ -644,15 +655,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
       });
     } on LockedException catch (e) {
-      return e.message;
+      return dbProblem(t, e);
+    } on DbException catch (e) {
+      return t.ledgerCouldntSave(dbProblem(t, e));
     } catch (e) {
-      return 'Couldn’t save: $e';
+      return t.ledgerCouldntSave('$e');
     }
     // Saved: from here a failure mustn't read as "couldn't save".
     after = await db.snapshot(row.txnId);
     _entry.payeeNames = await db.payeeNames();
     _cancelEdit();
-    final name = d.payee.isEmpty ? row.payee : d.payee;
+    final name = d.payee.isEmpty ? rowPayee(t, row) : d.payee;
     if (confirming) {
       String money(int v) => formatMoney(v.abs(), showCents: v % 100 != 0);
       final amount = d.amount ?? row.amount;
@@ -689,21 +702,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final under = row.estimate == null || amount >= row.estimate!
           ? null
           : row.estimate! - amount;
+      final when = early ? 'early' : 'other';
       _did(
-        '$name confirmed',
+        t.ledgerConfirmed(name),
         undo: pair.undo,
         redo: pair.redo,
-        message:
-            '$name confirmed${early ? ' early' : ''} · ${money(amount)}'
-            // What's still owed, or else the plan when it wasn't what happened.
-            '${owedId != null
-                ? ' · ${money(row.amount - amount)} still owed, due ${shortDate(row.date)}'
-                : amount == row.amount
-                ? ''
-                : ', planned ${money(row.amount)}'}'
-            // The date, whenever it isn't the one planned.
-            '${d.date == row.date ? '' : (d.date == today ? ' · posted today, ${shortDate(today)}' : ' · posted ${shortDate(d.date)}')}'
-            '${under == null ? '' : ' · ${money(under)} under the estimate · lower it on the Budget screen'}',
+        message: [
+          // What's still owed, or else the plan when it wasn't what happened.
+          if (owedId == null && amount != row.amount)
+            t.ledgerConfirmedAmountPlanned(
+              when,
+              name,
+              money(amount),
+              money(row.amount),
+            )
+          else
+            t.ledgerConfirmedAmount(when, name, money(amount)),
+          if (owedId != null)
+            t.ledgerStillOwed(money(row.amount - amount), sayDate(t, row.date)),
+          // The date, whenever it isn't the one planned.
+          if (d.date != row.date)
+            d.date == today
+                ? t.ledgerPostedToday(sayDate(t, today))
+                : t.ledgerPostedOn(sayDate(t, d.date)),
+          if (under != null) t.ledgerUnderEstimate(money(under)),
+        ].join(' · '),
       );
       return null;
     }
@@ -714,14 +737,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       () => db.restoreSnapshot(after),
     );
     _did(
-      '$name edited',
+      t.ledgerEdited(name),
       undo: pair.undo,
       redo: pair.redo,
       message: nowScheduled
-          ? 'Moved to ${fullDate(d.date)} · now scheduled, out of balances until confirmed'
+          ? t.ledgerMovedToFuture(sayFullDate(t, d.date))
           : made != null
-          ? 'Changes saved · new category “${d.newCategory}”'
-          : 'Changes saved',
+          ? '${t.ledgerChangesSaved} · ${t.ledgerNewCategory(d.newCategory!)}'
+          : t.ledgerChangesSaved,
     );
     return null;
   }
@@ -731,7 +754,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startReconcile(LedgerData data, AccountInfo account) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast('Save with Enter, or press Esc to discard your changes');
+        _showToast(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -768,15 +791,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   ReconcileCheck _reconcileCheck(LedgerData data, AccountSummary summary) {
+    final t = context.t;
     final s = _reconcile!;
     final date = parseEntryDate(s.date.text, today);
     final last = summary.reconciledOn;
     final problem = date == null
-        ? 'Type a date like ${shortDate(today)}'
+        // The form to type, so numeric in both languages.
+        ? t.ledgerTypeADate(shortDate(today))
         : date.isAfter(today)
-        ? 'The statement can’t be after today'
+        ? t.ledgerStatementAfterToday
         : last != null && date.isBefore(last)
-        ? 'Already reconciled through ${shortDate(last)}'
+        ? t.ledgerAlreadyReconciled(sayDate(t, last))
         : null;
     final cleared = data.clearedThrough(s.accountId, date ?? today);
     final statement = s.statementBalance;
@@ -798,6 +823,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ReconcileCheck c, {
     bool adjust = false,
   }) async {
+    final t = context.t;
     final s = _reconcile;
     if (s == null || _locking || c.date == null || c.statement == null) return;
     final ReconcileRecord done;
@@ -811,10 +837,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         adjust: adjust,
       );
     } on ReconcileMismatchException {
-      _showToast('The cleared rows changed · check the difference again');
+      _showToast(t.ledgerClearedRowsChanged);
       return;
     } on ReconcileDateException catch (e) {
-      _showToast(e.message);
+      _showToast(dbProblem(t, e));
       return;
     } finally {
       _locking = false;
@@ -823,14 +849,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final n = done.entryIds.length - (done.adjustmentTxnId == null ? 0 : 1);
     final off = c.statement! - c.cleared;
     final shownOff = account.isOwed ? -off : off;
+    final label = t.ledgerReconciledThrough(account.name, sayDate(t, c.date!));
     _did(
-      '${account.name} reconciled through ${shortDate(c.date!)}',
+      label,
       undo: () => db.unreconcile(done),
       redo: () => db.relock(done),
-      message:
-          '${account.name} reconciled through ${shortDate(c.date!)}'
-          '${n == 0 ? '' : ' · $n locked'}'
-          '${done.adjustmentTxnId == null ? '' : ' · ${formatMoney(shownOff.abs(), showCents: off % 100 != 0)} adjustment added'}',
+      message: [
+        label,
+        if (n != 0) t.ledgerLocked(n),
+        if (done.adjustmentTxnId != null)
+          t.ledgerAdjustmentAdded(
+            formatMoney(shownOff.abs(), showCents: off % 100 != 0),
+          ),
+      ].join(' · '),
     );
   }
 
@@ -843,8 +874,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final previous = await db.setClearedMany({r.entryId: next});
     if (previous.isEmpty) return;
     // The symbol changing is the confirmation; no toast.
+    if (!mounted) return;
     _did(
-      '${r.payee} marked ${StatusGlyph.label(next).toLowerCase()}',
+      next == Cleared.cleared
+          ? context.t.ledgerMarkedCleared(rowPayee(context.t, r))
+          : context.t.ledgerMarkedUncleared(rowPayee(context.t, r)),
       undo: () async => _expect(
         (await db.setClearedMany(previous)).length == previous.length,
       ),
@@ -855,18 +889,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   String _lockMessage(RegisterRow r) => r.lockedIn != null
-      ? 'Can’t delete · this transfer is reconciled in ${r.lockedIn}'
-      : 'Can’t delete · it matches a bank statement';
+      ? context.t.ledgerCantDeleteTransfer(r.lockedIn!)
+      : context.t.ledgerCantDeleteReconciled;
 
   Future<void> _delete(RegisterRow r) async {
     final deleted = await db.softDeleteMany([r.txnId]);
+    if (!mounted) return;
     if (deleted.isEmpty) {
       _showToast(_lockMessage(r));
       return;
     }
     _clearSelection();
     _did(
-      '${r.payee} deleted',
+      context.t.ledgerDeleted(rowPayee(context.t, r)),
       undo: () async {
         await db.restoreMany(deleted);
         if (mounted) setState(() => _selected = r.txnId);
@@ -879,6 +914,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Moves a row entered in the wrong account. It leaves this register, so
   /// the toast names where it went.
   Future<void> _move(RegisterRow r, AccountInfo from, AccountInfo to) async {
+    final t = context.t;
     final MoveRecord done;
     try {
       done = await db.moveToAccount(
@@ -887,27 +923,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
         toAccountId: to.id,
       );
     } on LockedException catch (e) {
-      _showToast('Can’t move · ${e.message}');
+      _showToast(t.ledgerCantMove(dbProblem(t, e)));
       return;
     } on NotFoundException catch (e) {
-      _showToast('Can’t move · ${e.message}');
+      _showToast(t.ledgerCantMove(dbProblem(t, e)));
       return;
     } catch (e) {
       debugPrint('Move failed: $e');
-      _showToast('Couldn’t move it');
+      _showToast(t.ledgerCouldntMove);
       return;
     }
     _clearSelection();
-    final name = r.kind == RowKind.transfer
-        ? 'Transfer ${r.amount < 0 ? 'to' : 'from'} ${r.payee}'
-        : r.payee;
+    final payee = rowPayee(t, r);
+    final label = r.kind != RowKind.transfer
+        ? t.ledgerMovedTo(payee, to.name)
+        : r.amount < 0
+        ? t.ledgerTransferToMovedTo(payee, to.name)
+        : t.ledgerTransferFromMovedTo(payee, to.name);
     _did(
-      '$name moved to ${to.name}',
+      label,
       undo: () => db.undoMove(done),
       redo: () => db.redoMove(done),
-      message:
-          '$name moved to ${to.name}'
-          '${r.cleared == Cleared.uncleared ? '' : ' · uncleared there until it clears'}',
+      message: r.cleared == Cleared.uncleared
+          ? label
+          : '$label · ${t.ledgerUnclearedThere}',
     );
   }
 
@@ -917,7 +956,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final e = _editing;
     if (e == null) return true;
     if (e.controller.isDirty()) {
-      _showToast('Save with Enter, or press Esc to discard your changes');
+      _showToast(context.t.ledgerSaveOrDiscard);
       return false;
     }
     _cancelEdit();
@@ -947,6 +986,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountInfo? account,
     PaySchedule? existing,
   }) async {
+    final t = context.t;
     final data = _data;
     if (data == null) return;
     final incomes = data.categories.where((c) => c.isIncome).toList()
@@ -955,8 +995,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (incomes.isEmpty || into.isEmpty) {
       _showToast(
         incomes.isEmpty
-            ? 'Add an income category on the Budget screen first'
-            : 'Add a bank account first',
+            ? t.ledgerAddIncomeCategoryFirst
+            : t.ledgerAddBankAccountFirst,
       );
       return;
     }
@@ -997,8 +1037,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
           return;
         }
         _did(
-          'Pay stopped',
-          message: 'Pay no longer scheduled · paydays already past stay',
+          t.ledgerPayStopped,
+          message: t.ledgerPayStoppedToast,
           undo: () => db.undoPayChange(change),
           redo: () => db.redoPayChange(change),
         );
@@ -1034,10 +1074,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
             .where((t) => change.created.contains(t.id))
             .firstOrNull;
         _did(
-          'Pay saved',
+          t.ledgerPaySaved,
           message: payday == null
-              ? 'Pay saved'
-              : 'Pay saved · next payday ${fullDate(payday.date)}',
+              ? t.ledgerPaySaved
+              : t.ledgerPaySavedNext(sayFullDate(t, payday.date)),
           undo: () async {
             await db.undoPayChange(change);
             if (wasNone != null) {
@@ -1057,20 +1097,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// "I don't have regular pay" (from the pay setup), or asking again
   /// (Settings). Only the asking changes: "Add your pay" stays in Settings.
   Future<void> _setNoRegularPay(bool none) async {
+    final t = context.t;
     final old = _data?.prefs[noRegularPayKey];
     final value = none ? '1' : null;
     if (old == value) return;
     try {
       await db.setPreference(noRegularPayKey, value);
     } catch (e) {
-      _showToast('Couldn’t save: $e');
+      _showToast(t.ledgerCouldntSave('$e'));
       return;
     }
     _did(
-      none ? 'No regular pay' : 'Asking for pay again',
-      message: none
-          ? 'No regular pay · the app won’t ask for it · Settings changes this'
-          : 'The forecast will ask for your pay again',
+      none ? t.ledgerNoRegularPay : t.ledgerAskingForPayAgain,
+      message: none ? t.ledgerNoRegularPayToast : t.ledgerAskForPayAgainToast,
       undo: () => db.setPreference(noRegularPayKey, old),
       redo: () => db.setPreference(noRegularPayKey, value),
     );
@@ -1082,20 +1121,44 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final before = c.value;
     if (a == before) return;
     c.set(a);
+    final t = context.t;
     _did(
-      'Appearance: ${switch (a) {
-        Appearance.system => _isMac ? 'Same as this Mac' : 'Same as Windows',
-        Appearance.light => 'Light',
-        Appearance.dark => 'Dark',
-      }}',
+      t.ledgerAppearanceUndoLabel(switch (a) {
+        Appearance.system =>
+          _isMac ? t.languageSameAsMac : t.languageSameAsWindows,
+        Appearance.light => t.ledgerAppearanceLight,
+        Appearance.dark => t.ledgerAppearanceDark,
+      }),
       toast: false,
       undo: () => c.set(before),
       redo: () => c.set(a),
     );
   }
 
+  /// English, Mongolian or the system's. Kept on this computer like the
+  /// appearance; no toast, every word changing says it happened. ⌘Z switches
+  /// back.
+  void _setLanguage(LanguageController c, Language l) {
+    final before = c.value;
+    if (l == before) return;
+    c.set(l);
+    final t = context.t;
+    _did(
+      t.languageUndoLabel(switch (l) {
+        Language.system =>
+          _isMac ? t.languageSameAsMac : t.languageSameAsWindows,
+        Language.english => t.languageEnglish,
+        Language.mongolian => t.languageMongolian,
+      }),
+      toast: false,
+      undo: () => c.set(before),
+      redo: () => c.set(l),
+    );
+  }
+
   /// Budget by month, or by [schedule]'s pay periods.
   Future<void> _budgetBy(PaySchedule? schedule) async {
+    final t = context.t;
     late List<int> before;
     if (!await _accountWrite(
       () async => before = await db.setPeriodSchedule(schedule?.id),
@@ -1104,7 +1167,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      schedule == null ? 'Budget by month' : 'Budget by pay period',
+      schedule == null ? t.ledgerBudgetByMonth : t.ledgerBudgetByPayPeriod,
       undo: () async {
         await db.setPeriodSchedule(before.firstOrNull);
       },
@@ -1136,6 +1199,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Widget _allBody(LedgerData data) {
+    final t = context.t;
     final filter = data.accounts[_categoryFilter];
     final all = data.registerAll(categoryId: filter?.id);
     // The budget's period: this month, or this pay period.
@@ -1174,7 +1238,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           Row(
             children: [
               Text(
-                'All accounts',
+                t.ledgerAllAccounts,
                 style: onest(22, weight: 600, letterSpacing: -0.3),
               ),
               const Spacer(),
@@ -1192,7 +1256,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 if (filter != null) ...[
                   _FilterChip(
                     key: const ValueKey('filter-chip'),
-                    label: 'Category: ${filter.name}',
+                    label: t.ledgerCategoryChip(filter.name),
                     onClear: () => setState(() => _categoryFilter = null),
                   ),
                   const SizedBox(width: 8),
@@ -1200,9 +1264,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 if (period != null) ...[
                   _FilterChip(
                     key: const ValueKey('period-chip'),
-                    label:
-                        '${period.label[0].toUpperCase()}${period.label.substring(1)}'
-                        ' · ${shortDate(period.start)}–${shortDate(period.end)}',
+                    label: t.ledgerPeriodChip(
+                      periodName(t, period),
+                      shortDate(period.start),
+                      shortDate(period.end),
+                    ),
                     onClear: () => setState(() => _periodFilter = false),
                   ),
                   const SizedBox(width: 8),
@@ -1210,7 +1276,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 const SizedBox(width: 6),
                 if (filter != null)
                   Text(
-                    _filterTotal(data, filter, register, period),
+                    _filterTotal(t, data, filter, register, period),
                     key: const ValueKey('filter-total'),
                     style: onest(13, color: Mid.ink2, tabular: true),
                   ),
@@ -1242,7 +1308,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               today: today,
               adding: _adding,
               addButton: _PrimaryButton(
-                label: 'Add',
+                label: t.ledgerAdd,
                 icon: Icons.add_rounded,
                 key: const ValueKey('add-transaction'),
                 onTap: _newEntry,
@@ -1272,6 +1338,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// the total covers (posted), the span, and scheduled apart since they
   /// aren't in it. More back than spent reads as refunded.
   String _filterTotal(
+    Words t,
     LedgerData data,
     AccountInfo c,
     ({List<RegisterRow> posted, List<RegisterRow> scheduled}) register,
@@ -1284,22 +1351,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
       to: period?.end,
     );
     String money(int v) => formatMoney(v, showCents: v % 100 != 0);
-    final what = c.isIncome
-        ? (total >= 0
-              ? '${money(total)} received'
-              : '${money(-total)} paid back')
-        : (total >= 0 ? '${money(total)} spent' : '${money(-total)} refunded');
+    final kind = c.isIncome
+        ? (total >= 0 ? 'received' : 'paidBack')
+        : (total >= 0 ? 'spent' : 'refunded');
+    final amount = money(total.abs());
     // With a period chip the span is on the chip; all time says since when.
-    final since = period != null || register.posted.isEmpty
-        ? ''
-        : ' since ${fullDate(register.posted.first.date)}';
+    final what = period != null || register.posted.isEmpty
+        ? t.ledgerFilterTotal(kind, amount)
+        : t.ledgerFilterTotalSince(
+            kind,
+            amount,
+            sayFullDate(t, register.posted.first.date),
+          );
     final sched = register.scheduled.length;
-    return '$posted ${posted == 1 ? 'row' : 'rows'} · $what$since'
-        '${sched == 0 ? '' : ' · $sched scheduled'}';
+    return [
+      t.ledgerFilterRows(posted),
+      what,
+      if (sched != 0) t.ledgerFilterScheduled(sched),
+    ].join(' · ');
   }
 
   /// A row's category from its inline menu, in whichever account it's in.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
+    final payee = rowPayee(context.t, r);
     final previous = await db.setCategoryMany(
       transactionIds: [r.txnId],
       accountId: r.accountId,
@@ -1307,7 +1381,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     if (previous.isEmpty) return;
     _did(
-      '${r.payee} → ${c.name}',
+      '$payee → ${c.name}',
       undo: () async => _expect(
         (await db.restoreCategories(previous, r.accountId)).length ==
             previous.length,
@@ -1342,7 +1416,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       id = await db.createAccount(name: name, type: type);
     } catch (e) {
       debugPrint('Add account failed: $e');
-      _showToast('Couldn’t add the account');
+      if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
       return;
     }
     if (!mounted) return;
@@ -1355,7 +1429,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The account appearing is the confirmation; ⌘Z takes it away again, but
     // only while it's still empty: undo never deletes rows unasked.
     _did(
-      '$name added',
+      context.t.ledgerAdded(name),
       undo: () async => _expect(await db.deleteEmptyAccount(id)),
       redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
       toast: false,
@@ -1374,6 +1448,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _newEntry();
       return;
     }
+    final t = context.t;
     // A card's balance is typed as what's owed, positive, as the bank shows it.
     final balance = account.isOwed ? -typed : typed;
     final int id;
@@ -1385,19 +1460,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Opening balance failed: $e');
-      _showToast('Couldn’t save the balance');
+      _showToast(t.ledgerCouldntSaveBalance);
       return;
     }
     // The bank's number already holds everything settled, so what's left to
     // type is what hasn't: the entry row opens, and the toast says so.
     _newEntry();
     _did(
-      'Opening balance',
+      t.startOpeningBalance,
       undo: () async => _expect((await db.softDeleteMany([id])).length == 1),
       redo: () => db.restoreMany([id]),
-      message:
-          'Started at ${_money(typed)}${account.isOwed ? ' owed' : ''} · '
-          'add only what hasn’t settled yet',
+      message: account.isOwed
+          ? t.ledgerStartedAtOwed(_money(typed))
+          : t.ledgerStartedAt(_money(typed)),
     );
   }
 
@@ -1411,7 +1486,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return mounted;
     } catch (e) {
       debugPrint('Change to $what failed: $e');
-      if (mounted) _showToast('Couldn’t change the $what');
+      if (mounted) {
+        final t = context.t;
+        _showToast(switch (what) {
+          'pay' => t.ledgerCouldntChangePay,
+          'budget period' => t.ledgerCouldntChangeBudgetPeriod,
+          'category' => t.ledgerCouldntChangeCategory,
+          _ => t.ledgerCouldntChangeAccount,
+        });
+      }
       return false;
     }
   }
@@ -1447,6 +1530,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
 
   Future<void> _setPayday(AccountInfo c, bool payday) async {
+    final t = context.t;
     if (!await _accountWrite(
       () => db.setPayday(c.id, payday),
       what: 'category',
@@ -1454,10 +1538,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      payday ? '${c.name} marks payday' : '${c.name} isn’t a payday',
+      payday ? t.ledgerMarksPayday(c.name) : t.ledgerIsntPayday(c.name),
       message: payday
-          ? '${c.name} is a payday · forecasts run to it'
-          : '${c.name} isn’t a payday · forecasts run past it',
+          ? t.ledgerIsPaydayToast(c.name)
+          : t.ledgerIsntPaydayToast(c.name),
       undo: () => db.setPayday(c.id, !payday),
       redo: () => db.setPayday(c.id, payday),
     );
@@ -1474,11 +1558,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// A name that's already taken makes nothing new: an archived one comes
   /// back instead, so there's never two of it.
   Future<void> _createCategory(String name, bool income) async {
+    final t = context.t;
     final data = _data;
     final existing = data == null ? null : _categoryNamed(data, name);
     if (existing != null) {
       if (existing.archived) return _archiveCategory(existing, false);
-      _showToast('${existing.name} is already a category');
+      _showToast(t.ledgerAlreadyCategory(existing.name));
       return;
     }
     late int id;
@@ -1489,7 +1574,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      '$name added',
+      t.ledgerAdded(name),
       undo: () async => _expect(await db.deleteEmptyAccount(id)),
       redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
     );
@@ -1502,6 +1587,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountInfo c,
     String name,
   ) async {
+    final t = context.t;
     final other = _categoryNamed(data, name, except: c.id);
     if (other != null) return _deleteCategory(data, c, into: other);
     final old = c.name;
@@ -1512,13 +1598,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      'Renamed $old to $name',
+      t.ledgerRenamed(old, name),
       undo: () => db.renameAccount(c.id, old),
       redo: () => db.renameAccount(c.id, name),
     );
   }
 
   Future<void> _changeCategoryKind(AccountInfo c) async {
+    final t = context.t;
     final old = c.type;
     final next = c.isIncome ? AccountType.expense : AccountType.income;
     if (!await _accountWrite(
@@ -1528,9 +1615,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      '${c.name} is now ${next == AccountType.income ? 'income' : 'spending'}',
+      next == AccountType.income
+          ? t.ledgerIsNowIncome(c.name)
+          : t.ledgerIsNowSpending(c.name),
       message: next == AccountType.income
-          ? '${c.name} is now income · it ends forecasts, like payday'
+          ? t.ledgerIsNowIncomeToast(c.name)
           : null,
       undo: () => db.setCategoryType(c.id, old),
       redo: () => db.setCategoryType(c.id, next),
@@ -1540,6 +1629,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Nothing is lost by archiving a category, so no dialog: its rows keep
   /// its name, and it leaves the menus.
   Future<void> _archiveCategory(AccountInfo c, bool archived) async {
+    final t = context.t;
     if (!await _accountWrite(
       () => db.setArchived(c.id, archived),
       what: 'category',
@@ -1547,10 +1637,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      archived ? '${c.name} archived' : '${c.name} back in the menus',
-      message: archived
-          ? '${c.name} archived · its rows keep it; new rows can’t pick it'
-          : null,
+      archived ? t.ledgerArchived(c.name) : t.ledgerBackInMenus(c.name),
+      message: archived ? t.ledgerCategoryArchivedToast(c.name) : null,
       undo: () => db.setArchived(c.id, !archived),
       redo: () => db.setArchived(c.id, archived),
     );
@@ -1565,6 +1653,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountInfo c, {
     AccountInfo? into,
   }) async {
+    final t = context.t;
     final u = data.categoryUsage[c.id];
     final merging = into != null;
     final int anyRows;
@@ -1572,7 +1661,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       anyRows = await db.categoryEntryCount(c.id);
     } catch (e) {
       debugPrint('Counting rows failed: $e');
-      _showToast('Couldn’t change the category');
+      _showToast(t.ledgerCouldntChangeCategory);
       return;
     }
     if (!mounted) return;
@@ -1598,14 +1687,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final moved = (u?.rows ?? 0) + (u?.scheduled ?? 0);
     _did(
-      '${c.name} deleted',
+      t.ledgerDeleted(c.name),
       message: target == null || (!merging && moved == 0)
-          ? '${c.name} deleted'
+          ? t.ledgerDeleted(c.name)
           : merging
-          ? '${c.name} merged into ${target.name}'
-                '${moved == 0 ? '' : ' · $moved ${moved == 1 ? 'row' : 'rows'} moved'}'
-          : '${c.name} deleted · $moved ${moved == 1 ? 'row' : 'rows'} '
-                'moved to ${target.name}',
+          ? [
+              t.ledgerMergedInto(c.name, target.name),
+              if (moved != 0) t.ledgerRowsMoved(moved),
+            ].join(' · ')
+          : t.ledgerDeletedRowsMovedTo(c.name, moved, target.name),
       undo: () => db.undeleteCategory(done),
       redo: () async => done = await db.deleteCategory(c.id, into: target?.id),
     );
@@ -1664,10 +1754,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // old answer.
     final old = _data?.prefs[key];
     if (old == value) return;
+    final t = context.t;
     try {
       await db.setPreference(key, value);
     } catch (e) {
-      _showToast('Couldn’t save: $e');
+      _showToast(t.ledgerCouldntSave('$e'));
       return;
     }
     _did(
@@ -1680,16 +1771,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _rename(AccountInfo account, String name) async {
+    final t = context.t;
     final old = account.name;
     if (!await _accountWrite(() => db.renameAccount(account.id, name))) return;
     _did(
-      'Renamed $old to $name',
+      t.ledgerRenamed(old, name),
       undo: () => db.renameAccount(account.id, old),
       redo: () => db.renameAccount(account.id, name),
     );
   }
 
   Future<void> _changeKind(AccountInfo account) async {
+    final t = context.t;
     final old = account.type;
     final next = account.isOwed ? AccountType.asset : AccountType.liability;
     var flipped = false;
@@ -1698,14 +1791,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     )) {
       return;
     }
-    final kind = next == AccountType.liability
-        ? 'card or loan'
-        : 'bank account';
+    final label = next == AccountType.liability
+        ? t.ledgerIsNowCardOrLoan(account.name)
+        : t.ledgerIsNowBankAccount(account.name);
     _did(
-      '${account.name} is now a $kind',
-      message: flipped
-          ? '${account.name} is now a $kind · its opening balance flipped with it'
-          : null,
+      label,
+      message: flipped ? '$label · ${t.ledgerOpeningBalanceFlipped}' : null,
       undo: () => db.setAccountType(account.id, old),
       redo: () => db.setAccountType(account.id, next),
     );
@@ -1719,12 +1810,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     // Nothing left behind, nothing to read first.
     if (warnings.isNotEmpty) {
+      final t = context.t;
       final go = await showDialog<bool>(
         context: context,
         builder: (_) => _AccountWarning(
-          title: 'Archive ${account.name}?',
+          title: t.ledgerArchiveTitle(account.name),
           lines: warnings,
-          action: 'Archive ${account.name}',
+          action: t.ledgerArchiveAction(account.name),
           danger: false,
         ),
       );
@@ -1734,6 +1826,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _setArchived(AccountInfo account, bool archived) async {
+    final t = context.t;
     if (archived) _leaveAccount(account);
     if (!await _accountWrite(() => db.setArchived(account.id, archived))) {
       return;
@@ -1741,17 +1834,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!archived) _openAccount(account.id);
     _did(
       archived
-          ? '${account.name} archived'
-          : '${account.name} back in the sidebar',
-      message: archived
-          ? '${account.name} archived · Settings brings it back'
-          : null,
+          ? t.ledgerArchived(account.name)
+          : t.ledgerBackInSidebar(account.name),
+      message: archived ? t.ledgerAccountArchivedToast(account.name) : null,
       undo: () => db.setArchived(account.id, !archived),
       redo: () => db.setArchived(account.id, archived),
     );
   }
 
   Future<void> _deleteAccount(LedgerData data, AccountInfo account) async {
+    final t = context.t;
     final preview = data.deletePreview(account.id);
     // Nothing in it and nothing kept elsewhere: nothing to read first.
     final empty = preview.rows == 0 && preview.keptOn.isEmpty;
@@ -1760,13 +1852,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await showDialog<bool>(
               context: context,
               builder: (_) => _AccountWarning(
-                title: 'Delete ${account.name}?',
+                title: t.ledgerDeleteTitle(account.name),
                 lines: _deleteWarnings(
                   account,
                   data.balanceOf(account.id),
                   preview,
                 ),
-                action: 'Delete ${account.name}',
+                action: t.ledgerDeleteAction(account.name),
                 danger: true,
               ),
             ) ==
@@ -1782,27 +1874,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Final, as the warning says: no Undo on the toast. ⌘Z still works, as
     // it does for everything this session.
     _did(
-      '${account.name} deleted',
+      t.ledgerDeleted(account.name),
       undo: () => db.undeleteAccount(done),
       redo: () async => done = await db.deleteAccount(account.id),
       toast: false,
     );
-    _showToast('${account.name} deleted');
+    _showToast(t.ledgerDeleted(account.name));
   }
 
   /// Saves a copy of everything where the user picks: another drive, a USB
   /// stick. The daily automatic copies stay on this disk.
   Future<void> _backUpTo() async {
+    final t = context.t;
     final now = widget.clock();
     final FileSaveLocation? location;
     try {
       location = await getSaveLocation(
         suggestedName: 'BetterBudget ${fullDate(now)}.sqlite',
-        confirmButtonText: 'Back Up',
+        confirmButtonText: t.ledgerBackUpButton,
       );
     } catch (e) {
       debugPrint('Save dialog failed: $e');
-      _showToast('Couldn’t open the save dialog');
+      _showToast(t.ledgerCouldntOpenSaveDialog);
       return;
     }
     if (location == null) return;
@@ -1810,11 +1903,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await _backups.saveTo(location.path, now);
     } catch (e) {
       debugPrint('Back up failed: $e');
-      _showToast('Couldn’t back up · check the drive has room and try again');
+      _showToast(t.ledgerCouldntBackUp);
       return;
     }
     final name = location.path.split(RegExp(r'[/\\]')).last;
-    _showToast('Backed up · $name');
+    _showToast(t.ledgerBackedUp(name));
   }
 
   /// Puts back a backup: the daily copies (the picker opens on their folder)
@@ -1822,9 +1915,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// what's here first, and can be undone.
   Future<void> _restoreFrom() async {
     if (_restoring) return;
+    final t = context.t;
     // A restore replaces the rows an open edit or reconcile points at.
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast('Save with Enter, or press Esc to discard your changes');
+      _showToast(context.t.ledgerSaveOrDiscard);
       return;
     }
     _cancelEdit();
@@ -1837,15 +1931,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final XFile? picked;
     try {
       picked = await openFile(
-        acceptedTypeGroups: const [
-          XTypeGroup(label: 'BetterBudget backup', extensions: ['sqlite']),
+        acceptedTypeGroups: [
+          XTypeGroup(
+            label: t.ledgerBackupFileType,
+            extensions: const ['sqlite'],
+          ),
         ],
         initialDirectory: (await _backups.folder())?.path,
-        confirmButtonText: 'Choose',
+        confirmButtonText: t.ledgerChoose,
       );
     } catch (e) {
       debugPrint('Open dialog failed: $e');
-      _showToast('Couldn’t open the file dialog');
+      _showToast(t.ledgerCouldntOpenFileDialog);
       return;
     }
     if (picked == null) return;
@@ -1864,19 +1961,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
           );
           return null;
         } on RestoreException catch (e) {
-          return e.message;
+          return restoreProblem(t, e.problem);
         } catch (e) {
           debugPrint('Restore check failed: $e');
-          return 'Couldn’t read that backup';
+          return t.ledgerCouldntReadBackup;
         }
       });
       if (found == null) return;
     } on RestoreException catch (e) {
-      _showToast(e.message);
+      _showToast(restoreProblem(t, e.problem));
       return;
     } catch (e) {
       debugPrint('Restore check failed: $e');
-      _showToast('Couldn’t read that backup');
+      _showToast(t.ledgerCouldntReadBackup);
       return;
     }
     if (!mounted) return;
@@ -1900,7 +1997,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       done = await _whileRestoring(() => _backups.restore(candidate, now));
     } catch (e) {
       debugPrint('Restore failed: $e');
-      _showToast('Couldn’t restore · nothing was changed');
+      _showToast(t.ledgerCouldntRestore);
       return;
     }
     if (!mounted) return;
@@ -1913,7 +2010,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Earlier actions point at rows the restore replaced.
     _history.clear();
     _redo.clear();
-    final label = 'Restored the copy from ${fullDate(candidate.madeAt)}';
+    final label = t.ledgerRestoredFrom(sayFullDate(t, candidate.madeAt));
     _did(
       label,
       undo: () => _whileRestoring(
@@ -1922,7 +2019,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () => _whileRestoring(
         () => _backups.replaceWith(done.restored, widget.clock()),
       ),
-      message: '$label · what you had is saved',
+      message: '$label · ${t.ledgerWhatYouHadIsSaved}',
     );
   }
 
@@ -1930,8 +2027,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// What's here is saved first, and Undo puts it back.
   Future<void> _startNewLedger() async {
     if (_restoring) return;
+    final t = context.t;
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast('Save with Enter, or press Esc to discard your changes');
+      _showToast(context.t.ledgerSaveOrDiscard);
       return;
     }
     final data = _data;
@@ -1943,8 +2041,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         accounts: [
           for (final a in data.balanceSheetAccounts)
             (
-              name: a.archived ? '${a.name} (archived)' : a.name,
-              balance: _balanceText(a, data.balanceOf(a.id)),
+              name: a.archived ? t.ledgerArchivedName(a.name) : a.name,
+              balance: _balanceText(t, a, data.balanceOf(a.id)),
             ),
         ],
         transactions: data.txns.length,
@@ -1981,7 +2079,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       });
     } catch (e) {
       debugPrint('New ledger failed: $e');
-      _showToast('Couldn’t start a new ledger · nothing was changed');
+      _showToast(t.ledgerCouldntStartNewLedger);
       return;
     }
     if (!mounted) return;
@@ -1989,13 +2087,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _history.clear();
     _redo.clear();
     _did(
-      'New ledger started',
+      t.ledgerNewLedgerStarted,
       undo: () =>
           _whileRestoring(() => _backups.replaceWith(before, widget.clock())),
       redo: () => _whileRestoring(
         () => db.startNewLedger(widget.clock(), keepCategories: keep),
       ),
-      message: 'Everything erased · what you had is saved in Backups',
+      message: t.ledgerEverythingErased,
     );
   }
 
@@ -2013,6 +2111,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Takes back the account's latest reconcile, whenever it was done.
   Future<void> _unreconcile(AccountInfo account) async {
+    final t = context.t;
     final ReconcileRecord done;
     try {
       done = await db.unreconcileLast(account.id);
@@ -2020,13 +2119,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     final n = done.entryIds.length;
+    final label = t.ledgerReconcileUndone(sayDate(t, done.date));
     _did(
-      'Reconcile of ${shortDate(done.date)} undone',
+      label,
       undo: () => db.relock(done),
       redo: () => db.unreconcile(done),
-      message:
-          'Reconcile of ${shortDate(done.date)} undone'
-          '${n == 0 ? '' : ' · $n ${n == 1 ? 'row' : 'rows'} back to cleared'}',
+      message: n == 0 ? label : '$label · ${t.ledgerBackToCleared(n)}',
     );
   }
 
@@ -2057,7 +2155,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
               if (snap.hasError) {
                 return Center(
                   child: Text(
-                    'Couldn’t open the ledger: ${snap.error}',
+                    context.t.ledgerCouldntOpenLedger(switch (snap.error) {
+                      final CipherException e => cipherProblem(context.t, e),
+                      final e => '$e',
+                    }),
                     style: onest(14, color: Mid.coral),
                   ),
                 );
@@ -2139,6 +2240,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               final c => _AppearanceSettings(
                                 value: c.value,
                                 onChanged: (a) => _setAppearance(c, a),
+                              ),
+                            },
+                            language: switch (LanguageScope.maybeOf(context)) {
+                              null => null,
+                              final c => _LanguageSettings(
+                                value: c.value,
+                                onChanged: (l) => _setLanguage(c, l),
                               ),
                             },
                             budget: _BudgetSettings(
@@ -2347,7 +2455,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 today: today,
                 adding: _adding,
                 addButton: _PrimaryButton(
-                  label: 'Add',
+                  label: context.t.ledgerAdd,
                   icon: Icons.add_rounded,
                   key: const ValueKey('add-transaction'),
                   onTap: _newEntry,
@@ -2417,10 +2525,19 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final groups = <String, List<AccountInfo>>{};
+    final t = context.t;
+    // Grouped by what the ledger stores; the groups the app makes are named
+    // in the language showing, any other as it's stored.
+    final groups = <String?, List<AccountInfo>>{};
     for (final a in data.openAccounts) {
-      groups.putIfAbsent(a.group ?? 'Accounts', () => []).add(a);
+      groups.putIfAbsent(a.group, () => []).add(a);
     }
+    String groupName(String? g) => switch (g) {
+      null => t.ledgerGroupAccounts,
+      'Cash & bank' => t.ledgerGroupCashBank,
+      'Credit' => t.ledgerGroupCredit,
+      final other => other,
+    };
     // Archived accounts still hold money, or debt.
     final net = data.balanceSheetAccounts.fold(
       0,
@@ -2463,7 +2580,7 @@ class _Sidebar extends StatelessWidget {
           header(
             AppSection.ledger,
             Icons.format_list_bulleted_rounded,
-            'Ledger',
+            t.ledgerSectionLedger,
           ),
           _Spill(
             open: section == AppSection.ledger,
@@ -2476,7 +2593,10 @@ class _Sidebar extends StatelessWidget {
               for (final g in groups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
-                  child: Text(g.key, style: onest(12, color: Mid.sideInk3)),
+                  child: Text(
+                    groupName(g.key),
+                    style: onest(12, color: Mid.sideInk3),
+                  ),
                 ),
                 for (final a in g.value)
                   Padding(
@@ -2496,9 +2616,17 @@ class _Sidebar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
-          header(AppSection.budget, Icons.pie_chart_outline_rounded, 'Budget'),
+          header(
+            AppSection.budget,
+            Icons.pie_chart_outline_rounded,
+            t.ledgerSectionBudget,
+          ),
           const SizedBox(height: 2),
-          header(AppSection.savings, Icons.savings_outlined, 'Savings'),
+          header(
+            AppSection.savings,
+            Icons.savings_outlined,
+            t.ledgerSectionSavings,
+          ),
           const Spacer(),
           // Settings, above Net worth, laid out like a section header so its
           // icon and label line up with theirs.
@@ -2522,7 +2650,7 @@ class _Sidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Net worth', style: onest(12, color: Mid.sideInk3)),
+                Text(t.ledgerNetWorth, style: onest(12, color: Mid.sideInk3)),
                 const SizedBox(height: 4),
                 Text(
                   '${net < 0 ? '−' : ''}₮${formatWhole(net)}',
@@ -2537,7 +2665,7 @@ class _Sidebar extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      'incl. ${_money(archived)} in archived',
+                      t.ledgerInclArchived(_money(archived)),
                       key: const ValueKey('net-worth-archived'),
                       style: onest(11.5, color: Mid.sideInk3, tabular: true),
                     ),
@@ -2566,7 +2694,7 @@ class _SettingsGear extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     // Only worth a tooltip when the dot needs explaining.
-    message: alert ? 'The daily copy is failing' : '',
+    message: alert ? context.t.ledgerDailyCopyFailing : '',
     child: Hoverable(
       key: const ValueKey('settings'),
       onTap: onTap,
@@ -2605,7 +2733,7 @@ class _SettingsGear extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              'Settings',
+              context.t.ledgerSettings,
               style: onest(
                 14,
                 weight: active ? 600 : 500,
@@ -2633,11 +2761,16 @@ class _SettingsPage extends StatelessWidget {
     this.archived,
     this.budget,
     this.appearance,
+    this.language,
   });
   final ValueListenable<BackupHealth> health;
 
   /// Light, dark or the system's; null without an [AppearanceScope] (tests).
   final Widget? appearance;
+
+  /// English, Mongolian or the system's; null without a [LanguageScope]
+  /// (tests).
+  final Widget? language;
 
   /// Budget by month or pay period, and pay schedules.
   final Widget? budget;
@@ -2661,6 +2794,7 @@ class _SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     Widget line(String label, Widget value) => Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -2674,15 +2808,15 @@ class _SettingsPage extends StatelessWidget {
         ],
       ),
     );
-    String when(DateTime t) {
+    String when(DateTime at) {
       String two(int v) => v.toString().padLeft(2, '0');
       final today = dateOnly(now());
-      final day = dateOnly(t) == today
-          ? 'Today'
-          : dateOnly(t) == today.subtract(const Duration(days: 1))
-          ? 'Yesterday'
-          : fullDate(t);
-      return '$day ${two(t.hour)}:${two(t.minute)}';
+      final day = dateOnly(at) == today
+          ? t.today
+          : dateOnly(at) == today.subtract(const Duration(days: 1))
+          ? t.yesterday
+          : sayFullDate(t, at);
+      return t.ledgerTimeAt(day, '${two(at.hour)}:${two(at.minute)}');
     }
 
     return Padding(
@@ -2703,7 +2837,7 @@ class _SettingsPage extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Settings',
+                      t.ledgerSettings,
                       style: onest(22, weight: 600, letterSpacing: -0.3),
                     ),
                   ),
@@ -2724,28 +2858,36 @@ class _SettingsPage extends StatelessWidget {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Backups', style: onest(16, weight: 600)),
+                          Text(
+                            t.ledgerBackupsTitle,
+                            style: onest(16, weight: 600),
+                          ),
                           const SizedBox(height: 16),
                           line(
-                            'Daily copy',
+                            t.ledgerDailyCopy,
                             failing
                                 ? Text(
-                                    'Failing${h.newest == null ? '' : ' · the last one is from ${when(h.newest!)}'}. '
-                                    'Check the disk has room, and back up to another drive.',
+                                    h.newest == null
+                                        ? t.ledgerDailyCopyFailingNone
+                                        : t.ledgerDailyCopyFailingSince(
+                                            when(h.newest!),
+                                          ),
                                     key: const ValueKey('backup-failed'),
                                     style: onest(13.5, color: Mid.coral),
                                   )
                                 : Text(
                                     h.newest == null
-                                        ? 'None yet · one is made each day the app is open'
-                                        : '${when(h.newest!)} · on this computer',
+                                        ? t.ledgerDailyCopyNone
+                                        : t.ledgerDailyCopyWhen(
+                                            when(h.newest!),
+                                          ),
                                     style: onest(13.5, color: Mid.ink),
                                   ),
                           ),
                           line(
-                            'Kept',
+                            t.ledgerKept,
                             Text(
-                              'The newest 14, plus the first of each month for a year',
+                              t.ledgerKeptWhich,
                               style: onest(13.5, color: Mid.ink2),
                             ),
                           ),
@@ -2754,7 +2896,7 @@ class _SettingsPage extends StatelessWidget {
                             children: [
                               BarButton(
                                 key: const ValueKey('back-up'),
-                                label: 'Back up to…',
+                                label: t.ledgerBackUpTo,
                                 leading: Icon(
                                   Icons.save_alt_rounded,
                                   size: 14,
@@ -2764,7 +2906,7 @@ class _SettingsPage extends StatelessWidget {
                               ),
                               BarButton(
                                 key: const ValueKey('restore'),
-                                label: 'Restore from…',
+                                label: t.ledgerRestoreFrom,
                                 leading: Icon(
                                   Icons.settings_backup_restore_rounded,
                                   size: 14,
@@ -2776,10 +2918,7 @@ class _SettingsPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'The daily copies are on this computer, so they won’t '
-                            'help if it’s lost or breaks: back up to another drive '
-                            'or a USB stick now and then. Restoring saves what you '
-                            'have first, and Undo brings it back.',
+                            t.ledgerBackupsNote,
                             style: onest(13, color: Mid.ink3),
                           ),
                         ],
@@ -2791,6 +2930,10 @@ class _SettingsPage extends StatelessWidget {
                 if (appearance != null) ...[
                   const SizedBox(height: 16),
                   appearance!,
+                ],
+                if (language != null) ...[
+                  const SizedBox(height: 16),
+                  language!,
                 ],
                 if (archived != null) ...[
                   const SizedBox(height: 16),
@@ -2809,21 +2952,15 @@ class _SettingsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Security', style: onest(16, weight: 600)),
+                        Text(
+                          t.ledgerSecurityTitle,
+                          style: onest(16, weight: 600),
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           recoveryKeySaved
-                              ? 'Your ledger and backups are encrypted. Your '
-                                    'recovery key opens them on another '
-                                    'computer, but only the copies you saved '
-                                    'off this one (Back up to…) survive '
-                                    'losing it. BetterBudget doesn’t keep a '
-                                    'copy of the key.'
-                              : 'Your ledger and backups are encrypted. Your '
-                                    'recovery key wasn’t saved or copied when '
-                                    'it was shown, and BetterBudget doesn’t '
-                                    'keep a copy: if this computer is lost, '
-                                    'they can’t be opened.',
+                              ? t.ledgerSecurityKeySaved
+                              : t.ledgerSecurityKeyNotSaved,
                           key: const ValueKey('security-status'),
                           style: onest(
                             13,
@@ -2835,7 +2972,7 @@ class _SettingsPage extends StatelessWidget {
                           const SizedBox(height: 12),
                           BarButton(
                             key: const ValueKey('check-recovery-key'),
-                            label: 'Check my recovery key…',
+                            label: t.ledgerCheckRecoveryKey,
                             leading: Icon(
                               Icons.key_rounded,
                               size: 14,
@@ -2860,20 +2997,19 @@ class _SettingsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Start over', style: onest(16, weight: 600)),
+                      Text(
+                        t.ledgerStartOverTitle,
+                        style: onest(16, weight: 600),
+                      ),
                       const SizedBox(height: 12),
                       Text(
-                        'This erases every account and '
-                        'transaction in this ledger, so you start empty. You '
-                        'choose whether your categories stay. What you have '
-                        'now is saved in Backups first, and Undo brings it '
-                        'back.',
+                        t.ledgerStartOverNote,
                         style: onest(13, color: Mid.ink3),
                       ),
                       const SizedBox(height: 12),
                       BarButton(
                         key: const ValueKey('new-ledger'),
-                        label: 'Erase everything and start over…',
+                        label: t.ledgerEraseAndStartOverButton,
                         leading: Icon(
                           Icons.restart_alt_rounded,
                           size: 14,
@@ -2907,10 +3043,9 @@ class _RestoreDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final made = candidate.madeAt;
     String two(int v) => v.toString().padLeft(2, '0');
-    String counts(int t, int a) =>
-        '$t ${t == 1 ? 'transaction' : 'transactions'} · $a ${a == 1 ? 'account' : 'accounts'}';
     Widget line(String label, String value, {bool strong = false}) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -2952,39 +3087,38 @@ class _RestoreDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Restore this backup?',
+                    t.ledgerRestoreTitle,
                     style: onest(17, weight: 600, letterSpacing: -0.2),
                   ),
                   const SizedBox(height: 16),
                   line(
-                    'Backup from',
+                    t.ledgerBackupFrom,
                     '${fullDate(made)}  ${two(made.hour)}:${two(made.minute)}',
                     strong: true,
                   ),
                   line(
-                    'It holds',
-                    counts(candidate.transactions, candidate.accounts),
+                    t.ledgerItHolds,
+                    t.ledgerCounts(candidate.transactions, candidate.accounts),
                     strong: true,
                   ),
-                  line('Here now', counts(transactionsNow, accountsNow)),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Everything here is replaced by the backup. What you have '
-                    'now is saved first, and Undo brings it back.',
-                    style: onest(13, color: Mid.ink2),
+                  line(
+                    t.ledgerHereNow,
+                    t.ledgerCounts(transactionsNow, accountsNow),
                   ),
+                  const SizedBox(height: 6),
+                  Text(t.ledgerRestoreNote, style: onest(13, color: Mid.ink2)),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       BarButton(
                         key: const ValueKey('restore-cancel'),
-                        label: 'Cancel',
+                        label: t.ledgerCancel,
                         onTap: () => Navigator.of(context).pop(false),
                       ),
                       _PrimaryButton(
                         key: const ValueKey('restore-confirm'),
-                        label: 'Restore',
+                        label: t.ledgerRestore,
                         icon: Icons.settings_backup_restore_rounded,
                         tooltip: 'Enter',
                         onTap: () => Navigator.of(context).pop(true),
@@ -3003,8 +3137,8 @@ class _RestoreDialog extends StatelessWidget {
 
 /// A balance as the sidebar shows it: a card as what's owed, positive, as
 /// the bank does.
-String _balanceText(AccountInfo a, int balance) => a.isOwed
-    ? '${balance > 0 ? '−' : ''}₮${formatWhole(balance)} owed'
+String _balanceText(Words t, AccountInfo a, int balance) => a.isOwed
+    ? t.ledgerOwed('${balance > 0 ? '−' : ''}₮${formatWhole(balance)}')
     : '${balance < 0 ? '−' : ''}₮${formatWhole(balance)}';
 
 /// Asks before everything is erased for a clean start, naming what goes:
@@ -3040,14 +3174,13 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    String n(int v, String one, String many) => '$v ${v == 1 ? one : many}';
+    final t = context.t;
     final first = widget.first, last = widget.last;
     final also = [
-      if (widget.pay > 0) 'Your pay',
-      if (widget.reconciles > 0)
-        n(widget.reconciles, 'reconcile', 'reconciles'),
-      'Payees',
-      'Budget and Savings settings',
+      if (widget.pay > 0) t.ledgerYourPay,
+      if (widget.reconciles > 0) t.ledgerReconciles(widget.reconciles),
+      t.ledgerPayees,
+      t.ledgerBudgetSavingsSettings,
     ];
     final alsoText = also.join(' · ');
 
@@ -3104,7 +3237,7 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Erase everything and start over?',
+                t.ledgerEraseTitle,
                 style: onest(
                   17,
                   weight: 600,
@@ -3114,7 +3247,7 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
               ),
               const SizedBox(height: 14),
               Text(
-                'All of this is erased:',
+                t.ledgerAllOfThisErased,
                 style: onest(13.5, weight: 600, color: Mid.ink),
               ),
               const SizedBox(height: 10),
@@ -3133,11 +3266,11 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                       item(a.name, a.balance),
                     if (widget.accounts.length > _shown)
                       item(
-                        '+ ${n(widget.accounts.length - _shown, 'more account', 'more accounts')}',
+                        t.ledgerMoreAccounts(widget.accounts.length - _shown),
                         '',
                       ),
                     item(
-                      n(widget.transactions, 'transaction', 'transactions'),
+                      t.ledgerTransactionCount(widget.transactions),
                       first == null || last == null
                           ? ''
                           : first == last
@@ -3153,13 +3286,13 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
               ),
               const SizedBox(height: 12),
               Text(
-                'You start with no accounts and no money in the app.',
+                t.ledgerStartWithNothing,
                 style: onest(13.5, color: Mid.ink),
               ),
               if (widget.categories > 0) ...[
                 const SizedBox(height: 18),
                 Text(
-                  'Your ${n(widget.categories, 'category', 'categories')}',
+                  t.ledgerYourCategories(widget.categories),
                   style: onest(13.5, weight: 600, color: Mid.ink),
                 ),
                 const SizedBox(height: 8),
@@ -3168,13 +3301,13 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                   runSpacing: 6,
                   children: [
                     choice(
-                      'Keep them, empty',
+                      t.ledgerKeepThemEmpty,
                       _keep,
                       () => setState(() => _keep = true),
                       'new-ledger-keep',
                     ),
                     choice(
-                      'Erase them too',
+                      t.ledgerEraseThemToo,
                       !_keep,
                       () => setState(() => _keep = false),
                       'new-ledger-drop',
@@ -3183,27 +3316,20 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _keep
-                      ? 'Kept with no rows in them, ready for your real '
-                            'accounts.'
-                      : 'You’ll add categories again on the Budget screen.',
+                  _keep ? t.ledgerKeptNoRows : t.ledgerAddCategoriesAgain,
                   key: const ValueKey('new-ledger-categories'),
                   style: onest(12.5, color: Mid.ink3),
                 ),
               ],
               const SizedBox(height: 18),
-              Text(
-                'What you have now is saved in Backups first. Undo brings it '
-                'back, and so does Restore from… later.',
-                style: onest(13, color: Mid.ink2),
-              ),
+              Text(t.ledgerEraseNote, style: onest(13, color: Mid.ink2)),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   BarButton(
                     key: const ValueKey('new-ledger-cancel'),
-                    label: 'Cancel',
+                    label: t.ledgerCancel,
                     onTap: () => Navigator.of(context).pop(),
                   ),
                   Material(
@@ -3221,7 +3347,7 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         alignment: Alignment.center,
                         child: Text(
-                          'Erase everything',
+                          t.ledgerEraseEverything,
                           style: onest(13, weight: 600, color: Mid.onAccent),
                         ),
                       ),
@@ -3440,7 +3566,7 @@ class _AccountTileState extends State<_AccountTile> {
             Text(
               // A card shows what's owed, positive, as the bank does; owing
               // isn't a warning.
-              _balanceText(widget.account, widget.balance),
+              _balanceText(context.t, widget.account, widget.balance),
               style: onest(
                 12.5,
                 color: !widget.account.isOwed && widget.balance < 0
@@ -3481,7 +3607,7 @@ class _SearchField extends StatelessWidget {
         isDense: true,
         filled: true,
         fillColor: Mid.panel,
-        hintText: 'Search payee, memo, amount',
+        hintText: context.t.ledgerSearchHint,
         hintStyle: onest(13, color: Mid.ink3),
         prefixIcon: Icon(Icons.search_rounded, size: 16, color: Mid.ink3),
         prefixIconConstraints: const BoxConstraints(minWidth: 36),
@@ -3619,7 +3745,7 @@ class _Toast extends StatelessWidget {
                     TextButton(
                       onPressed: toast.undo,
                       child: Text(
-                        'Undo',
+                        context.t.ledgerUndo,
                         style: onest(
                           13.5,
                           weight: 700,
@@ -3654,34 +3780,14 @@ class _AppearanceSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget choice(Appearance a, String label) => Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Hoverable(
-        key: ValueKey('appearance-${a.name}'),
-        onTap: () => onChanged(a),
-        builder: (hover) => Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: a == value
-                ? Mid.blueWash
-                : (hover ? Mid.raised : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: a == value ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Center(
-            widthFactor: 1,
-            child: Text(
-              label,
-              style: onest(13, color: a == value ? Mid.ink : Mid.ink2),
-            ),
-          ),
-        ),
-      ),
+    final t = context.t;
+    Widget choice(Appearance a, String label) => _SettingChoice(
+      key: ValueKey('appearance-${a.name}'),
+      label: label,
+      chosen: a == value,
+      onTap: () => onChanged(a),
     );
-    final system = _isMac ? 'Same as this Mac' : 'Same as Windows';
+    final system = _isMac ? t.languageSameAsMac : t.languageSameAsWindows;
     return Container(
       key: const ValueKey('settings-appearance'),
       width: double.infinity,
@@ -3694,20 +3800,118 @@ class _AppearanceSettings extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Appearance', style: onest(16, weight: 600)),
+          Text(t.ledgerAppearanceTitle, style: onest(16, weight: 600)),
           const SizedBox(height: 16),
           Row(
             children: [
               choice(Appearance.system, system),
-              choice(Appearance.light, 'Light'),
-              choice(Appearance.dark, 'Dark'),
+              choice(Appearance.light, t.ledgerAppearanceLight),
+              choice(Appearance.dark, t.ledgerAppearanceDark),
             ],
           ),
           if (value == Appearance.system) ...[
             const SizedBox(height: 10),
             Text(
-              'Showing ${Mid.isLight ? 'light' : 'dark'} now · changes when '
-              '${_isMac ? 'the Mac' : 'Windows'} does',
+              (Mid.isLight ? t.ledgerShowingLightNow : t.ledgerShowingDarkNow)(
+                _isMac ? t.theMac : t.windowsName,
+              ),
+              style: onest(12.5, color: Mid.ink3),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One choice in a row of them (Appearance, Language).
+class _SettingChoice extends StatelessWidget {
+  const _SettingChoice({
+    super.key,
+    required this.label,
+    required this.chosen,
+    required this.onTap,
+  });
+  final String label;
+  final bool chosen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Hoverable(
+      onTap: onTap,
+      builder: (hover) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: chosen
+              ? Mid.blueWash
+              : (hover ? Mid.raised : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: chosen ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Center(
+          widthFactor: 1,
+          child: Text(
+            label,
+            style: onest(13, color: chosen ? Mid.ink : Mid.ink2),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Settings → Language: the system's, English or Монгол. Under the system's,
+/// says which one is showing now, as Appearance does.
+class _LanguageSettings extends StatelessWidget {
+  const _LanguageSettings({required this.value, required this.onChanged});
+  final Language value;
+  final ValueChanged<Language> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    Widget choice(Language l, String label) => _SettingChoice(
+      key: ValueKey('language-${l.name}'),
+      label: label,
+      chosen: l == value,
+      onTap: () => onChanged(l),
+    );
+    final showing = Localizations.localeOf(context).languageCode == 'mn'
+        ? t.languageMongolian
+        : t.languageEnglish;
+    return Container(
+      key: const ValueKey('settings-language'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+      decoration: BoxDecoration(
+        color: Mid.panel,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.languageTitle, style: onest(16, weight: 600)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              choice(
+                Language.system,
+                _isMac ? t.languageSameAsMac : t.languageSameAsWindows,
+              ),
+              choice(Language.english, t.languageEnglish),
+              choice(Language.mongolian, t.languageMongolian),
+            ],
+          ),
+          if (value == Language.system) ...[
+            const SizedBox(height: 10),
+            Text(
+              t.languageShowingNow(showing, _isMac ? t.theMac : t.windowsName),
               style: onest(12.5, color: Mid.ink3),
             ),
           ],

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import 'data_words.dart';
+import 'language.dart';
 import 'register.dart' show Cols;
 import 'theme.dart';
 
@@ -88,6 +90,7 @@ class EditInitial {
          RowKind.transfer => '→ ${r.payee}',
          _ => r.categoryLabel,
        },
+       row = r,
        amount = r.amount,
        locked = r.locked,
        lockDate = r.locked,
@@ -106,6 +109,15 @@ class EditInitial {
   final String payee;
   final String memo;
   final String category;
+
+  /// The row opened, for wording [category] when it's locked.
+  final RegisterRow row;
+
+  /// [category] as shown when it can't be changed: a split's count, a
+  /// transfer to a deleted account, in the user's language.
+  String lockedCategory(Words t) => row.kind == RowKind.transfer
+      ? '→ ${rowPayee(t, row)}'
+      : rowCategory(t, row);
   final int amount;
 
   /// Reconciled (here or on a transfer's other side): the date and amount
@@ -148,6 +160,18 @@ DateTime? parseEntryDate(String input, DateTime today) {
   final date = DateTime(y, m, d);
   return date.month == m && date.day == d ? date : null;
 }
+
+/// Why a row's category can't be changed while it's edited.
+String _lockedCategoryTip(Words t, RegisterRow r, String reconciledTip) =>
+    switch (r.kind) {
+      RowKind.transfer when r.locked => reconciledTip,
+      RowKind.transfer when r.deletedOther != null => t.rowsOtherAccountDeleted,
+      RowKind.transfer => t.rowsOtherAccountArchived,
+      RowKind.opening when r.equity == AppEquity.adjustments =>
+        t.rowsAdjustmentTip,
+      RowKind.opening => t.rowsOpeningBalanceTip,
+      _ => t.rowsSplitLinesNotBuilt,
+    };
 
 /// How an amount reads in the field: `30000`, `214750.50`, `+2500000`.
 String editableAmount(int minor) {
@@ -247,7 +271,7 @@ class _EntryRowState extends State<EntryRow> {
   /// The "+ New category" line in the list: not an account yet.
   static const _createId = -1;
   ({String label, AccountInfo account}) _createOption(String name) => (
-    label: '+ New category “$name”',
+    label: context.t.rowsNewCategoryOption(name),
     account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
   );
 
@@ -345,26 +369,34 @@ class _EntryRowState extends State<EntryRow> {
   /// starts other names ("Gro" for Groceries), or it's an account ("Golomt
   /// Visa" meaning the transfer). Null when it can.
   String? get _newCategoryDoubt {
-    final t = _newCategory;
-    if (t == null || _chosenNew == t) return null;
-    final q = t.toLowerCase();
+    final typed = _newCategory;
+    if (typed == null || _chosenNew == typed) return null;
+    final t = context.t;
+    final q = typed.toLowerCase();
     final account = widget.transferTargets
         .where((a) => a.name.toLowerCase() == q)
         .firstOrNull;
-    if (account != null) return 'Did you mean “→ ${account.name}”?';
+    if (account != null) return t.rowsDidYouMeanTransfer(account.name);
     final near = _listOptions
         .where((o) => o.label.toLowerCase().contains(q))
         .map((o) => o.label)
         .take(2)
         .toList();
-    if (near.isEmpty) return null;
-    return '“$t” isn’t a category · pick ${near.join(' or ')}, or + New category';
+    return switch (near) {
+      [] => null,
+      [final one] => t.rowsNotACategoryPickOne(typed, one),
+      [final first, final second, ...] => t.rowsNotACategoryPickTwo(
+        typed,
+        first,
+        second,
+      ),
+    };
   }
 
   /// "new income category" when the amount has a `+`: income ends forecasts.
   String get _newCategoryNote => _amount.text.trim().startsWith('+')
-      ? 'new income category'
-      : 'new category';
+      ? context.t.rowsNewIncomeCategoryNote
+      : context.t.rowsNewCategoryNote;
 
   /// A transfer spelled out before it's added: "₮640,200.00 from TDB
   /// Checking to Golomt Visa". The category reads "→ Golomt Visa" either way,
@@ -393,8 +425,12 @@ class _EntryRowState extends State<EntryRow> {
     final inflow = amount == null ? raw.startsWith('+') : amount > 0;
     final (from, to) = inflow ? (other.name, here) : (here, other.name);
     return amount == null
-        ? 'From $from to $to'
-        : '${formatMoney(amount.abs())} from $from to $to';
+        ? context.t.rowsTransferFromTo(from, to)
+        : context.t.rowsTransferAmountFromTo(
+            formatMoney(amount.abs()),
+            from,
+            to,
+          );
   }
 
   /// Confirming money in below plan: how much is missing. Null otherwise:
@@ -532,6 +568,7 @@ class _EntryRowState extends State<EntryRow> {
     if (_busy) return;
     if (_category.text.trim().isEmpty) await _prefillCategory();
     if (!mounted) return;
+    final t = context.t;
 
     final missing = _missing;
     if (missing.isNotEmpty) {
@@ -561,17 +598,20 @@ class _EntryRowState extends State<EntryRow> {
     String? error;
     FocusNode? fix;
     if (date == null) {
-      (error, fix) = ('Date should look like 2026.09.16', _dateFocus);
+      (error, fix) = (t.rowsErrorDate, _dateFocus);
     } else if (_picking &&
         _category.text.trim().toLowerCase() ==
             '→ ${widget.controller.account?.name}'.toLowerCase()) {
-      (error, fix) = ('Can’t transfer to the same account', _categoryFocus);
+      (error, fix) = (t.rowsErrorSameAccount, _categoryFocus);
     } else if (!lockCategory && counter == null && _newCategory == null) {
-      (error, fix) = ('No account “${_category.text.trim()}”', _categoryFocus);
+      (error, fix) = (
+        t.rowsErrorNoAccount(_category.text.trim()),
+        _categoryFocus,
+      );
     } else if (!lockCategory && counter == null && _newCategoryDoubt != null) {
       (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount && (parsed == null || parsed == 0)) {
-      (error, fix) = ('Can’t read “$raw” as an amount', _amountFocus);
+      (error, fix) = (t.rowsErrorAmount(raw), _amountFocus);
     }
     if (error != null) {
       fix!.requestFocus();
@@ -612,8 +652,8 @@ class _EntryRowState extends State<EntryRow> {
         const SizedBox(width: 10),
         _AddButton(
           label: _initial?.confirming ?? false
-              ? 'Confirm'
-              : (_editing ? 'Save' : 'Add'),
+              ? context.t.rowsConfirm
+              : (_editing ? context.t.rowsSave : context.t.rowsAdd),
           ready: _missing.isEmpty && _error == null,
           onTap: _submit,
         ),
@@ -622,6 +662,7 @@ class _EntryRowState extends State<EntryRow> {
   );
 
   Widget _note(int? preview, bool showsMath) {
+    final t = context.t;
     final String text;
     final Color color;
     if (_error != null) {
@@ -629,8 +670,9 @@ class _EntryRowState extends State<EntryRow> {
     } else if (showsMath) {
       (text, color) = (
         // The new-category note stays in sight while the sum shows.
-        '= ${formatMoney(preview!)}'
-            '${_newCategory == null ? '' : ' · $_newCategoryNote'}',
+        _newCategory == null
+            ? t.rowsSum(formatMoney(preview!))
+            : t.rowsSumWithNote(formatMoney(preview!), _newCategoryNote),
         Mid.ink2,
       );
     } else if (_newCategory != null) {
@@ -639,11 +681,13 @@ class _EntryRowState extends State<EntryRow> {
     } else if (_hasContent && _missing.isNotEmpty) {
       final m = _missing;
       (text, color) = (
-        m.length == 1 ? 'needs ${m.single.name}' : 'needs ${m.length} more',
+        m.length == 1
+            ? t.rowsNeeds(m.single.name == 'date' ? 'when' : m.single.name)
+            : t.rowsNeedsMore(m.length),
         Mid.ink3,
       );
     } else if (_editing) {
-      (text, color) = ('Esc to cancel', Mid.ink3);
+      (text, color) = (t.rowsKeyToCancel('Esc'), Mid.ink3);
     } else {
       return const SizedBox.shrink();
     }
@@ -658,9 +702,6 @@ class _EntryRowState extends State<EntryRow> {
       ),
     );
   }
-
-  static const _reconciledTip =
-      'Reconciled · this matches a bank statement, so it can’t change';
 
   Widget _locked(String text, {String? tip}) => Tooltip(
     message: tip ?? '',
@@ -688,6 +729,8 @@ class _EntryRowState extends State<EntryRow> {
     final lit = _active || _editing;
     final transferLine = _transferLine;
     final shortBy = _shortBy;
+    final t = context.t;
+    final reconciledTip = t.rowsReconciledTip;
 
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
@@ -730,7 +773,7 @@ class _EntryRowState extends State<EntryRow> {
                 SizedBox(
                   width: Cols.date,
                   child: initial != null && initial.lockDate
-                      ? _locked(fullDate(initial.date), tip: _reconciledTip)
+                      ? _locked(fullDate(initial.date), tip: reconciledTip)
                       : FocusTraversalOrder(
                           order: const NumericFocusOrder(1),
                           child: DateField(
@@ -754,7 +797,7 @@ class _EntryRowState extends State<EntryRow> {
                         child: _Autocomplete<String>(
                           controller: _payee,
                           focusNode: _payeeFocus,
-                          hint: _editing ? 'Payee' : 'New transaction — payee',
+                          hint: _editing ? t.rowsHintPayee : t.rowsHintNewPayee,
                           wanted: _wants('payee'),
                           options: (q) => q.isEmpty
                               ? const []
@@ -782,7 +825,7 @@ class _EntryRowState extends State<EntryRow> {
                           child: _Field(
                             controller: _memo,
                             focusNode: _memoFocus,
-                            hint: 'Memo',
+                            hint: t.rowsHintMemo,
                             small: true,
                             onSubmitted: (_) => _submit(),
                           ),
@@ -801,12 +844,12 @@ class _EntryRowState extends State<EntryRow> {
                           width: Cols.category,
                           child: initial != null && initial.lockCategory
                               ? _locked(
-                                  initial.category,
-                                  tip:
-                                      initial.locked &&
-                                          initial.category.startsWith('→')
-                                      ? _reconciledTip
-                                      : 'Editing split lines isn’t built yet',
+                                  initial.lockedCategory(t),
+                                  tip: _lockedCategoryTip(
+                                    t,
+                                    initial.row,
+                                    reconciledTip,
+                                  ),
                                 )
                               : FocusTraversalOrder(
                                   order: const NumericFocusOrder(3),
@@ -816,7 +859,7 @@ class _EntryRowState extends State<EntryRow> {
                                       >(
                                         controller: _category,
                                         focusNode: _categoryFocus,
-                                        hint: 'Category',
+                                        hint: t.rowsHintCategory,
                                         wanted: _wants('category'),
                                         options: (q) => [
                                           ..._listOptions.where(
@@ -854,8 +897,8 @@ class _EntryRowState extends State<EntryRow> {
                                         ? '+${formatMoney(initial.amount)}'
                                         : formatMoney(initial.amount.abs()),
                                     tip: initial.locked
-                                        ? _reconciledTip
-                                        : 'A split’s total follows its lines',
+                                        ? reconciledTip
+                                        : t.rowsSplitTotalFollows,
                                   ),
                                 )
                               : FocusTraversalOrder(
@@ -957,6 +1000,7 @@ class _OwedLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     Widget choice(String label, bool value, Key key) {
       final on = keep == value;
       return InkWell(
@@ -1002,16 +1046,18 @@ class _OwedLine extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            '${formatMoney(short, showCents: short % 100 != 0)} less than planned:',
+            t.rowsLessThanPlanned(
+              formatMoney(short, showCents: short % 100 != 0),
+            ),
             style: onest(12.5, color: Mid.ink2, tabular: true),
           ),
           const SizedBox(width: 6),
           choice(
-            'Still owed, due ${shortDate(due)}',
+            t.rowsStillOwedDue(sayDate(t, due)),
             true,
             const ValueKey('owed-keep'),
           ),
-          choice('Paid in full', false, const ValueKey('owed-full')),
+          choice(t.rowsPaidInFull, false, const ValueKey('owed-full')),
         ],
       ),
     );
@@ -1047,14 +1093,17 @@ class _TransferLine extends StatelessWidget {
         if (onSwap != null) ...[
           const SizedBox(width: 10),
           Tooltip(
-            message: 'Turn it around',
+            message: context.t.rowsTurnItAround,
             child: InkWell(
               key: const ValueKey('transfer-swap'),
               onTap: onSwap,
               borderRadius: BorderRadius.circular(6),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text('Swap', style: onest(12.5, color: Mid.blue)),
+                child: Text(
+                  context.t.rowsSwap,
+                  style: onest(12.5, color: Mid.blue),
+                ),
               ),
             ),
           ),
@@ -1241,7 +1290,7 @@ class _DateFieldState extends State<DateField> {
           child: _Field(
             controller: widget.controller,
             focusNode: widget.focusNode,
-            hint: 'Date',
+            hint: context.t.rowsHintDate,
             tabular: true,
             wanted: widget.wanted,
             small: widget.small,
@@ -1278,11 +1327,6 @@ class _CalendarState extends State<_Calendar> {
 
   static DateTime _monthOf(DateTime d) => DateTime(d.year, d.month);
 
-  static const _names = [
-    'January', 'February', 'March', 'April', 'May', 'June', 'July', //
-    'August', 'September', 'October', 'November', 'December',
-  ];
-
   @override
   void didUpdateWidget(_Calendar old) {
     super.didUpdateWidget(old);
@@ -1303,6 +1347,7 @@ class _CalendarState extends State<_Calendar> {
     final lead = _month.weekday - 1; // Monday first
     final days = DateTime(_month.year, _month.month + 1, 0).day;
     final hint = _hover ?? widget.selected;
+    final t = context.t;
 
     Widget arrow(IconData icon, int step, String tip) => Tooltip(
       message: tip,
@@ -1381,21 +1426,25 @@ class _CalendarState extends State<_Calendar> {
             children: [
               Row(
                 children: [
-                  arrow(Icons.chevron_left_rounded, -1, 'Previous month'),
+                  arrow(Icons.chevron_left_rounded, -1, t.rowsPreviousMonth),
                   Expanded(
                     child: Text(
-                      '${_names[_month.month - 1]} ${_month.year}',
+                      t.calendarMonth(
+                        monthName(t, _month.month),
+                        '${_month.year}',
+                        _month.month,
+                      ),
                       textAlign: TextAlign.center,
                       style: onest(13.5, weight: 600),
                     ),
                   ),
-                  arrow(Icons.chevron_right_rounded, 1, 'Next month'),
+                  arrow(Icons.chevron_right_rounded, 1, t.rowsNextMonth),
                 ],
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  for (final n in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+                  for (final n in t.rowsWeekdayInitials.split('|'))
                     SizedBox(
                       width: 34,
                       child: Text(
@@ -1420,7 +1469,7 @@ class _CalendarState extends State<_Calendar> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'After today · it will be scheduled',
+                    t.rowsAfterTodayScheduled,
                     style: onest(12, color: Mid.gold),
                   ),
                 ),
@@ -1557,7 +1606,7 @@ class _AddButtonState extends State<_AddButton> {
   Widget build(BuildContext context) {
     final ready = widget.ready;
     return Tooltip(
-      message: 'Or press Enter in any field',
+      message: context.t.rowsOrPressKey('Enter'),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hover = true),
@@ -1701,7 +1750,7 @@ class _AccountPicker extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      value?.name ?? 'Account',
+                      value?.name ?? context.t.rowsHintAccount,
                       style: onest(
                         13.5,
                         color: value == null ? Mid.ink3 : Mid.ink,

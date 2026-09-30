@@ -31,6 +31,14 @@ picks one, build it, run both reviews, merge.
 - [ ] CI running `flutter analyze && flutter test` on pull requests. Windows and Linux
       builds need it anyway (F, H).
 
+### A2. Mongolian interface (owner, 2026-09-30)
+Decided in ADR 0004 ("Language"): Settings → Language, follows the Mac; drafted here,
+checked by a native speaker; dates in sentences read "9-р сарын 30".
+- [x] Settings → Language, every screen translated, Mongolian screenshots in the tests
+- [ ] A native speaker goes through [the review sheet](mongolian-review.csv) (fill the
+      "corrected" column); corrections go into `app/lib/l10n/app_mn.arb`
+- [ ] The official Mongolian title of the course in Savings
+
 ### B. Report a bug → public repo (owner item 1)
 - [x] Create the public repo (2026-09-30). It holds issues, releases and download assets; the code
       stays private here.
@@ -124,4 +132,4 @@ since phones show budget amounts.
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)
 Splits, TDB import, search, sorting, cash accounts, better "not cleared" note, duplicate
-check on Confirm, several overdue bills, backup reminders, Mongolian UI strings, app lock.
+check on Confirm, several overdue bills, backup reminders, app lock.

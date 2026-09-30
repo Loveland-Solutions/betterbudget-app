@@ -800,6 +800,37 @@ What's known so far:
       when the fund's account is also spent from; the rate and minimum payment
       per debt (with card due dates, personas §1).
 
+### Language: English and Mongolian (owner, 2026-09-30)
+
+Before beta the owner asked for a Mongolian option. The choices:
+
+- **Where it's picked: Settings → Language**, under Appearance and working the
+  same way: "Same as this Mac" (or Windows), English, Монгол. "Same as this Mac"
+  opens in Mongolian when Mongolian comes before English in the Mac's languages;
+  any other language gets English. Kept per computer in a small file beside the
+  ledger, like the appearance. No toast; ⌘Z switches back. *Rejected:* always
+  opening in Mongolian whatever the Mac says; asking at first launch.
+- **Who writes it: drafted here, checked by a native speaker before beta.** The
+  words follow what Mongolian banks show (pending is "Хүлээгдэж буй"); the shared
+  terms are in [the glossary](../l10n-glossary.md), and a review sheet lists every
+  phrase with where it appears. *Rejected:* shipping the draft unchecked; waiting
+  for an outside translation.
+- **Dates: "9-р сарын 30"** inside sentences and lists ("2026 оны 9-р сарын 30"
+  with the year); the calendar's title reads "2026 оны 9-р сар". Rows and the
+  chart keep 09.30 and 2026.09.30 in both languages. *Rejected:* 2026.09.30
+  everywhere; leaving dates as they are.
+- Amounts, ₮ and shortcuts are the same in both languages. Payee and category
+  names are the user's own and are never translated.
+- From the budget review: the working balance is **"Үлдэгдэл"**, never "Боломжит"
+  (that's the bank's available balance, the figure the app tells people not to
+  type); confirming a scheduled row is **"Бүртгэх"**, so it can't be mistaken for
+  cleared ("Баталгаажсан"); the transfer category is **"Данс хооронд"**, since
+  banks call any payment to a person шилжүүлэг; the lowest point reads **"Доод
+  үлдэгдэл"**; cards and loans group as **"Карт, зээл"**.
+- The app's own names (opening balances, adjustments) follow the language; a
+  new account left unnamed is saved as "New account" or "Шинэ данс", whichever
+  is showing, and stays that way until renamed.
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

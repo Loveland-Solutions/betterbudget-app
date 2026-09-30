@@ -14,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/keys.dart';
+import 'data_words.dart';
+import 'language.dart';
 import 'register.dart' show BarButton;
 import 'theme.dart';
 
@@ -51,33 +53,26 @@ class RecoveryKeyDisplay extends StatelessWidget {
 }
 
 /// Writes the key to a `.txt` file the user picks, dated, with what it's
-/// for. Returns whether it was saved (false if the user cancelled the dialog
-/// or the write failed).
-Future<bool> saveRecoveryKeyToFile(String display, DateTime made) async {
+/// for, in [t]'s language. Returns whether it was saved (false if the user
+/// cancelled the dialog or the write failed).
+Future<bool> saveRecoveryKeyToFile(
+  Words t,
+  String display,
+  DateTime made,
+) async {
   final FileSaveLocation? location;
   try {
     location = await getSaveLocation(
-      suggestedName: 'BetterBudget recovery key.txt',
-      confirmButtonText: 'Save',
+      suggestedName: t.startKeyFileName,
+      confirmButtonText: t.startSave,
     );
   } catch (_) {
     return false;
   }
   if (location == null) return false;
-  String two(int v) => v.toString().padLeft(2, '0');
   try {
-    await File(location.path).writeAsString(
-      'BetterBudget recovery key\n\n'
-      '$display\n\n'
-      'Made ${made.year}.${two(made.month)}.${two(made.day)}.\n\n'
-      'It opens your BetterBudget ledger and its backups on another computer, '
-      'or on a phone that records spending. BetterBudget doesn’t keep a copy, '
-      'and it can’t be replaced: without it, the ledger can’t be opened '
-      'anywhere else.\n\n'
-      'Keep it somewhere safe, away from this computer, where the other '
-      'person who manages the money can find it. Don’t keep this file in the '
-      'same folder as your backups.\n',
-    );
+    await File(location.path)
+        .writeAsString(t.startKeyFileText(display, fullDate(made)));
     return true;
   } catch (_) {
     return false;
@@ -134,6 +129,7 @@ class _RecoveryKeySetupScreenState extends State<RecoveryKeySetupScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     final ok = await saveRecoveryKeyToFile(
+      context.t,
       widget.recoveryKey.display,
       widget.clock(),
     );
@@ -160,103 +156,93 @@ class _RecoveryKeySetupScreenState extends State<RecoveryKeySetupScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Mid.ground,
-    body: Center(
-      child: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your recovery key',
-                  style: onest(22, weight: 600, letterSpacing: -0.3),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'BetterBudget encrypts your ledger and its backups. This key '
-                  'opens them on another computer, and on each phone that '
-                  'records spending. This is the only time it’s shown: '
-                  'BetterBudget doesn’t keep a copy, and it can’t be replaced.',
-                  style: onest(14, color: Mid.ink2, height: 1.4),
-                ),
-                const SizedBox(height: 20),
-                RecoveryKeyDisplay(display: widget.recoveryKey.display),
-                const SizedBox(height: 8),
-                Text(
-                  'Keep it away from this computer, where the other person who '
-                  'manages the money can find it: printed with your important '
-                  'papers, or on another drive.',
-                  style: onest(13, color: Mid.ink3, height: 1.4),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    BarButton(
-                      key: const ValueKey('save-recovery-key'),
-                      label: _saved ? 'Saved' : 'Save…',
-                      leading: Icon(
-                        _saved ? Icons.check_rounded : Icons.save_alt_rounded,
-                        size: 14,
-                        color: _saved ? Mid.green : Mid.ink3,
-                      ),
-                      onTap: _save,
-                    ),
-                    BarButton(
-                      key: const ValueKey('copy-recovery-key'),
-                      label: _copied ? 'Copied' : 'Copy',
-                      leading: Icon(
-                        _copied ? Icons.check_rounded : Icons.copy_rounded,
-                        size: 14,
-                        color: _copied ? Mid.green : Mid.ink3,
-                      ),
-                      onTap: _copy,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (widget.convertingExisting) ...[
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    'Copies you saved elsewhere with Back up to… before today '
-                    'aren’t encrypted. Replace them with a new Back up to….',
-                    key: const ValueKey('recovery-key-old-copies'),
-                    style: onest(13, color: Mid.ink2, height: 1.4),
+                    t.startKeyTitle,
+                    style: onest(22, weight: 600, letterSpacing: -0.3),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    t.startKeyIntro,
+                    style: onest(14, color: Mid.ink2, height: 1.4),
+                  ),
+                  const SizedBox(height: 20),
+                  RecoveryKeyDisplay(display: widget.recoveryKey.display),
+                  const SizedBox(height: 8),
+                  Text(
+                    t.startKeyWhere,
+                    style: onest(13, color: Mid.ink3, height: 1.4),
                   ),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      BarButton(
+                        key: const ValueKey('save-recovery-key'),
+                        label: _saved ? t.startSaved : t.startSaveEllipsis,
+                        leading: Icon(
+                          _saved ? Icons.check_rounded : Icons.save_alt_rounded,
+                          size: 14,
+                          color: _saved ? Mid.green : Mid.ink3,
+                        ),
+                        onTap: _save,
+                      ),
+                      BarButton(
+                        key: const ValueKey('copy-recovery-key'),
+                        label: _copied ? t.startCopied : t.startCopy,
+                        leading: Icon(
+                          _copied ? Icons.check_rounded : Icons.copy_rounded,
+                          size: 14,
+                          color: _copied ? Mid.green : Mid.ink3,
+                        ),
+                        onTap: _copy,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (widget.convertingExisting) ...[
+                    Text(
+                      t.startOldCopies,
+                      key: const ValueKey('recovery-key-old-copies'),
+                      style: onest(13, color: Mid.ink2, height: 1.4),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (!_saved)
+                    Text(
+                      _copied ? t.startCopiedWarning : t.startNotKeptWarning,
+                      key: const ValueKey('recovery-key-warning'),
+                      style: onest(13, color: Mid.coral, height: 1.4),
+                    ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      key: const ValueKey('recovery-key-continue'),
+                      onPressed: _busy ? null : _continue,
+                      child: Text(t.startContinue),
+                    ),
+                  ),
                 ],
-                if (!_saved)
-                  Text(
-                    _copied
-                        ? 'Copied · paste it somewhere off this computer '
-                              'before you continue. The clipboard is cleared in '
-                              'a minute.'
-                        : 'If you continue without saving or copying it, it’s '
-                              'gone: BetterBudget can’t show it again, and if '
-                              'this computer is lost, your ledger and its '
-                              'backups can’t be opened.',
-                    key: const ValueKey('recovery-key-warning'),
-                    style: onest(13, color: Mid.coral, height: 1.4),
-                  ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    key: const ValueKey('recovery-key-continue'),
-                    onPressed: _busy ? null : _continue,
-                    child: const Text('Continue'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// The field a recovery key is typed into, shared by the entry screen and
@@ -326,9 +312,9 @@ class _RecoveryKeyEntryScreenState extends State<RecoveryKeyEntryScreen> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    final problem = RecoveryKey.problem(_controller.text);
+    final problem = RecoveryKey.check(_controller.text);
     if (problem != null) {
-      setState(() => _error = problem);
+      setState(() => _error = keyProblem(context.t, problem));
       return;
     }
     setState(() => _busy = true);
@@ -365,68 +351,71 @@ class _RecoveryKeyEntryScreenState extends State<RecoveryKeyEntryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Mid.ground,
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter your recovery key',
-                style: onest(22, weight: 600, letterSpacing: -0.3),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                widget.message,
-                key: const ValueKey('recovery-key-message'),
-                style: onest(14, color: Mid.ink2, height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              RecoveryKeyField(
-                controller: _controller,
-                errorText: _error,
-                onSubmitted: _submit,
-                onChanged: () {
-                  if (_error != null) setState(() => _error = null);
-                },
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: TextButton(
-                      key: const ValueKey('recovery-key-generate-new'),
-                      onPressed: _busy ? null : _setUpNew,
-                      child: Text(
-                        widget.ledgerHere
-                            ? 'Start a new ledger instead…'
-                            : 'New to BetterBudget? Set up a ledger',
-                        style: TextStyle(
-                          color: widget.ledgerHere ? Mid.coral : null,
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.startEnterTitle,
+                  style: onest(22, weight: 600, letterSpacing: -0.3),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  widget.message,
+                  key: const ValueKey('recovery-key-message'),
+                  style: onest(14, color: Mid.ink2, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                RecoveryKeyField(
+                  controller: _controller,
+                  errorText: _error,
+                  onSubmitted: _submit,
+                  onChanged: () {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: TextButton(
+                        key: const ValueKey('recovery-key-generate-new'),
+                        onPressed: _busy ? null : _setUpNew,
+                        child: Text(
+                          widget.ledgerHere
+                              ? t.startNewLedgerInstead
+                              : t.startNewToApp,
+                          style: TextStyle(
+                            color: widget.ledgerHere ? Mid.coral : null,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton(
-                    key: const ValueKey('recovery-key-submit'),
-                    onPressed: _busy ? null : _submit,
-                    child: const Text('Continue'),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      key: const ValueKey('recovery-key-submit'),
+                      onPressed: _busy ? null : _submit,
+                      child: Text(t.startContinue),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Says what starting fresh does to the ledger already on this computer.
@@ -435,36 +424,36 @@ class _SetAsideWarning extends StatelessWidget {
   final String? name;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    backgroundColor: Mid.panel,
-    title: Text(
-      'Start a new ledger?',
-      style: onest(17, weight: 600, color: Mid.coral),
-    ),
-    content: SizedBox(
-      width: 420,
-      child: Text(
-        'The ledger already on this computer can only be opened with its own '
-        'recovery key. It won’t be deleted: it’s moved aside'
-        '${name == null ? '' : ' as $name'}, in BetterBudget’s folder, so '
-        'you can open it later if you find its key.',
-        style: onest(13.5, color: Mid.ink, height: 1.4),
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return AlertDialog(
+      backgroundColor: Mid.panel,
+      title: Text(
+        t.startSetAsideTitle,
+        style: onest(17, weight: 600, color: Mid.coral),
       ),
-    ),
-    actions: [
-      BarButton(
-        key: const ValueKey('set-aside-cancel'),
-        label: 'Cancel',
-        onTap: () => Navigator.of(context).pop(false),
+      content: SizedBox(
+        width: 420,
+        child: Text(switch (name) {
+          final n? => t.startSetAsideBodyNamed(n),
+          null => t.startSetAsideBody,
+        }, style: onest(13.5, color: Mid.ink, height: 1.4)),
       ),
-      FilledButton(
-        key: const ValueKey('set-aside-confirm'),
-        style: FilledButton.styleFrom(backgroundColor: Mid.coral),
-        onPressed: () => Navigator.of(context).pop(true),
-        child: const Text('Move it aside and start new'),
-      ),
-    ],
-  );
+      actions: [
+        BarButton(
+          key: const ValueKey('set-aside-cancel'),
+          label: t.startCancel,
+          onTap: () => Navigator.of(context).pop(false),
+        ),
+        FilledButton(
+          key: const ValueKey('set-aside-confirm'),
+          style: FilledButton.styleFrom(backgroundColor: Mid.coral),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(t.startSetAsideConfirm),
+        ),
+      ],
+    );
+  }
 }
 
 /// Settings → Security's "Check my recovery key…": the user types the key
@@ -476,16 +465,16 @@ Future<bool> showCheckRecoveryKeyDialog(
 ) async =>
     await showDialog<bool>(
       context: context,
-      builder: (_) => _KeyDialog(
-        title: 'Check your recovery key',
-        body:
-            'Type the key you saved. BetterBudget checks whether it opens '
-            'this ledger. It never shows the key.',
-        action: 'Check',
-        onKey: (key) async =>
-            await check(key) ? null : 'No · this key doesn’t open this ledger',
-        success: 'Yes · this key opens this ledger',
-      ),
+      builder: (context) {
+        final t = context.t;
+        return _KeyDialog(
+          title: t.startCheckTitle,
+          body: t.startCheckBody,
+          action: t.startCheckAction,
+          onKey: (key) async => await check(key) ? null : t.startCheckNo,
+          success: t.startCheckYes,
+        );
+      },
     ) ??
     false;
 
@@ -498,15 +487,15 @@ Future<bool> showBackupKeyDialog(
 ) async =>
     await showDialog<bool>(
       context: context,
-      builder: (_) => _KeyDialog(
-        title: 'This backup has its own key',
-        body:
-            'It isn’t encrypted with this ledger’s key. It may be from another '
-            'ledger: type that ledger’s recovery key to restore it. Your own '
-            'key doesn’t change.',
-        action: 'Open backup',
-        onKey: tryKey,
-      ),
+      builder: (context) {
+        final t = context.t;
+        return _KeyDialog(
+          title: t.startBackupKeyTitle,
+          body: t.startBackupKeyBody,
+          action: t.startBackupKeyAction,
+          onKey: tryKey,
+        );
+      },
     ) ??
     false;
 
@@ -541,9 +530,9 @@ class _KeyDialogState extends State<_KeyDialog> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    final problem = RecoveryKey.problem(_controller.text);
+    final problem = RecoveryKey.check(_controller.text);
     if (problem != null) {
-      setState(() => _error = problem);
+      setState(() => _error = keyProblem(context.t, problem));
       return;
     }
     setState(() => _busy = true);
@@ -615,7 +604,9 @@ class _KeyDialogState extends State<_KeyDialog> {
               children: [
                 BarButton(
                   key: const ValueKey('key-dialog-close'),
-                  label: _matched ? 'Close' : 'Cancel',
+                  label: _matched
+                      ? context.t.startClose
+                      : context.t.startCancel,
                   onTap: () => Navigator.of(context).pop(_matched),
                 ),
                 FilledButton(

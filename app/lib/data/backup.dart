@@ -53,10 +53,52 @@ class RestoreCandidate {
 /// What a restore replaced and with what, so it can be undone and redone.
 typedef RestoreRecord = ({File before, File restored});
 
-/// A file that can't be restored, with a reason fit to show.
+/// Why a file can't be restored. The UI words it (`restoreProblem` in
+/// ui/data_words.dart).
+enum RestoreProblem {
+  /// No ledger file to restore into.
+  nothingToRestoreInto,
+
+  /// Made by a newer BetterBudget, with a schema this one can't read.
+  newerApp,
+
+  /// Not a BetterBudget backup at all.
+  notABackup,
+
+  /// Encrypted, but not with this ledger's key.
+  needsKey,
+
+  /// The key the user typed doesn't open it either.
+  wrongKey,
+
+  /// Fails SQLite's integrity check, or its rows don't add up.
+  damaged,
+
+  /// Opens, but has no accounts.
+  noAccounts,
+}
+
+/// A file that can't be restored, and why.
 class RestoreException implements Exception {
-  RestoreException(this.message);
-  final String message;
+  RestoreException(this.problem);
+  final RestoreProblem problem;
+
+  /// The reason in English (logs and tests; the UI words [problem]).
+  String get message => switch (problem) {
+    RestoreProblem.nothingToRestoreInto => 'Nothing to restore into',
+    RestoreProblem.newerApp =>
+      'That backup is from a newer BetterBudget · update the app first',
+    RestoreProblem.notABackup => 'That file isn’t a BetterBudget backup',
+    RestoreProblem.needsKey =>
+      'That backup can’t be opened with this ledger’s key · it may be '
+          'from another ledger, or damaged',
+    RestoreProblem.wrongKey =>
+      'That key doesn’t open this backup · it may be from another ledger, '
+          'or damaged',
+    RestoreProblem.damaged => 'That backup is damaged',
+    RestoreProblem.noAccounts => 'That backup has no accounts in it',
+  };
+
   @override
   String toString() => message;
 }
@@ -65,11 +107,7 @@ class RestoreException implements Exception {
 /// another ledger (its own recovery key opens it), or damaged. Pass the key
 /// the user types to [Backups.inspect] as `backupKey`.
 class RestoreNeedsKeyException extends RestoreException {
-  RestoreNeedsKeyException()
-    : super(
-        'That backup can’t be opened with this ledger’s key · it may be '
-        'from another ledger, or damaged',
-      );
+  RestoreNeedsKeyException() : super(RestoreProblem.needsKey);
 }
 
 /// What converting the old plain copies did: how many were encrypted, and
@@ -259,7 +297,9 @@ class Backups {
     Uint8List? backupKey,
   }) async {
     final dir = await folder();
-    if (dir == null) throw RestoreException('Nothing to restore into');
+    if (dir == null) {
+      throw RestoreException(RestoreProblem.nothingToRestoreInto);
+    }
     await dir.create(recursive: true);
     final file = File('${dir.path}/incoming-${fileStamp(now)}.sqlite');
     try {
@@ -270,9 +310,7 @@ class Backups {
         final header = await _header(file);
         final version = ByteData.sublistView(header!).getUint32(60);
         if (version > db.schemaVersion) {
-          throw RestoreException(
-            'That backup is from a newer BetterBudget · update the app first',
-          );
+          throw RestoreException(RestoreProblem.newerApp);
         }
         sourceKeyBind = dataKey == null ? null : '';
       } else {
@@ -281,7 +319,7 @@ class Backups {
           // No key context to try against a non-plain header (tests, or a
           // corrupt/foreign file): can't tell the difference, so this is
           // the same message a truly-invalid file gets.
-          throw RestoreException('That file isn’t a BetterBudget backup');
+          throw RestoreException(RestoreProblem.notABackup);
         }
         final int version;
         try {
@@ -289,15 +327,10 @@ class Backups {
         } catch (e) {
           throw backupKey == null
               ? RestoreNeedsKeyException()
-              : RestoreException(
-                  'That key doesn’t open this backup · it may be from '
-                  'another ledger, or damaged',
-                );
+              : RestoreException(RestoreProblem.wrongKey);
         }
         if (version > db.schemaVersion) {
-          throw RestoreException(
-            'That backup is from a newer BetterBudget · update the app first',
-          );
+          throw RestoreException(RestoreProblem.newerApp);
         }
         sourceKeyBind = rawKeyLiteral(key);
       }
@@ -328,11 +361,11 @@ class Backups {
         if (check.join() != 'ok' ||
             brokenLinks.isNotEmpty ||
             unbalanced.isNotEmpty) {
-          throw RestoreException('That backup is damaged');
+          throw RestoreException(RestoreProblem.damaged);
         }
         final ledger = await copy.loadLedger();
         if (ledger.balanceSheetAccounts.isEmpty) {
-          throw RestoreException('That backup has no accounts in it');
+          throw RestoreException(RestoreProblem.noAccounts);
         }
         return RestoreCandidate(
           file: file,
@@ -345,7 +378,7 @@ class Backups {
         rethrow;
       } catch (e) {
         debugPrint('Backup unreadable: $e');
-        throw RestoreException('That file isn’t a BetterBudget backup');
+        throw RestoreException(RestoreProblem.notABackup);
       } finally {
         await copy.close();
       }

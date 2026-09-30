@@ -1,0 +1,2845 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Mongolian (`mn`).
+class WordsMn extends Words {
+  WordsMn([String locale = 'mn']) : super(locale);
+
+  @override
+  String get languageTitle => 'Хэл';
+
+  @override
+  String get languageSameAsMac => 'Энэ Mac-тай адил';
+
+  @override
+  String get languageSameAsWindows => 'Windows-той адил';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageMongolian => 'Монгол';
+
+  @override
+  String languageShowingNow(String language, String system) {
+    return 'Одоо $language · $system солигдоход дагаж солигдоно';
+  }
+
+  @override
+  String languageUndoLabel(String choice) {
+    return 'Хэл: $choice';
+  }
+
+  @override
+  String get theMac => 'Mac';
+
+  @override
+  String get windowsName => 'Windows';
+
+  @override
+  String dayMonth(String month, String day, int monthNumber, int dayNumber) {
+    return '$monthNumber-р сарын $dayNumber';
+  }
+
+  @override
+  String dayMonthYear(
+    String year,
+    String month,
+    String day,
+    int monthNumber,
+    int dayNumber,
+  ) {
+    return '$year оны $monthNumber-р сарын $dayNumber';
+  }
+
+  @override
+  String calendarMonth(String month, String year, int monthNumber) {
+    return '$year оны $monthNumber-р сар';
+  }
+
+  @override
+  String get monthNames =>
+      '1-р сар|2-р сар|3-р сар|4-р сар|5-р сар|6-р сар|7-р сар|8-р сар|9-р сар|10-р сар|11-р сар|12-р сар';
+
+  @override
+  String get today => 'Өнөөдөр';
+
+  @override
+  String get yesterday => 'Өчигдөр';
+
+  @override
+  String get ledgerOfferRestoreTitle =>
+      'Хамгийн сүүлийн нөөц хуулбараа нээх үү?';
+
+  @override
+  String get ledgerOfferRestoreBody =>
+      'Сэргээх түлхүүр тань энэ компьютер дээр тохирсон. Хэрэв та «Нөөцлөх…» товчоор өөр диск рүү хуулбар хадгалсан бол хамгийн сүүлийнхийг нээж дэвтрээ энд авчирна уу.';
+
+  @override
+  String get ledgerStartEmpty => 'Хоосноос эхлэх';
+
+  @override
+  String get ledgerOpenABackup => 'Нөөц хуулбар нээх…';
+
+  @override
+  String ledgerAdded(String name) {
+    return '$name нэмэгдлээ';
+  }
+
+  @override
+  String ledgerAddedTo(String name, String account) {
+    return '$account дансанд $name нэмэгдлээ';
+  }
+
+  @override
+  String ledgerNewCategory(String name) {
+    return 'шинэ ангилал “$name”';
+  }
+
+  @override
+  String ledgerNewIncomeCategory(String name) {
+    return 'шинэ орлогын ангилал “$name”';
+  }
+
+  @override
+  String ledgerScheduledFor(String date) {
+    return 'товлосон огноо: $date';
+  }
+
+  @override
+  String get ledgerNotInThisView => 'энэ жагсаалтад харагдахгүй';
+
+  @override
+  String ledgerScheduledToast(String date) {
+    return 'Товлосон огноо: $date · бүртгэх хүртэл үлдэгдэлд орохгүй';
+  }
+
+  @override
+  String ledgerCouldntSave(String error) {
+    return 'Хадгалж чадсангүй: $error';
+  }
+
+  @override
+  String ledgerUndoNewerFirst(String shortcut) {
+    return 'Эхлээд сүүлийн өөрчлөлтүүдийг буцаана уу · $shortcut';
+  }
+
+  @override
+  String get ledgerNothingToUndo => 'Буцаах зүйл алга';
+
+  @override
+  String get ledgerNothingToRedo => 'Дахин хийх зүйл алга';
+
+  @override
+  String ledgerCouldntUndo(String action) {
+    return 'Буцааж чадсангүй: “$action” · дараа нь өөрчлөгдсөн';
+  }
+
+  @override
+  String ledgerCouldntRedo(String action) {
+    return 'Дахин хийж чадсангүй: “$action” · дараа нь өөрчлөгдсөн';
+  }
+
+  @override
+  String ledgerUndone(String action) {
+    return 'Буцаалаа · $action';
+  }
+
+  @override
+  String ledgerRedone(String action) {
+    return 'Дахин хийлээ · $action';
+  }
+
+  @override
+  String get ledgerUndo => 'Буцаах';
+
+  @override
+  String get ledgerSaveOrDiscard =>
+      'Хадгалах бол Enter, өөрчлөлтөө хаях бол Esc дарна уу';
+
+  @override
+  String get ledgerFinishReconcileFirst =>
+      'Эхлээд тулгалтаа дуусгах эсвэл болиулна уу';
+
+  @override
+  String ledgerConfirmed(String name) {
+    return '$name бүртгэгдлээ';
+  }
+
+  @override
+  String ledgerConfirmedAmount(String when, String name, String amount) {
+    String _temp0 = intl.Intl.selectLogic(when, {
+      'early': '$name эрт бүртгэгдлээ · $amount',
+      'other': '$name бүртгэгдлээ · $amount',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerConfirmedAmountPlanned(
+    String when,
+    String name,
+    String amount,
+    String planned,
+  ) {
+    String _temp0 = intl.Intl.selectLogic(when, {
+      'early': '$name эрт бүртгэгдлээ · $amount, төлөвлөсөн $planned',
+      'other': '$name бүртгэгдлээ · $amount, төлөвлөсөн $planned',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerStillOwed(String amount, String date) {
+    return 'үлдсэн $amount орох ёстой · $date';
+  }
+
+  @override
+  String ledgerPostedToday(String date) {
+    return 'өнөөдрийн огноогоор бүртгэсэн, $date';
+  }
+
+  @override
+  String ledgerPostedOn(String date) {
+    return 'бүртгэсэн огноо: $date';
+  }
+
+  @override
+  String ledgerUnderEstimate(String amount) {
+    return 'тооцоолсноос $amount бага · Төсөв хэсэгт бууруулж болно';
+  }
+
+  @override
+  String ledgerEdited(String name) {
+    return '$name засагдлаа';
+  }
+
+  @override
+  String ledgerMovedToFuture(String date) {
+    return 'Огноо $date болсон · одоо товлосон, бүртгэх хүртэл үлдэгдэлд орохгүй';
+  }
+
+  @override
+  String get ledgerChangesSaved => 'Өөрчлөлт хадгалагдлаа';
+
+  @override
+  String ledgerTypeADate(String example) {
+    return 'Огноог $example хэлбэрээр бичнэ үү';
+  }
+
+  @override
+  String get ledgerStatementAfterToday =>
+      'Хуулгын огноо өнөөдрөөс хойш байж болохгүй';
+
+  @override
+  String ledgerAlreadyReconciled(String date) {
+    return '$date хүртэл аль хэдийн тулгасан';
+  }
+
+  @override
+  String get ledgerClearedRowsChanged =>
+      'Баталгаажсан мөрүүд өөрчлөгдсөн · зөрүүг дахин шалгана уу';
+
+  @override
+  String ledgerReconciledThrough(String account, String date) {
+    return '$account: $date хүртэл тулгалаа';
+  }
+
+  @override
+  String ledgerLocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр түгжигдлээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerAdjustmentAdded(String amount) {
+    return '$amount залруулга нэмэгдлээ';
+  }
+
+  @override
+  String ledgerReconcileUndone(String date) {
+    return '$date өдрийн тулгалтыг буцаалаа';
+  }
+
+  @override
+  String ledgerBackToCleared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр баталгаажсан төлөвт буцлаа',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerMarkedCleared(String name) {
+    return '$name баталгаажсан гэж тэмдэглэлээ';
+  }
+
+  @override
+  String ledgerMarkedUncleared(String name) {
+    return '$name хүлээгдэж буй гэж тэмдэглэлээ';
+  }
+
+  @override
+  String ledgerCantDeleteTransfer(String account) {
+    return 'Устгах боломжгүй · энэ шилжүүлгийг $account дансанд тулгасан';
+  }
+
+  @override
+  String get ledgerCantDeleteReconciled =>
+      'Устгах боломжгүй · банкны хуулгатай тулгасан';
+
+  @override
+  String ledgerDeleted(String name) {
+    return '$name устгагдлаа';
+  }
+
+  @override
+  String ledgerCantMove(String reason) {
+    return 'Зөөх боломжгүй · $reason';
+  }
+
+  @override
+  String get ledgerCouldntMove => 'Зөөж чадсангүй';
+
+  @override
+  String ledgerMovedTo(String name, String account) {
+    return '$name $account данс руу зөөгдлөө';
+  }
+
+  @override
+  String ledgerTransferToMovedTo(String payee, String account) {
+    return '$payee данс руу хийсэн шилжүүлэг $account данс руу зөөгдлөө';
+  }
+
+  @override
+  String ledgerTransferFromMovedTo(String payee, String account) {
+    return '$payee данснаас ирсэн шилжүүлэг $account данс руу зөөгдлөө';
+  }
+
+  @override
+  String get ledgerUnclearedThere => 'тэнд баталгаажих хүртэл хүлээгдэж буй';
+
+  @override
+  String get ledgerAddIncomeCategoryFirst =>
+      'Эхлээд Төсөв хэсэгт орлогын ангилал нэмнэ үү';
+
+  @override
+  String get ledgerAddBankAccountFirst => 'Эхлээд банкны данс нэмнэ үү';
+
+  @override
+  String get ledgerPayStopped => 'Цалин зогслоо';
+
+  @override
+  String get ledgerPayStoppedToast =>
+      'Цалин товлогдохоо больсон · өнгөрсөн цалингийн өдрүүд хэвээр үлдэнэ';
+
+  @override
+  String get ledgerPaySaved => 'Цалин хадгалагдлаа';
+
+  @override
+  String ledgerPaySavedNext(String date) {
+    return 'Цалин хадгалагдлаа · дараагийн цалингийн өдөр $date';
+  }
+
+  @override
+  String get ledgerNoRegularPay => 'Тогтмол цалингүй';
+
+  @override
+  String get ledgerAskingForPayAgain => 'Цалинг дахин асууна';
+
+  @override
+  String get ledgerNoRegularPayToast =>
+      'Тогтмол цалингүй · апп цалин асуухгүй · Тохиргооноос өөрчилнө';
+
+  @override
+  String get ledgerAskForPayAgainToast => 'Төсөөлөл таны цалинг дахин асууна';
+
+  @override
+  String get ledgerBudgetByMonth => 'Төсөв сараар';
+
+  @override
+  String get ledgerBudgetByPayPeriod => 'Төсөв цалингийн үеэр';
+
+  @override
+  String get ledgerAppearanceTitle => 'Харагдах байдал';
+
+  @override
+  String get ledgerAppearanceLight => 'Цайвар';
+
+  @override
+  String get ledgerAppearanceDark => 'Бараан';
+
+  @override
+  String ledgerAppearanceUndoLabel(String choice) {
+    return 'Харагдах байдал: $choice';
+  }
+
+  @override
+  String ledgerShowingLightNow(String system) {
+    return 'Одоо цайвар · $system солигдоход дагаж солигдоно';
+  }
+
+  @override
+  String ledgerShowingDarkNow(String system) {
+    return 'Одоо бараан · $system солигдоход дагаж солигдоно';
+  }
+
+  @override
+  String get ledgerAllAccounts => 'Бүх данс';
+
+  @override
+  String ledgerCategoryChip(String name) {
+    return 'Ангилал: $name';
+  }
+
+  @override
+  String get ledgerAdd => 'Нэмэх';
+
+  @override
+  String ledgerFilterRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterTotal(String kind, String amount) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'received': '$amount орсон',
+      'paidBack': '$amount буцааж төлсөн',
+      'refunded': '$amount буцаан авсан',
+      'other': '$amount зарцуулсан',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterTotalSince(String kind, String amount, String date) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'received': '$date өдрөөс хойш $amount орсон',
+      'paidBack': '$date өдрөөс хойш $amount буцааж төлсөн',
+      'refunded': '$date өдрөөс хойш $amount буцаан авсан',
+      'other': '$date өдрөөс хойш $amount зарцуулсан',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerFilterScheduled(int count) {
+    return '$count товлосон';
+  }
+
+  @override
+  String get ledgerCouldntAddAccount => 'Данс нэмж чадсангүй';
+
+  @override
+  String get ledgerCouldntSaveBalance => 'Үлдэгдлийг хадгалж чадсангүй';
+
+  @override
+  String ledgerStartedAt(String amount) {
+    return 'Эхний үлдэгдэл $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
+  }
+
+  @override
+  String ledgerStartedAtOwed(String amount) {
+    return 'Эхний өр $amount · банкинд ороогүй гүйлгээгээ л нэмнэ үү';
+  }
+
+  @override
+  String get ledgerCouldntChangeAccount => 'Дансыг өөрчилж чадсангүй';
+
+  @override
+  String get ledgerCouldntChangePay => 'Цалинг өөрчилж чадсангүй';
+
+  @override
+  String get ledgerCouldntChangeBudgetPeriod =>
+      'Төсвийн үеийг өөрчилж чадсангүй';
+
+  @override
+  String get ledgerCouldntChangeCategory => 'Ангиллыг өөрчилж чадсангүй';
+
+  @override
+  String ledgerRenamed(String old, String name) {
+    return 'Нэр солилоо: $old → $name';
+  }
+
+  @override
+  String ledgerIsNowCardOrLoan(String name) {
+    return '$name одоо карт эсвэл зээл';
+  }
+
+  @override
+  String ledgerIsNowBankAccount(String name) {
+    return '$name одоо банкны данс';
+  }
+
+  @override
+  String get ledgerOpeningBalanceFlipped =>
+      'эхний үлдэгдэл нь мөн эсрэгээр солигдлоо';
+
+  @override
+  String ledgerArchiveTitle(String name) {
+    return '$name дансыг архивлах уу?';
+  }
+
+  @override
+  String ledgerArchiveAction(String name) {
+    return '$name дансыг архивлах';
+  }
+
+  @override
+  String ledgerArchived(String name) {
+    return '$name архивлагдлаа';
+  }
+
+  @override
+  String ledgerBackInSidebar(String name) {
+    return '$name хажуугийн цэсэнд буцаж орлоо';
+  }
+
+  @override
+  String ledgerAccountArchivedToast(String name) {
+    return '$name архивлагдлаа · Тохиргооноос буцааж болно';
+  }
+
+  @override
+  String ledgerDeleteTitle(String name) {
+    return '$name дансыг устгах уу?';
+  }
+
+  @override
+  String ledgerDeleteAction(String name) {
+    return '$name дансыг устгах';
+  }
+
+  @override
+  String ledgerMarksPayday(String name) {
+    return '$name цалингийн өдөр болсон';
+  }
+
+  @override
+  String ledgerIsntPayday(String name) {
+    return '$name цалингийн өдөр биш';
+  }
+
+  @override
+  String ledgerIsPaydayToast(String name) {
+    return '$name цалингийн өдөр · төсөөлөл түүнийг хүртэл тооцно';
+  }
+
+  @override
+  String ledgerIsntPaydayToast(String name) {
+    return '$name цалингийн өдөр биш · төсөөлөл түүнийг давж тооцно';
+  }
+
+  @override
+  String ledgerAlreadyCategory(String name) {
+    return '$name нэртэй ангилал аль хэдийн байна';
+  }
+
+  @override
+  String ledgerIsNowIncome(String name) {
+    return '$name одоо орлого';
+  }
+
+  @override
+  String ledgerIsNowSpending(String name) {
+    return '$name одоо зарлага';
+  }
+
+  @override
+  String ledgerIsNowIncomeToast(String name) {
+    return '$name одоо орлого · цалингийн өдөр шиг төсөөллийг дуусгана';
+  }
+
+  @override
+  String ledgerBackInMenus(String name) {
+    return '$name цэсэнд буцаж орлоо';
+  }
+
+  @override
+  String ledgerCategoryArchivedToast(String name) {
+    return '$name архивлагдлаа · мөрүүд нь хэвээр; шинэ мөрөнд сонгох боломжгүй';
+  }
+
+  @override
+  String ledgerMergedInto(String name, String target) {
+    return '$name ангиллыг $target ангилал руу нэгтгэлээ';
+  }
+
+  @override
+  String ledgerRowsMoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр зөөгдлөө',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerDeletedRowsMovedTo(String name, int count, String target) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр',
+    );
+    return '$name устгагдлаа · $_temp0 $target ангилал руу зөөгдлөө';
+  }
+
+  @override
+  String get ledgerBackUpButton => 'Нөөцлөх';
+
+  @override
+  String get ledgerCouldntOpenSaveDialog => 'Хадгалах цонхыг нээж чадсангүй';
+
+  @override
+  String get ledgerCouldntBackUp =>
+      'Нөөцөлж чадсангүй · дискэнд зай байгаа эсэхийг шалгаад дахин оролдоно уу';
+
+  @override
+  String ledgerBackedUp(String file) {
+    return 'Нөөцөллөө · $file';
+  }
+
+  @override
+  String get ledgerBackupFileType => 'BetterBudget нөөц хуулбар';
+
+  @override
+  String get ledgerChoose => 'Сонгох';
+
+  @override
+  String get ledgerCouldntOpenFileDialog => 'Файл сонгох цонхыг нээж чадсангүй';
+
+  @override
+  String get ledgerCouldntReadBackup => 'Тэр нөөц хуулбарыг уншиж чадсангүй';
+
+  @override
+  String get ledgerCouldntRestore => 'Сэргээж чадсангүй · юу ч өөрчлөгдөөгүй';
+
+  @override
+  String ledgerRestoredFrom(String date) {
+    return '$date өдрийн хуулбарыг сэргээлээ';
+  }
+
+  @override
+  String get ledgerWhatYouHadIsSaved => 'өмнөх өгөгдөл тань хадгалагдсан';
+
+  @override
+  String ledgerArchivedName(String name) {
+    return '$name (архивласан)';
+  }
+
+  @override
+  String get ledgerCouldntStartNewLedger =>
+      'Шинэ дэвтэр эхлүүлж чадсангүй · юу ч өөрчлөгдөөгүй';
+
+  @override
+  String get ledgerNewLedgerStarted => 'Шинэ дэвтэр эхэллээ';
+
+  @override
+  String get ledgerEverythingErased =>
+      'Бүгдийг устгалаа · өмнөх өгөгдөл тань нөөц хуулбарт хадгалагдсан';
+
+  @override
+  String ledgerCouldntOpenLedger(String error) {
+    return 'Дэвтрийг нээж чадсангүй: $error';
+  }
+
+  @override
+  String get ledgerGroupAccounts => 'Данс';
+
+  @override
+  String get ledgerGroupCashBank => 'Бэлэн мөнгө ба банк';
+
+  @override
+  String get ledgerGroupCredit => 'Карт, зээл';
+
+  @override
+  String get ledgerSectionLedger => 'Дэвтэр';
+
+  @override
+  String get ledgerSectionBudget => 'Төсөв';
+
+  @override
+  String get ledgerSectionSavings => 'Хуримтлал';
+
+  @override
+  String get ledgerNetWorth => 'Цэвэр хөрөнгө';
+
+  @override
+  String ledgerInclArchived(String amount) {
+    return 'үүнээс $amount архивласан дансанд';
+  }
+
+  @override
+  String get ledgerDailyCopyFailing => 'Өдөр бүрийн хуулбар хийгдэхгүй байна';
+
+  @override
+  String get ledgerSettings => 'Тохиргоо';
+
+  @override
+  String get ledgerBackupsTitle => 'Нөөц хуулбар';
+
+  @override
+  String get ledgerDailyCopy => 'Өдрийн хуулбар';
+
+  @override
+  String ledgerTimeAt(String day, String time) {
+    return '$day $time';
+  }
+
+  @override
+  String ledgerDailyCopyFailingSince(String when) {
+    return 'Хийгдэхгүй байна · сүүлийн хуулбар: $when. Дискэнд зай байгаа эсэхийг шалгаад өөр диск рүү нөөцлөнө үү.';
+  }
+
+  @override
+  String get ledgerDailyCopyFailingNone =>
+      'Хийгдэхгүй байна. Дискэнд зай байгаа эсэхийг шалгаад өөр диск рүү нөөцлөнө үү.';
+
+  @override
+  String get ledgerDailyCopyNone =>
+      'Одоогоор алга · апп нээлттэй өдөр бүр нэгийг хийнэ';
+
+  @override
+  String ledgerDailyCopyWhen(String when) {
+    return '$when · энэ компьютер дээр';
+  }
+
+  @override
+  String get ledgerKept => 'Хадгалагдана';
+
+  @override
+  String get ledgerKeptWhich =>
+      'Сүүлийн 14, мөн нэг жилийн турш сар бүрийн эхнийх';
+
+  @override
+  String get ledgerBackUpTo => 'Нөөцлөх…';
+
+  @override
+  String get ledgerRestoreFrom => 'Нөөцөөс сэргээх…';
+
+  @override
+  String get ledgerBackupsNote =>
+      'Өдөр бүрийн хуулбарууд энэ компьютер дээр байдаг тул компьютер алга болох, эвдэрвэл тус болохгүй: үе үе өөр диск эсвэл USB флаш руу нөөцлөөрэй. Сэргээхээс өмнө одоо байгаа өгөгдлийг тань хадгалах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get ledgerSecurityTitle => 'Аюулгүй байдал';
+
+  @override
+  String get ledgerSecurityKeySaved =>
+      'Таны дэвтэр болон нөөц хуулбаруудыг шифрлэсэн. Сэргээх түлхүүр тань тэдгээрийг өөр компьютер дээр нээнэ, гэхдээ энэ компьютерээ алдвал зөвхөн гадагш хадгалсан хуулбарууд (Нөөцлөх…) л үлдэнэ. BetterBudget түлхүүрийн хуулбарыг хадгалдаггүй.';
+
+  @override
+  String get ledgerSecurityKeyNotSaved =>
+      'Таны дэвтэр болон нөөц хуулбаруудыг шифрлэсэн. Сэргээх түлхүүрийг харуулах үед хадгалаагүй, хуулаагүй бөгөөд BetterBudget түүний хуулбарыг хадгалдаггүй: энэ компьютер алга болбол тэдгээрийг нээх боломжгүй.';
+
+  @override
+  String get ledgerCheckRecoveryKey => 'Сэргээх түлхүүрээ шалгах…';
+
+  @override
+  String get ledgerStartOverTitle => 'Шинээр эхлэх';
+
+  @override
+  String get ledgerStartOverNote =>
+      'Энэ нь дэвтрийн бүх данс, гүйлгээг устгаж, та хоосноос эхэлнэ. Ангиллууд үлдэх эсэхийг та сонгоно. Одоо байгаа өгөгдөл тань эхлээд нөөц хуулбарт хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get ledgerEraseAndStartOverButton => 'Бүгдийг устгаж шинээр эхлэх…';
+
+  @override
+  String get ledgerRestoreTitle => 'Энэ нөөц хуулбарыг сэргээх үү?';
+
+  @override
+  String get ledgerBackupFrom => 'Хуулбарын огноо';
+
+  @override
+  String get ledgerItHolds => 'Агуулга';
+
+  @override
+  String get ledgerHereNow => 'Одоо энд';
+
+  @override
+  String ledgerCounts(int transactions, int accounts) {
+    String _temp0 = intl.Intl.pluralLogic(
+      transactions,
+      locale: localeName,
+      other: '$transactions гүйлгээ',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      accounts,
+      locale: localeName,
+      other: '$accounts данс',
+    );
+    return '$_temp0 · $_temp1';
+  }
+
+  @override
+  String get ledgerRestoreNote =>
+      'Энд байгаа бүх зүйлийг нөөц хуулбараар солино. Одоо байгаа өгөгдөл тань эхлээд хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get ledgerCancel => 'Болих';
+
+  @override
+  String get ledgerRestore => 'Сэргээх';
+
+  @override
+  String ledgerOwed(String amount) {
+    return '$amount өр';
+  }
+
+  @override
+  String get ledgerYourPay => 'Таны цалин';
+
+  @override
+  String ledgerReconciles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count тулгалт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerPayees => 'Харилцагчид';
+
+  @override
+  String get ledgerBudgetSavingsSettings => 'Төсөв ба Хуримтлалын тохиргоо';
+
+  @override
+  String ledgerMoreAccounts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'өөр $count данс',
+    );
+    return '+ $_temp0';
+  }
+
+  @override
+  String ledgerTransactionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count гүйлгээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerEraseTitle => 'Бүгдийг устгаж шинээр эхлэх үү?';
+
+  @override
+  String get ledgerAllOfThisErased => 'Эдгээр бүгд устна:';
+
+  @override
+  String get ledgerStartWithNothing =>
+      'Та апп-д ямар ч данс, мөнгөгүйгээр эхэлнэ.';
+
+  @override
+  String ledgerYourCategories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангилал',
+    );
+    return 'Таны $_temp0';
+  }
+
+  @override
+  String get ledgerKeepThemEmpty => 'Хоосон үлдээх';
+
+  @override
+  String get ledgerEraseThemToo => 'Тэдгээрийг мөн устгах';
+
+  @override
+  String get ledgerKeptNoRows =>
+      'Мөргүйгээр үлдэж, жинхэнэ данснуудад тань бэлэн байна.';
+
+  @override
+  String get ledgerAddCategoriesAgain =>
+      'Ангиллуудаа Төсөв хэсэгт дахин нэмнэ.';
+
+  @override
+  String get ledgerEraseNote =>
+      'Одоо байгаа өгөгдөл тань эхлээд нөөц хуулбарт хадгалагдана. Буцаах эсвэл дараа нь «Нөөцөөс сэргээх…» түүнийг эргүүлж авчирна.';
+
+  @override
+  String get ledgerEraseEverything => 'Бүгдийг устгах';
+
+  @override
+  String get ledgerSearchHint => 'Харилцагч, тэмдэглэл, дүн';
+
+  @override
+  String ledgerPeriodChip(String period, String start, String end) {
+    return '$period · $start–$end';
+  }
+
+  @override
+  String get ledgerDbReconciled =>
+      'Тулгасан · огноо, дүн нь банкны хуулгатай таарсан';
+
+  @override
+  String get ledgerDbOwnAccount =>
+      'Данснаас яг тэр данс руу нь шилжүүлэх боломжгүй';
+
+  @override
+  String get ledgerDbFutureConfirm => 'Ирээдүйн огноогоор бүртгэх боломжгүй';
+
+  @override
+  String get ledgerDbOpeningStays =>
+      'Эхний үлдэгдэл, залруулгыг зөөх боломжгүй';
+
+  @override
+  String get ledgerDbAlreadyThere => 'Энэ гүйлгээ тэр дансанд аль хэдийн бий';
+
+  @override
+  String get ledgerDbNotInAccount => 'Энэ дансанд байхгүй';
+
+  @override
+  String get ledgerDbNotAnAccount => 'Данс биш';
+
+  @override
+  String get ledgerDbSplitNotEditable =>
+      'Хуваасан гүйлгээний мөрүүдийг одоогоор засах боломжгүй';
+
+  @override
+  String get ledgerDbChangedSince => 'Дараа нь өөрчлөгдсөн';
+
+  @override
+  String get ledgerDbStillHasRows =>
+      'Энэ ангилалд гүйлгээ байна · хаашаа шилжүүлэхийг сонгоно уу';
+
+  @override
+  String get ledgerDbNotSingleCategory => 'Нэг ангилалтай гүйлгээ биш';
+
+  @override
+  String get ledgerDbPayIsIn => 'Цалин бол орж ирэх мөнгө';
+
+  @override
+  String get ledgerDbNotCategoryKind => 'Ангиллын төрөл биш';
+
+  @override
+  String get ledgerDbNotCategory => 'Ангилал биш';
+
+  @override
+  String get ledgerDbSameCategory => 'Ижил ангилал';
+
+  @override
+  String get ledgerDbAccountDeleted => 'Тэр дансыг устгасан';
+
+  @override
+  String get ledgerDbNeverReconciled => 'Тулгаж байгаагүй';
+
+  @override
+  String get planEverythingCleared => 'Бүгд баталгаажсан';
+
+  @override
+  String planNotClearedYet(int count) {
+    return '$count гүйлгээ баталгаажаагүй';
+  }
+
+  @override
+  String get planWorking => 'Үлдэгдэл';
+
+  @override
+  String get planOwed => 'Өр';
+
+  @override
+  String get planNeverReconciled => 'Тулгаж байгаагүй';
+
+  @override
+  String planLastReconciled(String date) {
+    return 'Сүүлд тулгасан: $date';
+  }
+
+  @override
+  String get planReconcile => 'Тулгах';
+
+  @override
+  String planLateSeveral(String amount, int count) {
+    return '+$amount орлого, $count нь ирээгүй';
+  }
+
+  @override
+  String planLateToday(String amount) {
+    return '+$amount орлого, өнөөдөр орох ёстой';
+  }
+
+  @override
+  String planLateDays(String amount, int days) {
+    return '+$amount орлого, $days хоног хоцорсон';
+  }
+
+  @override
+  String get planLateNotCounted => ' · тооцоогүй';
+
+  @override
+  String get planNothingScheduled => 'Товлосон зүйл алга';
+
+  @override
+  String planCreditAfter(String amount, String date) {
+    return '$date гэхэд $amount илүү төлөлттэй';
+  }
+
+  @override
+  String planOwedAfterDate(String amount, String date) {
+    return '$date гэхэд $amount өртэй';
+  }
+
+  @override
+  String planCardCharges(int charges, String chargeTotal, String date) {
+    return '$date хүртэл $charges зарлага · $chargeTotal';
+  }
+
+  @override
+  String planCardPayments(int payments, String paymentTotal, String date) {
+    return '$date хүртэл $payments төлөлт · $paymentTotal';
+  }
+
+  @override
+  String planCardChargesPayments(
+    int charges,
+    String chargeTotal,
+    int payments,
+    String paymentTotal,
+    String date,
+  ) {
+    return '$date хүртэл $charges зарлага · $chargeTotal · $payments төлөлт · $paymentTotal';
+  }
+
+  @override
+  String get planCardNothing => 'Дараагийн 30 хоногт зарлага, төлөлт алга';
+
+  @override
+  String get planBelowZeroNow => 'Одоо хасахад орсон';
+
+  @override
+  String planBelowZeroShort(String amount) {
+    return 'Одоо хасахад орсон · $amount хүртэл дутна';
+  }
+
+  @override
+  String planBelowZeroUnless(String amount) {
+    return 'Өнөөдөр орох $amount ирэхгүй бол одоо хасахад орно';
+  }
+
+  @override
+  String planRunsOutUnless(String date, String amount) {
+    return 'Өнөөдөр орох $amount ирэхгүй бол $date гэхэд мөнгө дуусна';
+  }
+
+  @override
+  String planRunsOut(String date, String amount) {
+    return 'Мөнгө дуусах өдөр: $date · $amount хүртэл дутна';
+  }
+
+  @override
+  String planLowest(String amount, String date) {
+    return 'Доод үлдэгдэл $amount · $date';
+  }
+
+  @override
+  String get planNoBillsOrIncome => 'Дараагийн 30 хоногт төлбөр, орлого алга';
+
+  @override
+  String planNoBillsBefore(String date) {
+    return '$date хүртэл төлбөр алга';
+  }
+
+  @override
+  String planInBefore(String amount, String date) {
+    return '$date хүртэл +$amount орно';
+  }
+
+  @override
+  String planBillsBefore(int count, String amount, String date) {
+    return '$date хүртэл $count төлбөр · $amount';
+  }
+
+  @override
+  String planBillsBeforeIn(
+    int count,
+    String amount,
+    String date,
+    String inAmount,
+  ) {
+    return '$date хүртэл $count төлбөр · $amount · +$inAmount орно';
+  }
+
+  @override
+  String get planNext30Days => 'Дараагийн 30 хоног';
+
+  @override
+  String get planUntilNextIncome => 'Дараагийн орлого хүртэл';
+
+  @override
+  String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
+
+  @override
+  String planUntilDate(String date) {
+    return '$date хүртэл';
+  }
+
+  @override
+  String get planBalanceAfter => 'Үлдэх дүн';
+
+  @override
+  String get planOwedAfter => 'Үлдэх өр';
+
+  @override
+  String planTransferTo(String account) {
+    return '$account данс руу';
+  }
+
+  @override
+  String planTransferFrom(String account) {
+    return '$account данснаас';
+  }
+
+  @override
+  String planAtLeastEstimate(String category) {
+    return '$category · багадаа, ойролцоогоор';
+  }
+
+  @override
+  String get planBudget => 'Төсөв';
+
+  @override
+  String get planAddCategory => 'Ангилал нэмэх';
+
+  @override
+  String get planAddCategoryTip => 'Шинэ ангилал нэмэх';
+
+  @override
+  String get planSpending => 'Зарлага';
+
+  @override
+  String get planIncome => 'Орлого';
+
+  @override
+  String planShowArchived(int count) {
+    return 'Архивласныг харуулах ($count)';
+  }
+
+  @override
+  String planHideArchived(int count) {
+    return 'Архивласныг нуух ($count)';
+  }
+
+  @override
+  String get planShowInMenus => 'Цэсэнд харуулах';
+
+  @override
+  String get planNotPayday => 'цалингийн өдөр биш';
+
+  @override
+  String get planPaydayNoRegular => 'цалингийн өдөр · тогтмол цалингүй';
+
+  @override
+  String get planPaydayNotSetUp => 'цалин тохируулаагүй';
+
+  @override
+  String planMorePay(int count) {
+    return ' · өөр $count цалин';
+  }
+
+  @override
+  String get planRaiseSplit =>
+      'Сүүлийн 6 цалин бүгд тооцоолсон дүнгээс 5%-иас их орсон · нэмэх үү?';
+
+  @override
+  String planRaiseLowest(String amount) {
+    return 'Сүүлийн 6 цалингийн хамгийн бага нь $amount · тооцоолсон дүнг нэмэх үү?';
+  }
+
+  @override
+  String planLastTwoLess(String amount) {
+    return 'Сүүлийн 2 цалин $amount орсон, төлөвлөснөөс бага · шинэчлэх үү?';
+  }
+
+  @override
+  String planLastTwoMore(String amount) {
+    return 'Сүүлийн 2 цалин $amount орсон · дүнг шинэчлэх үү?';
+  }
+
+  @override
+  String planPaydayPay(String pay) {
+    return 'цалингийн өдөр · $pay';
+  }
+
+  @override
+  String planPaydayPayNext(String pay, String date) {
+    return 'цалингийн өдөр · $pay · дараагийнх $date';
+  }
+
+  @override
+  String get planNoRows => 'гүйлгээ алга';
+
+  @override
+  String planUsageRows(int count) {
+    return '$count гүйлгээ';
+  }
+
+  @override
+  String planUsageRowsLast(int count, String date) {
+    return '$count гүйлгээ · сүүлд $date';
+  }
+
+  @override
+  String planUsageScheduled(int count) {
+    return '$count товлосон';
+  }
+
+  @override
+  String get planClickToRename => 'Дарж нэрийг солих';
+
+  @override
+  String get planShowTheseRows => 'Эдгээр гүйлгээг харуулах';
+
+  @override
+  String get planRename => 'Нэр солих';
+
+  @override
+  String get planPayMenu => 'Цалин…';
+
+  @override
+  String get planUnmarkPayday => 'Цалингийн өдөр биш';
+
+  @override
+  String get planMarkPayday => 'Цалингийн өдөр болгох';
+
+  @override
+  String get planChangeToSpending => 'Зарлага болгох';
+
+  @override
+  String get planChangeToIncome => 'Орлого болгох';
+
+  @override
+  String get planArchive => 'Архивлах';
+
+  @override
+  String get planDeleteMenu => 'Устгах…';
+
+  @override
+  String get planCategoryName => 'Ангиллын нэр';
+
+  @override
+  String get planCancel => 'Болих';
+
+  @override
+  String get planAdd => 'Нэмэх';
+
+  @override
+  String get planIncomeEndsForecast =>
+      'Орлого нь цалингийн өдөр шиг төсөөллийг дуусгана.';
+
+  @override
+  String get planNothingFiled => 'Энэ ангилалд одоогоор гүйлгээ алга.';
+
+  @override
+  String get planOnlyDeletedFiled =>
+      'Энэ ангилалд зөвхөн устгасан гүйлгээ бий. Тэдгээр нь дараах ангилал руу шилжинэ:';
+
+  @override
+  String planRowsFiled(int count) {
+    return 'Энэ ангилалд $count гүйлгээ бий. Тэдгээр нь дараах ангилал руу шилжинэ:';
+  }
+
+  @override
+  String planRowsFiledScheduled(int count, int scheduled) {
+    return 'Энэ ангилалд $count гүйлгээ бий, үүнээс $scheduled нь товлосон. Тэдгээр нь дараах ангилал руу шилжинэ:';
+  }
+
+  @override
+  String planIntoIncome(String name) {
+    return '$name бол орлого: эдгээр гүйлгээ орлогод тооцогдоно.';
+  }
+
+  @override
+  String planIntoIncomeScheduled(String name) {
+    return '$name бол орлого: эдгээр гүйлгээ орлогод тооцогдож, товлосон нь төсөөллийг дуусгана.';
+  }
+
+  @override
+  String planIntoSpending(String name) {
+    return '$name бол зарлага: эдгээр гүйлгээ орлогод тооцогдохоо болино.';
+  }
+
+  @override
+  String planIntoSpendingScheduled(String name) {
+    return '$name бол зарлага: эдгээр гүйлгээ орлогод тооцогдохоо болиод, төсөөллийг дуусгахаа болино.';
+  }
+
+  @override
+  String planMergeTitle(String name, String into) {
+    return '$name ангиллыг $into ангилалд нэгтгэх үү?';
+  }
+
+  @override
+  String planDeleteTitle(String name) {
+    return '$name ангиллыг устгах уу?';
+  }
+
+  @override
+  String get planNoOtherCategory =>
+      'Шилжүүлэх өөр ангилал алга. Эхлээд ангилал нэмэх хэрэгтэй.';
+
+  @override
+  String get planPickCategory => 'Ангилал сонгох';
+
+  @override
+  String planDeleteButton(String name) {
+    return '$name ангиллыг устгах';
+  }
+
+  @override
+  String planMergeButton(String into) {
+    return '$into ангилалд нэгтгэх';
+  }
+
+  @override
+  String planMoveAndDelete(String into) {
+    return '$into ангилал руу шилжүүлээд устгах';
+  }
+
+  @override
+  String get planSavings => 'Хуримтлал';
+
+  @override
+  String get planAllStepsDone => 'Бүх алхам биелсэн';
+
+  @override
+  String get planOneStepAtATime => 'Алхам алхмаар бэлтгэлээ хангах';
+
+  @override
+  String get planCourseNote =>
+      '«Өөртөө найдах чадварын төлөө хувийн санхүү» сургалтын дарааллаар: алхам бүр дараагийнхыг илүү найдвартай болгоно.';
+
+  @override
+  String get planStepOneMonth => 'Нэг сарын зардлын нөөц';
+
+  @override
+  String get planStepHealth => 'Эрүүл мэндийн даатгал';
+
+  @override
+  String get planStepConsumerDebt => 'Хэрэглээний өргүй';
+
+  @override
+  String planStepMoreMonths(int months) {
+    return '$months сарын зардлын нөөц';
+  }
+
+  @override
+  String get planStepRetirement => 'Тэтгэврийн хуримтлал';
+
+  @override
+  String get planStepLongLoans =>
+      'Орон сууцны болон оюутны зээлээ төлж дуусгах';
+
+  @override
+  String get planNow => 'Одоо';
+
+  @override
+  String get planSetAside => 'Хойшлуулсан';
+
+  @override
+  String planSetAsideUndo(String step) {
+    return '«$step» хойшлуулсан';
+  }
+
+  @override
+  String planBackInStepsUndo(String step) {
+    return '«$step» алхмуудад буцаж орсон';
+  }
+
+  @override
+  String planMonthUnknown(int days) {
+    return 'Таны сарын зарлага одоохондоо тодорхойгүй ($days хоногийн гүйлгээ бий). Дүнгээ оруулах эсвэл хэдэн долоо хоногийн дараа эргэж үзээрэй.';
+  }
+
+  @override
+  String planMonthNoSpending(int days) {
+    return 'Сүүлийн $days хоногт тооцох зарлага алга. Нэг сарын зардлаа оруулаарай.';
+  }
+
+  @override
+  String planMonthTyped(String amount) {
+    return 'Нэг сарын зардал: $amount, таны оруулсан дүн';
+  }
+
+  @override
+  String planMonthAverage3(String amount, String loans) {
+    String _temp0 = intl.Intl.selectLogic(loans, {
+      'yes': ', зээлийн төлөлт орсон',
+      'other': '',
+    });
+    return 'Нэг сарын зардал: $amount, сүүлийн 3 сарын дундаж$_temp0';
+  }
+
+  @override
+  String planMonthAverageDays(String amount, int days, String loans) {
+    String _temp0 = intl.Intl.selectLogic(loans, {
+      'yes': ', зээлийн төлөлт орсон',
+      'other': '',
+    });
+    return 'Нэг сарын зардал: $amount, сүүлийн $days хоногийн дундаж$_temp0';
+  }
+
+  @override
+  String planFundOf(String fund, String target) {
+    return '$fund / $target';
+  }
+
+  @override
+  String planFundOfToGo(String fund, String target, String left) {
+    return '$fund / $target · $left дутуу';
+  }
+
+  @override
+  String get planWhichAccount =>
+      'Энэ мөнгийг аль дансанд хадгалах вэ? Доороос сонгоорой. Хүссэн үедээ авч болох ч зарцуулдаггүй хадгаламж хамгийн тохиромжтой.';
+
+  @override
+  String get planKeepReachable =>
+      'Хэрэгтэй үедээ авч болох газар хадгалаарай. Ашигласан бол юуны өмнө буцааж нөхөөрэй.';
+
+  @override
+  String planMinimumsOn(String names) {
+    return 'Нөөц бүрдэх хүртэл зөвхөн хамгийн бага төлөх дүнг нь төлөөрэй: $names.';
+  }
+
+  @override
+  String get planEnoughForJobLoss =>
+      'Ажилгүй болох эсвэл удаан өвдөх үед хүрэлцэх хэмжээ.';
+
+  @override
+  String get planHealthYes => 'Танд бий';
+
+  @override
+  String get planHealthWhat => 'Даатгал, эсвэл эмчилгээ авах өөр боломж';
+
+  @override
+  String get planRetirementYes => 'Та мөнгө хийж байгаа';
+
+  @override
+  String get planRetirementWhat => 'Тэтгэврийн санд, цалингаасаа эсвэл өөрөө';
+
+  @override
+  String get planEmployerMatch =>
+      'Таны хийсэн мөнгөтэй адил дүнг ажил олгогч нэмж хийдэг бол тэр нэмэлтийг бүтэн авахуйц хэмжээгээр хийгээрэй.';
+
+  @override
+  String get planIHaveIt => 'Надад бий';
+
+  @override
+  String get planIAm => 'Хийж байна';
+
+  @override
+  String planAnswerYesUndo(String step) {
+    return '$step: тийм';
+  }
+
+  @override
+  String planAnswerNotYetUndo(String step) {
+    return '$step: одоохондоо үгүй';
+  }
+
+  @override
+  String get planNoCardsOwing => 'Өртэй карт, зээл алга';
+
+  @override
+  String planAmountOwed(String amount) {
+    return '$amount өр';
+  }
+
+  @override
+  String get planPayExtraGuide =>
+      'Нэг удаад нэгэнд нь илүү төлөөрэй: хамгийн бага үлдэгдэлтэй эсвэл хамгийн өндөр хүүтэйгээс нь эхэлж болно, аль аль нь зорилгод хүргэнэ. Нэгийг төлж дуусмагц түүний төлбөрийг дараагийнхад нэмээрэй.';
+
+  @override
+  String get planLongNone => 'Танд байхгүй';
+
+  @override
+  String get planLongAsk =>
+      'Танд орон сууцны зээл эсвэл оюутны зээл байгаа юу?';
+
+  @override
+  String get planLongMarkThere =>
+      '«Хэрэглээний өргүй» алхмын доорх зээлүүдийн аль нэг нь ийм бол тэнд тэмдэглээрэй.';
+
+  @override
+  String get planIHaveNone => 'Надад байхгүй';
+
+  @override
+  String get planPayingExtraOnThem => 'Илүү төлж байна';
+
+  @override
+  String get planNotYet => 'Одоохондоо үгүй';
+
+  @override
+  String get planNoLongLoansUndo => 'Орон сууцны болон оюутны зээлгүй';
+
+  @override
+  String get planPayingExtraUndo => 'Зээлдээ илүү төлж байна';
+
+  @override
+  String get planLoansNotYetUndo => 'Зээл: одоохондоо үгүй';
+
+  @override
+  String get planNotPayingExtraUndo => 'Зээлдээ илүү төлөхгүй байна';
+
+  @override
+  String get planPaidOff => 'Төлж дууссан';
+
+  @override
+  String planAmountLeft(String amount) {
+    return '$amount үлдсэн';
+  }
+
+  @override
+  String get planPayingExtra => 'Илүү төлж байна';
+
+  @override
+  String planNamesAnd(String first, String last) {
+    return '$first, $last';
+  }
+
+  @override
+  String get planPickAccount => 'Данс сонгох';
+
+  @override
+  String planKeptIn(String names) {
+    return 'Хадгалдаг данс: $names';
+  }
+
+  @override
+  String planFundOffUndo(String account) {
+    return '$account дансанд яаралтай үеийн нөөц хадгалахаа больсон';
+  }
+
+  @override
+  String planFundOnUndo(String account) {
+    return '$account дансанд яаралтай үеийн нөөц хадгална';
+  }
+
+  @override
+  String get planMonthBackToAverage => 'Нэг сарын зардал: дунджаар тооцно';
+
+  @override
+  String planMonthSet(String amount) {
+    return 'Нэг сарын зардал: $amount';
+  }
+
+  @override
+  String get planTypeMonth => 'Сарын зардал оруулах';
+
+  @override
+  String get planChangeMonth => 'Сарын зардлыг өөрчлөх';
+
+  @override
+  String get planTypeOwnMonth => 'Өөрөө оруулах';
+
+  @override
+  String get planMonthHint => 'Нэг сарын зардал';
+
+  @override
+  String get planSave => 'Хадгалах';
+
+  @override
+  String get planEmptyToAverage => 'Хоосон бол дунджаар тооцно';
+
+  @override
+  String planMonthsChoice(int count) {
+    return '$count сар';
+  }
+
+  @override
+  String planAimingFor(int count) {
+    return 'Зорилго: $count сар';
+  }
+
+  @override
+  String get planRoleMortgage => 'Орон сууцны зээл';
+
+  @override
+  String get planRoleStudentLoan => 'Оюутны зээл';
+
+  @override
+  String get planRolePaidMonthly => 'Сар бүр бүрэн төлдөг';
+
+  @override
+  String get planRoleConsumer => 'Хэрэглээний өр';
+
+  @override
+  String planCountsAsMortgage(String account) {
+    return '$account: орон сууцны зээл гэж тооцно';
+  }
+
+  @override
+  String planCountsAsStudentLoan(String account) {
+    return '$account: оюутны зээл гэж тооцно';
+  }
+
+  @override
+  String planCountsAsPaidMonthly(String account) {
+    return '$account: сар бүр бүрэн төлдөг гэж тооцно';
+  }
+
+  @override
+  String planCountsAsConsumer(String account) {
+    return '$account: хэрэглээний өр гэж тооцно';
+  }
+
+  @override
+  String get planNothingOwed => 'өр алга';
+
+  @override
+  String planPayingExtraOn(String account) {
+    return 'Илүү төлж буй: $account';
+  }
+
+  @override
+  String get planPayExtraOnThis => 'Үүнд илүү төлөх';
+
+  @override
+  String get planPayExtraHere => 'Энд илүү төлнө';
+
+  @override
+  String planCarried(String date) {
+    return '$date өдрөөс хойш өдөр бүр өртэй байна: үлдэгдэл дараа сард шилжиж байна. Сар бүр бүрэн төлдөг гэж тэмдэглэсэн учраас л хэрэглээний өрөнд ороогүй.';
+  }
+
+  @override
+  String get planBringBack => 'Буцааж оруулах';
+
+  @override
+  String get planSetStepAside => 'Энэ алхмыг хойшлуулах';
+
+  @override
+  String get rowsNothingScheduled => 'Товлосон гүйлгээ алга';
+
+  @override
+  String rowsNextOfScheduled(int count) {
+    return '$count товлосноос';
+  }
+
+  @override
+  String get rowsScheduledOnly => 'товлосон';
+
+  @override
+  String get rowsNoTransactions => 'Гүйлгээ алга';
+
+  @override
+  String rowsNothingMatches(String search) {
+    return '“$search” олдсонгүй';
+  }
+
+  @override
+  String rowsNotReconciledThrough(String date) {
+    return '$date хүртэлх, тулгаагүй';
+  }
+
+  @override
+  String get rowsColumnDate => 'Огноо';
+
+  @override
+  String get rowsColumnPayee => 'Харилцагч';
+
+  @override
+  String get rowsColumnCategory => 'Ангилал';
+
+  @override
+  String get rowsColumnAmount => 'Дүн';
+
+  @override
+  String get rowsColumnBalance => 'Үлдэгдэл';
+
+  @override
+  String get rowsColumnOwed => 'Өр';
+
+  @override
+  String get rowsColumnClearedBalance => 'Баталгаажсан үлдэгдэл';
+
+  @override
+  String get rowsColumnAccount => 'Данс';
+
+  @override
+  String get rowsTabAll => 'Бүгд';
+
+  @override
+  String get rowsTabUncleared => 'Хүлээгдэж буй';
+
+  @override
+  String get rowsTabScheduled => 'Товлосон';
+
+  @override
+  String get rowsEdit => 'Засах';
+
+  @override
+  String get rowsCategorize => 'Ангилах';
+
+  @override
+  String get rowsMarkCleared => 'Баталгаажсан болгох';
+
+  @override
+  String get rowsMarkUncleared => 'Хүлээгдэж буй болгох';
+
+  @override
+  String get rowsMoveTo => 'Өөр данс руу';
+
+  @override
+  String get rowsDelete => 'Устгах';
+
+  @override
+  String get rowsReconciledLocked => 'Тулгасан · огноо, дүн түгжээтэй';
+
+  @override
+  String rowsReconciledOnLocked(String date) {
+    return 'Тулгасан: $date · огноо, дүн түгжээтэй';
+  }
+
+  @override
+  String get rowsUndoThisReconcile => 'Энэ тулгалтыг буцаах';
+
+  @override
+  String rowsReconciledInLocked(String account) {
+    return '$account дансанд тулгасан · огноо, дүн түгжээтэй';
+  }
+
+  @override
+  String rowsStatusTip(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'uncleared': 'Хүлээгдэж буй — банкинд хараахан ороогүй, тэнд хүлээгдэж буй гэж харагдаж болно. Банкинд орсны дараа дарна.',
+      'cleared': 'Баталгаажсан — банкинд орсон. Дарвал хүлээгдэж буй болно.',
+      'other': 'Тулгасан — хуулгатай таарсан тул огноо, дүн нь түгжээтэй.',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsStatusTipIn(String account, String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'uncleared':
+          '$account дансанд: Хүлээгдэж буй — банкинд хараахан ороогүй, тэнд хүлээгдэж буй гэж харагдаж болно. Банкинд орсны дараа дарна.',
+      'cleared':
+          '$account дансанд: Баталгаажсан — банкинд орсон. Дарвал хүлээгдэж буй болно.',
+      'other':
+          '$account дансанд: Тулгасан — хуулгатай таарсан тул огноо, дүн нь түгжээтэй.',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get rowsTransferToBefore => '';
+
+  @override
+  String get rowsTransferToAfter => 'данс руу';
+
+  @override
+  String get rowsTransferFromBefore => '';
+
+  @override
+  String get rowsTransferFromAfter => 'данснаас';
+
+  @override
+  String rowsScheduledTransferTo(String account) {
+    return '$account данс руу';
+  }
+
+  @override
+  String rowsScheduledTransferFrom(String account) {
+    return '$account данснаас';
+  }
+
+  @override
+  String get rowsScheduledTip => 'Товлосон — бүртгэх хүртэл үлдэгдэлд орохгүй';
+
+  @override
+  String get rowsConfirm => 'Бүртгэх';
+
+  @override
+  String rowsNewCategoryOption(String name) {
+    return '+ Шинэ ангилал “$name”';
+  }
+
+  @override
+  String rowsDidYouMeanTransfer(String account) {
+    return '“→ $account” гэсэн үү?';
+  }
+
+  @override
+  String rowsNotACategoryPickOne(String typed, String first) {
+    return '“$typed” ангилал алга · $first сонгох, эсвэл + Шинэ ангилал';
+  }
+
+  @override
+  String rowsNotACategoryPickTwo(String typed, String first, String second) {
+    return '“$typed” ангилал алга · $first эсвэл $second сонгох, эсвэл + Шинэ ангилал';
+  }
+
+  @override
+  String get rowsNewCategoryNote => 'шинэ ангилал';
+
+  @override
+  String get rowsNewIncomeCategoryNote => 'шинэ орлогын ангилал';
+
+  @override
+  String rowsTransferFromTo(String from, String to) {
+    return '$from данснаас $to данс руу';
+  }
+
+  @override
+  String rowsTransferAmountFromTo(String amount, String from, String to) {
+    return '$from данснаас $to данс руу $amount';
+  }
+
+  @override
+  String get rowsErrorDate => 'Огноо 2026.09.16 хэлбэртэй байна';
+
+  @override
+  String get rowsErrorSameAccount =>
+      'Тэр данс руу нь шилжүүлэх боломжгүй · өөр данс сонгоно уу';
+
+  @override
+  String rowsErrorNoAccount(String name) {
+    return '“$name” данс алга';
+  }
+
+  @override
+  String rowsErrorAmount(String typed) {
+    return '“$typed” гэснийг дүн гэж уншиж чадсангүй';
+  }
+
+  @override
+  String get rowsSave => 'Хадгалах';
+
+  @override
+  String get rowsAdd => 'Нэмэх';
+
+  @override
+  String rowsSum(String sum) {
+    return '= $sum';
+  }
+
+  @override
+  String rowsSumWithNote(String sum, String note) {
+    return '= $sum · $note';
+  }
+
+  @override
+  String rowsNeeds(String field) {
+    String _temp0 = intl.Intl.selectLogic(field, {
+      'when': 'огноо дутуу',
+      'account': 'данс дутуу',
+      'payee': 'харилцагч дутуу',
+      'category': 'ангилал дутуу',
+      'other': 'дүн дутуу',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsNeedsMore(int count) {
+    return '$count зүйл дутуу';
+  }
+
+  @override
+  String rowsKeyToCancel(String key) {
+    return '$key дарвал болино';
+  }
+
+  @override
+  String get rowsReconciledTip =>
+      'Тулгасан · банкны хуулгатай таарсан тул өөрчлөгдөхгүй';
+
+  @override
+  String get rowsSplitLinesNotBuilt =>
+      'Хуваасан гүйлгээний мөрүүдийг засах боломж одоохондоо алга';
+
+  @override
+  String get rowsOpeningBalanceTip =>
+      'Эхний үлдэгдэл нь өөрийн дансандаа хамаарна';
+
+  @override
+  String get rowsAdjustmentTip => 'Залруулга нь өөрийн дансандаа хамаарна';
+
+  @override
+  String get rowsOtherAccountDeleted => 'Нөгөө данс нь устгагдсан';
+
+  @override
+  String get rowsOtherAccountArchived => 'Нөгөө данс нь архивлагдсан';
+
+  @override
+  String get rowsSplitTotalFollows =>
+      'Хуваасан гүйлгээний дүн нь мөрүүдийнхээ нийлбэр';
+
+  @override
+  String get rowsHintPayee => 'Харилцагч';
+
+  @override
+  String get rowsHintNewPayee => 'Шинэ гүйлгээ — харилцагч';
+
+  @override
+  String get rowsHintMemo => 'Тэмдэглэл';
+
+  @override
+  String get rowsHintCategory => 'Ангилал';
+
+  @override
+  String get rowsHintDate => 'Огноо';
+
+  @override
+  String get rowsHintAccount => 'Данс';
+
+  @override
+  String rowsLessThanPlanned(String amount) {
+    return 'Төлөвлөснөөс $amount дутуу:';
+  }
+
+  @override
+  String rowsStillOwedDue(String date) {
+    return 'Үлдсэнийг хүлээнэ · $date';
+  }
+
+  @override
+  String get rowsPaidInFull => 'Бүтэн орсон';
+
+  @override
+  String get rowsTurnItAround => 'Чиглэлийг эргүүлэх';
+
+  @override
+  String get rowsSwap => 'Эргүүлэх';
+
+  @override
+  String get rowsPreviousMonth => 'Өмнөх сар';
+
+  @override
+  String get rowsNextMonth => 'Дараагийн сар';
+
+  @override
+  String get rowsWeekdayInitials => 'Да|Мя|Лх|Пү|Ба|Бя|Ня';
+
+  @override
+  String get rowsAfterTodayScheduled =>
+      'Өнөөдрөөс хойш · товлосон гүйлгээ болно';
+
+  @override
+  String rowsOrPressKey(String key) {
+    return 'Эсвэл аль ч талбарт $key дарна';
+  }
+
+  @override
+  String get rowsReconcileTitle => 'Тулгах';
+
+  @override
+  String get rowsStatementDate => 'Хуулгын огноо';
+
+  @override
+  String get rowsBankSaysYouOwe => 'Банк дахь өр';
+
+  @override
+  String get rowsBankBalance => 'Банкны үлдэгдэл';
+
+  @override
+  String get rowsNotAvailableBalance => '“Боломжит үлдэгдэл” биш';
+
+  @override
+  String get rowsClearedHere => 'Энд баталгаажсан';
+
+  @override
+  String get rowsOffBy => 'Зөрүү';
+
+  @override
+  String get rowsMatches => 'Таарч байна';
+
+  @override
+  String get rowsBankIsLower => 'Банкных бага';
+
+  @override
+  String get rowsBankIsHigher => 'Банкных их';
+
+  @override
+  String get rowsBankSaysOweLess => 'Банкны мэдээгээр өр бага';
+
+  @override
+  String get rowsBankSaysOweMore => 'Банкны мэдээгээр өр их';
+
+  @override
+  String get rowsHintClearRows =>
+      'Банкинд харагдаж буй гүйлгээг баталгаажуулна уу';
+
+  @override
+  String rowsHintNotCleared(String payee, String date, String amount) {
+    return '$payee ($date) $amount, баталгаажаагүй';
+  }
+
+  @override
+  String rowsHintDatedAfter(String payee, String date, String amount) {
+    return '$payee $amount, огноо нь $date · хуулгаас хойш';
+  }
+
+  @override
+  String rowsHintClearedEarly(String payee, String date, String amount) {
+    return '$payee ($date) $amount, энд баталгаажсан · банкинд хараахан ороогүй юу?';
+  }
+
+  @override
+  String get rowsCancel => 'Болих';
+
+  @override
+  String rowsAddAdjustmentAndLock(String amount) {
+    return '$amount залруулга нэмээд түгжих';
+  }
+
+  @override
+  String get rowsMarkReconciled => 'Тулгасан болгох';
+
+  @override
+  String rowsLockTransactions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count гүйлгээ түгжих',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupOwedStill(String amount) {
+    return 'Энэ дансны өр $amount хэвээр байна.';
+  }
+
+  @override
+  String setupInCredit(String amount) {
+    return 'Илүү төлөлт $amount: банк танд өртэй.';
+  }
+
+  @override
+  String setupStillIn(String amount) {
+    return 'Дансанд $amount үлдсэн байна.';
+  }
+
+  @override
+  String setupOverdrawn(String amount) {
+    return 'Данс хасах үлдэгдэлтэй · $amount дутуу.';
+  }
+
+  @override
+  String get setupAddAccount => 'Данс нэмэх';
+
+  @override
+  String get setupNewAccount => 'Шинэ данс';
+
+  @override
+  String get setupName => 'Нэр';
+
+  @override
+  String get setupKind => 'Төрөл';
+
+  @override
+  String get setupKindBank => 'Банкны данс';
+
+  @override
+  String get setupKindOwed => 'Карт, зээл';
+
+  @override
+  String get setupKindOwedHint =>
+      'Кредит карт, зээл эсвэл Storepay: таны өрийг банк шиг эерэг дүнгээр харуулна.';
+
+  @override
+  String get setupKindBankHint =>
+      'Харилцах данс, хадгаламж эсвэл бэлэн мөнгө. Одоогоор данс зөвхөн төгрөгөөр.';
+
+  @override
+  String get setupCancel => 'Болих';
+
+  @override
+  String get setupStartOwedToday => 'Өнөөдөр энэ дансны өр хэд вэ?';
+
+  @override
+  String get setupStartInToday => 'Өнөөдөр энэ дансны үлдэгдэл хэд вэ?';
+
+  @override
+  String setupStartOwedOn(String date) {
+    return '$date өдөр энэ дансны өр хэд байсан бэ?';
+  }
+
+  @override
+  String setupStartInOn(String date) {
+    return '$date өдөр энэ дансны үлдэгдэл хэд байсан бэ?';
+  }
+
+  @override
+  String get setupYouOwe => 'Таны өр';
+
+  @override
+  String get setupBalance => 'Үлдэгдэл';
+
+  @override
+  String get setupOn => 'Огноо';
+
+  @override
+  String setupCantRead(String text) {
+    return '“$text” гэснийг дүн гэж уншиж чадсангүй';
+  }
+
+  @override
+  String setupDateShouldLook(String example) {
+    return 'Огноо $example хэлбэртэй байна';
+  }
+
+  @override
+  String get setupStartOwedHint =>
+      'Ашигласан дүн, боломжит лимит биш · хоосон бол ₮0-ээс эхэлнэ';
+
+  @override
+  String get setupStartBankHint =>
+      'Банкны апп, хуулга эсвэл тоолсон бэлэн мөнгөнөөс; “Боломжит үлдэгдэл” биш · хоосон бол ₮0-ээс эхэлнэ';
+
+  @override
+  String get setupStartAccount => 'Данс эхлүүлэх';
+
+  @override
+  String get setupRename => 'Нэр солих';
+
+  @override
+  String get setupToBank => 'Банкны данс болгох';
+
+  @override
+  String get setupToOwed => 'Карт, зээл болгох';
+
+  @override
+  String get setupArchiveMenu => 'Архивлах…';
+
+  @override
+  String get setupDeleteMenu => 'Устгах…';
+
+  @override
+  String get setupClickToRename => 'Дарж нэрийг солино';
+
+  @override
+  String setupArchiveBalance(String balance) {
+    return '$balance Энэ нь цэвэр хөрөнгөд тооцогдсоор байх ч данс хажуугийн цэсэнд харагдахгүй.';
+  }
+
+  @override
+  String setupArchiveScheduled(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Товлосон $count мөр ($list) ямар ч төсөөлөлд харагдахгүй.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupArchiveTransfers(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Товлосон $count шилжүүлэг нөгөө дансны төсөөлөлд үлдэнэ ($list). Цуцлагдсан бол тэндээс устгана уу.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get setupDeleteNoRows => 'Данс устгагдана. Өөрийн гүйлгээ байхгүй.';
+
+  @override
+  String setupDeleteRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Данс болон түүний $count гүйлгээ устгагдана.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupDeleteRowsReconciled(int count, int reconciled) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Данс болон түүний $count гүйлгээ устгагдана, үүнээс $reconciled нь тулгасан.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupWorthDown(String amount) {
+    return 'Цэвэр хөрөнгө $amount буурна.';
+  }
+
+  @override
+  String setupWorthUp(String amount) {
+    return 'Цэвэр хөрөнгө $amount өснө.';
+  }
+
+  @override
+  String setupWorthUpOwed(String amount) {
+    return 'Энэ дансны өр цаашид тооцогдохгүй тул цэвэр хөрөнгө $amount өснө.';
+  }
+
+  @override
+  String setupDeletePending(int count, String list) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count нь товлосон хэвээр ($list). Дараа бүртгэвэл байхгүй болсон данснаас мөнгө шилжүүлнэ; цуцлагдсан бол тэндээс устгана уу.',
+      one:
+          'Нэг нь товлосон хэвээр ($list). Дараа бүртгэвэл байхгүй болсон данснаас мөнгө шилжүүлнэ; цуцлагдсан бол тэндээс устгана уу.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupKeptOne(int count, String other, String label) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$other дансны $count шилжүүлэг “$label” нэрээр тэндээ үлдэнэ.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String setupKeptMany(String label, String list) {
+    return 'Шилжүүлгүүд нь бусад дансанд “$label” нэрээр үлдэнэ: $list.';
+  }
+
+  @override
+  String setupKeptOn(int count, String account) {
+    return '$account: $count';
+  }
+
+  @override
+  String get setupArchived => 'Архивласан данс';
+
+  @override
+  String setupAmountOwed(String amount) {
+    return 'Өр $amount';
+  }
+
+  @override
+  String get setupShowInSidebar => 'Хажуугийн цэсэнд харуулах';
+
+  @override
+  String get setupAllAccounts => 'Бүх данс';
+
+  @override
+  String get setupShowEveryRow => 'Бүх мөрийг харуулах · Esc';
+
+  @override
+  String get setupAmountMissing => 'Орох дүнг оруулна уу';
+
+  @override
+  String setupAmountMissingOn(String day) {
+    return 'Сарын $day орох дүнг оруулна уу';
+  }
+
+  @override
+  String get setupAmountMissingFirst =>
+      'Эхний цалингийн өдөр орох дүнг оруулна уу';
+
+  @override
+  String get setupAmountMissingSecond =>
+      'Хоёр дахь цалингийн өдөр орох дүнг оруулна уу';
+
+  @override
+  String setupOnDay(String day) {
+    return 'Сарын $day';
+  }
+
+  @override
+  String setupAtLeastOnDay(String day) {
+    return '$day багадаа';
+  }
+
+  @override
+  String get setupOnFirst => 'Эхний өдөр';
+
+  @override
+  String get setupOnSecond => 'Хоёр дахь өдөр';
+
+  @override
+  String get setupAtLeastOnFirst => 'Эхний өдөр багадаа';
+
+  @override
+  String get setupAtLeastOnSecond => 'Хоёр дахь өдөр багадаа';
+
+  @override
+  String get setupWhichDay => 'Сарын хэдний өдөр вэ?';
+
+  @override
+  String get setupWhichTwoDays => 'Сарын аль хоёр өдөр вэ?';
+
+  @override
+  String get setupTwoDifferentDays => 'Сарын өөр хоёр өдөр';
+
+  @override
+  String get setupHowManyWeeks => 'Хэдэн долоо хоног тутамд вэ?';
+
+  @override
+  String setupWhenPayday(String example) {
+    return 'Цалингийн өдөр хэзээ вэ? ($example)';
+  }
+
+  @override
+  String get setupAddYourPay => 'Цалингаа нэмэх';
+
+  @override
+  String get setupYourPay => 'Таны цалин';
+
+  @override
+  String get setupFiledUnder => 'Ангилал';
+
+  @override
+  String get setupPaidInto => 'Орох данс';
+
+  @override
+  String get setupFrom => 'Хэнээс';
+
+  @override
+  String get setupEmployerHint => 'Ажил олгогч (заавал биш)';
+
+  @override
+  String get setupPayIs => 'Цалин';
+
+  @override
+  String get setupPaySame => 'Ихэвчлэн ижил';
+
+  @override
+  String get setupPayVaries => 'Өөрчлөгддөг';
+
+  @override
+  String get setupVariesHint =>
+      'Цагаар, ээлжээр, илүү цаг: удаа бүр өөр. Урамшууллыг оруулахгүй; тэр цалин бүрт ирдэггүй.';
+
+  @override
+  String get setupExpectAtLeast => 'Багадаа';
+
+  @override
+  String get setupEachPayday => 'Цалин бүрт';
+
+  @override
+  String get setupSameEachPaycheck => 'Цалин бүр ижил';
+
+  @override
+  String get setupDifferentEachPaycheck => 'Цалин бүр өөр дүн';
+
+  @override
+  String setupLastPaycheck(String amount) {
+    return 'Сүүлийн цалин: $amount';
+  }
+
+  @override
+  String setupLastPaychecks(int count, String lowest, String highest) {
+    return 'Сүүлийн $count: хамгийн бага $lowest · хамгийн их $highest';
+  }
+
+  @override
+  String get setupLowEndSafer =>
+      'Төсөөлөл үүнд тулгуурладаг тул бага дүн нь илүү найдвартай: цалингийн өдөр их орж ирэх нь дутуу орохоос дээр.';
+
+  @override
+  String setupHigherThan(int above, int count) {
+    return 'Сүүлийн $count цалингийн $above нь үүнээс бага: төсөөлөл бодит байдлаас сайн харагдаж магадгүй.';
+  }
+
+  @override
+  String get setupWhen => 'Хэзээ';
+
+  @override
+  String get setupMonthly => 'Сар бүр';
+
+  @override
+  String get setupTwiceMonthly => 'Сард хоёр удаа';
+
+  @override
+  String get setupEveryFewWeeks => 'Хэдэн долоо хоног тутам';
+
+  @override
+  String setupOnDayField(String field) {
+    return 'Сар бүрийн $field-нд';
+  }
+
+  @override
+  String setupOnDaysField(String first, String second) {
+    return 'Сар бүрийн $first, $second-нд';
+  }
+
+  @override
+  String setupEveryWeeksField(int count, String weeks, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$weeks долоо хоног тутам, $date өдрөөс',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get setupDaysMeet =>
+      'Богино сард хоёр өдөр хоёулаа сарын сүүлийн өдөрт таарна: тэр сард цалин хоёр биш, нэг удаа орно.';
+
+  @override
+  String get setupOnWeekend => 'Амралтын өдөр';
+
+  @override
+  String get setupFridayBefore => 'Өмнөх баасан';
+
+  @override
+  String get setupMondayAfter => 'Дараагийн даваа';
+
+  @override
+  String get setupBudgetBy => 'Төсвийн үе';
+
+  @override
+  String get setupMonth => 'Сараар';
+
+  @override
+  String get setupPayPeriod => 'Цалингийн үеэр';
+
+  @override
+  String setupPeriodOther(String name) {
+    return 'Төсөв одоогоор “$name” цалингийн үеийг дагаж байна. Энд “Цалингийн үеэр” сонговол энэ цалинд шилжинэ.';
+  }
+
+  @override
+  String setupPaydaysAYear(int count) {
+    return 'Жилд $count цалин: жилийн хоёр сард гурван цалин орно. Цалингийн үеэр төсөвлөвөл цалин бүрийг дагана.';
+  }
+
+  @override
+  String setupNextPayday(String date, String amount) {
+    return 'Дараагийн цалин $date · $amount';
+  }
+
+  @override
+  String setupNextPaydayOrMore(String date, String amount) {
+    return 'Дараагийн цалин $date · багадаа $amount';
+  }
+
+  @override
+  String setupNextPaydayMonthly(String date, String amount, String perMonth) {
+    return 'Дараагийн цалин $date · $amount · сард ойролцоогоор $perMonth';
+  }
+
+  @override
+  String setupNextPaydayOrMoreMonthly(
+    String date,
+    String amount,
+    String perMonth,
+  ) {
+    return 'Дараагийн цалин $date · багадаа $amount · сард ойролцоогоор $perMonth';
+  }
+
+  @override
+  String get setupNoRegularPay => 'Надад тогтмол цалин байхгүй';
+
+  @override
+  String get setupStopPay => 'Цалин товлохоо болих';
+
+  @override
+  String get setupSavePay => 'Цалин хадгалах';
+
+  @override
+  String setupNameArchived(String name) {
+    return '$name (архивласан · буцаатал цалин орохгүй)';
+  }
+
+  @override
+  String get setupBudget => 'Төсөв';
+
+  @override
+  String setupPayPeriodOf(String who) {
+    return 'Цалингийн үеэр · $who';
+  }
+
+  @override
+  String setupCategoryInto(String category, String account) {
+    return '$category · $account';
+  }
+
+  @override
+  String get setupPeriodsFromPay =>
+      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол доор цалингаа нэмээрэй.';
+
+  @override
+  String get setupRunsMonth => 'Төсөв бүр сарын 1-нээс сарын эцэс хүртэл.';
+
+  @override
+  String setupRunsPeriod(String when) {
+    return 'Төсөв бүр нэг цалингийн өдрөөс дараагийн цалингийн өмнөх өдөр хүртэл ($when).';
+  }
+
+  @override
+  String get setupPay => 'Цалин';
+
+  @override
+  String setupPayLine(String category, String amounts, String account) {
+    return '$category · $amounts · данс: $account';
+  }
+
+  @override
+  String get setupEdit => 'Засах';
+
+  @override
+  String get setupSaidNoPay =>
+      'Та тогтмол цалингүй гэж хэлсэн тул төсөөлөл цалин асуухгүй.';
+
+  @override
+  String get setupAskAgain => 'Дахин асуух';
+
+  @override
+  String get setupAddOtherPay => 'Өөр цалин нэмэх';
+
+  @override
+  String get startKeyFileName => 'BetterBudget сэргээх түлхүүр.txt';
+
+  @override
+  String get startSave => 'Хадгалах';
+
+  @override
+  String startKeyFileText(String key, String date) {
+    return 'BetterBudget сэргээх түлхүүр\n\n$key\n\nҮүсгэсэн огноо: $date.\n\nЭнэ түлхүүрээр таны BetterBudget дэвтэр болон түүний нөөц хуулбаруудыг өөр компьютер дээр, эсвэл зарлага бүртгэдэг утсан дээр нээнэ. BetterBudget хуулбарыг нь хадгалдаггүй бөгөөд өөр түлхүүрээр орлуулах боломжгүй: түлхүүргүйгээр дэвтрийг өөр хаана ч нээж чадахгүй.\n\nҮүнийг энэ компьютерээс тусад нь, мөнгөө хамт зохицуулдаг нөгөө хүн тань олж чадах аюулгүй газар хадгалаарай. Энэ файлыг нөөц хуулбаруудтайгаа нэг хавтсанд бүү хадгал.\n';
+  }
+
+  @override
+  String get startKeyTitle => 'Таны сэргээх түлхүүр';
+
+  @override
+  String get startKeyIntro =>
+      'BetterBudget таны дэвтэр болон нөөц хуулбаруудыг шифрлэдэг. Энэ түлхүүрээр тэдгээрийг өөр компьютер дээр, мөн зарлага бүртгэдэг утас бүр дээр нээнэ. Түлхүүрийг зөвхөн энэ удаа харуулна: BetterBudget хуулбарыг нь хадгалдаггүй бөгөөд өөр түлхүүрээр орлуулах боломжгүй.';
+
+  @override
+  String get startKeyWhere =>
+      'Энэ компьютерээс тусад нь, мөнгөө хамт зохицуулдаг нөгөө хүн тань олж чадах газар хадгалаарай: хэвлээд чухал бичиг баримттайгаа хамт, эсвэл өөр диск дээр.';
+
+  @override
+  String get startSaveEllipsis => 'Хадгалах…';
+
+  @override
+  String get startSaved => 'Хадгалсан';
+
+  @override
+  String get startCopy => 'Хуулах';
+
+  @override
+  String get startCopied => 'Хуулсан';
+
+  @override
+  String get startOldCopies =>
+      'Өнөөдрөөс өмнө «Нөөцлөх…»-ээр өөр газар хадгалсан хуулбарууд шифрлээгүй. Тэдгээрийг шинээр «Нөөцлөх…» хийж солиорой.';
+
+  @override
+  String get startCopiedWarning =>
+      'Хуулсан · үргэлжлүүлэхээсээ өмнө энэ компьютерээс гадна хаа нэг газар буулгаж хадгалаарай. Хуулсан зүйл нэг минутын дараа арилна.';
+
+  @override
+  String get startNotKeptWarning =>
+      'Хадгалах эсвэл хуулахгүйгээр үргэлжлүүлбэл түлхүүр үгүй болно: BetterBudget үүнийг дахин харуулж чадахгүй бөгөөд энэ компьютер алга болбол таны дэвтэр болон нөөц хуулбаруудыг нээх боломжгүй.';
+
+  @override
+  String get startContinue => 'Үргэлжлүүлэх';
+
+  @override
+  String get startEnterTitle => 'Сэргээх түлхүүрээ оруулна уу';
+
+  @override
+  String get startNewLedgerInstead => 'Оронд нь шинэ дэвтэр эхлүүлэх…';
+
+  @override
+  String get startNewToApp =>
+      'BetterBudget-ийг анх ашиглаж байна уу? Дэвтэр үүсгэх';
+
+  @override
+  String get startSetAsideTitle => 'Шинэ дэвтэр эхлүүлэх үү?';
+
+  @override
+  String startSetAsideBodyNamed(String name) {
+    return 'Энэ компьютер дээр байгаа дэвтрийг зөвхөн өөрийнх нь сэргээх түлхүүрээр нээнэ. Үүнийг устгахгүй: BetterBudget-ийн хавтсанд $name нэрээр тусад нь хадгална. Түлхүүрийг нь олбол дараа нь нээж болно.';
+  }
+
+  @override
+  String get startSetAsideBody =>
+      'Энэ компьютер дээр байгаа дэвтрийг зөвхөн өөрийнх нь сэргээх түлхүүрээр нээнэ. Үүнийг устгахгүй: BetterBudget-ийн хавтсанд тусад нь хадгална. Түлхүүрийг нь олбол дараа нь нээж болно.';
+
+  @override
+  String get startCancel => 'Болих';
+
+  @override
+  String get startSetAsideConfirm => 'Тусад нь хадгалаад шинээр эхлүүлэх';
+
+  @override
+  String get startCheckTitle => 'Сэргээх түлхүүрээ шалгах';
+
+  @override
+  String get startCheckBody =>
+      'Хадгалсан түлхүүрээ бичнэ үү. BetterBudget түүгээр энэ дэвтэр нээгдэх эсэхийг шалгана. Түлхүүрийг хэзээ ч харуулахгүй.';
+
+  @override
+  String get startCheckAction => 'Шалгах';
+
+  @override
+  String get startCheckNo => 'Үгүй · энэ түлхүүрээр энэ дэвтэр нээгдэхгүй';
+
+  @override
+  String get startCheckYes => 'Тийм · энэ түлхүүрээр энэ дэвтэр нээгдэнэ';
+
+  @override
+  String get startBackupKeyTitle => 'Энэ нөөц хуулбар өөрийн түлхүүртэй';
+
+  @override
+  String get startBackupKeyBody =>
+      'Энэ нь энэ дэвтрийн түлхүүрээр шифрлээгүй. Өөр дэвтрийнх байж магадгүй: сэргээхийн тулд тэр дэвтрийн сэргээх түлхүүрийг бичнэ үү. Таны өөрийн түлхүүр өөрчлөгдөхгүй.';
+
+  @override
+  String get startBackupKeyAction => 'Нөөцийг нээх';
+
+  @override
+  String get startClose => 'Хаах';
+
+  @override
+  String get startKeyCyrillic =>
+      'Гар кирилл үсгээр бичиж байна · түлхүүрийг бичихийн тулд ABC руу шилжүүлнэ үү';
+
+  @override
+  String startKeyLength(int typed, int total) {
+    return '$typed/$total тэмдэгт';
+  }
+
+  @override
+  String get startKeyChecksum =>
+      'Нэг тэмдэгт буруу байна · хадгалсан хуулбартайгаа харьцуулж шалгана уу';
+
+  @override
+  String get startEntryKeptKeyWrong =>
+      'Энэ компьютер дээр хадгалсан түлхүүрээр энд байгаа дэвтэр нээгдэхгүй байна. Нээхийн тулд дэвтрийн сэргээх түлхүүрийг бичнэ үү.';
+
+  @override
+  String get startEntryLedgerHere =>
+      'Энэ компьютер дээр дэвтэр байна. Нээхийн тулд түүний сэргээх түлхүүрийг бичнэ үү.';
+
+  @override
+  String get startEntryNoLedger =>
+      'Энэ компьютер дээр дэвтэр хараахан алга. Өмнө нь BetterBudget ашиглаж байсан бол сэргээх түлхүүрээ бичээд, «Нөөцлөх…»-ээр хадгалсан нөөц хуулбараа нээнэ үү.';
+
+  @override
+  String get startEntryLedgerHereEveryLaunch =>
+      'Энэ компьютерт BetterBudget ашиглаж болох түлхүүр хадгалах сан (keychain) алга тул нээх бүрдээ таны сэргээх түлхүүрийг асууна. Энэ компьютер дээр дэвтэр байна. Нээхийн тулд түүний сэргээх түлхүүрийг бичнэ үү.';
+
+  @override
+  String get startEntryNoLedgerEveryLaunch =>
+      'Энэ компьютерт BetterBudget ашиглаж болох түлхүүр хадгалах сан (keychain) алга тул нээх бүрдээ таны сэргээх түлхүүрийг асууна. Энэ компьютер дээр дэвтэр хараахан алга. Өмнө нь BetterBudget ашиглаж байсан бол сэргээх түлхүүрээ бичээд, «Нөөцлөх…»-ээр хадгалсан нөөц хуулбараа нээнэ үү.';
+
+  @override
+  String get startKeyWrongHere =>
+      'Энэ түлхүүрээр энэ компьютер дээрх дэвтэр нээгдэхгүй';
+
+  @override
+  String startCouldntKeepKey(String error) {
+    return 'Түлхүүрийг энэ компьютер дээр хадгалж чадсангүй · $error';
+  }
+
+  @override
+  String startCouldntKeepKeyNothingEncrypted(String error) {
+    return 'Түлхүүрийг энэ компьютер дээр хадгалж чадсангүй · $error. Юу ч шифрлээгүй.';
+  }
+
+  @override
+  String startCouldntOpen(String error) {
+    return 'Дэвтрийг нээж чадсангүй · $error';
+  }
+
+  @override
+  String startCopiesFailed(int count, String names) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count хуучин хуулбарыг шифрлэж чадсангүй, шифргүй хэвээр байна: $names',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String startCopiesEncrypted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Дэвтрийн $count хуучин хуулбарыг шифрлэлээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String startEncryptedCopyFailed(String name) {
+    return 'Шифрлэсэн хуулбар шалгалтад тэнцсэнгүй: $name';
+  }
+
+  @override
+  String get startRestoreNothingInto => 'Сэргээх дэвтэр алга';
+
+  @override
+  String get startRestoreNewer =>
+      'Энэ нөөц хуулбарыг BetterBudget-ийн шинэ хувилбараар хийсэн · эхлээд аппаа шинэчилнэ үү';
+
+  @override
+  String get startRestoreNotABackup =>
+      'Энэ файл BetterBudget-ийн нөөц хуулбар биш';
+
+  @override
+  String get startRestoreNeedsKey =>
+      'Энэ нөөц хуулбарыг энэ дэвтрийн түлхүүрээр нээх боломжгүй · өөр дэвтрийнх эсвэл гэмтсэн байж магадгүй';
+
+  @override
+  String get startRestoreWrongKey =>
+      'Энэ түлхүүрээр энэ нөөц хуулбар нээгдэхгүй · өөр дэвтрийнх эсвэл гэмтсэн байж магадгүй';
+
+  @override
+  String get startRestoreDamaged => 'Энэ нөөц хуулбар гэмтсэн байна';
+
+  @override
+  String get startRestoreNoAccounts => 'Энэ нөөц хуулбарт данс алга';
+
+  @override
+  String get startUncleared => 'Хүлээгдэж буй';
+
+  @override
+  String get startCleared => 'Баталгаажсан';
+
+  @override
+  String get startReconciled => 'Тулгасан';
+
+  @override
+  String get startOpeningBalance => 'Эхний үлдэгдэл';
+
+  @override
+  String get startOpeningBalances => 'Эхний үлдэгдэл';
+
+  @override
+  String get startBalanceAdjustments => 'Залруулга';
+
+  @override
+  String get startReconcileAdjustment => 'Тулгалтын залруулга';
+
+  @override
+  String get startTransfer => 'Данс хооронд';
+
+  @override
+  String startSplitCategories(int count) {
+    return '$count ангилал';
+  }
+
+  @override
+  String startDeletedAccount(String name) {
+    return '$name (устгасан)';
+  }
+
+  @override
+  String startStaleNote(int days) {
+    return '$days хоног баталгаажаагүй';
+  }
+
+  @override
+  String get startDueYesterday => 'өчигдөр хугацаа нь болсон';
+
+  @override
+  String startDueDaysAgo(int days) {
+    return 'хугацаа нь $days хоногийн өмнө болсон';
+  }
+
+  @override
+  String startDayOn(String ordinal, int day, String isTwo) {
+    String _temp0 = intl.Intl.selectLogic(isTwo, {
+      'yes': '$day-т',
+      'other': '$day-нд',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String startPayMonthly(String day) {
+    return 'сар бүрийн $day';
+  }
+
+  @override
+  String startPayTwiceMonthly(String first, String second, int firstDay) {
+    return 'сар бүрийн $firstDay, $second';
+  }
+
+  @override
+  String get startPayEveryWeek => 'долоо хоног бүр';
+
+  @override
+  String startPayEveryWeeks(int weeks) {
+    return '$weeks долоо хоног тутам';
+  }
+
+  @override
+  String startPayAmountWhen(String amount, String when) {
+    return '$when $amount';
+  }
+
+  @override
+  String startPayAmountOrMoreWhen(String amount, String when) {
+    return '$when $amount буюу түүнээс дээш';
+  }
+
+  @override
+  String startPayAmountDotWhen(String amount, String when) {
+    return '$amount · $when';
+  }
+
+  @override
+  String startPayAmountOrMoreDotWhen(String amount, String when) {
+    return '$amount буюу түүнээс дээш · $when';
+  }
+
+  @override
+  String startPaySplit(
+    String first,
+    String firstDay,
+    String second,
+    String secondDay,
+  ) {
+    return '$firstDay $first, $secondDay $second';
+  }
+
+  @override
+  String startPaySplitAtLeast(
+    String first,
+    String firstDay,
+    String second,
+    String secondDay,
+  ) {
+    return 'багадаа: $firstDay $first, $secondDay $second';
+  }
+
+  @override
+  String get startThisPayPeriod => 'Энэ цалингийн үе';
+
+  @override
+  String get startThisMonth => 'Энэ сар';
+}

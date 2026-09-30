@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import 'data_words.dart';
+import 'language.dart';
 import 'register.dart' show BarButton, Hoverable;
 import 'theme.dart';
 
@@ -105,6 +107,7 @@ class _Balances extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final n = s.unclearedCount;
     int shown(int v) => owed ? -v : v;
     return Column(
@@ -128,7 +131,7 @@ class _Balances extends StatelessWidget {
               status: Cleared.uncleared,
               amount: shown(s.uncleared),
               signed: true,
-              note: n == 0 ? 'Everything has cleared' : '$n not cleared yet',
+              note: n == 0 ? t.planEverythingCleared : t.planNotClearedYet(n),
               hovered: hovered,
               active: active == Cleared.uncleared,
               onTap: () => onTap(Cleared.uncleared),
@@ -136,8 +139,8 @@ class _Balances extends StatelessWidget {
             Container(
               width: _Line.amountWidth,
               height: 1,
-              margin: const EdgeInsets.only(
-                left: _Line.amountLeft,
+              margin: EdgeInsets.only(
+                left: _Line.amountLeft(context),
                 top: 2,
                 bottom: 4,
               ),
@@ -152,8 +155,8 @@ class _Balances extends StatelessWidget {
                   amount: null,
                   // When matters here, not how much: no amount column.
                   label: s.reconciledOn == null
-                      ? 'Never reconciled'
-                      : 'Last reconciled on ${shortDate(s.reconciledOn!)}',
+                      ? t.planNeverReconciled
+                      : t.planLastReconciled(sayDate(t, s.reconciledOn!)),
                   note: '',
                   hovered: hovered,
                   active: active == Cleared.reconciled,
@@ -161,7 +164,7 @@ class _Balances extends StatelessWidget {
                 ),
                 BarButton(
                   key: const ValueKey('reconcile'),
-                  label: 'Reconcile',
+                  label: t.planReconcile,
                   onTap: onReconcile,
                 ),
               ],
@@ -185,10 +188,16 @@ class _Line extends StatelessWidget {
     this.signed = false,
   });
 
-  static const _glyph = 16.0, _gap = 6.0, _label = 84.0, _amount = 200.0;
+  static const _glyph = 16.0, _gap = 6.0, _amount = 200.0;
+
+  /// The names column: "Баталгаажсан" and "Хүлээгдэж буй" need more room
+  /// than "Uncleared" to stay on one line.
+  static double _label(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'mn' ? 112 : 84;
 
   /// Where the amount column sits, for the rule drawn above the total.
-  static const amountLeft = _glyph + _gap + _label;
+  static double amountLeft(BuildContext context) =>
+      _glyph + _gap + _label(context);
   static const amountWidth = _amount;
 
   final Widget glyph;
@@ -210,7 +219,7 @@ class _Line extends StatelessWidget {
       ),
       const SizedBox(width: _gap),
       SizedBox(
-        width: _label,
+        width: _label(context),
         child: Text(label, style: onest(13, color: lit ? Mid.ink : Mid.ink3)),
       ),
       SizedBox(
@@ -253,13 +262,16 @@ class _TotalLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: _Line.amountLeft + _Line.amountWidth,
+    width: _Line.amountLeft(context) + _Line.amountWidth,
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
         const SizedBox(width: _Line._glyph + _Line._gap),
-        Text(owed ? 'Owed' : 'Working', style: onest(13, weight: 500)),
+        Text(
+          owed ? context.t.planOwed : context.t.planWorking,
+          style: onest(13, weight: 500),
+        ),
         const Spacer(),
         Money(
           amount,
@@ -342,7 +354,7 @@ class _StatusLine extends StatelessWidget {
                             ? Mid.ink
                             : null,
                       ),
-                      label: StatusGlyph.label(status),
+                      label: clearedName(context.t, status),
                       amount: amount,
                       note: note,
                       lit: lit,
@@ -372,15 +384,15 @@ class _LateNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = late.fold(0, (s, r) => s + r.amount);
+    final t = context.t;
+    final total = '₮${formatWhole(late.fold(0, (s, r) => s + r.amount))}';
     // "+… in" says which way it goes: late bills use the same gold.
     final String what;
     if (late.length > 1) {
-      what = '+₮${formatWhole(total)} in, ${late.length} not arrived';
+      what = t.planLateSeveral(total, late.length);
     } else {
       final days = daysBefore(late.single.date, today);
-      what =
-          '+₮${formatWhole(total)} in, ${days == 0 ? 'due today' : '$days ${days == 1 ? 'day' : 'days'} late'}';
+      what = days == 0 ? t.planLateToday(total) : t.planLateDays(total, days);
     }
     return Hoverable(
       key: const ValueKey('forecast-late'),
@@ -403,13 +415,21 @@ class _LateNote extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(' · not counted', style: style, maxLines: 1),
+            Text(t.planLateNotCounted, style: style, maxLines: 1),
           ],
         );
       },
     );
   }
 }
+
+/// A bill's name in the list and on a dot: the payee, or for a transfer
+/// which way it goes.
+String _payeeText(Words t, RegisterRow r) => r.kind != RowKind.transfer
+    ? rowPayee(t, r)
+    : r.amount < 0
+    ? t.planTransferTo(rowPayee(t, r))
+    : t.planTransferFrom(rowPayee(t, r));
 
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
@@ -420,8 +440,9 @@ class ForecastPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final payday = f.payday;
-    String count(int n, String one) => '$n ${n == 1 ? one : '${one}s'}';
+    String money(int v) => '₮${formatWhole(v)}';
     final String headline;
     final String detail;
     if (f.owed) {
@@ -429,58 +450,66 @@ class ForecastPanel extends StatelessWidget {
       final payments = f.steps.where((s) => s.row.amount > 0).length;
       final bal = f.endBalance;
       headline = f.steps.isEmpty
-          ? 'Nothing scheduled'
+          ? t.planNothingScheduled
           : bal < 0
-          ? '₮${formatWhole(bal)} in credit after ${shortDate(f.steps.last.date)}'
-          : '₮${formatWhole(bal)} owed after ${shortDate(f.steps.last.date)}';
-      final parts = [
-        if (f.billCount > 0)
-          '${count(f.billCount, 'charge')} · ₮${formatWhole(f.billTotal)}',
-        if (payments > 0)
-          '${count(payments, 'payment')} · ₮${formatWhole(f.inTotal)}',
-      ];
+          ? t.planCreditAfter(money(bal), sayDate(t, f.steps.last.date))
+          : t.planOwedAfterDate(money(bal), sayDate(t, f.steps.last.date));
+      final end = sayDate(t, f.end);
       detail = f.steps.isEmpty
-          ? 'No charges or payments in the next 30 days'
-          : '${parts.join(' · ')} before ${shortDate(f.end)}';
+          ? t.planCardNothing
+          : f.billCount > 0 && payments > 0
+          ? t.planCardChargesPayments(
+              f.billCount,
+              money(f.billTotal),
+              payments,
+              money(f.inTotal),
+              end,
+            )
+          : f.billCount > 0
+          ? t.planCardCharges(f.billCount, money(f.billTotal), end)
+          : t.planCardPayments(payments, money(f.inTotal), end);
     } else {
       // Money due today that hasn't landed: on payday the warning is
       // conditional, not news.
       final dueToday = f.late
           .where((r) => !r.date.isBefore(f.start))
           .fold(0, (s, r) => s + r.amount);
-      final unless = dueToday > 0
-          ? ' unless ₮${formatWhole(dueToday)} due today comes'
-          : null;
+      final unless = dueToday > 0 ? money(dueToday) : null;
       if (f.shortNow) {
         // Already under: say so, not a future "runs out" date. The amount is
         // the Working total beside it, so it isn't repeated.
         headline = unless != null
-            ? 'Below zero now$unless'
+            ? t.planBelowZeroUnless(unless)
             : f.low < f.startBalance
-            ? 'Below zero now · up to ₮${formatWhole(f.low)} short'
-            : 'Below zero now';
+            ? t.planBelowZeroShort(money(f.low))
+            : t.planBelowZeroNow;
       } else if (f.isShort) {
+        final on = sayDate(t, f.firstShort!);
         headline = unless != null
-            ? 'Runs out ${shortDate(f.firstShort!)}$unless'
-            : 'Runs out on ${shortDate(f.firstShort!)} · up to ₮${formatWhole(f.low)} short';
+            ? t.planRunsOutUnless(on, unless)
+            : t.planRunsOut(on, money(f.low));
       } else if (f.steps.isEmpty) {
-        headline = 'Nothing scheduled';
+        headline = t.planNothingScheduled;
       } else {
-        headline = 'Lowest ₮${formatWhole(f.low)} on ${shortDate(f.lowDate)}';
+        headline = t.planLowest(money(f.low), sayDate(t, f.lowDate));
       }
       // No payee names here: they can be any length. The count opens the list.
       // Money moved in from another account, refunds: they lift the line.
-      final coming = f.inTotal > 0 ? '+₮${formatWhole(f.inTotal)} in' : null;
+      final end = sayDate(t, f.end);
       detail = f.steps.isEmpty
           ? payday == null
-                ? 'No bills or income in the next 30 days'
-                : 'No bills before ${shortDate(f.end)}'
+                ? t.planNoBillsOrIncome
+                : t.planNoBillsBefore(end)
           : f.billCount == 0
-          ? '$coming before ${shortDate(f.end)}'
-          : [
-              '${count(f.billCount, 'bill')} · ₮${formatWhole(f.billTotal)} before ${shortDate(f.end)}',
-              ?coming,
-            ].join(' · ');
+          ? t.planInBefore(money(f.inTotal), end)
+          : f.inTotal > 0
+          ? t.planBillsBeforeIn(
+              f.billCount,
+              money(f.billTotal),
+              end,
+              money(f.inTotal),
+            )
+          : t.planBillsBefore(f.billCount, money(f.billTotal), end);
     }
 
     // Late money in, named so a warning without it makes sense.
@@ -493,7 +522,7 @@ class ForecastPanel extends StatelessWidget {
           key: const ValueKey('forecast-horizon'),
           children: [
             Text(
-              payday == null ? 'Next 30 days' : 'Until next income',
+              payday == null ? t.planNext30Days : t.planUntilNextIncome,
               style: onest(12, color: Mid.ink3),
             ),
             if (late.isNotEmpty)
@@ -508,7 +537,7 @@ class ForecastPanel extends StatelessWidget {
                   key: const ValueKey('add-pay'),
                   onTap: onAddPay,
                   builder: (hover) => Text(
-                    ' · no payday ahead · Add your pay →',
+                    t.planAddPay,
                     style: onest(12, color: Mid.gold).copyWith(
                       decoration: hover ? TextDecoration.underline : null,
                       decorationColor: Mid.gold,
@@ -685,6 +714,7 @@ class _BillsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final payday = f.payday;
     final last = f.endBalance;
     return Material(
@@ -707,12 +737,12 @@ class _BillsCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Until ${shortDate(f.end)}',
+                        t.planUntilDate(sayDate(t, f.end)),
                         style: onest(12, color: Mid.ink3),
                       ),
                     ),
                     Text(
-                      f.owed ? 'Owed after' : 'Balance after',
+                      f.owed ? t.planOwedAfter : t.planBalanceAfter,
                       style: onest(12, color: Mid.ink3),
                     ),
                   ],
@@ -772,7 +802,7 @@ class _BillLineState extends State<_BillLine> {
   Widget build(BuildContext context) {
     final r = widget.row;
     final b = widget.balanceAfter;
-    final overdue = overdueNote(r, widget.date);
+    final overdue = overdueNoteIn(context.t, r, widget.date);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -797,9 +827,7 @@ class _BillLineState extends State<_BillLine> {
                   children: [
                     Flexible(
                       child: Text(
-                        r.kind == RowKind.transfer
-                            ? '${r.amount < 0 ? 'To' : 'From'} ${r.payee}'
-                            : r.payee,
+                        _payeeText(context.t, r),
                         style: onest(13),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1026,6 +1054,7 @@ class _BillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final last = lines.last;
     return Material(
       color: Mid.raised,
@@ -1053,9 +1082,7 @@ class _BillCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l.row.kind == RowKind.transfer
-                              ? '${l.row.amount < 0 ? 'To' : 'From'} ${l.row.payee}'
-                              : l.row.payee,
+                          _payeeText(t, l.row),
                           style: onest(13.5, weight: 500),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1063,10 +1090,10 @@ class _BillCard extends StatelessWidget {
                         Text(
                           // Pay that varies: the forecast counts on the least.
                           l.row.estimate != null
-                              ? '${l.row.categoryLabel} · at least, an estimate'
+                              ? t.planAtLeastEstimate(rowCategory(t, l.row))
                               : l.row.memo.isNotEmpty
                               ? l.row.memo
-                              : l.row.categoryLabel,
+                              : rowCategory(t, l.row),
                           style: onest(12, color: Mid.ink3),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1093,7 +1120,7 @@ class _BillCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  owed ? 'Owed after' : 'Balance after',
+                  owed ? t.planOwedAfter : t.planBalanceAfter,
                   style: onest(12, color: Mid.ink3),
                 ),
                 const Spacer(),

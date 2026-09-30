@@ -9,13 +9,17 @@ part of 'ledger_screen.dart';
 String _money(int v) => formatMoney(v, showCents: v % 100 != 0);
 
 /// What an account's balance is, in words that fit its kind and sign.
-String _balanceWords(AccountInfo a, int balance) => a.isOwed
+String _balanceWords(Words t, AccountInfo a, int balance) => a.isOwed
     ? (balance <= 0
-          ? 'You still owe ${_money(-balance)} on it.'
-          : 'It’s ${_money(balance)} in credit: the bank owes you.')
+          ? t.setupOwedStill(_money(-balance))
+          : t.setupInCredit(_money(balance)))
     : (balance >= 0
-          ? '${_money(balance)} is still in it.'
-          : 'It’s ${_money(-balance)} overdrawn.');
+          ? t.setupStillIn(_money(balance))
+          : t.setupOverdrawn(_money(-balance)));
+
+/// A line said in the reader's language, for lists built where there's no
+/// [BuildContext] to ask for the words.
+typedef _Say = String Function(Words t);
 
 /// Quiet, under the accounts in the sidebar.
 class _AddAccountTile extends StatelessWidget {
@@ -46,7 +50,7 @@ class _AddAccountTile extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              'Add account',
+              context.t.setupAddAccount,
               style: onest(
                 13,
                 color: hover || active ? Mid.sideInk2 : Mid.sideInk3,
@@ -72,7 +76,7 @@ class _NewAccountPage extends StatefulWidget {
 }
 
 class _NewAccountPageState extends State<_NewAccountPage> {
-  static const _defaultName = 'New account';
+  String get _defaultName => context.t.setupNewAccount;
   final _name = TextEditingController();
   var _type = AccountType.asset;
 
@@ -89,11 +93,12 @@ class _NewAccountPageState extends State<_NewAccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget kind(AccountType t, String label) {
-      final on = _type == t;
+    final t = context.t;
+    Widget kind(AccountType k, String label) {
+      final on = _type == k;
       return Hoverable(
-        key: ValueKey('kind-${t.name}'),
-        onTap: () => setState(() => _type = t),
+        key: ValueKey('kind-${k.name}'),
+        onTap: () => setState(() => _type = k),
         builder: (hover) => Container(
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -131,7 +136,7 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'New account',
+                      t.setupNewAccount,
                       style: onest(22, weight: 600, letterSpacing: -0.3),
                     ),
                   ),
@@ -149,7 +154,7 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FormLine(
-                        label: 'Name',
+                        label: t.setupName,
                         child: SizedBox(
                           width: 280,
                           height: 34,
@@ -164,12 +169,12 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                         ),
                       ),
                       _FormLine(
-                        label: 'Kind',
+                        label: t.setupKind,
                         child: Row(
                           children: [
-                            kind(AccountType.asset, 'Bank account'),
+                            kind(AccountType.asset, t.setupKindBank),
                             const SizedBox(width: 8),
-                            kind(AccountType.liability, 'Card or loan'),
+                            kind(AccountType.liability, t.setupKindOwed),
                           ],
                         ),
                       ),
@@ -177,8 +182,8 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                         padding: const EdgeInsets.only(left: 100, bottom: 6),
                         child: Text(
                           _type == AccountType.liability
-                              ? 'A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.'
-                              : 'Checking, savings or cash. Accounts are in tögrög for now.',
+                              ? t.setupKindOwedHint
+                              : t.setupKindBankHint,
                           style: onest(12.5, color: Mid.ink3),
                         ),
                       ),
@@ -190,12 +195,12 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                             if (widget.onCancel != null)
                               BarButton(
                                 key: const ValueKey('new-account-cancel'),
-                                label: 'Cancel',
+                                label: t.setupCancel,
                                 onTap: widget.onCancel!,
                               ),
                             _PrimaryButton(
                               key: const ValueKey('new-account-create'),
-                              label: 'Add account',
+                              label: t.setupAddAccount,
                               icon: Icons.add_rounded,
                               tooltip: 'Enter',
                               onTap: _create,
@@ -314,6 +319,7 @@ class _AccountStartState extends State<_AccountStart> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final owed = widget.account.isOwed;
     return ListenableBuilder(
       listenable: Listenable.merge([_balance, _date]),
@@ -334,15 +340,14 @@ class _AccountStartState extends State<_AccountStart> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(switch ((owed, day == null || day == widget.today)) {
-                (true, true) => 'What do you owe on it today?',
-                (false, true) => 'What’s in this account today?',
-                (true, false) =>
-                  'What did you owe on it on ${shortDate(day!)}?',
-                (false, false) => 'What was in it on ${shortDate(day!)}?',
+                (true, true) => t.setupStartOwedToday,
+                (false, true) => t.setupStartInToday,
+                (true, false) => t.setupStartOwedOn(sayDate(t, day!)),
+                (false, false) => t.setupStartInOn(sayDate(t, day!)),
               }, style: onest(16, weight: 600)),
               const SizedBox(height: 16),
               _FormLine(
-                label: owed ? 'You owe' : 'Balance',
+                label: owed ? t.setupYouOwe : t.setupBalance,
                 child: SizedBox(
                   width: 180,
                   height: 34,
@@ -362,7 +367,7 @@ class _AccountStartState extends State<_AccountStart> {
                 ),
               ),
               _FormLine(
-                label: 'On',
+                label: t.setupOn,
                 child: SizedBox(
                   width: 130,
                   height: 34,
@@ -383,16 +388,16 @@ class _AccountStartState extends State<_AccountStart> {
                 padding: const EdgeInsets.only(left: 100, bottom: 14),
                 child: Text(
                   wrongAmount
-                      ? 'Can’t read “${_balance.text.trim()}” as an amount'
+                      ? t.setupCantRead(_balance.text.trim())
                       : wrongDate
-                      ? 'Date should look like ${fullDate(widget.today)}'
+                      ? t.setupDateShouldLook(fullDate(widget.today))
                       // Shown before typing: the number is looked up first.
                       // It becomes a cleared row, so the first reconcile
                       // starts from it: the number the bank shows. Card apps
                       // show the available limit most prominently.
                       : owed
-                      ? 'What you’ve used, not the available limit · empty starts at ₮0'
-                      : 'From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0',
+                      ? t.setupStartOwedHint
+                      : t.setupStartBankHint,
                   style: onest(
                     12.5,
                     color: wrongAmount || wrongDate ? Mid.coral : Mid.ink3,
@@ -405,7 +410,7 @@ class _AccountStartState extends State<_AccountStart> {
                   children: [
                     _PrimaryButton(
                       key: const ValueKey('start-account'),
-                      label: 'Start account',
+                      label: t.setupStartAccount,
                       icon: Icons.check_rounded,
                       tooltip: 'Enter',
                       onTap: _start,
@@ -445,7 +450,7 @@ MenuStyle get _menuStyle => MenuStyle(
 );
 
 List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
-  Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
+  Widget item(_Say label, String key, VoidCallback onTap, {Color? color}) =>
       MenuItemButton(
         key: ValueKey(key),
         onPressed: onTap,
@@ -453,18 +458,23 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
           minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
           overlayColor: WidgetStatePropertyAll(Mid.blueWash),
         ),
-        child: Text(label, style: onest(13, color: color ?? Mid.ink2)),
+        child: Builder(
+          builder: (context) => Text(
+            label(context.t),
+            style: onest(13, color: color ?? Mid.ink2),
+          ),
+        ),
       );
   return [
-    item('Rename', 'menu-rename', act.rename),
+    item((t) => t.setupRename, 'menu-rename', act.rename),
     item(
-      a.isOwed ? 'Change to bank account' : 'Change to card or loan',
+      (t) => a.isOwed ? t.setupToBank : t.setupToOwed,
       'menu-kind',
       act.changeKind,
     ),
     Divider(height: 9, color: Mid.rule),
-    item('Archive…', 'menu-archive', act.archive),
-    item('Delete…', 'menu-delete', act.delete, color: Mid.coral),
+    item((t) => t.setupArchiveMenu, 'menu-archive', act.archive),
+    item((t) => t.setupDeleteMenu, 'menu-delete', act.delete, color: Mid.coral),
   ];
 }
 
@@ -585,7 +595,7 @@ class _AccountTitleState extends State<_AccountTitle> {
           )
         else
           Tooltip(
-            message: 'Click to rename',
+            message: context.t.setupClickToRename,
             waitDuration: const Duration(milliseconds: 600),
             child: MouseRegion(
               cursor: SystemMouseCursors.text,
@@ -650,7 +660,7 @@ class _AccountWarning extends StatelessWidget {
     required this.danger,
   });
   final String title;
-  final List<String> lines;
+  final List<_Say> lines;
   final String action;
   final bool danger;
 
@@ -684,7 +694,7 @@ class _AccountWarning extends StatelessWidget {
             for (final l in lines)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Text(l, style: onest(13.5, color: Mid.ink)),
+                child: Text(l(context.t), style: onest(13.5, color: Mid.ink)),
               ),
             const SizedBox(height: 10),
             Row(
@@ -692,7 +702,7 @@ class _AccountWarning extends StatelessWidget {
               children: [
                 BarButton(
                   key: const ValueKey('warning-cancel'),
-                  label: 'Cancel',
+                  label: context.t.setupCancel,
                   onTap: () => Navigator.of(context).pop(false),
                 ),
                 Material(
@@ -724,13 +734,13 @@ class _AccountWarning extends StatelessWidget {
 }
 
 /// What archiving leaves behind, or nothing if it leaves nothing.
-List<String> _archiveWarnings(
+List<_Say> _archiveWarnings(
   AccountInfo a,
   int balance,
   List<RegisterRow> scheduled,
 ) {
-  String list(Iterable<RegisterRow> rows) =>
-      '${rows.take(3).map((r) => '${r.payee} ${shortDate(r.date)}').join(', ')}'
+  String list(Words t, Iterable<RegisterRow> rows) =>
+      '${rows.take(3).map((r) => '${rowPayee(t, r)} ${sayDate(t, r.date)}').join(', ')}'
       '${rows.length > 3 ? ', …' : ''}';
   final own = scheduled.where((r) => r.kind != RowKind.transfer).toList();
   // A scheduled transfer still shows on the other account, as money coming
@@ -738,56 +748,49 @@ List<String> _archiveWarnings(
   final transfers = scheduled.where((r) => r.kind == RowKind.transfer).toList();
   return [
     if (balance != 0)
-      '${_balanceWords(a, balance)} It stays in net worth, but the account '
-          'won’t be in the sidebar.',
+      (t) => t.setupArchiveBalance(_balanceWords(t, a, balance)),
     if (own.isNotEmpty)
-      '${own.length} scheduled ${own.length == 1 ? 'row' : 'rows'} '
-          '(${list(own)}) won’t show in any forecast.',
+      (t) => t.setupArchiveScheduled(own.length, list(t, own)),
     if (transfers.isNotEmpty)
-      '${transfers.length} scheduled '
-          '${transfers.length == 1 ? 'transfer stays' : 'transfers stay'} on '
-          'the other account’s forecast (${list(transfers)}). Delete '
-          '${transfers.length == 1 ? 'it' : 'them'} there if cancelled.',
+      (t) => t.setupArchiveTransfers(transfers.length, list(t, transfers)),
   ];
 }
 
-List<String> _deleteWarnings(
-  AccountInfo a,
-  int balance,
-  AccountDeletePreview p,
-) {
-  final rows = p.rows == 0
-      ? 'This deletes the account. It has no rows of its own.'
-      : 'This deletes the account and its ${p.rows} '
-            '${p.rows == 1 ? 'row' : 'rows'}'
-            '${p.reconciled == 0 ? '' : ', ${p.reconciled} of them reconciled'}.';
+List<_Say> _deleteWarnings(AccountInfo a, int balance, AccountDeletePreview p) {
+  String rows(Words t) => p.rows == 0
+      ? t.setupDeleteNoRows
+      : p.reconciled == 0
+      ? t.setupDeleteRows(p.rows)
+      : t.setupDeleteRowsReconciled(p.rows, p.reconciled);
   // Net worth loses the account's balance: an asset takes it down, a debt
   // no longer counted takes it up.
-  final worth = balance == 0
+  final _Say? worth = balance == 0
       ? null
-      : 'Net worth goes ${balance > 0 ? 'down' : 'up'} by '
-            '${_money(balance.abs())}'
-            '${a.isOwed && balance < 0 ? ', since what you owe on it is no longer counted' : ''}.';
+      : (t) => balance > 0
+            ? t.setupWorthDown(_money(balance.abs()))
+            : a.isOwed
+            ? t.setupWorthUpOwed(_money(balance.abs()))
+            : t.setupWorthUp(_money(balance.abs()));
   final pending = p.keptScheduled;
-  final pendingLine = pending.isEmpty
+  final _Say? pendingLine = pending.isEmpty
       ? null
-      : '${pending.length == 1 ? 'One is' : '${pending.length} are'} still '
-            'scheduled (${pending.take(3).map((k) => '${k.on} ${shortDate(k.date)}').join(', ')}'
-            '${pending.length > 3 ? ', …' : ''}). Confirmed later, '
-            '${pending.length == 1 ? 'it moves' : 'they move'} money from an '
-            'account that no longer exists; delete '
-            '${pending.length == 1 ? 'it' : 'them'} there if cancelled.';
+      : (t) => t.setupDeletePending(
+          pending.length,
+          '${pending.take(3).map((k) => '${k.on} ${sayDate(t, k.date)}').join(', ')}'
+          '${pending.length > 3 ? ', …' : ''}',
+        );
   final kept = p.keptOn.entries.toList();
-  final keptLine = switch (kept.length) {
+  final _Say? keptLine = switch (kept.length) {
     0 => null,
-    1 =>
-      'Its ${kept.single.value} '
-          '${kept.single.value == 1 ? 'transfer' : 'transfers'} with '
-          '${kept.single.key.name} stay on ${kept.single.key.name} as '
-          '“${a.name} (deleted)”.',
-    _ =>
-      'Its transfers stay on the other accounts as “${a.name} (deleted)”: '
-          '${kept.map((e) => '${e.value} on ${e.key.name}').join(', ')}.',
+    1 => (t) => t.setupKeptOne(
+      kept.single.value,
+      kept.single.key.name,
+      t.startDeletedAccount(a.name),
+    ),
+    _ => (t) => t.setupKeptMany(
+      t.startDeletedAccount(a.name),
+      kept.map((e) => t.setupKeptOn(e.value, e.key.name)).join(', '),
+    ),
   };
   return [rows, ?worth, ?keptLine, ?pendingLine];
 }
@@ -810,7 +813,7 @@ class _ArchivedAccounts extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Archived accounts', style: onest(16, weight: 600)),
+        Text(context.t.setupArchived, style: onest(16, weight: 600)),
         const SizedBox(height: 12),
         for (final a in data.archivedAccounts)
           Padding(
@@ -820,14 +823,14 @@ class _ArchivedAccounts extends StatelessWidget {
                 Expanded(child: Text(a.name, style: onest(13.5))),
                 Text(
                   a.isOwed
-                      ? '${_money(-data.balanceOf(a.id))} owed'
+                      ? context.t.setupAmountOwed(_money(-data.balanceOf(a.id)))
                       : _money(data.balanceOf(a.id)),
                   style: onest(13, color: Mid.ink3, tabular: true),
                 ),
                 const SizedBox(width: 16),
                 BarButton(
                   key: ValueKey('unarchive-${a.id}'),
-                  label: 'Show in sidebar',
+                  label: context.t.setupShowInSidebar,
                   onTap: () => onUnarchive(a),
                 ),
               ],
@@ -860,7 +863,7 @@ class _AllAccountsTile extends StatelessWidget {
             : null,
       ),
       child: Text(
-        'All accounts',
+        context.t.setupAllAccounts,
         style: onest(13.5, color: active ? Mid.sideInk : Mid.sideInk2),
       ),
     ),
@@ -888,7 +891,7 @@ class _FilterChip extends StatelessWidget {
         Text(label, style: onest(13, color: Mid.ink)),
         const SizedBox(width: 4),
         Tooltip(
-          message: 'Show every row · Esc',
+          message: context.t.setupShowEveryRow,
           child: Hoverable(
             key: const ValueKey('filter-clear'),
             onTap: onClear,

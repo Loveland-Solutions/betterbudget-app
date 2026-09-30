@@ -60,7 +60,13 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger,
   converting plain copies), `keys.dart` (recovery key, data key, secure store),
   `encryption.dart` (cipher pragmas, converting a plain file), plus `demo_seed.dart`.
-- `lib/ui/`: `theme.dart` (`Palette` dark and light, read as `Mid.ink` etc.; the
+- `lib/l10n/`: every word on screen, `app_en.arb` and `app_mn.arb` (each English entry
+  says where it shows); `flutter gen-l10n` builds the `Words` class. Terms and tone:
+  [docs/l10n-glossary.md](docs/l10n-glossary.md). New text goes in both files; English
+  must not be glued from pieces (Mongolian word order differs).
+- `lib/ui/`: `language.dart` (Settings → Language, `context.t`, `sayDate`),
+  `data_words.dart` (words for the data layer's codes: restore, key and database
+  problems, row labels, pay), `theme.dart` (`Palette` dark and light, read as `Mid.ink` etc.; the
   sidebar's own `Mid.side*`; `Money`, `StatusGlyph`), `appearance.dart` (Settings →
   Appearance, switching and redrawing), `brand.dart` (the bee and the wordmark), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`

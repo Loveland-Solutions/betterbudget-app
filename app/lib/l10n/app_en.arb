@@ -1,0 +1,4330 @@
+{
+  "@@locale": "en",
+  "languageTitle": "Language",
+  "languageSameAsMac": "Same as this Mac",
+  "languageSameAsWindows": "Same as Windows",
+  "languageEnglish": "English",
+  "languageMongolian": "Монгол",
+  "languageShowingNow": "Showing {language} now · changes when {system} does",
+  "@languageShowingNow": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      },
+      "system": {
+        "type": "String"
+      }
+    }
+  },
+  "languageUndoLabel": "Language: {choice}",
+  "@languageUndoLabel": {
+    "placeholders": {
+      "choice": {
+        "type": "String"
+      }
+    }
+  },
+  "theMac": "the Mac",
+  "windowsName": "Windows",
+  "dayMonth": "{month}.{day}",
+  "@dayMonth": {
+    "description": "A date inside a sentence or list, year left out. month and day come zero-padded (09, 05).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "monthNumber": {
+        "type": "int"
+      },
+      "dayNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "dayMonthYear": "{year}.{month}.{day}",
+  "@dayMonthYear": {
+    "description": "A full date inside a sentence or list.",
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "monthNumber": {
+        "type": "int"
+      },
+      "dayNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarMonth": "{month} {year}",
+  "@calendarMonth": {
+    "description": "The calendar's title.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      },
+      "monthNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "monthNames": "January|February|March|April|May|June|July|August|September|October|November|December",
+  "@monthNames": {
+    "description": "Twelve month names separated by |. Mongolian numbers its months, so its value is unused there."
+  },
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "ledgerOfferRestoreTitle": "Open your newest backup?",
+  "@ledgerOfferRestoreTitle": {
+    "description": "Dialog title shown once after the recovery key is typed on a computer with no ledger."
+  },
+  "ledgerOfferRestoreBody": "Your recovery key is set up on this computer. If you saved a copy with Back up to… on another drive, open the newest one to bring your ledger here.",
+  "@ledgerOfferRestoreBody": {
+    "description": "Body of the \"Open your newest backup?\" dialog. \"Back up to…\" is the Settings button (ledgerBackUpTo)."
+  },
+  "ledgerStartEmpty": "Start empty",
+  "@ledgerStartEmpty": {
+    "description": "Button in the \"Open your newest backup?\" dialog: start with an empty ledger."
+  },
+  "ledgerOpenABackup": "Open a backup…",
+  "@ledgerOpenABackup": {
+    "description": "Main button in the \"Open your newest backup?\" dialog; opens a file picker."
+  },
+  "ledgerAdded": "{name} added",
+  "@ledgerAdded": {
+    "description": "Toast and undo-menu label after something new is added. name is a payee, account or category name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerAddedTo": "{name} added to {account}",
+  "@ledgerAddedTo": {
+    "description": "Toast after a transaction is added from All accounts. name is the payee; account is the account it went into.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNewCategory": "new category “{name}”",
+  "@ledgerNewCategory": {
+    "description": "Part of a toast, after \" · \": the category typed in the row did not exist and was made.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNewIncomeCategory": "new income category “{name}”",
+  "@ledgerNewIncomeCategory": {
+    "description": "Part of a toast, after \" · \": an income category typed in the row did not exist and was made.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerScheduledFor": "scheduled for {date}",
+  "@ledgerScheduledFor": {
+    "description": "Part of a toast, after \" · \": the new transaction is dated in the future. date is a full date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNotInThisView": "not in this view",
+  "@ledgerNotInThisView": {
+    "description": "Part of a toast, after \" · \": the saved row is hidden by the search or filter in force."
+  },
+  "ledgerScheduledToast": "Scheduled for {date} · not in balances until confirmed",
+  "@ledgerScheduledToast": {
+    "description": "Toast after a future-dated transaction is added. date is a full date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCouldntSave": "Couldn’t save: {error}",
+  "@ledgerCouldntSave": {
+    "description": "Error under the entry row or as a toast; error is the technical reason.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerUndoNewerFirst": "Undo the newer changes first · {shortcut}",
+  "@ledgerUndoNewerFirst": {
+    "description": "Toast when Undo is pressed on an older toast. shortcut is ⌘Z or Ctrl+Z.",
+    "placeholders": {
+      "shortcut": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNothingToUndo": "Nothing to undo",
+  "@ledgerNothingToUndo": {
+    "description": "Toast when ⌘Z is pressed with nothing to undo."
+  },
+  "ledgerNothingToRedo": "Nothing to redo",
+  "@ledgerNothingToRedo": {
+    "description": "Toast when ⌘⇧Z is pressed with nothing to redo."
+  },
+  "ledgerCouldntUndo": "Couldn’t undo “{action}” · it changed since",
+  "@ledgerCouldntUndo": {
+    "description": "Toast when undo fails because the data changed. action is the undo label, e.g. \"Coffee added\".",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCouldntRedo": "Couldn’t redo “{action}” · it changed since",
+  "@ledgerCouldntRedo": {
+    "description": "Toast when redo fails because the data changed. action is the undo label.",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerUndone": "Undone · {action}",
+  "@ledgerUndone": {
+    "description": "Toast after ⌘Z. action is what was undone, e.g. \"Coffee added\".",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRedone": "Redone · {action}",
+  "@ledgerRedone": {
+    "description": "Toast after ⌘⇧Z. action is what was redone.",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerUndo": "Undo",
+  "@ledgerUndo": {
+    "description": "Button on the toast at the bottom of the window."
+  },
+  "ledgerSaveOrDiscard": "Save with Enter, or press Esc to discard your changes",
+  "@ledgerSaveOrDiscard": {
+    "description": "Toast when leaving a row that has unsaved edits."
+  },
+  "ledgerFinishReconcileFirst": "Finish or cancel the reconcile first",
+  "@ledgerFinishReconcileFirst": {
+    "description": "Toast when a forecast dot is clicked while reconciling."
+  },
+  "ledgerConfirmed": "{name} confirmed",
+  "@ledgerConfirmed": {
+    "description": "Undo-menu label after a scheduled transaction is confirmed. name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerConfirmedAmount": "{when, select, early{{name} confirmed early · {amount}} other{{name} confirmed · {amount}}}",
+  "@ledgerConfirmedAmount": {
+    "description": "Toast start after a scheduled transaction is confirmed. when is \"early\" if confirmed before its date, else \"other\". amount is money like ₮45,000.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerConfirmedAmountPlanned": "{when, select, early{{name} confirmed early · {amount}, planned {planned}} other{{name} confirmed · {amount}, planned {planned}}}",
+  "@ledgerConfirmedAmountPlanned": {
+    "description": "Toast start after a scheduled transaction is confirmed for a different amount than planned. when is \"early\" or \"other\". amount and planned are money.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "planned": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerStillOwed": "{amount} still owed, due {date}",
+  "@ledgerStillOwed": {
+    "description": "Part of the confirm toast, after \" · \": part paid, the rest stays scheduled. date is month.day.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerPostedToday": "posted today, {date}",
+  "@ledgerPostedToday": {
+    "description": "Part of the confirm toast, after \" · \": the confirmed row is dated today, not its planned day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerPostedOn": "posted {date}",
+  "@ledgerPostedOn": {
+    "description": "Part of the confirm toast, after \" · \": the confirmed row got a date other than planned.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerUnderEstimate": "{amount} under the estimate · lower it on the Budget screen",
+  "@ledgerUnderEstimate": {
+    "description": "Part of the confirm toast, after \" · \": a bill came in under its estimate.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerEdited": "{name} edited",
+  "@ledgerEdited": {
+    "description": "Undo-menu label after a transaction is edited. name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMovedToFuture": "Moved to {date} · now scheduled, out of balances until confirmed",
+  "@ledgerMovedToFuture": {
+    "description": "Toast when an edit moves a transaction to a future date. date is a full date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerChangesSaved": "Changes saved",
+  "@ledgerChangesSaved": {
+    "description": "Toast after a transaction is edited."
+  },
+  "ledgerTypeADate": "Type a date like {example}",
+  "@ledgerTypeADate": {
+    "description": "Reconcile panel, under the statement date field. example is today as month.day, e.g. 09.30.",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerStatementAfterToday": "The statement can’t be after today",
+  "@ledgerStatementAfterToday": {
+    "description": "Reconcile panel, under the statement date field."
+  },
+  "ledgerAlreadyReconciled": "Already reconciled through {date}",
+  "@ledgerAlreadyReconciled": {
+    "description": "Reconcile panel, under the statement date field. date is month.day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerClearedRowsChanged": "The cleared rows changed · check the difference again",
+  "@ledgerClearedRowsChanged": {
+    "description": "Toast when the rows changed while reconciling."
+  },
+  "ledgerReconciledThrough": "{account} reconciled through {date}",
+  "@ledgerReconciledThrough": {
+    "description": "Toast and undo-menu label after a reconcile. date is month.day.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerLocked": "{count, plural, =1{1 locked} other{{count} locked}}",
+  "@ledgerLocked": {
+    "description": "Part of the reconcile toast, after \" · \": how many rows were locked.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerAdjustmentAdded": "{amount} adjustment added",
+  "@ledgerAdjustmentAdded": {
+    "description": "Part of the reconcile toast, after \" · \": a row making up the difference was added.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerReconcileUndone": "Reconcile of {date} undone",
+  "@ledgerReconcileUndone": {
+    "description": "Toast and undo-menu label after the latest reconcile is taken back. date is month.day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBackToCleared": "{count, plural, =1{1 row back to cleared} other{{count} rows back to cleared}}",
+  "@ledgerBackToCleared": {
+    "description": "Part of the undo-reconcile toast, after \" · \".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerMarkedCleared": "{name} marked cleared",
+  "@ledgerMarkedCleared": {
+    "description": "Undo-menu label after a row is marked cleared (the bank has it). name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMarkedUncleared": "{name} marked uncleared",
+  "@ledgerMarkedUncleared": {
+    "description": "Undo-menu label after a row is marked uncleared (pending). name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCantDeleteTransfer": "Can’t delete · this transfer is reconciled in {account}",
+  "@ledgerCantDeleteTransfer": {
+    "description": "Toast when Delete is pressed on a transfer reconciled in the other account.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCantDeleteReconciled": "Can’t delete · it matches a bank statement",
+  "@ledgerCantDeleteReconciled": {
+    "description": "Toast when Delete is pressed on a reconciled row."
+  },
+  "ledgerDeleted": "{name} deleted",
+  "@ledgerDeleted": {
+    "description": "Toast and undo-menu label after a row, category or account is deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCantMove": "Can’t move · {reason}",
+  "@ledgerCantMove": {
+    "description": "Toast when moving a row to another account is refused; reason comes from the app.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCouldntMove": "Couldn’t move it",
+  "@ledgerCouldntMove": {
+    "description": "Toast when moving a row to another account failed."
+  },
+  "ledgerMovedTo": "{name} moved to {account}",
+  "@ledgerMovedTo": {
+    "description": "Toast and undo-menu label after a row is moved to another account. name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTransferToMovedTo": "Transfer to {payee} moved to {account}",
+  "@ledgerTransferToMovedTo": {
+    "description": "Toast after a transfer is moved to another account. payee is the account the money went to.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTransferFromMovedTo": "Transfer from {payee} moved to {account}",
+  "@ledgerTransferFromMovedTo": {
+    "description": "Toast after a transfer is moved to another account. payee is the account the money came from.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerUnclearedThere": "uncleared there until it clears",
+  "@ledgerUnclearedThere": {
+    "description": "Part of the move toast, after \" · \": the moved row starts uncleared in its new account."
+  },
+  "ledgerAddIncomeCategoryFirst": "Add an income category on the Budget screen first",
+  "@ledgerAddIncomeCategoryFirst": {
+    "description": "Toast when pay setup is opened with no income category."
+  },
+  "ledgerAddBankAccountFirst": "Add a bank account first",
+  "@ledgerAddBankAccountFirst": {
+    "description": "Toast when pay setup is opened with no bank account."
+  },
+  "ledgerPayStopped": "Pay stopped",
+  "@ledgerPayStopped": {
+    "description": "Undo-menu label after a pay schedule is stopped."
+  },
+  "ledgerPayStoppedToast": "Pay no longer scheduled · paydays already past stay",
+  "@ledgerPayStoppedToast": {
+    "description": "Toast after a pay schedule is stopped."
+  },
+  "ledgerPaySaved": "Pay saved",
+  "@ledgerPaySaved": {
+    "description": "Toast and undo-menu label after a pay schedule is saved."
+  },
+  "ledgerPaySavedNext": "Pay saved · next payday {date}",
+  "@ledgerPaySavedNext": {
+    "description": "Toast after a pay schedule is saved. date is a full date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNoRegularPay": "No regular pay",
+  "@ledgerNoRegularPay": {
+    "description": "Undo-menu label after \"I don’t have regular pay\" is chosen."
+  },
+  "ledgerAskingForPayAgain": "Asking for pay again",
+  "@ledgerAskingForPayAgain": {
+    "description": "Undo-menu label after Settings → \"ask again\" for pay."
+  },
+  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · Settings changes this",
+  "@ledgerNoRegularPayToast": {
+    "description": "Toast after \"I don’t have regular pay\" is chosen."
+  },
+  "ledgerAskForPayAgainToast": "The forecast will ask for your pay again",
+  "@ledgerAskForPayAgainToast": {
+    "description": "Toast after Settings → ask for pay again."
+  },
+  "ledgerBudgetByMonth": "Budget by month",
+  "@ledgerBudgetByMonth": {
+    "description": "Toast and undo-menu label: the budget now runs by calendar month."
+  },
+  "ledgerBudgetByPayPeriod": "Budget by pay period",
+  "@ledgerBudgetByPayPeriod": {
+    "description": "Toast and undo-menu label: the budget now runs by pay period."
+  },
+  "ledgerAppearanceTitle": "Appearance",
+  "@ledgerAppearanceTitle": {
+    "description": "Settings → Appearance card, title."
+  },
+  "ledgerAppearanceLight": "Light",
+  "@ledgerAppearanceLight": {
+    "description": "Settings → Appearance card, choice button: light colors."
+  },
+  "ledgerAppearanceDark": "Dark",
+  "@ledgerAppearanceDark": {
+    "description": "Settings → Appearance card, choice button: dark colors."
+  },
+  "ledgerAppearanceUndoLabel": "Appearance: {choice}",
+  "@ledgerAppearanceUndoLabel": {
+    "description": "Undo-menu label after the appearance is changed. choice is the button chosen, e.g. \"Dark\".",
+    "placeholders": {
+      "choice": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerShowingLightNow": "Showing light now · changes when {system} does",
+  "@ledgerShowingLightNow": {
+    "description": "Settings → Appearance card, under the choices when following the system. system is \"the Mac\" or \"Windows\".",
+    "placeholders": {
+      "system": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerShowingDarkNow": "Showing dark now · changes when {system} does",
+  "@ledgerShowingDarkNow": {
+    "description": "Settings → Appearance card, under the choices when following the system. system is \"the Mac\" or \"Windows\".",
+    "placeholders": {
+      "system": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerAllAccounts": "All accounts",
+  "@ledgerAllAccounts": {
+    "description": "Title of the All accounts register."
+  },
+  "ledgerCategoryChip": "Category: {name}",
+  "@ledgerCategoryChip": {
+    "description": "All accounts, filter chip above the rows: showing one category.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerAdd": "Add",
+  "@ledgerAdd": {
+    "description": "Blue button above the register: add a transaction."
+  },
+  "ledgerFilterRows": "{count, plural, =1{1 row} other{{count} rows}}",
+  "@ledgerFilterRows": {
+    "description": "All accounts, beside the category chip: how many posted rows show. Followed by \" · \" and the total.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerFilterTotal": "{kind, select, received{{amount} received} paidBack{{amount} paid back} refunded{{amount} refunded} other{{amount} spent}}",
+  "@ledgerFilterTotal": {
+    "description": "All accounts, beside the category chip: the category’s total. kind is received / paidBack (income categories) or spent / refunded (spending).",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFilterTotalSince": "{kind, select, received{{amount} received since {date}} paidBack{{amount} paid back since {date}} refunded{{amount} refunded since {date}} other{{amount} spent since {date}}}",
+  "@ledgerFilterTotalSince": {
+    "description": "Like ledgerFilterTotal, over all time: date is the first row’s full date.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFilterScheduled": "{count} scheduled",
+  "@ledgerFilterScheduled": {
+    "description": "All accounts, after the category total and \" · \": future rows not in the total.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerCouldntAddAccount": "Couldn’t add the account",
+  "@ledgerCouldntAddAccount": {
+    "description": "Toast when adding an account failed."
+  },
+  "ledgerCouldntSaveBalance": "Couldn’t save the balance",
+  "@ledgerCouldntSaveBalance": {
+    "description": "Toast when a new account’s starting balance failed to save."
+  },
+  "ledgerStartedAt": "Started at {amount} · add only what hasn’t settled yet",
+  "@ledgerStartedAt": {
+    "description": "Toast after a new account’s balance is typed; the entry row opens for pending transactions.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerStartedAtOwed": "Started at {amount} owed · add only what hasn’t settled yet",
+  "@ledgerStartedAtOwed": {
+    "description": "Toast after a new card or loan’s balance is typed; amount is what is owed.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCouldntChangeAccount": "Couldn’t change the account",
+  "@ledgerCouldntChangeAccount": {
+    "description": "Toast when a change to an account failed."
+  },
+  "ledgerCouldntChangePay": "Couldn’t change the pay",
+  "@ledgerCouldntChangePay": {
+    "description": "Toast when saving or stopping pay failed."
+  },
+  "ledgerCouldntChangeBudgetPeriod": "Couldn’t change the budget period",
+  "@ledgerCouldntChangeBudgetPeriod": {
+    "description": "Toast when switching budget by month / pay period failed."
+  },
+  "ledgerCouldntChangeCategory": "Couldn’t change the category",
+  "@ledgerCouldntChangeCategory": {
+    "description": "Toast when a change to a category failed."
+  },
+  "ledgerRenamed": "Renamed {old} to {name}",
+  "@ledgerRenamed": {
+    "description": "Toast and undo-menu label after an account or category is renamed.",
+    "placeholders": {
+      "old": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsNowCardOrLoan": "{name} is now a card or loan",
+  "@ledgerIsNowCardOrLoan": {
+    "description": "Toast and undo-menu label after an account’s kind is changed to owed money.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsNowBankAccount": "{name} is now a bank account",
+  "@ledgerIsNowBankAccount": {
+    "description": "Toast and undo-menu label after an account’s kind is changed to a bank account.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerOpeningBalanceFlipped": "its opening balance flipped with it",
+  "@ledgerOpeningBalanceFlipped": {
+    "description": "Part of the change-kind toast, after \" · \": the starting balance’s sign changed too."
+  },
+  "ledgerArchiveTitle": "Archive {name}?",
+  "@ledgerArchiveTitle": {
+    "description": "Title of the warning before archiving an account that still holds money or bills.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerArchiveAction": "Archive {name}",
+  "@ledgerArchiveAction": {
+    "description": "Button in the archive warning.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerArchived": "{name} archived",
+  "@ledgerArchived": {
+    "description": "Undo-menu label after an account or category is archived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBackInSidebar": "{name} back in the sidebar",
+  "@ledgerBackInSidebar": {
+    "description": "Toast and undo-menu label after an account is unarchived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerAccountArchivedToast": "{name} archived · Settings brings it back",
+  "@ledgerAccountArchivedToast": {
+    "description": "Toast after an account is archived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDeleteTitle": "Delete {name}?",
+  "@ledgerDeleteTitle": {
+    "description": "Title of the warning before deleting an account.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDeleteAction": "Delete {name}",
+  "@ledgerDeleteAction": {
+    "description": "Red button in the delete-account warning.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMarksPayday": "{name} marks payday",
+  "@ledgerMarksPayday": {
+    "description": "Undo-menu label: an income category now marks payday.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsntPayday": "{name} isn’t a payday",
+  "@ledgerIsntPayday": {
+    "description": "Undo-menu label: an income category no longer marks payday.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsPaydayToast": "{name} is a payday · forecasts run to it",
+  "@ledgerIsPaydayToast": {
+    "description": "Toast after an income category is marked payday.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsntPaydayToast": "{name} isn’t a payday · forecasts run past it",
+  "@ledgerIsntPaydayToast": {
+    "description": "Toast after an income category stops marking payday.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerAlreadyCategory": "{name} is already a category",
+  "@ledgerAlreadyCategory": {
+    "description": "Toast when a new category’s name is taken.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsNowIncome": "{name} is now income",
+  "@ledgerIsNowIncome": {
+    "description": "Toast and undo-menu label after a category becomes income.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsNowSpending": "{name} is now spending",
+  "@ledgerIsNowSpending": {
+    "description": "Toast and undo-menu label after a category becomes spending.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerIsNowIncomeToast": "{name} is now income · it ends forecasts, like payday",
+  "@ledgerIsNowIncomeToast": {
+    "description": "Toast after a category becomes income.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBackInMenus": "{name} back in the menus",
+  "@ledgerBackInMenus": {
+    "description": "Toast and undo-menu label after a category is unarchived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCategoryArchivedToast": "{name} archived · its rows keep it; new rows can’t pick it",
+  "@ledgerCategoryArchivedToast": {
+    "description": "Toast after a category is archived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMergedInto": "{name} merged into {target}",
+  "@ledgerMergedInto": {
+    "description": "Toast after a category is renamed onto / deleted into another.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsMoved": "{count, plural, =1{1 row moved} other{{count} rows moved}}",
+  "@ledgerRowsMoved": {
+    "description": "Part of the merge toast, after \" · \".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerDeletedRowsMovedTo": "{name} deleted · {count, plural, =1{1 row} other{{count} rows}} moved to {target}",
+  "@ledgerDeletedRowsMovedTo": {
+    "description": "Toast after a category with rows is deleted; target is the category they moved to.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBackUpButton": "Back Up",
+  "@ledgerBackUpButton": {
+    "description": "Confirm button of the system save dialog for \"Back up to…\"."
+  },
+  "ledgerCouldntOpenSaveDialog": "Couldn’t open the save dialog",
+  "@ledgerCouldntOpenSaveDialog": {
+    "description": "Toast when the system save dialog failed."
+  },
+  "ledgerCouldntBackUp": "Couldn’t back up · check the drive has room and try again",
+  "@ledgerCouldntBackUp": {
+    "description": "Toast when saving a backup failed."
+  },
+  "ledgerBackedUp": "Backed up · {file}",
+  "@ledgerBackedUp": {
+    "description": "Toast after a backup is saved; file is its file name.",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBackupFileType": "BetterBudget backup",
+  "@ledgerBackupFileType": {
+    "description": "File type name in the system open dialog for \"Restore from…\"."
+  },
+  "ledgerChoose": "Choose",
+  "@ledgerChoose": {
+    "description": "Confirm button of the system open dialog for \"Restore from…\"."
+  },
+  "ledgerCouldntOpenFileDialog": "Couldn’t open the file dialog",
+  "@ledgerCouldntOpenFileDialog": {
+    "description": "Toast when the system open dialog failed."
+  },
+  "ledgerCouldntReadBackup": "Couldn’t read that backup",
+  "@ledgerCouldntReadBackup": {
+    "description": "Toast when the chosen backup can’t be read."
+  },
+  "ledgerCouldntRestore": "Couldn’t restore · nothing was changed",
+  "@ledgerCouldntRestore": {
+    "description": "Toast when a restore failed."
+  },
+  "ledgerRestoredFrom": "Restored the copy from {date}",
+  "@ledgerRestoredFrom": {
+    "description": "Toast and undo-menu label after a restore. date is a full date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerWhatYouHadIsSaved": "what you had is saved",
+  "@ledgerWhatYouHadIsSaved": {
+    "description": "Part of the restore toast, after \" · \"."
+  },
+  "ledgerArchivedName": "{name} (archived)",
+  "@ledgerArchivedName": {
+    "description": "Erase-everything dialog: an archived account in the list of what goes.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCouldntStartNewLedger": "Couldn’t start a new ledger · nothing was changed",
+  "@ledgerCouldntStartNewLedger": {
+    "description": "Toast when erasing everything failed."
+  },
+  "ledgerNewLedgerStarted": "New ledger started",
+  "@ledgerNewLedgerStarted": {
+    "description": "Undo-menu label after everything is erased."
+  },
+  "ledgerEverythingErased": "Everything erased · what you had is saved in Backups",
+  "@ledgerEverythingErased": {
+    "description": "Toast after everything is erased."
+  },
+  "ledgerCouldntOpenLedger": "Couldn’t open the ledger: {error}",
+  "@ledgerCouldntOpenLedger": {
+    "description": "Shown instead of the app when the ledger can’t be read.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerGroupAccounts": "Accounts",
+  "@ledgerGroupAccounts": {
+    "description": "Sidebar heading over accounts with no group."
+  },
+  "ledgerGroupCashBank": "Cash & bank",
+  "@ledgerGroupCashBank": {
+    "description": "Sidebar heading over bank accounts and cash."
+  },
+  "ledgerGroupCredit": "Credit",
+  "@ledgerGroupCredit": {
+    "description": "Sidebar heading over credit cards and loans."
+  },
+  "ledgerSectionLedger": "Ledger",
+  "@ledgerSectionLedger": {
+    "description": "Sidebar section: the accounts and their transactions."
+  },
+  "ledgerSectionBudget": "Budget",
+  "@ledgerSectionBudget": {
+    "description": "Sidebar section."
+  },
+  "ledgerSectionSavings": "Savings",
+  "@ledgerSectionSavings": {
+    "description": "Sidebar section: steps to getting financially prepared."
+  },
+  "ledgerNetWorth": "Net worth",
+  "@ledgerNetWorth": {
+    "description": "Sidebar, bottom: label over the total of all accounts."
+  },
+  "ledgerInclArchived": "incl. {amount} in archived",
+  "@ledgerInclArchived": {
+    "description": "Sidebar, under net worth: money in archived accounts it includes.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDailyCopyFailing": "The daily copy is failing",
+  "@ledgerDailyCopyFailing": {
+    "description": "Tooltip on the Settings gear’s coral dot."
+  },
+  "ledgerSettings": "Settings",
+  "@ledgerSettings": {
+    "description": "Sidebar item and title of the Settings page."
+  },
+  "ledgerBackupsTitle": "Backups",
+  "@ledgerBackupsTitle": {
+    "description": "Settings → Backups card, title."
+  },
+  "ledgerDailyCopy": "Daily copy",
+  "@ledgerDailyCopy": {
+    "description": "Settings → Backups card, row label (120px wide)."
+  },
+  "ledgerTimeAt": "{day} {time}",
+  "@ledgerTimeAt": {
+    "description": "Settings → Backups: when a copy was made. day is Today, Yesterday or a date; time is 14:05.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDailyCopyFailingSince": "Failing · the last one is from {when}. Check the disk has room, and back up to another drive.",
+  "@ledgerDailyCopyFailingSince": {
+    "description": "Settings → Backups card, Daily copy row, in coral: the daily copy fails. when is like \"Today 14:05\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDailyCopyFailingNone": "Failing. Check the disk has room, and back up to another drive.",
+  "@ledgerDailyCopyFailingNone": {
+    "description": "Settings → Backups card, Daily copy row, in coral: the daily copy fails and none was ever made."
+  },
+  "ledgerDailyCopyNone": "None yet · one is made each day the app is open",
+  "@ledgerDailyCopyNone": {
+    "description": "Settings → Backups card, Daily copy row: no copy yet."
+  },
+  "ledgerDailyCopyWhen": "{when} · on this computer",
+  "@ledgerDailyCopyWhen": {
+    "description": "Settings → Backups card, Daily copy row: when the newest was made.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerKept": "Kept",
+  "@ledgerKept": {
+    "description": "Settings → Backups card, row label (120px wide): which copies are kept."
+  },
+  "ledgerKeptWhich": "The newest 14, plus the first of each month for a year",
+  "@ledgerKeptWhich": {
+    "description": "Settings → Backups card, Kept row."
+  },
+  "ledgerBackUpTo": "Back up to…",
+  "@ledgerBackUpTo": {
+    "description": "Settings → Backups card, button: save a copy to a place the user picks."
+  },
+  "ledgerRestoreFrom": "Restore from…",
+  "@ledgerRestoreFrom": {
+    "description": "Settings → Backups card, button: put a backup back."
+  },
+  "ledgerBackupsNote": "The daily copies are on this computer, so they won’t help if it’s lost or breaks: back up to another drive or a USB stick now and then. Restoring saves what you have first, and Undo brings it back.",
+  "@ledgerBackupsNote": {
+    "description": "Settings → Backups card, note under the buttons."
+  },
+  "ledgerSecurityTitle": "Security",
+  "@ledgerSecurityTitle": {
+    "description": "Settings → Security card, title."
+  },
+  "ledgerSecurityKeySaved": "Your ledger and backups are encrypted. Your recovery key opens them on another computer, but only the copies you saved off this one (Back up to…) survive losing it. BetterBudget doesn’t keep a copy of the key.",
+  "@ledgerSecurityKeySaved": {
+    "description": "Settings → Security card, when the recovery key was saved."
+  },
+  "ledgerSecurityKeyNotSaved": "Your ledger and backups are encrypted. Your recovery key wasn’t saved or copied when it was shown, and BetterBudget doesn’t keep a copy: if this computer is lost, they can’t be opened.",
+  "@ledgerSecurityKeyNotSaved": {
+    "description": "Settings → Security card, in coral, when the recovery key was never saved."
+  },
+  "ledgerCheckRecoveryKey": "Check my recovery key…",
+  "@ledgerCheckRecoveryKey": {
+    "description": "Settings → Security card, button."
+  },
+  "ledgerStartOverTitle": "Start over",
+  "@ledgerStartOverTitle": {
+    "description": "Settings → Start over card, title."
+  },
+  "ledgerStartOverNote": "This erases every account and transaction in this ledger, so you start empty. You choose whether your categories stay. What you have now is saved in Backups first, and Undo brings it back.",
+  "@ledgerStartOverNote": {
+    "description": "Settings → Start over card, text."
+  },
+  "ledgerEraseAndStartOverButton": "Erase everything and start over…",
+  "@ledgerEraseAndStartOverButton": {
+    "description": "Settings → Start over card, button."
+  },
+  "ledgerRestoreTitle": "Restore this backup?",
+  "@ledgerRestoreTitle": {
+    "description": "Restore dialog title."
+  },
+  "ledgerBackupFrom": "Backup from",
+  "@ledgerBackupFrom": {
+    "description": "Restore dialog, row label (110px wide): when the backup was made."
+  },
+  "ledgerItHolds": "It holds",
+  "@ledgerItHolds": {
+    "description": "Restore dialog, row label (110px wide): what the backup holds."
+  },
+  "ledgerHereNow": "Here now",
+  "@ledgerHereNow": {
+    "description": "Restore dialog, row label (110px wide): what the ledger holds now."
+  },
+  "ledgerCounts": "{transactions, plural, =1{1 transaction} other{{transactions} transactions}} · {accounts, plural, =1{1 account} other{{accounts} accounts}}",
+  "@ledgerCounts": {
+    "description": "Restore dialog, row value.",
+    "placeholders": {
+      "transactions": {
+        "type": "int"
+      },
+      "accounts": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerRestoreNote": "Everything here is replaced by the backup. What you have now is saved first, and Undo brings it back.",
+  "@ledgerRestoreNote": {
+    "description": "Restore dialog, note."
+  },
+  "ledgerCancel": "Cancel",
+  "@ledgerCancel": {
+    "description": "Dialog button."
+  },
+  "ledgerRestore": "Restore",
+  "@ledgerRestore": {
+    "description": "Restore dialog, main button."
+  },
+  "ledgerOwed": "{amount} owed",
+  "@ledgerOwed": {
+    "description": "A card or loan’s balance in the sidebar and Erase-everything dialog.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerYourPay": "Your pay",
+  "@ledgerYourPay": {
+    "description": "Erase-everything dialog, list of what goes."
+  },
+  "ledgerReconciles": "{count, plural, =1{1 reconcile} other{{count} reconciles}}",
+  "@ledgerReconciles": {
+    "description": "Erase-everything dialog, list of what goes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerPayees": "Payees",
+  "@ledgerPayees": {
+    "description": "Erase-everything dialog, list of what goes."
+  },
+  "ledgerBudgetSavingsSettings": "Budget and Savings settings",
+  "@ledgerBudgetSavingsSettings": {
+    "description": "Erase-everything dialog, list of what goes."
+  },
+  "ledgerMoreAccounts": "+ {count, plural, =1{1 more account} other{{count} more accounts}}",
+  "@ledgerMoreAccounts": {
+    "description": "Erase-everything dialog, after the first 8 accounts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerTransactionCount": "{count, plural, =1{1 transaction} other{{count} transactions}}",
+  "@ledgerTransactionCount": {
+    "description": "Erase-everything dialog, beside their date range.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerEraseTitle": "Erase everything and start over?",
+  "@ledgerEraseTitle": {
+    "description": "Erase-everything dialog title, in coral."
+  },
+  "ledgerAllOfThisErased": "All of this is erased:",
+  "@ledgerAllOfThisErased": {
+    "description": "Erase-everything dialog, over the list of what goes."
+  },
+  "ledgerStartWithNothing": "You start with no accounts and no money in the app.",
+  "@ledgerStartWithNothing": {
+    "description": "Erase-everything dialog."
+  },
+  "ledgerYourCategories": "Your {count, plural, =1{1 category} other{{count} categories}}",
+  "@ledgerYourCategories": {
+    "description": "Erase-everything dialog, over the keep / erase choice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerKeepThemEmpty": "Keep them, empty",
+  "@ledgerKeepThemEmpty": {
+    "description": "Erase-everything dialog, choice: keep the categories with no rows."
+  },
+  "ledgerEraseThemToo": "Erase them too",
+  "@ledgerEraseThemToo": {
+    "description": "Erase-everything dialog, choice: erase the categories too."
+  },
+  "ledgerKeptNoRows": "Kept with no rows in them, ready for your real accounts.",
+  "@ledgerKeptNoRows": {
+    "description": "Erase-everything dialog, under the choice when keeping."
+  },
+  "ledgerAddCategoriesAgain": "You’ll add categories again on the Budget screen.",
+  "@ledgerAddCategoriesAgain": {
+    "description": "Erase-everything dialog, under the choice when erasing."
+  },
+  "ledgerEraseNote": "What you have now is saved in Backups first. Undo brings it back, and so does Restore from… later.",
+  "@ledgerEraseNote": {
+    "description": "Erase-everything dialog, note."
+  },
+  "ledgerEraseEverything": "Erase everything",
+  "@ledgerEraseEverything": {
+    "description": "Erase-everything dialog, red button."
+  },
+  "ledgerSearchHint": "Search payee, memo, amount",
+  "@ledgerSearchHint": {
+    "description": "Search field hint above the register (280px wide)."
+  },
+  "ledgerPeriodChip": "{period} · {start}–{end}",
+  "@ledgerPeriodChip": {
+    "description": "All accounts, filter chip: rows of the budget’s current span. period is \"This month\" or \"This pay period\"; start and end are month.day.",
+    "placeholders": {
+      "period": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDbReconciled": "Reconciled · the date and amount match a bank statement",
+  "@ledgerDbReconciled": {
+    "description": "Under the row editor or as a toast: a reconciled row’s date and amount can’t change."
+  },
+  "ledgerDbOwnAccount": "It can’t move money to its own account",
+  "@ledgerDbOwnAccount": {
+    "description": "Under the row editor or as a toast: a transfer to the account it is in."
+  },
+  "ledgerDbFutureConfirm": "It can’t be confirmed on a future date",
+  "@ledgerDbFutureConfirm": {
+    "description": "Under the row editor: a scheduled row confirmed with a date after today."
+  },
+  "ledgerDbOpeningStays": "An opening balance or adjustment stays put",
+  "@ledgerDbOpeningStays": {
+    "description": "Toast after \"Can’t move · \": opening balances and reconcile adjustments stay in their account."
+  },
+  "ledgerDbAlreadyThere": "It already moves money in that account",
+  "@ledgerDbAlreadyThere": {
+    "description": "Toast after \"Can’t move · \": the transfer already touches the account picked."
+  },
+  "ledgerDbNotInAccount": "Not in this account",
+  "@ledgerDbNotInAccount": {
+    "description": "Toast or editor error: the row is no longer in this account."
+  },
+  "ledgerDbNotAnAccount": "Not an account",
+  "@ledgerDbNotAnAccount": {
+    "description": "Toast after \"Can’t move · \": the target isn’t an account."
+  },
+  "ledgerDbSplitNotEditable": "Split lines can’t be edited yet",
+  "@ledgerDbSplitNotEditable": {
+    "description": "Under the row editor: a split transaction’s amount or category."
+  },
+  "ledgerDbChangedSince": "It changed since",
+  "@ledgerDbChangedSince": {
+    "description": "Toast after \"Can’t move · \": the row changed meanwhile."
+  },
+  "ledgerDbStillHasRows": "It still has rows; pick where they go",
+  "@ledgerDbStillHasRows": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbNotSingleCategory": "Not a single-category transaction",
+  "@ledgerDbNotSingleCategory": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbPayIsIn": "Pay is money in",
+  "@ledgerDbPayIsIn": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbNotCategoryKind": "Not a category kind",
+  "@ledgerDbNotCategoryKind": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbNotCategory": "Not a category",
+  "@ledgerDbNotCategory": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbSameCategory": "Same category",
+  "@ledgerDbSameCategory": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbAccountDeleted": "That account was deleted",
+  "@ledgerDbAccountDeleted": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "ledgerDbNeverReconciled": "Never reconciled",
+  "@ledgerDbNeverReconciled": {
+    "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
+  },
+  "planEverythingCleared": "Everything has cleared",
+  "@planEverythingCleared": {
+    "description": "Account header, balance sum: note beside the pending line when nothing is pending"
+  },
+  "planNotClearedYet": "{count} not cleared yet",
+  "@planNotClearedYet": {
+    "description": "Account header, balance sum: note beside the pending line; count = pending transactions",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planWorking": "Working",
+  "@planWorking": {
+    "description": "Account header, balance sum: name of the total (cleared + pending), the big number"
+  },
+  "planOwed": "Owed",
+  "@planOwed": {
+    "description": "Account header, balance sum: name of the total on a credit card or loan"
+  },
+  "planNeverReconciled": "Never reconciled",
+  "@planNeverReconciled": {
+    "description": "Account header, balance sum: the account was never reconciled"
+  },
+  "planLastReconciled": "Last reconciled on {date}",
+  "@planLastReconciled": {
+    "description": "Account header, balance sum: when the account was last reconciled; date like 09.16 / 9-р сарын 16",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planReconcile": "Reconcile",
+  "@planReconcile": {
+    "description": "Account header, balance sum: button that starts reconciling"
+  },
+  "planLateSeveral": "+{amount} in, {count} not arrived",
+  "@planLateSeveral": {
+    "description": "Account header, forecast panel: gold note; several incomes are past due and not counted. amount like ₮2,500,000",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planLateToday": "+{amount} in, due today",
+  "@planLateToday": {
+    "description": "Account header, forecast panel: gold note; an income due today has not arrived",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planLateDays": "+{amount} in, {days, plural, =1{1 day late} other{{days} days late}}",
+  "@planLateDays": {
+    "description": "Account header, forecast panel: gold note; an income is days late",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "planLateNotCounted": " · not counted",
+  "@planLateNotCounted": {
+    "description": "Account header, forecast panel: after the late-income note; the late money is left out of the forecast"
+  },
+  "planNothingScheduled": "Nothing scheduled",
+  "@planNothingScheduled": {
+    "description": "Account header, forecast panel: headline when no bills or income are scheduled"
+  },
+  "planCreditAfter": "{amount} in credit after {date}",
+  "@planCreditAfter": {
+    "description": "Account header, forecast panel (credit card): headline, the card will be overpaid after the last scheduled charge or payment",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planOwedAfterDate": "{amount} owed after {date}",
+  "@planOwedAfterDate": {
+    "description": "Account header, forecast panel (credit card): headline, what will be owed after the last scheduled charge or payment",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardCharges": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} before {date}",
+  "@planCardCharges": {
+    "description": "Account header, forecast panel (credit card): line under the headline, scheduled charges and their total",
+    "placeholders": {
+      "charges": {
+        "type": "int"
+      },
+      "chargeTotal": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardPayments": "{payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}",
+  "@planCardPayments": {
+    "description": "Account header, forecast panel (credit card): line under the headline, scheduled payments to the card and their total",
+    "placeholders": {
+      "payments": {
+        "type": "int"
+      },
+      "paymentTotal": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardChargesPayments": "{charges, plural, =1{1 charge} other{{charges} charges}} · {chargeTotal} · {payments, plural, =1{1 payment} other{{payments} payments}} · {paymentTotal} before {date}",
+  "@planCardChargesPayments": {
+    "description": "Account header, forecast panel (credit card): line under the headline, scheduled charges and payments",
+    "placeholders": {
+      "charges": {
+        "type": "int"
+      },
+      "chargeTotal": {
+        "type": "String"
+      },
+      "payments": {
+        "type": "int"
+      },
+      "paymentTotal": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardNothing": "No charges or payments in the next 30 days",
+  "@planCardNothing": {
+    "description": "Account header, forecast panel (credit card): line under the headline when nothing is scheduled"
+  },
+  "planBelowZeroNow": "Below zero now",
+  "@planBelowZeroNow": {
+    "description": "Account header, forecast panel: red headline, the balance is already below zero"
+  },
+  "planBelowZeroShort": "Below zero now · up to {amount} short",
+  "@planBelowZeroShort": {
+    "description": "Account header, forecast panel: red headline, already below zero and going lower",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planBelowZeroUnless": "Below zero now unless {amount} due today comes",
+  "@planBelowZeroUnless": {
+    "description": "Account header, forecast panel: red headline on payday, below zero unless today’s income arrives",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planRunsOutUnless": "Runs out {date} unless {amount} due today comes",
+  "@planRunsOutUnless": {
+    "description": "Account header, forecast panel: red headline on payday, money runs out on a date unless today’s income arrives",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planRunsOut": "Runs out on {date} · up to {amount} short",
+  "@planRunsOut": {
+    "description": "Account header, forecast panel: red headline, the day money runs out and how short it gets",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planLowest": "Lowest {amount} on {date}",
+  "@planLowest": {
+    "description": "Account header, forecast panel: headline, the lowest the balance gets before next income",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoBillsOrIncome": "No bills or income in the next 30 days",
+  "@planNoBillsOrIncome": {
+    "description": "Account header, forecast panel: line under the headline when nothing is scheduled"
+  },
+  "planNoBillsBefore": "No bills before {date}",
+  "@planNoBillsBefore": {
+    "description": "Account header, forecast panel: line under the headline when no bills come before the next income",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planInBefore": "+{amount} in before {date}",
+  "@planInBefore": {
+    "description": "Account header, forecast panel: line under the headline, money coming in (transfers, refunds) and no bills",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBillsBefore": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date}",
+  "@planBillsBefore": {
+    "description": "Account header, forecast panel: clickable line under the headline, the bills before the end date and their total",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBillsBeforeIn": "{count, plural, =1{1 bill} other{{count} bills}} · {amount} before {date} · +{inAmount} in",
+  "@planBillsBeforeIn": {
+    "description": "Account header, forecast panel: clickable line under the headline, bills and their total, plus money coming in",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "inAmount": {
+        "type": "String"
+      }
+    }
+  },
+  "planNext30Days": "Next 30 days",
+  "@planNext30Days": {
+    "description": "Account header, forecast panel: small title above the headline when there is no payday ahead"
+  },
+  "planUntilNextIncome": "Until next income",
+  "@planUntilNextIncome": {
+    "description": "Account header, forecast panel: small title above the headline"
+  },
+  "planAddPay": " · no payday ahead · Add your pay →",
+  "@planAddPay": {
+    "description": "Account header, forecast panel: gold link after the small title; opens pay setup"
+  },
+  "planUntilDate": "Until {date}",
+  "@planUntilDate": {
+    "description": "Account header, forecast panel: bill list header (left), the list runs until this date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBalanceAfter": "Balance after",
+  "@planBalanceAfter": {
+    "description": "Account header, forecast panel: bill list and dot card, the column/line with the balance after each bill"
+  },
+  "planOwedAfter": "Owed after",
+  "@planOwedAfter": {
+    "description": "Account header, forecast panel (credit card): bill list and dot card, what is owed after each"
+  },
+  "planTransferTo": "To {account}",
+  "@planTransferTo": {
+    "description": "Account header, forecast panel: bill list and dot card, a scheduled transfer out to another account",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planTransferFrom": "From {account}",
+  "@planTransferFrom": {
+    "description": "Account header, forecast panel: bill list and dot card, a scheduled transfer in from another account",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planAtLeastEstimate": "{category} · at least, an estimate",
+  "@planAtLeastEstimate": {
+    "description": "Account header, forecast panel: dot card, under an income that varies; the forecast counts on the least",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planBudget": "Budget",
+  "@planBudget": {
+    "description": "Budget page: page title"
+  },
+  "planAddCategory": "Add category",
+  "@planAddCategory": {
+    "description": "Budget page: button, top right"
+  },
+  "planAddCategoryTip": "Add a category",
+  "@planAddCategoryTip": {
+    "description": "Budget page: tooltip on the Add category button"
+  },
+  "planSpending": "Spending",
+  "@planSpending": {
+    "description": "Budget page: group title, and the kind toggle in the new-category form"
+  },
+  "planIncome": "Income",
+  "@planIncome": {
+    "description": "Budget page: group title, and the kind toggle in the new-category form"
+  },
+  "planShowArchived": "Show archived ({count})",
+  "@planShowArchived": {
+    "description": "Budget page: link that shows archived categories",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planHideArchived": "Hide archived ({count})",
+  "@planHideArchived": {
+    "description": "Budget page: link that hides archived categories",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planShowInMenus": "Show in menus",
+  "@planShowInMenus": {
+    "description": "Budget page: button on an archived category, un-archives it"
+  },
+  "planNotPayday": "not a payday",
+  "@planNotPayday": {
+    "description": "Budget page: note on an income category that does not end forecasts"
+  },
+  "planPaydayNoRegular": "payday · no regular pay",
+  "@planPaydayNoRegular": {
+    "description": "Budget page: note on an income category; the user said there is no regular pay"
+  },
+  "planPaydayNotSetUp": "payday · pay not set up",
+  "@planPaydayNotSetUp": {
+    "description": "Budget page: gold note on an income category whose pay is not set up yet"
+  },
+  "planMorePay": " · +{count} more pay",
+  "@planMorePay": {
+    "description": "Budget page: added at the end of an income category’s note when it has more pay schedules",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planRaiseSplit": "Your last 6 all came in over 5% above the estimate · raise it?",
+  "@planRaiseSplit": {
+    "description": "Budget page: gold suggestion on an income category, pay that varies (two amounts a month)"
+  },
+  "planRaiseLowest": "Your lowest of the last 6 was {amount} · raise the estimate?",
+  "@planRaiseLowest": {
+    "description": "Budget page: gold suggestion on an income category, pay that varies",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planLastTwoLess": "Last 2 came in at {amount}, less than planned · update it?",
+  "@planLastTwoLess": {
+    "description": "Budget page: gold suggestion on an income category, the same pay came in lower twice",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planLastTwoMore": "Last 2 came in at {amount} · update the amount?",
+  "@planLastTwoMore": {
+    "description": "Budget page: gold suggestion on an income category, the same pay came in different twice",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaydayPay": "payday · {pay}",
+  "@planPaydayPay": {
+    "description": "Budget page: note on an income category; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)",
+    "placeholders": {
+      "pay": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaydayPayNext": "payday · {pay} · next {date}",
+  "@planPaydayPayNext": {
+    "description": "Budget page: note on an income category, with the next payday",
+    "placeholders": {
+      "pay": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoRows": "no rows",
+  "@planNoRows": {
+    "description": "Budget page: usage on a category with no transactions"
+  },
+  "planUsageRows": "{count, plural, =1{1 row} other{{count} rows}}",
+  "@planUsageRows": {
+    "description": "Budget page: usage on a category, how many transactions",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planUsageRowsLast": "{count, plural, =1{1 row} other{{count} rows}} · last {date}",
+  "@planUsageRowsLast": {
+    "description": "Budget page: usage on a category, how many transactions and the latest date",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planUsageScheduled": "{count} scheduled",
+  "@planUsageScheduled": {
+    "description": "Budget page: usage on a category, scheduled transactions (joined to the rest with ·)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planClickToRename": "Click to rename",
+  "@planClickToRename": {
+    "description": "Budget page: tooltip on a category name"
+  },
+  "planShowTheseRows": "Show these rows",
+  "@planShowTheseRows": {
+    "description": "Budget page: tooltip on a category’s usage, opens its transactions"
+  },
+  "planRename": "Rename",
+  "@planRename": {
+    "description": "Budget page, category ⋯ menu"
+  },
+  "planPayMenu": "Pay…",
+  "@planPayMenu": {
+    "description": "Budget page, category ⋯ menu: income only, opens pay setup"
+  },
+  "planUnmarkPayday": "Not a payday",
+  "@planUnmarkPayday": {
+    "description": "Budget page, category ⋯ menu: income only, stop this category ending forecasts"
+  },
+  "planMarkPayday": "Mark as payday",
+  "@planMarkPayday": {
+    "description": "Budget page, category ⋯ menu: income only, make this category end forecasts"
+  },
+  "planChangeToSpending": "Change to spending",
+  "@planChangeToSpending": {
+    "description": "Budget page, category ⋯ menu"
+  },
+  "planChangeToIncome": "Change to income",
+  "@planChangeToIncome": {
+    "description": "Budget page, category ⋯ menu"
+  },
+  "planArchive": "Archive",
+  "@planArchive": {
+    "description": "Budget page, category ⋯ menu"
+  },
+  "planDeleteMenu": "Delete…",
+  "@planDeleteMenu": {
+    "description": "Budget page, category ⋯ menu: red, opens a confirmation"
+  },
+  "planCategoryName": "Category name",
+  "@planCategoryName": {
+    "description": "Budget page, new category form: field hint"
+  },
+  "planCancel": "Cancel",
+  "@planCancel": {
+    "description": "Budget page, new category form and delete-category dialog: button"
+  },
+  "planAdd": "Add",
+  "@planAdd": {
+    "description": "Budget page, new category form: button"
+  },
+  "planIncomeEndsForecast": "Income ends a forecast, like payday.",
+  "@planIncomeEndsForecast": {
+    "description": "Budget page, new category form: note when Income is picked"
+  },
+  "planNothingFiled": "Nothing is filed under it yet.",
+  "@planNothingFiled": {
+    "description": "Delete category dialog: body when merging and the category has no transactions"
+  },
+  "planOnlyDeletedFiled": "Only deleted rows are filed under it. They move to:",
+  "@planOnlyDeletedFiled": {
+    "description": "Delete category dialog: body, followed by a category picker"
+  },
+  "planRowsFiled": "{count, plural, =1{1 row is filed under it. It moves to:} other{{count} rows are filed under it. They move to:}}",
+  "@planRowsFiled": {
+    "description": "Delete category dialog: body, followed by a category picker",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planRowsFiledScheduled": "{count, plural, =1{1 row is filed under it, {scheduled} of them scheduled. It moves to:} other{{count} rows are filed under it, {scheduled} of them scheduled. They move to:}}",
+  "@planRowsFiledScheduled": {
+    "description": "Delete category dialog: body, some of the transactions are scheduled",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "scheduled": {
+        "type": "int"
+      }
+    }
+  },
+  "planIntoIncome": "{name} is income: these rows will count as money in.",
+  "@planIntoIncome": {
+    "description": "Delete category dialog: gold note, moving spending rows into an income category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planIntoIncomeScheduled": "{name} is income: these rows will count as money in, and the scheduled ones will end forecasts.",
+  "@planIntoIncomeScheduled": {
+    "description": "Delete category dialog: gold note, moving rows (some scheduled) into an income category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planIntoSpending": "{name} is spending: these rows will no longer count as income.",
+  "@planIntoSpending": {
+    "description": "Delete category dialog: gold note, moving income rows into a spending category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planIntoSpendingScheduled": "{name} is spending: these rows will no longer count as income or end forecasts.",
+  "@planIntoSpendingScheduled": {
+    "description": "Delete category dialog: gold note, moving income rows (some scheduled) into a spending category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planMergeTitle": "Merge {name} into {into}?",
+  "@planMergeTitle": {
+    "description": "Delete category dialog: title when a rename matched another category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "planDeleteTitle": "Delete {name}?",
+  "@planDeleteTitle": {
+    "description": "Delete category dialog: title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoOtherCategory": "There’s no other category to move them to. Add one first.",
+  "@planNoOtherCategory": {
+    "description": "Delete category dialog: red, when there is nowhere to move the rows"
+  },
+  "planPickCategory": "Pick a category",
+  "@planPickCategory": {
+    "description": "Delete category dialog: picker button before a category is picked"
+  },
+  "planDeleteButton": "Delete {name}",
+  "@planDeleteButton": {
+    "description": "Delete category dialog: red confirm button, disabled until a category is picked",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planMergeButton": "Merge into {into}",
+  "@planMergeButton": {
+    "description": "Delete category dialog: red confirm button when merging",
+    "placeholders": {
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveAndDelete": "Move to {into} and delete",
+  "@planMoveAndDelete": {
+    "description": "Delete category dialog: red confirm button; into is a category name",
+    "placeholders": {
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "planSavings": "Savings",
+  "@planSavings": {
+    "description": "Savings page: page title"
+  },
+  "planAllStepsDone": "Every step is done",
+  "@planAllStepsDone": {
+    "description": "Savings page: subtitle beside the title"
+  },
+  "planOneStepAtATime": "Getting prepared, one step at a time",
+  "@planOneStepAtATime": {
+    "description": "Savings page: subtitle beside the title"
+  },
+  "planCourseNote": "In the order of Personal Finances for Self-Reliance: each step makes the next one safer.",
+  "@planCourseNote": {
+    "description": "Savings page: small note under the steps. Personal Finances for Self-Reliance is the Church’s course; use its official Mongolian title if it has one"
+  },
+  "planStepOneMonth": "One month of expenses set aside",
+  "@planStepOneMonth": {
+    "description": "Savings page, step title (step 1)"
+  },
+  "planStepHealth": "Health coverage",
+  "@planStepHealth": {
+    "description": "Savings page, step title (step 2): health insurance or another way to get medical care"
+  },
+  "planStepConsumerDebt": "No consumer debt",
+  "@planStepConsumerDebt": {
+    "description": "Savings page, step title (step 3): no credit card or consumer loan balances"
+  },
+  "planStepMoreMonths": "{months} months of expenses set aside",
+  "@planStepMoreMonths": {
+    "description": "Savings page, step title (step 4): months is 3 to 6",
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "planStepRetirement": "Saving for retirement",
+  "@planStepRetirement": {
+    "description": "Savings page, step title (step 5)"
+  },
+  "planStepLongLoans": "Paying off the mortgage and student loans",
+  "@planStepLongLoans": {
+    "description": "Savings page, step title (step 6)"
+  },
+  "planNow": "Now",
+  "@planNow": {
+    "description": "Savings page: blue tag beside the current step’s title"
+  },
+  "planSetAside": "Set aside",
+  "@planSetAside": {
+    "description": "Savings page: grey tag beside a step the user set aside"
+  },
+  "planSetAsideUndo": "“{step}” set aside",
+  "@planSetAsideUndo": {
+    "description": "Savings page: toast and undo label after setting a step aside",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planBackInStepsUndo": "“{step}” back in the steps",
+  "@planBackInStepsUndo": {
+    "description": "Savings page: toast and undo label after bringing a step back",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planMonthUnknown": "A month of your spending isn’t known yet ({days, plural, =1{1 day} other{{days} days}} of rows). Type it, or come back in a few weeks.",
+  "@planMonthUnknown": {
+    "description": "Savings page, emergency fund steps: not enough history to average a month",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "planMonthNoSpending": "No spending in the last {days} days to go by. Type a month of your expenses.",
+  "@planMonthNoSpending": {
+    "description": "Savings page, emergency fund steps: history but no spending",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "planMonthTyped": "A month of expenses: {amount}, as you typed it",
+  "@planMonthTyped": {
+    "description": "Savings page, emergency fund steps: the month the user typed",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planMonthAverage3": "A month of expenses: {amount}, the average of the last 3 months{loans, select, yes{, loan payments included} other{}}",
+  "@planMonthAverage3": {
+    "description": "Savings page, emergency fund steps: averaged month. loans is yes when mortgage/student loan payments are counted",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "loans": {
+        "type": "String"
+      }
+    }
+  },
+  "planMonthAverageDays": "A month of expenses: {amount}, the average of the last {days} days{loans, select, yes{, loan payments included} other{}}",
+  "@planMonthAverageDays": {
+    "description": "Savings page, emergency fund steps: averaged month over under 3 months of history (28+ days)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      },
+      "loans": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundOf": "{fund} of {target}",
+  "@planFundOf": {
+    "description": "Savings page, emergency fund steps: progress, what is in the fund of the goal",
+    "placeholders": {
+      "fund": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundOfToGo": "{fund} of {target} · {left} to go",
+  "@planFundOfToGo": {
+    "description": "Savings page, emergency fund steps: progress and what is still missing",
+    "placeholders": {
+      "fund": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "planWhichAccount": "Which account holds it? Pick one below. A savings account you can reach but don’t spend from works best.",
+  "@planWhichAccount": {
+    "description": "Savings page, emergency fund steps: guidance when no account is picked"
+  },
+  "planKeepReachable": "Keep it where you can reach it. If you use it, fill it back up before anything else.",
+  "@planKeepReachable": {
+    "description": "Savings page, step 1: guidance"
+  },
+  "planMinimumsOn": "Until it’s full, pay only the minimums on {names}.",
+  "@planMinimumsOn": {
+    "description": "Savings page, step 1: guidance; names are the cards and loans owing",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planEnoughForJobLoss": "Enough to get through losing a job or a long illness.",
+  "@planEnoughForJobLoss": {
+    "description": "Savings page, step 4: guidance"
+  },
+  "planHealthYes": "You have it",
+  "@planHealthYes": {
+    "description": "Savings page, health step: answered yes"
+  },
+  "planHealthWhat": "Insurance, or some other way to get medical care",
+  "@planHealthWhat": {
+    "description": "Savings page, health step: what it means, before an answer"
+  },
+  "planRetirementYes": "You’re putting money into it",
+  "@planRetirementYes": {
+    "description": "Savings page, retirement step: answered yes"
+  },
+  "planRetirementWhat": "Into a retirement plan, from your pay or on your own",
+  "@planRetirementWhat": {
+    "description": "Savings page, retirement step: what it means, before an answer"
+  },
+  "planEmployerMatch": "If your employer matches what you put in, put in at least enough to get all of it.",
+  "@planEmployerMatch": {
+    "description": "Savings page, retirement step: guidance"
+  },
+  "planIHaveIt": "I have it",
+  "@planIHaveIt": {
+    "description": "Savings page, health step: answer button"
+  },
+  "planIAm": "I am",
+  "@planIAm": {
+    "description": "Savings page, retirement step: answer button (to “saving for retirement”)"
+  },
+  "planAnswerYesUndo": "{step}: yes",
+  "@planAnswerYesUndo": {
+    "description": "Savings page: undo label after answering a step yes",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planAnswerNotYetUndo": "{step}: not yet",
+  "@planAnswerNotYetUndo": {
+    "description": "Savings page: undo label after answering a step not yet",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoCardsOwing": "No cards or loans owing",
+  "@planNoCardsOwing": {
+    "description": "Savings page, consumer debt step: nothing owed"
+  },
+  "planAmountOwed": "{amount} owed",
+  "@planAmountOwed": {
+    "description": "Savings page, consumer debt step: total owed",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayExtraGuide": "Pay extra on one at a time, smallest balance or highest interest first; both get you there. When one is paid off, put its payment toward the next.",
+  "@planPayExtraGuide": {
+    "description": "Savings page, consumer debt step: guidance"
+  },
+  "planLongNone": "You have none",
+  "@planLongNone": {
+    "description": "Savings page, mortgage step: the user said there are none"
+  },
+  "planLongAsk": "Do you have a mortgage or student loans?",
+  "@planLongAsk": {
+    "description": "Savings page, mortgage step: question before an answer"
+  },
+  "planLongMarkThere": "If a loan under No consumer debt is one, mark it there.",
+  "@planLongMarkThere": {
+    "description": "Savings page, mortgage step: guidance; No consumer debt is step 3’s title"
+  },
+  "planIHaveNone": "I have none",
+  "@planIHaveNone": {
+    "description": "Savings page, mortgage step: answer button"
+  },
+  "planPayingExtraOnThem": "Paying extra on them",
+  "@planPayingExtraOnThem": {
+    "description": "Savings page, mortgage step: answer button"
+  },
+  "planNotYet": "Not yet",
+  "@planNotYet": {
+    "description": "Savings page: answer button"
+  },
+  "planNoLongLoansUndo": "No mortgage or student loans",
+  "@planNoLongLoansUndo": {
+    "description": "Savings page, mortgage step: undo label"
+  },
+  "planPayingExtraUndo": "Paying extra on loans",
+  "@planPayingExtraUndo": {
+    "description": "Savings page, mortgage step: undo label"
+  },
+  "planLoansNotYetUndo": "Loans: not yet",
+  "@planLoansNotYetUndo": {
+    "description": "Savings page, mortgage step: undo label"
+  },
+  "planNotPayingExtraUndo": "Not paying extra on loans",
+  "@planNotPayingExtraUndo": {
+    "description": "Savings page, mortgage step: undo label"
+  },
+  "planPaidOff": "Paid off",
+  "@planPaidOff": {
+    "description": "Savings page, mortgage step: nothing left owing"
+  },
+  "planAmountLeft": "{amount} left",
+  "@planAmountLeft": {
+    "description": "Savings page, mortgage step: total still owed",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayingExtra": "Paying extra",
+  "@planPayingExtra": {
+    "description": "Savings page, mortgage step: answer button"
+  },
+  "planNamesAnd": "{first} and {last}",
+  "@planNamesAnd": {
+    "description": "Savings page: the last two names of a list; first may already hold several joined by commas",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "last": {
+        "type": "String"
+      }
+    }
+  },
+  "planPickAccount": "Pick the account",
+  "@planPickAccount": {
+    "description": "Savings page, step 1: gold button, pick the account that holds the emergency fund"
+  },
+  "planKeptIn": "Kept in {names}",
+  "@planKeptIn": {
+    "description": "Savings page, step 1: button showing the account(s) that hold the emergency fund",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundOffUndo": "{account} no longer holds the emergency fund",
+  "@planFundOffUndo": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundOnUndo": "{account} holds the emergency fund",
+  "@planFundOnUndo": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planMonthBackToAverage": "A month of expenses: back to your average",
+  "@planMonthBackToAverage": {
+    "description": "Savings page: toast and undo label after clearing the typed month"
+  },
+  "planMonthSet": "A month of expenses: {amount}",
+  "@planMonthSet": {
+    "description": "Savings page: toast and undo label after typing a month",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planTypeMonth": "Type a month of expenses",
+  "@planTypeMonth": {
+    "description": "Savings page, step 1: gold button when no month is known"
+  },
+  "planChangeMonth": "Change the month",
+  "@planChangeMonth": {
+    "description": "Savings page, step 1: button when the user typed the month"
+  },
+  "planTypeOwnMonth": "Type your own month",
+  "@planTypeOwnMonth": {
+    "description": "Savings page, step 1: button when the month is averaged"
+  },
+  "planMonthHint": "A month of expenses",
+  "@planMonthHint": {
+    "description": "Savings page, step 1: field hint"
+  },
+  "planSave": "Save",
+  "@planSave": {
+    "description": "Savings page, step 1: button beside the month field"
+  },
+  "planEmptyToAverage": "Empty goes back to your average",
+  "@planEmptyToAverage": {
+    "description": "Savings page, step 1: note beside the month field"
+  },
+  "planMonthsChoice": "{count} months",
+  "@planMonthsChoice": {
+    "description": "Savings page, step 4: choice of 3 to 6 months",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planAimingFor": "Aiming for {count} months",
+  "@planAimingFor": {
+    "description": "Savings page, step 4: undo label",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planRoleMortgage": "Mortgage",
+  "@planRoleMortgage": {
+    "description": "Savings page: what a card or loan counts as (menu and label)"
+  },
+  "planRoleStudentLoan": "Student loan",
+  "@planRoleStudentLoan": {
+    "description": "Savings page: what a card or loan counts as (menu and label)"
+  },
+  "planRolePaidMonthly": "Paid in full every month",
+  "@planRolePaidMonthly": {
+    "description": "Savings page: what a card counts as (menu and label)"
+  },
+  "planRoleConsumer": "Consumer debt",
+  "@planRoleConsumer": {
+    "description": "Savings page: what a card or loan counts as (menu and label)"
+  },
+  "planCountsAsMortgage": "{account} counts as mortgage",
+  "@planCountsAsMortgage": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planCountsAsStudentLoan": "{account} counts as student loan",
+  "@planCountsAsStudentLoan": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planCountsAsPaidMonthly": "{account} counts as paid in full every month",
+  "@planCountsAsPaidMonthly": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planCountsAsConsumer": "{account} counts as consumer debt",
+  "@planCountsAsConsumer": {
+    "description": "Savings page: undo label",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planNothingOwed": "nothing owed",
+  "@planNothingOwed": {
+    "description": "Savings page: a card or loan line with nothing owed"
+  },
+  "planPayingExtraOn": "Paying extra on {account}",
+  "@planPayingExtraOn": {
+    "description": "Savings page: toast and undo label after picking the debt to pay extra on",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayExtraOnThis": "Pay extra on this one",
+  "@planPayExtraOnThis": {
+    "description": "Savings page: menu item on a debt line"
+  },
+  "planPayExtraHere": "Pay extra here",
+  "@planPayExtraHere": {
+    "description": "Savings page: blue tag on the debt to pay extra on"
+  },
+  "planCarried": "Owed every day since {date}: a balance is carrying over. It’s left out of consumer debt only because it’s marked paid in full.",
+  "@planCarried": {
+    "description": "Savings page: gold warning under a card marked paid in full every month; date like 2026.09.16",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBringBack": "Bring it back",
+  "@planBringBack": {
+    "description": "Savings page: step ⋯ menu item on a set-aside step"
+  },
+  "planSetStepAside": "Set this step aside",
+  "@planSetStepAside": {
+    "description": "Savings page: step ⋯ menu item"
+  },
+  "rowsNothingScheduled": "Nothing scheduled",
+  "@rowsNothingScheduled": {
+    "description": "Register, Scheduled tab, shown when the list is empty"
+  },
+  "rowsNextOfScheduled": "next of {count} scheduled",
+  "@rowsNextOfScheduled": {
+    "description": "Register, after the payee of the next scheduled row shown at the top of All: it is the next of this many scheduled transactions. Clickable, opens the Scheduled tab",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rowsScheduledOnly": "scheduled",
+  "@rowsScheduledOnly": {
+    "description": "Register, after the payee of the only scheduled row shown at the top of All"
+  },
+  "rowsNoTransactions": "No transactions",
+  "@rowsNoTransactions": {
+    "description": "Register, shown when an account has no transactions to list"
+  },
+  "rowsNothingMatches": "Nothing matches “{search}”",
+  "@rowsNothingMatches": {
+    "description": "Register, shown when the search finds nothing. search is what the user typed",
+    "placeholders": {
+      "search": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNotReconciledThrough": "Not reconciled, through {date}",
+  "@rowsNotReconciledThrough": {
+    "description": "Register title line while reconciling: the list shows rows not yet reconciled dated up to the statement date. date is a full date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsColumnDate": "Date",
+  "@rowsColumnDate": {
+    "description": "Register column header"
+  },
+  "rowsColumnPayee": "Payee",
+  "@rowsColumnPayee": {
+    "description": "Register column header: who the money went to or came from"
+  },
+  "rowsColumnCategory": "Category",
+  "@rowsColumnCategory": {
+    "description": "Register column header"
+  },
+  "rowsColumnAmount": "Amount",
+  "@rowsColumnAmount": {
+    "description": "Register column header"
+  },
+  "rowsColumnBalance": "Balance",
+  "@rowsColumnBalance": {
+    "description": "Register column header, the running balance after each row"
+  },
+  "rowsColumnOwed": "Owed",
+  "@rowsColumnOwed": {
+    "description": "Register column header on a credit card or loan: the running amount owed after each row"
+  },
+  "rowsColumnClearedBalance": "Cleared balance",
+  "@rowsColumnClearedBalance": {
+    "description": "Register column header while reconciling: running balance of cleared rows only. Short column"
+  },
+  "rowsColumnAccount": "Account",
+  "@rowsColumnAccount": {
+    "description": "Register column header in All accounts view: which account each row is in"
+  },
+  "rowsTabAll": "All",
+  "@rowsTabAll": {
+    "description": "Register filter tab: every transaction"
+  },
+  "rowsTabUncleared": "Uncleared",
+  "@rowsTabUncleared": {
+    "description": "Register filter tab: transactions the bank hasn’t settled yet (pending)"
+  },
+  "rowsTabScheduled": "Scheduled",
+  "@rowsTabScheduled": {
+    "description": "Register filter tab: future bills and income not yet confirmed"
+  },
+  "rowsEdit": "Edit",
+  "@rowsEdit": {
+    "description": "Button in the action bar under a selected transaction"
+  },
+  "rowsCategorize": "Categorize",
+  "@rowsCategorize": {
+    "description": "Button in the action bar under a selected transaction, opens a list of categories"
+  },
+  "rowsMarkCleared": "Mark cleared",
+  "@rowsMarkCleared": {
+    "description": "Button in the action bar under a selected transaction: mark it as settled at the bank"
+  },
+  "rowsMarkUncleared": "Mark uncleared",
+  "@rowsMarkUncleared": {
+    "description": "Button in the action bar under a selected transaction: mark it as not yet settled at the bank"
+  },
+  "rowsMoveTo": "Move to",
+  "@rowsMoveTo": {
+    "description": "Button in the action bar under a selected transaction, opens a list of accounts to move it to (it was entered in the wrong account). Not a transfer"
+  },
+  "rowsDelete": "Delete",
+  "@rowsDelete": {
+    "description": "Button in the action bar under a selected transaction"
+  },
+  "rowsReconciledLocked": "Reconciled · date and amount locked",
+  "@rowsReconciledLocked": {
+    "description": "Action bar under a reconciled transaction: why Delete and clearing are missing"
+  },
+  "rowsReconciledOnLocked": "Reconciled on {date} · date and amount locked",
+  "@rowsReconciledOnLocked": {
+    "description": "Action bar under a reconciled transaction. date is the statement date it was reconciled against (month and day)",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsUndoThisReconcile": "Undo this reconcile",
+  "@rowsUndoThisReconcile": {
+    "description": "Button in the action bar under a row locked by the account’s latest reconcile"
+  },
+  "rowsReconciledInLocked": "Reconciled in {account} · date and amount locked",
+  "@rowsReconciledInLocked": {
+    "description": "Action bar under a transfer whose other side was reconciled in another account. account is that account’s name",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsStatusTip": "{status, select, uncleared{Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{Cleared — settled at the bank. Click to mark uncleared.} other{Reconciled — matches a statement, so its date and amount are locked.}}",
+  "@rowsStatusTip": {
+    "description": "Tooltip on the status symbol at the start of a register row. status is uncleared, cleared or reconciled",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsStatusTipIn": "{status, select, uncleared{In {account}: Uncleared — not settled at the bank yet, even if it shows there as pending. Click once it clears.} cleared{In {account}: Cleared — settled at the bank. Click to mark uncleared.} other{In {account}: Reconciled — matches a statement, so its date and amount are locked.}}",
+  "@rowsStatusTipIn": {
+    "description": "Tooltip on the status symbol of a transfer, when the status shown is the other side’s. account is the other account’s name; status is uncleared, cleared or reconciled",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsTransferToBefore": "To",
+  "@rowsTransferToBefore": {
+    "description": "Register row of a transfer out: the quiet word shown BEFORE the other account’s name (which is shown bold). Leave empty if your language puts the word after the name"
+  },
+  "rowsTransferToAfter": "",
+  "@rowsTransferToAfter": {
+    "description": "Register row of a transfer out: the quiet word shown AFTER the other account’s name. Empty in English (\"To Golomt Visa\")"
+  },
+  "rowsTransferFromBefore": "From",
+  "@rowsTransferFromBefore": {
+    "description": "Register row of a transfer in: the quiet word shown BEFORE the other account’s name (which is shown bold). Leave empty if your language puts the word after the name"
+  },
+  "rowsTransferFromAfter": "",
+  "@rowsTransferFromAfter": {
+    "description": "Register row of a transfer in: the quiet word shown AFTER the other account’s name. Empty in English (\"From Golomt Visa\")"
+  },
+  "rowsScheduledTransferTo": "To {account}",
+  "@rowsScheduledTransferTo": {
+    "description": "Scheduled register row of a transfer out. account is the other account’s name",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsScheduledTransferFrom": "From {account}",
+  "@rowsScheduledTransferFrom": {
+    "description": "Scheduled register row of a transfer in. account is the other account’s name",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsScheduledTip": "Scheduled — not in any balance until confirmed",
+  "@rowsScheduledTip": {
+    "description": "Tooltip on the calendar symbol of a scheduled register row"
+  },
+  "rowsConfirm": "Confirm",
+  "@rowsConfirm": {
+    "description": "Button on a scheduled row, and the entry row’s button when confirming one: it happened, make it a real transaction"
+  },
+  "rowsNewCategoryOption": "+ New category “{name}”",
+  "@rowsNewCategoryOption": {
+    "description": "Last line of the category list while typing a name that isn’t a category yet; picking it creates one. name is what was typed",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsDidYouMeanTransfer": "Did you mean “→ {account}”?",
+  "@rowsDidYouMeanTransfer": {
+    "description": "Entry row, note by Add when the category typed is an account’s name: → before an account means a transfer to it",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNotACategoryPickOne": "“{typed}” isn’t a category · pick {first}, or + New category",
+  "@rowsNotACategoryPickOne": {
+    "description": "Entry row, note by Add when the category typed is part of one existing name. first is that category",
+    "placeholders": {
+      "typed": {
+        "type": "String"
+      },
+      "first": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNotACategoryPickTwo": "“{typed}” isn’t a category · pick {first} or {second}, or + New category",
+  "@rowsNotACategoryPickTwo": {
+    "description": "Entry row, note by Add when the category typed is part of existing names. first and second are two of them",
+    "placeholders": {
+      "typed": {
+        "type": "String"
+      },
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNewCategoryNote": "new category",
+  "@rowsNewCategoryNote": {
+    "description": "Entry row, note by Add: saving will create this category"
+  },
+  "rowsNewIncomeCategoryNote": "new income category",
+  "@rowsNewIncomeCategoryNote": {
+    "description": "Entry row, note by Add: saving will create this as an income category (the amount has a +)"
+  },
+  "rowsTransferFromTo": "From {from} to {to}",
+  "@rowsTransferFromTo": {
+    "description": "Entry row, line under a transfer being typed, before an amount is typed: which way it goes. from and to are account names",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsTransferAmountFromTo": "{amount} from {from} to {to}",
+  "@rowsTransferAmountFromTo": {
+    "description": "Entry row, line under a transfer being typed: which way the money goes. amount is formatted money; from and to are account names",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsErrorDate": "Date should look like 2026.09.16",
+  "@rowsErrorDate": {
+    "description": "Entry row error when the date typed isn’t a real date. Keep the example date as is"
+  },
+  "rowsErrorSameAccount": "Can’t transfer to the same account",
+  "@rowsErrorSameAccount": {
+    "description": "Entry row error: a transfer to the account the row is in"
+  },
+  "rowsErrorNoAccount": "No account “{name}”",
+  "@rowsErrorNoAccount": {
+    "description": "Entry row error: the → name typed in Category isn’t an account",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsErrorAmount": "Can’t read “{typed}” as an amount",
+  "@rowsErrorAmount": {
+    "description": "Entry row error: the amount typed isn’t a number. typed is what was typed",
+    "placeholders": {
+      "typed": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSave": "Save",
+  "@rowsSave": {
+    "description": "Entry row button when editing an existing transaction"
+  },
+  "rowsAdd": "Add",
+  "@rowsAdd": {
+    "description": "Entry row button that adds the new transaction"
+  },
+  "rowsSum": "= {sum}",
+  "@rowsSum": {
+    "description": "Entry row, note by Add while the amount is a calculation (100+50): its result. sum is formatted money",
+    "placeholders": {
+      "sum": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSumWithNote": "= {sum} · {note}",
+  "@rowsSumWithNote": {
+    "description": "Entry row, note by Add: a calculation’s result, then a note such as “new category”",
+    "placeholders": {
+      "sum": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNeeds": "{field, select, when{needs date} account{needs account} payee{needs payee} category{needs category} other{needs amount}}",
+  "@rowsNeeds": {
+    "description": "Entry row, note by Add: the one required field still empty. field is when (the date), account, payee, category or amount",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsNeedsMore": "needs {count} more",
+  "@rowsNeedsMore": {
+    "description": "Entry row, note by Add: how many required fields are still empty (2 or more)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rowsKeyToCancel": "{key} to cancel",
+  "@rowsKeyToCancel": {
+    "description": "Entry row, note by Save while editing. key is the Esc key’s name",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsReconciledTip": "Reconciled · this matches a bank statement, so it can’t change",
+  "@rowsReconciledTip": {
+    "description": "Tooltip on a locked date, amount or transfer account while editing a reconciled transaction"
+  },
+  "rowsSplitLinesNotBuilt": "Editing split lines isn’t built yet",
+  "@rowsSplitLinesNotBuilt": {
+    "description": "Tooltip on the locked category while editing a split transaction"
+  },
+  "rowsOpeningBalanceTip": "An opening balance belongs to its account",
+  "@rowsOpeningBalanceTip": {
+    "description": "Tooltip on the locked category while editing an account's opening balance."
+  },
+  "rowsAdjustmentTip": "An adjustment belongs to its account",
+  "@rowsAdjustmentTip": {
+    "description": "Tooltip on the locked category while editing the difference a reconcile posted."
+  },
+  "rowsOtherAccountDeleted": "The other account is deleted",
+  "@rowsOtherAccountDeleted": {
+    "description": "Tooltip on the locked category while editing a transfer whose other account is deleted."
+  },
+  "rowsOtherAccountArchived": "The other account is archived",
+  "@rowsOtherAccountArchived": {
+    "description": "Tooltip on the locked category while editing a transfer whose other account is archived."
+  },
+  "rowsSplitTotalFollows": "A split’s total follows its lines",
+  "@rowsSplitTotalFollows": {
+    "description": "Tooltip on the locked amount while editing a split transaction"
+  },
+  "rowsHintPayee": "Payee",
+  "@rowsHintPayee": {
+    "description": "Entry row, placeholder in the payee field while editing"
+  },
+  "rowsHintNewPayee": "New transaction — payee",
+  "@rowsHintNewPayee": {
+    "description": "Entry row, placeholder in the payee field of a new transaction"
+  },
+  "rowsHintMemo": "Memo",
+  "@rowsHintMemo": {
+    "description": "Entry row, placeholder in the memo field"
+  },
+  "rowsHintCategory": "Category",
+  "@rowsHintCategory": {
+    "description": "Entry row, placeholder in the category field"
+  },
+  "rowsHintDate": "Date",
+  "@rowsHintDate": {
+    "description": "Placeholder in a date field (entry row, statement date)"
+  },
+  "rowsHintAccount": "Account",
+  "@rowsHintAccount": {
+    "description": "Entry row in All accounts, placeholder in the account picker: which account the new row goes in"
+  },
+  "rowsLessThanPlanned": "{amount} less than planned:",
+  "@rowsLessThanPlanned": {
+    "description": "Confirming money in that came short, line under the entry row; two choices follow. amount is formatted money",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsStillOwedDue": "Still owed, due {date}",
+  "@rowsStillOwedDue": {
+    "description": "Choice after “less than planned”: the missing part is still to come, kept scheduled on this date (month and day)",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsPaidInFull": "Paid in full",
+  "@rowsPaidInFull": {
+    "description": "Choice after “less than planned”: nothing more is coming"
+  },
+  "rowsTurnItAround": "Turn it around",
+  "@rowsTurnItAround": {
+    "description": "Tooltip on Swap, beside the line saying which way a transfer goes"
+  },
+  "rowsSwap": "Swap",
+  "@rowsSwap": {
+    "description": "Small button beside the line saying which way a transfer goes: turns its direction around"
+  },
+  "rowsPreviousMonth": "Previous month",
+  "@rowsPreviousMonth": {
+    "description": "Date picker calendar, tooltip on the left arrow"
+  },
+  "rowsNextMonth": "Next month",
+  "@rowsNextMonth": {
+    "description": "Date picker calendar, tooltip on the right arrow"
+  },
+  "rowsWeekdayInitials": "Mo|Tu|We|Th|Fr|Sa|Su",
+  "@rowsWeekdayInitials": {
+    "description": "Date picker calendar, the weekday column heads, Monday first, separated by |. Two letters each"
+  },
+  "rowsAfterTodayScheduled": "After today · it will be scheduled",
+  "@rowsAfterTodayScheduled": {
+    "description": "Date picker calendar, under the days when a future day is hovered or picked"
+  },
+  "rowsOrPressKey": "Or press {key} in any field",
+  "@rowsOrPressKey": {
+    "description": "Tooltip on the entry row’s Add / Save button. key is the Enter key’s name",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsReconcileTitle": "Reconcile",
+  "@rowsReconcileTitle": {
+    "description": "Title of the reconcile panel that replaces the balance header while matching the account to a bank statement"
+  },
+  "rowsStatementDate": "Statement date",
+  "@rowsStatementDate": {
+    "description": "Reconcile panel, label beside the date field. Short label column"
+  },
+  "rowsBankSaysYouOwe": "Bank says you owe",
+  "@rowsBankSaysYouOwe": {
+    "description": "Reconcile panel on a credit card or loan, label beside the field for what the bank says is owed. Short label column"
+  },
+  "rowsBankBalance": "Bank balance",
+  "@rowsBankBalance": {
+    "description": "Reconcile panel, label beside the field for the balance on the bank statement. Short label column"
+  },
+  "rowsNotAvailableBalance": "Not the “available” balance",
+  "@rowsNotAvailableBalance": {
+    "description": "Reconcile panel, beside the empty bank balance field: bank apps also show an available balance (minus pending holds), which won’t match"
+  },
+  "rowsClearedHere": "Cleared here",
+  "@rowsClearedHere": {
+    "description": "Reconcile panel, label: total of the cleared rows in this app. Short label column"
+  },
+  "rowsOffBy": "Off by",
+  "@rowsOffBy": {
+    "description": "Reconcile panel, label: the difference between the bank and this app"
+  },
+  "rowsMatches": "Matches",
+  "@rowsMatches": {
+    "description": "Reconcile panel, shown in place of the difference when it is zero"
+  },
+  "rowsBankIsLower": "Bank is lower",
+  "@rowsBankIsLower": {
+    "description": "Reconcile panel, beside the difference: the bank’s balance is lower than here"
+  },
+  "rowsBankIsHigher": "Bank is higher",
+  "@rowsBankIsHigher": {
+    "description": "Reconcile panel, beside the difference: the bank’s balance is higher than here"
+  },
+  "rowsBankSaysOweLess": "Bank says you owe less",
+  "@rowsBankSaysOweLess": {
+    "description": "Reconcile panel on a credit card or loan, beside the difference"
+  },
+  "rowsBankSaysOweMore": "Bank says you owe more",
+  "@rowsBankSaysOweMore": {
+    "description": "Reconcile panel on a credit card or loan, beside the difference"
+  },
+  "rowsHintClearRows": "Clear the rows your bank shows",
+  "@rowsHintClearRows": {
+    "description": "Reconcile panel, under the difference when no single row explains it"
+  },
+  "rowsHintNotCleared": "{payee} on {date} is {amount} and isn’t cleared",
+  "@rowsHintNotCleared": {
+    "description": "Reconcile panel, under the difference: this one uncleared row is exactly the difference. date is month and day; amount is formatted money",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsHintDatedAfter": "{payee} is {amount} but dated {date}, after the statement",
+  "@rowsHintDatedAfter": {
+    "description": "Reconcile panel, under the difference: this row dated after the statement date is exactly the difference",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsHintClearedEarly": "{payee} on {date} is {amount} and cleared here · not at the bank yet?",
+  "@rowsHintClearedEarly": {
+    "description": "Reconcile panel, under the difference: this cleared row is exactly the difference, maybe not at the bank yet",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsCancel": "Cancel",
+  "@rowsCancel": {
+    "description": "Reconcile panel button: stop reconciling"
+  },
+  "rowsAddAdjustmentAndLock": "Add {amount} adjustment and lock",
+  "@rowsAddAdjustmentAndLock": {
+    "description": "Reconcile panel button when the numbers don’t match: posts the difference as an adjustment row, then locks. amount is formatted money",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsMarkReconciled": "Mark reconciled",
+  "@rowsMarkReconciled": {
+    "description": "Reconcile panel button when there’s nothing new to lock"
+  },
+  "rowsLockTransactions": "{count, plural, =1{Lock 1 transaction} other{Lock {count} transactions}}",
+  "@rowsLockTransactions": {
+    "description": "Reconcile panel button, dimmed until the numbers match: locks the cleared rows against the statement",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "setupOwedStill": "You still owe {amount} on it.",
+  "@setupOwedStill": {
+    "description": "Archive-account warning: what a card or loan still owes. amount is money like ₮120,000.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupInCredit": "It’s {amount} in credit: the bank owes you.",
+  "@setupInCredit": {
+    "description": "Archive-account warning: a card or loan paid past zero.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupStillIn": "{amount} is still in it.",
+  "@setupStillIn": {
+    "description": "Archive-account warning: money still in a bank account.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupOverdrawn": "It’s {amount} overdrawn.",
+  "@setupOverdrawn": {
+    "description": "Archive-account warning: a bank account below zero.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupAddAccount": "Add account",
+  "@setupAddAccount": {
+    "description": "Sidebar, under the accounts; also the New account page's main button."
+  },
+  "setupNewAccount": "New account",
+  "@setupNewAccount": {
+    "description": "New account page title; also the name given (and shown as the hint) when the name is left empty."
+  },
+  "setupName": "Name",
+  "@setupName": {
+    "description": "New account page, label beside the name field."
+  },
+  "setupKind": "Kind",
+  "@setupKind": {
+    "description": "New account page, label beside the two kinds of account."
+  },
+  "setupKindBank": "Bank account",
+  "@setupKindBank": {
+    "description": "New account page, a kind of account (checking, savings or cash). Short button."
+  },
+  "setupKindOwed": "Card or loan",
+  "@setupKindOwed": {
+    "description": "New account page, a kind of account (credit card, loan, Storepay). Short button."
+  },
+  "setupKindOwedHint": "A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.",
+  "@setupKindOwedHint": {
+    "description": "New account page, note under the kinds when Card or loan is picked."
+  },
+  "setupKindBankHint": "Checking, savings or cash. Accounts are in tögrög for now.",
+  "@setupKindBankHint": {
+    "description": "New account page, note under the kinds when Bank account is picked."
+  },
+  "setupCancel": "Cancel",
+  "@setupCancel": {
+    "description": "Button that closes a form or dialog without doing anything (new account page, account warnings, pay setup)."
+  },
+  "setupStartOwedToday": "What do you owe on it today?",
+  "@setupStartOwedToday": {
+    "description": "First screen of a new card or loan account, title, when the date is today."
+  },
+  "setupStartInToday": "What’s in this account today?",
+  "@setupStartInToday": {
+    "description": "First screen of a new bank account, title, when the date is today."
+  },
+  "setupStartOwedOn": "What did you owe on it on {date}?",
+  "@setupStartOwedOn": {
+    "description": "First screen of a new card or loan account, title, when an earlier date is typed. date is like 09.16 / 9-р сарын 16.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "setupStartInOn": "What was in it on {date}?",
+  "@setupStartInOn": {
+    "description": "First screen of a new bank account, title, when an earlier date is typed. date is like 09.16 / 9-р сарын 16.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "setupYouOwe": "You owe",
+  "@setupYouOwe": {
+    "description": "First screen of a new card or loan account, label beside the amount field."
+  },
+  "setupBalance": "Balance",
+  "@setupBalance": {
+    "description": "First screen of a new bank account, label beside the amount field."
+  },
+  "setupOn": "On",
+  "@setupOn": {
+    "description": "First screen of a new account, label beside the date field (\"as of this date\")."
+  },
+  "setupCantRead": "Can’t read “{text}” as an amount",
+  "@setupCantRead": {
+    "description": "First screen of a new account, red note when the typed amount isn't a number. text is what was typed.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "setupDateShouldLook": "Date should look like {example}",
+  "@setupDateShouldLook": {
+    "description": "Red note when a typed date can't be read. example is today as 2026.09.30.",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  },
+  "setupStartOwedHint": "What you’ve used, not the available limit · empty starts at ₮0",
+  "@setupStartOwedHint": {
+    "description": "First screen of a new card or loan account, note under the fields before typing."
+  },
+  "setupStartBankHint": "From the bank app, a statement or what you count, not the “available” balance · empty starts at ₮0",
+  "@setupStartBankHint": {
+    "description": "First screen of a new bank account, note under the fields before typing."
+  },
+  "setupStartAccount": "Start account",
+  "@setupStartAccount": {
+    "description": "First screen of a new account, main button."
+  },
+  "setupRename": "Rename",
+  "@setupRename": {
+    "description": "Account menu (⋯ beside the name, or right-click in the sidebar)."
+  },
+  "setupToBank": "Change to bank account",
+  "@setupToBank": {
+    "description": "Account menu: turn a card or loan account into a bank account."
+  },
+  "setupToOwed": "Change to card or loan",
+  "@setupToOwed": {
+    "description": "Account menu: turn a bank account into a card or loan account."
+  },
+  "setupArchiveMenu": "Archive…",
+  "@setupArchiveMenu": {
+    "description": "Account menu: take the account out of the sidebar (asks first)."
+  },
+  "setupDeleteMenu": "Delete…",
+  "@setupDeleteMenu": {
+    "description": "Account menu: delete the account (asks first)."
+  },
+  "setupClickToRename": "Click to rename",
+  "@setupClickToRename": {
+    "description": "Tooltip on the account name at the top of its page."
+  },
+  "setupArchiveBalance": "{balance} It stays in net worth, but the account won’t be in the sidebar.",
+  "@setupArchiveBalance": {
+    "description": "Archive-account warning. balance is one of the sentences about what's in the account (e.g. \"₮5,000 is still in it.\").",
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "setupArchiveScheduled": "{count, plural, =1{1 scheduled row ({list}) won’t show in any forecast.} other{{count} scheduled rows ({list}) won’t show in any forecast.}}",
+  "@setupArchiveScheduled": {
+    "description": "Archive-account warning: future bills or income on the account. list is up to three \"payee date\" items, comma-separated.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "setupArchiveTransfers": "{count, plural, =1{1 scheduled transfer stays on the other account’s forecast ({list}). Delete it there if cancelled.} other{{count} scheduled transfers stay on the other account’s forecast ({list}). Delete them there if cancelled.}}",
+  "@setupArchiveTransfers": {
+    "description": "Archive-account warning: future transfers to another account. list is up to three \"payee date\" items.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "setupDeleteNoRows": "This deletes the account. It has no rows of its own.",
+  "@setupDeleteNoRows": {
+    "description": "Delete-account warning, first line, when the account has no transactions."
+  },
+  "setupDeleteRows": "{count, plural, =1{This deletes the account and its 1 row.} other{This deletes the account and its {count} rows.}}",
+  "@setupDeleteRows": {
+    "description": "Delete-account warning, first line. count is how many transactions it has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "setupDeleteRowsReconciled": "{count, plural, =1{This deletes the account and its 1 row, {reconciled} of them reconciled.} other{This deletes the account and its {count} rows, {reconciled} of them reconciled.}}",
+  "@setupDeleteRowsReconciled": {
+    "description": "Delete-account warning, first line, when some of its transactions are reconciled.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "reconciled": {
+        "type": "int"
+      }
+    }
+  },
+  "setupWorthDown": "Net worth goes down by {amount}.",
+  "@setupWorthDown": {
+    "description": "Delete-account warning: deleting money you have.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupWorthUp": "Net worth goes up by {amount}.",
+  "@setupWorthUp": {
+    "description": "Delete-account warning: deleting an overdrawn bank account.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupWorthUpOwed": "Net worth goes up by {amount}, since what you owe on it is no longer counted.",
+  "@setupWorthUpOwed": {
+    "description": "Delete-account warning: deleting a card or loan that still owes.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupDeletePending": "{count, plural, =1{One is still scheduled ({list}). Confirmed later, it moves money from an account that no longer exists; delete it there if cancelled.} other{{count} are still scheduled ({list}). Confirmed later, they move money from an account that no longer exists; delete them there if cancelled.}}",
+  "@setupDeletePending": {
+    "description": "Delete-account warning: scheduled transfers with other accounts that stay. list is up to three \"account date\" items.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "setupKeptOne": "{count, plural, =1{Its 1 transfer with {other} stay on {other} as “{label}”.} other{Its {count} transfers with {other} stay on {other} as “{label}”.}}",
+  "@setupKeptOne": {
+    "description": "Delete-account warning: transfers with one other account stay there. other is that account; label is how the deleted one will be named there, e.g. “Khan (deleted)”.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "other": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "setupKeptMany": "Its transfers stay on the other accounts as “{label}”: {list}.",
+  "@setupKeptMany": {
+    "description": "Delete-account warning: transfers with several other accounts stay there. label is how the deleted account will be named, e.g. “Khan (deleted)”; list is items like \"3 on Khan\", comma-separated.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "setupKeptOn": "{count} on {account}",
+  "@setupKeptOn": {
+    "description": "Delete-account warning, one item of the list: how many transfers stay on an account.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "setupArchived": "Archived accounts",
+  "@setupArchived": {
+    "description": "Settings, card title: accounts taken out of the sidebar."
+  },
+  "setupAmountOwed": "{amount} owed",
+  "@setupAmountOwed": {
+    "description": "Settings → Archived accounts: what an archived card or loan owes.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupShowInSidebar": "Show in sidebar",
+  "@setupShowInSidebar": {
+    "description": "Settings → Archived accounts, button that un-archives."
+  },
+  "setupAllAccounts": "All accounts",
+  "@setupAllAccounts": {
+    "description": "Sidebar, top: every account's rows in one register."
+  },
+  "setupShowEveryRow": "Show every row · Esc",
+  "@setupShowEveryRow": {
+    "description": "Tooltip on ✕ of a filter chip on All accounts. Esc is the key."
+  },
+  "setupAmountMissing": "Put in how much comes",
+  "@setupAmountMissing": {
+    "description": "Pay setup, note by Save when the amount is empty."
+  },
+  "setupAmountMissingOn": "Put in how much comes on the {day}",
+  "@setupAmountMissingOn": {
+    "description": "Pay setup (twice a month, different amounts), note when one amount is empty. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "setupAmountMissingFirst": "Put in how much comes on the first payday",
+  "@setupAmountMissingFirst": {
+    "description": "Pay setup (twice a month, different amounts), note before the days are typed."
+  },
+  "setupAmountMissingSecond": "Put in how much comes on the second payday",
+  "@setupAmountMissingSecond": {
+    "description": "Pay setup (twice a month, different amounts), note before the days are typed."
+  },
+  "setupOnDay": "On the {day}",
+  "@setupOnDay": {
+    "description": "Pay setup, label beside one payday's amount (twice a month). Short. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "setupAtLeastOnDay": "At least, on the {day}",
+  "@setupAtLeastOnDay": {
+    "description": "Pay setup, label beside one payday's amount when pay varies. Short. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "setupOnFirst": "On the first payday",
+  "@setupOnFirst": {
+    "description": "Pay setup, label beside the first payday's amount before the days are typed. Short."
+  },
+  "setupOnSecond": "On the second payday",
+  "@setupOnSecond": {
+    "description": "Pay setup, label beside the second payday's amount before the days are typed. Short."
+  },
+  "setupAtLeastOnFirst": "At least, on the first payday",
+  "@setupAtLeastOnFirst": {
+    "description": "Pay setup, label as above when pay varies. Short."
+  },
+  "setupAtLeastOnSecond": "At least, on the second payday",
+  "@setupAtLeastOnSecond": {
+    "description": "Pay setup, label as above when pay varies. Short."
+  },
+  "setupWhichDay": "Which day of the month?",
+  "@setupWhichDay": {
+    "description": "Pay setup, note by Save when the monthly day is missing."
+  },
+  "setupWhichTwoDays": "Which two days of the month?",
+  "@setupWhichTwoDays": {
+    "description": "Pay setup, note when a twice-a-month day is missing."
+  },
+  "setupTwoDifferentDays": "Two different days of the month",
+  "@setupTwoDifferentDays": {
+    "description": "Pay setup, note when both twice-a-month days are the same."
+  },
+  "setupHowManyWeeks": "Every how many weeks?",
+  "@setupHowManyWeeks": {
+    "description": "Pay setup, note when the number of weeks is missing."
+  },
+  "setupWhenPayday": "When is a payday? ({example})",
+  "@setupWhenPayday": {
+    "description": "Pay setup, note when the every-few-weeks start date is missing. example is today as 2026.09.30.",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  },
+  "setupAddYourPay": "Add your pay",
+  "@setupAddYourPay": {
+    "description": "Pay setup dialog title for new pay; Settings → Budget button when there is no pay yet."
+  },
+  "setupYourPay": "Your pay",
+  "@setupYourPay": {
+    "description": "Pay setup dialog title when editing pay."
+  },
+  "setupFiledUnder": "Filed under",
+  "@setupFiledUnder": {
+    "description": "Pay setup, label beside the income category. Short."
+  },
+  "setupPaidInto": "Paid into",
+  "@setupPaidInto": {
+    "description": "Pay setup, label beside the account pay goes into. Short."
+  },
+  "setupFrom": "From",
+  "@setupFrom": {
+    "description": "Pay setup, label beside the employer field. Short."
+  },
+  "setupEmployerHint": "Employer (optional)",
+  "@setupEmployerHint": {
+    "description": "Pay setup, hint in the empty employer field."
+  },
+  "setupPayIs": "Pay is",
+  "@setupPayIs": {
+    "description": "Pay setup, label beside \"About the same each time\" / \"It varies\". Short."
+  },
+  "setupPaySame": "About the same each time",
+  "@setupPaySame": {
+    "description": "Pay setup, choice: the amount doesn't change."
+  },
+  "setupPayVaries": "It varies",
+  "@setupPayVaries": {
+    "description": "Pay setup, choice: the amount changes each time."
+  },
+  "setupVariesHint": "Hourly, shifts, overtime: it changes each time. Leave bonuses out; they aren’t every payday.",
+  "@setupVariesHint": {
+    "description": "Pay setup, note under \"It varies\"."
+  },
+  "setupExpectAtLeast": "Expect at least",
+  "@setupExpectAtLeast": {
+    "description": "Pay setup, label beside the amount when pay varies. Short."
+  },
+  "setupEachPayday": "Each payday",
+  "@setupEachPayday": {
+    "description": "Pay setup, label beside the amount. Short."
+  },
+  "setupSameEachPaycheck": "The same each paycheck",
+  "@setupSameEachPaycheck": {
+    "description": "Pay setup (twice a month), choice: one amount both days."
+  },
+  "setupDifferentEachPaycheck": "A different amount each paycheck",
+  "@setupDifferentEachPaycheck": {
+    "description": "Pay setup (twice a month), choice: an advance one day, the rest the other."
+  },
+  "setupLastPaycheck": "Your last paycheck: {amount}",
+  "@setupLastPaycheck": {
+    "description": "Pay setup, note: the one paycheck found in the ledger.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLastPaychecks": "Your last {count}: lowest {lowest} · highest {highest}",
+  "@setupLastPaychecks": {
+    "description": "Pay setup, note: the range of recent paychecks found (count is 2 or more).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "lowest": {
+        "type": "String"
+      },
+      "highest": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLowEndSafer": "The forecast counts on this, so the low end is safer: finding more on payday is better than finding less.",
+  "@setupLowEndSafer": {
+    "description": "Pay setup, note when pay varies."
+  },
+  "setupHigherThan": "Higher than {above} of your last {count} paychecks: the forecast may look better than it’ll be.",
+  "@setupHigherThan": {
+    "description": "Pay setup, amber warning when the typed amount is above some recent paychecks.",
+    "placeholders": {
+      "above": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "setupWhen": "When",
+  "@setupWhen": {
+    "description": "Pay setup, label beside how often pay comes. Short."
+  },
+  "setupMonthly": "Monthly",
+  "@setupMonthly": {
+    "description": "Pay setup, choice."
+  },
+  "setupTwiceMonthly": "Twice a month",
+  "@setupTwiceMonthly": {
+    "description": "Pay setup, choice."
+  },
+  "setupEveryFewWeeks": "Every few weeks",
+  "@setupEveryFewWeeks": {
+    "description": "Pay setup, choice."
+  },
+  "setupOnDayField": "On the {field}",
+  "@setupOnDayField": {
+    "description": "Pay setup, monthly: the words around the day-of-month box. field is where the box goes; keep it exactly once.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "setupOnDaysField": "On the {first}  and the {second}",
+  "@setupOnDaysField": {
+    "description": "Pay setup, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "setupEveryWeeksField": "{count, plural, =1{Every {weeks} week, from {date}} other{Every {weeks} weeks, from {date}}}",
+  "@setupEveryWeeksField": {
+    "description": "Pay setup, every few weeks: the words around the weeks box and the start-date box. weeks and date are where the boxes go; count is the number typed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "weeks": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "setupDaysMeet": "In shorter months both days land on the last day: one payday that month, not two.",
+  "@setupDaysMeet": {
+    "description": "Pay setup, amber note when both twice-a-month days are the 28th or later."
+  },
+  "setupOnWeekend": "On a weekend",
+  "@setupOnWeekend": {
+    "description": "Pay setup, label: where a payday that falls on a weekend moves. Short."
+  },
+  "setupFridayBefore": "Friday before",
+  "@setupFridayBefore": {
+    "description": "Pay setup, choice: a weekend payday moves to the Friday before."
+  },
+  "setupMondayAfter": "Monday after",
+  "@setupMondayAfter": {
+    "description": "Pay setup, choice: a weekend payday moves to the Monday after."
+  },
+  "setupBudgetBy": "Budget by",
+  "@setupBudgetBy": {
+    "description": "Pay setup and Settings → Budget, label: whether a budget covers a month or a pay period. Short."
+  },
+  "setupMonth": "Month",
+  "@setupMonth": {
+    "description": "Pay setup and Settings → Budget, choice beside \"Budget by\"."
+  },
+  "setupPayPeriod": "Pay period",
+  "@setupPayPeriod": {
+    "description": "Pay setup and Settings → Budget, choice beside \"Budget by\": payday to the day before the next."
+  },
+  "setupPeriodOther": "The budget follows {name}’s pay periods. Pay period here moves it to this pay.",
+  "@setupPeriodOther": {
+    "description": "Pay setup, note when another pay schedule sets the budget's periods. name is that pay's employer or category.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "setupPaydaysAYear": "{count} paydays a year: two months a year have three. Budgeting by pay period follows your paychecks.",
+  "@setupPaydaysAYear": {
+    "description": "Pay setup, note for every-two-weeks pay (26 paydays).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "setupNextPayday": "Next payday {date} · {amount}",
+  "@setupNextPayday": {
+    "description": "Pay setup, summary by Save. date is a full date in a sentence.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupNextPaydayOrMore": "Next payday {date} · {amount} or more",
+  "@setupNextPaydayOrMore": {
+    "description": "Pay setup, summary by Save when pay varies.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setupNextPaydayMonthly": "Next payday {date} · {amount} · about {perMonth} a month",
+  "@setupNextPaydayMonthly": {
+    "description": "Pay setup, summary by Save when pay comes more than once a month.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "perMonth": {
+        "type": "String"
+      }
+    }
+  },
+  "setupNextPaydayOrMoreMonthly": "Next payday {date} · {amount} or more · about {perMonth} a month",
+  "@setupNextPaydayOrMoreMonthly": {
+    "description": "Pay setup, summary by Save when pay varies and comes more than once a month.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "perMonth": {
+        "type": "String"
+      }
+    }
+  },
+  "setupNoRegularPay": "I don’t have regular pay",
+  "@setupNoRegularPay": {
+    "description": "Pay setup, button: self-employed or between jobs; stops asking for pay."
+  },
+  "setupStopPay": "Stop scheduling pay",
+  "@setupStopPay": {
+    "description": "Pay setup (editing), red button that removes the pay schedule."
+  },
+  "setupSavePay": "Save pay",
+  "@setupSavePay": {
+    "description": "Pay setup, main button."
+  },
+  "setupNameArchived": "{name} (archived · no paydays until it’s back)",
+  "@setupNameArchived": {
+    "description": "Settings → Budget, an account that was archived.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "setupBudget": "Budget",
+  "@setupBudget": {
+    "description": "Settings, card title."
+  },
+  "setupPayPeriodOf": "Pay period · {who}",
+  "@setupPayPeriodOf": {
+    "description": "Settings → Budget, choice when there are two or more pays. who is the employer, or \"category into account\".",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "setupCategoryInto": "{category} into {account}",
+  "@setupCategoryInto": {
+    "description": "Settings → Budget: a pay with no employer, named by its category and the account it goes into.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "setupPeriodsFromPay": "Pay periods come from your pay: add it below to budget by them.",
+  "@setupPeriodsFromPay": {
+    "description": "Settings → Budget, note when there is no pay yet."
+  },
+  "setupRunsMonth": "Each budget runs from the 1st to the month’s end.",
+  "@setupRunsMonth": {
+    "description": "Settings → Budget, note when budgeting by month."
+  },
+  "setupRunsPeriod": "Each budget runs from one payday to the day before the next ({when}).",
+  "@setupRunsPeriod": {
+    "description": "Settings → Budget, note when budgeting by pay period. when is like \"monthly on the 25th\".",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "setupPay": "Pay",
+  "@setupPay": {
+    "description": "Settings → Budget, label beside the list of pay schedules. Short."
+  },
+  "setupPayLine": "{category} · {amounts} · into {account}",
+  "@setupPayLine": {
+    "description": "Settings → Budget, one pay schedule. amounts is like \"₮2,100,000 · monthly on the 25th\".",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "amounts": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "setupEdit": "Edit",
+  "@setupEdit": {
+    "description": "Settings → Budget, button beside a pay schedule."
+  },
+  "setupSaidNoPay": "You said you don’t have regular pay, so the forecast doesn’t ask for it.",
+  "@setupSaidNoPay": {
+    "description": "Settings → Budget, after \"I don't have regular pay\"."
+  },
+  "setupAskAgain": "Ask me again",
+  "@setupAskAgain": {
+    "description": "Settings → Budget, button that undoes \"I don't have regular pay\"."
+  },
+  "setupAddOtherPay": "Add other pay",
+  "@setupAddOtherPay": {
+    "description": "Settings → Budget, button when some pay is already set up."
+  },
+  "startKeyFileName": "BetterBudget recovery key.txt",
+  "@startKeyFileName": {
+    "description": "Suggested file name in the Save dialog when saving the recovery key to a text file. Keep .txt."
+  },
+  "startSave": "Save",
+  "@startSave": {
+    "description": "Confirm button of the macOS Save dialog for the recovery key file."
+  },
+  "startKeyFileText": "BetterBudget recovery key\n\n{key}\n\nMade {date}.\n\nIt opens your BetterBudget ledger and its backups on another computer, or on a phone that records spending. BetterBudget doesn’t keep a copy, and it can’t be replaced: without it, the ledger can’t be opened anywhere else.\n\nKeep it somewhere safe, away from this computer, where the other person who manages the money can find it. Don’t keep this file in the same folder as your backups.\n",
+  "@startKeyFileText": {
+    "description": "Whole content of the text file the recovery key is saved to (Save… on the recovery key screen). key is the key itself (letters and digits); date is 2026.09.30. Keep the blank lines.",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "startKeyTitle": "Your recovery key",
+  "@startKeyTitle": {
+    "description": "Recovery key setup screen (shown once at first launch), title."
+  },
+  "startKeyIntro": "BetterBudget encrypts your ledger and its backups. This key opens them on another computer, and on each phone that records spending. This is the only time it’s shown: BetterBudget doesn’t keep a copy, and it can’t be replaced.",
+  "@startKeyIntro": {
+    "description": "Recovery key setup screen, paragraph under the title, above the key."
+  },
+  "startKeyWhere": "Keep it away from this computer, where the other person who manages the money can find it: printed with your important papers, or on another drive.",
+  "@startKeyWhere": {
+    "description": "Recovery key setup screen, small note right under the key."
+  },
+  "startSaveEllipsis": "Save…",
+  "@startSaveEllipsis": {
+    "description": "Recovery key setup screen, button that opens a Save dialog to save the key to a file."
+  },
+  "startSaved": "Saved",
+  "@startSaved": {
+    "description": "Recovery key setup screen, the Save… button once the key file was saved."
+  },
+  "startCopy": "Copy",
+  "@startCopy": {
+    "description": "Recovery key setup screen, button that copies the key."
+  },
+  "startCopied": "Copied",
+  "@startCopied": {
+    "description": "Recovery key setup screen, the Copy button once the key was copied."
+  },
+  "startOldCopies": "Copies you saved elsewhere with Back up to… before today aren’t encrypted. Replace them with a new Back up to….",
+  "@startOldCopies": {
+    "description": "Recovery key setup screen, shown when an existing unencrypted ledger is about to be encrypted. 'Back up to…' is the name of the button in Settings → Backups; use the same name."
+  },
+  "startCopiedWarning": "Copied · paste it somewhere off this computer before you continue. The clipboard is cleared in a minute.",
+  "@startCopiedWarning": {
+    "description": "Recovery key setup screen, red warning after the key was copied but not saved."
+  },
+  "startNotKeptWarning": "If you continue without saving or copying it, it’s gone: BetterBudget can’t show it again, and if this computer is lost, your ledger and its backups can’t be opened.",
+  "@startNotKeptWarning": {
+    "description": "Recovery key setup screen, red warning while the key is neither saved nor copied."
+  },
+  "startContinue": "Continue",
+  "@startContinue": {
+    "description": "Button on the recovery key setup and entry screens."
+  },
+  "startEnterTitle": "Enter your recovery key",
+  "@startEnterTitle": {
+    "description": "Recovery key entry screen (this computer has no key), title."
+  },
+  "startNewLedgerInstead": "Start a new ledger instead…",
+  "@startNewLedgerInstead": {
+    "description": "Recovery key entry screen, red text button when a ledger is already on this computer; opens a warning."
+  },
+  "startNewToApp": "New to BetterBudget? Set up a ledger",
+  "@startNewToApp": {
+    "description": "Recovery key entry screen, text button when no ledger is on this computer yet."
+  },
+  "startSetAsideTitle": "Start a new ledger?",
+  "@startSetAsideTitle": {
+    "description": "Warning dialog before starting fresh when a ledger is on this computer, title."
+  },
+  "startSetAsideBodyNamed": "The ledger already on this computer can only be opened with its own recovery key. It won’t be deleted: it’s moved aside as {name}, in BetterBudget’s folder, so you can open it later if you find its key.",
+  "@startSetAsideBodyNamed": {
+    "description": "Start a new ledger? dialog, body. name is a file name like betterbudget.set-aside-20260930-101500.sqlite.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "startSetAsideBody": "The ledger already on this computer can only be opened with its own recovery key. It won’t be deleted: it’s moved aside, in BetterBudget’s folder, so you can open it later if you find its key.",
+  "@startSetAsideBody": {
+    "description": "Start a new ledger? dialog, body, when the new file name isn't known."
+  },
+  "startCancel": "Cancel",
+  "@startCancel": {
+    "description": "Cancel button in the recovery key dialogs."
+  },
+  "startSetAsideConfirm": "Move it aside and start new",
+  "@startSetAsideConfirm": {
+    "description": "Start a new ledger? dialog, red confirm button."
+  },
+  "startCheckTitle": "Check your recovery key",
+  "@startCheckTitle": {
+    "description": "Settings → Security → Check my recovery key… dialog, title."
+  },
+  "startCheckBody": "Type the key you saved. BetterBudget checks whether it opens this ledger. It never shows the key.",
+  "@startCheckBody": {
+    "description": "Check your recovery key dialog, text above the field."
+  },
+  "startCheckAction": "Check",
+  "@startCheckAction": {
+    "description": "Check your recovery key dialog, button."
+  },
+  "startCheckNo": "No · this key doesn’t open this ledger",
+  "@startCheckNo": {
+    "description": "Check your recovery key dialog, error under the field when the key is wrong."
+  },
+  "startCheckYes": "Yes · this key opens this ledger",
+  "@startCheckYes": {
+    "description": "Check your recovery key dialog, green line when the key is right."
+  },
+  "startBackupKeyTitle": "This backup has its own key",
+  "@startBackupKeyTitle": {
+    "description": "Dialog when restoring a backup made under another ledger's key, title."
+  },
+  "startBackupKeyBody": "It isn’t encrypted with this ledger’s key. It may be from another ledger: type that ledger’s recovery key to restore it. Your own key doesn’t change.",
+  "@startBackupKeyBody": {
+    "description": "Backup with its own key dialog, text above the field."
+  },
+  "startBackupKeyAction": "Open backup",
+  "@startBackupKeyAction": {
+    "description": "Backup with its own key dialog, button."
+  },
+  "startClose": "Close",
+  "@startClose": {
+    "description": "Check your recovery key dialog, button once the key matched."
+  },
+  "startKeyCyrillic": "Your keyboard is typing Cyrillic · switch to ABC to type the key",
+  "@startKeyCyrillic": {
+    "description": "Error under the recovery key field when Cyrillic letters are typed. The key is Latin letters and digits; ABC is the macOS keyboard name."
+  },
+  "startKeyLength": "{typed} of {total} characters",
+  "@startKeyLength": {
+    "description": "Error under the recovery key field when too few or too many characters are typed, e.g. '17 of 25 characters'.",
+    "placeholders": {
+      "typed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "startKeyChecksum": "A character is wrong · check the key against your copy",
+  "@startKeyChecksum": {
+    "description": "Error under the recovery key field when the key's check character doesn't match (a typo)."
+  },
+  "startEntryKeptKeyWrong": "The key kept on this computer doesn’t open the ledger here. Type the ledger’s recovery key to open it.",
+  "@startEntryKeptKeyWrong": {
+    "description": "Recovery key entry screen, message under the title when the stored key doesn't fit the ledger."
+  },
+  "startEntryLedgerHere": "There’s a ledger on this computer. Type its recovery key to open it.",
+  "@startEntryLedgerHere": {
+    "description": "Recovery key entry screen, message when this computer has no key but has a ledger."
+  },
+  "startEntryNoLedger": "This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….",
+  "@startEntryNoLedger": {
+    "description": "Recovery key entry screen, message when this computer has no key and no ledger. 'Back up to…' is the button in Settings → Backups; use the same name."
+  },
+  "startEntryLedgerHereEveryLaunch": "This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. There’s a ledger on this computer. Type its recovery key to open it.",
+  "@startEntryLedgerHereEveryLaunch": {
+    "description": "Recovery key entry screen (Linux without a keychain), message when there's a ledger here."
+  },
+  "startEntryNoLedgerEveryLaunch": "This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….",
+  "@startEntryNoLedgerEveryLaunch": {
+    "description": "Recovery key entry screen (Linux without a keychain), message when there's no ledger here. 'Back up to…' is the button in Settings → Backups."
+  },
+  "startKeyWrongHere": "That key doesn’t open the ledger on this computer",
+  "@startKeyWrongHere": {
+    "description": "Recovery key entry screen, error under the field."
+  },
+  "startCouldntKeepKey": "Couldn’t keep the key on this computer · {error}",
+  "@startCouldntKeepKey": {
+    "description": "Recovery key entry screen, error under the field. error is a technical error type name, left in English.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "startCouldntKeepKeyNothingEncrypted": "Couldn’t keep the key on this computer · {error}. Nothing was encrypted.",
+  "@startCouldntKeepKeyNothingEncrypted": {
+    "description": "Full-screen error at launch after the recovery key setup. error is a technical error type name, left in English.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "startCouldntOpen": "Couldn’t open the ledger · {error}",
+  "@startCouldntOpen": {
+    "description": "Full-screen error at launch. error is the reason, often technical and in English.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "startCopiesFailed": "{count, plural, =1{1 old copy couldn’t be encrypted and is still readable: {names}} other{{count} old copies couldn’t be encrypted and are still readable: {names}}}",
+  "@startCopiesFailed": {
+    "description": "Toast after launch when some old backup copies couldn't be encrypted. names is a comma-separated list of file names.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "startCopiesEncrypted": "{count, plural, =1{Encrypted 1 old copy of your ledger} other{Encrypted {count} old copies of your ledger}}",
+  "@startCopiesEncrypted": {
+    "description": "Toast after launch when old backup copies were encrypted.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "startEncryptedCopyFailed": "The encrypted copy of {name} didn’t check out",
+  "@startEncryptedCopyFailed": {
+    "description": "Reason shown after 'Couldn’t open the ledger · ' when encrypting the ledger file failed its check. name is a file name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "startRestoreNothingInto": "Nothing to restore into",
+  "@startRestoreNothingInto": {
+    "description": "Settings → Backups, restore error toast: there's no ledger file to restore into."
+  },
+  "startRestoreNewer": "That backup is from a newer BetterBudget · update the app first",
+  "@startRestoreNewer": {
+    "description": "Settings → Backups, restore error toast."
+  },
+  "startRestoreNotABackup": "That file isn’t a BetterBudget backup",
+  "@startRestoreNotABackup": {
+    "description": "Settings → Backups, restore error toast."
+  },
+  "startRestoreNeedsKey": "That backup can’t be opened with this ledger’s key · it may be from another ledger, or damaged",
+  "@startRestoreNeedsKey": {
+    "description": "Settings → Backups, restore error."
+  },
+  "startRestoreWrongKey": "That key doesn’t open this backup · it may be from another ledger, or damaged",
+  "@startRestoreWrongKey": {
+    "description": "Backup with its own key dialog, error under the key field."
+  },
+  "startRestoreDamaged": "That backup is damaged",
+  "@startRestoreDamaged": {
+    "description": "Settings → Backups, restore error toast."
+  },
+  "startRestoreNoAccounts": "That backup has no accounts in it",
+  "@startRestoreNoAccounts": {
+    "description": "Settings → Backups, restore error toast."
+  },
+  "startUncleared": "Uncleared",
+  "@startUncleared": {
+    "description": "Name of a transaction's cleared state: the bank hasn't confirmed it yet (pending). Shown in the header key and register tabs."
+  },
+  "startCleared": "Cleared",
+  "@startCleared": {
+    "description": "Name of a transaction's cleared state: the bank has it."
+  },
+  "startReconciled": "Reconciled",
+  "@startReconciled": {
+    "description": "Name of a transaction's cleared state: matched to a bank statement and locked."
+  },
+  "startOpeningBalance": "Opening balance",
+  "@startOpeningBalance": {
+    "description": "Register row, payee of an account's opening balance."
+  },
+  "startOpeningBalances": "Opening balances",
+  "@startOpeningBalances": {
+    "description": "Register row, category column of an account's opening balance (the account the app keeps them in)."
+  },
+  "startBalanceAdjustments": "Balance adjustments",
+  "@startBalanceAdjustments": {
+    "description": "Register row, category column of the difference a reconcile posted to match a bank statement."
+  },
+  "startReconcileAdjustment": "Reconcile adjustment",
+  "@startReconcileAdjustment": {
+    "description": "Register row, payee of the difference a reconcile posted to match a bank statement."
+  },
+  "startTransfer": "Transfer",
+  "@startTransfer": {
+    "description": "Register row, category column of a transfer between two accounts."
+  },
+  "startSplitCategories": "{count} categories",
+  "@startSplitCategories": {
+    "description": "Register row, category column of a split transaction, e.g. '3 categories'.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "startDeletedAccount": "{name} (deleted)",
+  "@startDeletedAccount": {
+    "description": "How a row names an account that was deleted, e.g. 'TDB Checking (deleted)'.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "startStaleNote": "not cleared for {days} days",
+  "@startStaleNote": {
+    "description": "Register row, small note on a pending row the bank still hasn't confirmed after 14+ days. Lowercase in English.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "startDueYesterday": "due yesterday",
+  "@startDueYesterday": {
+    "description": "Register row and bill list, small note on a scheduled bill or income one day past its date. Lowercase in English."
+  },
+  "startDueDaysAgo": "due {days} days ago",
+  "@startDueDaysAgo": {
+    "description": "Register row and bill list, small note on a scheduled bill or income past its date, e.g. 'due 7 days ago'.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "startDayOn": "{ordinal}",
+  "@startDayOn": {
+    "description": "A day of the month something happens on, inside the pay phrases below: English '25th'. Mongolian puts the dative ending on the number ('25-нд', '2-т'); isTwo is 'yes' when the number ends in 2 (хоёр → хоёрт).",
+    "placeholders": {
+      "ordinal": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      },
+      "isTwo": {
+        "type": "String"
+      }
+    }
+  },
+  "startPayMonthly": "monthly on the {day}",
+  "@startPayMonthly": {
+    "description": "How often pay comes, e.g. 'monthly on the 25th'. day comes from startDayOn. Lowercase in English: it's used inside lines.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "startPayTwiceMonthly": "on the {first} and {second}",
+  "@startPayTwiceMonthly": {
+    "description": "Pay twice a month, e.g. 'on the 10th and 25th'. first and second come from startDayOn; firstDay is the bare number of the first day.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      },
+      "firstDay": {
+        "type": "int"
+      }
+    }
+  },
+  "startPayEveryWeek": "every week",
+  "@startPayEveryWeek": {
+    "description": "How often pay comes."
+  },
+  "startPayEveryWeeks": "every {weeks} weeks",
+  "@startPayEveryWeeks": {
+    "description": "How often pay comes, e.g. 'every 2 weeks'.",
+    "placeholders": {
+      "weeks": {
+        "type": "int"
+      }
+    }
+  },
+  "startPayAmountWhen": "{amount} {when}",
+  "@startPayAmountWhen": {
+    "description": "Pay line, e.g. '₮2,100,000 monthly on the 25th'. when is one of the pay phrases above.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "startPayAmountOrMoreWhen": "{amount} or more {when}",
+  "@startPayAmountOrMoreWhen": {
+    "description": "Pay line for pay that varies, e.g. '₮2,100,000 or more monthly on the 25th'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "startPayAmountDotWhen": "{amount} · {when}",
+  "@startPayAmountDotWhen": {
+    "description": "Pay line in Settings, e.g. '₮2,100,000 · monthly on the 25th'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "startPayAmountOrMoreDotWhen": "{amount} or more · {when}",
+  "@startPayAmountOrMoreDotWhen": {
+    "description": "Pay line in Settings for pay that varies, e.g. '₮2,100,000 or more · monthly on the 25th'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "startPaySplit": "{first} on the {firstDay} and {second} on the {secondDay}",
+  "@startPaySplit": {
+    "description": "Pay twice a month with a different amount each payday, e.g. '₮500,000 on the 10th and ₮1,600,000 on the 25th'. The days come from startDayOn.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "firstDay": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      },
+      "secondDay": {
+        "type": "String"
+      }
+    }
+  },
+  "startPaySplitAtLeast": "at least {first} on the {firstDay} and {second} on the {secondDay}",
+  "@startPaySplitAtLeast": {
+    "description": "Like startPaySplit, for pay that varies: 'at least ₮500,000 on the 10th and ₮1,600,000 on the 25th'.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "firstDay": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      },
+      "secondDay": {
+        "type": "String"
+      }
+    }
+  },
+  "startThisPayPeriod": "This pay period",
+  "@startThisPayPeriod": {
+    "description": "Name of the budget span when budgeting by pay period, e.g. on a filter chip before its dates."
+  },
+  "startThisMonth": "This month",
+  "@startThisMonth": {
+    "description": "Name of the budget span when budgeting by calendar month, e.g. on a filter chip before its dates."
+  }
+}

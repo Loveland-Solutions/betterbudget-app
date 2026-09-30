@@ -41,7 +41,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       sortOrder: 3,
     );
     final opening = await db.addAccount(
-      name: 'Opening balances',
+      name: AppDatabase.openingBalancesName,
       type: AccountType.equity,
     );
 

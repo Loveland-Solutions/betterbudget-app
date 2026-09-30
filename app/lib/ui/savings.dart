@@ -39,6 +39,7 @@ class _SavingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final r = Readiness.of(data, today);
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
@@ -54,7 +55,7 @@ class _SavingsPage extends StatelessWidget {
                 child: Row(
                   children: [
                     Text(
-                      'Savings',
+                      t.planSavings,
                       style: onest(22, weight: 600, letterSpacing: -0.3),
                     ),
                     const SizedBox(width: 14),
@@ -62,8 +63,8 @@ class _SavingsPage extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 5),
                       child: Text(
                         r.current == null
-                            ? 'Every step is done'
-                            : 'Getting prepared, one step at a time',
+                            ? t.planAllStepsDone
+                            : t.planOneStepAtATime,
                         key: const ValueKey('savings-subtitle'),
                         style: onest(13.5, color: Mid.ink3),
                       ),
@@ -94,8 +95,7 @@ class _SavingsPage extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                         child: Text(
-                          'In the order of Personal Finances for '
-                          'Self-Reliance: each step makes the next one safer.',
+                          t.planCourseNote,
                           style: onest(12, color: Mid.ink3),
                         ),
                       ),
@@ -111,13 +111,13 @@ class _SavingsPage extends StatelessWidget {
   }
 }
 
-String _stepTitle(ReadyStep s, Readiness r) => switch (s) {
-  ReadyStep.oneMonth => 'One month of expenses set aside',
-  ReadyStep.health => 'Health coverage',
-  ReadyStep.consumerDebt => 'No consumer debt',
-  ReadyStep.moreMonths => '${r.monthsTarget} months of expenses set aside',
-  ReadyStep.retirement => 'Saving for retirement',
-  ReadyStep.longLoans => 'Paying off the mortgage and student loans',
+String _stepTitle(Words t, ReadyStep s, Readiness r) => switch (s) {
+  ReadyStep.oneMonth => t.planStepOneMonth,
+  ReadyStep.health => t.planStepHealth,
+  ReadyStep.consumerDebt => t.planStepConsumerDebt,
+  ReadyStep.moreMonths => t.planStepMoreMonths(r.monthsTarget),
+  ReadyStep.retirement => t.planStepRetirement,
+  ReadyStep.longLoans => t.planStepLongLoans,
 };
 
 class _StepRow extends StatelessWidget {
@@ -135,6 +135,7 @@ class _StepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final state = r.stateOf(step);
     final current = state == ReadyState.current;
     final aside = state == ReadyState.setAside;
@@ -160,7 +161,7 @@ class _StepRow extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        _stepTitle(step, r),
+                        _stepTitle(t, step, r),
                         style: onest(
                           14.5,
                           weight: current ? 600 : 500,
@@ -170,16 +171,16 @@ class _StepRow extends StatelessWidget {
                     ),
                     if (current) ...[
                       const SizedBox(width: 10),
-                      Text('Now', style: onest(12, color: Mid.blue)),
+                      Text(t.planNow, style: onest(12, color: Mid.blue)),
                     ],
                     if (aside) ...[
                       const SizedBox(width: 10),
-                      Text('Set aside', style: onest(12, color: Mid.ink3)),
+                      Text(t.planSetAside, style: onest(12, color: Mid.ink3)),
                     ],
                   ],
                 ),
                 const SizedBox(height: 4),
-                ..._body(state),
+                ..._body(t, state),
               ],
             ),
           ),
@@ -191,8 +192,8 @@ class _StepRow extends StatelessWidget {
               step,
               a,
               a
-                  ? '“${_stepTitle(step, r)}” set aside'
-                  : '“${_stepTitle(step, r)}” back in the steps',
+                  ? t.planSetAsideUndo(_stepTitle(t, step, r))
+                  : t.planBackInStepsUndo(_stepTitle(t, step, r)),
             ),
           ),
         ],
@@ -200,7 +201,7 @@ class _StepRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _body(ReadyState state) {
+  List<Widget> _body(Words t, ReadyState state) {
     final current = state == ReadyState.current;
     Widget fact(String text, {Key? key, Color? color}) => Text(
       text,
@@ -221,24 +222,27 @@ class _StepRow extends StatelessWidget {
       case ReadyStep.moreMonths:
         final target = r.targetOf(step);
         final m = r.month;
+        final loans = m.loanPayments > 0 ? 'yes' : 'no';
         final aboutMonth = m.amount == 0
             ? (m.days < MonthOfSpending.minDays
-                  ? 'A month of your spending isn’t known yet '
-                        '(${m.days} ${m.days == 1 ? 'day' : 'days'} of rows). '
-                        'Type it, or come back in a few weeks.'
-                  : 'No spending in the last ${m.days} days to go by. '
-                        'Type a month of your expenses.')
+                  ? t.planMonthUnknown(m.days)
+                  : t.planMonthNoSpending(m.days))
             : m.typed
-            ? 'A month of expenses: ${_money(m.amount)}, as you typed it'
-            : 'A month of expenses: ${_money(m.amount)}, the average of '
-                  'the last ${m.days >= MonthOfSpending.spanDays ? '3 months' : '${m.days} days'}'
-                  '${m.loanPayments > 0 ? ', loan payments included' : ''}';
+            ? t.planMonthTyped(_money(m.amount))
+            : m.days >= MonthOfSpending.spanDays
+            ? t.planMonthAverage3(_money(m.amount), loans)
+            : t.planMonthAverageDays(_money(m.amount), m.days, loans);
         final noFund = r.fundAccounts.isEmpty;
         return [
           if (target > 0 && !noFund) ...[
             fact(
-              '${_money(r.fund)} of ${_money(target)}'
-              '${r.fund >= target ? '' : ' · ${_money(target - r.fund)} to go'}',
+              r.fund >= target
+                  ? t.planFundOf(_money(r.fund), _money(target))
+                  : t.planFundOfToGo(
+                      _money(r.fund),
+                      _money(target),
+                      _money(target - r.fund),
+                    ),
               key: ValueKey('step-${step.name}-progress'),
               color: Mid.ink,
             ),
@@ -251,24 +255,18 @@ class _StepRow extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           if (step == ReadyStep.oneMonth || current) fact(aboutMonth),
-          if (current && noFund)
-            guide(
-              'Which account holds it? Pick one below. A savings account you '
-              'can reach but don’t spend from works best.',
-            ),
+          if (current && noFund) guide(t.planWhichAccount),
           if (current && step == ReadyStep.oneMonth) ...[
-            guide(
-              'Keep it where you can reach it. If you use it, fill it back up '
-              'before anything else.',
-            ),
+            guide(t.planKeepReachable),
             if (r.consumerDebts.isNotEmpty)
               guide(
-                'Until it’s full, pay only the minimums on '
-                '${_names(r.consumerDebts.map((d) => d.account.name))}.',
+                t.planMinimumsOn(
+                  _names(t, r.consumerDebts.map((d) => d.account.name)),
+                ),
               ),
           ],
           if (current && step == ReadyStep.moreMonths)
-            guide('Enough to get through losing a job or a long illness.'),
+            guide(t.planEnoughForJobLoss),
           // The fund and the month are set on step 1 only, so they never
           // show twice; step 4 adds how many months.
           if (step == ReadyStep.oneMonth)
@@ -288,29 +286,22 @@ class _StepRow extends StatelessWidget {
         return [
           fact(
             step == ReadyStep.health
-                ? (yes
-                      ? 'You have it'
-                      : 'Insurance, or some other way to get medical care')
-                : (yes
-                      ? 'You’re putting money into it'
-                      : 'Into a retirement plan, from your pay or on your own'),
+                ? (yes ? t.planHealthYes : t.planHealthWhat)
+                : (yes ? t.planRetirementYes : t.planRetirementWhat),
           ),
           if (current && step == ReadyStep.retirement)
-            guide(
-              'If your employer matches what you put in, put in at least '
-              'enough to get all of it.',
-            ),
+            guide(t.planEmployerMatch),
           controls([
             _Answer(
               stepKey: step.name,
               yes: yes,
-              yesLabel: step == ReadyStep.health ? 'I have it' : 'I am',
+              yesLabel: step == ReadyStep.health ? t.planIHaveIt : t.planIAm,
               onChanged: (v) => actions.setPref(
                 key,
                 v ? 'yes' : null,
                 v
-                    ? '${_stepTitle(step, r)}: yes'
-                    : '${_stepTitle(step, r)}: not yet',
+                    ? t.planAnswerYesUndo(_stepTitle(t, step, r))
+                    : t.planAnswerNotYetUndo(_stepTitle(t, step, r)),
               ),
             ),
           ]),
@@ -319,17 +310,12 @@ class _StepRow extends StatelessWidget {
         return [
           fact(
             r.consumerDebts.isEmpty
-                ? 'No cards or loans owing'
-                : '${_money(r.consumerOwed)} owed',
+                ? t.planNoCardsOwing
+                : t.planAmountOwed(_money(r.consumerOwed)),
             key: const ValueKey('step-consumerDebt-owed'),
             color: r.consumerDebts.isEmpty ? Mid.ink2 : Mid.ink,
           ),
-          if (current && r.consumerDebts.isNotEmpty)
-            guide(
-              'Pay extra on one at a time, smallest balance or highest '
-              'interest first; both get you there. When one is paid off, '
-              'put its payment toward the next.',
-            ),
+          if (current && r.consumerDebts.isNotEmpty) guide(t.planPayExtraGuide),
           for (final d in r.consumerDebts)
             _DebtLine(debt: d, r: r, actions: actions),
           for (final a in data.openAccounts)
@@ -346,37 +332,37 @@ class _StepRow extends StatelessWidget {
         final said = data.prefs[ReadyKeys.longLoans];
         if (!r.longMarked) {
           return [
-            fact(
-              r.answers[step]!
-                  ? 'You have none'
-                  : 'Do you have a mortgage or student loans?',
-            ),
+            fact(r.answers[step]! ? t.planLongNone : t.planLongAsk),
             if (r.consumerDebts.isNotEmpty && !r.answers[step]!)
-              guide('If a loan under No consumer debt is one, mark it there.'),
+              guide(t.planLongMarkThere),
             controls([
               _Choice(
                 key: const ValueKey('answer-longLoans-none'),
-                label: 'I have none',
+                label: t.planIHaveNone,
                 on: said == 'none',
-                onTap: () => answer('none', 'No mortgage or student loans'),
+                onTap: () => answer('none', t.planNoLongLoansUndo),
               ),
               _Choice(
                 key: const ValueKey('answer-longLoans-yes'),
-                label: 'Paying extra on them',
+                label: t.planPayingExtraOnThem,
                 on: said == 'yes',
-                onTap: () => answer('yes', 'Paying extra on loans'),
+                onTap: () => answer('yes', t.planPayingExtraUndo),
               ),
               _Choice(
                 key: const ValueKey('answer-longLoans-no'),
-                label: 'Not yet',
+                label: t.planNotYet,
                 on: said == null,
-                onTap: () => answer(null, 'Loans: not yet'),
+                onTap: () => answer(null, t.planLoansNotYetUndo),
               ),
             ]),
           ];
         }
         return [
-          fact(r.longLoans.isEmpty ? 'Paid off' : '${_money(r.longOwed)} left'),
+          fact(
+            r.longLoans.isEmpty
+                ? t.planPaidOff
+                : t.planAmountLeft(_money(r.longOwed)),
+          ),
           for (final d in r.longLoans)
             _DebtLine(debt: d, r: r, actions: actions),
           if (r.longLoans.isNotEmpty)
@@ -384,10 +370,10 @@ class _StepRow extends StatelessWidget {
               _Answer(
                 stepKey: step.name,
                 yes: said == 'yes',
-                yesLabel: 'Paying extra',
+                yesLabel: t.planPayingExtra,
                 onChanged: (v) => answer(
                   v ? 'yes' : null,
-                  v ? 'Paying extra on loans' : 'Not paying extra on loans',
+                  v ? t.planPayingExtraUndo : t.planNotPayingExtraUndo,
                 ),
               ),
             ]),
@@ -396,10 +382,10 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-String _names(Iterable<String> names) {
+String _names(Words t, Iterable<String> names) {
   final l = names.toList();
   if (l.length < 2) return l.join();
-  return '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
+  return t.planNamesAnd(l.sublist(0, l.length - 1).join(', '), l.last);
 }
 
 class _StepMarker extends StatelessWidget {
@@ -479,10 +465,11 @@ class _FundPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final banks = data.openAccounts.where((a) => !a.isOwed).toList();
     final label = r.fundAccounts.isEmpty
-        ? 'Pick the account'
-        : 'Kept in ${_names(r.fundAccounts.map((a) => a.name))}';
+        ? t.planPickAccount
+        : t.planKeptIn(_names(t, r.fundAccounts.map((a) => a.name)));
     return MenuAnchor(
       style: _menuStyle,
       menuChildren: [
@@ -494,9 +481,7 @@ class _FundPicker extends StatelessWidget {
               actions.setRole(
                 a,
                 on ? null : AccountRole.emergencyFund,
-                on
-                    ? '${a.name} no longer holds the emergency fund'
-                    : '${a.name} holds the emergency fund',
+                on ? t.planFundOffUndo(a.name) : t.planFundOnUndo(a.name),
               );
             },
             leadingIcon: Icon(
@@ -574,7 +559,7 @@ class _MonthFieldState extends State<_MonthField> {
         widget.actions.setPref(
           ReadyKeys.month,
           null,
-          'A month of expenses: back to your average',
+          context.t.planMonthBackToAverage,
           toast: true,
         );
       }
@@ -585,7 +570,7 @@ class _MonthFieldState extends State<_MonthField> {
     widget.actions.setPref(
       ReadyKeys.month,
       '$v',
-      'A month of expenses: ${_money(v)}',
+      context.t.planMonthSet(_money(v)),
       toast: true,
     );
     _close();
@@ -593,15 +578,16 @@ class _MonthFieldState extends State<_MonthField> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final m = widget.r.month;
     if (_editing == null) {
       return BarButton(
         key: const ValueKey('month-edit'),
         label: m.amount == 0
-            ? 'Type a month of expenses'
+            ? t.planTypeMonth
             : m.typed
-            ? 'Change the month'
-            : 'Type your own month',
+            ? t.planChangeMonth
+            : t.planTypeOwnMonth,
         color: m.amount == 0 ? Mid.gold : null,
         onTap: _start,
       );
@@ -625,7 +611,7 @@ class _MonthFieldState extends State<_MonthField> {
                 decoration:
                     _fieldDecoration(
                       hint: m.amount == 0
-                          ? 'A month of expenses'
+                          ? t.planMonthHint
                           : formatWhole(m.amount),
                       wrong: _wrong,
                     ).copyWith(
@@ -639,14 +625,11 @@ class _MonthFieldState extends State<_MonthField> {
             const SizedBox(width: 8),
             BarButton(
               key: const ValueKey('month-save'),
-              label: 'Save',
+              label: t.planSave,
               onTap: _save,
             ),
             if (m.typed)
-              Text(
-                'Empty goes back to your average',
-                style: onest(12, color: Mid.ink3),
-              ),
+              Text(t.planEmptyToAverage, style: onest(12, color: Mid.ink3)),
           ],
         ),
       ),
@@ -667,13 +650,13 @@ class _MonthsChoice extends StatelessWidget {
       for (final n in [3, 4, 5, 6])
         BarButton(
           key: ValueKey('months-$n'),
-          label: '$n months',
+          label: context.t.planMonthsChoice(n),
           active: r.monthsTarget == n,
           color: r.monthsTarget == n ? Mid.blue : Mid.ink2,
           onTap: () => actions.setPref(
             ReadyKeys.months,
             n == 3 ? null : '$n',
-            'Aiming for $n months',
+            context.t.planAimingFor(n),
           ),
         ),
     ],
@@ -725,7 +708,7 @@ class _Answer extends StatelessWidget {
       ),
       BarButton(
         key: ValueKey('answer-$stepKey-no'),
-        label: 'Not yet',
+        label: context.t.planNotYet,
         active: !yes,
         onTap: () => onChanged(false),
       ),
@@ -733,11 +716,19 @@ class _Answer extends StatelessWidget {
   );
 }
 
-String _roleWords(AccountRole? role) => switch (role) {
-  AccountRole.mortgage => 'Mortgage',
-  AccountRole.studentLoan => 'Student loan',
-  AccountRole.paidMonthly => 'Paid in full every month',
-  _ => 'Consumer debt',
+String _roleWords(Words t, AccountRole? role) => switch (role) {
+  AccountRole.mortgage => t.planRoleMortgage,
+  AccountRole.studentLoan => t.planRoleStudentLoan,
+  AccountRole.paidMonthly => t.planRolePaidMonthly,
+  _ => t.planRoleConsumer,
+};
+
+/// The undo label for marking [name] as [role].
+String _countsAs(Words t, String name, AccountRole? role) => switch (role) {
+  AccountRole.mortgage => t.planCountsAsMortgage(name),
+  AccountRole.studentLoan => t.planCountsAsStudentLoan(name),
+  AccountRole.paidMonthly => t.planCountsAsPaidMonthly(name),
+  _ => t.planCountsAsConsumer(name),
 };
 
 /// A card or loan, what's owed on it, and what it counts as.
@@ -749,6 +740,7 @@ class _DebtLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final a = debt.account;
     final consumer = r.consumerDebts.any((d) => d.account.id == a.id);
     final target = consumer && r.target?.account.id == a.id;
@@ -768,7 +760,7 @@ class _DebtLine extends StatelessWidget {
           SizedBox(
             width: 130,
             child: Text(
-              debt.owed > 0 ? _money(debt.owed) : 'nothing owed',
+              debt.owed > 0 ? _money(debt.owed) : t.planNothingOwed,
               style: onest(13, color: Mid.ink2, tabular: true),
             ),
           ),
@@ -781,7 +773,7 @@ class _DebtLine extends StatelessWidget {
                   onPressed: () => actions.setPref(
                     ReadyKeys.target,
                     '${a.id}',
-                    'Paying extra on ${a.name}',
+                    t.planPayingExtraOn(a.name),
                     toast: true,
                   ),
                   style: ButtonStyle(
@@ -789,7 +781,7 @@ class _DebtLine extends StatelessWidget {
                     overlayColor: WidgetStatePropertyAll(Mid.blueWash),
                   ),
                   child: Text(
-                    'Pay extra on this one',
+                    t.planPayExtraOnThis,
                     style: onest(13, color: Mid.ink2),
                   ),
                 ),
@@ -801,11 +793,8 @@ class _DebtLine extends StatelessWidget {
               ])
                 MenuItemButton(
                   key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
-                  onPressed: () => actions.setRole(
-                    a,
-                    role,
-                    '${a.name} counts as ${_roleWords(role).toLowerCase()}',
-                  ),
+                  onPressed: () =>
+                      actions.setRole(a, role, _countsAs(t, a.name, role)),
                   leadingIcon: Icon(
                     a.role == role ? Icons.check_rounded : null,
                     size: 16,
@@ -816,7 +805,7 @@ class _DebtLine extends StatelessWidget {
                     overlayColor: WidgetStatePropertyAll(Mid.blueWash),
                   ),
                   child: Text(
-                    _roleWords(role),
+                    _roleWords(t, role),
                     style: onest(13, color: Mid.ink2),
                   ),
                 ),
@@ -825,7 +814,7 @@ class _DebtLine extends StatelessWidget {
               key: ValueKey('debt-${a.id}-role'),
               onTap: () => menu.isOpen ? menu.close() : menu.open(),
               builder: (hover) => Text(
-                _roleWords(a.role),
+                _roleWords(t, a.role),
                 style: onest(
                   12.5,
                   color: hover ? Mid.ink2 : Mid.ink3,
@@ -836,7 +825,7 @@ class _DebtLine extends StatelessWidget {
           if (target) ...[
             const SizedBox(width: 12),
             Text(
-              'Pay extra here',
+              t.planPayExtraHere,
               key: ValueKey('debt-${a.id}-is-target'),
               style: onest(12.5, color: Mid.blue),
             ),
@@ -852,9 +841,7 @@ class _DebtLine extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 2),
           child: Text(
-            'Owed every day since ${fullDate(carried)}: a balance is carrying '
-            'over. It’s left out of consumer debt only because it’s marked '
-            'paid in full.',
+            t.planCarried(sayFullDate(t, carried)),
             key: ValueKey('debt-${a.id}-carried'),
             style: onest(12.5, color: Mid.gold, height: 1.4),
           ),
@@ -891,7 +878,7 @@ class _StepMenu extends StatelessWidget {
             overlayColor: WidgetStatePropertyAll(Mid.blueWash),
           ),
           child: Text(
-            aside ? 'Bring it back' : 'Set this step aside',
+            aside ? context.t.planBringBack : context.t.planSetStepAside,
             style: onest(13, color: Mid.ink2),
           ),
         ),

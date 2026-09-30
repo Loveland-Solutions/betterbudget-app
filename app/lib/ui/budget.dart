@@ -50,6 +50,7 @@ class _BudgetPageState extends State<_BudgetPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final data = widget.data;
     final spending = data.categories.where((c) => !c.isIncome).toList();
     final income = data.categories.where((c) => c.isIncome).toList();
@@ -69,7 +70,7 @@ class _BudgetPageState extends State<_BudgetPage> {
             usage: data.categoryUsage[c.id],
             actions: widget.actionsFor(c),
             onShowRows: () => widget.onShowRows(c),
-            payNote: c.isIncome ? _payNote(data, c) : null,
+            payNote: c.isIncome ? _payNote(t, data, c) : null,
           ),
         const SizedBox(height: 14),
       ],
@@ -89,15 +90,15 @@ class _BudgetPageState extends State<_BudgetPage> {
                 child: Row(
                   children: [
                     Text(
-                      'Budget',
+                      t.planBudget,
                       style: onest(22, weight: 600, letterSpacing: -0.3),
                     ),
                     const Spacer(),
                     _PrimaryButton(
                       key: const ValueKey('add-category'),
-                      label: 'Add category',
+                      label: t.planAddCategory,
                       icon: Icons.add_rounded,
-                      tooltip: 'Add a category',
+                      tooltip: t.planAddCategoryTip,
                       onTap: () => setState(() => _adding = true),
                     ),
                   ],
@@ -121,8 +122,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                           onCreate: widget.onCreate,
                           onCancel: () => setState(() => _adding = false),
                         ),
-                      group('Spending', spending),
-                      if (income.isNotEmpty) group('Income', income),
+                      group(t.planSpending, spending),
+                      if (income.isNotEmpty) group(t.planIncome, income),
                       if (archived.isNotEmpty) ...[
                         Hoverable(
                           key: const ValueKey('show-archived-categories'),
@@ -131,7 +132,9 @@ class _BudgetPageState extends State<_BudgetPage> {
                           builder: (hover) => Padding(
                             padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
                             child: Text(
-                              '${_showArchived ? 'Hide' : 'Show'} archived (${archived.length})',
+                              _showArchived
+                                  ? t.planHideArchived(archived.length)
+                                  : t.planShowArchived(archived.length),
                               style: onest(
                                 12.5,
                                 color: hover ? Mid.ink2 : Mid.ink3,
@@ -155,13 +158,13 @@ class _BudgetPageState extends State<_BudgetPage> {
                                     ),
                                   ),
                                   Text(
-                                    _usageText(data.categoryUsage[c.id]),
+                                    _usageText(t, data.categoryUsage[c.id]),
                                     style: onest(12.5, color: Mid.ink3),
                                   ),
                                   const SizedBox(width: 16),
                                   BarButton(
                                     key: ValueKey('unarchive-category-${c.id}'),
-                                    label: 'Show in menus',
+                                    label: t.planShowInMenus,
                                     onTap: () => widget.onUnarchive(c),
                                   ),
                                 ],
@@ -189,17 +192,17 @@ class _BudgetPageState extends State<_BudgetPage> {
 ///   leave it too high);
 /// - pay that's the same: when the last two came in alike and off the plan
 ///   (a raise, a tax change, a cut), louder when it's less.
-({String text, bool nudge}) _payNote(LedgerData data, AccountInfo c) {
-  if (!c.payday) return (text: 'not a payday', nudge: false);
+({String text, bool nudge}) _payNote(Words t, LedgerData data, AccountInfo c) {
+  if (!c.payday) return (text: t.planNotPayday, nudge: false);
   final pays = data.paySchedules.where((p) => p.categoryId == c.id).toList();
   if (pays.isEmpty) {
     // Said once in the pay setup: no regular pay, so nothing to nag about.
     return data.prefs[noRegularPayKey] == '1'
-        ? (text: 'payday · no regular pay', nudge: false)
-        : (text: 'payday · pay not set up', nudge: true);
+        ? (text: t.planPaydayNoRegular, nudge: false)
+        : (text: t.planPaydayNotSetUp, nudge: true);
   }
   final p = pays.first;
-  final more = pays.length > 1 ? ' · +${pays.length - 1} more pay' : '';
+  final more = pays.length > 1 ? t.planMorePay(pays.length - 1) : '';
   String money(int v) => formatMoney(v, showCents: v % 100 != 0);
   // Each paycheck beside what was planned for its own day: split pay's
   // advance is measured against the advance, not the rest.
@@ -222,10 +225,8 @@ class _BudgetPageState extends State<_BudgetPage> {
       final low = last6.map((x) => x.amount).reduce((a, b) => a < b ? a : b);
       return (
         text: p.split
-            ? 'Your last 6 all came in over 5% above the estimate · raise '
-                  'it?$more'
-            : 'Your lowest of the last 6 was ${money(low)} · raise the '
-                  'estimate?$more',
+            ? '${t.planRaiseSplit}$more'
+            : '${t.planRaiseLowest(money(low))}$more',
         nudge: true,
       );
     }
@@ -240,9 +241,8 @@ class _BudgetPageState extends State<_BudgetPage> {
     if ((now - plan).abs() * 50 > plan) {
       return (
         text: now < plan
-            ? 'Last 2 came in at ${money(now)}, less than planned · update '
-                  'it?$more'
-            : 'Last 2 came in at ${money(now)} · update the amount?$more',
+            ? '${t.planLastTwoLess(money(now))}$more'
+            : '${t.planLastTwoMore(money(now))}$more',
         nudge: true,
       );
     }
@@ -252,29 +252,28 @@ class _BudgetPageState extends State<_BudgetPage> {
       .scheduled
       .where((r) => r.payScheduleId == p.id)
       .firstOrNull;
-  return (
-    text:
-        'payday · ${p.describeAmounts(money)}'
-        '${next == null ? '' : ' · next ${shortDate(next.date)}'}'
-        '$more',
-    nudge: false,
-  );
+  final pay = payAmounts(t, p, money);
+  final note = next == null
+      ? t.planPaydayPay(pay)
+      : t.planPaydayPayNext(pay, sayDate(t, next.date));
+  return (text: '$note$more', nudge: false);
 }
 
 /// "09.12" this year; the full date before, since a category last used in
 /// another year is the one worth archiving.
-String _lastDate(DateTime d) =>
-    d.year == DateTime.now().year ? shortDate(d) : fullDate(d);
+String _lastDate(Words t, DateTime d) =>
+    d.year == DateTime.now().year ? sayDate(t, d) : sayFullDate(t, d);
 
-String _usageText(CategoryUsage? u) {
-  if (u == null) return 'no rows';
+String _usageText(Words t, CategoryUsage? u) {
+  if (u == null) return t.planNoRows;
   final parts = [
     if (u.rows > 0)
-      '${u.rows} ${u.rows == 1 ? 'row' : 'rows'}'
-          '${u.last == null ? '' : ' · last ${_lastDate(u.last!)}'}',
-    if (u.scheduled > 0) '${u.scheduled} scheduled',
+      u.last == null
+          ? t.planUsageRows(u.rows)
+          : t.planUsageRowsLast(u.rows, _lastDate(t, u.last!)),
+    if (u.scheduled > 0) t.planUsageScheduled(u.scheduled),
   ];
-  return parts.isEmpty ? 'no rows' : parts.join(' · ');
+  return parts.isEmpty ? t.planNoRows : parts.join(' · ');
 }
 
 /// One category: its name renames in place when clicked; ⋯ or a right-click
@@ -349,6 +348,7 @@ class _CategoryRowState extends State<_CategoryRow> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final c = widget.category;
     final a = widget.actions;
     return MenuAnchor(
@@ -359,6 +359,7 @@ class _CategoryRowState extends State<_CategoryRow> {
         if (mounted) setState(() {});
       },
       menuChildren: _categoryMenu(
+        t,
         c,
         _CategoryActions(
           rename: (_) => _startRename(),
@@ -411,7 +412,7 @@ class _CategoryRowState extends State<_CategoryRow> {
                       : Align(
                           alignment: Alignment.centerLeft,
                           child: Tooltip(
-                            message: 'Click to rename',
+                            message: t.planClickToRename,
                             waitDuration: const Duration(milliseconds: 600),
                             child: MouseRegion(
                               cursor: SystemMouseCursors.text,
@@ -450,18 +451,18 @@ class _CategoryRowState extends State<_CategoryRow> {
                 // Its rows, in All accounts: what the count is counting.
                 if (widget.usage == null)
                   Text(
-                    _usageText(widget.usage),
+                    _usageText(t, widget.usage),
                     style: onest(12.5, color: Mid.ink3, tabular: true),
                   )
                 else
                   Tooltip(
-                    message: 'Show these rows',
+                    message: t.planShowTheseRows,
                     waitDuration: const Duration(milliseconds: 500),
                     child: Hoverable(
                       key: ValueKey('category-rows-${c.id}'),
                       onTap: widget.onShowRows,
                       builder: (hover) => Text(
-                        _usageText(widget.usage),
+                        _usageText(t, widget.usage),
                         style:
                             onest(
                               12.5,
@@ -503,7 +504,7 @@ class _CategoryRowState extends State<_CategoryRow> {
   }
 }
 
-List<Widget> _categoryMenu(AccountInfo c, _CategoryActions act) {
+List<Widget> _categoryMenu(Words t, AccountInfo c, _CategoryActions act) {
   Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
       MenuItemButton(
         key: ValueKey(key),
@@ -515,22 +516,22 @@ List<Widget> _categoryMenu(AccountInfo c, _CategoryActions act) {
         child: Text(label, style: onest(13, color: color ?? Mid.ink2)),
       );
   return [
-    item('Rename', 'category-rename', () => act.rename(c.name)),
-    if (act.pay case final pay?) item('Pay…', 'category-pay', pay),
+    item(t.planRename, 'category-rename', () => act.rename(c.name)),
+    if (act.pay case final pay?) item(t.planPayMenu, 'category-pay', pay),
     if (act.togglePayday case final toggle?)
       item(
-        c.payday ? 'Not a payday' : 'Mark as payday',
+        c.payday ? t.planUnmarkPayday : t.planMarkPayday,
         'category-payday',
         toggle,
       ),
     item(
-      c.isIncome ? 'Change to spending' : 'Change to income',
+      c.isIncome ? t.planChangeToSpending : t.planChangeToIncome,
       'category-kind',
       act.changeKind,
     ),
     Divider(height: 9, color: Mid.rule),
-    item('Archive', 'category-archive', act.archive),
-    item('Delete…', 'category-delete', act.delete, color: Mid.coral),
+    item(t.planArchive, 'category-archive', act.archive),
+    item(t.planDeleteMenu, 'category-delete', act.delete, color: Mid.coral),
   ];
 }
 
@@ -568,6 +569,7 @@ class _NewCategoryState extends State<_NewCategory> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     Widget kind(bool income, String label) {
       final on = _income == income;
       return Hoverable(
@@ -617,22 +619,22 @@ class _NewCategoryState extends State<_NewCategory> {
                     autofocus: true,
                     style: onest(13.5),
                     onSubmitted: (_) => _create(),
-                    decoration: _fieldDecoration(hint: 'Category name'),
+                    decoration: _fieldDecoration(hint: t.planCategoryName),
                   ),
                 ),
                 const SizedBox(width: 10),
-                kind(false, 'Spending'),
+                kind(false, t.planSpending),
                 const SizedBox(width: 6),
-                kind(true, 'Income'),
+                kind(true, t.planIncome),
                 const Spacer(),
                 BarButton(
                   key: const ValueKey('new-category-cancel'),
-                  label: 'Cancel',
+                  label: t.planCancel,
                   onTap: widget.onCancel,
                 ),
                 _PrimaryButton(
                   key: const ValueKey('new-category-create'),
-                  label: 'Add',
+                  label: t.planAdd,
                   icon: Icons.add_rounded,
                   tooltip: 'Enter',
                   onTap: _create,
@@ -643,7 +645,7 @@ class _NewCategoryState extends State<_NewCategory> {
               Padding(
                 padding: const EdgeInsets.only(top: 8, left: 2),
                 child: Text(
-                  'Income ends a forecast, like payday.',
+                  t.planIncomeEndsForecast,
                   style: onest(12.5, color: Mid.ink3),
                 ),
               ),
@@ -678,6 +680,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final c = widget.category;
     final posted = widget.usage?.rows ?? 0;
     final scheduled = widget.usage?.scheduled ?? 0;
@@ -691,23 +694,23 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
     ];
     final lines = [
       if (n == 0)
-        merging
-            ? 'Nothing is filed under it yet.'
-            : 'Only deleted rows are filed under it. They move to:'
+        merging ? t.planNothingFiled : t.planOnlyDeletedFiled
+      else if (scheduled == 0)
+        t.planRowsFiled(n)
       else
-        '$n ${n == 1 ? 'row is' : 'rows are'} filed under it'
-            '${scheduled == 0 ? '' : ', $scheduled of them scheduled'}. '
-            '${n == 1 ? 'It moves' : 'They move'} to:',
+        t.planRowsFiledScheduled(n, scheduled),
     ];
     // Moving between kinds changes what the rows count as, and where a
     // forecast ends.
     final kindNote = into == null || into.isIncome == c.isIncome || n == 0
         ? null
         : into.isIncome
-        ? '${into.name} is income: these rows will count as money in'
-              '${scheduled == 0 ? '' : ', and the scheduled ones will end forecasts'}.'
-        : '${into.name} is spending: these rows will no longer count as income'
-              '${scheduled == 0 ? '' : ' or end forecasts'}.';
+        ? (scheduled == 0
+              ? t.planIntoIncome(into.name)
+              : t.planIntoIncomeScheduled(into.name))
+        : (scheduled == 0
+              ? t.planIntoSpending(into.name)
+              : t.planIntoSpendingScheduled(into.name));
     return Dialog(
       backgroundColor: Mid.panel,
       shape: RoundedRectangleBorder(
@@ -724,8 +727,8 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
             children: [
               Text(
                 merging
-                    ? 'Merge ${c.name} into ${widget.into!.name}?'
-                    : 'Delete ${c.name}?',
+                    ? t.planMergeTitle(c.name, widget.into!.name)
+                    : t.planDeleteTitle(c.name),
                 style: onest(
                   17,
                   weight: 600,
@@ -738,7 +741,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
               const SizedBox(height: 10),
               if (targets.isEmpty)
                 Text(
-                  'There’s no other category to move them to. Add one first.',
+                  t.planNoOtherCategory,
                   style: onest(13.5, color: Mid.coral),
                 )
               else if (!merging)
@@ -748,7 +751,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                   onPicked: (t) => setState(() => _into = t),
                   builder: (open, toggle) => BarButton(
                     key: const ValueKey('delete-category-into'),
-                    label: into?.name ?? 'Pick a category',
+                    label: into?.name ?? t.planPickCategory,
                     trailing: Icons.expand_more_rounded,
                     active: open,
                     onTap: toggle,
@@ -764,7 +767,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 children: [
                   BarButton(
                     key: const ValueKey('warning-cancel'),
-                    label: 'Cancel',
+                    label: t.planCancel,
                     onTap: () => Navigator.of(context).pop(),
                   ),
                   Material(
@@ -785,10 +788,10 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                         alignment: Alignment.center,
                         child: Text(
                           into == null
-                              ? 'Delete ${c.name}'
+                              ? t.planDeleteButton(c.name)
                               : merging
-                              ? 'Merge into ${into.name}'
-                              : 'Move to ${into.name} and delete',
+                              ? t.planMergeButton(into.name)
+                              : t.planMoveAndDelete(into.name),
                           style: onest(
                             13,
                             weight: 600,
