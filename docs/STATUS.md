@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** branch `budget-full-width` (2026-10-01, version 0.1.1, not merged yet): the Budget page fills the window with striped rows, and the window stops at 1360 × 760 (ADR 0004 "The smallest window": smaller windows show the app shrunk, narrower Category/Amount/Balance columns, a sidebar that scrolls). `main` has everything through PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -189,6 +189,11 @@ of a category. The owner corrected "Put in" to **Assigned**. Both reviews done; 
 fixes are in. **Also (2026-09-30, PR #27):** a dark-mode logo in the sidebar, Blue eclipse the default, and the color schemes in Settings → Appearance. **Next:** the owner tries it with real money. Then moving money between
 categories, "same as last period", the four budget types (ROADMAP C), and the forecast's
 "Nothing has been budgeted" sentence switching on the budget.
+
+**2026-10-01:** the owner started using the budget and sent two fixes (PR #29, above).
+Still waiting on their reaction to the Budget page beyond its width ("ugly" was the
+word; width was the one thing named). Offered next: recurring bills (options with
+sketches), then the budget follow-ups.
 
 **Tabled by the owner (2026-09-30), to address next**, from using the new build:
 
@@ -380,6 +385,15 @@ been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
 
+- **PR #29 (2026-10-01):** two fixes from the owner using the app, version 0.1.1.
+  **The Budget page fills the window** (it was capped at 820 px), its rows striped
+  like the register's. **The window stops at 1360 × 760** (it was 1200, where an
+  account page ran out of room): `FitWindow` draws the app shrunk in any window
+  smaller than that (a small screen; Windows and Linux until their windows stop
+  too), the register's Category, Amount and Balance columns are narrower so the
+  payee has room, and the sidebar's sections scroll with Settings and Net worth
+  pinned. Checked in the real window (asked for 900 × 500, it stopped at 1360).
+  No review passes: fixes, not a feature. 331 tests.
 - **PR #28 (2026-09-30):** **Version numbers** (ADR 0006). Semantic, started fresh at
   0.1.0: minor per feature PR, patch per fix, 1.0.0 is the public release. The build
   number is the commit count, written into the built `Info.plist` by a macOS build
