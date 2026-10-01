@@ -159,6 +159,32 @@ class BudgetAmounts extends Table {
   IntColumn get amountMinor => integer()();
 }
 
+/// A spending category's plan (rule 27): what it's for, and so how much
+/// it should be assigned each period. One per category.
+@DataClassName('CategoryPlanRow')
+class CategoryPlans extends Table {
+  IntColumn get categoryId => integer().references(Accounts, #id)();
+  TextColumn get kind => textEnum<PlanKind>()();
+
+  /// Each period's amount, the bill, or the goal, by [kind].
+  IntColumn get amountMinor => integer()();
+
+  /// Calendar date as `YYYY-MM-DD`: the day the plan was made.
+  TextColumn get start => text()();
+
+  /// A bill's first due date, or the day a goal is to be reached by.
+  TextColumn get due => text().nullable()();
+
+  /// A bill that comes again every this many months; null for once.
+  IntColumn get everyMonths => integer().nullable()();
+
+  /// Spend through the period: what's left stays in the category.
+  BoolColumn get rollover => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {categoryId};
+}
+
 class UnbalancedTransactionException implements Exception {
   UnbalancedTransactionException(this.transactionId, this.sum);
   final int transactionId;
@@ -532,6 +558,7 @@ String fileStamp(DateTime n) {
     Reconciliations,
     Preferences,
     BudgetAmounts,
+    CategoryPlans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -567,7 +594,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -642,6 +669,7 @@ class AppDatabase extends _$AppDatabase {
         }
         // Drift makes it IF NOT EXISTS, so a relabeled file is safe too.
         if (from < 10) await m.createTable(budgetAmounts);
+        if (from < 11) await m.createTable(categoryPlans);
       });
     },
     beforeOpen: (details) async {
@@ -730,6 +758,7 @@ class AppDatabase extends _$AppDatabase {
       'entries',
       'preferences',
       'budget_amounts',
+      'category_plans',
     ];
     // A table added to the schema must be added here, or a restore drops it.
     assert(
@@ -800,6 +829,7 @@ class AppDatabase extends _$AppDatabase {
       reconciliations,
       preferences,
       budgetAmounts,
+      categoryPlans,
     },
   ).watch().asyncMap((_) => loadLedger());
 
@@ -820,6 +850,7 @@ class AppDatabase extends _$AppDatabase {
     final schedules = await select(paySchedules).get();
     final prefRows = await select(preferences).get();
     final budgetRows = await select(budgetAmounts).get();
+    final planRows = await select(categoryPlans).get();
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -856,6 +887,7 @@ class AppDatabase extends _$AppDatabase {
           ),
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
+      plans: [for (final p in planRows) _plan(p)],
       budgetAmounts: [
         for (final b in budgetRows)
           BudgetAmount(
@@ -1814,6 +1846,68 @@ class AppDatabase extends _$AppDatabase {
         }
       });
 
+  /// Several categories' amounts for the period [start]–[end] in one write
+  /// (the plans' amounts, assigned together). Returns what each had, for
+  /// [restoreBudgetAmountsOf].
+  Future<Map<int, List<BudgetAmount>>> setBudgetAmounts(
+    Map<int, int> amounts,
+    DateTime start,
+    DateTime end,
+  ) => transaction(() async {
+    return {
+      for (final e in amounts.entries)
+        e.key: await setBudgetAmount(e.key, start, end, e.value),
+    };
+  });
+
+  /// Undo for [setBudgetAmounts].
+  Future<void> restoreBudgetAmountsOf(
+    Map<int, List<BudgetAmount>> before,
+    DateTime start,
+    DateTime end,
+  ) => transaction(() async {
+    for (final e in before.entries) {
+      await restoreBudgetAmounts(e.key, start, end, e.value);
+    }
+  });
+
+  /// Gives [categoryId] the plan [plan], or takes its plan away with null.
+  /// Returns the plan it had, so undo can put it back.
+  Future<CategoryPlan?> setCategoryPlan(int categoryId, CategoryPlan? plan) =>
+      transaction(() async {
+        await _assertCategory(categoryId);
+        final old = await (select(
+          categoryPlans,
+        )..where((p) => p.categoryId.equals(categoryId))).getSingleOrNull();
+        await (delete(
+          categoryPlans,
+        )..where((p) => p.categoryId.equals(categoryId))).go();
+        if (plan != null) {
+          await into(categoryPlans).insert(
+            CategoryPlansCompanion.insert(
+              categoryId: Value(categoryId),
+              kind: plan.kind,
+              amountMinor: plan.amount,
+              start: dateKey(dateOnly(plan.start)),
+              due: Value(plan.due == null ? null : dateKey(plan.due!)),
+              everyMonths: Value(plan.everyMonths),
+              rollover: Value(plan.rollover),
+            ),
+          );
+        }
+        return old == null ? null : _plan(old);
+      });
+
+  CategoryPlan _plan(CategoryPlanRow p) => CategoryPlan(
+    categoryId: p.categoryId,
+    kind: p.kind,
+    amount: p.amountMinor,
+    start: parseDateKey(p.start),
+    due: p.due == null ? null : parseDateKey(p.due!),
+    everyMonths: p.everyMonths,
+    rollover: p.rollover,
+  );
+
   Expression<bool> _dateIn(
     $BudgetAmountsTable b,
     DateTime start,
@@ -1870,6 +1964,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
       transaction(() async {
         await delete(budgetAmounts).go();
+        await delete(categoryPlans).go();
         await delete(entries).go();
         await delete(reconciliations).go();
         await delete(transactions).go();

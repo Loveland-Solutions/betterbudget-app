@@ -467,6 +467,75 @@ class BudgetAmount {
   final int amount;
 }
 
+/// What a spending category is for, which decides how much it should be
+/// assigned each period (rule 27).
+enum PlanKind {
+  /// Money goes in each period and is spent down (groceries).
+  spend,
+
+  /// A set amount each period; it builds until it's needed (car repairs).
+  saveUp,
+
+  /// A bill with a due date, saved for in equal parts (annual insurance).
+  dueOn,
+
+  /// An amount by a date; each period's part follows what's left to save
+  /// and the time left.
+  goal,
+}
+
+/// A spending category's plan (rule 27). One per category at most.
+class CategoryPlan {
+  const CategoryPlan({
+    required this.categoryId,
+    required this.kind,
+    required this.amount,
+    required this.start,
+    this.due,
+    this.everyMonths,
+    this.rollover = true,
+  });
+
+  final int categoryId;
+  final PlanKind kind;
+
+  /// [PlanKind.spend] and [PlanKind.saveUp]: what goes in each period.
+  /// [PlanKind.dueOn]: the bill. [PlanKind.goal]: the amount to reach.
+  final int amount;
+
+  /// The day the plan was made: a bill's equal parts count from the period
+  /// this day is in.
+  final DateTime start;
+
+  /// [PlanKind.dueOn]: the first due date. [PlanKind.goal]: the date to
+  /// reach it by.
+  final DateTime? due;
+
+  /// [PlanKind.dueOn]: the bill comes again every this many months (12 a
+  /// year, 3 a quarter); null for once.
+  final int? everyMonths;
+
+  /// [PlanKind.spend]: what's left when a period ends stays in the
+  /// category. False sends it back to the money not assigned; what's
+  /// overspent carries either way.
+  final bool rollover;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CategoryPlan &&
+      other.categoryId == categoryId &&
+      other.kind == kind &&
+      other.amount == amount &&
+      other.start == start &&
+      other.due == due &&
+      other.everyMonths == everyMonths &&
+      other.rollover == rollover;
+
+  @override
+  int get hashCode =>
+      Object.hash(categoryId, kind, amount, start, due, everyMonths, rollover);
+}
+
 class LedgerData {
   LedgerData({
     required List<AccountInfo> accounts,
@@ -476,7 +545,12 @@ class LedgerData {
     this.stoppedPaySchedules = const [],
     this.prefs = const {},
     this.budgetAmounts = const [],
-  }) : accounts = {for (final a in accounts) a.id: a};
+    List<CategoryPlan> plans = const [],
+  }) : accounts = {for (final a in accounts) a.id: a},
+       plans = {for (final p in plans) p.categoryId: p};
+
+  /// Each spending category's plan, by category (rule 27).
+  final Map<int, CategoryPlan> plans;
 
   /// What's been put into each spending category, by period (rule 26).
   final List<BudgetAmount> budgetAmounts;
@@ -492,6 +566,23 @@ class LedgerData {
   late final Map<int, PaySchedule> _schedulesById = {
     for (final p in [...stoppedPaySchedules, ...paySchedules]) p.id: p,
   };
+
+  /// This ledger with [plan] as [categoryId]'s plan (none with null):
+  /// what a plan being typed, or removed, would do before it's saved.
+  LedgerData withPlan(int categoryId, CategoryPlan? plan) => LedgerData(
+    accounts: accounts.values.toList(),
+    txns: txns,
+    reconciliations: reconciliations,
+    paySchedules: paySchedules,
+    stoppedPaySchedules: stoppedPaySchedules,
+    prefs: prefs,
+    budgetAmounts: budgetAmounts,
+    plans: [
+      for (final p in plans.values)
+        if (p.categoryId != categoryId) p,
+      ?plan,
+    ],
+  );
 
   /// The schedule the budget runs by, or null for calendar months.
   PaySchedule? get periodSchedule =>

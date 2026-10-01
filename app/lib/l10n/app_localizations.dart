@@ -2333,7 +2333,7 @@ abstract class Words {
   /// **'A month of expenses'**
   String get planMonthHint;
 
-  /// Savings page, step 1: button beside the month field
+  /// Budget page, a category's plan: button that keeps it
   ///
   /// In en, this message translates to:
   /// **'Save'**
@@ -5574,6 +5574,282 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Hide the colors'**
   String get appearanceColorsHide;
+
+  /// Budget page: item in a spending category's ⋯ menu; opens its plan (what the category is for and how much goes in each period) under the row
+  ///
+  /// In en, this message translates to:
+  /// **'Plan…'**
+  String get planPlanMenu;
+
+  /// Budget page, a category's plan: the first of four kinds, when the budget runs by month (groceries: money goes in and is spent down)
+  ///
+  /// In en, this message translates to:
+  /// **'Spend through the month'**
+  String get planKindSpendMonth;
+
+  /// Budget page, a category's plan: the first of four kinds, when the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'Spend through the pay period'**
+  String get planKindSpendPay;
+
+  /// Budget page, a category's plan: the second kind (Christmas, car repairs)
+  ///
+  /// In en, this message translates to:
+  /// **'Save up, spend any time'**
+  String get planKindSaveUp;
+
+  /// Budget page, a category's plan: the third kind (annual insurance, a quarterly bill)
+  ///
+  /// In en, this message translates to:
+  /// **'Due on a date'**
+  String get planKindDueOn;
+
+  /// Budget page, a category's plan: the fourth kind (an amount by a date)
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get planKindGoal;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Spend through the month
+  ///
+  /// In en, this message translates to:
+  /// **'Money goes in each month and is spent down.'**
+  String get planHelpSpend;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Save up
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount goes in each month. It builds until you need it.'**
+  String get planHelpSaveUp;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Due on a date
+  ///
+  /// In en, this message translates to:
+  /// **'A bill with a date. It’s split into equal parts up to the day it’s due.'**
+  String get planHelpDueOn;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Goal
+  ///
+  /// In en, this message translates to:
+  /// **'An amount to save by a date. What’s still missing is split over the months left, so it goes up after a thin month.'**
+  String get planHelpGoal;
+
+  /// Budget page, a category's plan: label over the amount field, when the budget runs by month
+  ///
+  /// In en, this message translates to:
+  /// **'Each month'**
+  String get planLabelEachMonth;
+
+  /// Budget page, a category's plan: label over the amount field, when the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'Each pay period'**
+  String get planLabelEachPay;
+
+  /// Budget page, a category's plan (Due on a date): label over the amount field
+  ///
+  /// In en, this message translates to:
+  /// **'The bill'**
+  String get planLabelBill;
+
+  /// Budget page, a category's plan (Due on a date): label over the date field
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get planLabelDue;
+
+  /// Budget page, a category's plan (Due on a date): label over the choice of how often the bill comes
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats'**
+  String get planLabelRepeats;
+
+  /// Budget page, a category's plan (Goal): label over the amount field
+  ///
+  /// In en, this message translates to:
+  /// **'The goal'**
+  String get planLabelGoal;
+
+  /// Budget page, a category's plan (Goal): label over the date field
+  ///
+  /// In en, this message translates to:
+  /// **'By'**
+  String get planLabelBy;
+
+  /// Budget page, a category's plan (Due on a date): the bill comes once
+  ///
+  /// In en, this message translates to:
+  /// **'Doesn’t repeat'**
+  String get planRepeatNone;
+
+  /// Budget page, a category's plan (Due on a date): how often the bill comes
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Every month} other{Every {count} months}}'**
+  String planRepeatMonths(int count);
+
+  /// Budget page, a category's plan (Due on a date): how often the bill comes
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Every year} other{Every {count} years}}'**
+  String planRepeatYears(int count);
+
+  /// Budget page, a category's plan (Spend through the month): the first of two choices, the default
+  ///
+  /// In en, this message translates to:
+  /// **'What’s left carries over'**
+  String get planCarryOn;
+
+  /// Budget page, a category's plan (Spend through the month): the second of two choices; when a period ends, what the category didn't spend returns to the money not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'What’s left goes back to not assigned'**
+  String get planCarryOff;
+
+  /// Budget page, a category's plan: button that takes the plan away (the category and its money stay)
+  ///
+  /// In en, this message translates to:
+  /// **'Remove plan'**
+  String get planRemove;
+
+  /// Budget page: note under a category's name, what its plan puts in each month
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month'**
+  String planEachMonth(String amount);
+
+  /// Budget page: note under a category's name, what its plan puts in each pay period
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} each pay period'**
+  String planEachPay(String amount);
+
+  /// Budget page: part of the note under a category's name, after the amount and a dot
+  ///
+  /// In en, this message translates to:
+  /// **'what’s left doesn’t carry over'**
+  String get planNoCarry;
+
+  /// Budget page: part of the note under a category's name; what the period before left unspent, returned to the money not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} left last month went back to not assigned'**
+  String planWentBack(String amount);
+
+  /// Budget page: part of the note under a category's name, after the amount and a dot
+  ///
+  /// In en, this message translates to:
+  /// **'saving up'**
+  String get planSavingUp;
+
+  /// Budget page: note under a category's name, a bill and its due date
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} due {date}'**
+  String planDue(String amount, String date);
+
+  /// Budget page: note under a category's name, a bill that doesn't repeat whose date has passed
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} was due {date}'**
+  String planWasDue(String amount, String date);
+
+  /// Budget page: note under a category's name, a goal and its date
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} by {date}'**
+  String planBy(String amount, String date);
+
+  /// Budget page: end of the note under a category's name, when a bill or goal has what it should by now
+  ///
+  /// In en, this message translates to:
+  /// **'on track'**
+  String get planOnTrack;
+
+  /// Budget page: end of the note under a category's name, in gold: what should already have been assigned and wasn't
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} short'**
+  String planShort(String amount);
+
+  /// Budget page: end of the note under a category's name, a goal that holds its amount
+  ///
+  /// In en, this message translates to:
+  /// **'reached'**
+  String get planReached;
+
+  /// Budget page: link at the end of the note under a category's name; sets Assigned to what the plan wants this period
+  ///
+  /// In en, this message translates to:
+  /// **'Assign {amount}'**
+  String planAssignThis(String amount);
+
+  /// Budget page: tooltip on the note under a category's name
+  ///
+  /// In en, this message translates to:
+  /// **'Click to change the plan'**
+  String get planEditTip;
+
+  /// Budget page: button under the top line; assigns every plan's amount that isn't assigned yet this period
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Assign what’s planned · {amount} in 1 category} other{Assign what’s planned · {amount} in {count} categories}}'**
+  String planFill(int count, String amount);
+
+  /// Budget page: coral note beside the Assign what's planned button, when the plans want more than the money not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than you have left to assign'**
+  String planFillOver(String amount);
+
+  /// Toast and undo history label after Assign what's planned
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Assigned {amount} to 1 category} other{Assigned {amount} to {count} categories}}'**
+  String planFilled(int count, String amount);
+
+  /// Undo history label for saving a category's plan (shown in Undone/Redone toasts)
+  ///
+  /// In en, this message translates to:
+  /// **'Plan for {category}'**
+  String planSetUndo(String category);
+
+  /// Toast and undo history label for removing a category's plan
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the plan for {category}'**
+  String planRemoveUndo(String category);
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Spend through the pay period
+  ///
+  /// In en, this message translates to:
+  /// **'Money goes in each pay period and is spent down.'**
+  String get planHelpSpendPay;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Save up, when the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount goes in each pay period. It builds until you need it.'**
+  String get planHelpSaveUpPay;
+
+  /// Budget page, a category's plan: one line under the kinds, explaining Goal, when the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'An amount to save by a date. What’s still missing is split over the pay periods left, so it goes up after a thin one.'**
+  String get planHelpGoalPay;
+
+  /// Budget page: note under a category's name, when the budget runs by pay period; what the period before left unspent, returned to the money not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} left last pay period went back to not assigned'**
+  String planWentBackPay(String amount);
+
+  /// Budget page: gold line in a category's plan before saving, and part of the toast after, when changing or removing a plan that didn't carry over brings back what earlier periods returned
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} that went back returns to {category}, so not assigned goes down by that much'**
+  String planReturns(String amount, String category);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

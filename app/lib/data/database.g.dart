@@ -3975,6 +3975,488 @@ class BudgetAmountsCompanion extends UpdateCompanion<BudgetAmountRow> {
   }
 }
 
+class $CategoryPlansTable extends CategoryPlans
+    with TableInfo<$CategoryPlansTable, CategoryPlanRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CategoryPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<PlanKind, String> kind =
+      GeneratedColumn<String>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<PlanKind>($CategoryPlansTable.$converterkind);
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startMeta = const VerificationMeta('start');
+  @override
+  late final GeneratedColumn<String> start = GeneratedColumn<String>(
+    'start',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dueMeta = const VerificationMeta('due');
+  @override
+  late final GeneratedColumn<String> due = GeneratedColumn<String>(
+    'due',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _everyMonthsMeta = const VerificationMeta(
+    'everyMonths',
+  );
+  @override
+  late final GeneratedColumn<int> everyMonths = GeneratedColumn<int>(
+    'every_months',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rolloverMeta = const VerificationMeta(
+    'rollover',
+  );
+  @override
+  late final GeneratedColumn<bool> rollover = GeneratedColumn<bool>(
+    'rollover',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("rollover" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    categoryId,
+    kind,
+    amountMinor,
+    start,
+    due,
+    everyMonths,
+    rollover,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'category_plans';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CategoryPlanRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('start')) {
+      context.handle(
+        _startMeta,
+        start.isAcceptableOrUnknown(data['start']!, _startMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMeta);
+    }
+    if (data.containsKey('due')) {
+      context.handle(
+        _dueMeta,
+        due.isAcceptableOrUnknown(data['due']!, _dueMeta),
+      );
+    }
+    if (data.containsKey('every_months')) {
+      context.handle(
+        _everyMonthsMeta,
+        everyMonths.isAcceptableOrUnknown(
+          data['every_months']!,
+          _everyMonthsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rollover')) {
+      context.handle(
+        _rolloverMeta,
+        rollover.isAcceptableOrUnknown(data['rollover']!, _rolloverMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {categoryId};
+  @override
+  CategoryPlanRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CategoryPlanRow(
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      )!,
+      kind: $CategoryPlansTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      start: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start'],
+      )!,
+      due: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due'],
+      ),
+      everyMonths: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}every_months'],
+      ),
+      rollover: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}rollover'],
+      )!,
+    );
+  }
+
+  @override
+  $CategoryPlansTable createAlias(String alias) {
+    return $CategoryPlansTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<PlanKind, String, String> $converterkind =
+      const EnumNameConverter<PlanKind>(PlanKind.values);
+}
+
+class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
+  final int categoryId;
+  final PlanKind kind;
+
+  /// Each period's amount, the bill, or the goal, by [kind].
+  final int amountMinor;
+
+  /// Calendar date as `YYYY-MM-DD`: the day the plan was made.
+  final String start;
+
+  /// A bill's first due date, or the day a goal is to be reached by.
+  final String? due;
+
+  /// A bill that comes again every this many months; null for once.
+  final int? everyMonths;
+
+  /// Spend through the period: what's left stays in the category.
+  final bool rollover;
+  const CategoryPlanRow({
+    required this.categoryId,
+    required this.kind,
+    required this.amountMinor,
+    required this.start,
+    this.due,
+    this.everyMonths,
+    required this.rollover,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['category_id'] = Variable<int>(categoryId);
+    {
+      map['kind'] = Variable<String>(
+        $CategoryPlansTable.$converterkind.toSql(kind),
+      );
+    }
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['start'] = Variable<String>(start);
+    if (!nullToAbsent || due != null) {
+      map['due'] = Variable<String>(due);
+    }
+    if (!nullToAbsent || everyMonths != null) {
+      map['every_months'] = Variable<int>(everyMonths);
+    }
+    map['rollover'] = Variable<bool>(rollover);
+    return map;
+  }
+
+  CategoryPlansCompanion toCompanion(bool nullToAbsent) {
+    return CategoryPlansCompanion(
+      categoryId: Value(categoryId),
+      kind: Value(kind),
+      amountMinor: Value(amountMinor),
+      start: Value(start),
+      due: due == null && nullToAbsent ? const Value.absent() : Value(due),
+      everyMonths: everyMonths == null && nullToAbsent
+          ? const Value.absent()
+          : Value(everyMonths),
+      rollover: Value(rollover),
+    );
+  }
+
+  factory CategoryPlanRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CategoryPlanRow(
+      categoryId: serializer.fromJson<int>(json['categoryId']),
+      kind: $CategoryPlansTable.$converterkind.fromJson(
+        serializer.fromJson<String>(json['kind']),
+      ),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      start: serializer.fromJson<String>(json['start']),
+      due: serializer.fromJson<String?>(json['due']),
+      everyMonths: serializer.fromJson<int?>(json['everyMonths']),
+      rollover: serializer.fromJson<bool>(json['rollover']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'categoryId': serializer.toJson<int>(categoryId),
+      'kind': serializer.toJson<String>(
+        $CategoryPlansTable.$converterkind.toJson(kind),
+      ),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'start': serializer.toJson<String>(start),
+      'due': serializer.toJson<String?>(due),
+      'everyMonths': serializer.toJson<int?>(everyMonths),
+      'rollover': serializer.toJson<bool>(rollover),
+    };
+  }
+
+  CategoryPlanRow copyWith({
+    int? categoryId,
+    PlanKind? kind,
+    int? amountMinor,
+    String? start,
+    Value<String?> due = const Value.absent(),
+    Value<int?> everyMonths = const Value.absent(),
+    bool? rollover,
+  }) => CategoryPlanRow(
+    categoryId: categoryId ?? this.categoryId,
+    kind: kind ?? this.kind,
+    amountMinor: amountMinor ?? this.amountMinor,
+    start: start ?? this.start,
+    due: due.present ? due.value : this.due,
+    everyMonths: everyMonths.present ? everyMonths.value : this.everyMonths,
+    rollover: rollover ?? this.rollover,
+  );
+  CategoryPlanRow copyWithCompanion(CategoryPlansCompanion data) {
+    return CategoryPlanRow(
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      start: data.start.present ? data.start.value : this.start,
+      due: data.due.present ? data.due.value : this.due,
+      everyMonths: data.everyMonths.present
+          ? data.everyMonths.value
+          : this.everyMonths,
+      rollover: data.rollover.present ? data.rollover.value : this.rollover,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryPlanRow(')
+          ..write('categoryId: $categoryId, ')
+          ..write('kind: $kind, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('start: $start, ')
+          ..write('due: $due, ')
+          ..write('everyMonths: $everyMonths, ')
+          ..write('rollover: $rollover')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    categoryId,
+    kind,
+    amountMinor,
+    start,
+    due,
+    everyMonths,
+    rollover,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CategoryPlanRow &&
+          other.categoryId == this.categoryId &&
+          other.kind == this.kind &&
+          other.amountMinor == this.amountMinor &&
+          other.start == this.start &&
+          other.due == this.due &&
+          other.everyMonths == this.everyMonths &&
+          other.rollover == this.rollover);
+}
+
+class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
+  final Value<int> categoryId;
+  final Value<PlanKind> kind;
+  final Value<int> amountMinor;
+  final Value<String> start;
+  final Value<String?> due;
+  final Value<int?> everyMonths;
+  final Value<bool> rollover;
+  const CategoryPlansCompanion({
+    this.categoryId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.start = const Value.absent(),
+    this.due = const Value.absent(),
+    this.everyMonths = const Value.absent(),
+    this.rollover = const Value.absent(),
+  });
+  CategoryPlansCompanion.insert({
+    this.categoryId = const Value.absent(),
+    required PlanKind kind,
+    required int amountMinor,
+    required String start,
+    this.due = const Value.absent(),
+    this.everyMonths = const Value.absent(),
+    this.rollover = const Value.absent(),
+  }) : kind = Value(kind),
+       amountMinor = Value(amountMinor),
+       start = Value(start);
+  static Insertable<CategoryPlanRow> custom({
+    Expression<int>? categoryId,
+    Expression<String>? kind,
+    Expression<int>? amountMinor,
+    Expression<String>? start,
+    Expression<String>? due,
+    Expression<int>? everyMonths,
+    Expression<bool>? rollover,
+  }) {
+    return RawValuesInsertable({
+      if (categoryId != null) 'category_id': categoryId,
+      if (kind != null) 'kind': kind,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (start != null) 'start': start,
+      if (due != null) 'due': due,
+      if (everyMonths != null) 'every_months': everyMonths,
+      if (rollover != null) 'rollover': rollover,
+    });
+  }
+
+  CategoryPlansCompanion copyWith({
+    Value<int>? categoryId,
+    Value<PlanKind>? kind,
+    Value<int>? amountMinor,
+    Value<String>? start,
+    Value<String?>? due,
+    Value<int?>? everyMonths,
+    Value<bool>? rollover,
+  }) {
+    return CategoryPlansCompanion(
+      categoryId: categoryId ?? this.categoryId,
+      kind: kind ?? this.kind,
+      amountMinor: amountMinor ?? this.amountMinor,
+      start: start ?? this.start,
+      due: due ?? this.due,
+      everyMonths: everyMonths ?? this.everyMonths,
+      rollover: rollover ?? this.rollover,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(
+        $CategoryPlansTable.$converterkind.toSql(kind.value),
+      );
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (start.present) {
+      map['start'] = Variable<String>(start.value);
+    }
+    if (due.present) {
+      map['due'] = Variable<String>(due.value);
+    }
+    if (everyMonths.present) {
+      map['every_months'] = Variable<int>(everyMonths.value);
+    }
+    if (rollover.present) {
+      map['rollover'] = Variable<bool>(rollover.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryPlansCompanion(')
+          ..write('categoryId: $categoryId, ')
+          ..write('kind: $kind, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('start: $start, ')
+          ..write('due: $due, ')
+          ..write('everyMonths: $everyMonths, ')
+          ..write('rollover: $rollover')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3988,6 +4470,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EntriesTable entries = $EntriesTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
   late final $BudgetAmountsTable budgetAmounts = $BudgetAmountsTable(this);
+  late final $CategoryPlansTable categoryPlans = $CategoryPlansTable(this);
   late final Index entriesImportKey = Index(
     'entries_import_key',
     'CREATE UNIQUE INDEX entries_import_key ON entries (import_key)',
@@ -4005,6 +4488,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     entries,
     preferences,
     budgetAmounts,
+    categoryPlans,
     entriesImportKey,
   ];
 }
@@ -4094,6 +4578,24 @@ final class $$AccountsTableReferences
     ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_budgetAmountsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$CategoryPlansTable, List<CategoryPlanRow>>
+  _categoryPlansRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.categoryPlans,
+    aliasName: 'accounts__id__category_plans__category_id',
+  );
+
+  $$CategoryPlansTableProcessedTableManager get categoryPlansRefs {
+    final manager = $$CategoryPlansTableTableManager(
+      $_db,
+      $_db.categoryPlans,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_categoryPlansRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -4237,6 +4739,31 @@ class $$AccountsTableFilterComposer
           }) => $$BudgetAmountsTableFilterComposer(
             $db: $db,
             $table: $db.budgetAmounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> categoryPlansRefs(
+    Expression<bool> Function($$CategoryPlansTableFilterComposer f) f,
+  ) {
+    final $$CategoryPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.categoryPlans,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoryPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.categoryPlans,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4442,6 +4969,31 @@ class $$AccountsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> categoryPlansRefs<T extends Object>(
+    Expression<T> Function($$CategoryPlansTableAnnotationComposer a) f,
+  ) {
+    final $$CategoryPlansTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.categoryPlans,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoryPlansTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categoryPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AccountsTableTableManager
@@ -4461,6 +5013,7 @@ class $$AccountsTableTableManager
             bool reconciliationsRefs,
             bool entriesRefs,
             bool budgetAmountsRefs,
+            bool categoryPlansRefs,
           })
         > {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
@@ -4543,6 +5096,7 @@ class $$AccountsTableTableManager
                 reconciliationsRefs = false,
                 entriesRefs = false,
                 budgetAmountsRefs = false,
+                categoryPlansRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -4550,6 +5104,7 @@ class $$AccountsTableTableManager
                     if (reconciliationsRefs) db.reconciliations,
                     if (entriesRefs) db.entries,
                     if (budgetAmountsRefs) db.budgetAmounts,
+                    if (categoryPlansRefs) db.categoryPlans,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -4617,6 +5172,27 @@ class $$AccountsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (categoryPlansRefs)
+                        await $_getPrefetchedData<
+                          Account,
+                          $AccountsTable,
+                          CategoryPlanRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._categoryPlansRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).categoryPlansRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -4641,6 +5217,7 @@ typedef $$AccountsTableProcessedTableManager =
         bool reconciliationsRefs,
         bool entriesRefs,
         bool budgetAmountsRefs,
+        bool categoryPlansRefs,
       })
     >;
 typedef $$PaySchedulesTableCreateCompanionBuilder =
@@ -7623,6 +8200,363 @@ typedef $$BudgetAmountsTableProcessedTableManager =
       BudgetAmountRow,
       PrefetchHooks Function({bool categoryId})
     >;
+typedef $$CategoryPlansTableCreateCompanionBuilder =
+    CategoryPlansCompanion Function({
+      Value<int> categoryId,
+      required PlanKind kind,
+      required int amountMinor,
+      required String start,
+      Value<String?> due,
+      Value<int?> everyMonths,
+      Value<bool> rollover,
+    });
+typedef $$CategoryPlansTableUpdateCompanionBuilder =
+    CategoryPlansCompanion Function({
+      Value<int> categoryId,
+      Value<PlanKind> kind,
+      Value<int> amountMinor,
+      Value<String> start,
+      Value<String?> due,
+      Value<int?> everyMonths,
+      Value<bool> rollover,
+    });
+
+final class $$CategoryPlansTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $CategoryPlansTable, CategoryPlanRow> {
+  $$CategoryPlansTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AccountsTable _categoryIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('category_plans__category_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<int>('category_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CategoryPlansTableFilterComposer
+    extends Composer<_$AppDatabase, $CategoryPlansTable> {
+  $$CategoryPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnWithTypeConverterFilters<PlanKind, PlanKind, String> get kind =>
+      $composableBuilder(
+        column: $table.kind,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get due => $composableBuilder(
+    column: $table.due,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get rollover => $composableBuilder(
+    column: $table.rollover,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AccountsTableFilterComposer get categoryId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryPlansTableOrderingComposer
+    extends Composer<_$AppDatabase, $CategoryPlansTable> {
+  $$CategoryPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get due => $composableBuilder(
+    column: $table.due,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get rollover => $composableBuilder(
+    column: $table.rollover,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AccountsTableOrderingComposer get categoryId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryPlansTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CategoryPlansTable> {
+  $$CategoryPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumnWithTypeConverter<PlanKind, String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get start =>
+      $composableBuilder(column: $table.start, builder: (column) => column);
+
+  GeneratedColumn<String> get due =>
+      $composableBuilder(column: $table.due, builder: (column) => column);
+
+  GeneratedColumn<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get rollover =>
+      $composableBuilder(column: $table.rollover, builder: (column) => column);
+
+  $$AccountsTableAnnotationComposer get categoryId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryPlansTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoryPlansTable,
+          CategoryPlanRow,
+          $$CategoryPlansTableFilterComposer,
+          $$CategoryPlansTableOrderingComposer,
+          $$CategoryPlansTableAnnotationComposer,
+          $$CategoryPlansTableCreateCompanionBuilder,
+          $$CategoryPlansTableUpdateCompanionBuilder,
+          (CategoryPlanRow, $$CategoryPlansTableReferences),
+          CategoryPlanRow,
+          PrefetchHooks Function({bool categoryId})
+        > {
+  $$CategoryPlansTableTableManager(_$AppDatabase db, $CategoryPlansTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CategoryPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CategoryPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CategoryPlansTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> categoryId = const Value.absent(),
+                Value<PlanKind> kind = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> start = const Value.absent(),
+                Value<String?> due = const Value.absent(),
+                Value<int?> everyMonths = const Value.absent(),
+                Value<bool> rollover = const Value.absent(),
+              }) => CategoryPlansCompanion(
+                categoryId: categoryId,
+                kind: kind,
+                amountMinor: amountMinor,
+                start: start,
+                due: due,
+                everyMonths: everyMonths,
+                rollover: rollover,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> categoryId = const Value.absent(),
+                required PlanKind kind,
+                required int amountMinor,
+                required String start,
+                Value<String?> due = const Value.absent(),
+                Value<int?> everyMonths = const Value.absent(),
+                Value<bool> rollover = const Value.absent(),
+              }) => CategoryPlansCompanion.insert(
+                categoryId: categoryId,
+                kind: kind,
+                amountMinor: amountMinor,
+                start: start,
+                due: due,
+                everyMonths: everyMonths,
+                rollover: rollover,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CategoryPlansTable, CategoryPlanRow>(table),
+                  $$CategoryPlansTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable: $$CategoryPlansTableReferences
+                            ._categoryIdTable(db),
+                        referencedColumn: $$CategoryPlansTableReferences
+                            ._categoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CategoryPlansTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoryPlansTable,
+      CategoryPlanRow,
+      $$CategoryPlansTableFilterComposer,
+      $$CategoryPlansTableOrderingComposer,
+      $$CategoryPlansTableAnnotationComposer,
+      $$CategoryPlansTableCreateCompanionBuilder,
+      $$CategoryPlansTableUpdateCompanionBuilder,
+      (CategoryPlanRow, $$CategoryPlansTableReferences),
+      CategoryPlanRow,
+      PrefetchHooks Function({bool categoryId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7643,4 +8577,6 @@ class $AppDatabaseManager {
       $$PreferencesTableTableManager(_db, _db.preferences);
   $$BudgetAmountsTableTableManager get budgetAmounts =>
       $$BudgetAmountsTableTableManager(_db, _db.budgetAmounts);
+  $$CategoryPlansTableTableManager get categoryPlans =>
+      $$CategoryPlansTableTableManager(_db, _db.categoryPlans);
 }

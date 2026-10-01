@@ -1,9 +1,9 @@
 part of 'ledger_screen.dart';
 
-// The Budget section: envelopes, each spending category reading Put in ·
-// Spent · Left for the period on screen, under the money not given out yet
-// (ADR 0004 rule 26). Also the one place categories are added, renamed,
-// archived and deleted (rule 22).
+// The Budget section: envelopes, each spending category reading Assigned ·
+// Spent · Left for the period on screen, under the money not assigned yet
+// (ADR 0004 rule 26), with its plan under its name (rule 27). Also the one
+// place categories are added, renamed, archived and deleted (rule 22).
 
 /// What can be done to a category, from ⋯ on its row or a right-click.
 class _CategoryActions {
@@ -14,6 +14,7 @@ class _CategoryActions {
     required this.delete,
     this.pay,
     this.togglePayday,
+    this.plan,
   });
   final ValueChanged<String> rename;
   final VoidCallback changeKind;
@@ -23,6 +24,9 @@ class _CategoryActions {
   /// Income only: set up or edit its pay, and mark it payday or not.
   final VoidCallback? pay;
   final VoidCallback? togglePayday;
+
+  /// Spending only: open its plan (rule 27).
+  final VoidCallback? plan;
 }
 
 class _BudgetPage extends StatefulWidget {
@@ -39,7 +43,15 @@ class _BudgetPage extends StatefulWidget {
     required this.onStartLater,
     required this.onKeepStart,
     required this.onShowUncategorized,
+    required this.onSetPlan,
+    required this.onAssignPlanned,
   });
+
+  /// A category's plan was saved, or removed with null.
+  final void Function(AccountInfo, CategoryPlan?) onSetPlan;
+
+  /// "Assign what's planned": each category's new Assigned for the period.
+  final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
 
   /// The first-period offer: start the budget in the next period instead.
   final void Function(BudgetSpan period, BudgetSpan next) onStartLater;
@@ -76,8 +88,11 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// The period on screen; null for the one today is in.
   BudgetSpan? _period;
 
-  /// The category whose Put in is being typed.
+  /// The category whose Assigned is being typed.
   int? _editing;
+
+  /// The category whose plan is open under its row.
+  int? _planning;
 
   BudgetSpan get _current =>
       budgetPeriod(widget.today, widget.data.periodSchedule);
@@ -117,6 +132,10 @@ class _BudgetPageState extends State<_BudgetPage> {
     final carries = began != null && began.isBefore(period.start);
 
     String money(int v) => formatMoney(v, currency: budget.currency);
+    // A plan's amounts, as its note says them: cents only when there are
+    // some.
+    String planMoney(int v) =>
+        formatMoney(v, showCents: v % 100 != 0, currency: budget.currency);
 
     void edit(int? id) {
       setState(() => _editing = id);
@@ -153,12 +172,36 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
 
+    void plan(int? id) {
+      setState(() {
+        _planning = id;
+        if (id != null) _editing = null;
+      });
+      if (id == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onKeysBack();
+        });
+      }
+    }
+
+    final grow = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
+
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
-      return _CategoryRow(
+      final planLine = c.isIncome ? null : line?.plan;
+      final toAssign = c.isIncome ? 0 : line?.toAssign ?? 0;
+      final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
         striped: striped,
+        planNote: line == null || planLine == null
+            ? null
+            : _planNote(t, line, period, widget.today, budget.currency),
+        assignPlanned: toAssign == 0 ? null : planMoney(toAssign),
+        onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
+        onPlan: c.isIncome ? null : () => plan(_planning == c.id ? null : c.id),
         usage: data.categoryUsage[c.id],
         actions: widget.actionsFor(c),
         onShowAllRows: () => widget.onShowAllRows(c),
@@ -179,7 +222,49 @@ class _BudgetPageState extends State<_BudgetPage> {
           next ? editNext(c) : edit(null);
         },
       );
+      // The plan opens under the row, which grows like a register row.
+      return SmoothHeight(
+        key: ValueKey('category-row-${c.id}'),
+        duration: grow,
+        child: _planning != c.id
+            ? row
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  row,
+                  _PlanEditor(
+                    key: ValueKey('plan-editor-${c.id}'),
+                    category: c,
+                    plan: data.plans[c.id],
+                    data: data,
+                    period: period,
+                    today: widget.today,
+                    assigned: line?.assigned ?? 0,
+                    onCancel: () => plan(null),
+                    onSave: (p) {
+                      if (p != data.plans[c.id]) widget.onSetPlan(c, p);
+                      plan(null);
+                    },
+                  ),
+                ],
+              ),
+      );
     }
+
+    // What "Assign what's planned" would do: every plan's amount that
+    // isn't assigned yet this period.
+    final planned = {
+      for (final c in spending)
+        if (budget.lines[c.id] case final l? when l.toAssign > 0)
+          c: l.plan!.planned,
+    };
+    final plannedTotal = planned.keys.fold(
+      0,
+      (sum, c) => sum + budget.lines[c.id]!.toAssign,
+    );
+    // Said before it's done: it would take more than there is.
+    final plannedOver =
+        plannedTotal - (budget.notAssigned > 0 ? budget.notAssigned : 0);
 
     final held = budget.money - budget.notAssigned;
     final top = budget.notAssigned > 0
@@ -227,6 +312,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   tooltip: t.planPeriodPrev,
                   onTap: () => setState(() {
                     _editing = null;
+                    _planning = null;
                     _period = previousBudgetPeriod(period, by);
                   }),
                 ),
@@ -245,6 +331,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   tooltip: t.planPeriodNext,
                   onTap: () => setState(() {
                     _editing = null;
+                    _planning = null;
                     _period = nextBudgetPeriod(period, by);
                   }),
                 ),
@@ -254,6 +341,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                     key: const ValueKey('period-today'),
                     onTap: () => setState(() {
                       _editing = null;
+                      _planning = null;
                       _period = null;
                     }),
                     builder: (hover) => Text(
@@ -288,6 +376,27 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
             ),
           ),
+          if (planned.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                BarButton(
+                  key: const ValueKey('assign-planned'),
+                  label: t.planFill(planned.length, planMoney(plannedTotal)),
+                  onTap: () {
+                    setState(() => _editing = null);
+                    widget.onAssignPlanned(period, planned);
+                  },
+                ),
+                if (plannedOver > 0)
+                  Text(
+                    t.planFillOver(planMoney(plannedOver)),
+                    key: const ValueKey('assign-planned-over'),
+                    style: onest(13, color: Mid.coral, tabular: true),
+                  ),
+              ],
+            ),
+          ],
           if (budget.uncategorizedRows > 0) ...[
             const SizedBox(height: 4),
             Hoverable(
@@ -593,8 +702,23 @@ class _CategoryRow extends StatefulWidget {
     this.line,
     this.cameIn,
     this.fromBefore,
+    this.planNote,
+    this.assignPlanned,
+    this.onAssignPlanned,
+    this.onPlan,
   });
   final AccountInfo category;
+
+  /// Spending with a plan: what it says under the name (rule 27).
+  final _PlanNote? planNote;
+
+  /// "₮200,000" when the plan wants more assigned this period than is;
+  /// clicking it assigns that.
+  final String? assignPlanned;
+  final VoidCallback? onAssignPlanned;
+
+  /// Spending: opens or closes its plan under the row.
+  final VoidCallback? onPlan;
 
   /// Every other row is tinted, as in the register: the name and its
   /// amounts sit a page apart.
@@ -704,6 +828,7 @@ class _CategoryRowState extends State<_CategoryRow> {
           delete: a.delete,
           pay: a.pay,
           togglePayday: a.togglePayday,
+          plan: widget.onPlan,
         ),
       ),
       child: MouseRegion(
@@ -716,7 +841,9 @@ class _CategoryRowState extends State<_CategoryRow> {
             constraints: const BoxConstraints(minHeight: 40),
             padding: EdgeInsets.symmetric(
               horizontal: 12,
-              vertical: widget.fromBefore == null ? 0 : 5,
+              vertical: widget.fromBefore == null && widget.planNote == null
+                  ? 0
+                  : 5,
             ),
             decoration: BoxDecoration(
               color: Color.alphaBlend(
@@ -751,19 +878,30 @@ class _CategoryRowState extends State<_CategoryRow> {
                             ),
                           ),
                         )
-                      : Align(
-                          alignment: Alignment.centerLeft,
-                          child: Tooltip(
-                            message: t.planClickToRename,
-                            waitDuration: const Duration(milliseconds: 600),
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.text,
-                              child: GestureDetector(
-                                onTap: _startRename,
-                                child: Text(c.name, style: onest(13.5)),
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Tooltip(
+                              message: t.planClickToRename,
+                              waitDuration: const Duration(milliseconds: 600),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.text,
+                                child: GestureDetector(
+                                  onTap: _startRename,
+                                  child: Text(c.name, style: onest(13.5)),
+                                ),
                               ),
                             ),
-                          ),
+                            if (widget.planNote case final note?)
+                              _PlanNoteLine(
+                                id: c.id,
+                                note: note,
+                                assign: widget.assignPlanned,
+                                onAssign: widget.onAssignPlanned,
+                                onPlan: widget.onPlan,
+                              ),
+                          ],
                         ),
                 ),
                 if (widget.payNote case final note?) ...[
@@ -936,6 +1074,7 @@ List<Widget> _categoryMenu(
       Divider(height: 9, color: Mid.rule),
     ],
     item(t.planRename, 'category-rename', () => act.rename(c.name)),
+    if (act.plan case final plan?) item(t.planPlanMenu, 'category-plan', plan),
     if (act.pay case final pay?) item(t.planPayMenu, 'category-pay', pay),
     if (act.togglePayday case final toggle?)
       item(
@@ -1446,4 +1585,582 @@ class _StartOffer extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// What a plan says under its category's name: the plan, then whether a
+/// bill or goal has what it should ("on track", or "₮200,000 short" in
+/// gold).
+typedef _PlanNote = ({String text, String? state, bool behind});
+
+_PlanNote _planNote(
+  Words t,
+  EnvelopeLine line,
+  BudgetSpan period,
+  DateTime today,
+  Currency currency,
+) {
+  final p = line.plan!;
+  String money(int v) =>
+      formatMoney(v, showCents: v % 100 != 0, currency: currency);
+  String each(int v) => period.label == payPeriodLabel
+      ? t.planEachPay(money(v))
+      : t.planEachMonth(money(v));
+  // This year's dates need no year; a goal for 2028 does.
+  String date(DateTime d) =>
+      d.year == today.year ? sayDate(t, d) : sayFullDate(t, d);
+  final due = p.due ?? p.plan.due ?? p.plan.start;
+  final goal = p.plan.kind == PlanKind.goal;
+  // What went back is said once the period it went back in has begun;
+  // looking ahead, it hasn't happened yet.
+  final wentBack = p.wentBack > 0 && !period.start.isAfter(today);
+  // A bill or goal names its part only while it wants one.
+  final wants = p.each > 0 && p.planned > 0 && !(goal && p.done);
+  final parts = switch (p.plan.kind) {
+    PlanKind.spend => [
+      each(p.each),
+      if (wentBack)
+        period.label == payPeriodLabel
+            ? t.planWentBackPay(money(p.wentBack))
+            : t.planWentBack(money(p.wentBack))
+      else if (!p.plan.rollover)
+        t.planNoCarry,
+    ],
+    PlanKind.saveUp => [each(p.each), t.planSavingUp],
+    PlanKind.dueOn => [
+      p.done
+          ? t.planWasDue(money(p.plan.amount), date(due))
+          : t.planDue(money(p.plan.amount), date(due)),
+      if (wants) each(p.each),
+    ],
+    PlanKind.goal => [
+      t.planBy(money(p.plan.amount), date(due)),
+      if (wants) each(p.each),
+    ],
+  };
+  final String? state;
+  if (line.short > 0) {
+    state = t.planShort(money(line.short));
+  } else if (goal && p.done) {
+    state = t.planReached;
+  } else if (p.plan.kind == PlanKind.spend ||
+      p.plan.kind == PlanKind.saveUp ||
+      p.waiting ||
+      p.done) {
+    state = null;
+  } else if (line.toAssign == 0 && p.held) {
+    // Assigned, and still there: not spent on something else since.
+    state = t.planOnTrack;
+  } else {
+    state = null;
+  }
+  return (text: parts.join(' · '), state: state, behind: line.short > 0);
+}
+
+/// The plan under a category's name. Clicking it opens the plan; "Assign
+/// ₮200,000" at its end assigns what the plan wants this period.
+class _PlanNoteLine extends StatelessWidget {
+  const _PlanNoteLine({
+    required this.id,
+    required this.note,
+    required this.assign,
+    required this.onAssign,
+    required this.onPlan,
+  });
+  final int id;
+  final _PlanNote note;
+  final String? assign;
+  final VoidCallback? onAssign;
+  final VoidCallback? onPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.only(top: 1),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Tooltip(
+              message: t.planEditTip,
+              waitDuration: const Duration(milliseconds: 600),
+              child: Hoverable(
+                key: ValueKey('plan-note-$id'),
+                onTap: onPlan,
+                builder: (hover) => Text(
+                  note.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(
+                    12,
+                    color: hover ? Mid.ink : Mid.ink2,
+                    tabular: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (note.state case final state?)
+            Text(
+              ' · $state',
+              key: ValueKey('plan-state-$id'),
+              style: onest(
+                12,
+                color: note.behind ? Mid.gold : Mid.ink2,
+                tabular: true,
+              ),
+            ),
+          if (assign case final amount?) ...[
+            const SizedBox(width: 10),
+            Hoverable(
+              key: ValueKey('plan-assign-$id'),
+              onTap: onAssign,
+              builder: (hover) => Text(
+                t.planAssignThis(amount),
+                style: onest(12, color: Mid.blue, tabular: true).copyWith(
+                  decoration: hover ? TextDecoration.underline : null,
+                  decorationColor: Mid.blue,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A category's plan, opened under its row (rule 27): which of the four
+/// kinds it is, its amount, and for a bill or goal its date. Enter or Save
+/// keeps it, Esc cancels. A line says what it comes to before it's saved.
+class _PlanEditor extends StatefulWidget {
+  const _PlanEditor({
+    super.key,
+    required this.category,
+    required this.plan,
+    required this.data,
+    required this.period,
+    required this.today,
+    required this.assigned,
+    required this.onSave,
+    required this.onCancel,
+  });
+  final AccountInfo category;
+  final CategoryPlan? plan;
+  final LedgerData data;
+  final BudgetSpan period;
+  final DateTime today;
+
+  /// What it has assigned this period: where a new plan's amount starts.
+  final int assigned;
+
+  /// The plan to keep, or null to remove it.
+  final ValueChanged<CategoryPlan?> onSave;
+  final VoidCallback onCancel;
+
+  @override
+  State<_PlanEditor> createState() => _PlanEditorState();
+}
+
+class _PlanEditorState extends State<_PlanEditor> {
+  /// The gaps between bills offered, in months.
+  static const _repeats = [1, 2, 3, 4, 6, 12, 24];
+
+  late PlanKind _kind = widget.plan?.kind ?? PlanKind.spend;
+  late final _amount = TextEditingController(
+    text: switch (widget.plan?.amount ?? widget.assigned) {
+      <= 0 => '',
+      final a =>
+        '${formatWhole(a)}${formatCents(a) == '.00' ? '' : formatCents(a)}',
+    },
+  );
+  late final _date = TextEditingController(
+    text: widget.plan?.due == null ? '' : fullDate(widget.plan!.due!),
+  );
+  final _amountFocus = FocusNode(debugLabel: 'plan-amount');
+  final _dateFocus = FocusNode(debugLabel: 'plan-date');
+  final _repeatMenu = MenuController();
+  late int? _every = widget.plan?.everyMonths;
+  late bool _rollover = widget.plan?.rollover ?? true;
+
+  /// Save was tried with something missing: say which.
+  bool _tried = false;
+
+  /// Scrolls the plan into view once the row has grown: opened on a
+  /// category low in the list, its Save would be under the window's edge.
+  Timer? _reveal;
+
+  @override
+  void initState() {
+    super.initState();
+    _amount.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _amount.text.length,
+    );
+    _reveal = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _reveal?.cancel();
+    _amount.dispose();
+    _date.dispose();
+    _amountFocus.dispose();
+    _dateFocus.dispose();
+    super.dispose();
+  }
+
+  bool get _dated => _kind == PlanKind.dueOn || _kind == PlanKind.goal;
+
+  int? get _typedAmount => switch (parseAmount(_amount.text.trim())) {
+    final a? when a > 0 => a,
+    _ => null,
+  };
+
+  /// A bill or goal is ahead: `03.15` typed in October is next March's,
+  /// and a bill that repeats is its next time round (`10.10` typed on
+  /// 10.15 for a monthly bill is 11.10).
+  DateTime? get _typedDate {
+    final text = _date.text.trim();
+    var d = parseEntryDate(text, widget.today);
+    // A year far off is a slip of the hand, not a date.
+    if (d == null || d.year > widget.today.year + 100) return null;
+    final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
+    if (pieces.length > 2 || !d.isBefore(widget.today)) return d;
+    final every = _kind == PlanKind.dueOn ? _every : null;
+    if (every == null) return DateTime(d.year + 1, d.month, d.day);
+    final day = d.day;
+    while (d!.isBefore(widget.today)) {
+      final last = DateTime(d.year, d.month + every + 1, 0).day;
+      d = DateTime(d.year, d.month + every, day < last ? day : last);
+    }
+    return d;
+  }
+
+  CategoryPlan? get _draft {
+    final amount = _typedAmount;
+    final due = _dated ? _typedDate : null;
+    if (amount == null || (_dated && due == null)) return null;
+    final every = _kind == PlanKind.dueOn ? _every : null;
+    final old = widget.plan;
+    final rollover = _kind != PlanKind.spend || _rollover;
+    // A bill's parts count from the day its plan was made, and a category
+    // that doesn't carry over is emptied from that day on: only a plan
+    // that's really the same keeps its day. One that already didn't
+    // carry over keeps it through a new amount.
+    final same =
+        old != null &&
+        old.kind == _kind &&
+        (_kind == PlanKind.spend
+            ? old.rollover == rollover && (!rollover || old.amount == amount)
+            : old.amount == amount &&
+                  old.due == due &&
+                  old.everyMonths == every);
+    return CategoryPlan(
+      categoryId: widget.category.id,
+      kind: _kind,
+      amount: amount,
+      start: same ? old.start : widget.today,
+      due: due,
+      everyMonths: every,
+      rollover: rollover,
+    );
+  }
+
+  void _save() {
+    final draft = _draft;
+    if (draft == null) {
+      setState(() => _tried = true);
+      (_typedAmount == null ? _amountFocus : _dateFocus).requestFocus();
+      return;
+    }
+    widget.onSave(draft);
+  }
+
+  String _repeatLabel(Words t, int? months) => months == null
+      ? t.planRepeatNone
+      : months % 12 == 0
+      ? t.planRepeatYears(months ~/ 12)
+      : t.planRepeatMonths(months);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final byPay = widget.period.label == payPeriodLabel;
+    final currency = Budget.currencyOf(widget.data);
+
+    Widget labeled(String label, Widget child) => Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: onest(12, color: Mid.ink2)),
+          const SizedBox(height: 4),
+          child,
+        ],
+      ),
+    );
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([_amount, _date]),
+      builder: (context, _) {
+        final draft = _draft;
+        // What the line would say with this plan, before it's saved.
+        String? preview;
+        // What went back in earlier periods returns to the category when
+        // it carries over again: said before it's saved.
+        String? returns;
+        if (draft != null) {
+          final after = Budget.of(
+            widget.data.withPlan(widget.category.id, draft),
+            start: widget.period.start,
+            end: widget.period.end,
+            today: widget.today,
+          );
+          final line = after.lines[widget.category.id];
+          final back =
+              Budget.of(
+                widget.data,
+                start: widget.period.start,
+                end: widget.period.end,
+                today: widget.today,
+              ).notAssigned -
+              after.notAssigned;
+          if (back > 0) {
+            returns = t.planReturns(
+              formatMoney(back, currency: currency),
+              widget.category.name,
+            );
+          }
+          if (line?.plan != null) {
+            final note = _planNote(
+              t,
+              line!,
+              widget.period,
+              widget.today,
+              currency,
+            );
+            preview = note.state == null
+                ? note.text
+                : '${note.text} · ${note.state}';
+          }
+        }
+        final wrongAmount = _tried && _typedAmount == null;
+        final wrongDate = _tried && _dated && _typedDate == null;
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
+          },
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Mid.ground.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  runSpacing: 6,
+                  children: [
+                    for (final (kind, label) in [
+                      (
+                        PlanKind.spend,
+                        byPay ? t.planKindSpendPay : t.planKindSpendMonth,
+                      ),
+                      (PlanKind.saveUp, t.planKindSaveUp),
+                      (PlanKind.dueOn, t.planKindDueOn),
+                      (PlanKind.goal, t.planKindGoal),
+                    ])
+                      _Choice(
+                        key: ValueKey('plan-kind-${kind.name}'),
+                        label: label,
+                        on: _kind == kind,
+                        onTap: () => setState(() {
+                          _kind = kind;
+                          _tried = false;
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(switch (_kind) {
+                  PlanKind.spend =>
+                    byPay ? t.planHelpSpendPay : t.planHelpSpend,
+                  PlanKind.saveUp =>
+                    byPay ? t.planHelpSaveUpPay : t.planHelpSaveUp,
+                  PlanKind.dueOn => t.planHelpDueOn,
+                  PlanKind.goal => byPay ? t.planHelpGoalPay : t.planHelpGoal,
+                }, style: onest(12.5, color: Mid.ink2)),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    labeled(
+                      switch (_kind) {
+                        PlanKind.dueOn => t.planLabelBill,
+                        PlanKind.goal => t.planLabelGoal,
+                        _ => byPay ? t.planLabelEachPay : t.planLabelEachMonth,
+                      },
+                      SizedBox(
+                        width: 170,
+                        height: 34,
+                        child: TextField(
+                          key: const ValueKey('plan-amount'),
+                          controller: _amount,
+                          focusNode: _amountFocus,
+                          autofocus: true,
+                          textAlign: TextAlign.right,
+                          style: onest(13.5, tabular: true),
+                          onSubmitted: (_) => _save(),
+                          decoration: _fieldDecoration(wrong: wrongAmount)
+                              .copyWith(
+                                prefixText: currency.symbol,
+                                prefixStyle: onest(13.5, color: Mid.ink3),
+                              ),
+                        ),
+                      ),
+                    ),
+                    if (_dated)
+                      labeled(
+                        _kind == PlanKind.goal ? t.planLabelBy : t.planLabelDue,
+                        SizedBox(
+                          width: 130,
+                          height: 34,
+                          child: DateField(
+                            key: const ValueKey('plan-date'),
+                            controller: _date,
+                            focusNode: _dateFocus,
+                            today: widget.today,
+                            small: true,
+                            wanted: wrongDate,
+                            onSubmitted: _save,
+                            onPicked: () {},
+                          ),
+                        ),
+                      ),
+                    if (_kind == PlanKind.dueOn)
+                      labeled(
+                        t.planLabelRepeats,
+                        SizedBox(
+                          height: 34,
+                          child: MenuAnchor(
+                            controller: _repeatMenu,
+                            style: _menuStyle,
+                            menuChildren: [
+                              for (final months in [null, ..._repeats])
+                                MenuItemButton(
+                                  key: ValueKey('plan-repeat-${months ?? 0}'),
+                                  onPressed: () =>
+                                      setState(() => _every = months),
+                                  style: ButtonStyle(
+                                    minimumSize: const WidgetStatePropertyAll(
+                                      Size(180, 34),
+                                    ),
+                                    overlayColor: WidgetStatePropertyAll(
+                                      Mid.blueWash,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _repeatLabel(t, months),
+                                    style: onest(
+                                      13,
+                                      color: months == _every
+                                          ? Mid.ink
+                                          : Mid.ink2,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: BarButton(
+                                key: const ValueKey('plan-repeat'),
+                                label: _repeatLabel(t, _every),
+                                trailing: Icons.expand_more_rounded,
+                                active: _repeatMenu.isOpen,
+                                onTap: () => _repeatMenu.isOpen
+                                    ? _repeatMenu.close()
+                                    : _repeatMenu.open(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_kind == PlanKind.spend) ...[
+                      _Choice(
+                        key: const ValueKey('plan-carry-on'),
+                        label: t.planCarryOn,
+                        on: _rollover,
+                        onTap: () => setState(() => _rollover = true),
+                      ),
+                      _Choice(
+                        key: const ValueKey('plan-carry-off'),
+                        label: t.planCarryOff,
+                        on: !_rollover,
+                        onTap: () => setState(() => _rollover = false),
+                      ),
+                    ],
+                  ],
+                ),
+                if (returns != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    returns,
+                    key: const ValueKey('plan-returns'),
+                    style: onest(12.5, color: Mid.gold, tabular: true),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        preview ?? '',
+                        key: const ValueKey('plan-preview'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: onest(12.5, color: Mid.ink, tabular: true),
+                      ),
+                    ),
+                    if (widget.plan != null)
+                      BarButton(
+                        key: const ValueKey('plan-remove'),
+                        label: t.planRemove,
+                        color: Mid.coral,
+                        onTap: () => widget.onSave(null),
+                      ),
+                    BarButton(
+                      key: const ValueKey('plan-cancel'),
+                      label: t.planCancel,
+                      onTap: widget.onCancel,
+                    ),
+                    _PrimaryButton(
+                      key: const ValueKey('plan-save'),
+                      label: t.planSave,
+                      icon: Icons.check_rounded,
+                      tooltip: 'Enter',
+                      onTap: _save,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

@@ -123,6 +123,12 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | not assigned to a category | ангилалд хуваарилаагүй | the budget's top line |
 | came in | орсон | income in a period |
 | from before | өмнөөс | what a category carried in |
+| plan (a category's) | төлөвлөгөө | what the category is for and how much goes in each period |
+| due (a bill's date) | төлөх өдөр | "{amount}, төлөх өдөр: {date}": the date never takes a case ending |
+| short (behind on a bill) | дутуу | gold, after the plan's note |
+| on track | хэвийн явж байна | |
+| carries over / doesn't | шилжинэ / шилжихгүй | what's left at a period's end |
+| goal | зорилго | an amount by a date |
 
 ## Word forms
 
