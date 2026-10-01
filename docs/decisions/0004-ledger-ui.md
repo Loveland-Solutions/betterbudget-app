@@ -981,6 +981,10 @@ What's known so far:
       out goes back to not assigned"). An archived category keeps its
       balance, shown in the archived list. A pay period that no longer is
       one (the schedule changed) resets to today's.
+    - **The page is as wide as the window** (owner's correction,
+      2026-10-01: "It only takes up 2/3's of the page"), like an account's
+      register, with every other row tinted so the eye can follow a name
+      across to its amounts. Rejected: a column capped at 820 px.
     - **Left for later** (from the reviews): "same as last period" for one
       category or all (every payday otherwise means typing each again); a
       line summing what's overspent ("₮X over in 3 categories comes out of

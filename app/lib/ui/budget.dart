@@ -153,11 +153,12 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
 
-    Widget row(AccountInfo c) {
+    Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       return _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
+        striped: striped,
         usage: data.categoryUsage[c.id],
         actions: widget.actionsFor(c),
         onShowAllRows: () => widget.onShowAllRows(c),
@@ -207,228 +208,225 @@ class _BudgetPageState extends State<_BudgetPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: 36,
-                child: Row(
-                  children: [
-                    Text(
-                      t.planBudget,
-                      style: onest(22, weight: 600, letterSpacing: -0.3),
-                    ),
-                    const SizedBox(width: 20),
-                    _PeriodArrow(
-                      key: const ValueKey('period-prev'),
-                      icon: Icons.chevron_left_rounded,
-                      tooltip: t.planPeriodPrev,
-                      onTap: () => setState(() {
-                        _editing = null;
-                        _period = previousBudgetPeriod(period, by);
-                      }),
-                    ),
-                    Text(
-                      t.planPeriodTitle(
-                        _spanName(t, period, widget.today),
-                        shortDate(period.start),
-                        shortDate(period.end),
-                      ),
-                      key: const ValueKey('period-title'),
-                      style: onest(14.5, weight: 500, color: Mid.ink2),
-                    ),
-                    _PeriodArrow(
-                      key: const ValueKey('period-next'),
-                      icon: Icons.chevron_right_rounded,
-                      tooltip: t.planPeriodNext,
-                      onTap: () => setState(() {
-                        _editing = null;
-                        _period = nextBudgetPeriod(period, by);
-                      }),
-                    ),
-                    if (!isCurrent) ...[
-                      const SizedBox(width: 8),
-                      Hoverable(
-                        key: const ValueKey('period-today'),
-                        onTap: () => setState(() {
-                          _editing = null;
-                          _period = null;
-                        }),
-                        builder: (hover) => Text(
-                          t.planBackToToday,
-                          style: onest(13, color: hover ? Mid.blue : Mid.ink3),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    _PrimaryButton(
-                      key: const ValueKey('add-category'),
-                      label: t.planAddCategory,
-                      icon: Icons.add_rounded,
-                      tooltip: t.planAddCategoryTip,
-                      onTap: () => setState(() => _adding = true),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Tooltip(
-                message: t.planNotAssignedTip(money(budget.money), money(held)),
-                waitDuration: const Duration(milliseconds: 500),
-                child: Text(
-                  top,
-                  key: const ValueKey('not-assigned'),
-                  style: onest(
-                    17,
-                    weight: 600,
-                    color: budget.notAssigned < 0 ? Mid.coral : Mid.ink,
-                    tabular: true,
-                  ),
-                ),
-              ),
-              if (budget.uncategorizedRows > 0) ...[
-                const SizedBox(height: 4),
-                Hoverable(
-                  key: const ValueKey('uncategorized-line'),
-                  onTap: widget.onShowUncategorized,
-                  builder: (hover) => Text(
-                    t.planUncategorized(
-                      '${budget.uncategorizedRows}',
-                      budget.uncategorizedNet > 0
-                          ? '+${money(budget.uncategorizedNet)}'
-                          : money(budget.uncategorizedNet),
-                    ),
-                    style: onest(13, color: hover ? Mid.blue : Mid.gold),
-                  ),
-                ),
-              ],
-              if (offerStart) ...[
-                const SizedBox(height: 10),
-                _StartOffer(
-                  text: t.planStartOffer(
-                    money(budget.unassignedSpent.amount),
-                    '${budget.unassignedSpent.count}',
-                  ),
-                  later: t.planStartLater(
-                    sayDate(t, nextBudgetPeriod(period, by).start),
-                  ),
-                  onLater: () {
-                    final next = nextBudgetPeriod(period, by);
-                    widget.onStartLater(period, next);
-                    setState(() {
-                      _editing = null;
-                      _period = next;
-                    });
-                  },
-                  onKeep: widget.onKeepStart,
-                ),
-              ],
-              if (other.isNotEmpty) ...[
-                const SizedBox(height: 4),
+      // As wide as the page, like an account's register.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 36,
+            child: Row(
+              children: [
                 Text(
-                  t.planOtherCurrency(other.map((c) => c.symbol).join(', ')),
-                  style: onest(12.5, color: Mid.ink3),
+                  t.planBudget,
+                  style: onest(22, weight: 600, letterSpacing: -0.3),
+                ),
+                const SizedBox(width: 20),
+                _PeriodArrow(
+                  key: const ValueKey('period-prev'),
+                  icon: Icons.chevron_left_rounded,
+                  tooltip: t.planPeriodPrev,
+                  onTap: () => setState(() {
+                    _editing = null;
+                    _period = previousBudgetPeriod(period, by);
+                  }),
+                ),
+                Text(
+                  t.planPeriodTitle(
+                    _spanName(t, period, widget.today),
+                    shortDate(period.start),
+                    shortDate(period.end),
+                  ),
+                  key: const ValueKey('period-title'),
+                  style: onest(14.5, weight: 500, color: Mid.ink2),
+                ),
+                _PeriodArrow(
+                  key: const ValueKey('period-next'),
+                  icon: Icons.chevron_right_rounded,
+                  tooltip: t.planPeriodNext,
+                  onTap: () => setState(() {
+                    _editing = null;
+                    _period = nextBudgetPeriod(period, by);
+                  }),
+                ),
+                if (!isCurrent) ...[
+                  const SizedBox(width: 8),
+                  Hoverable(
+                    key: const ValueKey('period-today'),
+                    onTap: () => setState(() {
+                      _editing = null;
+                      _period = null;
+                    }),
+                    builder: (hover) => Text(
+                      t.planBackToToday,
+                      style: onest(13, color: hover ? Mid.blue : Mid.ink3),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                _PrimaryButton(
+                  key: const ValueKey('add-category'),
+                  label: t.planAddCategory,
+                  icon: Icons.add_rounded,
+                  tooltip: t.planAddCategoryTip,
+                  onTap: () => setState(() => _adding = true),
                 ),
               ],
-              const SizedBox(height: 16),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Mid.panel,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Mid.rule),
-                  ),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-                    children: [
-                      if (_adding)
-                        _NewCategory(
-                          // Stays open for the next one, like the entry row;
-                          // Esc or Cancel closes it.
-                          onCreate: widget.onCreate,
-                          onCancel: () => setState(() => _adding = false),
-                        ),
-                      columns(t.planSpending, [
-                        t.planAssigned,
-                        t.planSpent,
-                        t.planLeft,
-                      ]),
-                      for (final c in spending) row(c),
-                      const SizedBox(height: 14),
-                      if (income.isNotEmpty) ...[
-                        columns(t.planIncome, [t.planCameIn]),
-                        for (final c in income) row(c),
-                        const SizedBox(height: 14),
-                      ],
-                      if (archived.isNotEmpty) ...[
-                        Hoverable(
-                          key: const ValueKey('show-archived-categories'),
-                          onTap: () =>
-                              setState(() => _showArchived = !_showArchived),
-                          builder: (hover) => Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-                            child: Text(
-                              _showArchived
-                                  ? t.planHideArchived(archived.length)
-                                  : t.planShowArchived(archived.length),
-                              style: onest(
-                                12.5,
-                                color: hover ? Mid.ink2 : Mid.ink3,
-                              ),
-                            ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Tooltip(
+            message: t.planNotAssignedTip(money(budget.money), money(held)),
+            waitDuration: const Duration(milliseconds: 500),
+            child: Text(
+              top,
+              key: const ValueKey('not-assigned'),
+              style: onest(
+                17,
+                weight: 600,
+                color: budget.notAssigned < 0 ? Mid.coral : Mid.ink,
+                tabular: true,
+              ),
+            ),
+          ),
+          if (budget.uncategorizedRows > 0) ...[
+            const SizedBox(height: 4),
+            Hoverable(
+              key: const ValueKey('uncategorized-line'),
+              onTap: widget.onShowUncategorized,
+              builder: (hover) => Text(
+                t.planUncategorized(
+                  '${budget.uncategorizedRows}',
+                  budget.uncategorizedNet > 0
+                      ? '+${money(budget.uncategorizedNet)}'
+                      : money(budget.uncategorizedNet),
+                ),
+                style: onest(13, color: hover ? Mid.blue : Mid.gold),
+              ),
+            ),
+          ],
+          if (offerStart) ...[
+            const SizedBox(height: 10),
+            _StartOffer(
+              text: t.planStartOffer(
+                money(budget.unassignedSpent.amount),
+                '${budget.unassignedSpent.count}',
+              ),
+              later: t.planStartLater(
+                sayDate(t, nextBudgetPeriod(period, by).start),
+              ),
+              onLater: () {
+                final next = nextBudgetPeriod(period, by);
+                widget.onStartLater(period, next);
+                setState(() {
+                  _editing = null;
+                  _period = next;
+                });
+              },
+              onKeep: widget.onKeepStart,
+            ),
+          ],
+          if (other.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              t.planOtherCurrency(other.map((c) => c.symbol).join(', ')),
+              style: onest(12.5, color: Mid.ink3),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Mid.panel,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Mid.rule),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                children: [
+                  if (_adding)
+                    _NewCategory(
+                      // Stays open for the next one, like the entry row;
+                      // Esc or Cancel closes it.
+                      onCreate: widget.onCreate,
+                      onCancel: () => setState(() => _adding = false),
+                    ),
+                  columns(t.planSpending, [
+                    t.planAssigned,
+                    t.planSpent,
+                    t.planLeft,
+                  ]),
+                  for (final (i, c) in spending.indexed)
+                    row(c, striped: i.isOdd),
+                  const SizedBox(height: 14),
+                  if (income.isNotEmpty) ...[
+                    columns(t.planIncome, [t.planCameIn]),
+                    for (final (i, c) in income.indexed)
+                      row(c, striped: i.isOdd),
+                    const SizedBox(height: 14),
+                  ],
+                  if (archived.isNotEmpty) ...[
+                    Hoverable(
+                      key: const ValueKey('show-archived-categories'),
+                      onTap: () =>
+                          setState(() => _showArchived = !_showArchived),
+                      builder: (hover) => Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                        child: Text(
+                          _showArchived
+                              ? t.planHideArchived(archived.length)
+                              : t.planShowArchived(archived.length),
+                          style: onest(
+                            12.5,
+                            color: hover ? Mid.ink2 : Mid.ink3,
                           ),
                         ),
-                        if (_showArchived)
-                          for (final c in archived)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                      ),
+                    ),
+                    if (_showArchived)
+                      for (final c in archived)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  c.name,
+                                  style: onest(13.5, color: Mid.ink2),
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      c.name,
-                                      style: onest(13.5, color: Mid.ink2),
-                                    ),
-                                  ),
-                                  Text(
-                                    _usageText(t, data.categoryUsage[c.id]),
-                                    style: onest(12.5, color: Mid.ink3),
-                                  ),
-                                  // Money can still sit in an archived one.
-                                  if (budget.lines[c.id]?.left case final left?
-                                      when left != 0) ...[
-                                    const SizedBox(width: 16),
-                                    Money(
-                                      left,
-                                      size: 13,
-                                      currency: budget.currency,
-                                      color: left < 0 ? Mid.coral : Mid.ink2,
-                                    ),
-                                  ],
-                                  const SizedBox(width: 16),
-                                  BarButton(
-                                    key: ValueKey('unarchive-category-${c.id}'),
-                                    label: t.planShowInMenus,
-                                    onTap: () => widget.onUnarchive(c),
-                                  ),
-                                ],
+                              Text(
+                                _usageText(t, data.categoryUsage[c.id]),
+                                style: onest(12.5, color: Mid.ink3),
                               ),
-                            ),
-                      ],
-                    ],
-                  ),
-                ),
+                              // Money can still sit in an archived one.
+                              if (budget.lines[c.id]?.left case final left?
+                                  when left != 0) ...[
+                                const SizedBox(width: 16),
+                                Money(
+                                  left,
+                                  size: 13,
+                                  currency: budget.currency,
+                                  color: left < 0 ? Mid.coral : Mid.ink2,
+                                ),
+                              ],
+                              const SizedBox(width: 16),
+                              BarButton(
+                                key: ValueKey('unarchive-category-${c.id}'),
+                                label: t.planShowInMenus,
+                                onTap: () => widget.onUnarchive(c),
+                              ),
+                            ],
+                          ),
+                        ),
+                  ],
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -582,6 +580,7 @@ class _CategoryRow extends StatefulWidget {
   const _CategoryRow({
     super.key,
     required this.category,
+    required this.striped,
     required this.usage,
     required this.actions,
     required this.onShowRows,
@@ -596,6 +595,10 @@ class _CategoryRow extends StatefulWidget {
     this.fromBefore,
   });
   final AccountInfo category;
+
+  /// Every other row is tinted, as in the register: the name and its
+  /// amounts sit a page apart.
+  final bool striped;
 
   /// Spent was clicked: this period's rows.
   final VoidCallback onShowRows;
@@ -716,7 +719,10 @@ class _CategoryRowState extends State<_CategoryRow> {
               vertical: widget.fromBefore == null ? 0 : 5,
             ),
             decoration: BoxDecoration(
-              color: _hover || _menu.isOpen ? Mid.hover : Colors.transparent,
+              color: Color.alphaBlend(
+                _hover || _menu.isOpen ? Mid.rowHover : Colors.transparent,
+                widget.striped ? Mid.stripe : Colors.transparent,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(

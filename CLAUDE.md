@@ -41,7 +41,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   "Pay"/"Next pay", a hint and link that read as AI-speak), and search at the top
   of the page (it belongs in the register's tab row), "Put in" for budget amounts
   (the word is **Assigned**), and questions worded in the app's internals instead
-  of a plain example, and a logo recolored by the scheme, a light band behind it, and a white glow around it (the sidebar shows a dark-mode logo).
+  of a plain example, and a logo recolored by the scheme, a light band behind it, and a white glow around it (the sidebar shows a dark-mode logo), and a Budget page
+  that stopped two-thirds of the way across the window (pages fill it).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
