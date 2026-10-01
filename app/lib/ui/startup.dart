@@ -13,6 +13,7 @@ import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
 import 'data_words.dart';
+import 'fit_window.dart';
 import 'language.dart';
 import 'ledger_screen.dart';
 import 'recovery_key_screen.dart';
@@ -266,6 +267,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     supportedLocales: supportedLocales,
     localizationsDelegates: Words.localizationsDelegates,
     localeListResolutionCallback: (preferred, _) => resolveLocale(preferred),
+    builder: (context, child) => FitWindow(child: child!),
     // Under the MaterialApp, where the chosen language is known.
     home: Builder(builder: (context) => _screen(context.t)),
   );

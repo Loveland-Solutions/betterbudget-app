@@ -9,6 +9,7 @@ import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/brand.dart';
+import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
@@ -62,8 +63,11 @@ void main() {
     if (File(icons).existsSync()) await _loadFont('MaterialIcons', icons);
   });
 
-  Future<AppDatabase> pumpLedger(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1440, 900);
+  Future<AppDatabase> pumpLedger(
+    WidgetTester tester, {
+    Size size = const Size(1440, 900),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final db = AppDatabase(NativeDatabase.memory());
@@ -72,6 +76,7 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
+          builder: (context, child) => FitWindow(child: child!),
           home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
         ),
       );
@@ -116,6 +121,38 @@ void main() {
     );
     await tidy(tester, db);
   });
+
+  // The Mac window stops at 1360 wide (MainFlutterWindow.swift): there the
+  // account page shows everything. A smaller screen squeezes it instead of
+  // running out of room (an overflow fails the test).
+  for (final (name, size) in [
+    ('the smallest window', const Size(1360, 760)),
+    ('a screen smaller than that', const Size(1100, 700)),
+  ]) {
+    testWidgets('an account page fits $name', (tester) async {
+      final db = await pumpLedger(tester, size: size);
+      expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+      expect(find.text('2 not cleared yet'), findsOneWidget);
+      await expectLater(
+        find.byType(FitWindow),
+        matchesGoldenFile(
+          size.width >= FitWindow.smallest.width
+              ? 'goldens/ledger_smallest_window.png'
+              : 'goldens/ledger_small_screen.png',
+        ),
+      );
+      await openEntry(tester);
+      await tester.tap(find.byKey(const ValueKey('reconcile')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Savings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+  }
 
   testWidgets('savings: the steps, the fund account, answers and undo', (
     tester,

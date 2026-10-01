@@ -2971,63 +2971,81 @@ class _Sidebar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  header(
-                    AppSection.ledger,
-                    Icons.format_list_bulleted_rounded,
-                    t.ledgerSectionLedger,
-                  ),
-                  _Spill(
-                    open: section == AppSection.ledger,
-                    children: [
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 26, bottom: 12),
-                        child: _AllAccountsTile(
-                          active: allActive,
-                          onTap: onAll,
-                        ),
-                      ),
-                      for (final g in groups.entries) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(38, 0, 12, 6),
-                          child: Text(
-                            groupName(g.key),
-                            style: onest(12, color: Mid.sideInk3),
+                  // The sections scroll when the accounts outgrow the
+                  // window; Settings and Net worth stay put below.
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          header(
+                            AppSection.ledger,
+                            Icons.format_list_bulleted_rounded,
+                            t.ledgerSectionLedger,
                           ),
-                        ),
-                        for (final a in g.value)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 26),
-                            child: _AccountTile(
-                              account: a,
-                              balance: data.balanceOf(a.id),
-                              active: a.id == selected,
-                              onTap: () => onSelect(a.id),
-                              actions: actionsFor(a),
-                            ),
+                          _Spill(
+                            open: section == AppSection.ledger,
+                            children: [
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 26,
+                                  bottom: 12,
+                                ),
+                                child: _AllAccountsTile(
+                                  active: allActive,
+                                  onTap: onAll,
+                                ),
+                              ),
+                              for (final g in groups.entries) ...[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    38,
+                                    0,
+                                    12,
+                                    6,
+                                  ),
+                                  child: Text(
+                                    groupName(g.key),
+                                    style: onest(12, color: Mid.sideInk3),
+                                  ),
+                                ),
+                                for (final a in g.value)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 26),
+                                    child: _AccountTile(
+                                      account: a,
+                                      balance: data.balanceOf(a.id),
+                                      active: a.id == selected,
+                                      onTap: () => onSelect(a.id),
+                                      actions: actionsFor(a),
+                                    ),
+                                  ),
+                                const SizedBox(height: 14),
+                              ],
+                              _AddAccountTile(
+                                active: addingAccount,
+                                onTap: onAddAccount,
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                           ),
-                        const SizedBox(height: 14),
-                      ],
-                      _AddAccountTile(
-                        active: addingAccount,
-                        onTap: onAddAccount,
+                          const SizedBox(height: 2),
+                          header(
+                            AppSection.budget,
+                            Icons.pie_chart_outline_rounded,
+                            t.ledgerSectionBudget,
+                          ),
+                          const SizedBox(height: 2),
+                          header(
+                            AppSection.savings,
+                            Icons.savings_outlined,
+                            t.ledgerSectionSavings,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  header(
-                    AppSection.budget,
-                    Icons.pie_chart_outline_rounded,
-                    t.ledgerSectionBudget,
-                  ),
-                  const SizedBox(height: 2),
-                  header(
-                    AppSection.savings,
-                    Icons.savings_outlined,
-                    t.ledgerSectionSavings,
-                  ),
-                  const Spacer(),
                   // Settings, above Net worth, laid out like a section header so its
                   // icon and label line up with theirs.
                   Padding(

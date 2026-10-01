@@ -992,6 +992,25 @@ What's known so far:
       period it's for; a Spent click showing loan payments (they aren't
       filed under the category); moving money out of an archived category.
 
+### The smallest window (owner, 2026-10-01)
+
+The owner's correction: "We seem to be letting the app collapse farther than
+it should." An account page ran out of room at the old 1200-wide minimum
+(the header's key, the Import button, the payee column).
+
+- **The window stops at 1360 × 760**, where the header's key sits whole
+  beside the forecast and the payee column can be read. On a screen smaller
+  than that the window gets what the screen has.
+- **Where a window can still be smaller** (such a screen, or Windows and
+  Linux until their windows stop too), the whole app is drawn at 1360 × 760
+  and shrunk to fit (`FitWindow`). Nothing is cut off or striped.
+- **The register's Category, Amount and Balance columns are narrower** (190,
+  156, 156; were 220, 170, 170), so the payee has the room.
+- **The sidebar's sections scroll** when the accounts outgrow the window;
+  Settings and Net worth stay at the bottom.
+- Rejected: laying each page out again for narrow windows (the phone apps
+  are their own design, ADR 0005).
+
 ### Language: English and Mongolian (owner, 2026-09-30)
 
 Before beta the owner asked for a Mongolian option. The choices:
