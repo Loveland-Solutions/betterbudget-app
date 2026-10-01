@@ -15,9 +15,10 @@ enum RegisterFilter { all, uncleared, cleared, reconciled, scheduled }
 abstract final class Cols {
   static const status = 24.0;
   static const date = 114.0;
-  static const category = 220.0;
-  static const amount = 170.0;
-  static const balance = 170.0;
+  // Kept to what they hold, so the payee has room in the smallest window.
+  static const category = 190.0;
+  static const amount = 156.0;
+  static const balance = 156.0;
   static const gap = 16.0;
   static const inset = EdgeInsets.symmetric(horizontal: 20);
   static const outer = EdgeInsets.symmetric(horizontal: 12);

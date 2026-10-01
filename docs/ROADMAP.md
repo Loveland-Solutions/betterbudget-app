@@ -122,6 +122,8 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
 - [ ] A Windows machine or CI runner (`app/windows/` is scaffolded, never built)
 - [ ] Encryption on Windows verified (Credential Manager, ADR 0001)
 - [ ] Shortcuts already have Ctrl versions; check fonts, title bar, file dialogs
+- [ ] The window stops at 1360 × 760 as on the Mac (ADR 0004 "The smallest
+      window"); until then a smaller window shows the app shrunk
 - [ ] Installer (MSIX, and later the Microsoft Store), signed; attach it to public releases
 
 ### H. Linux, RPM and deb (owner item 8)

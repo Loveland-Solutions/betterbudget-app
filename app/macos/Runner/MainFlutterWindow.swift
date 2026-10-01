@@ -5,8 +5,17 @@ class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
-    // The register is a dense desktop layout; below this it stops fitting.
-    self.contentMinSize = NSSize(width: 1200, height: 760)
+    // The register is a dense desktop layout; below this it stops fitting
+    // (the header's key beside the forecast, and a payee column worth
+    // reading). The same size as FitWindow.smallest: on a screen smaller
+    // than this the window gets what there is and the app shrinks to fit.
+    let fits = NSSize(width: 1360, height: 760)
+    let room = (self.screen ?? NSScreen.main).map {
+      self.contentRect(forFrameRect: $0.visibleFrame).size
+    }
+    self.contentMinSize = NSSize(
+      width: min(fits.width, room?.width ?? fits.width),
+      height: min(fits.height, room?.height ?? fits.height))
     self.setContentSize(NSSize(width: 1440, height: 900))
     self.center()
     self.title = "BetterBudget"

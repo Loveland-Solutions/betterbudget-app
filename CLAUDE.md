@@ -41,7 +41,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   "Pay"/"Next pay", a hint and link that read as AI-speak), and search at the top
   of the page (it belongs in the register's tab row), "Put in" for budget amounts
   (the word is **Assigned**), and questions worded in the app's internals instead
-  of a plain example, and a logo recolored by the scheme, a light band behind it, and a white glow around it (the sidebar shows a dark-mode logo).
+  of a plain example, and a logo recolored by the scheme, a light band behind it, and a white glow around it (the sidebar shows a dark-mode logo), and a Budget page
+  that stopped two-thirds of the way across the window (pages fill it), and a window that
+  shrank until an account page ran out of room (it stops at 1360 × 760).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
@@ -81,7 +83,7 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   problems, row labels, pay), `theme.dart` (`Palette` dark and light, read as `Mid.ink` etc.; the
   sidebar's own `Mid.side*`; `Money`, `StatusGlyph`), `appearance.dart` (Settings →
   Appearance, switching and redrawing), `schemes.dart` (the color schemes: the app's own and
-  Figma's 100, Blue eclipse the default; `Palette.of` in `theme.dart` turns one into light and dark), `brand.dart` (the bee and the wordmark, the dark-mode logo files), `ledger_screen.dart`
+  Figma's 100, Blue eclipse the default; `Palette.of` in `theme.dart` turns one into light and dark), `brand.dart` (the bee and the wordmark, the dark-mode logo files), `fit_window.dart` (the smallest size the app is laid out for; smaller windows show it shrunk; keep it the same as `MainFlutterWindow.swift`), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
   (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `entry_row.dart`

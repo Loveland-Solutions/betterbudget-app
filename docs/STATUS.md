@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-09-30**
+**Last updated: 2026-10-01**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -55,7 +55,7 @@ Visual direction and the register's UX rules are settled in
 | Appearance | Settings → Appearance: Same as this Mac, Light or Dark, and **Colors**: Blue eclipse (the default), BetterBudget's own or any of Figma's 100 color combinations in its seven groups (ADR 0004 "Color schemes"). Each scheme is made into a light and a dark palette that passes contrast checks; money's green, coral and gold never change. Kept per computer, ⌘Z undoes. The sidebar shows a dark-mode logo (white and light royal, gold body), the same in every scheme |
 | Language | Settings → Language: Same as this Mac, English or Монгол (per computer, ⌘Z undoes). Every word is in `app/lib/l10n/`; the Mongolian is a draft awaiting a native speaker's check ([review sheet](mongolian-review.csv), [glossary](l10n-glossary.md)). Dates in sentences read "9-р сарын 30"; rows keep 09.30 |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 331 (2026-10-01): an account page at the smallest window and on a smaller screen (two goldens). 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -78,17 +78,6 @@ scheduled items.
 - **CI.** Nothing runs tests on pull requests.
 
 ### Known bugs and loose ends
-
-- **Text runs out of room on an account page** (owner's screenshot, 2026-09-30,
-  tabled to fix later). Flutter's yellow-and-black overflow stripes show in three places.
-  In the header's key, the Cleared and Uncleared amounts and the cents after Working
-  overflow by about 33 px. The Import button beside Reconcile runs past the key's
-  column by about 4 px. In the register, the Payee column is too narrow: the opening
-  row's "Opening balance" is cut off (25 px over), and a scheduled row's "· scheduled"
-  note runs into the Category column. This happened in a
-  window narrower than the goldens' 1440×900, with a large balance. Likely fix: let the
-  key column and the payee column shrink and ellipsize, keep the amounts' width fixed,
-  and add a narrow-window golden.
 
 - **An account's currency can't be changed after it's made.**
   The owner remade theirs by hand (2026-09-30); Change currency stays on ROADMAP E.
@@ -200,6 +189,11 @@ of a category. The owner corrected "Put in" to **Assigned**. Both reviews done; 
 fixes are in. **Also (2026-09-30, PR #27):** a dark-mode logo in the sidebar, Blue eclipse the default, and the color schemes in Settings → Appearance. **Next:** the owner tries it with real money. Then moving money between
 categories, "same as last period", the four budget types (ROADMAP C), and the forecast's
 "Nothing has been budgeted" sentence switching on the budget.
+
+**2026-10-01:** the owner started using the budget and sent two fixes (PR #29, above).
+Still waiting on their reaction to the Budget page beyond its width ("ugly" was the
+word; width was the one thing named). Offered next: recurring bills (options with
+sketches), then the budget follow-ups.
 
 **Tabled by the owner (2026-09-30), to address next**, from using the new build:
 
@@ -391,6 +385,15 @@ been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
 
+- **PR #29 (2026-10-01):** two fixes from the owner using the app, version 0.1.1.
+  **The Budget page fills the window** (it was capped at 820 px), its rows striped
+  like the register's. **The window stops at 1360 × 760** (it was 1200, where an
+  account page ran out of room): `FitWindow` draws the app shrunk in any window
+  smaller than that (a small screen; Windows and Linux until their windows stop
+  too), the register's Category, Amount and Balance columns are narrower so the
+  payee has room, and the sidebar's sections scroll with Settings and Net worth
+  pinned. Checked in the real window (asked for 900 × 500, it stopped at 1360).
+  No review passes: fixes, not a feature. 331 tests.
 - **PR #28 (2026-09-30):** **Version numbers** (ADR 0006). Semantic, started fresh at
   0.1.0: minor per feature PR, patch per fix, 1.0.0 is the public release. The build
   number is the commit count, written into the built `Info.plist` by a macOS build
