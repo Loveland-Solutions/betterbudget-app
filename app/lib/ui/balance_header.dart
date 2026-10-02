@@ -398,8 +398,10 @@ class _LateNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final total =
-        '${CurrencyScope.of(context).symbol}${formatWhole(late.fold(0, (s, r) => s + r.amount))}';
+    final total = roundedIn(
+      context,
+      late.fold(0, (s, r) => s + r.amount).abs(),
+    );
     // "+… in" says which way it goes: late bills use the same gold.
     final String what;
     if (late.length > 1) {
@@ -456,8 +458,7 @@ class ForecastPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final payday = f.payday;
-    final symbol = CurrencyScope.of(context).symbol;
-    String money(int v) => '$symbol${formatWhole(v)}';
+    String money(int v) => roundedIn(context, v.abs());
     final String headline;
     final String detail;
     if (f.owed) {
@@ -639,7 +640,6 @@ class _KnownList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final symbol = CurrencyScope.of(context).symbol;
     final payday = f.payday!;
     Widget line(
       String date,
@@ -687,7 +687,7 @@ class _KnownList extends StatelessWidget {
     // Today, then each paycheck the plan expects with its amount (which
     // kind of income it is isn't known, owner 2026-09-30), and any other
     // money on the way by name.
-    String plus(int v) => '+$symbol${formatWhole(v)}';
+    String plus(int v) => '+${roundedIn(context, v.abs())}';
     return Column(
       key: const ValueKey('forecast-known'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,7 +704,7 @@ class _KnownList extends StatelessWidget {
                 ),
               ),
               Text(
-                '$symbol${formatWhole(f.startBalance)}',
+                roundedIn(context, f.startBalance.abs()),
                 style: onest(13, color: Mid.ink, tabular: true),
               ),
             ],
@@ -1095,8 +1095,7 @@ class _ForecastChart extends StatelessWidget {
               CurrencyScope.of(context),
               payLabel: f.throughPeriod
                   ? context.t.planChartPay(
-                      '${CurrencyScope.of(context).symbol}'
-                      '${formatWhole(f.payday!.amount)}',
+                      roundedIn(context, f.payday!.amount.abs()),
                     )
                   : null,
             ),
@@ -1358,7 +1357,12 @@ class _ForecastPainter extends CustomPainter {
         dash,
       );
     }
-    _label(canvas, '${currency.symbol}0', Offset(w + 8, zero - 7), Mid.ink3);
+    _label(
+      canvas,
+      formatRounded(0, currency: currency),
+      Offset(w + 8, zero - 7),
+      Mid.ink3,
+    );
 
     if (f.isShort) {
       canvas.save();

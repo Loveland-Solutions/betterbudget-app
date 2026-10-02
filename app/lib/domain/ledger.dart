@@ -548,7 +548,14 @@ class LedgerData {
     List<CategoryPlan> plans = const [],
     this.accountsOff = const {},
   }) : accounts = {for (final a in accounts) a.id: a},
-       plans = {for (final p in plans) p.categoryId: p};
+       plans = {for (final p in plans) p.categoryId: p} {
+    // Amounts tell two currencies with one symbol apart only while both
+    // are held.
+    Currency.hold({
+      for (final a in accounts)
+        if (a.isBalanceSheet && !a.deleted) a.currency,
+    });
+  }
 
   /// By spending category, the accounts it doesn't use (rule 28). A
   /// category uses every account in its currency unless one is unchecked,

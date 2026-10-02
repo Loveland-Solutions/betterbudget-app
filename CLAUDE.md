@@ -45,7 +45,14 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   that stopped two-thirds of the way across the window (pages fill it), and a window that
   shrank until an account page ran out of room (it stops at 1360 × 760), and credit
   cards left out of a category's list of accounts (a card is an account; if they plan
-  to pay with it, let them).
+  to pay with it, let them), and too many menus on a budget category (its menu is
+  Edit and Delete, a double-click opens Edit, and everything about it is in Edit), and
+  an Edit that Esc or a second double-click didn't close, and a button for each
+  currency (a Currency dropdown: every currency is to be supported), and a category's
+  accounts laid out as a list in the panel (a dropdown of checkboxes), and a currency's
+  code at the start of some rows and the end of others (always at the end), and
+  made-up currency symbols (`CA$` where Canadians write `$`: show the real one, and
+  tell two apart only when a ledger holds both).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
@@ -65,7 +72,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
 ## Code map (`app/`)
 
 - `lib/domain/`: pure Dart, no Flutter and no database. `money.dart` (integer minor
-  units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
+  units in each currency's own decimals, `Currency` and its table of every ISO currency in
+  `currencies.dart`, made by `app/tool/gen_currencies.py`; amount calculator), `ledger.dart` (register rows, balances),
   `forecast.dart`, `budget.dart` (envelopes, and each category's plan worked out for a
   period: rules 26 and 27).
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
@@ -90,7 +98,7 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
   (key, forecast chart and bill list),
   `register.dart` (rows, row action bar, category menu), `budget.dart` (the Budget
-  page: envelopes, the plan note under a name, the plan panel), `entry_row.dart`
+  page: envelopes, the plan note under a name, Edit under a category's row), `entry_row.dart`
   (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel), `recovery_key_screen.dart` (the key shown
   once at setup, the entry screen when a device has no key, the key-check dialogs),
   `startup.dart` (what happens at launch: check the key, show a new key before storing
@@ -126,6 +134,8 @@ cd app && flutter analyze && flutter test
   `test/ledger_screen_test.dart`). The fake clock never completes real SQLite work.
 - Goldens load Onest and Manrope explicitly. Border and fade animations need an extra
   `pump()` before capture.
-- Any font change: confirm the font has ₮ (U+20AE), Ө and Ү.
+- Any font change: confirm the font has ₮ (U+20AE), Ө and Ү. Currency signs neither
+  Onest nor Manrope has come from `BetterBudgetSymbols.ttf` (`tool/gen_symbol_font.py`);
+  `tool/gen_currencies.py` stops if a currency's symbol can't be drawn.
 - The app is signed with the owner's Apple team (see STATUS "Local setup notes"). An
   unsigned build can't use the Keychain the encryption key lives in (ADR 0001).

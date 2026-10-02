@@ -22,12 +22,16 @@ class _ImportDialog extends StatefulWidget {
     required this.mapping,
     required this.fromSaved,
     required this.accountId,
+    required this.currency,
     required this.plan,
     required this.cleared,
     required this.owed,
   });
 
   final String accountName;
+
+  /// The account's: how many decimals the file's amounts are read with.
+  final Currency currency;
   final String fileName;
   final Sheet sheet;
   final ImportMapping mapping;
@@ -95,7 +99,9 @@ class _ImportDialogState extends State<_ImportDialog> {
   }
 
   Future<void> _reread() async {
-    final read = _mapping.complete ? readRows(widget.sheet, _mapping) : null;
+    final read = _mapping.complete
+        ? readRows(widget.sheet, _mapping, decimals: widget.currency.decimals)
+        : null;
     final ask = ++_asked;
     setState(() {
       _read = read;
@@ -507,9 +513,13 @@ class _ImportDialogState extends State<_ImportDialog> {
         _note(
           Icons.warning_amber_rounded,
           Mid.coral,
-          named == Currency.mnt
-              ? t.importFileInMnt(widget.accountName, example, asIs)
-              : t.importFileInUsd(widget.accountName, example, asIs),
+          t.importFileIn(
+            currencyName(t, named),
+            widget.accountName,
+            currencyName(t, here),
+            example,
+            asIs,
+          ),
           big: true,
         ),
       );

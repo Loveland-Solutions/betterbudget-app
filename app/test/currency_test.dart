@@ -18,8 +18,105 @@ void main() {
     expect(parseAmount(r'$12.50'), 1250);
     expect(Currency.fromCode('USD'), Currency.usd);
     expect(Currency.fromCode(null), Currency.mnt);
-    expect(mntPerDollar(345000000, Currency.mnt, 100000, Currency.usd), 345000);
-    expect(mntPerDollar(100000, Currency.usd, 345000000, Currency.mnt), 345000);
+    // Tugrik per dollar, whichever side is which.
+    for (final x in [
+      exchangeRate(345000000, Currency.mnt, 100000, Currency.usd),
+      exchangeRate(100000, Currency.usd, 345000000, Currency.mnt),
+    ]) {
+      expect(x!.rate, 345000);
+      expect(x.quote, Currency.mnt);
+      expect(x.base, Currency.usd);
+    }
+  });
+
+  test('every currency: its own decimals, its own people\'s symbol', () {
+    addTearDown(() => Currency.hold(const []));
+    expect(Currency.values, hasLength(155));
+    expect(Currency.values.take(2), [Currency.mnt, Currency.usd]);
+    expect({for (final c in Currency.values) c.code}, hasLength(155));
+    // The long form tells any two apart.
+    expect({for (final c in Currency.values) c.long}, hasLength(155));
+    final yen = Currency.fromCode('JPY');
+    final yuan = Currency.fromCode('CNY');
+    final dinar = Currency.fromCode('KWD');
+    final krona = Currency.fromCode('SEK');
+    final rand = Currency.fromCode('ZAR');
+    final cad = Currency.fromCode('CAD');
+    final clp = Currency.fromCode('CLP');
+
+    // The symbol is the one its people write, shared or not.
+    expect(
+      [cad.symbol, clp.symbol, yuan.symbol, yen.symbol],
+      [r'$', r'$', '¥', '¥'],
+    );
+    expect([krona.symbol, rand.symbol, dinar.symbol], ['kr', 'R', 'KD']);
+    // Every currency has a symbol; none falls back to its code.
+    for (final c in Currency.values) {
+      expect(c.symbol, isNot(c.code), reason: c.code);
+      expect(c.symbol, isNotEmpty, reason: c.code);
+    }
+    expect(Currency.fromCode('THB').symbol, '฿');
+    expect(Currency.fromCode('GNF').symbol, 'FG');
+
+    // Alone in a ledger, a Canadian dollar is a dollar.
+    Currency.hold([Currency.mnt, cad]);
+    expect(formatMoney(120050, currency: cad), r'$1,200.50');
+    // Beside a US account, each says which; the tugrik is untouched.
+    Currency.hold([Currency.mnt, cad, Currency.usd]);
+    expect(formatMoney(120050, currency: cad), r'CA$1,200.50');
+    expect(formatMoney(120050, currency: Currency.usd), r'$1,200.50');
+    expect(formatMoney(120050), '₮1,200.50');
+    // Two with no longer symbol fall back to their codes.
+    Currency.hold([clp, Currency.fromCode('COP')]);
+    expect(formatMoney(1200, currency: clp), 'CLP 1,200');
+    expect(parseAmount('CLP 1,200', clp), 1200);
+    Currency.hold([yen, yuan]);
+    expect(formatMoney(1200, currency: yen), '¥1,200');
+    expect(formatMoney(1200, currency: yuan), 'CN¥12.00');
+    Currency.hold(const []);
+
+    // Yen has no cents: minor units are whole yen.
+    expect(formatMoney(120000, currency: yen), '¥120,000');
+    expect(formatShort(-1200, currency: yen), '−¥1,200');
+    expect(parseAmount('1,200', yen), 1200);
+    expect(parseAmount('1200.5', yen), isNull);
+    expect(parseAmount('3*400', yen), 1200);
+    expect(zeroHint(yen), '¥0');
+
+    // A Kuwaiti dinar has three decimals.
+    expect(formatMoney(1234567, currency: dinar), 'KD 1,234.567');
+    expect(formatShort(5000, currency: dinar), 'KD 5');
+    expect(parseAmount('1.5', dinar), 1500);
+    expect(parseAmount('1.2345', dinar), isNull);
+    expect(parseAmount('KD 12.250', dinar), 12250);
+    expect(parseAmount('KWD 12.250', dinar), 12250);
+    expect(typedAmount(12250, dinar), '12.250');
+
+    // Letters are set off from the amount; a sign isn't.
+    expect(formatMoney(120050, currency: krona), 'kr 1,200.50');
+    expect(
+      formatMoney(120050, currency: Currency.fromCode('PEN')),
+      'S/ 1,200.50',
+    );
+    expect(
+      formatMoney(120050, currency: Currency.fromCode('CHF')),
+      'Fr. 1,200.50',
+    );
+    expect(
+      formatMoney(120050, currency: Currency.fromCode('THB')),
+      '฿1,200.50',
+    );
+    expect(
+      formatMoney(120050, currency: Currency.fromCode('GHS')),
+      'GH₵1,200.50',
+    );
+    expect(formatMoney(120050, currency: rand), 'R 1,200.50');
+    expect(formatMoney(120050, currency: Currency.usd), r'$1,200.50');
+
+    // Yen per dollar: one side has cents, the other doesn't.
+    final x = exchangeRate(15000, yen, 10000, Currency.usd)!;
+    expect((x.rate, x.quote, x.base), (150, yen, Currency.usd));
+    expect(formatMoney(x.rate, currency: x.quote), '¥150');
   });
 
   group('database', () {

@@ -1793,61 +1793,31 @@ abstract class Words {
   /// **'{count} scheduled'**
   String planUsageScheduled(int count);
 
-  /// Budget page: tooltip on a category name
-  ///
-  /// In en, this message translates to:
-  /// **'Click to rename'**
-  String get planClickToRename;
-
   /// Budget page: tooltip on a category’s usage, opens its transactions
   ///
   /// In en, this message translates to:
   /// **'Show these rows'**
   String get planShowTheseRows;
 
-  /// Budget page, category ⋯ menu
-  ///
-  /// In en, this message translates to:
-  /// **'Rename'**
-  String get planRename;
-
-  /// Budget page, category ⋯ menu: income only, opens pay setup
+  /// Budget page, Edit under an income category's row: button that opens pay setup
   ///
   /// In en, this message translates to:
   /// **'Pay…'**
   String get planPayMenu;
 
-  /// Budget page, category ⋯ menu: income only, stop this category ending forecasts
+  /// Budget page, Edit under an income category's row: the choice that this category's money is not a payday, so it doesn't end forecasts
   ///
   /// In en, this message translates to:
   /// **'Not a payday'**
   String get planUnmarkPayday;
 
-  /// Budget page, category ⋯ menu: income only, make this category end forecasts
-  ///
-  /// In en, this message translates to:
-  /// **'Mark as payday'**
-  String get planMarkPayday;
-
-  /// Budget page, category ⋯ menu
-  ///
-  /// In en, this message translates to:
-  /// **'Change to spending'**
-  String get planChangeToSpending;
-
-  /// Budget page, category ⋯ menu
-  ///
-  /// In en, this message translates to:
-  /// **'Change to income'**
-  String get planChangeToIncome;
-
-  /// Budget page, category ⋯ menu
+  /// Budget page, Edit under a category's row: button that archives the category
   ///
   /// In en, this message translates to:
   /// **'Archive'**
   String get planArchive;
 
-  /// Budget page, category ⋯ menu: red, opens a confirmation
+  /// Budget page, a category's menu (⋯ or right-click): red, opens a confirmation when the category has rows
   ///
   /// In en, this message translates to:
   /// **'Delete…'**
@@ -2333,7 +2303,7 @@ abstract class Words {
   /// **'A month of expenses'**
   String get planMonthHint;
 
-  /// Budget page, a category's plan: button that keeps it
+  /// Savings page, step 1, beside the month field; and the Budget page, Edit under a category's row: button that keeps what was changed
   ///
   /// In en, this message translates to:
   /// **'Save'**
@@ -4603,11 +4573,11 @@ abstract class Words {
   /// **'Say how much arrives in {account}'**
   String rowsErrorArrivesOther(Object account);
 
-  /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tugrik, like ₮3,450.00.
+  /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is what one unit of the dearer currency costs in the other, like ₮3,450.00; one is that unit, like $1 or €1.
   ///
   /// In en, this message translates to:
-  /// **'{rate} per \$1'**
-  String rowsRatePerDollar(Object rate);
+  /// **'{rate} per {one}'**
+  String rowsRatePer(String rate, String one);
 
   /// Toast when a row can't move to an account in another currency.
   ///
@@ -4627,29 +4597,22 @@ abstract class Words {
   /// **'Currency'**
   String get setupCurrency;
 
-  /// New account page: currency choice.
-  ///
-  /// In en, this message translates to:
-  /// **'₮ Tugrik'**
-  String get setupCurrencyMnt;
-
-  /// New account page: currency choice.
-  ///
-  /// In en, this message translates to:
-  /// **'\$ Dollar'**
-  String get setupCurrencyUsd;
-
   /// New account page, under the currency choice.
   ///
   /// In en, this message translates to:
   /// **'Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.'**
   String get setupCurrencyHint;
 
-  /// Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate.
+  /// Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate (rate like ₮3,450.00, one like $1).
   ///
   /// In en, this message translates to:
-  /// **'{account}: {amount} · {rate} per \$1'**
-  String rowsExchangeNote(Object account, Object amount, Object rate);
+  /// **'{account}: {amount} · {rate} per {one}'**
+  String rowsExchangeNote(
+    Object account,
+    Object amount,
+    Object rate,
+    String one,
+  );
 
   /// Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.
   ///
@@ -4657,29 +4620,23 @@ abstract class Words {
   /// **'{account}  {amount} · another currency, not counted yet'**
   String savingsOtherCurrencyItem(Object account, Object amount);
 
-  /// Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.
+  /// Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.
   ///
   /// In en, this message translates to:
-  /// **'Not counted here yet: {accounts}. Savings counts tugrik only for now.'**
-  String savingsOnlyMnt(Object accounts);
+  /// **'Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.'**
+  String savingsOnlyOne(String accounts, String currency);
 
-  /// Savings, under the steps: accounts in tugrik that aren't in these sums. accounts is names with balances.
+  /// Import window: coral warning when the file names one currency (tugrik or dollars) and the account is in another. fileCurrency and accountCurrency are currency names, like US Dollar; example is an amount as the file means it, asIs as it would be read.
   ///
   /// In en, this message translates to:
-  /// **'Not counted here yet: {accounts}. Savings counts dollars only for now.'**
-  String savingsOnlyUsd(Object accounts);
-
-  /// Import window warning: the file names tugrik but the account is in dollars. example and asIs are one real row.
-  ///
-  /// In en, this message translates to:
-  /// **'This file looks like it’s in tugrik, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.'**
-  String importFileInMnt(Object account, Object example, Object asIs);
-
-  /// Import window warning: the file names dollars but the account is in tugrik. example and asIs are one real row.
-  ///
-  /// In en, this message translates to:
-  /// **'This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.'**
-  String importFileInUsd(Object account, Object example, Object asIs);
+  /// **'This file looks like it’s in {fileCurrency}, and {account} is in {accountCurrency}. Amounts come in as they are: {example} would become {asIs}.'**
+  String importFileIn(
+    String fileCurrency,
+    String account,
+    String accountCurrency,
+    String example,
+    String asIs,
+  );
 
   /// After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused.
   ///
@@ -4825,7 +4782,7 @@ abstract class Words {
   /// **'Assign {amount} to {category}'**
   String planAssignUndo(String amount, String category);
 
-  /// Budget page: first item in a category's ⋯ menu; usage is e.g. "42 rows · last 09.12 · 1 scheduled"; opens every row, all time
+  /// Budget page, Edit under a category's row: a line at the bottom left; usage is e.g. "42 rows · last 09.12 · 1 scheduled"; clicking it opens every row, all time
   ///
   /// In en, this message translates to:
   /// **'{usage} · show them'**
@@ -5569,12 +5526,6 @@ abstract class Words {
   /// **'Hide the colors'**
   String get appearanceColorsHide;
 
-  /// Budget page: item in a spending category's ⋯ menu; opens its plan (what the category is for and how much goes in each period) under the row
-  ///
-  /// In en, this message translates to:
-  /// **'Plan…'**
-  String get planPlanMenu;
-
   /// Budget page, a category's plan: the first of four kinds, when the budget runs by month (groceries: money goes in and is spent down)
   ///
   /// In en, this message translates to:
@@ -5701,12 +5652,6 @@ abstract class Words {
   /// **'What’s left goes back to not assigned'**
   String get planCarryOff;
 
-  /// Budget page, a category's plan: button that takes the plan away (the category and its money stay)
-  ///
-  /// In en, this message translates to:
-  /// **'Remove plan'**
-  String get planRemove;
-
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:
@@ -5779,7 +5724,7 @@ abstract class Words {
   /// **'Assign {amount}'**
   String planAssignThis(String amount);
 
-  /// Budget page: tooltip on the note under a category's name
+  /// Budget page: tooltip on the note under a category's name; clicking it opens Edit with the cursor in the plan's amount
   ///
   /// In en, this message translates to:
   /// **'Click to change the plan'**
@@ -5845,18 +5790,6 @@ abstract class Words {
   /// **'{amount} that went back returns to {category}, so not assigned goes down by that much'**
   String planReturns(String amount, String category);
 
-  /// Budget page: item in a spending category's ⋯ menu when every account is in one currency; opens the list of accounts the category uses
-  ///
-  /// In en, this message translates to:
-  /// **'Accounts…'**
-  String get planMoneyMenu;
-
-  /// Budget page: item in a spending category's ⋯ menu when there are accounts in tugrik and in dollars; opens the category's currency and the accounts it uses
-  ///
-  /// In en, this message translates to:
-  /// **'Currency and accounts…'**
-  String get planMoneyMenuBoth;
-
   /// Budget page, a category's currency and accounts: label over the choice of ₮ or $
   ///
   /// In en, this message translates to:
@@ -5887,7 +5820,7 @@ abstract class Words {
   /// **'{category} is now in {symbol}'**
   String planMoneyCurrencyUndo(String category, String symbol);
 
-  /// Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with
+  /// Budget page, Edit under a spending category's row: label over the dropdown of accounts in the category's currency (cash, bank and cards), each with a checkbox, all checked to begin with
   ///
   /// In en, this message translates to:
   /// **'Accounts this category uses'**
@@ -5975,6 +5908,90 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Everything in {symbol} is assigned to a category'**
   String planAllAssignedIn(String symbol);
+
+  /// Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get planEdit;
+
+  /// Budget page, Edit under a category's row: label over the field with the category's name
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get planEditName;
+
+  /// Budget page, Edit under a spending category's row: label over the choice of what the category is for (no plan, spend through the month, save up, due on a date, goal)
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get planEditType;
+
+  /// Budget page, Edit under a spending category's row: the first choice of type, a category with nothing planned for it
+  ///
+  /// In en, this message translates to:
+  /// **'No plan'**
+  String get planKindNone;
+
+  /// Budget page, Edit under a spending category's row: the sentence under the types when No plan is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is planned for it. You decide what to assign.'**
+  String get planHelpNone;
+
+  /// Budget page, Edit under an income category's row: the choice that this category's money is a payday (the other choice is Not a payday); no label over the pair
+  ///
+  /// In en, this message translates to:
+  /// **'A payday'**
+  String get planEditPaydayYes;
+
+  /// Toast and undo history label after Edit saved more than one change to a category at once (say its name and its plan)
+  ///
+  /// In en, this message translates to:
+  /// **'Changes to {category}'**
+  String planEditedUndo(String category);
+
+  /// Budget page, Edit under an income category's row: the sentence under the choice when A payday is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Forecasts run to this payday.'**
+  String get planEditPaydayHelpYes;
+
+  /// Budget page, Edit under an income category's row: the sentence under the choice when Not a payday is picked: this income doesn't end a forecast
+  ///
+  /// In en, this message translates to:
+  /// **'Forecasts run past it when it comes in.'**
+  String get planEditPaydayHelpNo;
+
+  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked
+  ///
+  /// In en, this message translates to:
+  /// **'All accounts'**
+  String get planAccountsAll;
+
+  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account is unchecked
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts'**
+  String get planAccountsNone;
+
+  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when only some accounts are checked (two or more; with one it shows that account's name)
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} accounts'**
+  String planAccountsSome(int count, int total);
+
+  /// Add account, the Currency dropdown: hint in the search field at the top of the list of every currency
+  ///
+  /// In en, this message translates to:
+  /// **'Search currencies'**
+  String get setupCurrencySearch;
+
+  /// Add account, the Currency dropdown: shown in the list when the search matches nothing
+  ///
+  /// In en, this message translates to:
+  /// **'No currency by that name'**
+  String get setupCurrencyNoMatch;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

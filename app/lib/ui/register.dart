@@ -155,7 +155,10 @@ class RegisterPanel extends StatelessWidget {
         rowCategory(t, r).toLowerCase().contains(q) ||
         (digits.isNotEmpty &&
             RegExp(r'^\d+$').hasMatch(digits) &&
-            formatWhole(r.amount).replaceAll(',', '').contains(digits));
+            formatWhole(
+              r.amount,
+              r.currency,
+            ).replaceAll(',', '').contains(digits));
   }
 
   String? _accountOf(RegisterRow r) => allAccounts?[r.accountId]?.name;
@@ -824,11 +827,14 @@ class _PostedRow extends StatelessWidget {
     final t = context.t;
     final selected = bar != null;
     final r = row;
+    final rate = r.otherAmount == null
+        ? null
+        : exchangeRate(r.amount, r.currency, r.otherAmount, r.otherCurrency!);
     final memo = r.kind == RowKind.split && r.memo.isEmpty
         ? r.splitLines
               .map(
                 (l) =>
-                    '${splitLineName(t, l)} ${r.currency.symbol}${formatWhole(l.amount)}',
+                    '${splitLineName(t, l)} ${formatRounded(l.amount.abs(), currency: r.currency)}',
               )
               .join(' · ')
         : r.otherAmount != null
@@ -837,15 +843,10 @@ class _PostedRow extends StatelessWidget {
             t.rowsExchangeNote(
               rowPayee(t, r),
               formatMoney(r.otherAmount!.abs(), currency: r.otherCurrency!),
-              formatMoney(
-                mntPerDollar(
-                      r.amount,
-                      r.currency,
-                      r.otherAmount,
-                      r.otherCurrency!,
-                    ) ??
-                    0,
-              ),
+              rate == null ? '' : formatMoney(rate.rate, currency: rate.quote),
+              rate == null
+                  ? ''
+                  : formatRounded(rate.base.scale, currency: rate.base),
             ),
           ].join(' · ')
         : r.memo;

@@ -149,9 +149,9 @@ class MonthOfSpending {
     }
     // A month is 365.25 / 12 = 1461 / 48 days; whole units, rounded up, in
     // integers so an exact month doesn't gain a unit.
-    final per = 48 * days * 100;
+    final per = 48 * days * main.scale;
     return MonthOfSpending(
-      amount: (spent * 1461 + per - 1) ~/ per * 100,
+      amount: (spent * 1461 + per - 1) ~/ per * main.scale,
       typed: false,
       days: days,
       spent: spent,
@@ -173,17 +173,19 @@ int? typedMonth(String? stored, Currency main) {
   return int.tryParse(parts.last);
 }
 
-/// The currency Savings counts in: the one most open accounts are in, ₮ on
-/// a tie. Accounts in the other currency aren't in its sums (the page says
+/// The currency Savings counts in: the one most open accounts are in; on
+/// a tie, the first in the list (tugrik, then dollars, then by code). Accounts in the other currency aren't in its sums (the page says
 /// so) until the owner decides how Savings treats two currencies.
 Currency mainCurrency(LedgerData data) {
   final n = <Currency, int>{};
   for (final a in data.openAccounts) {
     n[a.currency] = (n[a.currency] ?? 0) + 1;
   }
-  return (n[Currency.usd] ?? 0) > (n[Currency.mnt] ?? 0)
-      ? Currency.usd
-      : Currency.mnt;
+  var main = Currency.mnt;
+  for (final c in Currency.values) {
+    if ((n[c] ?? 0) > (n[main] ?? 0)) main = c;
+  }
+  return main;
 }
 
 class Readiness {

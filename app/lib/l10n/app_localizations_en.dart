@@ -1295,28 +1295,13 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planClickToRename => 'Click to rename';
-
-  @override
   String get planShowTheseRows => 'Show these rows';
-
-  @override
-  String get planRename => 'Rename';
 
   @override
   String get planPayMenu => 'Pay…';
 
   @override
   String get planUnmarkPayday => 'Not a payday';
-
-  @override
-  String get planMarkPayday => 'Mark as payday';
-
-  @override
-  String get planChangeToSpending => 'Change to spending';
-
-  @override
-  String get planChangeToIncome => 'Change to income';
 
   @override
   String get planArchive => 'Archive';
@@ -3266,8 +3251,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String rowsRatePerDollar(Object rate) {
-    return '$rate per \$1';
+  String rowsRatePer(String rate, String one) {
+    return '$rate per $one';
   }
 
   @override
@@ -3281,18 +3266,17 @@ class WordsEn extends Words {
   String get setupCurrency => 'Currency';
 
   @override
-  String get setupCurrencyMnt => '₮ Tugrik';
-
-  @override
-  String get setupCurrencyUsd => '\$ Dollar';
-
-  @override
   String get setupCurrencyHint =>
       'Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.';
 
   @override
-  String rowsExchangeNote(Object account, Object amount, Object rate) {
-    return '$account: $amount · $rate per \$1';
+  String rowsExchangeNote(
+    Object account,
+    Object amount,
+    Object rate,
+    String one,
+  ) {
+    return '$account: $amount · $rate per $one';
   }
 
   @override
@@ -3301,23 +3285,19 @@ class WordsEn extends Words {
   }
 
   @override
-  String savingsOnlyMnt(Object accounts) {
-    return 'Not counted here yet: $accounts. Savings counts tugrik only for now.';
+  String savingsOnlyOne(String accounts, String currency) {
+    return 'Not counted here yet: $accounts. Savings counts one currency for now: $currency.';
   }
 
   @override
-  String savingsOnlyUsd(Object accounts) {
-    return 'Not counted here yet: $accounts. Savings counts dollars only for now.';
-  }
-
-  @override
-  String importFileInMnt(Object account, Object example, Object asIs) {
-    return 'This file looks like it’s in tugrik, and $account is in dollars. Amounts come in as they are: $example would become $asIs.';
-  }
-
-  @override
-  String importFileInUsd(Object account, Object example, Object asIs) {
-    return 'This file looks like it’s in dollars, and $account is in tugrik. Amounts come in as they are: $example would become $asIs.';
+  String importFileIn(
+    String fileCurrency,
+    String account,
+    String accountCurrency,
+    String example,
+    String asIs,
+  ) {
+    return 'This file looks like it’s in $fileCurrency, and $account is in $accountCurrency. Amounts come in as they are: $example would become $asIs.';
   }
 
   @override
@@ -3827,9 +3807,6 @@ class WordsEn extends Words {
   String get appearanceColorsHide => 'Hide the colors';
 
   @override
-  String get planPlanMenu => 'Plan…';
-
-  @override
   String get planKindSpendMonth => 'Spend through the month';
 
   @override
@@ -3910,9 +3887,6 @@ class WordsEn extends Words {
 
   @override
   String get planCarryOff => 'What’s left goes back to not assigned';
-
-  @override
-  String get planRemove => 'Remove plan';
 
   @override
   String planEachMonth(String amount) {
@@ -4029,12 +4003,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planMoneyMenu => 'Accounts…';
-
-  @override
-  String get planMoneyMenuBoth => 'Currency and accounts…';
-
-  @override
   String get planMoneyCurrency => 'Currency';
 
   @override
@@ -4133,4 +4101,51 @@ class WordsEn extends Words {
   String planAllAssignedIn(String symbol) {
     return 'Everything in $symbol is assigned to a category';
   }
+
+  @override
+  String get planEdit => 'Edit';
+
+  @override
+  String get planEditName => 'Name';
+
+  @override
+  String get planEditType => 'Type';
+
+  @override
+  String get planKindNone => 'No plan';
+
+  @override
+  String get planHelpNone =>
+      'Nothing is planned for it. You decide what to assign.';
+
+  @override
+  String get planEditPaydayYes => 'A payday';
+
+  @override
+  String planEditedUndo(String category) {
+    return 'Changes to $category';
+  }
+
+  @override
+  String get planEditPaydayHelpYes => 'Forecasts run to this payday.';
+
+  @override
+  String get planEditPaydayHelpNo => 'Forecasts run past it when it comes in.';
+
+  @override
+  String get planAccountsAll => 'All accounts';
+
+  @override
+  String get planAccountsNone => 'No accounts';
+
+  @override
+  String planAccountsSome(int count, int total) {
+    return '$count of $total accounts';
+  }
+
+  @override
+  String get setupCurrencySearch => 'Search currencies';
+
+  @override
+  String get setupCurrencyNoMatch => 'No currency by that name';
 }

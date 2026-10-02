@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 
+import '../domain/money.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/currency_names.dart';
 
 export '../l10n/app_localizations.dart' show Words, lookupWords;
 
@@ -133,3 +135,15 @@ String sayFullDate(Words t, DateTime d) =>
 
 /// The name of month [m] (1–12).
 String monthName(Words t, int m) => t.monthNames.split('|')[m - 1];
+
+/// What a currency is called in the language showing: "Mongolian Tugrik".
+String currencyName(Words t, Currency c) =>
+    (t.localeName.startsWith('mn')
+        ? currencyNamesMn
+        : currencyNamesEn)[c.code] ??
+    c.code;
+
+/// A currency as the choice made: its symbol, then its name ("₮ Mongolian
+/// Tugrik", "kr Swedish Krona").
+String currencyLabel(Words t, Currency c) =>
+    '${c.symbol} ${currencyName(t, c)}';

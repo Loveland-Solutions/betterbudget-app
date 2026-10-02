@@ -15,12 +15,16 @@ class ReconcileSession {
     required this.accountId,
     required this.owed,
     required DateTime today,
+    this.currency = Currency.mnt,
   }) : date = TextEditingController(text: fullDate(today)),
        // Empty, never the cleared total: a reconcile is only worth anything
        // because the number was read off the bank's statement.
        balance = TextEditingController();
 
   final int accountId;
+
+  /// The account's: how the typed balance is read.
+  final Currency currency;
 
   /// A credit account: the bank shows what you owe as a positive number.
   final bool owed;
@@ -31,7 +35,7 @@ class ReconcileSession {
 
   /// The statement balance in the account's own sign, or null if unreadable.
   int? get statementBalance {
-    final v = parseAmount(balance.text);
+    final v = parseAmount(balance.text, currency);
     return v == null ? null : (owed ? -v : v);
   }
 
@@ -97,11 +101,8 @@ class ReconcilePanel extends StatelessWidget {
           final canAdjust = off != null && off != 0 && c.dateProblem == null;
           // Shown the way the bank shows it.
           int bank(int v) => s.owed ? -v : v;
-          String money(int v) => formatMoney(
-            v,
-            showCents: v % 100 != 0,
-            currency: CurrencyScope.of(context),
-          );
+          String money(int v) =>
+              formatShort(v, currency: CurrencyScope.of(context));
 
           Widget line(String label, Widget value, {Widget? note}) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
