@@ -71,10 +71,13 @@ void main() {
     Map<String, String> prefs = const {},
     List<CategoryPlan> plans = const [],
     List<PaySchedule> pay = const [],
+    List<AccountInfo> more = const [],
+    Map<int, Set<int>> off = const {},
   }) => LedgerData(
     prefs: prefs,
     plans: plans,
     paySchedules: pay,
+    accountsOff: off,
     accounts: [
       acct(checking, 'Checking', AccountType.asset),
       acct(visa, 'Visa', AccountType.liability),
@@ -88,6 +91,7 @@ void main() {
       acct(waiting, 'Not categorized', AccountType.expense),
       acct(housing, 'Housing', AccountType.expense),
       acct(opening, 'Opening balances', AccountType.equity),
+      ...more,
     ],
     txns: [
       move(DateTime(2026, 8, 1), opening, checking, 540000000),
@@ -160,7 +164,7 @@ void main() {
       ledger(rows: [move(DateTime(2026, 10, 10), salary, checking, 420000000)]),
       oct,
     );
-    expect(b.cameIn[salary], 420000000);
+    expect(b.cameIn[salary], {Currency.mnt: 420000000});
     expect(b.notAssigned, 454000000 + 420000000);
   });
 
@@ -931,6 +935,274 @@ void main() {
     });
   });
 
+  group('currencies and accounts', () {
+    const insurance = 40, savings = 41, fund = 42, trip = 43;
+    final usd = acct(
+      insurance,
+      'Car insurance',
+      AccountType.expense,
+      currency: Currency.usd,
+    );
+
+    test('a dollar category draws on the dollar accounts', () {
+      final d = ledger(
+        more: [usd],
+        amounts: [
+          put(insurance, oct.start, 12000),
+          put(food, oct.start, 90000000),
+        ],
+        rows: [
+          move(
+            DateTime(2026, 10, 9),
+            dollars,
+            insurance,
+            9000,
+            currency: Currency.usd,
+          ),
+        ],
+      );
+      final o = of(d, oct);
+      final l = o.lines[insurance]!;
+      expect(l.currency, Currency.usd);
+      expect((l.assigned, l.spent, l.left), (12000, 9000, 3000));
+      // Two pools, never added together: $2,500 less the $90 paid, less
+      // the $30 still in the category.
+      expect(o.pools.map((p) => p.currency), [Currency.mnt, Currency.usd]);
+      expect(o.pools[1].money, 250000 - 9000);
+      expect(o.pools[1].notAssigned, 250000 - 9000 - 3000);
+      expect(o.notAssigned, 454000000 - 90000000);
+    });
+
+    test('a row in the other currency is named, not counted', () {
+      final d = ledger(
+        more: [usd],
+        amounts: [put(insurance, oct.start, 12000)],
+        rows: [move(DateTime(2026, 10, 9), checking, insurance, 30000000)],
+      );
+      final l = of(d, oct).lines[insurance]!;
+      expect((l.spent, l.left), (0, 12000));
+      expect(
+        (l.otherRows, l.otherAmount, l.otherCurrency),
+        (1, 30000000, Currency.mnt),
+      );
+      // Nothing of the kind on a line in its own currency.
+      expect(of(d, oct).lines[food]!.otherRows, 0);
+    });
+
+    test('with only tugrik there is one pool', () {
+      final o = of(
+        LedgerData(
+          accounts: [
+            acct(checking, 'Checking', AccountType.asset),
+            acct(food, 'Groceries', AccountType.expense),
+          ],
+          txns: const [],
+        ),
+        oct,
+      );
+      expect(o.pools.single.currency, Currency.mnt);
+    });
+
+    test('paid from an account it does not use: counted, and named', () {
+      final d = ledger(
+        more: [acct(savings, 'Savings', AccountType.asset)],
+        off: {
+          food: {savings},
+        },
+        amounts: [put(food, oct.start, 90000000)],
+        rows: [
+          move(DateTime(2026, 8, 1), opening, savings, 100000000),
+          move(DateTime(2026, 10, 3), checking, food, 10000000),
+          move(DateTime(2026, 10, 4), savings, food, 5000000),
+        ],
+      );
+      final l = of(d, oct).lines[food]!;
+      expect(l.spent, 15000000);
+      expect(l.offSpent, 5000000);
+      expect(l.offAccounts, [savings]);
+      expect(l.backing, isNull);
+      // The money moved there from an account it does use: nothing to say.
+      final covered = ledger(
+        more: [acct(savings, 'Savings', AccountType.asset)],
+        off: {
+          food: {savings},
+        },
+        amounts: [put(food, oct.start, 90000000)],
+        rows: [
+          move(DateTime(2026, 10, 2), checking, savings, 5000000),
+          move(DateTime(2026, 10, 4), savings, food, 5000000),
+        ],
+      );
+      expect(of(covered, oct).lines[food]!.offSpent, 0);
+      // A refund into it isn't a payment from it.
+      final refund = ledger(
+        more: [acct(savings, 'Savings', AccountType.asset)],
+        off: {
+          food: {savings},
+        },
+        amounts: [put(food, oct.start, 90000000)],
+        rows: [move(DateTime(2026, 10, 4), food, savings, 500000)],
+      );
+      expect(of(refund, oct).lines[food]!.offSpent, 0);
+    });
+
+    test('changed to dollars, it counts from that period on', () {
+      final rows = [
+        move(
+          DateTime(2026, 9, 9),
+          dollars,
+          insurance,
+          60000,
+          currency: Currency.usd,
+        ),
+        move(
+          DateTime(2026, 10, 9),
+          dollars,
+          insurance,
+          9000,
+          currency: Currency.usd,
+        ),
+      ];
+      final amounts = [put(food, DateTime(2026, 9, 1), 90000000)];
+      // Without a day of its own, September's $600 would count.
+      expect(
+        of(
+          ledger(more: [usd], amounts: amounts, rows: rows),
+          oct,
+        ).lines[insurance]!.left,
+        -69000,
+      );
+      final o = of(
+        ledger(
+          more: [usd],
+          amounts: amounts,
+          rows: rows,
+          prefs: {'${BudgetKeys.fromPrefix}$insurance': '2026-10-01'},
+        ),
+        oct,
+      );
+      expect(o.lines[insurance]!.left, -9000);
+      // The pool still adds up: what's there, less what the lines hold.
+      expect(o.pools[1].notAssigned, o.pools[1].money + 9000);
+    });
+
+    test('an unchecked account since archived limits nothing', () {
+      final d = ledger(
+        more: [
+          AccountInfo(
+            id: savings,
+            name: 'Savings',
+            type: AccountType.asset,
+            archived: true,
+          ),
+        ],
+        off: {
+          food: {savings},
+        },
+        amounts: [put(food, oct.start, 600000000)],
+      );
+      // More than checking holds, and still no word about its accounts.
+      expect(of(d, oct).lines[food]!.backing, isNull);
+    });
+
+    test('an overspent neighbour does not hide a shortfall', () {
+      final d = ledger(
+        more: [
+          acct(savings, 'Savings', AccountType.asset),
+          acct(fund, 'Emergency', AccountType.expense),
+          acct(trip, 'Trip', AccountType.expense),
+        ],
+        off: {
+          fund: {checking},
+          trip: {checking},
+        },
+        amounts: [put(fund, oct.start, 100000000)],
+        rows: [
+          move(DateTime(2026, 8, 1), opening, savings, 60000000),
+          move(DateTime(2026, 10, 5), checking, trip, 50000000),
+        ],
+      );
+      expect(of(d, oct).lines[fund]!.backing, (
+        setAside: 100000000,
+        categories: 1,
+        have: 60000000,
+      ));
+    });
+
+    test('a row in the other currency stays named until it is fixed', () {
+      final d = ledger(
+        more: [usd],
+        amounts: [put(insurance, oct.start, 12000)],
+        rows: [move(DateTime(2026, 10, 9), checking, insurance, 30000000)],
+      );
+      expect(of(d, nov).lines[insurance]!.otherRows, 1);
+    });
+
+    test('pay in dollars came in, in dollars', () {
+      final d = ledger(
+        rows: [
+          move(
+            DateTime(2026, 10, 10),
+            salary,
+            dollars,
+            300000,
+            currency: Currency.usd,
+          ),
+        ],
+      );
+      expect(of(d, oct).cameIn[salary], {Currency.usd: 300000});
+    });
+
+    test('its accounts hold less than is set aside from them', () {
+      // An emergency fund kept in Savings alone: ₮1,000,000 there.
+      final d = ledger(
+        more: [
+          acct(savings, 'Savings', AccountType.asset),
+          acct(fund, 'Emergency', AccountType.expense),
+          acct(trip, 'Trip', AccountType.expense),
+        ],
+        off: {
+          fund: {checking, visa},
+          trip: {checking, visa},
+        },
+        amounts: [
+          put(fund, oct.start, 80000000),
+          put(trip, oct.start, 30000000),
+        ],
+        rows: [move(DateTime(2026, 8, 1), opening, savings, 100000000)],
+      );
+      final o = of(d, oct);
+      // The two share Savings: ₮1,100,000 set aside from ₮1,000,000.
+      expect(o.lines[fund]!.backing, (
+        setAside: 110000000,
+        categories: 2,
+        have: 100000000,
+      ));
+      expect(o.lines[trip]!.backing, (
+        setAside: 110000000,
+        categories: 2,
+        have: 100000000,
+      ));
+      expect(o.lines[food]!.backing, isNull);
+      // Within what Savings holds: nothing to say.
+      final ok = of(
+        ledger(
+          more: [
+            acct(savings, 'Savings', AccountType.asset),
+            acct(fund, 'Emergency', AccountType.expense),
+          ],
+          off: {
+            fund: {checking, visa},
+          },
+          amounts: [put(fund, oct.start, 80000000)],
+          rows: [move(DateTime(2026, 8, 1), opening, savings, 100000000)],
+        ),
+        oct,
+      );
+      expect(ok.lines[fund]!.backing, isNull);
+    });
+  });
+
   group('database', () {
     late AppDatabase db;
     setUp(() => db = AppDatabase(NativeDatabase.memory()));
@@ -1054,6 +1326,86 @@ void main() {
         expect(d.categories.map((c) => c.name), contains('Groceries'));
       },
     );
+
+    test('a category’s currency and accounts, and back', () async {
+      final food = await db.createCategory('Groceries', income: false);
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
+      final plan = CategoryPlan(
+        categoryId: food,
+        kind: PlanKind.spend,
+        amount: 90000000,
+        start: DateTime(2026, 10, 5),
+      );
+      await db.setCategoryPlan(food, plan);
+      // Unchecking an account keeps the amounts and the plan.
+      var before = await db.setCategoryMoney(
+        food,
+        currency: Currency.mnt,
+        off: {bank},
+      );
+      var d = await db.loadLedger();
+      expect(d.accountsOff[food], {bank});
+      expect(d.budgetAmounts, hasLength(1));
+      expect(before.off, isEmpty);
+      // A change of currency takes both away; undo brings them back.
+      before = await db.setCategoryMoney(
+        food,
+        currency: Currency.usd,
+        off: const {},
+      );
+      d = await db.loadLedger();
+      expect(d.accounts[food]!.currency, Currency.usd);
+      expect(d.budgetAmounts, isEmpty);
+      expect(d.plans, isEmpty);
+      expect(d.accountsOff, isEmpty);
+      await db.restoreCategoryMoney(food, before);
+      d = await db.loadLedger();
+      expect(d.accounts[food]!.currency, Currency.mnt);
+      expect(d.budgetAmounts.single.amount, 90000000);
+      expect(d.plans[food], plan);
+      expect(d.accountsOff[food], {bank});
+      // A new bank account starts unchecked on a category already
+      // narrowed, and checked on the rest.
+      final other = await db.createCategory('Fun', income: false);
+      final next = await db.createAccount(
+        name: 'Golomt',
+        type: AccountType.asset,
+      );
+      d = await db.loadLedger();
+      expect(d.accountsOff[food], {bank, next});
+      expect(d.accountsOff[other], isNull);
+      // Merged into a category in the other currency, its amounts don't
+      // become that currency's: they go back to not assigned.
+      final usd = await db.createCategory('Fun US', currency: Currency.usd);
+      final gone = await db.deleteCategory(food, into: usd);
+      d = await db.loadLedger();
+      expect(
+        Budget.of(
+          d,
+          start: oct.start,
+          end: oct.end,
+          today: today,
+        ).lines[usd]!.assigned,
+        0,
+      );
+      await db.undeleteCategory(gone);
+      d = await db.loadLedger();
+      expect(
+        Budget.of(
+          d,
+          start: oct.start,
+          end: oct.end,
+          today: today,
+        ).lines[food]!.assigned,
+        90000000,
+      );
+      // A new category is made in the currency asked for.
+      final ins = await db.createCategory('Insurance', currency: Currency.usd);
+      expect((await db.loadLedger()).accounts[ins]!.currency, Currency.usd);
+      await db.startNewLedger(today, keepCategories: true);
+      expect((await db.loadLedger()).accountsOff, isEmpty);
+    });
 
     test('several amounts in one write, and back', () async {
       final food = await db.createCategory('Groceries', income: false);

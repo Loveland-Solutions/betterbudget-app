@@ -5,6 +5,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/budget.dart' show BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/ui/appearance.dart';
@@ -2704,6 +2705,180 @@ void main() {
       expect(data.plans[clothing]!.amount, 60000000);
       await tidy(tester, db);
     });
+
+    testWidgets(
+      'a category’s currency and accounts: two pools, the checklist',
+      (tester) async {
+        final db = await pumpLedger(tester);
+        // A dollar account with $2,500 in it.
+        await tester.runAsync(() async {
+          final afcu = await db.createAccount(
+            name: 'AFCU Checking',
+            type: AccountType.asset,
+            currency: Currency.usd,
+          );
+          await db.postOpeningBalance(
+            accountId: afcu,
+            date: DateTime(2026, 9, 1),
+            balance: 250000,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+        await openBudget(tester);
+        var data = (await tester.runAsync(db.loadLedger))!;
+        Future<void> reload() async =>
+            data = (await tester.runAsync(db.loadLedger))!;
+        int id(String name) =>
+            data.categories.firstWhere((c) => c.name == name).id;
+        int account(String name) =>
+            data.openAccounts.firstWhere((a) => a.name == name).id;
+        Future<void> click(String key) async {
+          await tester.runAsync(() async {
+            await tester.tap(find.byKey(ValueKey(key)));
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+          });
+          await tester.pumpAndSettle();
+        }
+
+        String text(String key) =>
+            tester.widget<Text>(find.byKey(ValueKey(key))).data!;
+
+        // Each currency has its own money not assigned.
+        expect(
+          text('not-assigned'),
+          endsWith('not assigned to a category yet'),
+        );
+        expect(
+          text('not-assigned-USD'),
+          r'$2,500.00 not assigned to a category yet',
+        );
+
+        // A new category in dollars.
+        await tester.tap(find.byKey(const ValueKey('add-category')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('new-category-name')),
+          'Car insurance',
+        );
+        await tester.tap(find.byKey(const ValueKey('new-category-USD')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('new-category-create')));
+        await settle(tester);
+        await tester.pump(const Duration(seconds: 7)); // the toast goes
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+        await tester.pumpAndSettle();
+        await reload();
+        final insurance = id('Car insurance');
+        expect(data.accounts[insurance]!.currency, Currency.usd);
+
+        // Assigned in dollars, out of the dollar pool only.
+        await tester.tap(find.byKey(ValueKey('assigned-$insurance')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('assign-field')),
+          '120',
+        );
+        await tester.runAsync(() async {
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+        expect(
+          text('not-assigned-USD'),
+          r'$2,380.00 not assigned to a category yet',
+        );
+        // The tugrik line is its own: no dollars in it.
+        expect(text('not-assigned'), startsWith('₮'));
+
+        // Its accounts: the one dollar account, checked. Groceries lists
+        // the tugrik ones; unchecking all but Khan Savings says so on the
+        // line.
+        final groceries = id('Groceries');
+        await categoryMenu(tester, 'Car insurance', 'category-accounts');
+        expect(find.byKey(ValueKey('money-editor-$insurance')), findsOneWidget);
+        expect(
+          find.byKey(ValueKey('money-account-${account('AFCU Checking')}')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(ValueKey('money-account-${account('TDB Checking')}')),
+          findsNothing,
+        );
+        await tester.tap(find.byKey(const ValueKey('money-cancel')));
+        await tester.pumpAndSettle();
+        await categoryMenu(tester, 'Groceries', 'category-accounts');
+        // Cash and bank only: a card holds no money.
+        expect(
+          find.byKey(ValueKey('money-account-${account('Golomt Visa')}')),
+          findsNothing,
+        );
+        for (final name in ['TDB Checking', 'Cash wallet']) {
+          await tester.tap(
+            find.byKey(ValueKey('money-account-${account(name)}')),
+          );
+          await tester.pumpAndSettle();
+        }
+        await expectLater(
+          find.byType(LedgerScreen),
+          matchesGoldenFile('goldens/budget_accounts_open.png'),
+        );
+        await click('money-save');
+        await reload();
+        expect(data.accountsOff[groceries], {
+          account('TDB Checking'),
+          account('Cash wallet'),
+        });
+        expect(find.text('only from Khan Savings'), findsOneWidget);
+        // September's groceries were paid from the others: counted, and
+        // named.
+        expect(
+          find.textContaining('where this category’s money isn’t kept'),
+          findsOneWidget,
+        );
+        await tester.drag(
+          find.byKey(ValueKey('category-row-$groceries')),
+          const Offset(0, 400),
+        );
+        await tester.pumpAndSettle();
+        await expectLater(
+          find.byType(LedgerScreen),
+          matchesGoldenFile('goldens/budget_currencies.png'),
+        );
+        // ⌘Z checks them again.
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        await reload();
+        expect(data.accountsOff, isEmpty);
+
+        // Changing Car insurance to tugrik says what it takes back first.
+        await categoryMenu(tester, 'Car insurance', 'category-accounts');
+        await tester.tap(find.byKey(const ValueKey('money-currency-MNT')));
+        await tester.pumpAndSettle();
+        expect(
+          text('money-change'),
+          r'Changing the currency takes back $120.00 assigned to it',
+        );
+        await click('money-save');
+        await reload();
+        expect(data.accounts[insurance]!.currency, Currency.mnt);
+        expect(data.budgetAmounts, isEmpty);
+        // It counts from this period on in its new currency.
+        expect(data.prefs['budget.from.$insurance'], '2026-09-01');
+        expect(
+          text('not-assigned-USD'),
+          r'$2,500.00 not assigned to a category yet',
+        );
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        await reload();
+        expect(data.accounts[insurance]!.currency, Currency.usd);
+        expect(data.budgetAmounts.single.amount, 12000);
+        expect(data.prefs['budget.from.$insurance'], isNull);
+        await tidy(tester, db);
+      },
+    );
 
     testWidgets('the Budget screen lists categories with how they are used', (
       tester,

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -154,9 +155,65 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v11-from-v6-')),
+      contains(startsWith('betterbudget.before-v12-from-v6-')),
     );
   });
+
+  for (final (name, budgetIn, dollarAccounts, want) in [
+    ('the currency the budget began in', 'USD', 0, Currency.usd),
+    ('tugrik, when most accounts are', null, 0, Currency.mnt),
+    ('dollars, when most accounts are', null, 6, Currency.usd),
+  ]) {
+    test('upgrades a v11 file: spending categories take $name', () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      for (var i = 0; i < dollarAccounts; i++) {
+        final id = await db.addAccount(name: 'USD $i', type: AccountType.asset);
+        await db.customStatement(
+          "UPDATE accounts SET currency = 'USD' WHERE id = $id",
+        );
+      }
+      if (budgetIn != null) {
+        await db.setPreference('budget.currency', budgetIn);
+      }
+      await dropAddedInV12(db);
+      await db.customStatement('PRAGMA user_version = 11');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final data = await db.loadLedger();
+      expect(data.accountsOff, isEmpty);
+      final spending = data.categories.where((c) => !c.isIncome);
+      expect(spending, isNotEmpty);
+      if (budgetIn != null) {
+        // Amounts were assigned in it: every category takes it.
+        expect(spending.map((c) => c.currency).toSet(), {want});
+      } else {
+        // No budget yet: a category with rows takes their currency (the
+        // demo's are tugrik), one without takes the accounts'.
+        for (final c in spending) {
+          final u = data.categoryUsage[c.id];
+          final used = (u?.rows ?? 0) + (u?.scheduled ?? 0);
+          expect(c.currency, used > 0 ? Currency.mnt : want, reason: c.name);
+        }
+        expect(spending.map((c) => c.currency), contains(want));
+      }
+      // Accounts keep their own.
+      expect(
+        data.openAccounts.where((a) => a.currency == Currency.mnt),
+        isNotEmpty,
+      );
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v12-from-v11-')),
+      );
+    });
+  }
 
   test('upgrades a v10 file: amounts stay and a plan can be made', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -173,6 +230,7 @@ void main() {
       DateTime(2026, 9, 30),
       90000000,
     );
+    await dropAddedInV12(db);
     await dropAddedInV11(db);
     await db.customStatement('PRAGMA user_version = 10');
     await db.close();
@@ -192,7 +250,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v11-from-v10-')),
+      contains(startsWith('betterbudget.before-v12-from-v10-')),
     );
   });
 
@@ -205,6 +263,7 @@ void main() {
 
       var db = AppDatabase(NativeDatabase(file));
       await seedDemoIfEmpty(db, today);
+      await dropAddedInV12(db);
       await dropAddedInV11(db);
       await dropAddedInV10(db);
       await db.customStatement('PRAGMA user_version = 9');
@@ -225,7 +284,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v11-from-v9-')),
+        contains(startsWith('betterbudget.before-v12-from-v9-')),
       );
     },
   );
@@ -264,7 +323,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v11-from-v8-')),
+      contains(startsWith('betterbudget.before-v12-from-v8-')),
     );
   });
 
@@ -368,7 +427,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v11-from-v5-')),
+        contains(startsWith('betterbudget.before-v12-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -436,6 +495,11 @@ void main() {
 /// The v6 schema: pay has one amount.
 /// The v7 schema: import keys sat on transactions, not entries. A unique
 /// column can't be dropped, so entries is rebuilt without it.
+/// The v11 schema: a category has no accounts unchecked.
+Future<void> dropAddedInV12(AppDatabase db) async {
+  await db.customStatement('DROP TABLE category_accounts_off');
+}
+
 /// The v10 schema: no category plans.
 Future<void> dropAddedInV11(AppDatabase db) async {
   await db.customStatement('DROP TABLE category_plans');

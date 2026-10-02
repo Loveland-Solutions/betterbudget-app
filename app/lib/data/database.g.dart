@@ -4457,6 +4457,237 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
   }
 }
 
+class $CategoryAccountsOffTable extends CategoryAccountsOff
+    with TableInfo<$CategoryAccountsOffTable, CategoryAccountOffRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CategoryAccountsOffTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [categoryId, accountId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'category_accounts_off';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CategoryAccountOffRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {categoryId, accountId};
+  @override
+  CategoryAccountOffRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CategoryAccountOffRow(
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}account_id'],
+      )!,
+    );
+  }
+
+  @override
+  $CategoryAccountsOffTable createAlias(String alias) {
+    return $CategoryAccountsOffTable(attachedDatabase, alias);
+  }
+}
+
+class CategoryAccountOffRow extends DataClass
+    implements Insertable<CategoryAccountOffRow> {
+  final int categoryId;
+  final int accountId;
+  const CategoryAccountOffRow({
+    required this.categoryId,
+    required this.accountId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['category_id'] = Variable<int>(categoryId);
+    map['account_id'] = Variable<int>(accountId);
+    return map;
+  }
+
+  CategoryAccountsOffCompanion toCompanion(bool nullToAbsent) {
+    return CategoryAccountsOffCompanion(
+      categoryId: Value(categoryId),
+      accountId: Value(accountId),
+    );
+  }
+
+  factory CategoryAccountOffRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CategoryAccountOffRow(
+      categoryId: serializer.fromJson<int>(json['categoryId']),
+      accountId: serializer.fromJson<int>(json['accountId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'categoryId': serializer.toJson<int>(categoryId),
+      'accountId': serializer.toJson<int>(accountId),
+    };
+  }
+
+  CategoryAccountOffRow copyWith({int? categoryId, int? accountId}) =>
+      CategoryAccountOffRow(
+        categoryId: categoryId ?? this.categoryId,
+        accountId: accountId ?? this.accountId,
+      );
+  CategoryAccountOffRow copyWithCompanion(CategoryAccountsOffCompanion data) {
+    return CategoryAccountOffRow(
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryAccountOffRow(')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(categoryId, accountId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CategoryAccountOffRow &&
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId);
+}
+
+class CategoryAccountsOffCompanion
+    extends UpdateCompanion<CategoryAccountOffRow> {
+  final Value<int> categoryId;
+  final Value<int> accountId;
+  final Value<int> rowid;
+  const CategoryAccountsOffCompanion({
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CategoryAccountsOffCompanion.insert({
+    required int categoryId,
+    required int accountId,
+    this.rowid = const Value.absent(),
+  }) : categoryId = Value(categoryId),
+       accountId = Value(accountId);
+  static Insertable<CategoryAccountOffRow> custom({
+    Expression<int>? categoryId,
+    Expression<int>? accountId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CategoryAccountsOffCompanion copyWith({
+    Value<int>? categoryId,
+    Value<int>? accountId,
+    Value<int>? rowid,
+  }) {
+    return CategoryAccountsOffCompanion(
+      categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryAccountsOffCompanion(')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4471,6 +4702,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PreferencesTable preferences = $PreferencesTable(this);
   late final $BudgetAmountsTable budgetAmounts = $BudgetAmountsTable(this);
   late final $CategoryPlansTable categoryPlans = $CategoryPlansTable(this);
+  late final $CategoryAccountsOffTable categoryAccountsOff =
+      $CategoryAccountsOffTable(this);
   late final Index entriesImportKey = Index(
     'entries_import_key',
     'CREATE UNIQUE INDEX entries_import_key ON entries (import_key)',
@@ -4489,6 +4722,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     preferences,
     budgetAmounts,
     categoryPlans,
+    categoryAccountsOff,
     entriesImportKey,
   ];
 }
@@ -8557,6 +8791,367 @@ typedef $$CategoryPlansTableProcessedTableManager =
       CategoryPlanRow,
       PrefetchHooks Function({bool categoryId})
     >;
+typedef $$CategoryAccountsOffTableCreateCompanionBuilder =
+    CategoryAccountsOffCompanion Function({
+      required int categoryId,
+      required int accountId,
+      Value<int> rowid,
+    });
+typedef $$CategoryAccountsOffTableUpdateCompanionBuilder =
+    CategoryAccountsOffCompanion Function({
+      Value<int> categoryId,
+      Value<int> accountId,
+      Value<int> rowid,
+    });
+
+final class $$CategoryAccountsOffTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $CategoryAccountsOffTable,
+          CategoryAccountOffRow
+        > {
+  $$CategoryAccountsOffTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AccountsTable _categoryIdTable(_$AppDatabase db) => db.accounts
+      .createAlias('category_accounts_off__category_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<int>('category_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) => db.accounts
+      .createAlias('category_accounts_off__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<int>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CategoryAccountsOffTableFilterComposer
+    extends Composer<_$AppDatabase, $CategoryAccountsOffTable> {
+  $$CategoryAccountsOffTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$AccountsTableFilterComposer get categoryId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryAccountsOffTableOrderingComposer
+    extends Composer<_$AppDatabase, $CategoryAccountsOffTable> {
+  $$CategoryAccountsOffTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$AccountsTableOrderingComposer get categoryId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryAccountsOffTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CategoryAccountsOffTable> {
+  $$CategoryAccountsOffTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$AccountsTableAnnotationComposer get categoryId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryAccountsOffTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoryAccountsOffTable,
+          CategoryAccountOffRow,
+          $$CategoryAccountsOffTableFilterComposer,
+          $$CategoryAccountsOffTableOrderingComposer,
+          $$CategoryAccountsOffTableAnnotationComposer,
+          $$CategoryAccountsOffTableCreateCompanionBuilder,
+          $$CategoryAccountsOffTableUpdateCompanionBuilder,
+          (CategoryAccountOffRow, $$CategoryAccountsOffTableReferences),
+          CategoryAccountOffRow,
+          PrefetchHooks Function({bool categoryId, bool accountId})
+        > {
+  $$CategoryAccountsOffTableTableManager(
+    _$AppDatabase db,
+    $CategoryAccountsOffTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CategoryAccountsOffTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CategoryAccountsOffTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CategoryAccountsOffTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> categoryId = const Value.absent(),
+                Value<int> accountId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryAccountsOffCompanion(
+                categoryId: categoryId,
+                accountId: accountId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int categoryId,
+                required int accountId,
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryAccountsOffCompanion.insert(
+                categoryId: categoryId,
+                accountId: accountId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CategoryAccountsOffTable, CategoryAccountOffRow>(
+                    table,
+                  ),
+                  $$CategoryAccountsOffTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({categoryId = false, accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable: $$CategoryAccountsOffTableReferences
+                            ._categoryIdTable(db),
+                        referencedColumn: $$CategoryAccountsOffTableReferences
+                            ._categoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (accountId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.accountId,
+                        referencedTable: $$CategoryAccountsOffTableReferences
+                            ._accountIdTable(db),
+                        referencedColumn: $$CategoryAccountsOffTableReferences
+                            ._accountIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CategoryAccountsOffTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoryAccountsOffTable,
+      CategoryAccountOffRow,
+      $$CategoryAccountsOffTableFilterComposer,
+      $$CategoryAccountsOffTableOrderingComposer,
+      $$CategoryAccountsOffTableAnnotationComposer,
+      $$CategoryAccountsOffTableCreateCompanionBuilder,
+      $$CategoryAccountsOffTableUpdateCompanionBuilder,
+      (CategoryAccountOffRow, $$CategoryAccountsOffTableReferences),
+      CategoryAccountOffRow,
+      PrefetchHooks Function({bool categoryId, bool accountId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8579,4 +9174,6 @@ class $AppDatabaseManager {
       $$BudgetAmountsTableTableManager(_db, _db.budgetAmounts);
   $$CategoryPlansTableTableManager get categoryPlans =>
       $$CategoryPlansTableTableManager(_db, _db.categoryPlans);
+  $$CategoryAccountsOffTableTableManager get categoryAccountsOff =>
+      $$CategoryAccountsOffTableTableManager(_db, _db.categoryAccountsOff);
 }
