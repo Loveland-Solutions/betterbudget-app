@@ -4058,7 +4058,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Money for this category is kept in';
+  String get planMoneyAccounts => 'Accounts this category uses';
 
   @override
   String planMoneyChange(String amount) {
@@ -4106,12 +4106,12 @@ class WordsEn extends Words {
 
   @override
   String planOffAccount(String amount, String account) {
-    return '$amount paid from $account, where this category’s money isn’t kept';
+    return '$amount paid from $account, which this category doesn’t use';
   }
 
   @override
   String planOffAccounts(String amount, int count) {
-    return '$amount paid from $count accounts where this category’s money isn’t kept';
+    return '$amount paid from $count accounts this category doesn’t use';
   }
 
   @override

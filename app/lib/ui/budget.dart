@@ -2332,11 +2332,11 @@ List<(Currency, int)> _cameIn(Map<Currency, int>? came, Currency main) {
   return lines.isEmpty ? [(main, 0)] : lines;
 }
 
-/// The cash and bank accounts in [currency]: where a category's money can
-/// be kept. A card holds none.
-Iterable<AccountInfo> _moneyAccounts(LedgerData data, Currency currency) => data
-    .openAccounts
-    .where((a) => a.type == AccountType.asset && Budget.counts(a, currency));
+/// The accounts in [currency] a category can use: cash, bank and cards
+/// (owner, 2026-10-02: a bill planned for the Visa is the Visa's). Not a
+/// mortgage or student loan.
+Iterable<AccountInfo> _moneyAccounts(LedgerData data, Currency currency) =>
+    data.openAccounts.where((a) => Budget.counts(a, currency));
 
 /// What a spending line says about its money (rule 28): the accounts it's
 /// kept in, when those hold less than is left in it ([today]: only in the
@@ -2376,10 +2376,10 @@ List<_LineFlag> _lineFlags(
                 b.categories,
                 money(b.have),
               )
-            : used.length == 1
+            : used.where((a) => !a.isOwed).length == 1
             ? t.planBackingOne(
                 money(b.setAside),
-                used.single.name,
+                used.firstWhere((a) => !a.isOwed).name,
                 money(b.have),
               )
             : t.planBackingSome(money(b.setAside), money(b.have)),
@@ -2482,7 +2482,11 @@ class _CategoryMoneyEditorState extends State<_CategoryMoneyEditor> {
     final loses = _currency != c.currency && (assigned != 0 || hasPlan);
     // What unchecking does and doesn't reserve, with the real amounts:
     // only what the category has left must be in the checked accounts.
-    final checked = accounts.where((a) => !_off.contains(a.id)).toList();
+    // Its money is kept in the checked cash and bank accounts; a card
+    // holds none.
+    final checked = accounts
+        .where((a) => !a.isOwed && !_off.contains(a.id))
+        .toList();
     final have = checked.fold(0, (sum, a) => sum + data.balanceOf(a.id));
     final holds = _currency == c.currency ? widget.holds : null;
     String say(int v) =>
@@ -2490,7 +2494,7 @@ class _CategoryMoneyEditorState extends State<_CategoryMoneyEditor> {
     final rest =
         holds == null ||
             checked.isEmpty ||
-            checked.length == accounts.length ||
+            !accounts.any((a) => _off.contains(a.id)) ||
             holds < 0 ||
             have < holds
         ? null

@@ -2809,12 +2809,8 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('money-cancel')));
         await tester.pumpAndSettle();
         await categoryMenu(tester, 'Groceries', 'category-accounts');
-        // Cash and bank only: a card holds no money.
-        expect(
-          find.byKey(ValueKey('money-account-${account('Golomt Visa')}')),
-          findsNothing,
-        );
-        for (final name in ['TDB Checking', 'Cash wallet']) {
+        // Cards are accounts too: the Visa is in the list.
+        for (final name in ['TDB Checking', 'Cash wallet', 'Golomt Visa']) {
           await tester.tap(
             find.byKey(ValueKey('money-account-${account(name)}')),
           );
@@ -2829,12 +2825,13 @@ void main() {
         expect(data.accountsOff[groceries], {
           account('TDB Checking'),
           account('Cash wallet'),
+          account('Golomt Visa'),
         });
         expect(find.text('only from Khan Savings'), findsOneWidget);
         // September's groceries were paid from the others: counted, and
         // named.
         expect(
-          find.textContaining('where this category’s money isn’t kept'),
+          find.textContaining('which this category doesn’t use'),
           findsOneWidget,
         );
         await tester.drag(

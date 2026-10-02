@@ -1825,7 +1825,7 @@ class AppDatabase extends _$AppDatabase {
     // A category already narrowed to some accounts doesn't take a new one
     // on its own: it starts unchecked there. Categories using every
     // account get it, as before.
-    if (type == AccountType.asset) {
+    if (type == AccountType.asset || type == AccountType.liability) {
       await customStatement(
         'INSERT INTO category_accounts_off (category_id, account_id) '
         'SELECT DISTINCT o.category_id, ? FROM category_accounts_off o '

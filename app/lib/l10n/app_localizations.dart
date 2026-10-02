@@ -5887,10 +5887,10 @@ abstract class Words {
   /// **'{category} is now in {symbol}'**
   String planMoneyCurrencyUndo(String category, String symbol);
 
-  /// Budget page, a category's currency and accounts: label over the checklist of cash and bank accounts in the category's currency, all checked to begin with
+  /// Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with
   ///
   /// In en, this message translates to:
-  /// **'Money for this category is kept in'**
+  /// **'Accounts this category uses'**
   String get planMoneyAccounts;
 
   /// Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan
@@ -5943,13 +5943,13 @@ abstract class Words {
   /// Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)
   ///
   /// In en, this message translates to:
-  /// **'{amount} paid from {account}, where this category’s money isn’t kept'**
+  /// **'{amount} paid from {account}, which this category doesn’t use'**
   String planOffAccount(String amount, String account);
 
   /// The same note, when more than one such account paid
   ///
   /// In en, this message translates to:
-  /// **'{amount} paid from {count} accounts where this category’s money isn’t kept'**
+  /// **'{amount} paid from {count} accounts this category doesn’t use'**
   String planOffAccounts(String amount, int count);
 
   /// Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left

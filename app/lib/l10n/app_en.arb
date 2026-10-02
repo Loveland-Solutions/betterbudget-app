@@ -5920,9 +5920,9 @@
       }
     }
   },
-  "planMoneyAccounts": "Money for this category is kept in",
+  "planMoneyAccounts": "Accounts this category uses",
   "@planMoneyAccounts": {
-    "description": "Budget page, a category's currency and accounts: label over the checklist of cash and bank accounts in the category's currency, all checked to begin with"
+    "description": "Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with"
   },
   "planMoneyChange": "Changing the currency takes back {amount} assigned to it and removes its plan",
   "@planMoneyChange": {
@@ -6001,7 +6001,7 @@
       }
     }
   },
-  "planOffAccount": "{amount} paid from {account}, where this category’s money isn’t kept",
+  "planOffAccount": "{amount} paid from {account}, which this category doesn’t use",
   "@planOffAccount": {
     "description": "Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)",
     "placeholders": {
@@ -6013,7 +6013,7 @@
       }
     }
   },
-  "planOffAccounts": "{amount} paid from {count} accounts where this category’s money isn’t kept",
+  "planOffAccounts": "{amount} paid from {count} accounts this category doesn’t use",
   "@planOffAccounts": {
     "description": "The same note, when more than one such account paid",
     "placeholders": {

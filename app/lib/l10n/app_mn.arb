@@ -960,7 +960,7 @@
   "planOnlyFromSome": "зөвхөн {count} данснаас (нийт {total})",
   "planMoneyUndo": "{category} ангиллын данснууд",
   "planMoneyCurrencyUndo": "{category} ангилал одоо {symbol} валюттай",
-  "planMoneyAccounts": "Энэ ангиллын мөнгийг хадгалах данс",
+  "planMoneyAccounts": "Энэ ангиллын ашиглах данснууд",
   "planMoneyChange": "Валютыг өөрчилбөл түүнд хуваарилсан {amount} буцаж, төлөвлөгөө нь арилна",
   "planMoneyChangeAmount": "Валютыг өөрчилбөл түүнд хуваарилсан {amount} буцна",
   "planMoneyChangePlan": "Валютыг өөрчилбөл төлөвлөгөө нь арилна",

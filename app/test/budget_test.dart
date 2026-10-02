@@ -1086,6 +1086,52 @@ void main() {
       expect(o.pools[1].notAssigned, o.pools[1].money + 9000);
     });
 
+    test('a category that uses only the card: planned for the Visa', () {
+      // Checking unchecked, the Visa left: nothing to say about where its
+      // money is kept, and a card purchase is its own account's.
+      final d = ledger(
+        off: {
+          food: {checking},
+        },
+        amounts: [put(food, oct.start, 90000000)],
+        rows: [
+          move(DateTime(2026, 10, 3), visa, food, 10000000),
+          move(DateTime(2026, 10, 6), checking, food, 2000000),
+        ],
+      );
+      final l = of(d, oct).lines[food]!;
+      expect(l.spent, 12000000);
+      expect(l.backing, isNull);
+      // Only what checking paid is named.
+      expect(l.offSpent, 2000000);
+      expect(l.offAccounts, [checking]);
+    });
+
+    test('paid on an unchecked card, then the card paid from its account', () {
+      final rows = [move(DateTime(2026, 10, 3), visa, food, 10000000)];
+      final off = {
+        food: {visa},
+      };
+      final amounts = [put(food, oct.start, 90000000)];
+      var l = of(
+        ledger(off: off, amounts: amounts, rows: rows),
+        oct,
+      ).lines[food]!;
+      expect((l.offSpent, l.spent), (10000000, 10000000));
+      l = of(
+        ledger(
+          off: off,
+          amounts: amounts,
+          rows: [
+            ...rows,
+            move(DateTime(2026, 10, 9), checking, visa, 10000000),
+          ],
+        ),
+        oct,
+      ).lines[food]!;
+      expect(l.offSpent, 0);
+    });
+
     test('an unchecked account since archived limits nothing', () {
       final d = ledger(
         more: [

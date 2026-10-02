@@ -489,16 +489,17 @@ class Budget {
       }
     }
 
-    // The accounts a category keeps its money in: the cash and bank
-    // accounts in its currency it hasn't unchecked. A card holds no
-    // money, so it's never one of them.
-    Set<int> used(int id) {
+    // The accounts a category uses: those in its currency it hasn't
+    // unchecked, cards included (a bill can be planned for the Visa).
+    // Its money is kept in the cash and bank ones among them: a card
+    // holds none.
+    Set<int> used(int id, {bool moneyOnly = false}) {
       final off = data.accountsOff[id] ?? const <int>{};
       final c = currencyOfCategory(id);
       return {
         for (final a in data.accounts.values)
           if (counts(a, c) &&
-              a.type == AccountType.asset &&
+              (!moneyOnly || a.type == AccountType.asset) &&
               !off.contains(a.id))
             a.id,
       };
@@ -508,10 +509,7 @@ class Budget {
     // archived or deleted limits nothing anyone can see.
     bool limits(int id, int account) {
       final a = data.accounts[account];
-      return a != null &&
-          !a.archived &&
-          a.type == AccountType.asset &&
-          counts(a, currencyOfCategory(id));
+      return a != null && !a.archived && counts(a, currencyOfCategory(id));
     }
 
     final limited = {
@@ -535,17 +533,22 @@ class Budget {
           offAccounts.add(account);
         }
       }
-      // It can't hold more than its accounts do. Others kept in the same
-      // accounts (or fewer of them) share them.
+      // It can't hold more than its cash and bank accounts do. Others
+      // kept in the same ones (or fewer of them) share them. One that
+      // uses only cards keeps its money nowhere in particular, so
+      // there's nothing to compare.
       ({int setAside, int categories, int have})? backing;
-      if ((holding[id] ?? 0) > 0) {
+      final kept = used(id, moneyOnly: true);
+      if ((holding[id] ?? 0) > 0 && kept.isNotEmpty) {
         var have = 0, setAside = 0, categories = 0;
-        for (final a in accounts) {
+        for (final a in kept) {
           have += data.balanceOf(a);
         }
-        for (final MapEntry(key: other, value: theirs) in limited.entries) {
+        for (final other in limited.keys) {
+          final theirs = used(other, moneyOnly: true);
           if (currencyOfCategory(other) == currencyOfCategory(id) &&
-              accounts.containsAll(theirs) &&
+              theirs.isNotEmpty &&
+              kept.containsAll(theirs) &&
               (holding[other] ?? 0) > 0) {
             setAside += holding[other]!;
             categories++;

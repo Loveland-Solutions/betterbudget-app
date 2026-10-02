@@ -1141,10 +1141,17 @@ What's known so far:
       currency there's nothing to choose. Income categories aren't tied.
     - **Currency and accounts…** in the category's ⋯ menu ("Accounts…"
       with one currency) opens a panel under the row: the currency, then
-      "Money for this category is kept in" over every open cash and bank
-      account in it, each with a checkbox and its balance, all checked to
-      begin with. Cards aren't listed (budget review): a card holds no
-      money, and a category limited to a card would always read as short.
+      "Accounts this category uses" over every open account in it that
+      counts as money (cash, bank and cards; not mortgages or student
+      loans), each with a checkbox and its balance (a card's as a minus),
+      all checked to begin with. **Cards are in the list** (owner's
+      correction, 2026-10-02: "If they plan to pay with the visa, you
+      should let them. It's a separate account."). I had taken them out
+      after the budget review, because a category limited to a card always
+      read as short; instead a category that uses only cards gets no
+      "its accounts hold less" warning, since a card isn't where money is
+      kept, and with a card and bank accounts checked only the bank
+      accounts are compared.
       Only the unchecked ones are stored, so a new account is used by
       every category that uses them all; a category already narrowed
       doesn't take a new account on its own (it starts unchecked there).
@@ -1167,11 +1174,12 @@ What's known so far:
         owner's to decide.
       - A payment from an unchecked account still counts against the
         category, and the line names it in gold: "₮276,650.50 paid from
-        TDB Checking, where this category's money isn't kept". It goes
-        once that much has been moved into the paying account this period
-        from one the category does use (cash taken out, checking paid
-        back), so it means "the money hasn't been moved yet". A card
-        purchase is never flagged, nor a refund. Clicking opens the rows.
+        TDB Checking, which this category doesn't use". It goes once that
+        much has been moved into the paying account this period from one
+        the category does use (cash taken out, checking paid back, the
+        card paid), so it means "the money hasn't been moved yet". A
+        purchase on an unchecked card is named the same way; a refund
+        never is. Clicking opens the rows.
     - **A row in the other currency** filed under the category can't be
       counted, so the line says it's there, in gold, until it's fixed:
       "₮300,000 in 1 row isn't counted here (this category is in $); it

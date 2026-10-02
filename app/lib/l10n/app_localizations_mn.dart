@@ -3896,7 +3896,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Энэ ангиллын мөнгийг хадгалах данс';
+  String get planMoneyAccounts => 'Энэ ангиллын ашиглах данснууд';
 
   @override
   String planMoneyChange(String amount) {
