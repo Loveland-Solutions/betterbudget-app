@@ -71,6 +71,10 @@ void main() {
   setUpAll(() async {
     await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');
     await _loadFont('Manrope', 'assets/fonts/Manrope-Variable.ttf');
+    await _loadFont(
+      'BetterBudget Symbols',
+      'assets/fonts/BetterBudgetSymbols.ttf',
+    );
     final icons =
         '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf';
     if (File(icons).existsSync()) await _loadFont('MaterialIcons', icons);

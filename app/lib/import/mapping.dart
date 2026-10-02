@@ -239,13 +239,16 @@ Set<DateOrder> fittingOrders(Iterable<Object?> cells) {
 
 // ---------------------------------------------------------------- amounts
 
-/// A cell as minor units (exponent 2). Text may carry thousands separators
-/// in either style, a currency sign, a trailing minus or parentheses.
-int? readAmount(Object? cell) {
+/// A cell as minor units of a currency with [decimals] digits after the
+/// point (2 unless the account's has another). Text may carry thousands
+/// separators in either style, a currency sign, a trailing minus or
+/// parentheses.
+int? readAmount(Object? cell, [int decimals = 2]) {
+  final scale = const [1, 10, 100, 1000, 10000][decimals];
   if (cell is double) {
     // Past 2^53 minor units a double no longer holds whole numbers.
-    if (!cell.isFinite || cell.abs() >= 9e13) return null;
-    return (cell * 100).round();
+    if (!cell.isFinite || cell.abs() * scale >= 9e15) return null;
+    return (cell * scale).round();
   }
   if (cell is! String) return null;
   var s = cell.replaceAll(
@@ -278,7 +281,7 @@ int? readAmount(Object? cell) {
   } else if (lastComma >= 0 && s.length - lastComma - 1 != 3) {
     whole = s.substring(0, lastComma); // 12,5 or 12,50: a decimal comma
     frac = s.substring(lastComma + 1);
-  } else if (lastDot >= 0 && s.length - lastDot - 1 == 3) {
+  } else if (lastDot >= 0 && s.length - lastDot - 1 == 3 && decimals != 3) {
     whole = s; // 1.500 or 1.234.567: dots as thousands, as commas are
   } else if (lastDot >= 0) {
     whole = s.substring(0, lastDot);
@@ -292,12 +295,14 @@ int? readAmount(Object? cell) {
   }
   // Beyond this it's a reference number, not money.
   if (whole.length > 15) return null;
-  if (frac.length > 2) {
+  if (frac.length > decimals) {
     // No fractions of a mönggö.
-    if (!RegExp(r'^0*$').hasMatch(frac.substring(2))) return null;
-    frac = frac.substring(0, 2);
+    if (!RegExp(r'^0*$').hasMatch(frac.substring(decimals))) return null;
+    frac = frac.substring(0, decimals);
   }
-  final v = int.parse(whole) * 100 + int.parse(frac.padRight(2, '0'));
+  final v =
+      int.parse(whole) * scale +
+      (decimals == 0 ? 0 : int.parse(frac.padRight(decimals, '0')));
   return negative ? -v : v;
 }
 
@@ -416,7 +421,7 @@ String cleanPayee(Object? cell) {
   return space < 0 ? '' : t.substring(space + 1).trim();
 }
 
-ReadResult readRows(Sheet sheet, ImportMapping m) {
+ReadResult readRows(Sheet sheet, ImportMapping m, {int decimals = 2}) {
   final dateCol = m.columnOf(ColumnRole.date);
   final amountCol = m.columnOf(ColumnRole.amount);
   final inCol = m.columnOf(ColumnRole.moneyIn);
@@ -437,13 +442,13 @@ ReadResult readRows(Sheet sheet, ImportMapping m) {
     }
     int? amount;
     if (amountCol != null) {
-      final a = readAmount(sheet.cell(r, amountCol));
+      final a = readAmount(sheet.cell(r, amountCol), decimals);
       if (a != null) amount = m.spendingPositive ? -a : a;
     } else if (inCol != null || outCol != null) {
       final inCell = inCol == null ? null : sheet.cell(r, inCol);
       final outCell = outCol == null ? null : sheet.cell(r, outCol);
-      final i = readAmount(inCell);
-      final o = readAmount(outCell);
+      final i = readAmount(inCell, decimals);
+      final o = readAmount(outCell, decimals);
       if ((inCell != null && i == null) || (outCell != null && o == null)) {
         amount = null;
       } else if (i != null || o != null) {
@@ -477,7 +482,7 @@ ReadResult readRows(Sheet sheet, ImportMapping m) {
         memo: counterparty.isNotEmpty && description.isNotEmpty
             ? description
             : null,
-        balance: readAmount(balanceCell),
+        balance: readAmount(balanceCell, decimals),
       ),
     );
   }

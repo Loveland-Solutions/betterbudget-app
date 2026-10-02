@@ -95,6 +95,10 @@ class LedgerScreen extends StatefulWidget {
 class _LedgerScreenState extends State<LedgerScreen> {
   late final Stream<LedgerData> _ledger;
   var _section = AppSection.ledger;
+
+  /// The Budget page, for a key that reaches the screen while it has a
+  /// category open in Edit.
+  final _budgetKey = GlobalKey<_BudgetPageState>();
   int? _accountId;
 
   /// The clicked row; its actions show in a bar under it.
@@ -509,6 +513,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (event is KeyDownEvent) undo ? _undo() : _redoLast();
       return KeyEventResult.handled;
     }
+    // Esc closes a category's Edit on the Budget page, wherever the last
+    // click was.
+    if (_section == AppSection.budget &&
+        !_typing &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        (_budgetKey.currentState?.closeEdit() ?? false)) {
+      return KeyEventResult.handled;
+    }
     // Row keys act on the register; elsewhere its selection is out of sight.
     if (_section != AppSection.ledger ||
         _typing ||
@@ -755,9 +767,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _cancelEdit();
     final name = d.payee.isEmpty ? rowPayee(t, row) : d.payee;
     if (confirming) {
-      String money(int v) => formatMoney(
+      String money(int v) => formatShort(
         v.abs(),
-        showCents: v % 100 != 0,
         currency: _data?.accounts[row.accountId]?.currency ?? Currency.mnt,
       );
       final amount = d.amount ?? row.amount;
@@ -856,6 +867,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       accountId: account.id,
       owed: account.isOwed,
       today: today,
+      currency: account.currency,
     );
     // The register shows rows through the statement date as it's typed.
     session.date.addListener(() {
@@ -951,11 +963,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (n != 0) t.ledgerLocked(n),
         if (done.adjustmentTxnId != null)
           t.ledgerAdjustmentAdded(
-            formatMoney(
-              shownOff.abs(),
-              showCents: off % 100 != 0,
-              currency: account.currency,
-            ),
+            formatShort(shownOff.abs(), currency: account.currency),
           ),
       ].join(' · '),
     );
@@ -1458,11 +1466,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String kindOf(int v) => c.isIncome
         ? (v >= 0 ? 'received' : 'paidBack')
         : (v >= 0 ? 'spent' : 'refunded');
-    String money(MapEntry<Currency, int> e) => formatMoney(
-      e.value.abs(),
-      showCents: e.value % 100 != 0,
-      currency: e.key,
-    );
+    String money(MapEntry<Currency, int> e) =>
+        formatShort(e.value.abs(), currency: e.key);
     final parts = totals.entries.toList();
     // With a period chip the span is on the chip; all time says since when,
     // once, after the last.
@@ -1704,9 +1709,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _did(
       t.planFilled(
         amounts.length,
-        formatMoney(
+        formatShort(
           total,
-          showCents: total % 100 != 0,
           // One currency's button: its categories are all in it.
           currency: amounts.keys.first.currency,
         ),
@@ -1740,7 +1744,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         .fold(0, (sum, b) => sum + b.amount);
     final loses = changed && (assigned != 0 || data.plans.containsKey(c.id));
     final label = changed
-        ? t.planMoneyCurrencyUndo(c.name, currency.symbol)
+        ? t.planMoneyCurrencyUndo(c.name, currency.shown)
         : t.planMoneyUndo(c.name);
     // In its new currency it counts from this period on: what was paid
     // in that currency before was never counted against it.
@@ -1859,22 +1863,108 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  _CategoryActions _categoryActions(LedgerData data, AccountInfo c) =>
-      _CategoryActions(
-        rename: (name) => _renameCategory(data, c, name),
-        changeKind: () => _changeCategoryKind(c),
-        archive: () => _archiveCategory(c, true),
-        delete: () => _deleteCategory(data, c),
-        pay: c.isIncome
-            ? () => _openPaySetup(
-                category: c,
-                existing: data.paySchedules
-                    .where((p) => p.categoryId == c.id)
-                    .firstOrNull,
-              )
-            : null,
-        togglePayday: c.isIncome ? () => _setPayday(c, !c.payday) : null,
-      );
+  /// Edit was saved (rule 29): [e] is the category as it should be now.
+  /// One change goes the way it always has; several are written together
+  /// and undone together.
+  Future<void> _saveCategory(AccountInfo c, _CategoryEdit e) async {
+    final t = context.t;
+    final data = _data!;
+    final renamed = e.name != c.name;
+    // A name another category has is a merge: nothing else applies to one
+    // that's gone.
+    if (renamed && _categoryNamed(data, e.name, except: c.id) != null) {
+      return _renameCategory(data, c, e.name);
+    }
+    final off = data.accountsOff[c.id] ?? const <int>{};
+    final oldPlan = data.plans[c.id];
+    final kind = e.income != c.isIncome;
+    final currency = !e.income && e.currency != c.currency;
+    final money =
+        !e.income &&
+        (currency || off.length != e.off.length || !off.containsAll(e.off));
+    // A change of currency removes the plan itself.
+    final plan = !e.income && e.plan != (currency ? null : oldPlan);
+    final payday = e.income && e.payday != c.payday;
+    final changes = [renamed, kind, money, plan, payday].where((x) => x);
+    if (changes.isEmpty) return;
+    if (changes.length == 1) {
+      if (renamed) return _renameCategory(data, c, e.name);
+      if (kind) return _changeCategoryKind(c);
+      if (money) return _setCategoryMoney(c, e.currency, e.off);
+      if (plan) return _setCategoryPlan(c, e.plan);
+      return _setPayday(c, e.payday);
+    }
+    final assigned = data.budgetAmounts
+        .where((b) => b.categoryId == c.id)
+        .fold(0, (sum, b) => sum + b.amount);
+    // A plan saved in the new currency takes the old one's place.
+    final removesPlan = oldPlan != null && e.plan == null;
+    final loses = currency && (assigned != 0 || removesPlan);
+    final back = kind && e.income ? _moneyBack(data, c) : null;
+    // What earlier periods sent back returns to a category that carries
+    // over again, or has no plan now: the toast says how much.
+    String? returns;
+    if (plan && !currency && !kind) {
+      final p = budgetPeriod(today, data.periodSchedule);
+      int free(LedgerData d) =>
+          Budget.of(d, start: p.start, end: p.end, today: today).pools
+              .where((pool) => pool.currency == c.currency)
+              .firstOrNull
+              ?.notAssigned ??
+          0;
+      final went = free(data) - free(data.withPlan(c.id, e.plan));
+      if (went > 0) {
+        returns = t.planReturns(
+          formatMoney(went, currency: c.currency),
+          e.name,
+        );
+      }
+    }
+    final type = e.income ? AccountType.income : AccountType.expense;
+    // In its new currency it counts from this period on.
+    final fromKey = '${BudgetKeys.fromPrefix}${c.id}';
+    final fromWas = data.prefs[fromKey];
+    final from = dateKey(budgetPeriod(today, data.periodSchedule).start);
+    late CategoryMoney moneyBefore;
+    CategoryPlan? planBefore;
+    Future<void> write() => db.transaction(() async {
+      if (renamed) await db.renameAccount(c.id, e.name);
+      if (kind) await db.setCategoryType(c.id, type);
+      if (money) {
+        moneyBefore = await db.setCategoryMoney(
+          c.id,
+          currency: e.currency,
+          off: e.off,
+        );
+        if (currency) await db.setPreference(fromKey, from);
+      }
+      if (plan) planBefore = await db.setCategoryPlan(c.id, e.plan);
+      if (payday) await db.setPayday(c.id, e.payday);
+    });
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    final label = t.planEditedUndo(e.name);
+    _did(
+      label,
+      message: [
+        label,
+        if (loses) _moneyChange(t, c, assigned, removesPlan),
+        ?returns,
+        ?back,
+      ].join(' · '),
+      undo: () => db.transaction(() async {
+        if (payday) await db.setPayday(c.id, c.payday);
+        if (plan) await db.setCategoryPlan(c.id, planBefore);
+        if (money) {
+          await db.restoreCategoryMoney(c.id, moneyBefore);
+          if (currency) await db.setPreference(fromKey, fromWas);
+        }
+        if (kind) await db.setCategoryType(c.id, c.type);
+        if (renamed) await db.renameAccount(c.id, c.name);
+      }),
+      redo: write,
+    );
+  }
 
   Future<void> _setPayday(AccountInfo c, bool payday) async {
     final t = context.t;
@@ -2168,6 +2258,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           mapping: mapping,
           fromSaved: fits,
           accountId: account.id,
+          currency: account.currency,
           plan: (rows, keys) => db.planImport(account.id, rows, keys),
           cleared: cleared,
           owed: account.isOwed,
@@ -2798,6 +2889,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   ),
                           ),
                           AppSection.budget => _BudgetPage(
+                            key: _budgetKey,
                             data: data,
                             today: today,
                             onShowRows: (c, period) =>
@@ -2805,8 +2897,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onShowAllRows: (c) => _openAll(category: c.id),
                             onSetAmount: _setBudgetAmount,
                             onStartLater: _startBudgetLater,
-                            onSetPlan: _setCategoryPlan,
-                            onSetMoney: _setCategoryMoney,
                             onAssignPlanned: _assignPlanned,
                             onKeepStart: () => _setPref(
                               BudgetKeys.keptStart,
@@ -2820,7 +2910,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               if (c != null) _openAll(category: c.id);
                             },
                             onKeysBack: _keysBack,
-                            actionsFor: (c) => _categoryActions(data, c),
+                            onSave: _saveCategory,
+                            onArchive: (c) => _archiveCategory(c, true),
+                            onDelete: (c) => _deleteCategory(data, c),
+                            onPay: (c) => _openPaySetup(
+                              category: c,
+                              existing: data.paySchedules
+                                  .where((p) => p.categoryId == c.id)
+                                  .firstOrNull,
+                            ),
                             onCreate: _createCategory,
                             onUnarchive: (c) => _archiveCategory(c, false),
                           ),

@@ -1889,45 +1889,25 @@
       }
     }
   },
-  "planClickToRename": "Click to rename",
-  "@planClickToRename": {
-    "description": "Budget page: tooltip on a category name"
-  },
   "planShowTheseRows": "Show these rows",
   "@planShowTheseRows": {
     "description": "Budget page: tooltip on a category’s usage, opens its transactions"
   },
-  "planRename": "Rename",
-  "@planRename": {
-    "description": "Budget page, category ⋯ menu"
-  },
   "planPayMenu": "Pay…",
   "@planPayMenu": {
-    "description": "Budget page, category ⋯ menu: income only, opens pay setup"
+    "description": "Budget page, Edit under an income category's row: button that opens pay setup"
   },
   "planUnmarkPayday": "Not a payday",
   "@planUnmarkPayday": {
-    "description": "Budget page, category ⋯ menu: income only, stop this category ending forecasts"
-  },
-  "planMarkPayday": "Mark as payday",
-  "@planMarkPayday": {
-    "description": "Budget page, category ⋯ menu: income only, make this category end forecasts"
-  },
-  "planChangeToSpending": "Change to spending",
-  "@planChangeToSpending": {
-    "description": "Budget page, category ⋯ menu"
-  },
-  "planChangeToIncome": "Change to income",
-  "@planChangeToIncome": {
-    "description": "Budget page, category ⋯ menu"
+    "description": "Budget page, Edit under an income category's row: the choice that this category's money is not a payday, so it doesn't end forecasts"
   },
   "planArchive": "Archive",
   "@planArchive": {
-    "description": "Budget page, category ⋯ menu"
+    "description": "Budget page, Edit under a category's row: button that archives the category"
   },
   "planDeleteMenu": "Delete…",
   "@planDeleteMenu": {
-    "description": "Budget page, category ⋯ menu: red, opens a confirmation"
+    "description": "Budget page, a category's menu (⋯ or right-click): red, opens a confirmation when the category has rows"
   },
   "planCategoryName": "Category name",
   "@planCategoryName": {
@@ -2433,7 +2413,7 @@
   },
   "planSave": "Save",
   "@planSave": {
-    "description": "Savings page, step 1: button beside the month field"
+    "description": "Savings page, step 1, beside the month field; and the Budget page, Edit under a category's row: button that keeps what was changed"
   },
   "planEmptyToAverage": "Empty goes back to your average",
   "@planEmptyToAverage": {
@@ -4769,11 +4749,16 @@
       "account": {}
     }
   },
-  "rowsRatePerDollar": "{rate} per $1",
-  "@rowsRatePerDollar": {
-    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is tugrik, like ₮3,450.00.",
+  "rowsRatePer": "{rate} per {one}",
+  "@rowsRatePer": {
+    "description": "Entry row, after both amounts of a transfer between currencies: the rate they make. rate is what one unit of the dearer currency costs in the other, like ₮3,450.00; one is that unit, like $1 or €1.",
     "placeholders": {
-      "rate": {}
+      "rate": {
+        "type": "String"
+      },
+      "one": {
+        "type": "String"
+      }
     }
   },
   "ledgerDbOtherCurrency": "That account is in another currency",
@@ -4788,25 +4773,20 @@
   "@setupCurrency": {
     "description": "New account page: label before the currency choice."
   },
-  "setupCurrencyMnt": "₮ Tugrik",
-  "@setupCurrencyMnt": {
-    "description": "New account page: currency choice."
-  },
-  "setupCurrencyUsd": "$ Dollar",
-  "@setupCurrencyUsd": {
-    "description": "New account page: currency choice."
-  },
   "setupCurrencyHint": "Every amount in this account is in it, and it can’t be changed later yet. Net worth shows each currency on its own line.",
   "@setupCurrencyHint": {
     "description": "New account page, under the currency choice."
   },
-  "rowsExchangeNote": "{account}: {amount} · {rate} per $1",
+  "rowsExchangeNote": "{account}: {amount} · {rate} per {one}",
   "@rowsExchangeNote": {
-    "description": "Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate.",
+    "description": "Register, memo line of a transfer between currencies: the other account, what it got or sent in its currency, and the rate (rate like ₮3,450.00, one like $1).",
     "placeholders": {
       "account": {},
       "amount": {},
-      "rate": {}
+      "rate": {},
+      "one": {
+        "type": "String"
+      }
     }
   },
   "savingsOtherCurrencyItem": "{account}  {amount} · another currency, not counted yet",
@@ -4817,36 +4797,37 @@
       "amount": {}
     }
   },
-  "savingsOnlyMnt": "Not counted here yet: {accounts}. Savings counts tugrik only for now.",
-  "@savingsOnlyMnt": {
-    "description": "Savings, under the steps: accounts in dollars that aren't in these sums. accounts is names with balances.",
+  "savingsOnlyOne": "Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.",
+  "@savingsOnlyOne": {
+    "description": "Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.",
     "placeholders": {
-      "accounts": {}
+      "accounts": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
     }
   },
-  "savingsOnlyUsd": "Not counted here yet: {accounts}. Savings counts dollars only for now.",
-  "@savingsOnlyUsd": {
-    "description": "Savings, under the steps: accounts in tugrik that aren't in these sums. accounts is names with balances.",
+  "importFileIn": "This file looks like it’s in {fileCurrency}, and {account} is in {accountCurrency}. Amounts come in as they are: {example} would become {asIs}.",
+  "@importFileIn": {
+    "description": "Import window: coral warning when the file names one currency (tugrik or dollars) and the account is in another. fileCurrency and accountCurrency are currency names, like US Dollar; example is an amount as the file means it, asIs as it would be read.",
     "placeholders": {
-      "accounts": {}
-    }
-  },
-  "importFileInMnt": "This file looks like it’s in tugrik, and {account} is in dollars. Amounts come in as they are: {example} would become {asIs}.",
-  "@importFileInMnt": {
-    "description": "Import window warning: the file names tugrik but the account is in dollars. example and asIs are one real row.",
-    "placeholders": {
-      "account": {},
-      "example": {},
-      "asIs": {}
-    }
-  },
-  "importFileInUsd": "This file looks like it’s in dollars, and {account} is in tugrik. Amounts come in as they are: {example} would become {asIs}.",
-  "@importFileInUsd": {
-    "description": "Import window warning: the file names dollars but the account is in tugrik. example and asIs are one real row.",
-    "placeholders": {
-      "account": {},
-      "example": {},
-      "asIs": {}
+      "fileCurrency": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "accountCurrency": {
+        "type": "String"
+      },
+      "example": {
+        "type": "String"
+      },
+      "asIs": {
+        "type": "String"
+      }
     }
   },
   "ledgerNewerLedger": "it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.",
@@ -5014,7 +4995,7 @@
   },
   "planShowAllRows": "{usage} · show them",
   "@planShowAllRows": {
-    "description": "Budget page: first item in a category's ⋯ menu; usage is e.g. \"42 rows · last 09.12 · 1 scheduled\"; opens every row, all time",
+    "description": "Budget page, Edit under a category's row: a line at the bottom left; usage is e.g. \"42 rows · last 09.12 · 1 scheduled\"; clicking it opens every row, all time",
     "placeholders": {
       "usage": {
         "type": "String"
@@ -5575,10 +5556,6 @@
   "@appearanceColorsHide": {
     "description": "Settings → Appearance, the same button once the schemes are showing: folds them away."
   },
-  "planPlanMenu": "Plan…",
-  "@planPlanMenu": {
-    "description": "Budget page: item in a spending category's ⋯ menu; opens its plan (what the category is for and how much goes in each period) under the row"
-  },
   "planKindSpendMonth": "Spend through the month",
   "@planKindSpendMonth": {
     "description": "Budget page, a category's plan: the first of four kinds, when the budget runs by month (groceries: money goes in and is spent down)"
@@ -5672,14 +5649,6 @@
   "planCarryOff": "What’s left goes back to not assigned",
   "@planCarryOff": {
     "description": "Budget page, a category's plan (Spend through the month): the second of two choices; when a period ends, what the category didn't spend returns to the money not assigned"
-  },
-  "planSave": "Save",
-  "@planSave": {
-    "description": "Budget page, a category's plan: button that keeps it"
-  },
-  "planRemove": "Remove plan",
-  "@planRemove": {
-    "description": "Budget page, a category's plan: button that takes the plan away (the category and its money stay)"
   },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
@@ -5780,7 +5749,7 @@
   },
   "planEditTip": "Click to change the plan",
   "@planEditTip": {
-    "description": "Budget page: tooltip on the note under a category's name"
+    "description": "Budget page: tooltip on the note under a category's name; clicking it opens Edit with the cursor in the plan's amount"
   },
   "planFill": "{count, plural, =1{Assign what’s planned · {amount} in 1 category} other{Assign what’s planned · {amount} in {count} categories}}",
   "@planFill": {
@@ -5866,14 +5835,6 @@
       }
     }
   },
-  "planMoneyMenu": "Accounts…",
-  "@planMoneyMenu": {
-    "description": "Budget page: item in a spending category's ⋯ menu when every account is in one currency; opens the list of accounts the category uses"
-  },
-  "planMoneyMenuBoth": "Currency and accounts…",
-  "@planMoneyMenuBoth": {
-    "description": "Budget page: item in a spending category's ⋯ menu when there are accounts in tugrik and in dollars; opens the category's currency and the accounts it uses"
-  },
   "planMoneyCurrency": "Currency",
   "@planMoneyCurrency": {
     "description": "Budget page, a category's currency and accounts: label over the choice of ₮ or $"
@@ -5922,7 +5883,7 @@
   },
   "planMoneyAccounts": "Accounts this category uses",
   "@planMoneyAccounts": {
-    "description": "Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with"
+    "description": "Budget page, Edit under a spending category's row: label over the dropdown of accounts in the category's currency (cash, bank and cards), each with a checkbox, all checked to begin with"
   },
   "planMoneyChange": "Changing the currency takes back {amount} assigned to it and removes its plan",
   "@planMoneyChange": {
@@ -6075,5 +6036,74 @@
         "type": "String"
       }
     }
+  },
+  "planEdit": "Edit",
+  "@planEdit": {
+    "description": "Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same"
+  },
+  "planEditName": "Name",
+  "@planEditName": {
+    "description": "Budget page, Edit under a category's row: label over the field with the category's name"
+  },
+  "planEditType": "Type",
+  "@planEditType": {
+    "description": "Budget page, Edit under a spending category's row: label over the choice of what the category is for (no plan, spend through the month, save up, due on a date, goal)"
+  },
+  "planKindNone": "No plan",
+  "@planKindNone": {
+    "description": "Budget page, Edit under a spending category's row: the first choice of type, a category with nothing planned for it"
+  },
+  "planHelpNone": "Nothing is planned for it. You decide what to assign.",
+  "@planHelpNone": {
+    "description": "Budget page, Edit under a spending category's row: the sentence under the types when No plan is picked"
+  },
+  "planEditPaydayYes": "A payday",
+  "@planEditPaydayYes": {
+    "description": "Budget page, Edit under an income category's row: the choice that this category's money is a payday (the other choice is Not a payday); no label over the pair"
+  },
+  "planEditedUndo": "Changes to {category}",
+  "@planEditedUndo": {
+    "description": "Toast and undo history label after Edit saved more than one change to a category at once (say its name and its plan)",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planEditPaydayHelpYes": "Forecasts run to this payday.",
+  "@planEditPaydayHelpYes": {
+    "description": "Budget page, Edit under an income category's row: the sentence under the choice when A payday is picked"
+  },
+  "planEditPaydayHelpNo": "Forecasts run past it when it comes in.",
+  "@planEditPaydayHelpNo": {
+    "description": "Budget page, Edit under an income category's row: the sentence under the choice when Not a payday is picked: this income doesn't end a forecast"
+  },
+  "planAccountsAll": "All accounts",
+  "@planAccountsAll": {
+    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked"
+  },
+  "planAccountsNone": "No accounts",
+  "@planAccountsNone": {
+    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account is unchecked"
+  },
+  "planAccountsSome": "{count} of {total} accounts",
+  "@planAccountsSome": {
+    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when only some accounts are checked (two or more; with one it shows that account's name)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "setupCurrencySearch": "Search currencies",
+  "@setupCurrencySearch": {
+    "description": "Add account, the Currency dropdown: hint in the search field at the top of the list of every currency"
+  },
+  "setupCurrencyNoMatch": "No currency by that name",
+  "@setupCurrencyNoMatch": {
+    "description": "Add account, the Currency dropdown: shown in the list when the search matches nothing"
   }
 }

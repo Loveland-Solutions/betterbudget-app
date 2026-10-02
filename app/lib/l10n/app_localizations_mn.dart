@@ -1233,28 +1233,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planClickToRename => 'Дарж нэрийг солих';
-
-  @override
   String get planShowTheseRows => 'Эдгээр гүйлгээг харуулах';
-
-  @override
-  String get planRename => 'Нэр солих';
 
   @override
   String get planPayMenu => 'Цалин…';
 
   @override
   String get planUnmarkPayday => 'Цалингийн өдөр биш';
-
-  @override
-  String get planMarkPayday => 'Цалингийн өдөр болгох';
-
-  @override
-  String get planChangeToSpending => 'Зарлага болгох';
-
-  @override
-  String get planChangeToIncome => 'Орлого болгох';
 
   @override
   String get planArchive => 'Архивлах';
@@ -3123,8 +3108,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String rowsRatePerDollar(Object rate) {
-    return '\$1 = $rate';
+  String rowsRatePer(String rate, String one) {
+    return '$one = $rate';
   }
 
   @override
@@ -3138,18 +3123,17 @@ class WordsMn extends Words {
   String get setupCurrency => 'Валют';
 
   @override
-  String get setupCurrencyMnt => '₮ Төгрөг';
-
-  @override
-  String get setupCurrencyUsd => '\$ Ам.доллар';
-
-  @override
   String get setupCurrencyHint =>
       'Энэ дансны бүх дүн энэ валютаар бөгөөд одоогоор дараа нь солих боломжгүй. Цэвэр хөрөнгө валют бүрийг тусад нь харуулна.';
 
   @override
-  String rowsExchangeNote(Object account, Object amount, Object rate) {
-    return '$account: $amount · \$1 = $rate';
+  String rowsExchangeNote(
+    Object account,
+    Object amount,
+    Object rate,
+    String one,
+  ) {
+    return '$account: $amount · $one = $rate';
   }
 
   @override
@@ -3158,23 +3142,19 @@ class WordsMn extends Words {
   }
 
   @override
-  String savingsOnlyMnt(Object accounts) {
-    return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн төгрөгөөр тооцно.';
+  String savingsOnlyOne(String accounts, String currency) {
+    return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн нэг валютаар тооцно: $currency.';
   }
 
   @override
-  String savingsOnlyUsd(Object accounts) {
-    return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн доллараар тооцно.';
-  }
-
-  @override
-  String importFileInMnt(Object account, Object example, Object asIs) {
-    return 'Энэ файл төгрөгөөр бичигдсэн бололтой, харин $account данс доллартай. Дүн хэвээрээ орно: $example нь $asIs болно.';
-  }
-
-  @override
-  String importFileInUsd(Object account, Object example, Object asIs) {
-    return 'Энэ файл доллараар бичигдсэн бололтой, харин $account данс төгрөгтэй. Дүн хэвээрээ орно: $example нь $asIs болно.';
+  String importFileIn(
+    String fileCurrency,
+    String account,
+    String accountCurrency,
+    String example,
+    String asIs,
+  ) {
+    return 'Энэ файл $fileCurrency валютаар бичигдсэн бололтой, харин $account данс $accountCurrency валюттай. Дүн хэвээрээ орно: $example нь $asIs болно.';
   }
 
   @override
@@ -3668,9 +3648,6 @@ class WordsMn extends Words {
   String get appearanceColorsHide => 'Өнгийг нуух';
 
   @override
-  String get planPlanMenu => 'Төлөвлөгөө…';
-
-  @override
   String get planKindSpendMonth => 'Сарын турш зарцуулах';
 
   @override
@@ -3751,9 +3728,6 @@ class WordsMn extends Words {
 
   @override
   String get planCarryOff => 'Үлдсэн нь хуваарилаагүй мөнгө рүү буцна';
-
-  @override
-  String get planRemove => 'Төлөвлөгөөг арилгах';
 
   @override
   String planEachMonth(String amount) {
@@ -3867,12 +3841,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planMoneyMenu => 'Данснууд…';
-
-  @override
-  String get planMoneyMenuBoth => 'Валют ба данснууд…';
-
-  @override
   String get planMoneyCurrency => 'Валют';
 
   @override
@@ -3969,4 +3937,53 @@ class WordsMn extends Words {
   String planAllAssignedIn(String symbol) {
     return '$symbol валютын бүх мөнгө ангилалд хуваарилагдсан';
   }
+
+  @override
+  String get planEdit => 'Засах';
+
+  @override
+  String get planEditName => 'Нэр';
+
+  @override
+  String get planEditType => 'Төрөл';
+
+  @override
+  String get planKindNone => 'Төлөвлөгөөгүй';
+
+  @override
+  String get planHelpNone =>
+      'Төлөвлөсөн дүн байхгүй. Хэдийг хуваарилахаа өөрөө шийднэ.';
+
+  @override
+  String get planEditPaydayYes => 'Цалингийн өдөр мөн';
+
+  @override
+  String planEditedUndo(String category) {
+    return '$category ангиллын өөрчлөлт';
+  }
+
+  @override
+  String get planEditPaydayHelpYes =>
+      'Төсөөлөл энэ цалингийн өдөр хүртэл тооцно.';
+
+  @override
+  String get planEditPaydayHelpNo =>
+      'Энэ орлого орсон ч төсөөлөл түүнийг давж тооцно.';
+
+  @override
+  String get planAccountsAll => 'Бүх данс';
+
+  @override
+  String get planAccountsNone => 'Данс сонгоогүй';
+
+  @override
+  String planAccountsSome(int count, int total) {
+    return '$total данснаас $count';
+  }
+
+  @override
+  String get setupCurrencySearch => 'Валют хайх';
+
+  @override
+  String get setupCurrencyNoMatch => 'Ийм нэртэй валют алга';
 }

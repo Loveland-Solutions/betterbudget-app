@@ -28,11 +28,8 @@ class _SavingsActions {
 }
 
 /// An amount in Savings' one currency (the page's [CurrencyScope]).
-String _here(BuildContext context, int v) => formatMoney(
-  v,
-  showCents: v % 100 != 0,
-  currency: CurrencyScope.of(context),
-);
+String _here(BuildContext context, int v) =>
+    formatShort(v, currency: CurrencyScope.of(context));
 
 class _SavingsPage extends StatelessWidget {
   const _SavingsPage({
@@ -111,9 +108,7 @@ class _SavingsPage extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                             child: Text(
-                              main == Currency.usd
-                                  ? t.savingsOnlyUsd(others)
-                                  : t.savingsOnlyMnt(others),
+                              t.savingsOnlyOne(others, currencyName(t, main)),
                               key: const ValueKey('savings-one-currency'),
                               style: onest(12, color: Mid.ink3),
                             ),
@@ -580,7 +575,7 @@ class _MonthFieldState extends State<_MonthField> {
     setState(() {
       _wrong = false;
       _editing = TextEditingController(
-        text: m.typed ? formatWhole(m.amount) : '',
+        text: m.typed ? formatWhole(m.amount, CurrencyScope.of(context)) : '',
       );
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
@@ -608,7 +603,7 @@ class _MonthFieldState extends State<_MonthField> {
       }
       return _close();
     }
-    final v = parseAmount(text);
+    final v = parseAmount(text, CurrencyScope.of(context));
     if (v == null || v <= 0) return setState(() => _wrong = true);
     widget.actions.setPref(
       ReadyKeys.month,
@@ -656,7 +651,7 @@ class _MonthFieldState extends State<_MonthField> {
                     _fieldDecoration(
                       hint: m.amount == 0
                           ? t.planMonthHint
-                          : formatWhole(m.amount),
+                          : formatWhole(m.amount, CurrencyScope.of(context)),
                       wrong: _wrong,
                     ).copyWith(
                       contentPadding: const EdgeInsets.symmetric(

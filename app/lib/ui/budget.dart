@@ -3,43 +3,29 @@ part of 'ledger_screen.dart';
 // The Budget section: envelopes, each spending category reading Assigned ·
 // Spent · Left for the period on screen, under the money not assigned yet
 // (ADR 0004 rule 26), with its plan under its name (rule 27). Also the one
-// place categories are added, renamed, archived and deleted (rule 22).
+// place categories are added, edited, archived and deleted (rule 22):
+// double-click a row, or Edit in its menu, opens everything about it under
+// the row (rule 29).
 
-/// What can be done to a category, from ⋯ on its row or a right-click.
-class _CategoryActions {
-  const _CategoryActions({
-    required this.rename,
-    required this.changeKind,
-    required this.archive,
-    required this.delete,
-    this.pay,
-    this.togglePayday,
-    this.plan,
-    this.accounts,
-    this.accountsLabel,
-  });
-  final ValueChanged<String> rename;
-  final VoidCallback changeKind;
-  final VoidCallback archive;
-  final VoidCallback delete;
-
-  /// Income only: set up or edit its pay, and mark it payday or not.
-  final VoidCallback? pay;
-  final VoidCallback? togglePayday;
-
-  /// Spending only: open its plan (rule 27).
-  final VoidCallback? plan;
-
-  /// Spending only: open its currency and accounts (rule 28).
-  final VoidCallback? accounts;
-  final String? accountsLabel;
-}
+/// What Edit saves for a category: everything it has, changed or not.
+typedef _CategoryEdit = ({
+  String name,
+  bool income,
+  Currency currency,
+  Set<int> off,
+  CategoryPlan? plan,
+  bool payday,
+});
 
 class _BudgetPage extends StatefulWidget {
   const _BudgetPage({
+    super.key,
     required this.data,
     required this.today,
-    required this.actionsFor,
+    required this.onSave,
+    required this.onArchive,
+    required this.onDelete,
+    required this.onPay,
     required this.onCreate,
     required this.onUnarchive,
     required this.onShowRows,
@@ -49,16 +35,16 @@ class _BudgetPage extends StatefulWidget {
     required this.onStartLater,
     required this.onKeepStart,
     required this.onShowUncategorized,
-    required this.onSetPlan,
     required this.onAssignPlanned,
-    required this.onSetMoney,
   });
 
-  /// A category's currency and the accounts it doesn't use were saved.
-  final void Function(AccountInfo, Currency, Set<int> off) onSetMoney;
+  /// Edit was saved: the category as it should be now.
+  final void Function(AccountInfo, _CategoryEdit) onSave;
+  final ValueChanged<AccountInfo> onArchive;
+  final ValueChanged<AccountInfo> onDelete;
 
-  /// A category's plan was saved, or removed with null.
-  final void Function(AccountInfo, CategoryPlan?) onSetPlan;
+  /// Income: set up or change its pay.
+  final ValueChanged<AccountInfo> onPay;
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
@@ -78,9 +64,8 @@ class _BudgetPage extends StatefulWidget {
   /// Spent was clicked: the category's rows in that period, in All accounts.
   final void Function(AccountInfo, BudgetSpan) onShowRows;
 
-  /// The usage in the ⋯ menu was picked: every row, all time.
+  /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
-  final _CategoryActions Function(AccountInfo) actionsFor;
   final void Function(String name, bool income, Currency currency) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
 
@@ -101,14 +86,22 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// The category whose Assigned is being typed.
   int? _editing;
 
-  /// The category whose plan is open under its row.
-  int? _planning;
+  /// The category open in Edit under its row.
+  int? _open;
 
-  /// The category whose currency and accounts are open under its row.
-  int? _accounts;
+  /// Edit was opened from the plan's note: the cursor starts in its amount.
+  bool _openAtPlan = false;
 
   BudgetSpan get _current =>
       budgetPeriod(widget.today, widget.data.periodSchedule);
+
+  /// Esc reached the screen with Edit open (the click before it was
+  /// outside the panel): it closes, as from inside. False with none open.
+  bool closeEdit() {
+    if (_open == null) return false;
+    setState(() => _open = null);
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,8 +141,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         formatMoney(v, currency: c ?? budget.currency);
     // A plan's amounts, as its note says them: cents only when there are
     // some.
-    String planMoney(int v, Currency c) =>
-        formatMoney(v, showCents: v % 100 != 0, currency: c);
+    String planMoney(int v, Currency c) => formatShort(v, currency: c);
     // Tugrik and dollar accounts both: a category says which it's in.
     final currencies = [
       for (final c in Currency.values)
@@ -192,10 +184,10 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
 
-    void plan(int? id, {bool accounts = false}) {
+    void open(int? id, {bool atPlan = false}) {
       setState(() {
-        _planning = accounts ? null : id;
-        _accounts = accounts ? id : null;
+        _open = id;
+        _openAtPlan = atPlan;
         if (id != null) _editing = null;
       });
       if (id == null) {
@@ -214,8 +206,7 @@ class _BudgetPageState extends State<_BudgetPage> {
       final planLine = c.isIncome ? null : line?.plan;
       final toAssign = c.isIncome ? 0 : line?.toAssign ?? 0;
       final currency = c.isIncome ? budget.currency : c.currency;
-      void accounts() =>
-          plan(_accounts == c.id ? null : c.id, accounts: _accounts != c.id);
+      final usage = data.categoryUsage[c.id];
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
@@ -225,9 +216,12 @@ class _BudgetPageState extends State<_BudgetPage> {
             : _planNote(t, line, period, widget.today, currency),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
-        onPlan: c.isIncome ? null : () => plan(_planning == c.id ? null : c.id),
-        onAccounts: c.isIncome ? null : accounts,
-        accountsLabel: both ? t.planMoneyMenuBoth : t.planMoneyMenu,
+        open: _open == c.id,
+        onOpen: () => open(c.id),
+        onClose: () => open(null),
+        onPlan: () => open(c.id, atPlan: true),
+        onDelete: () => widget.onDelete(c),
+        onPay: () => widget.onPay(c),
         flags: c.isIncome || line == null
             ? const []
             : _lineFlags(
@@ -236,13 +230,10 @@ class _BudgetPageState extends State<_BudgetPage> {
                 c,
                 line,
                 today: isCurrent,
-                onAccounts: accounts,
+                onAccounts: () => open(c.id),
                 onRows: () => widget.onShowRows(c, period),
                 onAllRows: () => widget.onShowAllRows(c),
               ),
-        usage: data.categoryUsage[c.id],
-        actions: widget.actionsFor(c),
-        onShowAllRows: () => widget.onShowAllRows(c),
         onShowRows: () => widget.onShowRows(c, period),
         payNote: c.isIncome ? _payNote(t, data, c) : null,
         cameIn: c.isIncome
@@ -262,47 +253,38 @@ class _BudgetPageState extends State<_BudgetPage> {
           next ? editNext(c) : edit(null);
         },
       );
-      // The plan opens under the row, which grows like a register row.
+      // Edit opens under the row, which grows like a register row.
       return SmoothHeight(
         key: ValueKey('category-row-${c.id}'),
         duration: grow,
-        child: _accounts == c.id
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  row,
-                  _CategoryMoneyEditor(
-                    key: ValueKey('money-editor-${c.id}'),
-                    category: c,
-                    data: data,
-                    holds: isCurrent ? line?.left ?? 0 : null,
-                    currencies: currencies,
-                    onCancel: () => plan(null),
-                    onSave: (currency, off) {
-                      widget.onSetMoney(c, currency, off);
-                      plan(null);
-                    },
-                  ),
-                ],
-              )
-            : _planning != c.id
+        child: _open != c.id
             ? row
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   row,
-                  _PlanEditor(
-                    key: ValueKey('plan-editor-${c.id}'),
+                  _CategoryEditor(
+                    key: ValueKey('category-editor-${c.id}'),
                     category: c,
-                    plan: data.plans[c.id],
                     data: data,
                     period: period,
                     today: widget.today,
                     assigned: line?.assigned ?? 0,
-                    onCancel: () => plan(null),
-                    onSave: (p) {
-                      if (p != data.plans[c.id]) widget.onSetPlan(c, p);
-                      plan(null);
+                    holds: isCurrent ? line?.left ?? 0 : null,
+                    currencies: currencies,
+                    usage: usage == null ? null : _usageText(t, usage),
+                    payNote: c.isIncome ? _payNote(t, data, c).text : null,
+                    atPlan: _openAtPlan,
+                    onShowAllRows: () => widget.onShowAllRows(c),
+                    onPay: () => widget.onPay(c),
+                    onArchive: () {
+                      open(null);
+                      widget.onArchive(c);
+                    },
+                    onCancel: () => open(null),
+                    onSave: (e) {
+                      open(null);
+                      widget.onSave(c, e);
                     },
                   ),
                 ],
@@ -347,9 +329,7 @@ class _BudgetPageState extends State<_BudgetPage> {
           waitDuration: const Duration(milliseconds: 500),
           child: Text(
             // With two currencies, "everything is assigned" needs its own.
-            both && pool.notAssigned == 0
-                ? t.planAllAssignedIn(c.symbol)
-                : line,
+            both && pool.notAssigned == 0 ? t.planAllAssignedIn(c.shown) : line,
             key: ValueKey('not-assigned$tag'),
             style: onest(
               17,
@@ -431,8 +411,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   tooltip: t.planPeriodPrev,
                   onTap: () => setState(() {
                     _editing = null;
-                    _planning = null;
-                    _accounts = null;
+                    _open = null;
                     _period = previousBudgetPeriod(period, by);
                   }),
                 ),
@@ -451,8 +430,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   tooltip: t.planPeriodNext,
                   onTap: () => setState(() {
                     _editing = null;
-                    _planning = null;
-                    _accounts = null;
+                    _open = null;
                     _period = nextBudgetPeriod(period, by);
                   }),
                 ),
@@ -462,8 +440,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                     key: const ValueKey('period-today'),
                     onTap: () => setState(() {
                       _editing = null;
-                      _planning = null;
-                      _accounts = null;
+                      _open = null;
                       _period = null;
                     }),
                     builder: (hover) => Text(
@@ -676,9 +653,8 @@ class _PeriodArrow extends StatelessWidget {
   }
   final p = pays.first;
   final more = pays.length > 1 ? t.planMorePay(pays.length - 1) : '';
-  String money(int v) => formatMoney(
+  String money(int v) => formatShort(
     v,
-    showCents: v % 100 != 0,
     currency: data.accounts[p.accountId]?.currency ?? Currency.mnt,
   );
   // Each paycheck beside what was planned for its own day: split pay's
@@ -753,21 +729,24 @@ String _usageText(Words t, CategoryUsage? u) {
   return parts.isEmpty ? t.planNoRows : parts.join(' · ');
 }
 
-/// One category: its name renames in place when clicked; ⋯ or a right-click
-/// for the rest.
+/// One category. A double-click opens it in Edit under the row; ⋯ or a
+/// right-click has Edit and Delete.
 class _CategoryRow extends StatefulWidget {
   const _CategoryRow({
     super.key,
     required this.category,
     required this.striped,
-    required this.usage,
-    required this.actions,
     required this.onShowRows,
-    required this.onShowAllRows,
     required this.currency,
     required this.editing,
     required this.onEdit,
     required this.onAssign,
+    required this.open,
+    required this.onOpen,
+    required this.onClose,
+    required this.onPlan,
+    required this.onDelete,
+    required this.onPay,
     this.payNote,
     this.line,
     this.cameIn,
@@ -775,17 +754,18 @@ class _CategoryRow extends StatefulWidget {
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
-    this.onPlan,
-    this.onAccounts,
-    this.accountsLabel,
     this.flags = const [],
   });
   final AccountInfo category;
 
-  /// Spending: opens or closes its currency and accounts under the row;
-  /// [accountsLabel] is what the menu calls that.
-  final VoidCallback? onAccounts;
-  final String? accountsLabel;
+  /// It's open in Edit under the row.
+  final bool open;
+  final VoidCallback onOpen;
+  final VoidCallback onClose;
+  final VoidCallback onDelete;
+
+  /// Income: the pay note was clicked.
+  final VoidCallback onPay;
 
   /// Spending: more to say under the name (the accounts it's limited to,
   /// rows that couldn't be counted), each with what a click does.
@@ -799,8 +779,8 @@ class _CategoryRow extends StatefulWidget {
   final String? assignPlanned;
   final VoidCallback? onAssignPlanned;
 
-  /// Spending: opens or closes its plan under the row.
-  final VoidCallback? onPlan;
+  /// The plan's note was clicked: Edit, at the plan.
+  final VoidCallback onPlan;
 
   /// Every other row is tinted, as in the register: the name and its
   /// amounts sit a page apart.
@@ -808,9 +788,6 @@ class _CategoryRow extends StatefulWidget {
 
   /// Spent was clicked: this period's rows.
   final VoidCallback onShowRows;
-
-  /// The usage in the menu was picked: every row.
-  final VoidCallback onShowAllRows;
 
   /// Spending: Put in, Spent and Left for the period on screen.
   final EnvelopeLine? line;
@@ -832,8 +809,6 @@ class _CategoryRow extends StatefulWidget {
 
   /// Income: whether it's payday, its pay, and any nudge about the estimate.
   final ({String text, bool nudge})? payNote;
-  final CategoryUsage? usage;
-  final _CategoryActions actions;
 
   @override
   State<_CategoryRow> createState() => _CategoryRowState();
@@ -841,56 +816,27 @@ class _CategoryRow extends StatefulWidget {
 
 class _CategoryRowState extends State<_CategoryRow> {
   final _menu = MenuController();
-  final _focus = FocusNode(debugLabel: 'category-name');
-  TextEditingController? _editing;
   bool _hover = false;
+  DateTime? _lastTap;
 
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() {
-      if (!_focus.hasFocus && _editing != null) _save();
-    });
-  }
-
-  @override
-  void dispose() {
-    _editing?.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  void _startRename() {
-    final name = widget.category.name;
-    setState(
-      () => _editing = TextEditingController(text: name)
-        ..selection = TextSelection(baseOffset: 0, extentOffset: name.length),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
-    });
-  }
-
-  void _save() {
-    final name = _editing?.text.trim() ?? '';
-    _cancel();
-    if (name.isNotEmpty && name != widget.category.name) {
-      widget.actions.rename(name);
+  /// The second click of two close together opens Edit, as in the
+  /// register; on the row that's open, it closes it.
+  void _tap() {
+    final now = DateTime.now();
+    final last = _lastTap;
+    _lastTap = now;
+    if (last == null ||
+        now.difference(last) >= const Duration(milliseconds: 450)) {
+      return;
     }
-  }
-
-  void _cancel() {
-    final c = _editing;
-    if (c == null) return;
-    setState(() => _editing = null);
-    WidgetsBinding.instance.addPostFrameCallback((_) => c.dispose());
+    _lastTap = null;
+    widget.open ? widget.onClose() : widget.onOpen();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final c = widget.category;
-    final a = widget.actions;
     return MenuAnchor(
       controller: _menu,
       style: _menuStyle,
@@ -900,26 +846,15 @@ class _CategoryRowState extends State<_CategoryRow> {
       },
       menuChildren: _categoryMenu(
         t,
-        c,
-        usage: widget.usage == null ? null : _usageText(t, widget.usage),
-        showRows: widget.onShowAllRows,
-        _CategoryActions(
-          rename: (_) => _startRename(),
-          changeKind: a.changeKind,
-          archive: a.archive,
-          delete: a.delete,
-          pay: a.pay,
-          togglePayday: a.togglePayday,
-          plan: widget.onPlan,
-          accounts: widget.onAccounts,
-          accountsLabel: widget.accountsLabel,
-        ),
+        onEdit: widget.onOpen,
+        onDelete: widget.onDelete,
       ),
       child: MouseRegion(
         onEnter: (_) => setState(() => _hover = true),
         onExit: (_) => setState(() => _hover = false),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onTap: _tap,
           onSecondaryTapDown: (d) => _menu.open(position: d.localPosition),
           child: Container(
             constraints: const BoxConstraints(minHeight: 40),
@@ -943,78 +878,41 @@ class _CategoryRowState extends State<_CategoryRow> {
             child: Row(
               children: [
                 Expanded(
-                  child: _editing != null
-                      ? Align(
-                          alignment: Alignment.centerLeft,
-                          child: SizedBox(
-                            width: 280,
-                            height: 32,
-                            child: CallbackShortcuts(
-                              bindings: {
-                                const SingleActivator(
-                                  LogicalKeyboardKey.escape,
-                                ): _cancel,
-                              },
-                              child: TextField(
-                                key: const ValueKey('category-name-field'),
-                                controller: _editing,
-                                focusNode: _focus,
-                                style: onest(13.5),
-                                onSubmitted: (_) => _save(),
-                                decoration: _fieldDecoration(),
-                              ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.name, style: onest(13.5)),
+                      if (widget.planNote case final note?)
+                        _PlanNoteLine(
+                          id: c.id,
+                          note: note,
+                          assign: widget.assignPlanned,
+                          onAssign: widget.onAssignPlanned,
+                          onPlan: widget.onPlan,
+                        ),
+                      for (final (i, f) in widget.flags.indexed)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Hoverable(
+                            key: ValueKey('line-flag-${c.id}-$i'),
+                            onTap: f.onTap,
+                            builder: (hover) => Text(
+                              f.text,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: onest(12, color: f.color, tabular: true)
+                                  .copyWith(
+                                    decoration: hover
+                                        ? TextDecoration.underline
+                                        : null,
+                                    decorationColor: f.color,
+                                  ),
                             ),
                           ),
-                        )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Tooltip(
-                              message: t.planClickToRename,
-                              waitDuration: const Duration(milliseconds: 600),
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.text,
-                                child: GestureDetector(
-                                  onTap: _startRename,
-                                  child: Text(c.name, style: onest(13.5)),
-                                ),
-                              ),
-                            ),
-                            if (widget.planNote case final note?)
-                              _PlanNoteLine(
-                                id: c.id,
-                                note: note,
-                                assign: widget.assignPlanned,
-                                onAssign: widget.onAssignPlanned,
-                                onPlan: widget.onPlan,
-                              ),
-                            for (final (i, f) in widget.flags.indexed)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 1),
-                                child: Hoverable(
-                                  key: ValueKey('line-flag-${c.id}-$i'),
-                                  onTap: f.onTap,
-                                  builder: (hover) => Text(
-                                    f.text,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        onest(
-                                          12,
-                                          color: f.color,
-                                          tabular: true,
-                                        ).copyWith(
-                                          decoration: hover
-                                              ? TextDecoration.underline
-                                              : null,
-                                          decorationColor: f.color,
-                                        ),
-                                  ),
-                                ),
-                              ),
-                          ],
                         ),
+                    ],
+                  ),
                 ),
                 if (widget.payNote case final note?) ...[
                   // Not Flexible: sharing the spare width with the name
@@ -1023,7 +921,7 @@ class _CategoryRowState extends State<_CategoryRow> {
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Hoverable(
                       key: ValueKey('pay-note-${c.id}'),
-                      onTap: widget.actions.pay,
+                      onTap: widget.onPay,
                       builder: (hover) => Text(
                         note.text,
                         style:
@@ -1031,7 +929,7 @@ class _CategoryRowState extends State<_CategoryRow> {
                               12.5,
                               color: note.nudge ? Mid.gold : Mid.ink2,
                             ).copyWith(
-                              decoration: hover && widget.actions.pay != null
+                              decoration: hover
                                   ? TextDecoration.underline
                                   : null,
                               decorationColor: note.nudge ? Mid.gold : Mid.ink2,
@@ -1168,49 +1066,25 @@ class _CategoryRowState extends State<_CategoryRow> {
   }
 }
 
+/// A category's menu: Edit, where everything about it is, and Delete.
 List<Widget> _categoryMenu(
-  Words t,
-  AccountInfo c,
-  _CategoryActions act, {
-  String? usage,
-  VoidCallback? showRows,
+  Words t, {
+  required VoidCallback onEdit,
+  required VoidCallback onDelete,
 }) {
   Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
       MenuItemButton(
         key: ValueKey(key),
         onPressed: onTap,
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+          minimumSize: const WidgetStatePropertyAll(Size(160, 34)),
           overlayColor: WidgetStatePropertyAll(Mid.blueWash),
         ),
         child: Text(label, style: onest(13, color: color ?? Mid.ink2)),
       );
   return [
-    // How much it's used decides keep, merge or archive, which is what
-    // this menu is for; picking it shows every row.
-    if (usage != null && showRows != null) ...[
-      item(t.planShowAllRows(usage), 'category-rows', showRows),
-      Divider(height: 9, color: Mid.rule),
-    ],
-    item(t.planRename, 'category-rename', () => act.rename(c.name)),
-    if (act.plan case final plan?) item(t.planPlanMenu, 'category-plan', plan),
-    if (act.accounts case final accounts?)
-      item(act.accountsLabel ?? t.planMoneyMenu, 'category-accounts', accounts),
-    if (act.pay case final pay?) item(t.planPayMenu, 'category-pay', pay),
-    if (act.togglePayday case final toggle?)
-      item(
-        c.payday ? t.planUnmarkPayday : t.planMarkPayday,
-        'category-payday',
-        toggle,
-      ),
-    item(
-      c.isIncome ? t.planChangeToSpending : t.planChangeToIncome,
-      'category-kind',
-      act.changeKind,
-    ),
-    Divider(height: 9, color: Mid.rule),
-    item(t.planArchive, 'category-archive', act.archive),
-    item(t.planDeleteMenu, 'category-delete', act.delete, color: Mid.coral),
+    item(t.planEdit, 'category-edit', onEdit),
+    item(t.planDeleteMenu, 'category-delete', onDelete, color: Mid.coral),
   ];
 }
 
@@ -1318,13 +1192,13 @@ class _NewCategoryState extends State<_NewCategory> {
                 kind(true, t.planIncome),
                 if (!_income && widget.currencies.length > 1) ...[
                   const SizedBox(width: 18),
-                  for (final c in widget.currencies)
-                    _Choice(
-                      key: ValueKey('new-category-${c.code}'),
-                      label: _currencyName(t, c),
-                      on: _currency == c,
-                      onTap: () => setState(() => _currency = c),
-                    ),
+                  _CurrencyMenu(
+                    buttonKey: 'new-category-currency',
+                    itemPrefix: 'new-category-',
+                    currencies: widget.currencies,
+                    currency: _currency,
+                    onPick: (c) => setState(() => _currency = c),
+                  ),
                 ],
                 const Spacer(),
                 BarButton(
@@ -1560,7 +1434,7 @@ class _AssignFieldState extends State<_AssignField> {
       // Closed from outside (an arrow, Back to today) mid-typing: what was
       // typed is kept, as clicking away would.
       final typed = _text!.text.trim();
-      final amount = typed.isEmpty ? 0 : parseAmount(typed);
+      final amount = typed.isEmpty ? 0 : parseAmount(typed, widget.currency);
       if (!_done && amount != null && amount != widget.amount) {
         _done = true;
         // The old callback: the page may already show another period.
@@ -1584,8 +1458,7 @@ class _AssignFieldState extends State<_AssignField> {
     final a = widget.amount;
     final shown = a == 0
         ? ''
-        : '${a < 0 ? '-' : ''}${formatWhole(a)}'
-              '${formatCents(a) == '.00' ? '' : formatCents(a)}';
+        : '${a < 0 ? '-' : ''}${typedAmount(a, widget.currency)}';
     _text = TextEditingController(text: shown)
       ..selection = TextSelection(baseOffset: 0, extentOffset: shown.length);
     _done = false;
@@ -1604,7 +1477,7 @@ class _AssignFieldState extends State<_AssignField> {
   void _finish({required bool next}) {
     final typed = _text?.text.trim() ?? '';
     // Emptied: nothing goes in.
-    final amount = typed.isEmpty ? 0 : parseAmount(typed);
+    final amount = typed.isEmpty ? 0 : parseAmount(typed, widget.currency);
     if (amount == null) {
       // Not an amount: stay, outlined, so the typing isn't lost.
       setState(() => _wrong = true);
@@ -1645,7 +1518,7 @@ class _AssignFieldState extends State<_AssignField> {
             },
             onSubmitted: (_) => _finish(next: false),
             decoration: _fieldDecoration(wrong: _wrong).copyWith(
-              prefixText: widget.currency.symbol,
+              prefixText: widget.currency.prefix,
               prefixStyle: onest(13.5, color: Mid.ink3),
             ),
           ),
@@ -1742,8 +1615,7 @@ _PlanNote _planNote(
   Currency currency,
 ) {
   final p = line.plan!;
-  String money(int v) =>
-      formatMoney(v, showCents: v % 100 != 0, currency: currency);
+  String money(int v) => formatShort(v, currency: currency);
   String each(int v) => period.label == payPeriodLabel
       ? t.planEachPay(money(v))
       : t.planEachMonth(money(v));
@@ -1798,7 +1670,7 @@ _PlanNote _planNote(
   return (text: parts.join(' · '), state: state, behind: line.short > 0);
 }
 
-/// The plan under a category's name. Clicking it opens the plan; "Assign
+/// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
 /// ₮200,000" at its end assigns what the plan wants this period.
 class _PlanNoteLine extends StatelessWidget {
   const _PlanNoteLine({
@@ -1872,452 +1744,188 @@ class _PlanNoteLine extends StatelessWidget {
   }
 }
 
-/// A category's plan, opened under its row (rule 27): which of the four
-/// kinds it is, its amount, and for a bill or goal its date. Enter or Save
-/// keeps it, Esc cancels. A line says what it comes to before it's saved.
-class _PlanEditor extends StatefulWidget {
-  const _PlanEditor({
-    super.key,
-    required this.category,
-    required this.plan,
-    required this.data,
-    required this.period,
-    required this.today,
-    required this.assigned,
-    required this.onSave,
-    required this.onCancel,
+/// A category's currency, picked from a list (owner, 2026-10-02: every
+/// currency is to be supported, so a button each won't do).
+class _CurrencyMenu extends StatefulWidget {
+  const _CurrencyMenu({
+    this.controller,
+    required this.buttonKey,
+    required this.itemPrefix,
+    required this.currencies,
+    required this.currency,
+    required this.onPick,
   });
-  final AccountInfo category;
-  final CategoryPlan? plan;
-  final LedgerData data;
-  final BudgetSpan period;
-  final DateTime today;
+  final String buttonKey;
 
-  /// What it has assigned this period: where a new plan's amount starts.
-  final int assigned;
+  /// The panel it's in closes it on Esc with this.
+  final MenuController? controller;
 
-  /// The plan to keep, or null to remove it.
-  final ValueChanged<CategoryPlan?> onSave;
-  final VoidCallback onCancel;
+  /// Each choice's key is this and its currency's code.
+  final String itemPrefix;
+  final List<Currency> currencies;
+  final Currency currency;
+  final ValueChanged<Currency> onPick;
 
   @override
-  State<_PlanEditor> createState() => _PlanEditorState();
+  State<_CurrencyMenu> createState() => _CurrencyMenuState();
 }
 
-class _PlanEditorState extends State<_PlanEditor> {
-  /// The gaps between bills offered, in months.
-  static const _repeats = [1, 2, 3, 4, 6, 12, 24];
+class _CurrencyMenuState extends State<_CurrencyMenu> {
+  late final _menu = widget.controller ?? MenuController();
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'currency-search');
+  final _scroll = ScrollController();
 
-  late PlanKind _kind = widget.plan?.kind ?? PlanKind.spend;
-  late final _amount = TextEditingController(
-    text: switch (widget.plan?.amount ?? widget.assigned) {
-      <= 0 => '',
-      final a =>
-        '${formatWhole(a)}${formatCents(a) == '.00' ? '' : formatCents(a)}',
-    },
-  );
-  late final _date = TextEditingController(
-    text: widget.plan?.due == null ? '' : fullDate(widget.plan!.due!),
-  );
-  final _amountFocus = FocusNode(debugLabel: 'plan-amount');
-  final _dateFocus = FocusNode(debugLabel: 'plan-date');
-  final _repeatMenu = MenuController();
-  late int? _every = widget.plan?.everyMonths;
-  late bool _rollover = widget.plan?.rollover ?? true;
-
-  /// Save was tried with something missing: say which.
-  bool _tried = false;
-
-  /// Scrolls the plan into view once the row has grown: opened on a
-  /// category low in the list, its Save would be under the window's edge.
-  Timer? _reveal;
-
-  @override
-  void initState() {
-    super.initState();
-    _amount.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _amount.text.length,
-    );
-    _reveal = Timer(const Duration(milliseconds: 280), () {
-      if (!mounted) return;
-      Scrollable.ensureVisible(
-        context,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-      );
-    });
-  }
+  /// A list this long gets a search at its top.
+  bool get _searchable => widget.currencies.length > 8;
 
   @override
   void dispose() {
-    _reveal?.cancel();
-    _amount.dispose();
-    _date.dispose();
-    _amountFocus.dispose();
-    _dateFocus.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
-
-  bool get _dated => _kind == PlanKind.dueOn || _kind == PlanKind.goal;
-
-  int? get _typedAmount => switch (parseAmount(_amount.text.trim())) {
-    final a? when a > 0 => a,
-    _ => null,
-  };
-
-  /// A bill or goal is ahead: `03.15` typed in October is next March's,
-  /// and a bill that repeats is its next time round (`10.10` typed on
-  /// 10.15 for a monthly bill is 11.10).
-  DateTime? get _typedDate {
-    final text = _date.text.trim();
-    var d = parseEntryDate(text, widget.today);
-    // A year far off is a slip of the hand, not a date.
-    if (d == null || d.year > widget.today.year + 100) return null;
-    final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
-    if (pieces.length > 2 || !d.isBefore(widget.today)) return d;
-    final every = _kind == PlanKind.dueOn ? _every : null;
-    if (every == null) return DateTime(d.year + 1, d.month, d.day);
-    final day = d.day;
-    while (d!.isBefore(widget.today)) {
-      final last = DateTime(d.year, d.month + every + 1, 0).day;
-      d = DateTime(d.year, d.month + every, day < last ? day : last);
-    }
-    return d;
-  }
-
-  CategoryPlan? get _draft {
-    final amount = _typedAmount;
-    final due = _dated ? _typedDate : null;
-    if (amount == null || (_dated && due == null)) return null;
-    final every = _kind == PlanKind.dueOn ? _every : null;
-    final old = widget.plan;
-    final rollover = _kind != PlanKind.spend || _rollover;
-    // A bill's parts count from the day its plan was made, and a category
-    // that doesn't carry over is emptied from that day on: only a plan
-    // that's really the same keeps its day. One that already didn't
-    // carry over keeps it through a new amount.
-    final same =
-        old != null &&
-        old.kind == _kind &&
-        (_kind == PlanKind.spend
-            ? old.rollover == rollover && (!rollover || old.amount == amount)
-            : old.amount == amount &&
-                  old.due == due &&
-                  old.everyMonths == every);
-    return CategoryPlan(
-      categoryId: widget.category.id,
-      kind: _kind,
-      amount: amount,
-      start: same ? old.start : widget.today,
-      due: due,
-      everyMonths: every,
-      rollover: rollover,
-    );
-  }
-
-  void _save() {
-    final draft = _draft;
-    if (draft == null) {
-      setState(() => _tried = true);
-      (_typedAmount == null ? _amountFocus : _dateFocus).requestFocus();
-      return;
-    }
-    widget.onSave(draft);
-  }
-
-  String _repeatLabel(Words t, int? months) => months == null
-      ? t.planRepeatNone
-      : months % 12 == 0
-      ? t.planRepeatYears(months ~/ 12)
-      : t.planRepeatMonths(months);
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final byPay = widget.period.label == payPeriodLabel;
-    final currency = widget.category.currency;
+    final q = _search.text.trim().toLowerCase();
+    // The long list reads by name, which is what a row leads with; tugrik
+    // and dollars, the two the app began with, stay first.
+    final listed = !_searchable
+        ? widget.currencies
+        : [
+            for (final c in widget.currencies)
+              if (c == Currency.mnt || c == Currency.usd) c,
+            ...[
+              for (final c in widget.currencies)
+                if (c != Currency.mnt && c != Currency.usd) c,
+            ]..sort(
+              (a, b) => currencyName(
+                t,
+                a,
+              ).toLowerCase().compareTo(currencyName(t, b).toLowerCase()),
+            ),
+          ];
+    final shown = [
+      for (final c in listed)
+        if (q.isEmpty ||
+            c.code.toLowerCase().contains(q) ||
+            c.symbol.toLowerCase() == q ||
+            currencyName(t, c).toLowerCase().contains(q))
+          c,
+    ];
+    void pick(Currency c) {
+      widget.onPick(c);
+      _menu.close();
+    }
 
-    Widget labeled(String label, Widget child) => Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label, style: onest(12, color: Mid.ink2)),
-          const SizedBox(height: 4),
-          child,
-        ],
+    Widget item(Currency c) => MenuItemButton(
+      key: ValueKey('${widget.itemPrefix}${c.code}'),
+      closeOnActivate: false,
+      onPressed: () => pick(c),
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(260, 34)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+      ),
+      // Every row the same way: its symbol in a column at the start, its
+      // name, its code at the end.
+      leadingIcon: SizedBox(
+        width: 48,
+        child: Text(
+          c.symbol,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.visible,
+          style: onest(13, color: c == widget.currency ? Mid.ink : Mid.ink2),
+        ),
+      ),
+      trailingIcon: Text(c.code, style: onest(12, color: Mid.ink3)),
+      child: Text(
+        currencyName(t, c),
+        style: onest(13, color: c == widget.currency ? Mid.ink : Mid.ink2),
       ),
     );
 
-    return ListenableBuilder(
-      listenable: Listenable.merge([_amount, _date]),
-      builder: (context, _) {
-        final draft = _draft;
-        // What the line would say with this plan, before it's saved.
-        String? preview;
-        // What went back in earlier periods returns to the category when
-        // it carries over again: said before it's saved.
-        String? returns;
-        if (draft != null) {
-          final after = Budget.of(
-            widget.data.withPlan(widget.category.id, draft),
-            start: widget.period.start,
-            end: widget.period.end,
-            today: widget.today,
-          );
-          final line = after.lines[widget.category.id];
-          // In the category's own currency.
-          int free(Budget b) =>
-              b.pools
-                  .where((p) => p.currency == currency)
-                  .firstOrNull
-                  ?.notAssigned ??
-              0;
-          final back =
-              free(
-                Budget.of(
-                  widget.data,
-                  start: widget.period.start,
-                  end: widget.period.end,
-                  today: widget.today,
-                ),
-              ) -
-              free(after);
-          if (back > 0) {
-            returns = t.planReturns(
-              formatMoney(back, currency: currency),
-              widget.category.name,
-            );
-          }
-          if (line?.plan != null) {
-            final note = _planNote(
-              t,
-              line!,
-              widget.period,
-              widget.today,
-              currency,
-            );
-            preview = note.state == null
-                ? note.text
-                : '${note.text} · ${note.state}';
-          }
+    return MenuAnchor(
+      controller: _menu,
+      style: _menuStyle,
+      onOpen: () {
+        setState(_search.clear);
+        if (_searchable) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _searchFocus.requestFocus();
+          });
         }
-        final wrongAmount = _tried && _typedAmount == null;
-        final wrongDate = _tried && _dated && _typedDate == null;
-        return CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
-          },
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(0, 2, 0, 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Mid.ground.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  runSpacing: 6,
-                  children: [
-                    for (final (kind, label) in [
-                      (
-                        PlanKind.spend,
-                        byPay ? t.planKindSpendPay : t.planKindSpendMonth,
-                      ),
-                      (PlanKind.saveUp, t.planKindSaveUp),
-                      (PlanKind.dueOn, t.planKindDueOn),
-                      (PlanKind.goal, t.planKindGoal),
-                    ])
-                      _Choice(
-                        key: ValueKey('plan-kind-${kind.name}'),
-                        label: label,
-                        on: _kind == kind,
-                        onTap: () => setState(() {
-                          _kind = kind;
-                          _tried = false;
-                        }),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(switch (_kind) {
-                  PlanKind.spend =>
-                    byPay ? t.planHelpSpendPay : t.planHelpSpend,
-                  PlanKind.saveUp =>
-                    byPay ? t.planHelpSaveUpPay : t.planHelpSaveUp,
-                  PlanKind.dueOn => t.planHelpDueOn,
-                  PlanKind.goal => byPay ? t.planHelpGoalPay : t.planHelpGoal,
-                }, style: onest(12.5, color: Mid.ink2)),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    labeled(
-                      switch (_kind) {
-                        PlanKind.dueOn => t.planLabelBill,
-                        PlanKind.goal => t.planLabelGoal,
-                        _ => byPay ? t.planLabelEachPay : t.planLabelEachMonth,
-                      },
-                      SizedBox(
-                        width: 170,
-                        height: 34,
-                        child: TextField(
-                          key: const ValueKey('plan-amount'),
-                          controller: _amount,
-                          focusNode: _amountFocus,
-                          autofocus: true,
-                          textAlign: TextAlign.right,
-                          style: onest(13.5, tabular: true),
-                          onSubmitted: (_) => _save(),
-                          decoration: _fieldDecoration(wrong: wrongAmount)
-                              .copyWith(
-                                prefixText: currency.symbol,
-                                prefixStyle: onest(13.5, color: Mid.ink3),
-                              ),
-                        ),
-                      ),
-                    ),
-                    if (_dated)
-                      labeled(
-                        _kind == PlanKind.goal ? t.planLabelBy : t.planLabelDue,
-                        SizedBox(
-                          width: 130,
-                          height: 34,
-                          child: DateField(
-                            key: const ValueKey('plan-date'),
-                            controller: _date,
-                            focusNode: _dateFocus,
-                            today: widget.today,
-                            small: true,
-                            wanted: wrongDate,
-                            onSubmitted: _save,
-                            onPicked: () {},
-                          ),
-                        ),
-                      ),
-                    if (_kind == PlanKind.dueOn)
-                      labeled(
-                        t.planLabelRepeats,
-                        SizedBox(
-                          height: 34,
-                          child: MenuAnchor(
-                            controller: _repeatMenu,
-                            style: _menuStyle,
-                            menuChildren: [
-                              for (final months in [null, ..._repeats])
-                                MenuItemButton(
-                                  key: ValueKey('plan-repeat-${months ?? 0}'),
-                                  onPressed: () =>
-                                      setState(() => _every = months),
-                                  style: ButtonStyle(
-                                    minimumSize: const WidgetStatePropertyAll(
-                                      Size(180, 34),
-                                    ),
-                                    overlayColor: WidgetStatePropertyAll(
-                                      Mid.blueWash,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _repeatLabel(t, months),
-                                    style: onest(
-                                      13,
-                                      color: months == _every
-                                          ? Mid.ink
-                                          : Mid.ink2,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: BarButton(
-                                key: const ValueKey('plan-repeat'),
-                                label: _repeatLabel(t, _every),
-                                trailing: Icons.expand_more_rounded,
-                                active: _repeatMenu.isOpen,
-                                onTap: () => _repeatMenu.isOpen
-                                    ? _repeatMenu.close()
-                                    : _repeatMenu.open(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (_kind == PlanKind.spend) ...[
-                      _Choice(
-                        key: const ValueKey('plan-carry-on'),
-                        label: t.planCarryOn,
-                        on: _rollover,
-                        onTap: () => setState(() => _rollover = true),
-                      ),
-                      _Choice(
-                        key: const ValueKey('plan-carry-off'),
-                        label: t.planCarryOff,
-                        on: !_rollover,
-                        onTap: () => setState(() => _rollover = false),
-                      ),
-                    ],
-                  ],
-                ),
-                if (returns != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    returns,
-                    key: const ValueKey('plan-returns'),
-                    style: onest(12.5, color: Mid.gold, tabular: true),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        preview ?? '',
-                        key: const ValueKey('plan-preview'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: onest(12.5, color: Mid.ink, tabular: true),
-                      ),
-                    ),
-                    if (widget.plan != null)
-                      BarButton(
-                        key: const ValueKey('plan-remove'),
-                        label: t.planRemove,
-                        color: Mid.coral,
-                        onTap: () => widget.onSave(null),
-                      ),
-                    BarButton(
-                      key: const ValueKey('plan-cancel'),
-                      label: t.planCancel,
-                      onTap: widget.onCancel,
-                    ),
-                    _PrimaryButton(
-                      key: const ValueKey('plan-save'),
-                      label: t.planSave,
-                      icon: Icons.check_rounded,
-                      tooltip: 'Enter',
-                      onTap: _save,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
       },
+      onClose: () {
+        if (mounted) setState(() {});
+      },
+      menuChildren: !_searchable
+          ? [for (final c in shown) item(c)]
+          : [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+                child: SizedBox(
+                  width: 300,
+                  height: 34,
+                  child: TextField(
+                    key: ValueKey('${widget.buttonKey}-search'),
+                    controller: _search,
+                    focusNode: _searchFocus,
+                    style: onest(13.5),
+                    onChanged: (_) => setState(() {}),
+                    // Enter takes the first one left.
+                    onSubmitted: (_) {
+                      if (shown.isNotEmpty) pick(shown.first);
+                    },
+                    decoration: _fieldDecoration(hint: t.setupCurrencySearch),
+                  ),
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                // Its own: the menu around it scrolls too.
+                child: SingleChildScrollView(
+                  controller: _scroll,
+                  primary: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final c in shown) item(c),
+                      if (shown.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            t.setupCurrencyNoMatch,
+                            style: onest(13, color: Mid.ink3),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+      child: Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1,
+        child: BarButton(
+          key: ValueKey(widget.buttonKey),
+          label: currencyLabel(t, widget.currency),
+          trailing: Icons.expand_more_rounded,
+          active: _menu.isOpen,
+          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
+        ),
+      ),
     );
   }
 }
-
-String _currencyName(Words t, Currency c) =>
-    c == Currency.usd ? t.setupCurrencyUsd : t.setupCurrencyMnt;
 
 /// One more thing a line says under its name, and what a click on it does.
 typedef _LineFlag = ({String text, Color color, VoidCallback? onTap});
@@ -2353,7 +1961,7 @@ List<_LineFlag> _lineFlags(
   required VoidCallback onAllRows,
 }) {
   String money(int v, [Currency? currency]) =>
-      formatMoney(v, showCents: v % 100 != 0, currency: currency ?? c.currency);
+      formatShort(v, currency: currency ?? c.currency);
   final off = data.accountsOff[c.id] ?? const <int>{};
   final mine = _moneyAccounts(data, c.currency).toList();
   final used = mine.where((a) => !off.contains(a.id)).toList();
@@ -2402,8 +2010,8 @@ List<_LineFlag> _lineFlags(
         text: t.planOtherRows(
           line.otherRows,
           money(line.otherAmount, other),
-          c.currency.symbol,
-          other.symbol,
+          c.currency.shown,
+          other.shown,
         ),
         color: Mid.gold,
         onTap: onAllRows,
@@ -2411,21 +2019,37 @@ List<_LineFlag> _lineFlags(
   ];
 }
 
-/// A category's currency and the accounts it uses, opened under its row
-/// (rule 28). Every account in its currency is checked to begin with;
-/// unchecking one keeps that account's money out of the category.
-class _CategoryMoneyEditor extends StatefulWidget {
-  const _CategoryMoneyEditor({
+/// Everything about a category, opened under its row (rule 29): its name,
+/// spending or income, and for spending its type (the plan, rule 27), its
+/// currency and the accounts it uses (rule 28); for income, whether it's a
+/// payday and its pay. Enter or Save keeps all of it in one step, Esc
+/// cancels. A line says what the plan comes to before it's saved.
+class _CategoryEditor extends StatefulWidget {
+  const _CategoryEditor({
     super.key,
     required this.category,
     required this.data,
-    required this.currencies,
+    required this.period,
+    required this.today,
+    required this.assigned,
     required this.holds,
+    required this.currencies,
+    required this.usage,
+    required this.payNote,
+    required this.atPlan,
     required this.onSave,
     required this.onCancel,
+    required this.onArchive,
+    required this.onShowAllRows,
+    required this.onPay,
   });
   final AccountInfo category;
   final LedgerData data;
+  final BudgetSpan period;
+  final DateTime today;
+
+  /// What it has assigned this period: where a new plan's amount starts.
+  final int assigned;
 
   /// What the category has left today; null when another period is on
   /// screen, where today's balances would say nothing true.
@@ -2433,21 +2057,131 @@ class _CategoryMoneyEditor extends StatefulWidget {
 
   /// The currencies there are accounts in: the choice shows with both.
   final List<Currency> currencies;
-  final void Function(Currency currency, Set<int> off) onSave;
+
+  /// "42 rows · last 09.12 · 1 scheduled": picking it shows every row.
+  final String? usage;
+
+  /// Income: what its line says about pay.
+  final String? payNote;
+
+  /// Opened from the plan's note: the cursor starts in the plan's amount.
+  final bool atPlan;
+  final ValueChanged<_CategoryEdit> onSave;
   final VoidCallback onCancel;
+  final VoidCallback onArchive;
+  final VoidCallback onShowAllRows;
+  final VoidCallback onPay;
 
   @override
-  State<_CategoryMoneyEditor> createState() => _CategoryMoneyEditorState();
+  State<_CategoryEditor> createState() => _CategoryEditorState();
 }
 
-class _CategoryMoneyEditorState extends State<_CategoryMoneyEditor> {
+class _CategoryEditorState extends State<_CategoryEditor> {
+  /// The gaps between bills offered, in months.
+  static const _repeats = [1, 2, 3, 4, 6, 12, 24];
+
+  late final _name = TextEditingController(text: widget.category.name);
+  late final _amount = TextEditingController();
+  late final _date = TextEditingController();
+  final _nameFocus = FocusNode(debugLabel: 'category-name');
+  final _amountFocus = FocusNode(debugLabel: 'plan-amount');
+  final _dateFocus = FocusNode(debugLabel: 'plan-date');
+  final _repeatMenu = MenuController();
+  final _accountsMenu = MenuController();
+  final _currencyMenu = MenuController();
+
+  /// Closes a dropdown that's open in the panel: Esc and Enter are its
+  /// own before they're the panel's.
+  bool _closeMenu() {
+    for (final m in [_repeatMenu, _accountsMenu, _currencyMenu]) {
+      if (m.isOpen) {
+        m.close();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Holds the keys while no field has them (a choice or an empty part of
+  /// the panel was clicked), so Esc still closes and Enter still saves.
+  final _panelFocus = FocusNode(debugLabel: 'category-editor');
+
+  late bool _income = widget.category.isIncome;
+  late bool _payday = widget.category.payday;
   late Currency _currency = widget.category.currency;
-  late Set<int> _off = {...?widget.data.accountsOff[widget.category.id]};
+  late Set<int> _off = {..._savedOff};
+
+  /// The plan's kind; null for a category with no plan.
+  PlanKind? _kind;
+  int? _every;
+  bool _rollover = true;
+
+  /// Save was tried with something missing: say which.
+  bool _tried = false;
+
+  /// Saved: Enter reaches both the field and the panel, and must save once.
+  bool _done = false;
+
+  /// Scrolls the panel into view once the row has grown: opened on a
+  /// category low in the list, its Save would be under the window's edge.
   Timer? _reveal;
+
+  Set<int> get _savedOff =>
+      widget.data.accountsOff[widget.category.id] ?? const <int>{};
+  CategoryPlan? get _savedPlan => widget.data.plans[widget.category.id];
+
+  /// The saved plan while it still means something: in another currency
+  /// its amounts don't, so the plan starts over there.
+  CategoryPlan? get _plan =>
+      _currency == widget.category.currency ? _savedPlan : null;
 
   @override
   void initState() {
     super.initState();
+    _showPlan(_savedPlan);
+    final atPlan = widget.atPlan && _kind != null;
+    final first = atPlan ? _amount : _name;
+    first.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: first.text.length,
+    );
+    // Asked for, not left to autofocus: the screen holds the keys when
+    // Edit opens, and autofocus gives way to that.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) (atPlan ? _amountFocus : _nameFocus).requestFocus();
+    });
+    for (final f in [_nameFocus, _amountFocus, _dateFocus]) {
+      f.addListener(_keepKeys);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_CategoryEditor old) {
+    super.didUpdateWidget(old);
+    // Pay… set up its pay while Edit was open, which marks it a payday:
+    // Save mustn't put back what was showing before.
+    if (old.category.payday != widget.category.payday) {
+      _payday = widget.category.payday;
+    }
+  }
+
+  /// A field gave the keys up to nothing in particular: the panel takes
+  /// them. Not when something else asked for them (another row's amount).
+  void _keepKeys() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final has = FocusManager.instance.primaryFocus;
+      if (has == null || has is FocusScopeNode) _panelFocus.requestFocus();
+    });
+  }
+
+  /// What decides the panel's height, as of the last build.
+  int? _shape;
+
+  /// Once the row has grown (opened, or a choice that needs more room),
+  /// scroll until Save is in view.
+  void _revealSoon() {
+    _reveal?.cancel();
     _reveal = Timer(const Duration(milliseconds: 280), () {
       if (!mounted) return;
       Scrollable.ensureVisible(
@@ -2464,7 +2198,422 @@ class _CategoryMoneyEditorState extends State<_CategoryMoneyEditor> {
   @override
   void dispose() {
     _reveal?.cancel();
+    _name.dispose();
+    _amount.dispose();
+    _date.dispose();
+    _nameFocus.dispose();
+    _amountFocus.dispose();
+    _dateFocus.dispose();
+    _panelFocus.dispose();
     super.dispose();
+  }
+
+  String _amountText(int a) => a <= 0 ? '' : typedAmount(a, _currency);
+
+  /// Fills the plan's fields from [p], or empties them.
+  void _showPlan(CategoryPlan? p) {
+    _kind = p?.kind;
+    _amount.text = _amountText(p?.amount ?? 0);
+    _date.text = p?.due == null ? '' : fullDate(p!.due!);
+    _every = p?.everyMonths;
+    _rollover = p?.rollover ?? true;
+  }
+
+  void _pickKind(PlanKind? kind) {
+    setState(() {
+      _kind = kind;
+      _tried = false;
+      // A new plan starts from what's assigned this period.
+      if (kind != null &&
+          _amount.text.isEmpty &&
+          _currency == widget.category.currency) {
+        _amount.text = _amountText(widget.assigned);
+      }
+    });
+    if (kind == null) return;
+    _amount.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _amount.text.length,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _amountFocus.requestFocus();
+    });
+  }
+
+  bool get _dated => _kind == PlanKind.dueOn || _kind == PlanKind.goal;
+
+  int? get _typedAmount =>
+      switch (parseAmount(_amount.text.trim(), _currency)) {
+        final a? when a > 0 => a,
+        _ => null,
+      };
+
+  /// A bill or goal is ahead: `03.15` typed in October is next March's,
+  /// and a bill that repeats is its next time round (`10.10` typed on
+  /// 10.15 for a monthly bill is 11.10).
+  DateTime? get _typedDate {
+    final text = _date.text.trim();
+    var d = parseEntryDate(text, widget.today);
+    // A year far off is a slip of the hand, not a date.
+    if (d == null || d.year > widget.today.year + 100) return null;
+    final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
+    if (pieces.length > 2 || !d.isBefore(widget.today)) return d;
+    final every = _kind == PlanKind.dueOn ? _every : null;
+    if (every == null) return DateTime(d.year + 1, d.month, d.day);
+    final day = d.day;
+    while (d!.isBefore(widget.today)) {
+      final last = DateTime(d.year, d.month + every + 1, 0).day;
+      d = DateTime(d.year, d.month + every, day < last ? day : last);
+    }
+    return d;
+  }
+
+  /// The plan as typed. Null with a kind picked means something is missing.
+  CategoryPlan? get _draft {
+    final kind = _kind;
+    if (kind == null) return null;
+    final amount = _typedAmount;
+    final due = _dated ? _typedDate : null;
+    if (amount == null || (_dated && due == null)) return null;
+    final every = kind == PlanKind.dueOn ? _every : null;
+    final old = _plan;
+    final rollover = kind != PlanKind.spend || _rollover;
+    // A bill's parts count from the day its plan was made, and a category
+    // that doesn't carry over is emptied from that day on: only a plan
+    // that's really the same keeps its day. One that already didn't
+    // carry over keeps it through a new amount.
+    final same =
+        old != null &&
+        old.kind == kind &&
+        (kind == PlanKind.spend
+            ? old.rollover == rollover && (!rollover || old.amount == amount)
+            : old.amount == amount &&
+                  old.due == due &&
+                  old.everyMonths == every);
+    return CategoryPlan(
+      categoryId: widget.category.id,
+      kind: kind,
+      amount: amount,
+      start: same ? old.start : widget.today,
+      due: due,
+      everyMonths: every,
+      rollover: rollover,
+    );
+  }
+
+  void _save() {
+    if (_done) return;
+    final c = widget.category;
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _tried = true);
+      _nameFocus.requestFocus();
+      return;
+    }
+    final draft = _income ? null : _draft;
+    if (!_income && _kind != null && draft == null) {
+      setState(() => _tried = true);
+      (_typedAmount == null ? _amountFocus : _dateFocus).requestFocus();
+      return;
+    }
+    _done = true;
+    // What doesn't apply to its kind is left as it was saved.
+    widget.onSave((
+      name: name,
+      income: _income,
+      currency: _income ? c.currency : _currency,
+      off: _income ? _savedOff : _off,
+      plan: _income ? _savedPlan : draft,
+      payday: _income ? _payday : c.payday,
+    ));
+  }
+
+  String _repeatLabel(Words t, int? months) => months == null
+      ? t.planRepeatNone
+      : months % 12 == 0
+      ? t.planRepeatYears(months ~/ 12)
+      : t.planRepeatMonths(months);
+
+  Widget _label(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Text(text, style: onest(12, color: Mid.ink2)),
+  );
+
+  Widget _labeled(String label, Widget child) => Padding(
+    padding: const EdgeInsets.only(right: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [_label(label), child],
+    ),
+  );
+
+  /// The plan: which type, then what that type needs.
+  List<Widget> _planFields(Words t, {required bool byPay}) {
+    final kind = _kind;
+    final wrongAmount = _tried && _typedAmount == null;
+    final wrongDate = _tried && _dated && _typedDate == null;
+    return [
+      _label(t.planEditType),
+      Wrap(
+        runSpacing: 6,
+        children: [
+          for (final (k, label) in [
+            (null, t.planKindNone),
+            (PlanKind.spend, byPay ? t.planKindSpendPay : t.planKindSpendMonth),
+            (PlanKind.saveUp, t.planKindSaveUp),
+            (PlanKind.dueOn, t.planKindDueOn),
+            (PlanKind.goal, t.planKindGoal),
+          ])
+            _Choice(
+              key: ValueKey('plan-kind-${k?.name ?? 'none'}'),
+              label: label,
+              on: kind == k,
+              onTap: () => _pickKind(k),
+            ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(switch (kind) {
+        null => t.planHelpNone,
+        PlanKind.spend => byPay ? t.planHelpSpendPay : t.planHelpSpend,
+        PlanKind.saveUp => byPay ? t.planHelpSaveUpPay : t.planHelpSaveUp,
+        PlanKind.dueOn => t.planHelpDueOn,
+        PlanKind.goal => byPay ? t.planHelpGoalPay : t.planHelpGoal,
+      }, style: onest(12.5, color: Mid.ink2)),
+      if (kind != null) ...[
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _labeled(
+              switch (kind) {
+                PlanKind.dueOn => t.planLabelBill,
+                PlanKind.goal => t.planLabelGoal,
+                _ => byPay ? t.planLabelEachPay : t.planLabelEachMonth,
+              },
+              SizedBox(
+                width: 170,
+                height: 34,
+                child: TextField(
+                  key: const ValueKey('plan-amount'),
+                  controller: _amount,
+                  focusNode: _amountFocus,
+                  autofocus: widget.atPlan,
+                  textAlign: TextAlign.right,
+                  style: onest(13.5, tabular: true),
+                  onSubmitted: (_) => _save(),
+                  decoration: _fieldDecoration(wrong: wrongAmount).copyWith(
+                    prefixText: _currency.prefix,
+                    prefixStyle: onest(13.5, color: Mid.ink3),
+                  ),
+                ),
+              ),
+            ),
+            if (_dated)
+              _labeled(
+                kind == PlanKind.goal ? t.planLabelBy : t.planLabelDue,
+                SizedBox(
+                  width: 130,
+                  height: 34,
+                  child: DateField(
+                    key: const ValueKey('plan-date'),
+                    controller: _date,
+                    focusNode: _dateFocus,
+                    today: widget.today,
+                    small: true,
+                    wanted: wrongDate,
+                    onSubmitted: _save,
+                    onPicked: () {},
+                  ),
+                ),
+              ),
+            if (kind == PlanKind.dueOn)
+              _labeled(
+                t.planLabelRepeats,
+                SizedBox(
+                  height: 34,
+                  child: MenuAnchor(
+                    controller: _repeatMenu,
+                    style: _menuStyle,
+                    menuChildren: [
+                      for (final months in [null, ..._repeats])
+                        MenuItemButton(
+                          key: ValueKey('plan-repeat-${months ?? 0}'),
+                          onPressed: () => setState(() => _every = months),
+                          style: ButtonStyle(
+                            minimumSize: const WidgetStatePropertyAll(
+                              Size(180, 34),
+                            ),
+                            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                          ),
+                          child: Text(
+                            _repeatLabel(t, months),
+                            style: onest(
+                              13,
+                              color: months == _every ? Mid.ink : Mid.ink2,
+                            ),
+                          ),
+                        ),
+                    ],
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: BarButton(
+                        key: const ValueKey('plan-repeat'),
+                        label: _repeatLabel(t, _every),
+                        trailing: Icons.expand_more_rounded,
+                        active: _repeatMenu.isOpen,
+                        onTap: () => _repeatMenu.isOpen
+                            ? _repeatMenu.close()
+                            : _repeatMenu.open(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (kind == PlanKind.spend) ...[
+              _Choice(
+                key: const ValueKey('plan-carry-on'),
+                label: t.planCarryOn,
+                on: _rollover,
+                onTap: () => setState(() => _rollover = true),
+              ),
+              _Choice(
+                key: const ValueKey('plan-carry-off'),
+                label: t.planCarryOff,
+                on: !_rollover,
+                onTap: () => setState(() => _rollover = false),
+              ),
+            ],
+          ],
+        ),
+      ],
+    ];
+  }
+
+  /// The currency, when there are accounts in more than one: before the
+  /// type, whose amount is in it.
+  List<Widget> _currencyChoice(Words t) {
+    final c = widget.category;
+    if (widget.currencies.length < 2 &&
+        widget.currencies.contains(c.currency)) {
+      return const [];
+    }
+    return [
+      _labeled(
+        t.planMoneyCurrency,
+        SizedBox(
+          height: 34,
+          child: _CurrencyMenu(
+            controller: _currencyMenu,
+            buttonKey: 'money-currency',
+            itemPrefix: 'money-currency-',
+            currencies: [
+              for (final x in Currency.values)
+                if (widget.currencies.contains(x) || x == c.currency) x,
+            ],
+            currency: _currency,
+            onPick: (x) {
+              if (_currency == x) return;
+              setState(() {
+                _currency = x;
+                _tried = false;
+                // The accounts are another currency's now.
+                _off = x == c.currency ? {..._savedOff} : {};
+                // So would the plan's amount be: the type, date and
+                // repeat stay, and the amount is typed again.
+                if (x == c.currency) {
+                  _showPlan(_savedPlan);
+                } else {
+                  _amount.clear();
+                }
+              });
+              if (_kind != null) _amountFocus.requestFocus();
+            },
+          ),
+        ),
+      ),
+    ];
+  }
+
+  /// The accounts in its currency, in a dropdown that stays open while
+  /// they're checked and unchecked; the button says how many it uses.
+  Widget _accountsChoice(Words t, List<AccountInfo> accounts) {
+    final used = accounts.where((a) => !_off.contains(a.id)).toList();
+    return _labeled(
+      t.planMoneyAccounts,
+      SizedBox(
+        height: 34,
+        child: MenuAnchor(
+          controller: _accountsMenu,
+          style: _menuStyle,
+          onOpen: () => setState(() {}),
+          onClose: () {
+            if (mounted) setState(() {});
+          },
+          menuChildren: [
+            for (final a in accounts)
+              MenuItemButton(
+                key: ValueKey('money-account-${a.id}'),
+                closeOnActivate: false,
+                onPressed: () => setState(
+                  () =>
+                      _off.contains(a.id) ? _off.remove(a.id) : _off.add(a.id),
+                ),
+                style: ButtonStyle(
+                  minimumSize: const WidgetStatePropertyAll(Size(320, 34)),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                ),
+                leadingIcon: Icon(
+                  _off.contains(a.id)
+                      ? Icons.check_box_outline_blank_rounded
+                      : Icons.check_box_rounded,
+                  size: 18,
+                  color: _off.contains(a.id) ? Mid.ink3 : Mid.blue,
+                ),
+                trailingIcon: Money(
+                  widget.data.balanceOf(a.id),
+                  size: 13,
+                  currency: a.currency,
+                  color: Mid.ink2,
+                ),
+                child: Text(
+                  a.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(
+                    13,
+                    color: _off.contains(a.id) ? Mid.ink2 : Mid.ink,
+                  ),
+                ),
+              ),
+          ],
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: 1,
+            child: BarButton(
+              key: const ValueKey('money-accounts'),
+              label: used.length == accounts.length
+                  ? t.planAccountsAll
+                  : switch (used.length) {
+                      0 => t.planAccountsNone,
+                      1 => used.single.name,
+                      final n => t.planAccountsSome(n, accounts.length),
+                    },
+              trailing: Icons.expand_more_rounded,
+              active: _accountsMenu.isOpen,
+              onTap: () => _accountsMenu.isOpen
+                  ? _accountsMenu.close()
+                  : _accountsMenu.open(),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -2472,179 +2621,343 @@ class _CategoryMoneyEditorState extends State<_CategoryMoneyEditor> {
     final t = context.t;
     final c = widget.category;
     final data = widget.data;
-    final accounts = _moneyAccounts(data, _currency).toList();
-    // In another currency its amounts and plan mean nothing: they go,
-    // and the panel says so first.
-    final assigned = data.budgetAmounts
-        .where((b) => b.categoryId == c.id)
-        .fold(0, (sum, b) => sum + b.amount);
-    final hasPlan = data.plans.containsKey(c.id);
-    final loses = _currency != c.currency && (assigned != 0 || hasPlan);
-    // What unchecking does and doesn't reserve, with the real amounts:
-    // only what the category has left must be in the checked accounts.
-    // Its money is kept in the checked cash and bank accounts; a card
-    // holds none.
-    final checked = accounts
-        .where((a) => !a.isOwed && !_off.contains(a.id))
-        .toList();
-    final have = checked.fold(0, (sum, a) => sum + data.balanceOf(a.id));
-    final holds = _currency == c.currency ? widget.holds : null;
-    String say(int v) =>
-        formatMoney(v, showCents: v % 100 != 0, currency: _currency);
-    final rest =
-        holds == null ||
-            checked.isEmpty ||
-            !accounts.any((a) => _off.contains(a.id)) ||
-            holds < 0 ||
-            have < holds
-        ? null
-        : checked.length == 1
-        ? t.planMoneyRestOne(
-            say(holds),
-            checked.single.name,
-            c.name,
-            say(have - holds),
-          )
-        : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
-    Widget label(String text) => Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text, style: onest(12, color: Mid.ink2)),
-    );
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
-        const SingleActivator(LogicalKeyboardKey.enter): () =>
-            widget.onSave(_currency, _off),
-      },
-      child: Focus(
-        autofocus: true,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(0, 2, 0, 10),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Mid.ground.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.currencies.length > 1 ||
-                  !widget.currencies.contains(c.currency)) ...[
-                label(t.planMoneyCurrency),
-                Row(
-                  children: [
-                    for (final x in Currency.values)
-                      if (widget.currencies.contains(x) || x == c.currency)
-                        _Choice(
-                          key: ValueKey('money-currency-${x.code}'),
-                          label: _currencyName(t, x),
-                          on: _currency == x,
-                          onTap: () => setState(() {
-                            if (_currency == x) return;
-                            _currency = x;
-                            // The accounts are another currency's now.
-                            _off = x == c.currency
-                                ? {...?data.accountsOff[c.id]}
-                                : {};
-                          }),
-                        ),
-                  ],
+    final byPay = widget.period.label == payPeriodLabel;
+    String say(int v) => formatShort(v, currency: _currency);
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([_amount, _date]),
+      builder: (context, _) {
+        final draft = _income ? null : _draft;
+        // What the line would say with this plan, before it's saved.
+        String? preview;
+        // What went back in earlier periods returns to the category when
+        // it carries over again: said before it's saved.
+        String? returns;
+        // No plan, picked over a saved one, can bring money back too.
+        final plans = draft != null || (_kind == null && _savedPlan != null);
+        if (!_income && plans && !c.isIncome && _currency == c.currency) {
+          final after = Budget.of(
+            data.withPlan(c.id, draft),
+            start: widget.period.start,
+            end: widget.period.end,
+            today: widget.today,
+          );
+          final line = after.lines[c.id];
+          // In the category's own currency.
+          int free(Budget b) =>
+              b.pools
+                  .where((p) => p.currency == _currency)
+                  .firstOrNull
+                  ?.notAssigned ??
+              0;
+          final back =
+              free(
+                Budget.of(
+                  data,
+                  start: widget.period.start,
+                  end: widget.period.end,
+                  today: widget.today,
                 ),
-                const SizedBox(height: 12),
-              ],
-              label(t.planMoneyAccounts),
-              for (final a in accounts)
-                Hoverable(
-                  key: ValueKey('money-account-${a.id}'),
-                  onTap: () => setState(
-                    () => _off.contains(a.id)
-                        ? _off.remove(a.id)
-                        : _off.add(a.id),
-                  ),
-                  builder: (hover) => Container(
-                    height: 30,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: BoxDecoration(
-                      color: hover ? Mid.rowHover : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+              ) -
+              free(after);
+          if (back > 0) {
+            returns = t.planReturns(
+              formatMoney(back, currency: _currency),
+              c.name,
+            );
+          }
+          if (line?.plan != null) {
+            final note = _planNote(
+              t,
+              line!,
+              widget.period,
+              widget.today,
+              _currency,
+            );
+            preview = note.state == null
+                ? note.text
+                : '${note.text} · ${note.state}';
+          }
+        }
+
+        final accounts = _moneyAccounts(data, _currency).toList();
+        // In another currency its amounts and plan mean nothing: they go,
+        // and the panel says so first.
+        final assigned = data.budgetAmounts
+            .where((b) => b.categoryId == c.id)
+            .fold(0, (sum, b) => sum + b.amount);
+        // A plan typed in the new currency takes the old one's place.
+        final hasPlan = _savedPlan != null && draft == null;
+        final loses =
+            !_income && _currency != c.currency && (assigned != 0 || hasPlan);
+        // What unchecking does and doesn't reserve, with the real amounts:
+        // only what the category has left must be in the checked accounts.
+        // Its money is kept in the checked cash and bank accounts; a card
+        // holds none.
+        final checked = accounts
+            .where((a) => !a.isOwed && !_off.contains(a.id))
+            .toList();
+        final have = checked.fold(0, (sum, a) => sum + data.balanceOf(a.id));
+        final holds = _currency == c.currency ? widget.holds : null;
+        final rest =
+            _income ||
+                holds == null ||
+                checked.isEmpty ||
+                !accounts.any((a) => _off.contains(a.id)) ||
+                holds < 0 ||
+                have < holds
+            ? null
+            : checked.length == 1
+            ? t.planMoneyRestOne(
+                say(holds),
+                checked.single.name,
+                c.name,
+                say(have - holds),
+              )
+            : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
+        // Made income, it holds no money: what it has left goes back.
+        final goesBack = _income && !c.isIncome && (widget.holds ?? 0) != 0
+            ? t.planMoneyBack(
+                formatMoney(widget.holds!, currency: c.currency),
+                c.name,
+              )
+            : null;
+
+        // Opened low in the list, or grown by a choice, Save would be
+        // under the window's edge.
+        final shape = Object.hash(
+          _income,
+          _kind,
+          accounts.length,
+          preview != null,
+          returns != null,
+          rest != null,
+          loses,
+          goesBack != null,
+        );
+        if (shape != _shape) {
+          _shape = shape;
+          _revealSoon();
+        }
+
+        Widget warning(String text, String key, Color color) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text(
+            text,
+            key: ValueKey(key),
+            style: onest(12.5, color: color, tabular: true),
+          ),
+        );
+
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): () {
+              if (!_closeMenu()) widget.onCancel();
+            },
+            const SingleActivator(LogicalKeyboardKey.enter): () {
+              if (!_closeMenu()) _save();
+            },
+          },
+          child: Focus(
+            focusNode: _panelFocus,
+            skipTraversal: true,
+            // A click on a choice in the panel leaves the cursor where
+            // it is.
+            child: TextFieldTapRegion(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Mid.ground.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          _off.contains(a.id)
-                              ? Icons.check_box_outline_blank_rounded
-                              : Icons.check_box_rounded,
-                          size: 18,
-                          color: _off.contains(a.id) ? Mid.ink3 : Mid.blue,
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 240,
-                          child: Text(
-                            a.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: onest(
-                              13.5,
-                              color: _off.contains(a.id) ? Mid.ink2 : Mid.ink,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 150,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Money(
-                              data.balanceOf(a.id),
-                              size: 13,
-                              currency: a.currency,
-                              color: Mid.ink2,
-                            ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  _labeled(
+                                    t.planEditName,
+                                    SizedBox(
+                                      width: 220,
+                                      height: 34,
+                                      child: TextField(
+                                        key: const ValueKey('edit-name'),
+                                        controller: _name,
+                                        focusNode: _nameFocus,
+                                        autofocus:
+                                            !(widget.atPlan && _kind != null),
+                                        style: onest(13.5),
+                                        onSubmitted: (_) => _save(),
+                                        decoration: _fieldDecoration(
+                                          wrong:
+                                              _tried &&
+                                              _name.text.trim().isEmpty,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 34,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (final income in [false, true])
+                                          _Choice(
+                                            key: ValueKey(
+                                              'edit-kind-${income ? 'income' : 'spending'}',
+                                            ),
+                                            label: income
+                                                ? t.planIncome
+                                                : t.planSpending,
+                                            on: _income == income,
+                                            onTap: () => setState(
+                                              () => _income = income,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (!_income) ...[
+                                    ..._currencyChoice(t),
+                                    _accountsChoice(t, accounts),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              if (!_income)
+                                ..._planFields(t, byPay: byPay)
+                              else ...[
+                                Row(
+                                  children: [
+                                    _Choice(
+                                      key: const ValueKey('edit-payday-on'),
+                                      label: t.planEditPaydayYes,
+                                      on: _payday,
+                                      onTap: () =>
+                                          setState(() => _payday = true),
+                                    ),
+                                    _Choice(
+                                      key: const ValueKey('edit-payday-off'),
+                                      label: t.planUnmarkPayday,
+                                      on: !_payday,
+                                      onTap: () =>
+                                          setState(() => _payday = false),
+                                    ),
+                                    // Its pay is set up once it's saved as
+                                    // income.
+                                    if (c.isIncome) ...[
+                                      const SizedBox(width: 12),
+                                      BarButton(
+                                        key: const ValueKey('edit-pay'),
+                                        label: t.planPayMenu,
+                                        onTap: widget.onPay,
+                                      ),
+                                      if (widget.payNote case final note?) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            note,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: onest(12.5, color: Mid.ink2),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _payday
+                                      ? t.planEditPaydayHelpYes
+                                      : t.planEditPaydayHelpNo,
+                                  key: const ValueKey('edit-payday-help'),
+                                  style: onest(12.5, color: Mid.ink2),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    if (preview != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          preview,
+                          key: const ValueKey('plan-preview'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: onest(12.5, color: Mid.ink, tabular: true),
+                        ),
+                      ),
+                    if (returns != null)
+                      warning(returns, 'plan-returns', Mid.gold),
+                    if (rest != null) warning(rest, 'money-rest', Mid.ink2),
+                    if (loses)
+                      warning(
+                        _moneyChange(t, c, assigned, hasPlan),
+                        'money-change',
+                        Mid.gold,
+                      ),
+                    if (goesBack != null)
+                      warning(goesBack, 'edit-goes-back', Mid.gold),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // How much it's used decides keep, merge or archive.
+                        if (widget.usage case final usage?)
+                          Hoverable(
+                            key: const ValueKey('edit-rows'),
+                            onTap: widget.onShowAllRows,
+                            builder: (hover) => Text(
+                              t.planShowAllRows(usage),
+                              style: onest(
+                                12.5,
+                                color: hover ? Mid.blue : Mid.ink2,
+                                tabular: true,
+                              ),
+                            ),
+                          ),
+                        // Beside the usage, which is what decides it; apart
+                        // from Cancel and Save.
+                        if (widget.usage != null) const SizedBox(width: 10),
+                        BarButton(
+                          key: const ValueKey('edit-archive'),
+                          label: t.planArchive,
+                          onTap: widget.onArchive,
+                        ),
+                        const Spacer(),
+                        BarButton(
+                          key: const ValueKey('edit-cancel'),
+                          label: t.planCancel,
+                          onTap: widget.onCancel,
+                        ),
+                        _PrimaryButton(
+                          key: const ValueKey('edit-save'),
+                          label: t.planSave,
+                          icon: Icons.check_rounded,
+                          tooltip: 'Enter',
+                          onTap: _save,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              if (rest != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  rest,
-                  key: const ValueKey('money-rest'),
-                  style: onest(12.5, color: Mid.ink2, tabular: true),
-                ),
-              ],
-              if (loses) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _moneyChange(t, c, assigned, hasPlan),
-                  key: const ValueKey('money-change'),
-                  style: onest(12.5, color: Mid.gold, tabular: true),
-                ),
-              ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  BarButton(
-                    key: const ValueKey('money-cancel'),
-                    label: t.planCancel,
-                    onTap: widget.onCancel,
-                  ),
-                  _PrimaryButton(
-                    key: const ValueKey('money-save'),
-                    label: t.planSave,
-                    icon: Icons.check_rounded,
-                    tooltip: 'Enter',
-                    onTap: () => widget.onSave(_currency, _off),
-                  ),
-                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

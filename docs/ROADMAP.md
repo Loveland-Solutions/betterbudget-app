@@ -105,6 +105,10 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
       balance with no rate stored. The rate is shown after the fact ("₮3,450 per $1").
 - [x] Money formatting for each currency ($ and ₮, where the symbol goes, 2 decimals)
 - [x] Totals shown in each currency separately (decided): net worth, All accounts, the forecast
+- [x] **Every currency** (owner, 2026-10-02, PR #32): the 155 ISO currencies a person
+      can hold, each with its own decimals and symbol ([currencies.md](currencies.md))
+- [ ] Whether the currency list also lives in the ledger file (owner asked; not
+      decided)
 - [ ] Savings with two currencies (counts the main one for now; owner to decide)
 - [ ] Changing an account's currency after it has rows
 - [x] Budget categories: each spending category is in one currency, with a pool per

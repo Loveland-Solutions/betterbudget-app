@@ -59,6 +59,10 @@ void main() {
   setUpAll(() async {
     await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');
     await _loadFont('Manrope', 'assets/fonts/Manrope-Variable.ttf');
+    await _loadFont(
+      'BetterBudget Symbols',
+      'assets/fonts/BetterBudgetSymbols.ttf',
+    );
     final icons =
         '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf';
     if (File(icons).existsSync()) await _loadFont('MaterialIcons', icons);
@@ -2389,6 +2393,10 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// Edit, from a category's menu: everything about it, under its row.
+    Future<void> editCategory(WidgetTester tester, String name) =>
+        categoryMenu(tester, name, 'category-edit');
+
     testWidgets('envelopes: put in, spent and left; Tab goes on; ⌘Z; periods', (
       tester,
     ) async {
@@ -2539,7 +2547,9 @@ void main() {
           ),
           text,
         );
-        await tester.pump();
+        // What was typed can add a line: Edit scrolls until Save shows.
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
       }
 
       // A click that writes to the database: in real time, so each write
@@ -2552,18 +2562,34 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      Future<void> save() => click('plan-save');
+      Future<void> save() => click('edit-save');
+
+      // A choice that makes Edit taller: it scrolls until Save is in view.
+      Future<void> pick(String key) async {
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
 
       // No plans yet: nothing to assign at the top.
       expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
 
-      // Groceries, spent through the month: Plan… in its menu opens the
-      // plan under the row; the line says what it comes to; Enter saves.
-      await categoryMenu(tester, 'Groceries', 'category-plan');
-      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsOneWidget);
-      // Save with nothing typed: it stays open.
+      // Groceries, spent through the month: Edit in its menu opens it
+      // under the row, with no plan to begin with; the line says what a
+      // plan comes to; Enter saves.
+      await editCategory(tester, 'Groceries');
+      expect(
+        find.byKey(ValueKey('category-editor-$groceries')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('plan-amount')), findsNothing);
+      await pick('plan-kind-spend');
+      // Save with no amount typed: it stays open.
       await save();
-      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsOneWidget);
+      expect(
+        find.byKey(ValueKey('category-editor-$groceries')),
+        findsOneWidget,
+      );
       await type('plan-amount', '900000');
       expect(preview(), '₮900,000 a month');
       await tester.runAsync(() async {
@@ -2571,7 +2597,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
-      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsNothing);
+      expect(find.byKey(ValueKey('category-editor-$groceries')), findsNothing);
       await reload();
       expect(data.plans[groceries]!.kind, PlanKind.spend);
       expect(data.plans[groceries]!.amount, 90000000);
@@ -2585,13 +2611,12 @@ void main() {
 
       // Tuition, a bill due on a date: 01.15 typed in September is next
       // January's. September to January is five parts.
-      await categoryMenu(tester, 'Tuition', 'category-plan');
-      await tester.tap(find.byKey(const ValueKey('plan-kind-dueOn')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Tuition');
+      await pick('plan-kind-dueOn');
       await type('plan-amount', '2000000');
       // The date is still missing: Save outlines it and stays.
       await save();
-      expect(find.byKey(ValueKey('plan-editor-$tuition')), findsOneWidget);
+      expect(find.byKey(ValueKey('category-editor-$tuition')), findsOneWidget);
       await type('plan-date', '01.15');
       expect(preview(), '₮2,000,000 due 2027.01.15 · ₮400,000 a month');
       await tester.tap(find.byKey(const ValueKey('plan-repeat')));
@@ -2610,17 +2635,15 @@ void main() {
       expect(data.plans[tuition]!.start, DateTime(2026, 9, 16));
 
       // Gifts, saved up.
-      await categoryMenu(tester, 'Gifts', 'category-plan');
-      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Gifts');
+      await pick('plan-kind-saveUp');
       await type('plan-amount', '50000');
       await save();
       expect(find.text('₮50,000 a month · saving up'), findsOneWidget);
 
       // Clothing, a goal: September to December is four parts.
-      await categoryMenu(tester, 'Clothing', 'category-plan');
-      await tester.tap(find.byKey(const ValueKey('plan-kind-goal')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Clothing');
+      await pick('plan-kind-goal');
       await type('plan-amount', '600000');
       await type('plan-date', '2026.12.31');
       expect(preview(), '₮600,000 by 12.31 · ₮150,000 a month');
@@ -2670,11 +2693,12 @@ void main() {
       await reload();
       expect(data.budgetAmounts, hasLength(4));
 
-      // The note opens the plan; Remove plan says so, and ⌘Z brings it
-      // back.
+      // The note opens Edit at the plan; saving No plan says so, and ⌘Z
+      // brings it back.
       await tester.tap(find.byKey(ValueKey('plan-note-$gifts')));
       await tester.pumpAndSettle();
-      await click('plan-remove');
+      await pick('plan-kind-none');
+      await save();
       await reload();
       expect(data.plans[gifts], isNull);
       expect(find.text('Remove the plan for Gifts'), findsOneWidget);
@@ -2700,7 +2724,7 @@ void main() {
       await type('plan-amount', '1');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await settle(tester);
-      expect(find.byKey(ValueKey('plan-editor-$clothing')), findsNothing);
+      expect(find.byKey(ValueKey('category-editor-$clothing')), findsNothing);
       await reload();
       expect(data.plans[clothing]!.amount, 60000000);
       await tidy(tester, db);
@@ -2761,6 +2785,9 @@ void main() {
           find.byKey(const ValueKey('new-category-name')),
           'Car insurance',
         );
+        // The currency is picked from a dropdown.
+        await tester.tap(find.byKey(const ValueKey('new-category-currency')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('new-category-USD')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('new-category-create')));
@@ -2796,8 +2823,16 @@ void main() {
         // the tugrik ones; unchecking all but Khan Savings says so on the
         // line.
         final groceries = id('Groceries');
-        await categoryMenu(tester, 'Car insurance', 'category-accounts');
-        expect(find.byKey(ValueKey('money-editor-$insurance')), findsOneWidget);
+        await editCategory(tester, 'Car insurance');
+        expect(
+          find.byKey(ValueKey('category-editor-$insurance')),
+          findsOneWidget,
+        );
+        // The accounts are a dropdown of checkboxes: it says "All
+        // accounts" to begin with, and stays open while they're picked.
+        expect(find.text('All accounts'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
         expect(
           find.byKey(ValueKey('money-account-${account('AFCU Checking')}')),
           findsOneWidget,
@@ -2806,9 +2841,22 @@ void main() {
           find.byKey(ValueKey('money-account-${account('TDB Checking')}')),
           findsNothing,
         );
-        await tester.tap(find.byKey(const ValueKey('money-cancel')));
+        // Esc closes the dropdown first, then Edit.
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
-        await categoryMenu(tester, 'Groceries', 'category-accounts');
+        expect(
+          find.byKey(ValueKey('money-account-${account('AFCU Checking')}')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(ValueKey('category-editor-$insurance')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('edit-cancel')));
+        await tester.pumpAndSettle();
+        await editCategory(tester, 'Groceries');
+        await tester.tap(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
         // Cards are accounts too: the Visa is in the list.
         for (final name in ['TDB Checking', 'Cash wallet', 'Golomt Visa']) {
           await tester.tap(
@@ -2817,10 +2865,21 @@ void main() {
           await tester.pumpAndSettle();
         }
         await expectLater(
-          find.byType(LedgerScreen),
+          find.byType(MaterialApp),
           matchesGoldenFile('goldens/budget_accounts_open.png'),
         );
-        await click('money-save');
+        // A click on the dropdown's button closes it; it names the one
+        // account left.
+        await tester.tap(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('money-accounts')),
+            matching: find.text('Khan Savings'),
+          ),
+          findsOneWidget,
+        );
+        await click('edit-save');
         await reload();
         expect(data.accountsOff[groceries], {
           account('TDB Checking'),
@@ -2850,14 +2909,36 @@ void main() {
         expect(data.accountsOff, isEmpty);
 
         // Changing Car insurance to tugrik says what it takes back first.
-        await categoryMenu(tester, 'Car insurance', 'category-accounts');
+        await editCategory(tester, 'Car insurance');
+        // A type picked first keeps its kind; its amount, typed in
+        // dollars, is emptied for the new currency.
+        await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('plan-amount')))
+              .controller!
+              .text,
+          '120',
+        );
+        await tester.tap(find.byKey(const ValueKey('money-currency')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-currency-MNT')));
         await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('plan-amount')))
+              .controller!
+              .text,
+          isEmpty,
+        );
         expect(
           text('money-change'),
           r'Changing the currency takes back $120.00 assigned to it',
         );
-        await click('money-save');
+        await tester.tap(find.byKey(const ValueKey('plan-kind-none')));
+        await tester.pumpAndSettle();
+        await click('edit-save');
         await reload();
         expect(data.accounts[insurance]!.currency, Currency.mnt);
         expect(data.budgetAmounts, isEmpty);
@@ -2910,19 +2991,73 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
       await tester.pumpAndSettle();
 
-      // Rename in place.
+      // Its menu, from a right-click or ⋯, is Edit and Delete.
+      await tester.tap(find.text('Coffee'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(2));
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Delete…'), findsOneWidget);
+      await tester.tapAt(const Offset(700, 20));
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNothing);
+
+      // A double-click opens Edit with the name selected: typing renames.
+      expect(find.byKey(const ValueKey('edit-name')), findsNothing);
+      await tester.tap(find.text('Coffee'));
+      await tester.pump(const Duration(milliseconds: 60));
       await tester.tap(find.text('Coffee'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.byKey(const ValueKey('category-name-field')),
+        find.byKey(const ValueKey('edit-name')),
         'Coffee & tea',
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
+      expect(find.byKey(const ValueKey('edit-name')), findsNothing);
       expect(find.text('Coffee & tea'), findsOneWidget);
+      expect(find.text('Renamed Coffee to Coffee & tea'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 7)); // the toast goes
+      await tester.pumpAndSettle();
 
-      // Archive: out of the list, into Archived, and back.
-      await categoryMenu(tester, 'Coffee & tea', 'category-archive');
+      // A second double-click on the open row closes Edit. So does Esc,
+      // after a click on a choice in it or on the page outside it.
+      final coffee = (await tester.runAsync(db.loadLedger))!.categories
+          .firstWhere((c) => c.name == 'Coffee & tea')
+          .id;
+      final row = find.byKey(ValueKey('category-$coffee'));
+      final edit = find.byKey(ValueKey('category-editor-$coffee'));
+      Future<void> doubleClick() async {
+        await tester.tap(row);
+        await tester.pump(const Duration(milliseconds: 60));
+        await tester.tap(row);
+        await tester.pumpAndSettle();
+      }
+
+      await doubleClick();
+      expect(edit, findsOneWidget);
+      await doubleClick();
+      expect(edit, findsNothing);
+      // Esc straight after opening, with nothing clicked or typed.
+      await doubleClick();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(edit, findsNothing);
+      await doubleClick();
+      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(edit, findsNothing);
+      await doubleClick();
+      await tester.tap(find.byKey(const ValueKey('period-title')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(edit, findsNothing);
+
+      // Archive, in Edit: out of the list, into Archived, and back.
+      await editCategory(tester, 'Coffee & tea');
+      await tester.tap(find.byKey(const ValueKey('edit-archive')));
       await settle(tester);
       expect(find.text('Coffee & tea'), findsNothing);
       await tester.pump(const Duration(seconds: 7)); // the toast goes
@@ -3029,13 +3164,80 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('Edit saves several changes at once, and ⌘Z undoes them all', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      final gifts = data.categories.firstWhere((c) => c.name == 'Gifts').id;
+      final wallet = data.openAccounts
+          .firstWhere((a) => a.name == 'Cash wallet')
+          .id;
+      await editCategory(tester, 'Gifts');
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-name')),
+        'Presents',
+      );
+      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-amount')),
+          matching: find.byType(EditableText),
+          matchRoot: true,
+        ),
+        '50000',
+      );
+      await tester.tap(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('money-account-$wallet')));
+      await tester.pumpAndSettle();
+      expect(find.text('3 of 4 accounts'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
+      await reload();
+      expect(data.accounts[gifts]!.name, 'Presents');
+      expect(data.plans[gifts]!.kind, PlanKind.saveUp);
+      expect(data.plans[gifts]!.amount, 5000000);
+      expect(data.accountsOff[gifts], {wallet});
+      expect(find.text('Changes to Presents'), findsOneWidget);
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.accounts[gifts]!.name, 'Gifts');
+      expect(data.plans[gifts], isNull);
+      expect(data.accountsOff, isEmpty);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      await reload();
+      expect(data.accounts[gifts]!.name, 'Presents');
+      expect(data.plans[gifts]!.amount, 5000000);
+      expect(data.accountsOff[gifts], {wallet});
+
+      // Made income, it shows under Income; its plan and accounts stay
+      // as they were for the day it's spending again.
+      await editCategory(tester, 'Presents');
+      await tester.tap(find.byKey(const ValueKey('edit-kind-income')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plan-amount')), findsNothing);
+      await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
+      await reload();
+      expect(data.accounts[gifts]!.type, AccountType.income);
+      expect(find.textContaining('Presents is now income'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
     testWidgets('renaming onto another name offers the merge', (tester) async {
       final db = await pumpLedger(tester);
       await openBudget(tester);
-      await tester.tap(find.text('Gifts'));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Gifts');
       await tester.enterText(
-        find.byKey(const ValueKey('category-name-field')),
+        find.byKey(const ValueKey('edit-name')),
         'entertainment',
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -3220,13 +3422,16 @@ void main() {
       expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
       expect(find.text('Sakura Coffee'), findsOneWidget);
 
-      // The usage, at the top of its ⋯ menu, opens every row, all time.
+      // The usage, at the bottom of Edit (here from ⋯), opens every row,
+      // all time.
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('category-menu-${groceries.id}')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('category-edit')));
+      await tester.pumpAndSettle();
       expect(find.textContaining('2 rows · last'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('category-rows')));
+      await tester.tap(find.byKey(const ValueKey('edit-rows')));
       await tester.pumpAndSettle();
       expect(find.text('Category: Groceries'), findsOneWidget);
       expect(find.byKey(const ValueKey('period-chip')), findsNothing);
@@ -3603,9 +3808,21 @@ void main() {
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
       expect(find.text('payday · pay not set up'), findsOneWidget);
+      // Edit on income: payday or not, and its pay.
       await tester.tap(find.text('Salary'), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
-      await tapAndWait(tester, find.byKey(const ValueKey('category-payday')));
+      await tester.tap(find.byKey(const ValueKey('category-edit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('edit-pay')), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-kind-none')), findsNothing);
+      expect(find.text('Forecasts run to this payday.'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('edit-payday-off')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Forecasts run past it when it comes in.'),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
       expect(find.text('not a payday'), findsOneWidget);
       await tidy(tester, db);
     });
@@ -4038,8 +4255,72 @@ void main() {
       find.byKey(const ValueKey('new-account-name')),
       'Chase',
     );
+    // Currency is a dropdown of every currency, with a search.
+    expect(find.text('₮ Mongolian Tugrik'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('currency')));
+    await tester.pumpAndSettle();
+    // Tugrik and dollars first, then by name.
+    final names = tester
+        .widgetList<MenuItemButton>(find.byType(MenuItemButton))
+        .map((b) => (b.child! as Text).data!)
+        .toList();
+    expect(names.take(3), ['Mongolian Tugrik', 'US Dollar', 'Afghan Afghani']);
+    final rest = names.sublist(2).map((n) => n.toLowerCase()).toList();
+    expect(rest, [...rest]..sort());
+    await tester.enterText(
+      find.byKey(const ValueKey('currency-search')),
+      'dollar',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('currency-CAD')), findsOneWidget);
+    expect(find.byKey(const ValueKey('currency-JPY')), findsNothing);
+    // Every row ends with its code, whether it has a symbol or not.
+    // The Canadian dollar's symbol is the dollar sign, as Canadians
+    // write it.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('currency-CAD')),
+        matching: find.text(r'$'),
+      ),
+      findsOneWidget,
+    );
+    for (final code in ['USD', 'CAD', 'BSD']) {
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('currency-$code')),
+          matching: find.text(code),
+        ),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('Bahamian Dollar'), findsOneWidget);
+    // Every currency has a symbol, drawn: the baht's sign isn't in the
+    // app's two text fonts.
+    await tester.enterText(find.byKey(const ValueKey('currency-search')), 'a');
+    await tester.pumpAndSettle();
+    for (final b in tester.widgetList<MenuItemButton>(
+      find.byType(MenuItemButton),
+    )) {
+      expect(((b.leadingIcon! as SizedBox).child! as Text).data, isNotEmpty);
+    }
+    await tester.enterText(find.byKey(const ValueKey('currency-search')), 'ia');
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/account_currency_signs.png'),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('currency-search')),
+      'dollar',
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/account_currency_list.png'),
+    );
     await tester.tap(find.byKey(const ValueKey('currency-USD')));
     await tester.pumpAndSettle();
+    expect(find.text(r'$ US Dollar'), findsOneWidget);
     await tapAndWait(tester, find.byKey(const ValueKey('new-account-create')));
     expect(
       find.text(

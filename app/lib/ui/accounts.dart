@@ -7,7 +7,7 @@ part of 'ledger_screen.dart';
 /// Whole tugrik, with the fraction only when there is one: a ₮0.40 leftover
 /// mustn't read as ₮0.
 String _money(int v, [Currency currency = Currency.mnt]) =>
-    formatMoney(v, showCents: v % 100 != 0, currency: currency);
+    formatShort(v, currency: currency);
 
 /// What an account's balance is, in words that fit its kind and sign.
 String _balanceWords(Words t, AccountInfo a, int balance) => a.isOwed
@@ -131,13 +131,6 @@ class _NewAccountPageState extends State<_NewAccountPage> {
       () => setState(() => _type = k),
       'kind-${k.name}',
     );
-    Widget currency(Currency c, String label) => _choice(
-      label,
-      _currency == c,
-      () => setState(() => _currency = c),
-      'currency-${c.code}',
-    );
-
     return CallbackShortcuts(
       bindings: {
         if (widget.onCancel != null)
@@ -210,12 +203,14 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                       ),
                       _FormLine(
                         label: t.setupCurrency,
-                        child: Row(
-                          children: [
-                            currency(Currency.mnt, t.setupCurrencyMnt),
-                            const SizedBox(width: 8),
-                            currency(Currency.usd, t.setupCurrencyUsd),
-                          ],
+                        // Every currency there is, with a search: too
+                        // many for a button each.
+                        child: _CurrencyMenu(
+                          buttonKey: 'currency',
+                          itemPrefix: 'currency-',
+                          currencies: Currency.values,
+                          currency: _currency,
+                          onPick: (c) => setState(() => _currency = c),
                         ),
                       ),
                       Padding(
@@ -336,7 +331,7 @@ class _AccountStartState extends State<_AccountStart> {
     super.dispose();
   }
 
-  int? get _parsed => parseAmount(_balance.text);
+  int? get _parsed => parseAmount(_balance.text, widget.account.currency);
   bool get _empty => _balance.text.trim().isEmpty;
   DateTime? get _day => parseEntryDate(_date.text, widget.today);
 
@@ -398,7 +393,7 @@ class _AccountStartState extends State<_AccountStart> {
                     style: onest(13.5, tabular: true),
                     onSubmitted: (_) => _start(),
                     decoration: _fieldDecoration(
-                      hint: '${widget.account.currency.symbol}0',
+                      hint: formatRounded(0, currency: widget.account.currency),
                       wrong: wrongAmount,
                     ),
                   ),
@@ -435,10 +430,10 @@ class _AccountStartState extends State<_AccountStart> {
                       // show the available limit most prominently.
                       : owed
                       ? t.setupStartOwedHint(
-                          '${widget.account.currency.symbol}0',
+                          formatRounded(0, currency: widget.account.currency),
                         )
                       : t.setupStartBankHint(
-                          '${widget.account.currency.symbol}0',
+                          formatRounded(0, currency: widget.account.currency),
                         ),
                   style: onest(
                     12.5,

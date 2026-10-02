@@ -119,8 +119,8 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     text: _typed(_split ? widget.existing!.byDay.last.amount : null),
   );
 
-  static String _typed(int? v) =>
-      v == null ? '' : formatWhole(v) + (v % 100 == 0 ? '' : formatCents(v));
+  String _typed(int? v) =>
+      v == null ? '' : typedAmount(v, widget.account.currency);
   late bool _varies = widget.existing?.varies ?? false;
   late PayRule _rule = widget.existing?.rule ?? PayRule.monthly;
   late final _day1 = TextEditingController(
@@ -171,7 +171,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     if (mounted) setState(() => _history = h);
   }
 
-  int? get _amountValue => parseAmount(_amount.text);
+  int? get _amountValue => parseAmount(_amount.text, _account.currency);
 
   /// Back to one amount (the same both days, or another rule): the larger
   /// of the two stays, since the advance alone would undercount pay.
@@ -182,7 +182,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     _split = false;
   }
 
-  int? get _amount2Value => parseAmount(_amount2.text);
+  int? get _amount2Value => parseAmount(_amount2.text, _account.currency);
   bool get _splitting => _split && _rule == PayRule.twiceMonthly;
 
   /// The two days of the month, earlier first, when both read.
@@ -313,8 +313,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    String money(int v) =>
-        formatMoney(v, showCents: v % 100 != 0, currency: _account.currency);
+    String money(int v) => formatShort(v, currency: _account.currency);
     final amount = _amountValue;
     final lowest = _history.isEmpty
         ? null
@@ -386,7 +385,9 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
           autofocus: autofocus && widget.existing == null,
           textAlign: TextAlign.right,
           style: onest(13.5, tabular: true),
-          decoration: _fieldDecoration(hint: '${_account.currency.symbol}0'),
+          decoration: _fieldDecoration(
+            hint: formatRounded(0, currency: _account.currency),
+          ),
         ),
       ),
     );
@@ -963,9 +964,8 @@ class _BudgetSettings extends StatelessWidget {
                               payAmounts(
                                 t,
                                 p,
-                                (v) => formatMoney(
+                                (v) => formatShort(
                                   v,
-                                  showCents: v % 100 != 0,
                                   currency:
                                       data.accounts[p.accountId]?.currency ??
                                       Currency.mnt,

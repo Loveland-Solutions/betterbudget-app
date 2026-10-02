@@ -327,7 +327,7 @@ TextStyle onest(
   double? height,
 }) => TextStyle(
   fontFamily: 'Onest',
-  fontFamilyFallback: const ['Manrope'],
+  fontFamilyFallback: const ['Manrope', 'BetterBudget Symbols'],
   fontSize: size,
   fontWeight: _weights[weight],
   fontVariations: [FontVariation('wght', weight.toDouble())],
@@ -433,6 +433,7 @@ class Money extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currency = this.currency ?? CurrencyScope.of(context);
     final prefix = switch (sign) {
       MoneySign.none => '',
       MoneySign.negativeOnly => minor < 0 ? '−' : '',
@@ -442,8 +443,7 @@ class Money extends StatelessWidget {
       TextSpan(
         children: [
           TextSpan(
-            text:
-                '$prefix${(currency ?? CurrencyScope.of(context)).symbol}${formatWhole(minor)}',
+            text: '$prefix${currency.prefix}${formatWhole(minor, currency)}',
             style: onest(
               size,
               weight: weight,
@@ -453,7 +453,7 @@ class Money extends StatelessWidget {
             ),
           ),
           TextSpan(
-            text: formatCents(minor),
+            text: formatCents(minor, currency),
             style: onest(
               size * centsScale,
               weight: 400,

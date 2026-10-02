@@ -183,10 +183,9 @@ String _lockedCategoryTip(Words t, RegisterRow r, String reconciledTip) =>
     };
 
 /// How an amount reads in the field: `30000`, `214750.50`, `+2500000`.
-String editableAmount(int minor) {
-  final cents = minor.abs() % 100;
-  final whole = minor.abs() ~/ 100;
-  return '${minor > 0 ? '+' : ''}$whole${cents == 0 ? '' : '.${cents.toString().padLeft(2, '0')}'}';
+String editableAmount(int minor, [Currency currency = Currency.mnt]) {
+  final whole = minor.abs() ~/ currency.scale;
+  return '${minor > 0 ? '+' : ''}$whole${currency.hasCents(minor) ? formatCents(minor, currency) : ''}';
 }
 
 /// The new-transaction row, and the same row opened on an existing
@@ -239,12 +238,17 @@ class _EntryRowState extends State<EntryRow> {
   late final _memo = TextEditingController(text: _initial?.memo ?? '');
   late final _category = TextEditingController(text: _initial?.category ?? '');
   late final _amount = TextEditingController(
-    text: _initial == null ? '' : editableAmount(_initial.amount),
+    text: _initial == null
+        ? ''
+        : editableAmount(_initial.amount, widget.currency),
   );
   late final _otherAmount = TextEditingController(
     text: _initial?.otherAmount == null
         ? ''
-        : editableAmount(_initial!.otherAmount!),
+        : editableAmount(
+            _initial!.otherAmount!,
+            _initial.row.otherCurrency ?? widget.currency,
+          ),
   );
   late final List<TextEditingController> _all = [
     _date,
@@ -471,7 +475,10 @@ class _EntryRowState extends State<EntryRow> {
     if (initial != null && initial.lockAmount) {
       amount = initial.amount;
     } else {
-      final parsed = parseAmount(raw.replaceFirst(RegExp(r'^\+'), ''));
+      final parsed = parseAmount(
+        raw.replaceFirst(RegExp(r'^\+'), ''),
+        _hereCurrency,
+      );
       amount = parsed == null || parsed == 0
           ? null
           : (raw.startsWith('+') ? parsed.abs() : -parsed.abs());
@@ -500,7 +507,10 @@ class _EntryRowState extends State<EntryRow> {
       return null;
     }
     final raw = _amount.text.trim();
-    final parsed = parseAmount(raw.replaceFirst(RegExp(r'^\+'), ''));
+    final parsed = parseAmount(
+      raw.replaceFirst(RegExp(r'^\+'), ''),
+      _hereCurrency,
+    );
     final counter = _counterOptions
         .where(
           (o) => o.label.toLowerCase() == _category.text.trim().toLowerCase(),
@@ -648,7 +658,10 @@ class _EntryRowState extends State<EntryRow> {
         raw.startsWith('+') || counter?.account.type == AccountType.income;
     final parsed = lockAmount
         ? null
-        : parseAmount(raw.startsWith('+') ? raw.substring(1) : raw);
+        : parseAmount(
+            raw.startsWith('+') ? raw.substring(1) : raw,
+            _hereCurrency,
+          );
 
     String? error;
     FocusNode? fix;
@@ -707,8 +720,10 @@ class _EntryRowState extends State<EntryRow> {
     }
   }
 
-  int? get _otherParsed =>
-      parseAmount(_otherAmount.text.trim().replaceFirst(RegExp(r'^\+'), ''));
+  int? get _otherParsed => parseAmount(
+    _otherAmount.text.trim().replaceFirst(RegExp(r'^\+'), ''),
+    _exchangeWith?.currency ?? _hereCurrency,
+  );
 
   /// The note (what's missing, the sum, an error) and Add.
   Widget _submitLine(int? preview, bool showsMath) => Row(
@@ -792,6 +807,7 @@ class _EntryRowState extends State<EntryRow> {
   Widget build(BuildContext context) {
     final preview = parseAmount(
       _amount.text.trim().replaceFirst(RegExp(r'^\+'), ''),
+      _hereCurrency,
     );
     final showsMath =
         preview != null && RegExp(r'\d[+\-*/×]').hasMatch(_amount.text);
@@ -979,7 +995,7 @@ class _EntryRowState extends State<EntryRow> {
                                   child: _Field(
                                     controller: _amount,
                                     focusNode: _amountFocus,
-                                    hint: '${_hereCurrency.symbol}0.00',
+                                    hint: zeroHint(_hereCurrency),
                                     tabular: true,
                                     align: TextAlign.right,
                                     wanted: _wants('amount'),
@@ -1134,13 +1150,7 @@ class _OwedLine extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            t.rowsLessThanPlanned(
-              formatMoney(
-                short,
-                showCents: short % 100 != 0,
-                currency: currency,
-              ),
-            ),
+            t.rowsLessThanPlanned(formatShort(short, currency: currency)),
             style: onest(12.5, color: Mid.ink2, tabular: true),
           ),
           const SizedBox(width: 6),
@@ -1185,9 +1195,9 @@ class _ExchangeLine extends StatelessWidget {
     final t = context.t;
     final there = parseAmount(
       controller.text.trim().replaceFirst(RegExp(r'^\+'), ''),
+      other.currency,
     );
-    final per = mntPerDollar(hereAmount, here, there, other.currency);
-    final rate = per == null ? null : formatMoney(per);
+    final rate = exchangeRate(hereAmount, here, there, other.currency);
     return Container(
       key: const ValueKey('exchange-line'),
       width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
@@ -1221,7 +1231,7 @@ class _ExchangeLine extends StatelessWidget {
                     key: const ValueKey('exchange-amount'),
                     controller: controller,
                     focusNode: focusNode,
-                    hint: '${other.currency.symbol}0.00',
+                    hint: zeroHint(other.currency),
                     tabular: true,
                     small: true,
                     align: TextAlign.right,
@@ -1232,7 +1242,10 @@ class _ExchangeLine extends StatelessWidget {
           if (rate != null) ...[
             const SizedBox(width: 10),
             Text(
-              t.rowsRatePerDollar(rate),
+              t.rowsRatePer(
+                formatMoney(rate.rate, currency: rate.quote),
+                formatRounded(rate.base.scale, currency: rate.base),
+              ),
               style: onest(12, color: Mid.ink3, tabular: true),
             ),
           ],

@@ -615,6 +615,8 @@ What's known so far:
     reason. **Add category** opens an inline row (name, Spending or Income; income ends
     a forecast, like payday). **Click a name to rename it**; ⋯ or a right-click gives
     Rename, Change to income / spending, Archive and Delete…, like accounts (rule 21).
+    (Replaced 2026-10-02 by rule 29: the menu is Edit and Delete, and the rest is in
+    Edit.)
     **Archive** needs no dialog, since nothing is lost: the category leaves the menus
     and the entry row, and its rows keep its name. "Show archived (n)" lists archived
     categories with "Show in menus". **Delete with rows asks where they go** ("1 row is
@@ -703,7 +705,7 @@ What's known so far:
     Income categories carry a payday mark: on for Salary and Pension (every existing
     income category kept it when upgraded), off for the rest. Child allowance on the
     12th no longer ends the forecast before rent on the 20th. Toggle it with "Mark as
-    payday" / "Not a payday" in the category's ⋯. Rejected: ending the forecast at
+    payday" / "Not a payday" in the category's ⋯ (in Edit since rule 29). Rejected: ending the forecast at
     the first income big enough to cover the bills (B), and always forecasting 30
     days (C). **Putting in pay** (option A): a pay setup names the category, the
     account it's paid into, who from (optional), whether it's about the same each
@@ -974,7 +976,7 @@ What's known so far:
     - Spent opens the category's rows for that period in All accounts (the
       chip names the period). The usage ("42 rows · last 09.12") moved to
       the top of the category's ⋯ menu, where keep, merge and archive are,
-      and opens every row. Income lines show what came in that period.
+      and opens every row (the bottom of Edit since rule 29). Income lines show what came in that period.
     - A merge moves the amounts with the rows; deleting a category, merging
       it into an income one, or changing it to income gives its money back,
       and the toast says so with the amount ("₮150,000 assigned to Dining
@@ -1058,7 +1060,8 @@ What's known so far:
       this period's part plus what's short. A period where more than the
       part went in lowers the next one's.
     - **Clicking the note opens the plan**; so does **Plan…** in the
-      category's ⋯ menu, the only way in for a category without one. The
+      category's ⋯ menu, the only way in for a category without one
+      (since rule 29 the plan is part of Edit, as its Type). The
       plan opens under the row, which grows like a register row (rule 12):
       the four kinds side by side with one line saying what the chosen one
       does, then its fields, and a line showing what the note will say
@@ -1140,7 +1143,8 @@ What's known so far:
       currency of the account the row is in. With accounts in one
       currency there's nothing to choose. Income categories aren't tied.
     - **Currency and accounts…** in the category's ⋯ menu ("Accounts…"
-      with one currency) opens a panel under the row: the currency, then
+      with one currency) opens a panel under the row (part of Edit since
+      rule 29): the currency, then
       "Accounts this category uses" over every open account in it that
       counts as money (cash, bank and cards; not mortgages or student
       loans), each with a checkbox and its balance (a card's as a minus),
@@ -1210,6 +1214,71 @@ What's known so far:
       different accounts aren't checked against each other; clicking the
       "paid from" note opens all the category's rows for the period, not
       only that account's.
+
+29. **A category has one Edit, and its menu is Edit and Delete** (owner's
+    correction, 2026-10-02: "I like the information on the budget
+    categories, but I don't like how it's executed. First, there are too
+    many menus"). Before, a category had a click-to-rename name, a menu of
+    up to nine items, a plan panel and a currency-and-accounts panel.
+    - **Right-click a row (or ⋯): Edit, Delete…** and nothing else.
+    - **Double-click a row: Edit**, as a register row opens (rule 12). A
+      single click on the name does nothing now; Assigned, Spent and the
+      notes under the name keep their own clicks.
+    - **Edit opens under the row and holds everything**: Name (selected,
+      so typing renames); Spending or Income; for spending, **Type** (No
+      plan, or one of rule 27's four, with its fields and the line saying
+      what it comes to), Currency (with accounts in both) and "Accounts
+      this category uses" (rule 28); for income, Payday or not, and Pay…
+      (rule 24). At the bottom: how much it's used ("42 rows · last 09.12
+      · show them"), Archive, Cancel, Save. Enter saves, Esc cancels.
+    - **Esc closes Edit, and so does a second double-click on its row**
+      (owner's correction, same day). Esc works wherever the last click
+      was: on a choice in the panel, or on the page outside it. What was
+      typed and not saved is dropped, as Cancel does.
+    - **Currency is a dropdown** (owner's correction, same day: "I want
+      to support all the currencies, so the way you're laying out the
+      currencies won't work"), labelled Currency, in Edit and in Add
+      category. It lists the currencies there are accounts in. Rejected:
+      a button for each currency (it only fits two). Add account still
+      has the two buttons; it changes when more currencies come.
+    - **"Accounts this category uses" is a dropdown of checkboxes**
+      (owner's correction, same day), beside Currency. Its button says
+      "All accounts", the one account's name, "2 of 4 accounts" or "No
+      accounts"; the list shows each account with its checkbox and
+      balance and stays open while they're checked and unchecked. Esc or
+      Enter closes an open dropdown first, then acts on Edit. Rejected:
+      the checklist laid out in the panel (it grew with every account).
+    - **One Save, one ⌘Z.** A single change is said and undone as it was
+      before (a rename's toast, a plan saved quietly). Several at once are
+      written together and undone together, with one toast ("Changes to
+      Groceries").
+    - **"No plan" is a Type**, replacing the Remove plan button.
+    - **The plan's note and the lines about its accounts open the same
+      Edit**; from the note the cursor starts in the plan's amount.
+    - **What a change will take is said before Save**, in gold (rule 21's
+      "warn, don't block"): a change of currency takes back what's
+      assigned and removes the plan (the Type goes back to No plan, and a
+      new one can be picked in the same Save); made income, what it has
+      left goes back to not assigned.
+    - **Archive is in Edit**, since the menu is only Edit and Delete.
+    - **From the reviews** (2026-10-02): Currency comes before Type,
+      whose amount is in it, and a change of currency keeps the type,
+      date and repeat and empties only the amount; No plan picked over a
+      plan that didn't carry over says in gold what returns to the
+      category; the sentence under Payday follows the choice; Archive
+      sits by the usage line, apart from Cancel and Save; the cursor is
+      put in Edit when it opens (the screen held the keys, so Esc and
+      Enter did nothing until a field was clicked); pay set up from Pay…
+      while Edit is open isn't undone by Save.
+    - **Left for later:** Add category opening this same Edit; a rename
+      that becomes a merge closes Edit first, so cancelling the merge
+      drops the other changes typed with it; opening another row's Edit,
+      or Archive, drops what was typed without a word; a plan typed in a
+      new currency shows no line saying what it comes to until it's
+      saved; archiving a category that still holds money doesn't name the
+      amount.
+    - Rejected: keeping the click-to-rename name beside Edit (two ways to
+      do one thing, and a double-click would have started a rename).
 
 ### The smallest window (owner, 2026-10-01)
 
@@ -1319,6 +1388,31 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   into transfers); otherwise **Not categorized** (Ангилаагүй), an ordinary category the app
   makes in the language showing, which the person can rename or delete. It isn't
   called "Unassigned": in an envelope budget that means money waiting for a job.
+
+### Every currency (owner, 2026-10-02)
+
+"I want to support all the currencies." The list, where it comes from and how
+each is shown is in [currencies.md](../currencies.md): 155 ISO currencies, each
+with its own decimals (yen has none, a Kuwaiti dinar three), and the symbol its
+own people write (`$` for a Canadian dollar too, `¥` for the yuan, `kr`, `zł`;
+and **every currency has one** (owner: "every currency should have a symbol"):
+where the usual source has none it's the sign or abbreviation in common use,
+`฿`, `₸`, `KD`, and a small bundled font draws the 13 signs the app's fonts
+lacked). Two that share a symbol are told
+apart only while a ledger holds both: then the Canadian reads `CA$`. Add account picks from a dropdown of all
+of them with a search; a category's dropdown lists the currencies there are
+accounts in. **Every row of the list reads the same way** (owner's correction:
+"you have the three digit abbreviation in the wrong place on some of these"):
+the symbol in a column at the start, empty for a currency with none of its own,
+then the name, then the code at the end. The code never stands in the symbol's
+place there. **The symbol in that column is the currency's real one** (owner's
+correction: "I think the symbols aren't right now on the left side", of `CA$`
+and `CN¥` standing where `$` and `¥` belong, and of most rows having none).
+Tried and rejected on the way: a made-up symbol no other currency shares
+(`CA$` always), and dropping symbols made of letters (`R`, `zł`). The list is
+tugrik and dollars, then by name. The owner was asked how two `$` currencies should read and whether
+yen shows no decimals, and said to go ahead; both are as above until they say
+otherwise. What follows about tugrik and dollars holds for any pair.
 
 ### Tugrik and dollars (owner, 2026-09-30)
 
