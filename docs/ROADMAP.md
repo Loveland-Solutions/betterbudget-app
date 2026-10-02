@@ -79,7 +79,10 @@ Work:
 - [ ] Move money between categories ("Money can be moved in from another
       category any time", rule 26); today it's two typed amounts
 - [ ] The forecast's "Nothing has been budgeted" sentence switches on the budget
-- [ ] Both reviews
+- [x] Both reviews for plans (PR #30) and for currency and accounts (PR #31); each new
+      piece gets its own
+- [ ] More controls on a line (owner, 2026-10-02): order or groups, a one-period
+      change or pause for a plan, a note, a cap, clearing a period (STATUS "Next step")
 
 ### D. Savings, the differentiator (owner item 3)
 "Other budgets help you make it through the month. This budget helps you make it

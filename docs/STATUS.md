@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** PR #31 is open on branch `budget-currency` (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28), stacked on PR #30; neither is merged. PR #30 is open on branch `budget-types` (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), not merged: the owner hasn't seen it running yet. `main` has everything through PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -21,8 +21,7 @@ the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Set
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
 merge. The owner's data file is at schema version 12 (upgraded 2026-10-02 by the 0.3.0 build, from
-v10; the copy before it, `before-v12-from-v10-…`, is beside it). Builds from `main` (0.1.1)
-refuse it until PRs #30 and #31 merge.
+v10; the copy before it, `before-v12-from-v10-…`, is beside it).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -186,6 +185,32 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-02: the owner is working through the budget's controls.** Plans (PR #30) and
+a category's currency and accounts (PR #31) are merged and running on the owner's
+ledger. The owner said "the budgets themselves need more controls" and walked through
+what a line has; the list of what a line can't do yet, in the order it came up:
+
+- Move money to or from another category (ROADMAP C; today it's two typed amounts).
+- Put categories in an order or a group (the list is alphabetical).
+- Skip or change a plan for one period, pause a plan, or pick the period a plan
+  starts counting from.
+- A note or a color on a category; a cap on what it can hold.
+- Take back everything assigned this period in one step.
+
+**Waiting on the owner** (asked, not answered; ask again only when it comes up):
+
+1. **What "dedicated" means.** Limited to Khan Savings, Emergency fund holding
+   ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 (and interest) the fund's
+   too, or free to assign, as built? The panel says the built behaviour with the real
+   amounts (rule 28).
+2. **Month ↔ pay period switch.** A "₮900,000 a month" plan then reads "₮900,000 each
+   pay period": convert it, or leave it with a note to check? (rule 27, left for later)
+
+**Not yet seen by the owner in the app:** the Budget page with plans and the
+currency panel (they had the build running; no reaction recorded). Expect corrections.
+
+Earlier:
 
 **The budget page, first slice** (2026-09-30, PR #26): the owner picked
 envelopes with Assigned · Spent · Left, overspending carried as minus, and card debt
