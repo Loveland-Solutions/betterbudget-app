@@ -4825,12 +4825,6 @@ abstract class Words {
   /// **'Assign {amount} to {category}'**
   String planAssignUndo(String amount, String category);
 
-  /// Budget page: note under the top line when some accounts are in the other currency
-  ///
-  /// In en, this message translates to:
-  /// **'Accounts in {symbol} aren\'t in the budget yet'**
-  String planOtherCurrency(String symbol);
-
   /// Budget page: first item in a category's ⋯ menu; usage is e.g. "42 rows · last 09.12 · 1 scheduled"; opens every row, all time
   ///
   /// In en, this message translates to:
@@ -5850,6 +5844,137 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} that went back returns to {category}, so not assigned goes down by that much'**
   String planReturns(String amount, String category);
+
+  /// Budget page: item in a spending category's ⋯ menu when every account is in one currency; opens the list of accounts the category uses
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts…'**
+  String get planMoneyMenu;
+
+  /// Budget page: item in a spending category's ⋯ menu when there are accounts in tugrik and in dollars; opens the category's currency and the accounts it uses
+  ///
+  /// In en, this message translates to:
+  /// **'Currency and accounts…'**
+  String get planMoneyMenuBoth;
+
+  /// Budget page, a category's currency and accounts: label over the choice of ₮ or $
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get planMoneyCurrency;
+
+  /// Budget page: note under a category's name when it uses one account only
+  ///
+  /// In en, this message translates to:
+  /// **'only from {account}'**
+  String planOnlyFromOne(String account);
+
+  /// Budget page: note under a category's name when some of its currency's accounts are unchecked
+  ///
+  /// In en, this message translates to:
+  /// **'only from {count} of {total} accounts'**
+  String planOnlyFromSome(int count, int total);
+
+  /// Undo history label for changing which accounts a category uses (shown in Undone/Redone toasts)
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts for {category}'**
+  String planMoneyUndo(String category);
+
+  /// Toast and undo history label for changing a category's currency
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is now in {symbol}'**
+  String planMoneyCurrencyUndo(String category, String symbol);
+
+  /// Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts this category uses'**
+  String get planMoneyAccounts;
+
+  /// Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the currency takes back {amount} assigned to it and removes its plan'**
+  String planMoneyChange(String amount);
+
+  /// The same line, for a category with amounts and no plan
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the currency takes back {amount} assigned to it'**
+  String planMoneyChangeAmount(String amount);
+
+  /// The same line, for a category with a plan and nothing assigned
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the currency removes its plan'**
+  String get planMoneyChangePlan;
+
+  /// Budget page, a category's currency and accounts: line under the checklist when one account is left checked; says with real amounts what unchecking does and doesn't reserve
+  ///
+  /// In en, this message translates to:
+  /// **'{held} of what’s in {account} is for {category}. The other {rest} there can still be assigned to any category.'**
+  String planMoneyRestOne(
+    String held,
+    String account,
+    String category,
+    String rest,
+  );
+
+  /// The same line, when several accounts are left checked and some are unchecked
+  ///
+  /// In en, this message translates to:
+  /// **'{held} of what’s in these accounts is for {category}. The other {rest} there can still be assigned to any category.'**
+  String planMoneyRestSome(String held, String category, String rest);
+
+  /// Budget page: note under a category's name when every account is unchecked
+  ///
+  /// In en, this message translates to:
+  /// **'no account chosen'**
+  String get planFromNone;
+
+  /// Budget page: gold note under a category's name; rows in the other currency are filed under it. It stays until they're fixed; clicking shows them
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}'**
+  String planOtherRows(int count, String amount, String symbol, String other);
+
+  /// Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} paid from {account}, which this category doesn’t use'**
+  String planOffAccount(String amount, String account);
+
+  /// The same note, when more than one such account paid
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} paid from {count} accounts this category doesn’t use'**
+  String planOffAccounts(String amount, int count);
+
+  /// Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left
+  ///
+  /// In en, this message translates to:
+  /// **'{held} left here, but {account} holds {have}'**
+  String planBackingOne(String held, String account, String have);
+
+  /// The same note, when it keeps its money in several accounts
+  ///
+  /// In en, this message translates to:
+  /// **'{held} left here, but its accounts hold {have}'**
+  String planBackingSome(String held, String have);
+
+  /// The same note, when several categories limited to the same accounts together have more left than those accounts hold
+  ///
+  /// In en, this message translates to:
+  /// **'{held} left in {count} categories kept in the same accounts, which hold {have}'**
+  String planBackingShared(String held, int count, String have);
+
+  /// Budget page, top line for one currency when there are accounts in two: everything in that currency is assigned. symbol is ₮ or $
+  ///
+  /// In en, this message translates to:
+  /// **'Everything in {symbol} is assigned to a category'**
+  String planAllAssignedIn(String symbol);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -3274,11 +3274,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String planOtherCurrency(String symbol) {
-    return '$symbol-ийн дансууд төсөвт хараахан ороогүй';
-  }
-
-  @override
   String planShowAllRows(String usage) {
     return '$usage · харуулах';
   }
@@ -3869,5 +3864,109 @@ class WordsMn extends Words {
   @override
   String planReturns(String amount, String category) {
     return 'Буцсан $amount $category ангилалд эргэж орох тул хуваарилаагүй мөнгө төдий хэмжээгээр буурна';
+  }
+
+  @override
+  String get planMoneyMenu => 'Данснууд…';
+
+  @override
+  String get planMoneyMenuBoth => 'Валют ба данснууд…';
+
+  @override
+  String get planMoneyCurrency => 'Валют';
+
+  @override
+  String planOnlyFromOne(String account) {
+    return 'зөвхөн $account данснаас';
+  }
+
+  @override
+  String planOnlyFromSome(int count, int total) {
+    return 'зөвхөн $count данснаас (нийт $total)';
+  }
+
+  @override
+  String planMoneyUndo(String category) {
+    return '$category ангиллын данснууд';
+  }
+
+  @override
+  String planMoneyCurrencyUndo(String category, String symbol) {
+    return '$category ангилал одоо $symbol валюттай';
+  }
+
+  @override
+  String get planMoneyAccounts => 'Энэ ангиллын ашиглах данснууд';
+
+  @override
+  String planMoneyChange(String amount) {
+    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцаж, төлөвлөгөө нь арилна';
+  }
+
+  @override
+  String planMoneyChangeAmount(String amount) {
+    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцна';
+  }
+
+  @override
+  String get planMoneyChangePlan => 'Валютыг өөрчилбөл төлөвлөгөө нь арилна';
+
+  @override
+  String planMoneyRestOne(
+    String held,
+    String account,
+    String category,
+    String rest,
+  ) {
+    return '$account дансны $held нь $category ангиллынх. Тэнд үлдэх $rest мөнгийг аль ч ангилалд хуваарилж болно.';
+  }
+
+  @override
+  String planMoneyRestSome(String held, String category, String rest) {
+    return 'Эдгээр дансны $held нь $category ангиллынх. Тэнд үлдэх $rest мөнгийг аль ч ангилалд хуваарилж болно.';
+  }
+
+  @override
+  String get planFromNone => 'ямар ч данс сонгоогүй';
+
+  @override
+  String planOtherRows(int count, String amount, String symbol, String other) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$amount ($count мөр) энд тооцогдоогүй (энэ ангилал $symbol валюттай); $other хуваарилаагүй мөнгөнөөс хасагдсан',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planOffAccount(String amount, String account) {
+    return '$account данснаас $amount төлсөн: энэ ангилалд сонгоогүй данс';
+  }
+
+  @override
+  String planOffAccounts(String amount, int count) {
+    return 'Энэ ангилалд сонгоогүй $count данснаас $amount төлсөн';
+  }
+
+  @override
+  String planBackingOne(String held, String account, String have) {
+    return 'Энд $held үлдсэн боловч $account дансанд $have л байна';
+  }
+
+  @override
+  String planBackingSome(String held, String have) {
+    return 'Энд $held үлдсэн боловч данснуудад нь $have л байна';
+  }
+
+  @override
+  String planBackingShared(String held, int count, String have) {
+    return 'Ижил дансанд хадгалдаг $count ангилалд $held үлдсэн боловч тэдгээр дансанд $have л байна';
+  }
+
+  @override
+  String planAllAssignedIn(String symbol) {
+    return '$symbol валютын бүх мөнгө ангилалд хуваарилагдсан';
   }
 }

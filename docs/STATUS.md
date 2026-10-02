@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** PR #30 is open on branch `budget-types` (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), not merged: the owner hasn't seen it running yet. `main` has everything through PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -20,8 +20,8 @@ Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
 the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
-merge. The owner's data file is at schema version 10 (upgraded 2026-09-30 for the budget, the copy
-before it kept beside it).
+merge. The owner's data file is at schema version 12 (upgraded 2026-10-02 by the 0.3.0 build, from
+v10; the copy before it, `before-v12-from-v10-…`, is beside it).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -32,10 +32,10 @@ Visual direction and the register's UX rules are settled in
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite (schema version 11: a plan per spending category; v10: budget amounts per category and period; v9: a weekend payday can keep its day; v8: import keys on each account's entry; v7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
+| Storage | Drift/SQLite (schema version 12: the accounts a category doesn't use, and each spending category in one currency; v11: a plan per spending category; v10: budget amounts per category and period; v9: a weekend payday can keep its day; v8: import keys on each account's entry; v7: twice-a-month pay can have a second amount; v6: account roles and preferences; v5: pay schedules; v4: accounts can be archived or deleted; v3: entries remember the reconcile that locked them; only account sides are reconciled). Before any schema upgrade the file is copied next to itself (`betterbudget.before-v4-from-v3-<time>.sqlite`); the upgrade runs in one transaction, double-entry per ADR 0003; zero-sum enforced inside each write; soft delete; `cleared` per entry; WAL mode |
 | Sidebar | A Settings gear above Net worth opens the Settings page (Backups for now). Sections Ledger / Budget / Savings; the current one expands, its accounts spilling down in a short cascade. Ledger lists accounts grouped (Cash & bank, Credit) with balances. Budget opens the categories (rule 22); Savings opens the steps to getting prepared (rule 25). Right-click an account for its menu. Net worth pinned at the bottom |
 | Accounts | "+ Add account" under Ledger: name and kind (Bank account, or Card or loan). A new account first asks what's in it (or what's owed) on a date; that becomes a cleared opening balance and the entry row opens. Click the name to rename; ⋯ has Rename, Change kind (flips an unreconciled opening balance with it), Archive…, Delete…. Archive and delete are always allowed and say exactly what happens first (rule 21): archived accounts leave the sidebar and account lists but stay in net worth ("incl. ₮X in archived"), and come back from Settings; delete removes the account's own rows and keeps its transfers on the other accounts as "X (deleted)", so no other account changes |
-| Budget | Envelopes (rule 26, first slice, 2026-09-30): each spending category reads Assigned · Spent · Left for the period (month or pay period, ‹ › to step, "Back to today"); overspending carries as minus ("₮X from before"); the top line is money not assigned (cash and bank less cards less categories; card debt alone says so); typing Assigned is quiet, Tab goes on, sums work, ⌘Z; starting partway through a period offers the next one; "Not categorized" holds no money (a line under the top counts its rows); a mortgage or student loan's payments come out of a category picked in its menu; Spent opens that period's rows. **Plans** (rule 27, 2026-10-01): a category can be Spend through the month (what's left carries over, or goes back to not assigned), Save up, Due on a date (equal parts up to the due date; repeats every 1–6 months, a year or two) or a Goal (recalculated each period); a note under its name says the plan and "on track" or "₮X short" (gold, only when behind); "Assign ₮X" at the note's end and "Assign what's planned · ₮X in N categories" under the top line fill Assigned (one ⌘Z; allowed past the money there is, said in coral first); the plan opens under the row from the note or ⋯ → Plan…. Not yet: moving money between categories, goals shown in Savings |
+| Budget | Envelopes (rule 26, first slice, 2026-09-30): each spending category reads Assigned · Spent · Left for the period (month or pay period, ‹ › to step, "Back to today"); overspending carries as minus ("₮X from before"); the top line is money not assigned (cash and bank less cards less categories; card debt alone says so); typing Assigned is quiet, Tab goes on, sums work, ⌘Z; starting partway through a period offers the next one; "Not categorized" holds no money (a line under the top counts its rows); a mortgage or student loan's payments come out of a category picked in its menu; Spent opens that period's rows. **Plans** (rule 27, 2026-10-01): a category can be Spend through the month (what's left carries over, or goes back to not assigned), Save up, Due on a date (equal parts up to the due date; repeats every 1–6 months, a year or two) or a Goal (recalculated each period); a note under its name says the plan and "on track" or "₮X short" (gold, only when behind); "Assign ₮X" at the note's end and "Assign what's planned · ₮X in N categories" under the top line fill Assigned (one ⌘Z; allowed past the money there is, said in coral first); the plan opens under the row from the note or ⋯ → Plan…. **Currency and accounts** (rule 28, 2026-10-02): each spending category is in ₮ or $, there's a "not assigned" line per currency, and ⋯ → Currency and accounts… lists the accounts in its currency, all checked; unchecking limits the category to the rest, and the line says so, warns when those accounts hold less than is set aside, and names a payment from an unchecked account or a row in the other currency. Not yet: moving money between categories, goals shown in Savings |
 | Categories | Managed on the Budget screen: Spending and Income, with each category's usage ("42 rows · last 09.12 · 1 scheduled") at the top of its ⋯ menu. Add category, click a name to rename, ⋯ or right-click for Change to income/spending, Archive (leaves the menus, rows keep the name), Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
 | All accounts | Under Ledger, above the groups: every account's rows in one register, Account as the last column, a transfer once. Adding asks for the account (a dropdown that remembers the last). Clicking a category's usage on the Budget screen opens it with a "Category: X ✕" chip and "n rows · ₮X spent"; Esc clears (rule 23) |
 | Savings | The steps to getting financially prepared, in the self-reliance course's order, tithing left out (rule 25): one month of expenses set aside, health coverage, no consumer debt, 3–6 months, retirement, mortgage and student loans. The current step is the first not done; any can be set aside. A month is the last 3 months' average spending or typed; the fund is the accounts the user picks; cards and loans are consumer debt unless marked mortgage, student loan or paid monthly. Schema v6 (account role, preferences) |
@@ -55,7 +55,7 @@ Visual direction and the register's UX rules are settled in
 | Appearance | Settings → Appearance: Same as this Mac, Light or Dark, and **Colors**: Blue eclipse (the default), BetterBudget's own or any of Figma's 100 color combinations in its seven groups (ADR 0004 "Color schemes"). Each scheme is made into a light and a dark palette that passes contrast checks; money's green, coral and gold never change. Kept per computer, ⌘Z undoes. The sidebar shows a dark-mode logo (white and light royal, gold body), the same in every scheme |
 | Language | Settings → Language: Same as this Mac, English or Монгол (per computer, ⌘Z undoes). Every word is in `app/lib/l10n/`; the Mongolian is a draft awaiting a native speaker's check ([review sheet](mongolian-review.csv), [glossary](l10n-glossary.md)). Dates in sentences read "9-р сарын 30"; rows keep 09.30 |
 | Shortcuts | ⌘N new, ⌘K / ⌘F search, ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 355 (2026-10-01): plans (each kind's maths, a category that doesn't carry over, a bill's parts across repeats, late and early payment, two bills in one pay period, weekly pay to a far date, the v11 upgrade, the Budget page with three goldens). 331 earlier the same day: an account page at the smallest window and on a smaller screen (two goldens). 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 372 (2026-10-02): a category's currency and accounts (two pools, rows in the other currency, unchecked accounts, the v12 upgrade, two goldens). 355 (2026-10-01): plans (each kind's maths, a category that doesn't carry over, a bill's parts across repeats, late and early payment, two bills in one pay period, weekly pay to a far date, the v11 upgrade, the Budget page with three goldens). 331 earlier the same day: an account page at the smallest window and on a smaller screen (two goldens). 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -84,9 +84,6 @@ scheduled items.
   doesn't catch it, so the window stays on the startup screen until it's quit and
   opened again. Seen 2026-10-01 relaunching the 0.2.0 build; the ledger wasn't
   touched. Worth a "unlock your Mac and try again" screen.
-- **The owner's ledger is still at schema v10** until the 0.2.0 build is first
-  opened with the Mac unlocked (it copies the file beside itself, then adds the
-  plans table).
 - **An account's currency can't be changed after it's made.**
   The owner remade theirs by hand (2026-09-30); Change currency stays on ROADMAP E.
 
@@ -188,6 +185,32 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-02: the owner is working through the budget's controls.** Plans (PR #30) and
+a category's currency and accounts (PR #31) are merged and running on the owner's
+ledger. The owner said "the budgets themselves need more controls" and walked through
+what a line has; the list of what a line can't do yet, in the order it came up:
+
+- Move money to or from another category (ROADMAP C; today it's two typed amounts).
+- Put categories in an order or a group (the list is alphabetical).
+- Skip or change a plan for one period, pause a plan, or pick the period a plan
+  starts counting from.
+- A note or a color on a category; a cap on what it can hold.
+- Take back everything assigned this period in one step.
+
+**Waiting on the owner** (asked, not answered; ask again only when it comes up):
+
+1. **What "dedicated" means.** Limited to Khan Savings, Emergency fund holding
+   ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 (and interest) the fund's
+   too, or free to assign, as built? The panel says the built behaviour with the real
+   amounts (rule 28).
+2. **Month ↔ pay period switch.** A "₮900,000 a month" plan then reads "₮900,000 each
+   pay period": convert it, or leave it with a note to check? (rule 27, left for later)
+
+**Not yet seen by the owner in the app:** the Budget page with plans and the
+currency panel (they had the build running; no reaction recorded). Expect corrections.
+
+Earlier:
 
 **The budget page, first slice** (2026-09-30, PR #26): the owner picked
 envelopes with Assigned · Spent · Left, overspending carried as minus, and card debt
@@ -396,6 +419,13 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **A category's currency and accounts (2026-10-02, version 0.3.0, schema v12):**
+  the owner's design after asking how car insurance paid in dollars would be
+  budgeted (ADR 0004 rule 28). Each spending category is in one currency, with a
+  pool and a "not assigned" line per currency; a checklist of that currency's
+  accounts, all checked, where unchecking dedicates the rest to the category.
+  Built on the plans branch (PR #30). Both reviews done, their fixes in (rule 28 lists what is left). Cards are in the list (owner's correction). 372 tests.
 
 - **Plans (2026-10-01, version 0.2.0, schema v11):** the owner's four budget types
   (ADR 0004 rule 27). A spending category can be Spend through the month (carries

@@ -546,8 +546,14 @@ class LedgerData {
     this.prefs = const {},
     this.budgetAmounts = const [],
     List<CategoryPlan> plans = const [],
+    this.accountsOff = const {},
   }) : accounts = {for (final a in accounts) a.id: a},
        plans = {for (final p in plans) p.categoryId: p};
+
+  /// By spending category, the accounts it doesn't use (rule 28). A
+  /// category uses every account in its currency unless one is unchecked,
+  /// so a new account is used by all of them.
+  final Map<int, Set<int>> accountsOff;
 
   /// Each spending category's plan, by category (rule 27).
   final Map<int, CategoryPlan> plans;
@@ -577,6 +583,7 @@ class LedgerData {
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,
+    accountsOff: accountsOff,
     plans: [
       for (final p in plans.values)
         if (p.categoryId != categoryId) p,

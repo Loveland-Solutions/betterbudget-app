@@ -969,8 +969,8 @@ What's known so far:
       cash, bank or a card is that category's spending. With "No category"
       the payment just lowers the money not assigned. Rejected: only
       saying on the page what was paid (B), and counting the loans like
-      cards (C). Other loans count like cards. Only the budget's currency
-      counts; "Accounts in $ aren't in the budget yet" says so (ROADMAP E).
+      cards (C). Other loans count like cards. Each currency is
+      counted on its own (rule 28).
     - Spent opens the category's rows for that period in All accounts (the
       chip names the period). The usage ("42 rows · last 09.12") moved to
       the top of the category's ⋯ menu, where keep, merge and archive are,
@@ -1113,6 +1113,103 @@ What's known so far:
       the name once it's done; the first amount and the budget's start
       aren't one write; early payment (the period before a bill is due)
       leaves the note without "on track" until the date passes.
+
+28. **A category is in one currency and uses the accounts you leave
+    checked** (owner's call, 2026-10-02). The owner's case: car insurance
+    paid from a dollar account. Until here the whole budget was in one
+    currency, so that plan could only be typed in tugrik and the dollar
+    payment didn't count against it at all.
+    - **The owner's design, in their words:** "They have to choose a
+      single currency the budget category is tied to. Once they choose,
+      the category has a list of accounts with that currency with all the
+      boxes checked. If the user wants a specific account dedicated to
+      that category, they can uncheck the accounts they don't want."
+      Considered and not chosen: tying a category to a currency only (my
+      recommendation; it can't dedicate an account), tying it to one
+      account (breaks whenever the money leaves by another route), and a
+      category holding both currencies at once.
+    - **A pool per currency.** The top of the page has one "not assigned"
+      line for each currency there are accounts or categories in (the
+      budget's first currency first), each with its own "Assign what's
+      planned" and its own not-categorized rows. Tugrik and dollars are
+      never added together and no rate is used. Moving money between the
+      pools is a real transfer between accounts.
+    - **Choosing the currency.** With accounts in both, a new spending
+      category takes ₮ or $ beside Spending / Income (the budget's first
+      currency to begin with), and one made from the entry row takes the
+      currency of the account the row is in. With accounts in one
+      currency there's nothing to choose. Income categories aren't tied.
+    - **Currency and accounts…** in the category's ⋯ menu ("Accounts…"
+      with one currency) opens a panel under the row: the currency, then
+      "Accounts this category uses" over every open account in it that
+      counts as money (cash, bank and cards; not mortgages or student
+      loans), each with a checkbox and its balance (a card's as a minus),
+      all checked to begin with. **Cards are in the list** (owner's
+      correction, 2026-10-02: "If they plan to pay with the visa, you
+      should let them. It's a separate account."). I had taken them out
+      after the budget review, because a category limited to a card always
+      read as short; instead a category that uses only cards gets no
+      "its accounts hold less" warning, since a card isn't where money is
+      kept, and with a card and bank accounts checked only the bank
+      accounts are compared.
+      Only the unchecked ones are stored, so a new account is used by
+      every category that uses them all; a category already narrowed
+      doesn't take a new account on its own (it starts unchecked there).
+      Enter or Save keeps it, Esc cancels; unchecking is quiet, ⌘Z undoes.
+    - **What unchecking does** (decided along "warn, don't block"):
+      - The line says where its money is kept, under its name: "only from
+        Khan Savings", "only from 2 of 3 accounts".
+      - It still draws on its currency's one pool, so there's one "not
+        assigned" number per currency, not one per account. But it can't
+        have more left than its accounts hold: then the line says so in
+        coral, with the page's own word and the account's name, "₮800,000
+        left here, but Khan Savings holds ₮500,000" (or "₮1,100,000 left
+        in 2 categories kept in the same accounts, which hold
+        ₮1,000,000"). Today's balances, so only in today's period.
+      - **What it doesn't do, said in the panel with the real amounts:**
+        "₮10,000,000 of what's in Khan Savings is for Emergency fund. The
+        other ₮2,600,000 there can still be assigned to any category."
+        The account isn't walled off: only what the category has left has
+        to be there. Whether the whole account should be reserved is the
+        owner's to decide.
+      - A payment from an unchecked account still counts against the
+        category, and the line names it in gold: "₮276,650.50 paid from
+        TDB Checking, which this category doesn't use". It goes once that
+        much has been moved into the paying account this period from one
+        the category does use (cash taken out, checking paid back, the
+        card paid), so it means "the money hasn't been moved yet". A
+        purchase on an unchecked card is named the same way; a refund
+        never is. Clicking opens the rows.
+    - **A row in the other currency** filed under the category can't be
+      counted, so the line says it's there, in gold, until it's fixed:
+      "₮300,000 in 1 row isn't counted here (this category is in $); it
+      came out of ₮ not assigned". Clicking opens the category's rows.
+    - **Changing a category's currency later** is allowed. Its amounts
+      and its plan were in the old currency, so they go: the panel says
+      so in gold before Save ("Changing the currency takes back $120.00
+      assigned to it"), the toast says it after, and one ⌘Z brings all
+      of it back. **Merging into a category in the other currency** moves
+      the rows but not the amounts, which go back to not assigned, and
+      the toast says so (the budget review: ₮900,000 became $900,000).
+    - **Income shows what came in in each currency**, one line each, so
+      pay in dollars doesn't read as ₮0.00.
+    - **In its new currency a category counts from the period the change
+      was made in** (code review): the dollar payments filed under it
+      before were never counted against it, and counting them all at once
+      would start it off far below zero.
+    - **Existing ledgers:** with amounts assigned, every category takes
+      the currency the budget began in. With none yet, each takes the
+      currency most of its own rows are in, or the one most open accounts
+      are in. Schema
+      v12 (`category_accounts_off`; a category's currency is its row's
+      existing `currency` column).
+    - **Left for later:** the entry row's category menu doesn't mark or
+      sort categories by currency (the Budget page names the row after);
+      a loan's "payments come out of" category must be in the loan's
+      currency to count; two categories narrowed to overlapping but
+      different accounts aren't checked against each other; clicking the
+      "paid from" note opens all the category's rows for the period, not
+      only that account's.
 
 ### The smallest window (owner, 2026-10-01)
 

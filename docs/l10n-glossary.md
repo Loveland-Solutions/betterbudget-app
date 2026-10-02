@@ -129,6 +129,8 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | on track | хэвийн явж байна | |
 | carries over / doesn't | шилжинэ / шилжихгүй | what's left at a period's end |
 | goal | зорилго | an amount by a date |
+| accounts a category uses | ангиллын ашиглах данснууд | the checklist under Currency and accounts… |
+| set aside (money in a category) | хуваарилсан | the same word as assigned; "хойшлуулах" is a Savings step set aside |
 
 ## Word forms
 

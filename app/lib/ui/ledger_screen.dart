@@ -273,7 +273,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<int?> _makeCategory(EntryDraft d, {int fallback = 0}) async {
     final name = d.newCategory;
     if (name == null) return null;
-    return db.createCategory(name, income: (d.amount ?? fallback) > 0);
+    // A new spending category is in the currency of the account the row
+    // is in (rule 28).
+    final data = _data;
+    final account = d.account ?? data?.accounts[_accountId];
+    return db.createCategory(
+      name,
+      income: (d.amount ?? fallback) > 0,
+      currency:
+          account?.currency ??
+          (data == null ? Currency.mnt : Budget.currencyOf(data)),
+    );
   }
 
   /// Wraps an undo and redo so a category made with the row goes and comes
@@ -1648,7 +1658,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      t.planAssignUndo(formatMoney(amount, currency: currency), c.name),
+      t.planAssignUndo(formatMoney(amount, currency: c.currency), c.name),
       toast: false,
       undo: () async {
         await db.restoreBudgetAmounts(c.id, start, end, before);
@@ -1694,7 +1704,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _did(
       t.planFilled(
         amounts.length,
-        formatMoney(total, showCents: total % 100 != 0, currency: currency),
+        formatMoney(
+          total,
+          showCents: total % 100 != 0,
+          // One currency's button: its categories are all in it.
+          currency: amounts.keys.first.currency,
+        ),
       ),
       undo: () async {
         await db.restoreBudgetAmountsOf(before, start, end);
@@ -1702,6 +1717,52 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.setPreference(BudgetKeys.began, null);
           await db.setPreference(BudgetKeys.currency, null);
         }
+      },
+      redo: write,
+    );
+  }
+
+  /// Puts [c] in [currency], using every account in it but [off] (rule
+  /// 28). Unchecking an account is quiet; a change of currency takes back
+  /// what was assigned and removes the plan, and says so, with Undo.
+  Future<void> _setCategoryMoney(
+    AccountInfo c,
+    Currency currency,
+    Set<int> off,
+  ) async {
+    final t = context.t;
+    final data = _data!;
+    final was = data.accountsOff[c.id] ?? const <int>{};
+    final changed = currency != c.currency;
+    if (!changed && was.length == off.length && was.containsAll(off)) return;
+    final assigned = data.budgetAmounts
+        .where((b) => b.categoryId == c.id)
+        .fold(0, (sum, b) => sum + b.amount);
+    final loses = changed && (assigned != 0 || data.plans.containsKey(c.id));
+    final label = changed
+        ? t.planMoneyCurrencyUndo(c.name, currency.symbol)
+        : t.planMoneyUndo(c.name);
+    // In its new currency it counts from this period on: what was paid
+    // in that currency before was never counted against it.
+    final fromKey = '${BudgetKeys.fromPrefix}${c.id}';
+    final fromWas = data.prefs[fromKey];
+    final from = dateKey(budgetPeriod(today, data.periodSchedule).start);
+    late CategoryMoney before;
+    Future<void> write() async {
+      before = await db.setCategoryMoney(c.id, currency: currency, off: off);
+      if (changed) await db.setPreference(fromKey, from);
+    }
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    _did(
+      label,
+      toast: changed,
+      message: loses
+          ? '$label · ${_moneyChange(t, c, assigned, data.plans.containsKey(c.id))}'
+          : null,
+      undo: () async {
+        await db.restoreCategoryMoney(c.id, before);
+        if (changed) await db.setPreference(fromKey, fromWas);
       },
       redo: write,
     );
@@ -1717,7 +1778,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final data = _data!;
     final p = budgetPeriod(today, data.periodSchedule);
     int free(LedgerData d) =>
-        Budget.of(d, start: p.start, end: p.end, today: today).notAssigned;
+        Budget.of(d, start: p.start, end: p.end, today: today).pools
+            .where((pool) => pool.currency == c.currency)
+            .firstOrNull
+            ?.notAssigned ??
+        0;
     final back = free(data) - free(data.withPlan(c.id, plan));
     final label = plan == null
         ? t.planRemoveUndo(c.name)
@@ -1733,7 +1798,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       label,
       toast: plan == null || back > 0,
       message: back > 0
-          ? '$label · ${t.planReturns(formatMoney(back, currency: Budget.currencyOf(data)), c.name)}'
+          ? '$label · ${t.planReturns(formatMoney(back, currency: c.currency), c.name)}'
           : null,
       undo: () => db.setCategoryPlan(c.id, before),
       redo: () => db.setCategoryPlan(c.id, plan),
@@ -1789,7 +1854,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final left = b.lines[c.id]?.left ?? 0;
     if (left == 0) return null;
     return context.t.planMoneyBack(
-      formatMoney(left, currency: b.currency),
+      formatMoney(left, currency: c.currency),
       c.name,
     );
   }
@@ -1839,7 +1904,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A name that's already taken makes nothing new: an archived one comes
   /// back instead, so there's never two of it.
-  Future<void> _createCategory(String name, bool income) async {
+  Future<void> _createCategory(
+    String name,
+    bool income,
+    Currency currency,
+  ) async {
     final t = context.t;
     final data = _data;
     final existing = data == null ? null : _categoryNamed(data, name);
@@ -1850,7 +1919,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     late int id;
     if (!await _accountWrite(
-      () async => id = await db.createCategory(name, income: income),
+      () async => id = await db.createCategory(
+        name,
+        income: income,
+        currency: currency,
+      ),
       what: 'category',
     )) {
       return;
@@ -1970,7 +2043,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final moved = (u?.rows ?? 0) + (u?.scheduled ?? 0);
     // Its money goes back unless a spending category takes it.
-    final back = target == null || target.isIncome ? _moneyBack(data, c) : null;
+    // Its money goes back unless it moves with the merge: into income it
+    // can't, and into another currency it would be read as that one's.
+    final back =
+        target == null || target.isIncome || target.currency != c.currency
+        ? _moneyBack(data, c)
+        : null;
     final said = target == null || (!merging && moved == 0)
         ? t.ledgerDeleted(c.name)
         : merging
@@ -2728,6 +2806,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onSetAmount: _setBudgetAmount,
                             onStartLater: _startBudgetLater,
                             onSetPlan: _setCategoryPlan,
+                            onSetMoney: _setCategoryMoney,
                             onAssignPlanned: _assignPlanned,
                             onKeepStart: () => _setPref(
                               BudgetKeys.keptStart,

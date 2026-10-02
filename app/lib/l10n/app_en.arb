@@ -5012,15 +5012,6 @@
       }
     }
   },
-  "planOtherCurrency": "Accounts in {symbol} aren't in the budget yet",
-  "@planOtherCurrency": {
-    "description": "Budget page: note under the top line when some accounts are in the other currency",
-    "placeholders": {
-      "symbol": {
-        "type": "String"
-      }
-    }
-  },
   "planShowAllRows": "{usage} · show them",
   "@planShowAllRows": {
     "description": "Budget page: first item in a category's ⋯ menu; usage is e.g. \"42 rows · last 09.12 · 1 scheduled\"; opens every row, all time",
@@ -5871,6 +5862,216 @@
         "type": "String"
       },
       "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyMenu": "Accounts…",
+  "@planMoneyMenu": {
+    "description": "Budget page: item in a spending category's ⋯ menu when every account is in one currency; opens the list of accounts the category uses"
+  },
+  "planMoneyMenuBoth": "Currency and accounts…",
+  "@planMoneyMenuBoth": {
+    "description": "Budget page: item in a spending category's ⋯ menu when there are accounts in tugrik and in dollars; opens the category's currency and the accounts it uses"
+  },
+  "planMoneyCurrency": "Currency",
+  "@planMoneyCurrency": {
+    "description": "Budget page, a category's currency and accounts: label over the choice of ₮ or $"
+  },
+  "planOnlyFromOne": "only from {account}",
+  "@planOnlyFromOne": {
+    "description": "Budget page: note under a category's name when it uses one account only",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnlyFromSome": "only from {count} of {total} accounts",
+  "@planOnlyFromSome": {
+    "description": "Budget page: note under a category's name when some of its currency's accounts are unchecked",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "planMoneyUndo": "Accounts for {category}",
+  "@planMoneyUndo": {
+    "description": "Undo history label for changing which accounts a category uses (shown in Undone/Redone toasts)",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyCurrencyUndo": "{category} is now in {symbol}",
+  "@planMoneyCurrencyUndo": {
+    "description": "Toast and undo history label for changing a category's currency",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyAccounts": "Accounts this category uses",
+  "@planMoneyAccounts": {
+    "description": "Budget page, a category's currency and accounts: label over the checklist of accounts in the category's currency (cash, bank and cards), all checked to begin with"
+  },
+  "planMoneyChange": "Changing the currency takes back {amount} assigned to it and removes its plan",
+  "@planMoneyChange": {
+    "description": "Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyChangeAmount": "Changing the currency takes back {amount} assigned to it",
+  "@planMoneyChangeAmount": {
+    "description": "The same line, for a category with amounts and no plan",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyChangePlan": "Changing the currency removes its plan",
+  "@planMoneyChangePlan": {
+    "description": "The same line, for a category with a plan and nothing assigned"
+  },
+  "planMoneyRestOne": "{held} of what’s in {account} is for {category}. The other {rest} there can still be assigned to any category.",
+  "@planMoneyRestOne": {
+    "description": "Budget page, a category's currency and accounts: line under the checklist when one account is left checked; says with real amounts what unchecking does and doesn't reserve",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      },
+      "rest": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoneyRestSome": "{held} of what’s in these accounts is for {category}. The other {rest} there can still be assigned to any category.",
+  "@planMoneyRestSome": {
+    "description": "The same line, when several accounts are left checked and some are unchecked",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      },
+      "rest": {
+        "type": "String"
+      }
+    }
+  },
+  "planFromNone": "no account chosen",
+  "@planFromNone": {
+    "description": "Budget page: note under a category's name when every account is unchecked"
+  },
+  "planOtherRows": "{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}",
+  "@planOtherRows": {
+    "description": "Budget page: gold note under a category's name; rows in the other currency are filed under it. It stays until they're fixed; clicking shows them",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      },
+      "other": {
+        "type": "String"
+      }
+    }
+  },
+  "planOffAccount": "{amount} paid from {account}, which this category doesn’t use",
+  "@planOffAccount": {
+    "description": "Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planOffAccounts": "{amount} paid from {count} accounts this category doesn’t use",
+  "@planOffAccounts": {
+    "description": "The same note, when more than one such account paid",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planBackingOne": "{held} left here, but {account} holds {have}",
+  "@planBackingOne": {
+    "description": "Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "have": {
+        "type": "String"
+      }
+    }
+  },
+  "planBackingSome": "{held} left here, but its accounts hold {have}",
+  "@planBackingSome": {
+    "description": "The same note, when it keeps its money in several accounts",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "have": {
+        "type": "String"
+      }
+    }
+  },
+  "planBackingShared": "{held} left in {count} categories kept in the same accounts, which hold {have}",
+  "@planBackingShared": {
+    "description": "The same note, when several categories limited to the same accounts together have more left than those accounts hold",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "have": {
+        "type": "String"
+      }
+    }
+  },
+  "planAllAssignedIn": "Everything in {symbol} is assigned to a category",
+  "@planAllAssignedIn": {
+    "description": "Budget page, top line for one currency when there are accounts in two: everything in that currency is assigned. symbol is ₮ or $",
+    "placeholders": {
+      "symbol": {
         "type": "String"
       }
     }

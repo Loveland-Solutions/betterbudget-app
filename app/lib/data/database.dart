@@ -185,6 +185,34 @@ class CategoryPlans extends Table {
   Set<Column> get primaryKey => {categoryId};
 }
 
+/// An account a spending category doesn't use (rule 28). A category uses
+/// every account in its currency unless it has a row here, so a new
+/// account is used by all of them.
+@DataClassName('CategoryAccountOffRow')
+class CategoryAccountsOff extends Table {
+  IntColumn get categoryId => integer().references(Accounts, #id)();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+
+  @override
+  Set<Column> get primaryKey => {categoryId, accountId};
+}
+
+/// What [AppDatabase.setCategoryMoney] replaced, so undo can put it back:
+/// the category's currency and unchecked accounts, and what a change of
+/// currency took away (its amounts and its plan).
+class CategoryMoney {
+  const CategoryMoney({
+    required this.currency,
+    required this.off,
+    this.amounts = const [],
+    this.plan,
+  });
+  final Currency currency;
+  final Set<int> off;
+  final List<BudgetAmount> amounts;
+  final CategoryPlan? plan;
+}
+
 class UnbalancedTransactionException implements Exception {
   UnbalancedTransactionException(this.transactionId, this.sum);
   final int transactionId;
@@ -559,6 +587,7 @@ String fileStamp(DateTime n) {
     Preferences,
     BudgetAmounts,
     CategoryPlans,
+    CategoryAccountsOff,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -594,7 +623,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -670,6 +699,30 @@ class AppDatabase extends _$AppDatabase {
         // Drift makes it IF NOT EXISTS, so a relabeled file is safe too.
         if (from < 10) await m.createTable(budgetAmounts);
         if (from < 11) await m.createTable(categoryPlans);
+        if (from < 12) {
+          await m.createTable(categoryAccountsOff);
+          // A category is in one currency now. Until here the whole budget
+          // was in one. With amounts assigned, that's the one it began in,
+          // and every spending category takes it. With none yet, each
+          // takes the currency most of its own rows are in, or the one
+          // most open accounts are in (tugrik on a tie). Income too, so
+          // one changed to spending later starts out right.
+          await customStatement(
+            "UPDATE accounts SET currency = COALESCE("
+            "(SELECT value FROM preferences WHERE key = 'budget.currency'), "
+            // No budget yet: the currency most of its own rows are in.
+            "(SELECT e.currency FROM entries e JOIN transactions t ON "
+            "t.id = e.transaction_id WHERE e.account_id = accounts.id AND "
+            "t.deleted_at IS NULL GROUP BY e.currency ORDER BY COUNT(*) DESC, "
+            "e.currency LIMIT 1), "
+            "CASE WHEN (SELECT COUNT(*) FROM accounts WHERE type IN "
+            "('asset', 'liability') AND deleted_at IS NULL AND archived_at "
+            "IS NULL AND currency = 'USD') > (SELECT COUNT(*) FROM accounts "
+            "WHERE type IN ('asset', 'liability') AND deleted_at IS NULL AND "
+            "archived_at IS NULL AND currency = 'MNT') THEN 'USD' ELSE 'MNT' "
+            "END) WHERE type IN ('expense', 'income')",
+          );
+        }
       });
     },
     beforeOpen: (details) async {
@@ -759,6 +812,7 @@ class AppDatabase extends _$AppDatabase {
       'preferences',
       'budget_amounts',
       'category_plans',
+      'category_accounts_off',
     ];
     // A table added to the schema must be added here, or a restore drops it.
     assert(
@@ -830,6 +884,7 @@ class AppDatabase extends _$AppDatabase {
       preferences,
       budgetAmounts,
       categoryPlans,
+      categoryAccountsOff,
     },
   ).watch().asyncMap((_) => loadLedger());
 
@@ -851,6 +906,11 @@ class AppDatabase extends _$AppDatabase {
     final prefRows = await select(preferences).get();
     final budgetRows = await select(budgetAmounts).get();
     final planRows = await select(categoryPlans).get();
+    final offRows = await select(categoryAccountsOff).get();
+    final accountsOff = <int, Set<int>>{};
+    for (final r in offRows) {
+      accountsOff.putIfAbsent(r.categoryId, () => {}).add(r.accountId);
+    }
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -888,6 +948,7 @@ class AppDatabase extends _$AppDatabase {
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
       plans: [for (final p in planRows) _plan(p)],
+      accountsOff: accountsOff,
       budgetAmounts: [
         for (final b in budgetRows)
           BudgetAmount(
@@ -1761,6 +1822,20 @@ class AppDatabase extends _$AppDatabase {
     await (update(accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(currency: Value(currency.code)),
     );
+    // A category already narrowed to some accounts doesn't take a new one
+    // on its own: it starts unchecked there. Categories using every
+    // account get it, as before.
+    if (type == AccountType.asset || type == AccountType.liability) {
+      await customStatement(
+        'INSERT INTO category_accounts_off (category_id, account_id) '
+        'SELECT DISTINCT o.category_id, ? FROM category_accounts_off o '
+        'JOIN accounts c ON c.id = o.category_id '
+        'JOIN accounts a ON a.id = o.account_id '
+        'WHERE c.currency = ? AND c.deleted_at IS NULL '
+        'AND a.deleted_at IS NULL AND a.archived_at IS NULL',
+        [id, currency.code],
+      );
+    }
     return id;
   });
 
@@ -1898,6 +1973,88 @@ class AppDatabase extends _$AppDatabase {
         return old == null ? null : _plan(old);
       });
 
+  /// Puts [categoryId] in [currency], using every account in it but
+  /// [off]. A change of currency takes back what was assigned to it and
+  /// removes its plan: those were amounts in the old currency. Returns
+  /// what it replaced, for [restoreCategoryMoney].
+  Future<CategoryMoney> setCategoryMoney(
+    int categoryId, {
+    required Currency currency,
+    required Set<int> off,
+  }) => transaction(() async {
+    await _assertCategory(categoryId);
+    final row = await (select(
+      accounts,
+    )..where((a) => a.id.equals(categoryId))).getSingle();
+    final was = Currency.fromCode(row.currency);
+    final oldOff = {
+      for (final r in await (select(
+        categoryAccountsOff,
+      )..where((r) => r.categoryId.equals(categoryId))).get())
+        r.accountId,
+    };
+    var amounts = const <BudgetAmount>[];
+    CategoryPlan? plan;
+    if (was != currency) {
+      amounts = [
+        for (final b in await (select(
+          budgetAmounts,
+        )..where((b) => b.categoryId.equals(categoryId))).get())
+          _budgetAmount(b),
+      ];
+      await (delete(
+        budgetAmounts,
+      )..where((b) => b.categoryId.equals(categoryId))).go();
+      plan = await setCategoryPlan(categoryId, null);
+      await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+        AccountsCompanion(currency: Value(currency.code)),
+      );
+    }
+    await _setAccountsOff(categoryId, off);
+    return CategoryMoney(
+      currency: was,
+      off: oldOff,
+      amounts: amounts,
+      plan: plan,
+    );
+  });
+
+  /// Undo for [setCategoryMoney].
+  Future<void> restoreCategoryMoney(int categoryId, CategoryMoney before) =>
+      transaction(() async {
+        await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+          AccountsCompanion(currency: Value(before.currency.code)),
+        );
+        await _setAccountsOff(categoryId, before.off);
+        for (final b in before.amounts) {
+          await into(budgetAmounts).insert(
+            BudgetAmountsCompanion.insert(
+              id: Value.absentIfNull(b.id),
+              categoryId: b.categoryId,
+              date: dateKey(dateOnly(b.date)),
+              amountMinor: b.amount,
+            ),
+          );
+        }
+        if (before.plan != null) {
+          await setCategoryPlan(categoryId, before.plan);
+        }
+      });
+
+  Future<void> _setAccountsOff(int categoryId, Set<int> off) async {
+    await (delete(
+      categoryAccountsOff,
+    )..where((r) => r.categoryId.equals(categoryId))).go();
+    for (final a in off) {
+      await into(categoryAccountsOff).insert(
+        CategoryAccountsOffCompanion.insert(
+          categoryId: categoryId,
+          accountId: a,
+        ),
+      );
+    }
+  }
+
   CategoryPlan _plan(CategoryPlanRow p) => CategoryPlan(
     categoryId: p.categoryId,
     kind: p.kind,
@@ -1965,6 +2122,7 @@ class AppDatabase extends _$AppDatabase {
       transaction(() async {
         await delete(budgetAmounts).go();
         await delete(categoryPlans).go();
+        await delete(categoryAccountsOff).go();
         await delete(entries).go();
         await delete(reconciliations).go();
         await delete(transactions).go();
@@ -2496,9 +2654,17 @@ class AppDatabase extends _$AppDatabase {
   // ---------- categories ----------
 
   /// A spending category, or income with [income] (it ends forecasts).
-  Future<int> createCategory(String name, {bool income = false}) => addAccount(
-    name: name.trim(),
-    type: income ? AccountType.income : AccountType.expense,
+  /// A spending category is in one [currency] (rule 28).
+  Future<int> createCategory(
+    String name, {
+    bool income = false,
+    Currency currency = Currency.mnt,
+  }) => into(accounts).insert(
+    AccountsCompanion.insert(
+      name: name.trim(),
+      type: income ? AccountType.income : AccountType.expense,
+      currency: Value(currency.code),
+    ),
   );
 
   Future<void> setCategoryType(int categoryId, AccountType type) =>
@@ -2568,14 +2734,24 @@ class AppDatabase extends _$AppDatabase {
             await _touch(t);
           }
           // What was put in moves too, so a merge keeps the money where it
-          // was going.
-          budgetMoved.addAll(
-            await (selectOnly(budgetAmounts)
-                  ..addColumns([budgetAmounts.id])
-                  ..where(budgetAmounts.categoryId.equals(categoryId)))
-                .map((r) => r.read(budgetAmounts.id)!)
-                .get(),
-          );
+          // was going. Not into a category in another currency: there the
+          // amounts would be read as that currency's, so they stay with
+          // the deleted one and go back to not assigned.
+          final currencies =
+              await (selectOnly(accounts)
+                    ..addColumns([accounts.currency])
+                    ..where(accounts.id.isIn([categoryId, into])))
+                  .map((r) => r.read(accounts.currency))
+                  .get();
+          if (currencies.toSet().length == 1) {
+            budgetMoved.addAll(
+              await (selectOnly(budgetAmounts)
+                    ..addColumns([budgetAmounts.id])
+                    ..where(budgetAmounts.categoryId.equals(categoryId)))
+                  .map((r) => r.read(budgetAmounts.id)!)
+                  .get(),
+            );
+          }
           await (update(budgetAmounts)..where((b) => b.id.isIn(budgetMoved)))
               .write(BudgetAmountsCompanion(categoryId: Value(into)));
         } else if (await categoryEntryCount(categoryId) > 0) {

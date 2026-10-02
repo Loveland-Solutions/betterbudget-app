@@ -79,7 +79,10 @@ Work:
 - [ ] Move money between categories ("Money can be moved in from another
       category any time", rule 26); today it's two typed amounts
 - [ ] The forecast's "Nothing has been budgeted" sentence switches on the budget
-- [ ] Both reviews
+- [x] Both reviews for plans (PR #30) and for currency and accounts (PR #31); each new
+      piece gets its own
+- [ ] More controls on a line (owner, 2026-10-02): order or groups, a one-period
+      change or pause for a plan, a note, a cap, clearing a period (STATUS "Next step")
 
 ### D. Savings, the differentiator (owner item 3)
 "Other budgets help you make it through the month. This budget helps you make it
@@ -104,7 +107,8 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
 - [x] Totals shown in each currency separately (decided): net worth, All accounts, the forecast
 - [ ] Savings with two currencies (counts the main one for now; owner to decide)
 - [ ] Changing an account's currency after it has rows
-- [ ] Budget categories: choose a currency for each category, or keep categories in MNT only.
+- [x] Budget categories: each spending category is in one currency, with a pool per
+      currency and a checklist of the accounts it uses (ADR 0004 rule 28, schema v12)
       Sketch this with C.
 - [ ] US date format as an option (the student persona). STATUS mentions it.
 - [ ] Schema upgrade and tests. The copy made before the upgrade still applies.

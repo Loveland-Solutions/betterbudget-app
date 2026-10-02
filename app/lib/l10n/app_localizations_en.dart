@@ -3433,11 +3433,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String planOtherCurrency(String symbol) {
-    return 'Accounts in $symbol aren\'t in the budget yet';
-  }
-
-  @override
   String planShowAllRows(String usage) {
     return '$usage · show them';
   }
@@ -4031,5 +4026,111 @@ class WordsEn extends Words {
   @override
   String planReturns(String amount, String category) {
     return '$amount that went back returns to $category, so not assigned goes down by that much';
+  }
+
+  @override
+  String get planMoneyMenu => 'Accounts…';
+
+  @override
+  String get planMoneyMenuBoth => 'Currency and accounts…';
+
+  @override
+  String get planMoneyCurrency => 'Currency';
+
+  @override
+  String planOnlyFromOne(String account) {
+    return 'only from $account';
+  }
+
+  @override
+  String planOnlyFromSome(int count, int total) {
+    return 'only from $count of $total accounts';
+  }
+
+  @override
+  String planMoneyUndo(String category) {
+    return 'Accounts for $category';
+  }
+
+  @override
+  String planMoneyCurrencyUndo(String category, String symbol) {
+    return '$category is now in $symbol';
+  }
+
+  @override
+  String get planMoneyAccounts => 'Accounts this category uses';
+
+  @override
+  String planMoneyChange(String amount) {
+    return 'Changing the currency takes back $amount assigned to it and removes its plan';
+  }
+
+  @override
+  String planMoneyChangeAmount(String amount) {
+    return 'Changing the currency takes back $amount assigned to it';
+  }
+
+  @override
+  String get planMoneyChangePlan => 'Changing the currency removes its plan';
+
+  @override
+  String planMoneyRestOne(
+    String held,
+    String account,
+    String category,
+    String rest,
+  ) {
+    return '$held of what’s in $account is for $category. The other $rest there can still be assigned to any category.';
+  }
+
+  @override
+  String planMoneyRestSome(String held, String category, String rest) {
+    return '$held of what’s in these accounts is for $category. The other $rest there can still be assigned to any category.';
+  }
+
+  @override
+  String get planFromNone => 'no account chosen';
+
+  @override
+  String planOtherRows(int count, String amount, String symbol, String other) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$amount in $count rows isn’t counted here (this category is in $symbol); it came out of $other not assigned',
+      one:
+          '$amount in 1 row isn’t counted here (this category is in $symbol); it came out of $other not assigned',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planOffAccount(String amount, String account) {
+    return '$amount paid from $account, which this category doesn’t use';
+  }
+
+  @override
+  String planOffAccounts(String amount, int count) {
+    return '$amount paid from $count accounts this category doesn’t use';
+  }
+
+  @override
+  String planBackingOne(String held, String account, String have) {
+    return '$held left here, but $account holds $have';
+  }
+
+  @override
+  String planBackingSome(String held, String have) {
+    return '$held left here, but its accounts hold $have';
+  }
+
+  @override
+  String planBackingShared(String held, int count, String have) {
+    return '$held left in $count categories kept in the same accounts, which hold $have';
+  }
+
+  @override
+  String planAllAssignedIn(String symbol) {
+    return 'Everything in $symbol is assigned to a category';
   }
 }
