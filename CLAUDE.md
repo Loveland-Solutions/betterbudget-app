@@ -64,7 +64,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
 
 - `lib/domain/`: pure Dart, no Flutter and no database. `money.dart` (integer minor
   units, MNT exponent 2, amount calculator), `ledger.dart` (register rows, balances),
-  `forecast.dart`.
+  `forecast.dart`, `budget.dart` (envelopes, and each category's plan worked out for a
+  period: rules 26 and 27).
 - `lib/data/`: Drift schema and writes (`database.dart`; regenerate with
   `dart run build_runner build`), `backup.dart` (daily copies, back up, restore, the copy before a new ledger,
   converting plain copies), `keys.dart` (recovery key, data key, secure store),
@@ -86,7 +87,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   Figma's 100, Blue eclipse the default; `Palette.of` in `theme.dart` turns one into light and dark), `brand.dart` (the bee and the wordmark, the dark-mode logo files), `fit_window.dart` (the smallest size the app is laid out for; smaller windows show it shrunk; keep it the same as `MainFlutterWindow.swift`), `ledger_screen.dart`
   (state, selection, row actions, toasts, sidebar, Settings page), `balance_header.dart`
   (key, forecast chart and bill list),
-  `register.dart` (rows, row action bar, category menu), `entry_row.dart`
+  `register.dart` (rows, row action bar, category menu), `budget.dart` (the Budget
+  page: envelopes, the plan note under a name, the plan panel), `entry_row.dart`
   (entry row, `DateField` and calendar), `reconcile.dart` (reconcile panel), `recovery_key_screen.dart` (the key shown
   once at setup, the entry screen when a device has no key, the key-check dialogs),
   `startup.dart` (what happens at launch: check the key, show a new key before storing

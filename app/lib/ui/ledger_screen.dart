@@ -1661,6 +1661,85 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// "Assign what's planned": each category in [amounts] gets its plan's
+  /// amount for [period], in one write and one undo. It's allowed past the
+  /// money there is; the page says by how much first, and the top line
+  /// turns coral.
+  Future<void> _assignPlanned(
+    BudgetSpan period,
+    Map<AccountInfo, int> amounts,
+  ) async {
+    if (amounts.isEmpty) return;
+    final t = context.t;
+    final data = _data!;
+    final first = data.prefs[BudgetKeys.began] == null;
+    final currency = Budget.currencyOf(data);
+    final start = period.start, end = period.end;
+    final b = Budget.of(data, start: start, end: end, today: today);
+    final total = amounts.entries.fold(
+      0,
+      (sum, e) => sum + e.value - (b.lines[e.key.id]?.assigned ?? 0),
+    );
+    final byId = {for (final e in amounts.entries) e.key.id: e.value};
+    late Map<int, List<BudgetAmount>> before;
+    Future<void> write() async {
+      before = await db.setBudgetAmounts(byId, start, end);
+      if (first) {
+        await db.setPreference(BudgetKeys.began, dateKey(start));
+        await db.setPreference(BudgetKeys.currency, currency.code);
+      }
+    }
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    _did(
+      t.planFilled(
+        amounts.length,
+        formatMoney(total, showCents: total % 100 != 0, currency: currency),
+      ),
+      undo: () async {
+        await db.restoreBudgetAmountsOf(before, start, end);
+        if (first) {
+          await db.setPreference(BudgetKeys.began, null);
+          await db.setPreference(BudgetKeys.currency, null);
+        }
+      },
+      redo: write,
+    );
+  }
+
+  /// Saves [c]'s plan, or removes it with null. Saving is quiet (the plan
+  /// shows under the name); removing says so, with Undo, and so does a
+  /// change that moves money.
+  Future<void> _setCategoryPlan(AccountInfo c, CategoryPlan? plan) async {
+    final t = context.t;
+    // What earlier periods sent back returns to a category that carries
+    // over again: the toast says how much.
+    final data = _data!;
+    final p = budgetPeriod(today, data.periodSchedule);
+    int free(LedgerData d) =>
+        Budget.of(d, start: p.start, end: p.end, today: today).notAssigned;
+    final back = free(data) - free(data.withPlan(c.id, plan));
+    final label = plan == null
+        ? t.planRemoveUndo(c.name)
+        : t.planSetUndo(c.name);
+    CategoryPlan? before;
+    if (!await _accountWrite(
+      () async => before = await db.setCategoryPlan(c.id, plan),
+      what: 'category',
+    )) {
+      return;
+    }
+    _did(
+      label,
+      toast: plan == null || back > 0,
+      message: back > 0
+          ? '$label · ${t.planReturns(formatMoney(back, currency: Budget.currencyOf(data)), c.name)}'
+          : null,
+      undo: () => db.setCategoryPlan(c.id, before),
+      redo: () => db.setCategoryPlan(c.id, plan),
+    );
+  }
+
   /// The first-period offer, taken: what was assigned in [period] moves to
   /// the next period, and the budget begins there.
   Future<void> _startBudgetLater(BudgetSpan period, BudgetSpan next) async {
@@ -2648,6 +2727,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onShowAllRows: (c) => _openAll(category: c.id),
                             onSetAmount: _setBudgetAmount,
                             onStartLater: _startBudgetLater,
+                            onSetPlan: _setCategoryPlan,
+                            onAssignPlanned: _assignPlanned,
                             onKeepStart: () => _setPref(
                               BudgetKeys.keptStart,
                               '1',

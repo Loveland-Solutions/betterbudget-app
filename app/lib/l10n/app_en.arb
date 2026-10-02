@@ -5583,5 +5583,296 @@
   "appearanceColorsHide": "Hide the colors",
   "@appearanceColorsHide": {
     "description": "Settings → Appearance, the same button once the schemes are showing: folds them away."
+  },
+  "planPlanMenu": "Plan…",
+  "@planPlanMenu": {
+    "description": "Budget page: item in a spending category's ⋯ menu; opens its plan (what the category is for and how much goes in each period) under the row"
+  },
+  "planKindSpendMonth": "Spend through the month",
+  "@planKindSpendMonth": {
+    "description": "Budget page, a category's plan: the first of four kinds, when the budget runs by month (groceries: money goes in and is spent down)"
+  },
+  "planKindSpendPay": "Spend through the pay period",
+  "@planKindSpendPay": {
+    "description": "Budget page, a category's plan: the first of four kinds, when the budget runs by pay period"
+  },
+  "planKindSaveUp": "Save up, spend any time",
+  "@planKindSaveUp": {
+    "description": "Budget page, a category's plan: the second kind (Christmas, car repairs)"
+  },
+  "planKindDueOn": "Due on a date",
+  "@planKindDueOn": {
+    "description": "Budget page, a category's plan: the third kind (annual insurance, a quarterly bill)"
+  },
+  "planKindGoal": "Goal",
+  "@planKindGoal": {
+    "description": "Budget page, a category's plan: the fourth kind (an amount by a date)"
+  },
+  "planHelpSpend": "Money goes in each month and is spent down.",
+  "@planHelpSpend": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Spend through the month"
+  },
+  "planHelpSaveUp": "A set amount goes in each month. It builds until you need it.",
+  "@planHelpSaveUp": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Save up"
+  },
+  "planHelpDueOn": "A bill with a date. It’s split into equal parts up to the day it’s due.",
+  "@planHelpDueOn": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Due on a date"
+  },
+  "planHelpGoal": "An amount to save by a date. What’s still missing is split over the months left, so it goes up after a thin month.",
+  "@planHelpGoal": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Goal"
+  },
+  "planLabelEachMonth": "Each month",
+  "@planLabelEachMonth": {
+    "description": "Budget page, a category's plan: label over the amount field, when the budget runs by month"
+  },
+  "planLabelEachPay": "Each pay period",
+  "@planLabelEachPay": {
+    "description": "Budget page, a category's plan: label over the amount field, when the budget runs by pay period"
+  },
+  "planLabelBill": "The bill",
+  "@planLabelBill": {
+    "description": "Budget page, a category's plan (Due on a date): label over the amount field"
+  },
+  "planLabelDue": "Due",
+  "@planLabelDue": {
+    "description": "Budget page, a category's plan (Due on a date): label over the date field"
+  },
+  "planLabelRepeats": "Repeats",
+  "@planLabelRepeats": {
+    "description": "Budget page, a category's plan (Due on a date): label over the choice of how often the bill comes"
+  },
+  "planLabelGoal": "The goal",
+  "@planLabelGoal": {
+    "description": "Budget page, a category's plan (Goal): label over the amount field"
+  },
+  "planLabelBy": "By",
+  "@planLabelBy": {
+    "description": "Budget page, a category's plan (Goal): label over the date field"
+  },
+  "planRepeatNone": "Doesn’t repeat",
+  "@planRepeatNone": {
+    "description": "Budget page, a category's plan (Due on a date): the bill comes once"
+  },
+  "planRepeatMonths": "{count, plural, =1{Every month} other{Every {count} months}}",
+  "@planRepeatMonths": {
+    "description": "Budget page, a category's plan (Due on a date): how often the bill comes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planRepeatYears": "{count, plural, =1{Every year} other{Every {count} years}}",
+  "@planRepeatYears": {
+    "description": "Budget page, a category's plan (Due on a date): how often the bill comes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planCarryOn": "What’s left carries over",
+  "@planCarryOn": {
+    "description": "Budget page, a category's plan (Spend through the month): the first of two choices, the default"
+  },
+  "planCarryOff": "What’s left goes back to not assigned",
+  "@planCarryOff": {
+    "description": "Budget page, a category's plan (Spend through the month): the second of two choices; when a period ends, what the category didn't spend returns to the money not assigned"
+  },
+  "planSave": "Save",
+  "@planSave": {
+    "description": "Budget page, a category's plan: button that keeps it"
+  },
+  "planRemove": "Remove plan",
+  "@planRemove": {
+    "description": "Budget page, a category's plan: button that takes the plan away (the category and its money stay)"
+  },
+  "planEachMonth": "{amount} a month",
+  "@planEachMonth": {
+    "description": "Budget page: note under a category's name, what its plan puts in each month",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planEachPay": "{amount} each pay period",
+  "@planEachPay": {
+    "description": "Budget page: note under a category's name, what its plan puts in each pay period",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoCarry": "what’s left doesn’t carry over",
+  "@planNoCarry": {
+    "description": "Budget page: part of the note under a category's name, after the amount and a dot"
+  },
+  "planWentBack": "{amount} left last month went back to not assigned",
+  "@planWentBack": {
+    "description": "Budget page: part of the note under a category's name; what the period before left unspent, returned to the money not assigned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planSavingUp": "saving up",
+  "@planSavingUp": {
+    "description": "Budget page: part of the note under a category's name, after the amount and a dot"
+  },
+  "planDue": "{amount} due {date}",
+  "@planDue": {
+    "description": "Budget page: note under a category's name, a bill and its due date",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planWasDue": "{amount} was due {date}",
+  "@planWasDue": {
+    "description": "Budget page: note under a category's name, a bill that doesn't repeat whose date has passed",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBy": "{amount} by {date}",
+  "@planBy": {
+    "description": "Budget page: note under a category's name, a goal and its date",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnTrack": "on track",
+  "@planOnTrack": {
+    "description": "Budget page: end of the note under a category's name, when a bill or goal has what it should by now"
+  },
+  "planShort": "{amount} short",
+  "@planShort": {
+    "description": "Budget page: end of the note under a category's name, in gold: what should already have been assigned and wasn't",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planReached": "reached",
+  "@planReached": {
+    "description": "Budget page: end of the note under a category's name, a goal that holds its amount"
+  },
+  "planAssignThis": "Assign {amount}",
+  "@planAssignThis": {
+    "description": "Budget page: link at the end of the note under a category's name; sets Assigned to what the plan wants this period",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planEditTip": "Click to change the plan",
+  "@planEditTip": {
+    "description": "Budget page: tooltip on the note under a category's name"
+  },
+  "planFill": "{count, plural, =1{Assign what’s planned · {amount} in 1 category} other{Assign what’s planned · {amount} in {count} categories}}",
+  "@planFill": {
+    "description": "Budget page: button under the top line; assigns every plan's amount that isn't assigned yet this period",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFillOver": "{amount} more than you have left to assign",
+  "@planFillOver": {
+    "description": "Budget page: coral note beside the Assign what's planned button, when the plans want more than the money not assigned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFilled": "{count, plural, =1{Assigned {amount} to 1 category} other{Assigned {amount} to {count} categories}}",
+  "@planFilled": {
+    "description": "Toast and undo history label after Assign what's planned",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planSetUndo": "Plan for {category}",
+  "@planSetUndo": {
+    "description": "Undo history label for saving a category's plan (shown in Undone/Redone toasts)",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planRemoveUndo": "Remove the plan for {category}",
+  "@planRemoveUndo": {
+    "description": "Toast and undo history label for removing a category's plan",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planHelpSpendPay": "Money goes in each pay period and is spent down.",
+  "@planHelpSpendPay": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Spend through the pay period"
+  },
+  "planHelpSaveUpPay": "A set amount goes in each pay period. It builds until you need it.",
+  "@planHelpSaveUpPay": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Save up, when the budget runs by pay period"
+  },
+  "planHelpGoalPay": "An amount to save by a date. What’s still missing is split over the pay periods left, so it goes up after a thin one.",
+  "@planHelpGoalPay": {
+    "description": "Budget page, a category's plan: one line under the kinds, explaining Goal, when the budget runs by pay period"
+  },
+  "planWentBackPay": "{amount} left last pay period went back to not assigned",
+  "@planWentBackPay": {
+    "description": "Budget page: note under a category's name, when the budget runs by pay period; what the period before left unspent, returned to the money not assigned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planReturns": "{amount} that went back returns to {category}, so not assigned goes down by that much",
+  "@planReturns": {
+    "description": "Budget page: gold line in a category's plan before saving, and part of the toast after, when changing or removing a plan that didn't carry over brings back what earlier periods returned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
   }
 }

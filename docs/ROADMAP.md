@@ -70,8 +70,10 @@ Work:
 - [x] Budget amounts per category per period (month or pay period, set in Settings)
 - [x] Rollover, including what happens after overspending: sketched as options
       (carries as minus, rule 26)
-- [ ] The four budget types above
-- [ ] Bills due less often than monthly (annual, quarterly, every N months)
+- [x] The four budget types above: a plan per category, a note under its name, and
+      "Assign what's planned" (ADR 0004 rule 27, schema v11)
+- [x] Bills due less often than monthly: a Due on a date plan that repeats every
+      1, 2, 3, 4 or 6 months, every year or two (rule 27)
 - [x] A category's rows, opened from Budget, show that period (STATUS open question 4)
 - [x] Money not yet budgeted, shown plainly
 - [ ] Move money between categories ("Money can be moved in from another

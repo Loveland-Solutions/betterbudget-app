@@ -208,6 +208,16 @@ class PaySchedule {
       case PayRule.everyWeeks:
         final step = 7 * weeks;
         var d = dateOnly(anchor ?? from);
+        // Straight to about [from] in whole steps (UTC days, so a
+        // daylight-saving change can't miscount); walking there one step
+        // at a time made a far date slow, and a budget counts periods to
+        // dates years ahead.
+        final apart = DateTime.utc(
+          from.year,
+          from.month,
+          from.day,
+        ).difference(DateTime.utc(d.year, d.month, d.day)).inDays;
+        d = _addDays(d, (apart ~/ step) * step);
         // Back to the first on or after [from], in whole steps.
         while (d.isAfter(from)) {
           d = _addDays(d, -step);

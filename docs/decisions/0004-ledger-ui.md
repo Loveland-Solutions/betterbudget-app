@@ -992,6 +992,128 @@ What's known so far:
       period it's for; a Spent click showing loan payments (they aren't
       filed under the category); moving money out of an archived category.
 
+27. **Plans: what a category is for** (owner's types, 2026-09-30; built
+    2026-10-01). A spending category can have a plan, which decides how
+    much it should be assigned each period. A category with no plan works
+    exactly as before.
+    - **The four kinds** (the owner's list):
+      - **Spend through the month** (groceries): a set amount each period,
+        spent down. What's left carries over by default (rule 26). The
+        other choice is **"What's left goes back to not assigned"**: when
+        a period ends, whatever the category didn't spend returns to the
+        money not assigned, and the next period starts empty. What's
+        overspent carries either way (rule 26's call stands). It applies
+        from the period the choice was made in: what the category held
+        before stays (both reviews: it emptied every past period at once).
+      - **Save up, spend any time** (Christmas, car repairs): a set amount
+        each period; the balance builds until it's needed.
+      - **Due on a date** (annual insurance, quarterly СӨХ): the bill is
+        split into equal parts from the period the plan was made in up to
+        the period it's due in. It can repeat (every month, 2, 3, 4 or 6
+        months, every year or two); the next bill's parts start the period
+        after this one is due. This also covers "bills due less often than
+        monthly" (ROADMAP C).
+      - **Goal** (₮X by a date): each period's part is what's left to save
+        divided by the periods left, so it goes up after a thin month and
+        down after a good one. It counts what was assigned (plus what the
+        category held when the plan began), not what's left in it, so
+        buying the thing doesn't read as falling behind and a goal once
+        reached stays "reached" (both reviews: spent, it asked for all of
+        it again). The Savings side comes with ROADMAP D.
+    - **A note under the category's name** says the plan (owner's pick,
+      option A of three, 2026-10-01): "₮900,000 a month", "₮50,000 a month
+      · saving up", "₮1,200,000 due 03.15 · ₮200,000 a month · on track",
+      "₮3,500,000 by 2027.06.01 · ₮312,500 a month". The three columns stay
+      as they are. Rejected: a fourth Planned column before Assigned (B),
+      empty for most categories; and the list split into a section per
+      kind with its own columns (C), which breaks the one alphabetical
+      list the entry row's menu also shows.
+    - **"₮X short" (gold) means behind, not "not assigned yet".** A bill
+      is short by what should already have been in before this period. On
+      payday, before anything is assigned, a bill that's up to date says
+      nothing after its part; once this period's part is in it says "on
+      track". A goal is only ever short once its date has passed, since
+      its part already absorbs a thin month; then the note drops "a
+      month" (it's wanted once). "reached" once enough was assigned.
+    - **"On track" also needs the money to be there** (budget review): a
+      bill whose parts were assigned and then spent on something else
+      filed under the same category says nothing rather than "on track".
+      Paying the bill in the period it's due doesn't count as that. A bill
+      set aside in full early says "on track" without the part.
+    - **Getting the amounts into Assigned** (owner's pick, option A of
+      three): a button under the top line, **"Assign what's planned ·
+      ₮1,462,500 in 4 categories"**, assigns every plan's amount that isn't
+      assigned yet this period, with one toast and one ⌘Z; and each line's
+      note ends with its own **"Assign ₮200,000"**, quiet like typing.
+      Both top a line up to what its plan wants and never lower one, and
+      both name what gets added (a line with ₮500,000 of ₮900,000 says
+      "Assign ₮400,000"). When
+      the plans want more than there is, the button still works: a coral
+      "₮262,500 more than you have left to assign" says so beside it first, and
+      the top line turns coral after (warn, don't block). Rejected: filled
+      in on their own when a period begins (B), since "not assigned" would
+      drop with nobody having done anything; and per line only (C).
+      This replaces the "same as last period" idea from rule 26's reviews.
+    - **A bill that's behind asks for the catch-up too**: its Assign is
+      this period's part plus what's short. A period where more than the
+      part went in lowers the next one's.
+    - **Clicking the note opens the plan**; so does **Plan…** in the
+      category's ⋯ menu, the only way in for a category without one. The
+      plan opens under the row, which grows like a register row (rule 12):
+      the four kinds side by side with one line saying what the chosen one
+      does, then its fields, and a line showing what the note will say
+      before it's saved ("₮2,000,000 due 2027.01.15 · ₮400,000 a month").
+      Enter or Save keeps it, Esc cancels, a missing amount or date is
+      outlined. Saving is quiet (the note is the
+      confirmation); **Remove plan** toasts with Undo. A plan opened low
+      in the list scrolls into view.
+    - **How a bill's parts are counted** (reworked after both reviews).
+      Each bill is counted on its own, from the plan's first period or
+      from the period after the bill before it was due, by what was
+      assigned in that stretch. So "short" never grows past one bill, and
+      a bill skipped and never owed (away for the summer) isn't asked for
+      again. What the category held when the plan began counts toward the
+      first bill, and anything beyond a whole bill toward the next. What's
+      left over at a later bill's start isn't counted (it may be the last
+      bill, not paid yet), so paying late doesn't look like a head start;
+      a minus there (the last bill cost more than was saved) is added to
+      this one. The plan counts from the period it was made in, or the
+      budget's first period if "Start the budget on 10.01 instead" moved
+      it later; and if nothing was assigned in that first period (the
+      month's money was already given out), from the next, so a new plan
+      isn't "short" in its first weeks. Two bills due inside one period (a
+      monthly bill just before a payday a weekend moved) are both asked
+      for. Changing the bill, its date or how often it comes starts the
+      count again from today.
+    - **A date typed without a year** is the next such day ("03.15" in
+      October is next March); for a bill that repeats, its next time
+      round ("10.10" typed on 10.15 for a monthly bill is 11.10). A year
+      more than a hundred ahead isn't taken as a date.
+    - **Changing or removing a plan that didn't carry over** brings back
+      what earlier periods returned (nothing is stored; the emptying is
+      worked out from the plan). The panel says so in gold before Save,
+      and the toast after: "₮440,000 that went back returns to Groceries,
+      so not assigned goes down by that much" (warn, don't block).
+    - Parts are rounded up to a whole ₮ or $; the last part is whatever is
+      left. With the budget by pay period the note reads "each pay period"
+      and a bill is split into pay periods.
+    - A category that doesn't carry over is emptied by the periods as
+      Settings has them now: switching between month and pay period
+      re-cuts past periods, so what went back can shift a little.
+    - Schema v11 (`category_plans`, one row per category). A deleted
+      category keeps its plan for undo; a merge doesn't move it. Starting
+      over erases plans.
+    - **Left for later** (from the reviews): switching Settings between
+      month and pay period leaves a "₮900,000 a month" plan reading
+      "₮900,000 each pay period", twice as much (bills and goals re-split
+      correctly); rows added later to a past period change what went back
+      from it; tuition each semester (uneven dates and amounts) and
+      Tsagaan Sar (a date that moves) want "when it's passed, ask for the
+      next date"; a bill that doesn't repeat keeps "was due 11.10" under
+      the name once it's done; the first amount and the budget's start
+      aren't one write; early payment (the period before a bill is due)
+      leaves the note without "on track" until the date passes.
+
 ### The smallest window (owner, 2026-10-01)
 
 The owner's correction: "We seem to be letting the app collapse farther than

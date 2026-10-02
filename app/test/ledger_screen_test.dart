@@ -2515,6 +2515,196 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('plans: the four kinds, Assign, the top button, ⌘Z', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final groceries = id('Groceries'), gifts = id('Gifts');
+      final tuition = id('Tuition'), clothing = id('Clothing');
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      String preview() =>
+          tester.widget<Text>(find.byKey(const ValueKey('plan-preview'))).data!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump();
+      }
+
+      // A click that writes to the database: in real time, so each write
+      // in a chain gets its turn.
+      Future<void> click(String key) async {
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(ValueKey(key)));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> save() => click('plan-save');
+
+      // No plans yet: nothing to assign at the top.
+      expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
+
+      // Groceries, spent through the month: Plan… in its menu opens the
+      // plan under the row; the line says what it comes to; Enter saves.
+      await categoryMenu(tester, 'Groceries', 'category-plan');
+      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsOneWidget);
+      // Save with nothing typed: it stays open.
+      await save();
+      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsOneWidget);
+      await type('plan-amount', '900000');
+      expect(preview(), '₮900,000 a month');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('plan-editor-$groceries')), findsNothing);
+      await reload();
+      expect(data.plans[groceries]!.kind, PlanKind.spend);
+      expect(data.plans[groceries]!.amount, 90000000);
+      expect(find.text('₮900,000 a month'), findsOneWidget);
+
+      // Its own Assign fills just that line, quietly.
+      await click('plan-assign-$groceries');
+      await reload();
+      expect(data.budgetAmounts.single.amount, 90000000);
+      expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
+
+      // Tuition, a bill due on a date: 01.15 typed in September is next
+      // January's. September to January is five parts.
+      await categoryMenu(tester, 'Tuition', 'category-plan');
+      await tester.tap(find.byKey(const ValueKey('plan-kind-dueOn')));
+      await tester.pumpAndSettle();
+      await type('plan-amount', '2000000');
+      // The date is still missing: Save outlines it and stays.
+      await save();
+      expect(find.byKey(ValueKey('plan-editor-$tuition')), findsOneWidget);
+      await type('plan-date', '01.15');
+      expect(preview(), '₮2,000,000 due 2027.01.15 · ₮400,000 a month');
+      await tester.tap(find.byKey(const ValueKey('plan-repeat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('plan-repeat-12')));
+      await tester.pumpAndSettle();
+      expect(find.text('Every year'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plan_open.png'),
+      );
+      await save();
+      await reload();
+      expect(data.plans[tuition]!.due, DateTime(2027, 1, 15));
+      expect(data.plans[tuition]!.everyMonths, 12);
+      expect(data.plans[tuition]!.start, DateTime(2026, 9, 16));
+
+      // Gifts, saved up.
+      await categoryMenu(tester, 'Gifts', 'category-plan');
+      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+      await tester.pumpAndSettle();
+      await type('plan-amount', '50000');
+      await save();
+      expect(find.text('₮50,000 a month · saving up'), findsOneWidget);
+
+      // Clothing, a goal: September to December is four parts.
+      await categoryMenu(tester, 'Clothing', 'category-plan');
+      await tester.tap(find.byKey(const ValueKey('plan-kind-goal')));
+      await tester.pumpAndSettle();
+      await type('plan-amount', '600000');
+      await type('plan-date', '2026.12.31');
+      expect(preview(), '₮600,000 by 12.31 · ₮150,000 a month');
+      await save();
+
+      // The top button names what it will do, then does it, in one undo.
+      expect(
+        find.text('Assign what’s planned · ₮600,000 in 3 categories'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('assign-planned-over')), findsNothing);
+      // Back to the top of the list: opening Tuition's plan scrolled it.
+      await tester.drag(
+        find.byKey(ValueKey('category-row-$groceries')),
+        const Offset(0, 400),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plans.png'),
+      );
+      await click('assign-planned');
+      await reload();
+      expect(
+        {for (final b in data.budgetAmounts) b.categoryId: b.amount},
+        {
+          groceries: 90000000,
+          tuition: 40000000,
+          gifts: 5000000,
+          clothing: 15000000,
+        },
+      );
+      expect(find.text('Assigned ₮600,000 to 3 categories'), findsOneWidget);
+      expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
+      expect(find.byKey(ValueKey('plan-state-$tuition')), findsOneWidget);
+      expect(find.text(' · on track'), findsNWidgets(2));
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plans_assigned.png'),
+      );
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.budgetAmounts.map((b) => b.categoryId), [groceries]);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      await reload();
+      expect(data.budgetAmounts, hasLength(4));
+
+      // The note opens the plan; Remove plan says so, and ⌘Z brings it
+      // back.
+      await tester.tap(find.byKey(ValueKey('plan-note-$gifts')));
+      await tester.pumpAndSettle();
+      await click('plan-remove');
+      await reload();
+      expect(data.plans[gifts], isNull);
+      expect(find.text('Remove the plan for Gifts'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.plans[gifts]!.kind, PlanKind.saveUp);
+
+      // Groceries no longer carries over; Esc on another leaves it alone.
+      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('plan-carry-off')));
+      await tester.pumpAndSettle();
+      await save();
+      await reload();
+      expect(data.plans[groceries]!.rollover, isFalse);
+      expect(
+        find.text('₮900,000 a month · what’s left doesn’t carry over'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(ValueKey('plan-note-$clothing')));
+      await tester.pumpAndSettle();
+      await type('plan-amount', '1');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(tester);
+      expect(find.byKey(ValueKey('plan-editor-$clothing')), findsNothing);
+      await reload();
+      expect(data.plans[clothing]!.amount, 60000000);
+      await tidy(tester, db);
+    });
+
     testWidgets('the Budget screen lists categories with how they are used', (
       tester,
     ) async {

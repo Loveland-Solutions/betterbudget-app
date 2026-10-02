@@ -3830,4 +3830,206 @@ class WordsEn extends Words {
 
   @override
   String get appearanceColorsHide => 'Hide the colors';
+
+  @override
+  String get planPlanMenu => 'Plan…';
+
+  @override
+  String get planKindSpendMonth => 'Spend through the month';
+
+  @override
+  String get planKindSpendPay => 'Spend through the pay period';
+
+  @override
+  String get planKindSaveUp => 'Save up, spend any time';
+
+  @override
+  String get planKindDueOn => 'Due on a date';
+
+  @override
+  String get planKindGoal => 'Goal';
+
+  @override
+  String get planHelpSpend => 'Money goes in each month and is spent down.';
+
+  @override
+  String get planHelpSaveUp =>
+      'A set amount goes in each month. It builds until you need it.';
+
+  @override
+  String get planHelpDueOn =>
+      'A bill with a date. It’s split into equal parts up to the day it’s due.';
+
+  @override
+  String get planHelpGoal =>
+      'An amount to save by a date. What’s still missing is split over the months left, so it goes up after a thin month.';
+
+  @override
+  String get planLabelEachMonth => 'Each month';
+
+  @override
+  String get planLabelEachPay => 'Each pay period';
+
+  @override
+  String get planLabelBill => 'The bill';
+
+  @override
+  String get planLabelDue => 'Due';
+
+  @override
+  String get planLabelRepeats => 'Repeats';
+
+  @override
+  String get planLabelGoal => 'The goal';
+
+  @override
+  String get planLabelBy => 'By';
+
+  @override
+  String get planRepeatNone => 'Doesn’t repeat';
+
+  @override
+  String planRepeatMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count months',
+      one: 'Every month',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planRepeatYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count years',
+      one: 'Every year',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get planCarryOn => 'What’s left carries over';
+
+  @override
+  String get planCarryOff => 'What’s left goes back to not assigned';
+
+  @override
+  String get planRemove => 'Remove plan';
+
+  @override
+  String planEachMonth(String amount) {
+    return '$amount a month';
+  }
+
+  @override
+  String planEachPay(String amount) {
+    return '$amount each pay period';
+  }
+
+  @override
+  String get planNoCarry => 'what’s left doesn’t carry over';
+
+  @override
+  String planWentBack(String amount) {
+    return '$amount left last month went back to not assigned';
+  }
+
+  @override
+  String get planSavingUp => 'saving up';
+
+  @override
+  String planDue(String amount, String date) {
+    return '$amount due $date';
+  }
+
+  @override
+  String planWasDue(String amount, String date) {
+    return '$amount was due $date';
+  }
+
+  @override
+  String planBy(String amount, String date) {
+    return '$amount by $date';
+  }
+
+  @override
+  String get planOnTrack => 'on track';
+
+  @override
+  String planShort(String amount) {
+    return '$amount short';
+  }
+
+  @override
+  String get planReached => 'reached';
+
+  @override
+  String planAssignThis(String amount) {
+    return 'Assign $amount';
+  }
+
+  @override
+  String get planEditTip => 'Click to change the plan';
+
+  @override
+  String planFill(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Assign what’s planned · $amount in $count categories',
+      one: 'Assign what’s planned · $amount in 1 category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planFillOver(String amount) {
+    return '$amount more than you have left to assign';
+  }
+
+  @override
+  String planFilled(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Assigned $amount to $count categories',
+      one: 'Assigned $amount to 1 category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planSetUndo(String category) {
+    return 'Plan for $category';
+  }
+
+  @override
+  String planRemoveUndo(String category) {
+    return 'Remove the plan for $category';
+  }
+
+  @override
+  String get planHelpSpendPay =>
+      'Money goes in each pay period and is spent down.';
+
+  @override
+  String get planHelpSaveUpPay =>
+      'A set amount goes in each pay period. It builds until you need it.';
+
+  @override
+  String get planHelpGoalPay =>
+      'An amount to save by a date. What’s still missing is split over the pay periods left, so it goes up after a thin one.';
+
+  @override
+  String planWentBackPay(String amount) {
+    return '$amount left last pay period went back to not assigned';
+  }
+
+  @override
+  String planReturns(String amount, String category) {
+    return '$amount that went back returns to $category, so not assigned goes down by that much';
+  }
 }
