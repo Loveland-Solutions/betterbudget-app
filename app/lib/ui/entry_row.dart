@@ -31,8 +31,8 @@ class EntryDraft {
   /// own register, where it's that account.
   final AccountInfo? account;
 
-  /// A category typed that doesn't exist yet: the screen creates it (income
-  /// when the amount had a `+`) and files the row under it. [counter] is null.
+  /// A category typed that doesn't exist yet: the screen creates it and
+  /// files the row under it. [counter] is null.
   final String? newCategory;
 
   /// Confirming money in that came short: keep the rest scheduled as still
@@ -451,9 +451,10 @@ class _EntryRowState extends State<EntryRow> {
     };
   }
 
-  /// "new income category" when the amount has a `+`: income ends forecasts.
+  /// With a `+` it says what money in will be: a refund to the new
+  /// category, not income.
   String get _newCategoryNote => _amount.text.trim().startsWith('+')
-      ? context.t.rowsNewIncomeCategoryNote
+      ? context.t.rowsNewCategoryRefundNote
       : context.t.rowsNewCategoryNote;
 
   /// A transfer spelled out before it's added: "₮640,200.00 from TDB

@@ -30,8 +30,8 @@ class Accounts extends Table {
   /// Deleted with its own rows; transfers with other accounts stay.
   IntColumn get deletedAt => integer().nullable()();
 
-  /// An income category whose rows end the forecast (Salary, Pension; not
-  /// child allowance).
+  /// Unused since v13: there's one income category, and its rows end the
+  /// forecast.
   BoolColumn get payday => boolean().withDefault(const Constant(false))();
 
   /// What the account is for on the Savings steps (rule 25): the emergency
@@ -236,7 +236,6 @@ enum DbProblem {
   notAnAccount('Not an account'),
   splitNotEditable('Split lines can’t be edited yet'),
   payIsIn('Pay is money in'),
-  notCategoryKind('Not a category kind'),
   notCategory('Not a category'),
   sameCategory('Same category'),
   accountDeleted('That account was deleted'),
@@ -343,8 +342,8 @@ class MoveRecord {
 }
 
 /// What a pay schedule change did, so undo and redo can replay it exactly:
-/// the schedule before and after, paydays it scheduled or took away, the
-/// schedule that defined the budget period before, and the payday mark.
+/// the schedule before and after, paydays it scheduled or took away, and
+/// the schedule that defined the budget period before.
 class PayChange {
   const PayChange({
     required this.before,
@@ -353,7 +352,6 @@ class PayChange {
     required this.removed,
     required this.replaced,
     required this.periodBefore,
-    required this.paydayBefore,
   });
   final PayScheduleRow? before;
   final PayScheduleRow after;
@@ -365,9 +363,6 @@ class PayChange {
   /// Income the user had scheduled by hand, which the schedule took over.
   final List<int> replaced;
   final List<int> periodBefore;
-
-  /// The category's payday mark before, or null if this didn't touch it.
-  final bool? paydayBefore;
 }
 
 /// What [AppDatabase.deleteCategory] did: the category, and which entries
@@ -623,7 +618,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -723,6 +718,10 @@ class AppDatabase extends _$AppDatabase {
             "END) WHERE type IN ('expense', 'income')",
           );
         }
+        if (from < 13) {
+          await _oneIncome();
+          await incomeCategory();
+        }
       });
     },
     beforeOpen: (details) async {
@@ -730,6 +729,61 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA journal_mode = WAL');
     },
   );
+
+  /// v13 (rule 30): every income category becomes the one Income. Their
+  /// rows and pay schedules move to it; the names go.
+  Future<void> _oneIncome() async {
+    final all = await customSelect(
+      "SELECT id FROM accounts WHERE type = 'income' ORDER BY "
+      'deleted_at IS NOT NULL, archived_at IS NOT NULL, id',
+    ).get();
+    // A spending category that has Income's name gives it up.
+    await customStatement(
+      "UPDATE accounts SET name = name || ' (spending)' WHERE type = "
+      "'expense' AND name IN ('Income', 'income', 'Орлого', 'орлого')",
+    );
+    if (all.isEmpty) return;
+    final keep = all.first.read<int>('id');
+    await customStatement(
+      'UPDATE accounts SET name = ?, archived_at = NULL, deleted_at = NULL '
+      'WHERE id = ?',
+      [incomeAccountName, keep],
+    );
+    const others =
+        "(SELECT id FROM accounts WHERE type = 'income' AND id <> ?)";
+    // What pointed at a category that's going: when it counts from, and
+    // the loan paid out of it.
+    await customStatement(
+      "DELETE FROM preferences WHERE key IN (SELECT 'budget.from.' || id "
+      "FROM accounts WHERE id IN $others) OR (key LIKE 'budget.loan.%' "
+      'AND value IN (SELECT CAST(id AS TEXT) FROM accounts WHERE id IN '
+      '$others))',
+      [keep, keep],
+    );
+    await customStatement(
+      'UPDATE entries SET account_id = ? WHERE account_id IN $others',
+      [keep, keep],
+    );
+    await customStatement(
+      'UPDATE pay_schedules SET category_id = ? WHERE category_id IN $others',
+      [keep, keep],
+    );
+    // What a category held while it was a spending one.
+    for (final t in ['budget_amounts', 'category_plans']) {
+      await customStatement(
+        "DELETE FROM $t WHERE category_id IN "
+        "(SELECT id FROM accounts WHERE type = 'income')",
+      );
+    }
+    await customStatement(
+      'DELETE FROM category_accounts_off WHERE category_id IN '
+      "(SELECT id FROM accounts WHERE type = 'income')",
+    );
+    await customStatement(
+      "DELETE FROM accounts WHERE type = 'income' AND id <> ?",
+      [keep],
+    );
+  }
 
   int get _now => DateTime.now().millisecondsSinceEpoch;
 
@@ -941,7 +995,6 @@ class AppDatabase extends _$AppDatabase {
             sortOrder: a.sortOrder,
             archived: a.archivedAt != null,
             deleted: a.deletedAt != null,
-            payday: a.payday,
             role: a.role,
             currency: Currency.fromCode(a.currency),
           ),
@@ -1782,12 +1835,10 @@ class AppDatabase extends _$AppDatabase {
     String? mask,
     String? group,
     int sortOrder = 0,
-    bool payday = false,
   }) => into(accounts).insert(
     AccountsCompanion.insert(
       name: name,
       type: type,
-      payday: Value(payday),
       institution: Value(institution),
       mask: Value(mask),
       sidebarGroup: Value(group),
@@ -1856,7 +1907,7 @@ class AppDatabase extends _$AppDatabase {
     DateTime end,
     int amount,
   ) => transaction(() async {
-    await _assertCategory(categoryId);
+    await _assertOwnCategory(categoryId);
     final before = await _budgetIn(categoryId, start, end);
     await _clearBudgetIn(categoryId, start, end);
     if (amount != 0) {
@@ -1950,7 +2001,7 @@ class AppDatabase extends _$AppDatabase {
   /// Returns the plan it had, so undo can put it back.
   Future<CategoryPlan?> setCategoryPlan(int categoryId, CategoryPlan? plan) =>
       transaction(() async {
-        await _assertCategory(categoryId);
+        await _assertOwnCategory(categoryId);
         final old = await (select(
           categoryPlans,
         )..where((p) => p.categoryId.equals(categoryId))).getSingleOrNull();
@@ -1982,7 +2033,7 @@ class AppDatabase extends _$AppDatabase {
     required Currency currency,
     required Set<int> off,
   }) => transaction(() async {
-    await _assertCategory(categoryId);
+    await _assertOwnCategory(categoryId);
     final row = await (select(
       accounts,
     )..where((a) => a.id.equals(categoryId))).getSingle();
@@ -2141,13 +2192,26 @@ class AppDatabase extends _$AppDatabase {
                   : const Constant(true),
             ))
             .go();
+        await incomeCategory();
         await setPreference(startedKey, dateKey(dateOnly(today)));
       });
 
-  Future<void> renameAccount(int accountId, String name) =>
-      (update(accounts)..where((a) => a.id.equals(accountId))).write(
-        AccountsCompanion(name: Value(name.trim())),
-      );
+  Future<void> renameAccount(int accountId, String name) async {
+    await _refuseIncome(accountId);
+    await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(name: Value(name.trim())),
+    );
+  }
+
+  /// The app's Income isn't the user's to rename, archive or delete.
+  Future<void> _refuseIncome(int accountId) async {
+    final rows = await customSelect(
+      "SELECT 1 FROM accounts WHERE id = ? AND type = 'income'",
+      variables: [Variable.withInt(accountId)],
+      readsFrom: {accounts},
+    ).get();
+    if (rows.isNotEmpty) throw NotFoundException(DbProblem.notCategory);
+  }
 
   /// Bank account ⇄ card or loan. Rows keep their amounts: a purchase lowers
   /// the balance either way. The opening balance is the exception, since it
@@ -2197,10 +2261,12 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<void> setArchived(int accountId, bool archived) =>
-      (update(accounts)..where((a) => a.id.equals(accountId))).write(
-        AccountsCompanion(archivedAt: Value(archived ? _now : null)),
-      );
+  Future<void> setArchived(int accountId, bool archived) async {
+    if (archived) await _refuseIncome(accountId);
+    await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(archivedAt: Value(archived ? _now : null)),
+    );
+  }
 
   /// Deletes the account and every transaction that is only its own,
   /// reconciled or not. A transaction that also moves money in another
@@ -2254,36 +2320,32 @@ class AppDatabase extends _$AppDatabase {
     definesPeriod: p.definesPeriod,
   );
 
-  /// Marks an income category as payday (its rows end the forecast) or not.
-  Future<void> setPayday(int categoryId, bool payday) => transaction(() async {
-    await _assertCategory(categoryId);
-    await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
-      AccountsCompanion(payday: Value(payday)),
-    );
-  });
-
-  /// Recent paychecks in [categoryId] into [accountId], newest first: what
-  /// an estimate should come from. With [scheduleId], only that schedule's
-  /// own paydays once it has any (a bonus filed under Salary isn't pay).
+  /// Recent pay into [accountId], newest first: what an estimate should
+  /// come from. With [scheduleId], that schedule's own paydays once it has
+  /// any; otherwise income from [payee], and nothing with no payer named
+  /// (an allowance or interest isn't pay).
   Future<List<int>> payHistory(
-    int categoryId,
     int accountId, {
     int? scheduleId,
+    String? payee,
   }) async {
+    final categoryId = await incomeCategory();
+    final from = payee?.trim() ?? '';
     Future<List<int>> read(bool linked) async {
       final rows = await customSelect(
         'SELECT mine.amount_minor AS amount FROM transactions t '
         'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ?1 '
         'JOIN entries cat ON cat.transaction_id = t.id AND cat.account_id = ?2 '
+        '${linked ? '' : 'JOIN payees py ON py.id = t.payee_id AND py.name = ?3 '}'
         'WHERE t.deleted_at IS NULL AND t.scheduled = 0 AND mine.amount_minor > 0 '
         '${linked ? 'AND t.pay_schedule_id = ?3 ' : ''}'
         'ORDER BY t.date DESC, t.id DESC LIMIT 6',
         variables: [
           Variable.withInt(accountId),
           Variable.withInt(categoryId),
-          if (linked) Variable.withInt(scheduleId!),
+          linked ? Variable.withInt(scheduleId!) : Variable.withString(from),
         ],
-        readsFrom: {transactions, entries},
+        readsFrom: {transactions, entries, payees},
       ).get();
       return [for (final r in rows) r.read<int>('amount')];
     }
@@ -2292,17 +2354,17 @@ class AppDatabase extends _$AppDatabase {
       final own = await read(true);
       if (own.isNotEmpty) return own;
     }
-    return read(false);
+    return from.isEmpty ? const [] : read(false);
   }
 
-  /// Adds or changes a pay schedule. A new one marks its category payday;
-  /// with [definesPeriod] the budget runs by it and no other. Paydays it had
-  /// scheduled from today on are replaced by ones from the new plan, and so
-  /// is income the user had scheduled by hand in that category and account
-  /// within a week of the first payday (it's the same pay).
+  /// Adds or changes a pay schedule. With [definesPeriod] the budget runs
+  /// by it and no other. Paydays it had scheduled from today on are replaced
+  /// by ones from the new plan, and so is the same pay the user had
+  /// scheduled by hand in that account within a week of the first payday:
+  /// income from the same payer or, with no payer named, of the same
+  /// amount.
   Future<PayChange> savePaySchedule({
     int? id,
-    required int categoryId,
     required int accountId,
     required int amount,
     int? amount2,
@@ -2317,7 +2379,7 @@ class AppDatabase extends _$AppDatabase {
     PayWeekend weekend = PayWeekend.before,
     bool definesPeriod = false,
   }) => transaction(() async {
-    await _assertCategory(categoryId);
+    final categoryId = await incomeCategory();
     await _assertLive(accountId);
     if (amount <= 0 || (amount2 != null && amount2 <= 0)) {
       throw NotFoundException(DbProblem.payIsIn);
@@ -2361,18 +2423,6 @@ class AppDatabase extends _$AppDatabase {
       )..where((p) => p.id.equals(id))).write(companion);
     }
     if (definesPeriod) await _onlyPeriod(sid);
-    // A new schedule marks its category; an edit leaves a deliberate
-    // "Not a payday" alone.
-    bool? paydayBefore;
-    if (id == null) {
-      final c = await (select(
-        accounts,
-      )..where((a) => a.id.equals(categoryId))).getSingle();
-      paydayBefore = c.payday;
-      await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
-        const AccountsCompanion(payday: Value(true)),
-      );
-    }
     final removed = await _removeComing(sid, today);
     final created = await ensurePaydays(today, only: sid);
     final replaced = <int>[];
@@ -2386,14 +2436,21 @@ class AppDatabase extends _$AppDatabase {
         'SELECT DISTINCT t.id FROM transactions t '
         'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ?1 '
         'JOIN entries cat ON cat.transaction_id = t.id AND cat.account_id = ?2 '
+        'LEFT JOIN payees py ON py.id = t.payee_id '
         'WHERE t.deleted_at IS NULL AND t.scheduled = 1 '
         'AND t.pay_schedule_id IS NULL AND mine.amount_minor > 0 '
-        'AND t.date BETWEEN ?3 AND ?4',
+        'AND t.date BETWEEN ?3 AND ?4 '
+        // Only what is this pay: from the same payer, or with none named,
+        // for the same amount. Other income (an allowance) stays.
+        'AND (py.name = ?5 OR (?5 IS NULL AND mine.amount_minor IN (?6, ?7)))',
         variables: [
           Variable.withInt(accountId),
           Variable.withInt(categoryId),
           Variable.withString(key(-7)),
           Variable.withString(key(7)),
+          Variable<String>(companion.payee.value),
+          Variable.withInt(amount),
+          Variable.withInt(amount2 ?? amount),
         ],
         readsFrom: {transactions, entries},
       ).get();
@@ -2409,12 +2466,11 @@ class AppDatabase extends _$AppDatabase {
       removed: removed,
       replaced: replaced,
       periodBefore: periodBefore,
-      paydayBefore: paydayBefore,
     );
   });
 
   /// Stops a pay schedule: paydays it scheduled from today on go; ones
-  /// already past stay to be confirmed. The category's mark is left alone.
+  /// already past stay to be confirmed.
   Future<PayChange> stopPaySchedule(int id, DateTime today) =>
       transaction(() async {
         final before = await (select(
@@ -2437,7 +2493,6 @@ class AppDatabase extends _$AppDatabase {
           removed: removed,
           replaced: const [],
           periodBefore: periodBefore,
-          paydayBefore: null,
         );
       });
 
@@ -2460,10 +2515,6 @@ class AppDatabase extends _$AppDatabase {
       await update(paySchedules).replace(before);
     }
     await _setPeriodIds(c.periodBefore);
-    if (c.paydayBefore case final was?) {
-      await (update(accounts)..where((a) => a.id.equals(c.after.categoryId)))
-          .write(AccountsCompanion(payday: Value(was)));
-    }
   });
 
   /// Redo for [savePaySchedule] and [stopPaySchedule].
@@ -2471,10 +2522,6 @@ class AppDatabase extends _$AppDatabase {
     final sid = c.after.id;
     await update(paySchedules).replace(c.after);
     if (c.after.definesPeriod) await _onlyPeriod(sid);
-    if (c.paydayBefore != null) {
-      await (update(accounts)..where((a) => a.id.equals(c.after.categoryId)))
-          .write(const AccountsCompanion(payday: Value(true)));
-    }
     await _dropPaydays(c.removed);
     await _bringBackPaydays(c.created, sid);
     await softDeleteMany(c.replaced);
@@ -2630,7 +2677,7 @@ class AppDatabase extends _$AppDatabase {
           created.add(
             await postTransaction(
               date: date,
-              payee: p.payee ?? category.name,
+              payee: p.payee,
               scheduled: true,
               payScheduleId: p.id,
               lines: [
@@ -2653,30 +2700,36 @@ class AppDatabase extends _$AppDatabase {
 
   // ---------- categories ----------
 
-  /// A spending category, or income with [income] (it ends forecasts).
-  /// A spending category is in one [currency] (rule 28).
-  Future<int> createCategory(
-    String name, {
-    bool income = false,
-    Currency currency = Currency.mnt,
-  }) => into(accounts).insert(
-    AccountsCompanion.insert(
-      name: name.trim(),
-      type: income ? AccountType.income : AccountType.expense,
-      currency: Value(currency.code),
-    ),
-  );
+  /// A spending category, in one [currency] (rule 28).
+  Future<int> createCategory(String name, {Currency currency = Currency.mnt}) =>
+      into(accounts).insert(
+        AccountsCompanion.insert(
+          name: name.trim(),
+          type: AccountType.expense,
+          currency: Value(currency.code),
+        ),
+      );
 
-  Future<void> setCategoryType(int categoryId, AccountType type) =>
-      transaction(() async {
-        if (type != AccountType.income && type != AccountType.expense) {
-          throw NotFoundException(DbProblem.notCategoryKind);
-        }
-        await _assertCategory(categoryId);
-        await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
-          AccountsCompanion(type: Value(type)),
-        );
-      });
+  /// The one income category (rule 30), made the first time it's wanted.
+  /// Its rows are in the currency of the account the money came into.
+  Future<int> incomeCategory() async {
+    // Plain SQL: the upgrade calls this, before later columns exist.
+    final existing = await customSelect(
+      "SELECT id FROM accounts WHERE type = 'income' ORDER BY id LIMIT 1",
+      readsFrom: {accounts},
+    ).getSingleOrNull();
+    if (existing == null) {
+      return addAccount(name: incomeAccountName, type: AccountType.income);
+    }
+    return existing.read<int>('id');
+  }
+
+  /// A category of the user's own: not the app's Income, which holds no
+  /// budget and can't be deleted or merged away.
+  Future<void> _assertOwnCategory(int id) async {
+    await _assertCategory(id);
+    await _refuseIncome(id);
+  }
 
   /// Refuses anything but a live income or spending category: a wrong id
   /// must never move a bank account's rows.
@@ -2706,7 +2759,7 @@ class AppDatabase extends _$AppDatabase {
   /// category. Without, it must have no rows at all, deleted ones included.
   Future<DeletedCategory> deleteCategory(int categoryId, {int? into}) =>
       transaction(() async {
-        await _assertCategory(categoryId);
+        await _assertOwnCategory(categoryId);
         final moved = <int>[];
         final budgetMoved = <int>[];
         if (into != null) {
@@ -2743,7 +2796,9 @@ class AppDatabase extends _$AppDatabase {
                     ..where(accounts.id.isIn([categoryId, into])))
                   .map((r) => r.read(accounts.currency))
                   .get();
-          if (currencies.toSet().length == 1) {
+          final intoIncome = into == await incomeCategory();
+          // Nor into Income, which holds no budget.
+          if (currencies.toSet().length == 1 && !intoIncome) {
             budgetMoved.addAll(
               await (selectOnly(budgetAmounts)
                     ..addColumns([budgetAmounts.id])
@@ -2781,6 +2836,7 @@ class AppDatabase extends _$AppDatabase {
   /// Undo for adding an account: deletes it only while nothing is in it.
   /// Returns false, deleting nothing, once it holds any live row.
   Future<bool> deleteEmptyAccount(int accountId) => transaction(() async {
+    await _refuseIncome(accountId);
     final used = await customSelect(
       'SELECT 1 FROM entries e JOIN transactions t ON t.id = e.transaction_id '
       'WHERE e.account_id = ? AND t.deleted_at IS NULL LIMIT 1',

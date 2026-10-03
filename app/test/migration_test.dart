@@ -131,12 +131,8 @@ void main() {
 
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
-    final salary = (await db.loadLedger()).categories.firstWhere(
-      (c) => c.name == 'Salary',
-    );
     final checking = (await db.loadLedger()).openAccounts.first.id;
     await db.savePaySchedule(
-      categoryId: salary.id,
       accountId: checking,
       amount: 100000000,
       rule: PayRule.twiceMonthly,
@@ -155,7 +151,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v12-from-v6-')),
+      contains(startsWith('betterbudget.before-v13-from-v6-')),
     );
   });
 
@@ -210,10 +206,92 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v12-from-v11-')),
+        contains(startsWith('betterbudget.before-v13-from-v11-')),
       );
     });
   }
+
+  test(
+    'upgrades a v12 file: every income category becomes the one Income',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      final before = await db.loadLedger();
+      final checking = before.openAccounts.first.id;
+      // As a v12 file had them: income categories of the user's own, one
+      // archived, with rows and pay filed under them.
+      final salary = await db.incomeCategory();
+      await db.customStatement(
+        "UPDATE accounts SET name = 'Salary' WHERE id = $salary",
+      );
+      final allowance = await db.addAccount(
+        name: 'Child allowance',
+        type: AccountType.income,
+      );
+      final old = await db.addAccount(
+        name: 'Old job',
+        type: AccountType.income,
+      );
+      await db.customStatement(
+        'UPDATE accounts SET archived_at = 1 WHERE id = $old',
+      );
+      // A spending category that happens to have Income's name.
+      final clash = await db.createCategory('Income');
+      for (final c in [allowance, old]) {
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 1),
+          today: today,
+          payee: 'Money in $c',
+          counterAccountId: c,
+          amount: 10000000,
+        );
+      }
+      final pay = await db.savePaySchedule(
+        accountId: checking,
+        amount: 210000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      await db.customStatement(
+        'UPDATE pay_schedules SET category_id = $allowance WHERE id = '
+        '${pay.after.id}',
+      );
+      final rows = before.txns.length + 2 + pay.created.length;
+      await db.customStatement('PRAGMA user_version = 12');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final data = await db.loadLedger();
+      final incomes = data.accounts.values.where((a) => a.isIncome).toList();
+      expect(incomes.map((a) => a.name), [incomeAccountName]);
+      expect(data.accounts[clash]!.name, 'Income (spending)');
+      final income = incomes.single;
+      expect(income.archived, isFalse);
+      expect(data.income, income);
+      expect(await db.incomeCategory(), income.id);
+      expect(data.txns, hasLength(rows));
+      // Their rows are Income's now, and still add up.
+      final moved = data
+          .registerFor(checking)
+          .posted
+          .where((r) => r.payee.startsWith('Money in'));
+      expect(moved.map((r) => r.categoryId), [income.id, income.id]);
+      expect(await db.customSelect(AppDatabase.unbalancedSql).get(), isEmpty);
+      expect(data.paySchedules.single.categoryId, income.id);
+      expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v13-from-v12-')),
+      );
+    },
+  );
 
   test('upgrades a v10 file: amounts stay and a plan can be made', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -250,7 +328,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v12-from-v10-')),
+      contains(startsWith('betterbudget.before-v13-from-v10-')),
     );
   });
 
@@ -284,7 +362,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v12-from-v9-')),
+        contains(startsWith('betterbudget.before-v13-from-v9-')),
       );
     },
   );
@@ -297,9 +375,7 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final data = await db.loadLedger();
-    final salary = data.categories.firstWhere((c) => c.name == 'Salary');
     await db.savePaySchedule(
-      categoryId: salary.id,
       accountId: data.openAccounts.first.id,
       amount: 100000000,
       rule: PayRule.monthly,
@@ -307,7 +383,6 @@ void main() {
       today: today,
     );
     await db.savePaySchedule(
-      categoryId: salary.id,
       accountId: data.openAccounts.last.id,
       amount: 50000000,
       rule: PayRule.monthly,
@@ -323,7 +398,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v12-from-v8-')),
+      contains(startsWith('betterbudget.before-v13-from-v8-')),
     );
   });
 
@@ -427,14 +502,14 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v12-from-v5-')),
+        contains(startsWith('betterbudget.before-v13-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
     },
   );
 
-  test('upgrades a v4 file: income categories stay paydays', () async {
+  test('upgrades a v4 file: pay schedules', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
     addTearDown(() => dir.delete(recursive: true));
     final file = File('${dir.path}/betterbudget.sqlite');
@@ -452,8 +527,6 @@ void main() {
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
     final data = await db.loadLedger();
-    final salary = data.accounts.values.firstWhere((a) => a.name == 'Salary');
-    expect(salary.payday, isTrue);
     expect(data.paySchedules, isEmpty);
     final fk = await db.customSelect('PRAGMA foreign_key_check').get();
     expect(fk, isEmpty);

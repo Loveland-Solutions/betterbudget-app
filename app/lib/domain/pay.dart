@@ -34,7 +34,7 @@ class PaySchedule {
 
   final int id;
 
-  /// The income category it's filed under (Salary), which it marks payday.
+  /// The Income category, which every payday is filed under.
   final int categoryId;
 
   /// The account it's paid into.

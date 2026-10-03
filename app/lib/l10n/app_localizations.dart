@@ -235,12 +235,6 @@ abstract class Words {
   /// **'new category “{name}”'**
   String ledgerNewCategory(String name);
 
-  /// Part of a toast, after " · ": an income category typed in the row did not exist and was made.
-  ///
-  /// In en, this message translates to:
-  /// **'new income category “{name}”'**
-  String ledgerNewIncomeCategory(String name);
-
   /// Part of a toast, after " · ": the new transaction is dated in the future. date is a full date.
   ///
   /// In en, this message translates to:
@@ -510,12 +504,6 @@ abstract class Words {
   /// **'uncleared there until it clears'**
   String get ledgerUnclearedThere;
 
-  /// Toast when pay setup is opened with no income category.
-  ///
-  /// In en, this message translates to:
-  /// **'Add an income category on the Budget screen first'**
-  String get ledgerAddIncomeCategoryFirst;
-
   /// Toast when pay setup is opened with no bank account.
   ///
   /// In en, this message translates to:
@@ -642,7 +630,7 @@ abstract class Words {
   /// **'{count, plural, =1{1 row} other{{count} rows}}'**
   String ledgerFilterRows(int count);
 
-  /// All accounts, beside the category chip: the category’s total. kind is received / paidBack (income categories) or spent / refunded (spending).
+  /// All accounts, beside the category chip: the category’s total. kind is received / paidBack (Income) or spent / refunded (spending).
   ///
   /// In en, this message translates to:
   /// **'{kind, select, received{{amount} received} paidBack{{amount} paid back} refunded{{amount} refunded} other{{amount} spent}}'**
@@ -762,53 +750,11 @@ abstract class Words {
   /// **'Delete {name}'**
   String ledgerDeleteAction(String name);
 
-  /// Undo-menu label: an income category now marks payday.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} marks payday'**
-  String ledgerMarksPayday(String name);
-
-  /// Undo-menu label: an income category no longer marks payday.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} isn’t a payday'**
-  String ledgerIsntPayday(String name);
-
-  /// Toast after an income category is marked payday.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is a payday · forecasts run to it'**
-  String ledgerIsPaydayToast(String name);
-
-  /// Toast after an income category stops marking payday.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} isn’t a payday · forecasts run past it'**
-  String ledgerIsntPaydayToast(String name);
-
   /// Toast when a new category’s name is taken.
   ///
   /// In en, this message translates to:
   /// **'{name} is already a category'**
   String ledgerAlreadyCategory(String name);
-
-  /// Toast and undo-menu label after a category becomes income.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is now income'**
-  String ledgerIsNowIncome(String name);
-
-  /// Toast and undo-menu label after a category becomes spending.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is now spending'**
-  String ledgerIsNowSpending(String name);
-
-  /// Toast after a category becomes income.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is now income · it ends forecasts, like payday'**
-  String ledgerIsNowIncomeToast(String name);
 
   /// Toast and undo-menu label after a category is unarchived.
   ///
@@ -1353,12 +1299,6 @@ abstract class Words {
   /// Toast when a change is refused (rare; usually a row changed in the meantime).
   ///
   /// In en, this message translates to:
-  /// **'Not a category kind'**
-  String get ledgerDbNotCategoryKind;
-
-  /// Toast when a change is refused (rare; usually a row changed in the meantime).
-  ///
-  /// In en, this message translates to:
   /// **'Not a category'**
   String get ledgerDbNotCategory;
 
@@ -1685,12 +1625,6 @@ abstract class Words {
   /// **'Spending'**
   String get planSpending;
 
-  /// Budget page: group title, and the kind toggle in the new-category form
-  ///
-  /// In en, this message translates to:
-  /// **'Income'**
-  String get planIncome;
-
   /// Budget page: link that shows archived categories
   ///
   /// In en, this message translates to:
@@ -1709,64 +1643,58 @@ abstract class Words {
   /// **'Show in menus'**
   String get planShowInMenus;
 
-  /// Budget page: note on an income category that does not end forecasts
+  /// Budget page: the pay note beside the Income line; the user said there is no regular pay
   ///
   /// In en, this message translates to:
-  /// **'not a payday'**
-  String get planNotPayday;
-
-  /// Budget page: note on an income category; the user said there is no regular pay
-  ///
-  /// In en, this message translates to:
-  /// **'payday · no regular pay'**
+  /// **'No regular pay'**
   String get planPaydayNoRegular;
 
-  /// Budget page: gold note on an income category whose pay is not set up yet
+  /// Budget page: the pay note beside the Income line, gold, when pay is not set up yet
   ///
   /// In en, this message translates to:
-  /// **'payday · pay not set up'**
+  /// **'Pay not set up'**
   String get planPaydayNotSetUp;
 
-  /// Budget page: added at the end of an income category’s note when it has more pay schedules
+  /// Budget page: added at the end of the pay note when there are more pay schedules
   ///
   /// In en, this message translates to:
   /// **' · +{count} more pay'**
   String planMorePay(int count);
 
-  /// Budget page: gold suggestion on an income category, pay that varies (two amounts a month)
+  /// Budget page: gold suggestion in the pay note, pay that varies (two amounts a month)
   ///
   /// In en, this message translates to:
   /// **'Your last 6 all came in over 5% above the estimate · raise it?'**
   String get planRaiseSplit;
 
-  /// Budget page: gold suggestion on an income category, pay that varies
+  /// Budget page: gold suggestion in the pay note, pay that varies
   ///
   /// In en, this message translates to:
   /// **'Your lowest of the last 6 was {amount} · raise the estimate?'**
   String planRaiseLowest(String amount);
 
-  /// Budget page: gold suggestion on an income category, the same pay came in lower twice
+  /// Budget page: gold suggestion in the pay note, the same pay came in lower twice
   ///
   /// In en, this message translates to:
   /// **'Last 2 came in at {amount}, less than planned · update it?'**
   String planLastTwoLess(String amount);
 
-  /// Budget page: gold suggestion on an income category, the same pay came in different twice
+  /// Budget page: gold suggestion in the pay note, the same pay came in different twice
   ///
   /// In en, this message translates to:
   /// **'Last 2 came in at {amount} · update the amount?'**
   String planLastTwoMore(String amount);
 
-  /// Budget page: note on an income category; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)
+  /// Budget page: the pay note beside the Income line; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)
   ///
   /// In en, this message translates to:
-  /// **'payday · {pay}'**
+  /// **'Pay: {pay}'**
   String planPaydayPay(String pay);
 
-  /// Budget page: note on an income category, with the next payday
+  /// Budget page: the pay note beside the Income line, with the next payday
   ///
   /// In en, this message translates to:
-  /// **'payday · {pay} · next {date}'**
+  /// **'Pay: {pay} · next {date}'**
   String planPaydayPayNext(String pay, String date);
 
   /// Budget page: usage on a category with no transactions
@@ -1799,18 +1727,6 @@ abstract class Words {
   /// **'Show these rows'**
   String get planShowTheseRows;
 
-  /// Budget page, Edit under an income category's row: button that opens pay setup
-  ///
-  /// In en, this message translates to:
-  /// **'Pay…'**
-  String get planPayMenu;
-
-  /// Budget page, Edit under an income category's row: the choice that this category's money is not a payday, so it doesn't end forecasts
-  ///
-  /// In en, this message translates to:
-  /// **'Not a payday'**
-  String get planUnmarkPayday;
-
   /// Budget page, Edit under a category's row: button that archives the category
   ///
   /// In en, this message translates to:
@@ -1841,12 +1757,6 @@ abstract class Words {
   /// **'Add'**
   String get planAdd;
 
-  /// Budget page, new category form: note when Income is picked
-  ///
-  /// In en, this message translates to:
-  /// **'Income ends a forecast, like payday.'**
-  String get planIncomeEndsForecast;
-
   /// Delete category dialog: body when merging and the category has no transactions
   ///
   /// In en, this message translates to:
@@ -1871,29 +1781,17 @@ abstract class Words {
   /// **'{count, plural, =1{1 row is filed under it, {scheduled} of them scheduled. It moves to:} other{{count} rows are filed under it, {scheduled} of them scheduled. They move to:}}'**
   String planRowsFiledScheduled(int count, int scheduled);
 
-  /// Delete category dialog: gold note, moving spending rows into an income category
+  /// Delete category dialog: gold note, moving spending rows into Income
   ///
   /// In en, this message translates to:
-  /// **'{name} is income: these rows will count as money in.'**
+  /// **'{name} is income: money in these rows will count as income, and money out will take away from it.'**
   String planIntoIncome(String name);
 
-  /// Delete category dialog: gold note, moving rows (some scheduled) into an income category
+  /// Delete category dialog: gold note, moving rows (some scheduled) into Income
   ///
   /// In en, this message translates to:
-  /// **'{name} is income: these rows will count as money in, and the scheduled ones will end forecasts.'**
+  /// **'{name} is income: money in these rows will count as income, money out will take away from it, and scheduled money in can end a forecast.'**
   String planIntoIncomeScheduled(String name);
-
-  /// Delete category dialog: gold note, moving income rows into a spending category
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is spending: these rows will no longer count as income.'**
-  String planIntoSpending(String name);
-
-  /// Delete category dialog: gold note, moving income rows (some scheduled) into a spending category
-  ///
-  /// In en, this message translates to:
-  /// **'{name} is spending: these rows will no longer count as income or end forecasts.'**
-  String planIntoSpendingScheduled(String name);
 
   /// Delete category dialog: title when a rename matched another category
   ///
@@ -2669,12 +2567,6 @@ abstract class Words {
   /// **'new category'**
   String get rowsNewCategoryNote;
 
-  /// Entry row, note by Add: saving will create this as an income category (the amount has a +)
-  ///
-  /// In en, this message translates to:
-  /// **'new income category'**
-  String get rowsNewIncomeCategoryNote;
-
   /// Entry row, line under a transfer being typed, before an amount is typed: which way it goes. from and to are account names
   ///
   /// In en, this message translates to:
@@ -3406,12 +3298,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Your pay'**
   String get setupYourPay;
-
-  /// Pay setup, label beside the income category. Short.
-  ///
-  /// In en, this message translates to:
-  /// **'Filed under'**
-  String get setupFiledUnder;
 
   /// Pay setup, label beside the account pay goes into. Short.
   ///
@@ -4704,12 +4590,6 @@ abstract class Words {
   /// **'Left'**
   String get planLeft;
 
-  /// Budget page: column title over what came in under each income category this period
-  ///
-  /// In en, this message translates to:
-  /// **'Came in'**
-  String get planCameIn;
-
   /// Budget page, top line: money the user has that isn't assigned to any category
   ///
   /// In en, this message translates to:
@@ -5939,29 +5819,11 @@ abstract class Words {
   /// **'Nothing is planned for it. You decide what to assign.'**
   String get planHelpNone;
 
-  /// Budget page, Edit under an income category's row: the choice that this category's money is a payday (the other choice is Not a payday); no label over the pair
-  ///
-  /// In en, this message translates to:
-  /// **'A payday'**
-  String get planEditPaydayYes;
-
   /// Toast and undo history label after Edit saved more than one change to a category at once (say its name and its plan)
   ///
   /// In en, this message translates to:
   /// **'Changes to {category}'**
   String planEditedUndo(String category);
-
-  /// Budget page, Edit under an income category's row: the sentence under the choice when A payday is picked
-  ///
-  /// In en, this message translates to:
-  /// **'Forecasts run to this payday.'**
-  String get planEditPaydayHelpYes;
-
-  /// Budget page, Edit under an income category's row: the sentence under the choice when Not a payday is picked: this income doesn't end a forecast
-  ///
-  /// In en, this message translates to:
-  /// **'Forecasts run past it when it comes in.'**
-  String get planEditPaydayHelpNo;
 
   /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked
   ///
@@ -5992,6 +5854,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No currency by that name'**
   String get setupCurrencyNoMatch;
+
+  /// The app's one income category, which money coming in (not a refund) is filed under: the category menu, the entry row and register rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get ledgerIncome;
+
+  /// Budget page, under the not-assigned lines: this period's income, each currency on its own, like "Income: ₮3,200,000.00 · $120.00". A click shows the rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Income: {amounts}'**
+  String planIncomeLine(String amounts);
+
+  /// Entry row, gold note when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income.
+  ///
+  /// In en, this message translates to:
+  /// **'new category · money in counts as a refund to it; for pay, pick Income'**
+  String get rowsNewCategoryRefundNote;
+
+  /// Toast after a pay schedule is saved, joined after "Pay saved · next payday …": the user's own scheduled rows for the same pay were taken over.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{replaced the income you scheduled by hand} other{replaced {count} incomes you scheduled by hand}}'**
+  String ledgerPayReplaced(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
