@@ -896,9 +896,6 @@ class WordsMn extends Words {
   String get ledgerDbNeverReconciled => 'Тулгаж байгаагүй';
 
   @override
-  String get planEverythingCleared => 'Бүгд баталгаажсан';
-
-  @override
   String planNotClearedYet(int count) {
     return '$count гүйлгээ баталгаажаагүй';
   }
@@ -1795,9 +1792,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String rowsKeyToCancel(String key) {
-    return '$key дарвал болино';
-  }
+  String get rowsCancelEdit => 'Болих';
 
   @override
   String get rowsReconciledTip =>

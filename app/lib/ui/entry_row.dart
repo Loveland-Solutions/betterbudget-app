@@ -57,6 +57,10 @@ class EntryRowController {
   /// Returns an error message, or null when the transaction was written.
   final Future<String?> Function(EntryDraft draft) onSubmit;
   final Future<int?> Function(String payee) suggestCategory;
+
+  /// Set by the screen: why the row couldn't be saved, shown as a popup at
+  /// the bottom. Null takes it down once the row is edited.
+  void Function(String? message) onProblem = (_) {};
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -398,7 +402,15 @@ class _EntryRowState extends State<EntryRow> {
 
   void _edited() {
     if (!mounted) return;
-    setState(() => _error = null);
+    _problem(null);
+  }
+
+  /// Why the row can't be saved. The screen says it in a popup: beside Add
+  /// there was only room for its first few words.
+  void _problem(String? message) {
+    final changed = message != _error;
+    setState(() => _error = message);
+    if (changed) widget.controller.onProblem(message);
   }
 
   bool _wants(String field) =>
@@ -583,9 +595,9 @@ class _EntryRowState extends State<EntryRow> {
   void _focusChanged() {
     final active = _accountMenuOpen || _focuses.any((f) => f.hasFocus);
     if (active != _active) setState(() => _active = active);
-    // Clicking away from a new row with nothing in it closes the row; with
-    // something typed it stays, so nothing is lost.
-    if (!active && !_editing && !widget.controller.isDirty()) {
+    // Clicking away from a row with nothing typed or changed in it closes
+    // the row (a new one or an Edit); otherwise it stays, so nothing is lost.
+    if (!active && !widget.controller.isDirty()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_accountMenuOpen && !_focuses.any((f) => f.hasFocus)) {
           widget.onCancel?.call();
@@ -614,8 +626,8 @@ class _EntryRowState extends State<EntryRow> {
       _amount.clear();
       _otherAmount.clear();
       _memo.clear();
-      _error = null;
     });
+    _problem(null);
     if (keepFocus) _payeeFocus.requestFocus();
   }
 
@@ -692,7 +704,7 @@ class _EntryRowState extends State<EntryRow> {
     }
     if (error != null) {
       fix!.requestFocus();
-      setState(() => _error = error);
+      _problem(error);
       return;
     }
 
@@ -715,7 +727,7 @@ class _EntryRowState extends State<EntryRow> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (result != null) {
-      setState(() => _error = result);
+      _problem(result);
     } else if (!_editing) {
       _reset();
     }
@@ -726,13 +738,24 @@ class _EntryRowState extends State<EntryRow> {
     _exchangeWith?.currency ?? _hereCurrency,
   );
 
-  /// The note (what's missing, the sum, an error) and Add.
+  /// The note (what's missing, the sum) and Add.
   Widget _submitLine(int? preview, bool showsMath) => Row(
     mainAxisAlignment: MainAxisAlignment.end,
     children: [
       Flexible(child: _note(preview, showsMath)),
+      if (_editing) ...[
+        const SizedBox(width: 6),
+        _AddButton(
+          key: const ValueKey('cancel-edit'),
+          label: context.t.rowsCancelEdit,
+          keyName: 'Esc',
+          quiet: true,
+          ready: false,
+          onTap: _escape,
+        ),
+      ],
       if (_hasContent || _active) ...[
-        const SizedBox(width: 10),
+        SizedBox(width: _editing ? 4 : 10),
         _AddButton(
           label: _initial?.confirming ?? false
               ? context.t.rowsConfirm
@@ -748,9 +771,7 @@ class _EntryRowState extends State<EntryRow> {
     final t = context.t;
     final String text;
     final Color color;
-    if (_error != null) {
-      (text, color) = (_error!, Mid.coral);
-    } else if (showsMath) {
+    if (showsMath) {
       (text, color) = (
         // The new-category note stays in sight while the sum shows.
         _newCategory == null
@@ -772,8 +793,6 @@ class _EntryRowState extends State<EntryRow> {
             : t.rowsNeedsMore(m.length),
         Mid.ink3,
       );
-    } else if (_editing) {
-      (text, color) = (t.rowsKeyToCancel('Esc'), Mid.ink3);
     } else {
       return const SizedBox.shrink();
     }
@@ -821,262 +840,271 @@ class _EntryRowState extends State<EntryRow> {
 
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          12,
-          _editing ? 2 : 0,
-          12,
-          _editing ? 2 : 6,
-        ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: Cols.inset.add(const EdgeInsets.symmetric(vertical: 9)),
-          decoration: BoxDecoration(
-            color: lit
-                ? Mid.raised.withValues(alpha: _editing ? 0.8 : 0.55)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _editing
-                  ? Mid.blueEdge
-                  : (lit ? Mid.rule : Colors.transparent),
-            ),
+      // A click on the row's own buttons isn't a click away from its fields:
+      // Confirm on an untouched row must land before the row closes.
+      child: TextFieldTapRegion(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            12,
+            _editing ? 2 : 0,
+            12,
+            _editing ? 2 : 6,
           ),
-          child: FocusTraversalGroup(
-            policy: OrderedTraversalPolicy(),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: Cols.status,
-                  height: 34,
-                  child: Icon(
-                    _editing ? Icons.edit_rounded : Icons.add_rounded,
-                    size: _editing ? 14 : 16,
-                    color: lit ? Mid.blue : Mid.ink3,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: Cols.inset.add(const EdgeInsets.symmetric(vertical: 9)),
+            decoration: BoxDecoration(
+              color: lit
+                  ? Mid.raised.withValues(alpha: _editing ? 0.8 : 0.55)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _editing
+                    ? Mid.blueEdge
+                    : (lit ? Mid.rule : Colors.transparent),
+              ),
+            ),
+            child: FocusTraversalGroup(
+              policy: OrderedTraversalPolicy(),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: Cols.status,
+                    height: 34,
+                    child: Icon(
+                      _editing ? Icons.edit_rounded : Icons.add_rounded,
+                      size: _editing ? 14 : 16,
+                      color: lit ? Mid.blue : Mid.ink3,
+                    ),
                   ),
-                ),
-                const SizedBox(width: Cols.gap),
-                SizedBox(
-                  width: Cols.date,
-                  child: initial != null && initial.lockDate
-                      ? _locked(fullDate(initial.date), tip: reconciledTip)
-                      : FocusTraversalOrder(
-                          order: const NumericFocusOrder(1),
-                          child: DateField(
-                            controller: _date,
-                            focusNode: _dateFocus,
-                            today: widget.today,
-                            wanted: _wants('date'),
-                            onSubmitted: _submit,
-                            onPicked: _payeeFocus.requestFocus,
-                            // Confirming means it happened: no future days.
-                            allowFuture: !(initial?.confirming ?? false),
+                  const SizedBox(width: Cols.gap),
+                  SizedBox(
+                    width: Cols.date,
+                    child: initial != null && initial.lockDate
+                        ? _locked(fullDate(initial.date), tip: reconciledTip)
+                        : FocusTraversalOrder(
+                            order: const NumericFocusOrder(1),
+                            child: DateField(
+                              controller: _date,
+                              focusNode: _dateFocus,
+                              today: widget.today,
+                              wanted: _wants('date'),
+                              onSubmitted: _submit,
+                              onPicked: _payeeFocus.requestFocus,
+                              // Confirming means it happened: no future days.
+                              allowFuture: !(initial?.confirming ?? false),
+                            ),
                           ),
-                        ),
-                ),
-                const SizedBox(width: Cols.gap),
-                Expanded(
-                  child: Column(
-                    children: [
-                      FocusTraversalOrder(
-                        order: const NumericFocusOrder(2),
-                        child: _Autocomplete<String>(
-                          controller: _payee,
-                          focusNode: _payeeFocus,
-                          hint: _editing ? t.rowsHintPayee : t.rowsHintNewPayee,
-                          wanted: _wants('payee'),
-                          options: (q) => q.isEmpty
-                              ? const []
-                              : widget.controller.payeeNames
-                                    .where(
-                                      (p) => p.toLowerCase().contains(
-                                        q.toLowerCase(),
-                                      ),
-                                    )
-                                    .take(8),
-                          label: (p) => p,
-                          onSelected: (p) async {
-                            final filled = await _prefillCategory();
-                            (filled ? _amountFocus : _categoryFocus)
-                                .requestFocus();
-                          },
-                          onSubmit: _submit,
-                        ),
-                      ),
-                      // Adding: the memo line shows while the row is in use.
-                      if (_editing || _active || _memo.text.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        FocusTraversalOrder(
-                          order: const NumericFocusOrder(2.5),
-                          child: _Field(
-                            controller: _memo,
-                            focusNode: _memoFocus,
-                            hint: t.rowsHintMemo,
-                            small: true,
-                            onSubmitted: (_) => _submit(),
-                          ),
-                        ),
-                      ],
-                    ],
                   ),
-                ),
-                const SizedBox(width: Cols.gap),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  const SizedBox(width: Cols.gap),
+                  Expanded(
+                    child: Column(
                       children: [
-                        SizedBox(
-                          width: Cols.category,
-                          child: initial != null && initial.lockCategory
-                              ? _locked(
-                                  initial.lockedCategory(t),
-                                  tip: _lockedCategoryTip(
-                                    t,
-                                    initial.row,
-                                    reconciledTip,
-                                  ),
-                                )
-                              : FocusTraversalOrder(
-                                  order: const NumericFocusOrder(3),
-                                  child:
-                                      _Autocomplete<
-                                        ({String label, AccountInfo account})
-                                      >(
-                                        controller: _category,
-                                        focusNode: _categoryFocus,
-                                        hint: t.rowsHintCategory,
-                                        wanted: _wants('category'),
-                                        options: (q) => [
-                                          ..._listOptions.where(
-                                            (o) => o.label
-                                                .toLowerCase()
-                                                .contains(q.toLowerCase()),
-                                          ),
-                                          if (_newCategory case final n?)
-                                            _createOption(n),
-                                        ],
-                                        label: (o) => o.account.id == _createId
-                                            ? o.account.name
-                                            : o.label,
-                                        optionText: (o) => o.label,
-                                        onSelected: (o) {
-                                          // Picked on purpose: no doubt left.
-                                          if (o.account.id == _createId) {
-                                            _chosenNew = o.account.name;
-                                          }
-                                          _amountFocus.requestFocus();
-                                        },
-                                        onSubmit: _submit,
-                                      ),
-                                ),
+                        FocusTraversalOrder(
+                          order: const NumericFocusOrder(2),
+                          child: _Autocomplete<String>(
+                            controller: _payee,
+                            focusNode: _payeeFocus,
+                            hint: _editing
+                                ? t.rowsHintPayee
+                                : t.rowsHintNewPayee,
+                            wanted: _wants('payee'),
+                            options: (q) => q.isEmpty
+                                ? const []
+                                : widget.controller.payeeNames
+                                      .where(
+                                        (p) => p.toLowerCase().contains(
+                                          q.toLowerCase(),
+                                        ),
+                                      )
+                                      .take(8),
+                            label: (p) => p,
+                            onSelected: (p) async {
+                              final filled = await _prefillCategory();
+                              (filled ? _amountFocus : _categoryFocus)
+                                  .requestFocus();
+                            },
+                            onSubmit: _submit,
+                          ),
                         ),
-                        const SizedBox(width: Cols.gap),
-                        SizedBox(
-                          width: Cols.amount,
-                          child: initial != null && initial.lockAmount
-                              ? Align(
-                                  alignment: Alignment.centerRight,
-                                  child: _locked(
-                                    // As the register shows it: out plain, in with +.
-                                    initial.amount > 0
-                                        ? '+${formatMoney(initial.amount, currency: _hereCurrency)}'
-                                        : formatMoney(
-                                            initial.amount.abs(),
-                                            currency: _hereCurrency,
-                                          ),
-                                    tip: initial.locked
-                                        ? reconciledTip
-                                        : t.rowsSplitTotalFollows,
-                                  ),
-                                )
-                              : FocusTraversalOrder(
-                                  order: const NumericFocusOrder(4),
-                                  child: _Field(
-                                    controller: _amount,
-                                    focusNode: _amountFocus,
-                                    hint: zeroHint(_hereCurrency),
-                                    tabular: true,
-                                    align: TextAlign.right,
-                                    wanted: _wants('amount'),
-                                    onSubmitted: (_) => _submit(),
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(width: Cols.gap),
-                        SizedBox(
-                          width: Cols.balance,
-                          height: 34,
-                          child: _picking
-                              ? FocusTraversalOrder(
-                                  // After the amount, where it sits.
-                                  order: const NumericFocusOrder(4.5),
-                                  child: _AccountPicker(
-                                    choices: widget.accountChoices!,
-                                    value: widget.controller.account,
-                                    focusNode: _accountFocus,
-                                    wanted: _wants('account'),
-                                    onPicked: (a) => setState(() {
-                                      widget.controller.account = a;
-                                      _error = null;
-                                    }),
-                                    onMenu: (open) {
-                                      _accountMenuOpen = open;
-                                      _focusChanged();
-                                    },
-                                    onSubmit: _submit,
-                                  ),
-                                )
-                              : _submitLine(preview, showsMath),
-                        ),
+                        // Adding: the memo line shows while the row is in use.
+                        if (_editing || _active || _memo.text.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          FocusTraversalOrder(
+                            order: const NumericFocusOrder(2.5),
+                            child: _Field(
+                              controller: _memo,
+                              focusNode: _memoFocus,
+                              hint: t.rowsHintMemo,
+                              small: true,
+                              onSubmitted: (_) => _submit(),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    // All accounts: the last column is the account, so the
-                    // note and Add sit under it.
-                    if (_picking && (_hasContent || _active))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: SizedBox(
-                          width:
-                              Cols.category +
-                              Cols.amount +
-                              Cols.balance +
-                              2 * Cols.gap,
-                          height: 30,
-                          child: _submitLine(preview, showsMath),
+                  ),
+                  const SizedBox(width: Cols.gap),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: Cols.category,
+                            child: initial != null && initial.lockCategory
+                                ? _locked(
+                                    initial.lockedCategory(t),
+                                    tip: _lockedCategoryTip(
+                                      t,
+                                      initial.row,
+                                      reconciledTip,
+                                    ),
+                                  )
+                                : FocusTraversalOrder(
+                                    order: const NumericFocusOrder(3),
+                                    child:
+                                        _Autocomplete<
+                                          ({String label, AccountInfo account})
+                                        >(
+                                          controller: _category,
+                                          focusNode: _categoryFocus,
+                                          hint: t.rowsHintCategory,
+                                          wanted: _wants('category'),
+                                          options: (q) => [
+                                            ..._listOptions.where(
+                                              (o) => o.label
+                                                  .toLowerCase()
+                                                  .contains(q.toLowerCase()),
+                                            ),
+                                            if (_newCategory case final n?)
+                                              _createOption(n),
+                                          ],
+                                          label: (o) =>
+                                              o.account.id == _createId
+                                              ? o.account.name
+                                              : o.label,
+                                          optionText: (o) => o.label,
+                                          onSelected: (o) {
+                                            // Picked on purpose: no doubt left.
+                                            if (o.account.id == _createId) {
+                                              _chosenNew = o.account.name;
+                                            }
+                                            _amountFocus.requestFocus();
+                                          },
+                                          onSubmit: _submit,
+                                        ),
+                                  ),
+                          ),
+                          const SizedBox(width: Cols.gap),
+                          SizedBox(
+                            width: Cols.amount,
+                            child: initial != null && initial.lockAmount
+                                ? Align(
+                                    alignment: Alignment.centerRight,
+                                    child: _locked(
+                                      // As the register shows it: out plain, in with +.
+                                      initial.amount > 0
+                                          ? '+${formatMoney(initial.amount, currency: _hereCurrency)}'
+                                          : formatMoney(
+                                              initial.amount.abs(),
+                                              currency: _hereCurrency,
+                                            ),
+                                      tip: initial.locked
+                                          ? reconciledTip
+                                          : t.rowsSplitTotalFollows,
+                                    ),
+                                  )
+                                : FocusTraversalOrder(
+                                    order: const NumericFocusOrder(4),
+                                    child: _Field(
+                                      controller: _amount,
+                                      focusNode: _amountFocus,
+                                      hint: zeroHint(_hereCurrency),
+                                      tabular: true,
+                                      align: TextAlign.right,
+                                      wanted: _wants('amount'),
+                                      onSubmitted: (_) => _submit(),
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(width: Cols.gap),
+                          SizedBox(
+                            width: Cols.balance,
+                            height: 34,
+                            child: _picking
+                                ? FocusTraversalOrder(
+                                    // After the amount, where it sits.
+                                    order: const NumericFocusOrder(4.5),
+                                    child: _AccountPicker(
+                                      choices: widget.accountChoices!,
+                                      value: widget.controller.account,
+                                      focusNode: _accountFocus,
+                                      wanted: _wants('account'),
+                                      onPicked: (a) {
+                                        setState(
+                                          () => widget.controller.account = a,
+                                        );
+                                        _problem(null);
+                                      },
+                                      onMenu: (open) {
+                                        _accountMenuOpen = open;
+                                        _focusChanged();
+                                      },
+                                      onSubmit: _submit,
+                                    ),
+                                  )
+                                : _submitLine(preview, showsMath),
+                          ),
+                        ],
+                      ),
+                      // All accounts: the last column is the account, so the
+                      // note and Add sit under it.
+                      if (_picking && (_hasContent || _active))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: SizedBox(
+                            width:
+                                Cols.category +
+                                Cols.amount +
+                                Cols.balance +
+                                2 * Cols.gap,
+                            height: 30,
+                            child: _submitLine(preview, showsMath),
+                          ),
                         ),
-                      ),
-                    if (shortBy != null)
-                      _OwedLine(
-                        short: shortBy,
-                        due: initial!.plannedDate,
-                        keep: _keepOwedFor(shortBy),
-                        currency: _hereCurrency,
-                        onChanged: (v) => setState(() => _keepOwedChoice = v),
-                      ),
-                    if (transferLine != null)
-                      _TransferLine(
-                        text: transferLine,
-                        onSwap: initial != null && initial.lockAmount
-                            ? null
-                            : _swapDirection,
-                      ),
-                    if (_exchangeWith case final other?)
-                      _ExchangeLine(
-                        other: other,
-                        inflow: _amount.text.trim().startsWith('+'),
-                        here: _hereCurrency,
-                        hereAmount: preview,
-                        controller: _otherAmount,
-                        focusNode: _otherAmountFocus,
-                        locked: initial != null && initial.lockAmount,
-                        wanted: _hasContent && (_otherParsed ?? 0) == 0,
-                        onSubmitted: _submit,
-                      ),
-                  ],
-                ),
-              ],
+                      if (shortBy != null)
+                        _OwedLine(
+                          short: shortBy,
+                          due: initial!.plannedDate,
+                          keep: _keepOwedFor(shortBy),
+                          currency: _hereCurrency,
+                          onChanged: (v) => setState(() => _keepOwedChoice = v),
+                        ),
+                      if (transferLine != null)
+                        _TransferLine(
+                          text: transferLine,
+                          onSwap: initial != null && initial.lockAmount
+                              ? null
+                              : _swapDirection,
+                        ),
+                      if (_exchangeWith case final other?)
+                        _ExchangeLine(
+                          other: other,
+                          inflow: _amount.text.trim().startsWith('+'),
+                          here: _hereCurrency,
+                          hereAmount: preview,
+                          controller: _otherAmount,
+                          focusNode: _otherAmountFocus,
+                          locked: initial != null && initial.lockAmount,
+                          wanted: _hasContent && (_otherParsed ?? 0) == 0,
+                          onSubmitted: _submit,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1780,13 +1808,23 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
 
 class _AddButton extends StatefulWidget {
   const _AddButton({
+    super.key,
     required this.label,
     required this.ready,
     required this.onTap,
+    this.keyName = 'Enter',
+    this.quiet = false,
   });
   final String label;
   final bool ready;
   final VoidCallback onTap;
+
+  /// The key that does the same, named in the tooltip.
+  final String keyName;
+
+  /// Cancel beside Save: no fill until hovered, so Save stays the one
+  /// button that stands out.
+  final bool quiet;
 
   @override
   State<_AddButton> createState() => _AddButtonState();
@@ -1799,7 +1837,7 @@ class _AddButtonState extends State<_AddButton> {
   Widget build(BuildContext context) {
     final ready = widget.ready;
     return Tooltip(
-      message: context.t.rowsOrPressKey('Enter'),
+      message: context.t.rowsOrPressKey(widget.keyName),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hover = true),
@@ -1809,11 +1847,13 @@ class _AddButtonState extends State<_AddButton> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             height: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(horizontal: widget.quiet ? 10 : 14),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: ready
                   ? (_hover ? Color.lerp(Mid.blue, Mid.ink, 0.15)! : Mid.blue)
+                  : widget.quiet
+                  ? (_hover ? Mid.chip : Colors.transparent)
                   : (_hover ? Mid.raised : Mid.chip),
               borderRadius: BorderRadius.circular(8),
             ),

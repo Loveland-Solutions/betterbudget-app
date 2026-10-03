@@ -1320,12 +1320,6 @@ abstract class Words {
   /// **'Never reconciled'**
   String get ledgerDbNeverReconciled;
 
-  /// Account header, balance sum: note beside the pending line when nothing is pending
-  ///
-  /// In en, this message translates to:
-  /// **'Everything has cleared'**
-  String get planEverythingCleared;
-
   /// Account header, balance sum: note beside the pending line; count = pending transactions
   ///
   /// In en, this message translates to:
@@ -2579,28 +2573,28 @@ abstract class Words {
   /// **'{amount} from {from} to {to}'**
   String rowsTransferAmountFromTo(String amount, String from, String to);
 
-  /// Entry row error when the date typed isn’t a real date. Keep the example date as is
+  /// Popup at the bottom when an entry row can’t be saved when the date typed isn’t a real date. Keep the example date as is
   ///
   /// In en, this message translates to:
-  /// **'Date should look like 2026.09.16'**
+  /// **'Enter the date as 2026.09.16'**
   String get rowsErrorDate;
 
-  /// Entry row error: a transfer to the account the row is in
+  /// Popup at the bottom when an entry row can’t be saved: a transfer to the account the row is in
   ///
   /// In en, this message translates to:
   /// **'Can’t transfer to the same account'**
   String get rowsErrorSameAccount;
 
-  /// Entry row error: the → name typed in Category isn’t an account
+  /// Popup at the bottom when an entry row can’t be saved: the → name typed in Category isn’t an account
   ///
   /// In en, this message translates to:
   /// **'No account “{name}”'**
   String rowsErrorNoAccount(String name);
 
-  /// Entry row error: the amount typed isn’t a number. typed is what was typed
+  /// Popup at the bottom when an entry row can’t be saved: the amount typed isn’t a number. typed is what was typed
   ///
   /// In en, this message translates to:
-  /// **'Can’t read “{typed}” as an amount'**
+  /// **'“{typed}” isn’t a valid amount'**
   String rowsErrorAmount(String typed);
 
   /// Entry row button when editing an existing transaction
@@ -2639,11 +2633,11 @@ abstract class Words {
   /// **'needs {count} more'**
   String rowsNeedsMore(int count);
 
-  /// Entry row, note by Save while editing. key is the Esc key’s name
+  /// Entry row, button beside Save while editing a transaction: closes the row without saving
   ///
   /// In en, this message translates to:
-  /// **'{key} to cancel'**
-  String rowsKeyToCancel(String key);
+  /// **'Cancel'**
+  String get rowsCancelEdit;
 
   /// Tooltip on a locked date, amount or transfer account while editing a reconciled transaction
   ///
@@ -4150,7 +4144,7 @@ abstract class Words {
   /// Import window, above the file's columns.
   ///
   /// In en, this message translates to:
-  /// **'Say what each column holds. The app filled in its best guess; check the date and the amount.'**
+  /// **'Choose what each column holds. The app filled in its best guess; check the date and the amount.'**
   String get importColumnsHint;
 
   /// Import window, a column's choice: the column is left out.
@@ -4447,16 +4441,16 @@ abstract class Words {
   /// **'Arrives in {account}:'**
   String rowsArrivesOther(Object account);
 
-  /// Entry row error: a transfer between currencies needs the other side's amount.
+  /// Popup at the bottom when an entry row can’t be saved: a transfer between currencies needs the other side's amount.
   ///
   /// In en, this message translates to:
-  /// **'Say how much was sent from {account}'**
+  /// **'Enter the amount sent from {account}'**
   String rowsErrorLeftOther(Object account);
 
-  /// Entry row error: a transfer between currencies needs the other side's amount.
+  /// Popup at the bottom when an entry row can’t be saved: a transfer between currencies needs the other side's amount.
   ///
   /// In en, this message translates to:
-  /// **'Say how much arrives in {account}'**
+  /// **'Enter the amount arriving in {account}'**
   String rowsErrorArrivesOther(Object account);
 
   /// Entry row, after both amounts of a transfer between currencies: the rate they make. rate is what one unit of the dearer currency costs in the other, like ₮3,450.00; one is that unit, like $1 or €1.

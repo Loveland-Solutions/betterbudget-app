@@ -1255,6 +1255,128 @@ void main() {
     (w) => w is Text && w.data == 'Sakura Coffee' && w.style?.fontSize == 14.5,
   );
 
+  testWidgets(
+    'the search key works again after clicking out of search',
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+    (tester) async {
+      final db = await pumpLedger(tester);
+      final search = find.widgetWithText(
+        TextField,
+        'Search payee, memo, amount',
+      );
+      bool searching() => tester.widget<TextField>(search).focusNode!.hasFocus;
+      await chord(tester, LogicalKeyboardKey.keyF, meta: true);
+      await tester.pumpAndSettle();
+      expect(searching(), isTrue);
+      // A click on nothing in particular (on a Mac that takes focus out of
+      // the field): it must not fall where the screen's keys can't hear it.
+      await tester.tapAt(const Offset(700, 80));
+      await tester.pumpAndSettle();
+      expect(searching(), isFalse);
+      await chord(tester, LogicalKeyboardKey.keyF, meta: true);
+      await tester.pumpAndSettle();
+      expect(searching(), isTrue);
+      await tidy(tester, db);
+    },
+  );
+
+  testWidgets('only one row is open for typing at a time', (tester) async {
+    final db = await pumpLedger(tester);
+    final newPayee = find.widgetWithText(TextField, 'New transaction — payee');
+    // Clicking the selected row again closes its actions, so click until
+    // Edit shows.
+    Future<void> rowActions() async {
+      for (var i = 0; i < 2 && find.text('Edit').evaluate().isEmpty; i++) {
+        await tester.tap(find.text('Unitel'));
+        await tester.pumpAndSettle();
+      }
+    }
+
+    // Add while a row's Edit is open (nothing changed in it): Edit closes.
+    await rowActions();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('cancel-edit')), findsOneWidget);
+    await openEntry(tester);
+    expect(newPayee, findsOneWidget);
+    expect(find.byKey(const ValueKey('cancel-edit')), findsNothing);
+
+    // Edit while the new row holds typing: it stays, and Edit doesn't open.
+    await tester.enterText(newPayee, 'Nomin');
+    await tester.pumpAndSettle();
+    await rowActions();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('cancel-edit')), findsNothing);
+    expect(find.widgetWithText(TextField, 'Nomin'), findsOneWidget);
+    expect(
+      find.text('Save with Enter, or press Esc to discard your changes'),
+      findsOneWidget,
+    );
+
+    // Add while an Edit holds changes: Edit stays, and no new row opens.
+    await tester.enterText(find.widgetWithText(TextField, 'Nomin'), '');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await rowActions();
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    await tester.pump();
+    tester.testTextInput.enterText('Unitel LLC');
+    await tester.pump();
+    await openEntry(tester);
+    expect(find.byKey(const ValueKey('cancel-edit')), findsOneWidget);
+    expect(newPayee, findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets(
+    'an Edit closes with the mouse: Cancel, or a click away when untouched',
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+    (tester) async {
+      final db = await pumpLedger(tester);
+      final cancel = find.byKey(const ValueKey('cancel-edit'));
+      Future<void> edit() async {
+        for (var i = 0; i < 2 && find.text('Edit').evaluate().isEmpty; i++) {
+          await tester.tap(find.text('Unitel'));
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text('Edit'));
+        await tester.pumpAndSettle();
+        expect(cancel, findsOneWidget);
+      }
+
+      // Untouched: a click on nothing in particular closes it.
+      await edit();
+      await tester.tapAt(const Offset(700, 80));
+      await tester.pumpAndSettle();
+      expect(cancel, findsNothing);
+
+      // A click inside the row isn't a click away: on its pencil (so its
+      // buttons get their click before the row could close), or its Memo.
+      await edit();
+      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.pumpAndSettle();
+      expect(cancel, findsOneWidget);
+      await tester.tap(find.widgetWithText(TextField, 'Postpaid'));
+      await tester.pumpAndSettle();
+      expect(cancel, findsOneWidget);
+
+      // With a change it stays through a click away, and Cancel drops it.
+      tester.testTextInput.enterText('Postpaid plan');
+      await tester.pump();
+      await tester.tapAt(const Offset(700, 80));
+      await tester.pumpAndSettle();
+      expect(cancel, findsOneWidget);
+      await tester.tap(cancel);
+      await tester.pumpAndSettle();
+      expect(cancel, findsNothing);
+      expect(find.text('Postpaid plan'), findsNothing);
+      expect(find.text('Postpaid'), findsOneWidget);
+      await tidy(tester, db);
+    },
+  );
+
   group('undo and redo, action by action', () {
     testWidgets('add: undo removes it, redo brings it back', (tester) async {
       final db = await pumpLedger(tester);
@@ -3292,12 +3414,20 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await settle(tester);
-      expect(
-        find.text('“Gro” isn’t a category · pick Groceries, or + New category'),
-        findsOneWidget,
+      // Said in the popup at the bottom, where the whole sentence fits, and
+      // taken down as soon as the row is edited.
+      final popup = find.descendant(
+        of: find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast'),
+        matching: find.text(
+          '“Gro” isn’t a category · pick Groceries, or + New category',
+        ),
       );
+      expect(popup, findsOneWidget);
+      expect(find.textContaining('“Gro” isn’t a category'), findsOneWidget);
       // An account's name means the transfer.
       await tester.enterText(category, 'Golomt Visa');
+      await tester.pump();
+      expect(find.textContaining('“Gro” isn’t a category'), findsNothing);
       await tester.enterText(find.widgetWithText(TextField, '6500'), '7000');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);

@@ -56,7 +56,12 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   built-in Income; "not assigned" is where money needing a category shows), and
   treating their ledger as production data (it isn't yet: don't weigh a change by
   what it does to old rows), and "Came in" for a period's income (the word is
-  **Income**; use the plain word people say).
+  **Income**; use the plain word people say), and "Everything has cleared" beside a
+  zero Uncleared line (don't tell them what they already know), and ⌘K shown as the
+  search key (it's ⌘F; ⌘K was copied from other apps), and "Say how much arrives in…"
+  squeezed beside Add (why a row can't be saved goes in the popup at the bottom, worded
+  like "Enter an amount", not like a child talking), and an Edit only Esc could close
+  (everything must work with just the mouse: a Cancel button, and a click away).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
