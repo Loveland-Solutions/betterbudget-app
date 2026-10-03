@@ -52,7 +52,11 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   accounts laid out as a list in the panel (a dropdown of checkboxes), and a currency's
   code at the start of some rows and the end of others (always at the end), and
   made-up currency symbols (`CA$` where Canadians write `$`: show the real one, and
-  tell two apart only when a ledger holds both).
+  tell two apart only when a ledger holds both), and income categories (there's one
+  built-in Income; "not assigned" is where money needing a category shows), and
+  treating their ledger as production data (it isn't yet: don't weigh a change by
+  what it does to old rows), and "Came in" for a period's income (the word is
+  **Income**; use the plain word people say).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

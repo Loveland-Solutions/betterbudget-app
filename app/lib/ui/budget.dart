@@ -10,11 +10,9 @@ part of 'ledger_screen.dart';
 /// What Edit saves for a category: everything it has, changed or not.
 typedef _CategoryEdit = ({
   String name,
-  bool income,
   Currency currency,
   Set<int> off,
   CategoryPlan? plan,
-  bool payday,
 });
 
 class _BudgetPage extends StatefulWidget {
@@ -43,8 +41,8 @@ class _BudgetPage extends StatefulWidget {
   final ValueChanged<AccountInfo> onArchive;
   final ValueChanged<AccountInfo> onDelete;
 
-  /// Income: set up or change its pay.
-  final ValueChanged<AccountInfo> onPay;
+  /// The pay note was clicked: change the pay it's about, or set one up.
+  final ValueChanged<PaySchedule?> onPay;
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
@@ -66,7 +64,7 @@ class _BudgetPage extends StatefulWidget {
 
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
-  final void Function(String name, bool income, Currency currency) onCreate;
+  final void Function(String name, Currency currency) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
 
   /// A Put in amount was typed for the period starting on the date.
@@ -130,7 +128,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     final spending = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
-    final income = data.categories.where((c) => c.isIncome).toList();
+    final income = data.income;
     final archived = data.archivedCategories;
     final began = budget.began;
     // "From before" means something once the budget had begun before this
@@ -203,9 +201,9 @@ class _BudgetPageState extends State<_BudgetPage> {
 
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
-      final planLine = c.isIncome ? null : line?.plan;
-      final toAssign = c.isIncome ? 0 : line?.toAssign ?? 0;
-      final currency = c.isIncome ? budget.currency : c.currency;
+      final planLine = line?.plan;
+      final toAssign = line?.toAssign ?? 0;
+      final currency = c.currency;
       final usage = data.categoryUsage[c.id];
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
@@ -221,8 +219,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         onClose: () => open(null),
         onPlan: () => open(c.id, atPlan: true),
         onDelete: () => widget.onDelete(c),
-        onPay: () => widget.onPay(c),
-        flags: c.isIncome || line == null
+        flags: line == null
             ? const []
             : _lineFlags(
                 t,
@@ -235,11 +232,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                 onAllRows: () => widget.onShowAllRows(c),
               ),
         onShowRows: () => widget.onShowRows(c, period),
-        payNote: c.isIncome ? _payNote(t, data, c) : null,
-        cameIn: c.isIncome
-            ? _cameIn(budget.cameIn[c.id], budget.currency)
-            : null,
-        line: c.isIncome ? null : line,
+        line: line,
         fromBefore: carries && line != null && line.fromBefore != 0
             ? t.planFromBefore(money(line.fromBefore, currency))
             : null,
@@ -273,10 +266,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                     holds: isCurrent ? line?.left ?? 0 : null,
                     currencies: currencies,
                     usage: usage == null ? null : _usageText(t, usage),
-                    payNote: c.isIncome ? _payNote(t, data, c).text : null,
                     atPlan: _openAtPlan,
                     onShowAllRows: () => widget.onShowAllRows(c),
-                    onPay: () => widget.onPay(c),
                     onArchive: () {
                       open(null);
                       widget.onArchive(c);
@@ -465,6 +456,15 @@ class _BudgetPageState extends State<_BudgetPage> {
             if (n > 0) const SizedBox(height: 10),
             ...top(pool),
           ],
+          if (income != null) ...[
+            const SizedBox(height: 10),
+            _IncomeLine(
+              cameIn: _cameIn(budget.cameIn[income.id], budget.currency),
+              payNote: _payNote(t, data),
+              onShowRows: () => widget.onShowRows(income, period),
+              onPay: widget.onPay,
+            ),
+          ],
           if (offerStart) ...[
             const SizedBox(height: 10),
             _StartOffer(
@@ -514,12 +514,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                   for (final (i, c) in spending.indexed)
                     row(c, striped: i.isOdd),
                   const SizedBox(height: 14),
-                  if (income.isNotEmpty) ...[
-                    columns(t.planIncome, [t.planCameIn]),
-                    for (final (i, c) in income.indexed)
-                      row(c, striped: i.isOdd),
-                    const SizedBox(height: 14),
-                  ],
                   if (archived.isNotEmpty) ...[
                     Hoverable(
                       key: const ValueKey('show-archived-categories'),
@@ -590,6 +584,66 @@ class _BudgetPageState extends State<_BudgetPage> {
 
 const double _amountWidth = 136;
 
+/// This period's income, each currency on its own (a click shows the
+/// rows), and what pay is set up (a click opens it).
+class _IncomeLine extends StatelessWidget {
+  const _IncomeLine({
+    required this.cameIn,
+    required this.payNote,
+    required this.onShowRows,
+    required this.onPay,
+  });
+  final List<(Currency, int)> cameIn;
+  final ({String text, bool nudge, PaySchedule? schedule}) payNote;
+  final VoidCallback onShowRows;
+  final ValueChanged<PaySchedule?> onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final noteColor = payNote.nudge ? Mid.gold : Mid.ink2;
+    TextStyle style(Color color, bool hover) =>
+        onest(13, color: color, tabular: true).copyWith(
+          decoration: hover ? TextDecoration.underline : null,
+          decorationColor: color,
+        );
+    return Row(
+      children: [
+        Tooltip(
+          message: t.planShowTheseRows,
+          waitDuration: const Duration(milliseconds: 500),
+          child: Hoverable(
+            key: const ValueKey('income-line'),
+            onTap: onShowRows,
+            builder: (hover) => Text(
+              t.planIncomeLine(
+                [
+                  for (final (currency, amount) in cameIn)
+                    formatMoney(amount, currency: currency),
+                ].join(' · '),
+              ),
+              style: style(Mid.ink2, hover),
+            ),
+          ),
+        ),
+        const SizedBox(width: 18),
+        Flexible(
+          child: Hoverable(
+            key: const ValueKey('pay-note'),
+            onTap: () => onPay(payNote.schedule),
+            builder: (hover) => Text(
+              payNote.text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style(noteColor, hover),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// "This month" or "This pay period" for the one today is in; otherwise
 /// the month's name (with its year when it isn't this year's), or "Pay
 /// period". The dates beside it say which.
@@ -633,26 +687,54 @@ class _PeriodArrow extends StatelessWidget {
   );
 }
 
-/// What an income category's line says about pay: "payday · ₮2,100,000 or
-/// more on the 10th and 25th · next 09.25", "payday · pay not set up" (gold,
-/// until it is), or "not a payday". It suggests updating the amount from
+/// What the Budget page says about pay, beside what came in: "Pay:
+/// ₮2,100,000 or more on the 10th and 25th · next 09.25", or "Pay not set
+/// up" (gold, until it is). With more than one pay it's about the one that
+/// wants its estimate updated, else the one the budget's period follows,
+/// else the one that comes next; a click opens that one.
+({String text, bool nudge, PaySchedule? schedule}) _payNote(
+  Words t,
+  LedgerData data,
+) {
+  final pays = data.paySchedules;
+  if (pays.isEmpty) {
+    // Said once in the pay setup: no regular pay, so nothing to nag about.
+    return data.prefs[noRegularPayKey] == '1'
+        ? (text: t.planPaydayNoRegular, nudge: false, schedule: null)
+        : (text: t.planPaydayNotSetUp, nudge: true, schedule: null);
+  }
+  final more = pays.length > 1 ? t.planMorePay(pays.length - 1) : '';
+  DateTime? next(PaySchedule p) => data
+      .registerFor(p.accountId)
+      .scheduled
+      .where((r) => r.payScheduleId == p.id)
+      .firstOrNull
+      ?.date;
+  final far = DateTime(9999);
+  final soonest = [...pays]
+    ..sort((a, b) => (next(a) ?? far).compareTo(next(b) ?? far));
+  final notes = {for (final p in pays) p.id: _payNoteOf(t, data, p, more)};
+  final lead =
+      pays.where((p) => notes[p.id]!.nudge).firstOrNull ??
+      data.periodSchedule ??
+      soonest.first;
+  final note = notes[lead.id] ?? notes[soonest.first.id]!;
+  return (text: note.text, nudge: note.nudge, schedule: lead);
+}
+
+/// What there is to say about one pay. It suggests updating the amount from
 /// the schedule's own paychecks, and never changes it itself:
 /// - pay that varies: only when even the lowest of the last six beat the
 ///   estimate by 5% (a floor is meant to be beaten; one thin month mustn't
 ///   leave it too high);
 /// - pay that's the same: when the last two came in alike and off the plan
 ///   (a raise, a tax change, a cut), louder when it's less.
-({String text, bool nudge}) _payNote(Words t, LedgerData data, AccountInfo c) {
-  if (!c.payday) return (text: t.planNotPayday, nudge: false);
-  final pays = data.paySchedules.where((p) => p.categoryId == c.id).toList();
-  if (pays.isEmpty) {
-    // Said once in the pay setup: no regular pay, so nothing to nag about.
-    return data.prefs[noRegularPayKey] == '1'
-        ? (text: t.planPaydayNoRegular, nudge: false)
-        : (text: t.planPaydayNotSetUp, nudge: true);
-  }
-  final p = pays.first;
-  final more = pays.length > 1 ? t.planMorePay(pays.length - 1) : '';
+({String text, bool nudge}) _payNoteOf(
+  Words t,
+  LedgerData data,
+  PaySchedule p,
+  String more,
+) {
   String money(int v) => formatShort(
     v,
     currency: data.accounts[p.accountId]?.currency ?? Currency.mnt,
@@ -660,7 +742,7 @@ class _PeriodArrow extends StatelessWidget {
   // Each paycheck beside what was planned for its own day: split pay's
   // advance is measured against the advance, not the rest.
   final came = data
-      .registerAll(categoryId: c.id)
+      .registerAll(categoryId: p.categoryId)
       .posted
       .where((r) => r.payScheduleId == p.id && r.amount > 0)
       .map(
@@ -746,10 +828,7 @@ class _CategoryRow extends StatefulWidget {
     required this.onClose,
     required this.onPlan,
     required this.onDelete,
-    required this.onPay,
-    this.payNote,
     this.line,
-    this.cameIn,
     this.fromBefore,
     this.planNote,
     this.assignPlanned,
@@ -764,14 +843,11 @@ class _CategoryRow extends StatefulWidget {
   final VoidCallback onClose;
   final VoidCallback onDelete;
 
-  /// Income: the pay note was clicked.
-  final VoidCallback onPay;
-
-  /// Spending: more to say under the name (the accounts it's limited to,
+  /// More to say under the name (the accounts it's limited to,
   /// rows that couldn't be counted), each with what a click does.
   final List<_LineFlag> flags;
 
-  /// Spending with a plan: what it says under the name (rule 27).
+  /// With a plan: what it says under the name (rule 27).
   final _PlanNote? planNote;
 
   /// "₮200,000" when the plan wants more assigned this period than is;
@@ -789,11 +865,8 @@ class _CategoryRow extends StatefulWidget {
   /// Spent was clicked: this period's rows.
   final VoidCallback onShowRows;
 
-  /// Spending: Put in, Spent and Left for the period on screen.
+  /// Assigned, Spent and Left for the period on screen.
   final EnvelopeLine? line;
-
-  /// Income: what came in during the period, each currency on its own.
-  final List<(Currency, int)>? cameIn;
 
   /// "₮500,000 from before", when the category carried money in.
   final String? fromBefore;
@@ -806,9 +879,6 @@ class _CategoryRow extends StatefulWidget {
   /// Typing Put in ended: the amount (null when nothing valid was typed or
   /// it was cancelled), and whether Tab asked for the next category.
   final void Function(int? amount, {required bool next}) onAssign;
-
-  /// Income: whether it's payday, its pay, and any nudge about the estimate.
-  final ({String text, bool nudge})? payNote;
 
   @override
   State<_CategoryRow> createState() => _CategoryRowState();
@@ -863,8 +933,7 @@ class _CategoryRowState extends State<_CategoryRow> {
               vertical:
                   widget.fromBefore == null &&
                       widget.planNote == null &&
-                      widget.flags.isEmpty &&
-                      (widget.cameIn?.length ?? 0) < 2
+                      widget.flags.isEmpty
                   ? 0
                   : 5,
             ),
@@ -914,33 +983,6 @@ class _CategoryRowState extends State<_CategoryRow> {
                     ],
                   ),
                 ),
-                if (widget.payNote case final note?) ...[
-                  // Not Flexible: sharing the spare width with the name
-                  // would leave the amount short of its column.
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Hoverable(
-                      key: ValueKey('pay-note-${c.id}'),
-                      onTap: widget.onPay,
-                      builder: (hover) => Text(
-                        note.text,
-                        style:
-                            onest(
-                              12.5,
-                              color: note.nudge ? Mid.gold : Mid.ink2,
-                            ).copyWith(
-                              decoration: hover
-                                  ? TextDecoration.underline
-                                  : null,
-                              decorationColor: note.nudge ? Mid.gold : Mid.ink2,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
                 if (widget.line case final line?) ...[
                   SizedBox(
                     width: _amountWidth,
@@ -1009,36 +1051,6 @@ class _CategoryRowState extends State<_CategoryRow> {
                     ),
                   ),
                 ],
-                if (widget.cameIn case final came?)
-                  SizedBox(
-                    width: _amountWidth,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Tooltip(
-                        message: t.planShowTheseRows,
-                        waitDuration: const Duration(milliseconds: 500),
-                        child: Hoverable(
-                          key: ValueKey('came-in-${c.id}'),
-                          onTap: widget.onShowRows,
-                          builder: (hover) => Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              for (final (currency, amount) in came)
-                                Money(
-                                  amount,
-                                  size: 13.5,
-                                  currency: currency,
-                                  color: hover
-                                      ? Mid.blue
-                                      : (amount == 0 ? Mid.ink3 : Mid.ink2),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 const SizedBox(width: 12),
                 Hoverable(
                   key: ValueKey('category-menu-${c.id}'),
@@ -1088,7 +1100,8 @@ List<Widget> _categoryMenu(
   ];
 }
 
-/// Name and whether it's income. Income ends a forecast (payday).
+/// A new spending category: its name, and its currency when there's more
+/// than one.
 class _NewCategory extends StatefulWidget {
   const _NewCategory({
     required this.onCreate,
@@ -1096,7 +1109,7 @@ class _NewCategory extends StatefulWidget {
     required this.currencies,
     required this.currency,
   });
-  final void Function(String name, bool income, Currency currency) onCreate;
+  final void Function(String name, Currency currency) onCreate;
   final VoidCallback onCancel;
 
   /// The currencies there are accounts in. With both, a spending category
@@ -1111,7 +1124,6 @@ class _NewCategory extends StatefulWidget {
 class _NewCategoryState extends State<_NewCategory> {
   final _name = TextEditingController();
   final _focus = FocusNode(debugLabel: 'new-category');
-  bool _income = false;
   late Currency _currency = widget.currency;
 
   @override
@@ -1125,7 +1137,7 @@ class _NewCategoryState extends State<_NewCategory> {
     final n = _name.text.trim();
     // Nothing typed: nothing to call it, so nothing is made.
     if (n.isEmpty) return widget.onCancel();
-    widget.onCreate(n, _income, _currency);
+    widget.onCreate(n, _currency);
     // Ready for the next: setting up several is one after another.
     _name.clear();
     _focus.requestFocus();
@@ -1134,29 +1146,6 @@ class _NewCategoryState extends State<_NewCategory> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    Widget kind(bool income, String label) {
-      final on = _income == income;
-      return Hoverable(
-        key: ValueKey('category-kind-${income ? 'income' : 'spending'}'),
-        onTap: () => setState(() => _income = income),
-        builder: (hover) => Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: on
-                ? Mid.blueWash
-                : (hover ? Mid.raised : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
-        ),
-      );
-    }
-
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
@@ -1186,12 +1175,8 @@ class _NewCategoryState extends State<_NewCategory> {
                     decoration: _fieldDecoration(hint: t.planCategoryName),
                   ),
                 ),
-                const SizedBox(width: 10),
-                kind(false, t.planSpending),
-                const SizedBox(width: 6),
-                kind(true, t.planIncome),
-                if (!_income && widget.currencies.length > 1) ...[
-                  const SizedBox(width: 18),
+                if (widget.currencies.length > 1) ...[
+                  const SizedBox(width: 10),
                   _CurrencyMenu(
                     buttonKey: 'new-category-currency',
                     itemPrefix: 'new-category-',
@@ -1215,14 +1200,6 @@ class _NewCategoryState extends State<_NewCategory> {
                 ),
               ],
             ),
-            if (_income)
-              Padding(
-                padding: const EdgeInsets.only(top: 8, left: 2),
-                child: Text(
-                  t.planIncomeEndsForecast,
-                  style: onest(12.5, color: Mid.ink3),
-                ),
-              ),
           ],
         ),
       ),
@@ -1261,11 +1238,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
     final n = posted + scheduled;
     final merging = widget.into != null;
     final into = _into;
-    // Same kind first: spending rows usually belong in spending.
-    final targets = [
-      ...widget.targets.where((t) => t.isIncome == c.isIncome),
-      ...widget.targets.where((t) => t.isIncome != c.isIncome),
-    ];
+    final targets = widget.targets;
     final lines = [
       if (n == 0)
         merging ? t.planNothingFiled : t.planOnlyDeletedFiled
@@ -1274,17 +1247,13 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
       else
         t.planRowsFiledScheduled(n, scheduled),
     ];
-    // Moving between kinds changes what the rows count as, and where a
-    // forecast ends.
-    final kindNote = into == null || into.isIncome == c.isIncome || n == 0
+    // Into Income the rows count as money coming in, and a scheduled one
+    // can end a forecast.
+    final kindNote = into == null || !into.isIncome || n == 0
         ? null
-        : into.isIncome
-        ? (scheduled == 0
-              ? t.planIntoIncome(into.name)
-              : t.planIntoIncomeScheduled(into.name))
-        : (scheduled == 0
-              ? t.planIntoSpending(into.name)
-              : t.planIntoSpendingScheduled(into.name));
+        : scheduled == 0
+        ? t.planIntoIncome(into.name)
+        : t.planIntoIncomeScheduled(into.name);
     return Dialog(
       backgroundColor: Mid.panel,
       shape: RoundedRectangleBorder(
@@ -1930,8 +1899,8 @@ class _CurrencyMenuState extends State<_CurrencyMenu> {
 /// One more thing a line says under its name, and what a click on it does.
 typedef _LineFlag = ({String text, Color color, VoidCallback? onTap});
 
-/// What came in under an income category: each currency that has any on
-/// its own line, [main] alone when nothing came.
+/// What came in under Income: each currency that has any, [main] alone
+/// when nothing came.
 List<(Currency, int)> _cameIn(Map<Currency, int>? came, Currency main) {
   final lines = [
     for (final c in Currency.values)
@@ -2020,10 +1989,9 @@ List<_LineFlag> _lineFlags(
 }
 
 /// Everything about a category, opened under its row (rule 29): its name,
-/// spending or income, and for spending its type (the plan, rule 27), its
-/// currency and the accounts it uses (rule 28); for income, whether it's a
-/// payday and its pay. Enter or Save keeps all of it in one step, Esc
-/// cancels. A line says what the plan comes to before it's saved.
+/// its currency and the accounts it uses (rule 28), and its type (the
+/// plan, rule 27). Enter or Save keeps all of it in one step, Esc cancels.
+/// A line says what the plan comes to before it's saved.
 class _CategoryEditor extends StatefulWidget {
   const _CategoryEditor({
     super.key,
@@ -2035,13 +2003,11 @@ class _CategoryEditor extends StatefulWidget {
     required this.holds,
     required this.currencies,
     required this.usage,
-    required this.payNote,
     required this.atPlan,
     required this.onSave,
     required this.onCancel,
     required this.onArchive,
     required this.onShowAllRows,
-    required this.onPay,
   });
   final AccountInfo category;
   final LedgerData data;
@@ -2061,16 +2027,12 @@ class _CategoryEditor extends StatefulWidget {
   /// "42 rows · last 09.12 · 1 scheduled": picking it shows every row.
   final String? usage;
 
-  /// Income: what its line says about pay.
-  final String? payNote;
-
   /// Opened from the plan's note: the cursor starts in the plan's amount.
   final bool atPlan;
   final ValueChanged<_CategoryEdit> onSave;
   final VoidCallback onCancel;
   final VoidCallback onArchive;
   final VoidCallback onShowAllRows;
-  final VoidCallback onPay;
 
   @override
   State<_CategoryEditor> createState() => _CategoryEditorState();
@@ -2106,8 +2068,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// the panel was clicked), so Esc still closes and Enter still saves.
   final _panelFocus = FocusNode(debugLabel: 'category-editor');
 
-  late bool _income = widget.category.isIncome;
-  late bool _payday = widget.category.payday;
   late Currency _currency = widget.category.currency;
   late Set<int> _off = {..._savedOff};
 
@@ -2152,16 +2112,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     });
     for (final f in [_nameFocus, _amountFocus, _dateFocus]) {
       f.addListener(_keepKeys);
-    }
-  }
-
-  @override
-  void didUpdateWidget(_CategoryEditor old) {
-    super.didUpdateWidget(old);
-    // Pay… set up its pay while Edit was open, which marks it a payday:
-    // Save mustn't put back what was showing before.
-    if (old.category.payday != widget.category.payday) {
-      _payday = widget.category.payday;
     }
   }
 
@@ -2303,29 +2253,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   void _save() {
     if (_done) return;
-    final c = widget.category;
     final name = _name.text.trim();
     if (name.isEmpty) {
       setState(() => _tried = true);
       _nameFocus.requestFocus();
       return;
     }
-    final draft = _income ? null : _draft;
-    if (!_income && _kind != null && draft == null) {
+    final draft = _draft;
+    if (_kind != null && draft == null) {
       setState(() => _tried = true);
       (_typedAmount == null ? _amountFocus : _dateFocus).requestFocus();
       return;
     }
     _done = true;
-    // What doesn't apply to its kind is left as it was saved.
-    widget.onSave((
-      name: name,
-      income: _income,
-      currency: _income ? c.currency : _currency,
-      off: _income ? _savedOff : _off,
-      plan: _income ? _savedPlan : draft,
-      payday: _income ? _payday : c.payday,
-    ));
+    widget.onSave((name: name, currency: _currency, off: _off, plan: draft));
   }
 
   String _repeatLabel(Words t, int? months) => months == null
@@ -2627,7 +2568,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return ListenableBuilder(
       listenable: Listenable.merge([_amount, _date]),
       builder: (context, _) {
-        final draft = _income ? null : _draft;
+        final draft = _draft;
         // What the line would say with this plan, before it's saved.
         String? preview;
         // What went back in earlier periods returns to the category when
@@ -2635,7 +2576,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         String? returns;
         // No plan, picked over a saved one, can bring money back too.
         final plans = draft != null || (_kind == null && _savedPlan != null);
-        if (!_income && plans && !c.isIncome && _currency == c.currency) {
+        if (plans && _currency == c.currency) {
           final after = Budget.of(
             data.withPlan(c.id, draft),
             start: widget.period.start,
@@ -2688,8 +2629,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             .fold(0, (sum, b) => sum + b.amount);
         // A plan typed in the new currency takes the old one's place.
         final hasPlan = _savedPlan != null && draft == null;
-        final loses =
-            !_income && _currency != c.currency && (assigned != 0 || hasPlan);
+        final loses = _currency != c.currency && (assigned != 0 || hasPlan);
         // What unchecking does and doesn't reserve, with the real amounts:
         // only what the category has left must be in the checked accounts.
         // Its money is kept in the checked cash and bank accounts; a card
@@ -2700,8 +2640,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         final have = checked.fold(0, (sum, a) => sum + data.balanceOf(a.id));
         final holds = _currency == c.currency ? widget.holds : null;
         final rest =
-            _income ||
-                holds == null ||
+            holds == null ||
                 checked.isEmpty ||
                 !accounts.any((a) => _off.contains(a.id)) ||
                 holds < 0 ||
@@ -2715,25 +2654,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 say(have - holds),
               )
             : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
-        // Made income, it holds no money: what it has left goes back.
-        final goesBack = _income && !c.isIncome && (widget.holds ?? 0) != 0
-            ? t.planMoneyBack(
-                formatMoney(widget.holds!, currency: c.currency),
-                c.name,
-              )
-            : null;
-
         // Opened low in the list, or grown by a choice, Save would be
         // under the window's edge.
         final shape = Object.hash(
-          _income,
           _kind,
           accounts.length,
           preview != null,
           returns != null,
           rest != null,
           loses,
-          goesBack != null,
         );
         if (shape != _shape) {
           _shape = shape;
@@ -2805,85 +2734,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(
-                                    height: 34,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        for (final income in [false, true])
-                                          _Choice(
-                                            key: ValueKey(
-                                              'edit-kind-${income ? 'income' : 'spending'}',
-                                            ),
-                                            label: income
-                                                ? t.planIncome
-                                                : t.planSpending,
-                                            on: _income == income,
-                                            onTap: () => setState(
-                                              () => _income = income,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (!_income) ...[
-                                    ..._currencyChoice(t),
-                                    _accountsChoice(t, accounts),
-                                  ],
+                                  ..._currencyChoice(t),
+                                  _accountsChoice(t, accounts),
                                 ],
                               ),
                               const SizedBox(height: 14),
-                              if (!_income)
-                                ..._planFields(t, byPay: byPay)
-                              else ...[
-                                Row(
-                                  children: [
-                                    _Choice(
-                                      key: const ValueKey('edit-payday-on'),
-                                      label: t.planEditPaydayYes,
-                                      on: _payday,
-                                      onTap: () =>
-                                          setState(() => _payday = true),
-                                    ),
-                                    _Choice(
-                                      key: const ValueKey('edit-payday-off'),
-                                      label: t.planUnmarkPayday,
-                                      on: !_payday,
-                                      onTap: () =>
-                                          setState(() => _payday = false),
-                                    ),
-                                    // Its pay is set up once it's saved as
-                                    // income.
-                                    if (c.isIncome) ...[
-                                      const SizedBox(width: 12),
-                                      BarButton(
-                                        key: const ValueKey('edit-pay'),
-                                        label: t.planPayMenu,
-                                        onTap: widget.onPay,
-                                      ),
-                                      if (widget.payNote case final note?) ...[
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            note,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: onest(12.5, color: Mid.ink2),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _payday
-                                      ? t.planEditPaydayHelpYes
-                                      : t.planEditPaydayHelpNo,
-                                  key: const ValueKey('edit-payday-help'),
-                                  style: onest(12.5, color: Mid.ink2),
-                                ),
-                              ],
+                              ..._planFields(t, byPay: byPay),
                             ],
                           ),
                         ),
@@ -2909,8 +2765,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                         'money-change',
                         Mid.gold,
                       ),
-                    if (goesBack != null)
-                      warning(goesBack, 'edit-goes-back', Mid.gold),
                     const SizedBox(height: 12),
                     Row(
                       children: [

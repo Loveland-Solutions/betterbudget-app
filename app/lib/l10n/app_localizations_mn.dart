@@ -101,11 +101,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String ledgerNewIncomeCategory(String name) {
-    return 'шинэ орлогын ангилал “$name”';
-  }
-
-  @override
   String ledgerScheduledFor(String date) {
     return 'товлосон огноо: $date';
   }
@@ -330,10 +325,6 @@ class WordsMn extends Words {
   String get ledgerUnclearedThere => 'тэнд баталгаажих хүртэл хүлээгдэж буй';
 
   @override
-  String get ledgerAddIncomeCategoryFirst =>
-      'Эхлээд Төсөв хэсэгт орлогын ангилал нэмнэ үү';
-
-  @override
   String get ledgerAddBankAccountFirst => 'Эхлээд банкны данс нэмнэ үү';
 
   @override
@@ -516,43 +507,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String ledgerMarksPayday(String name) {
-    return '$name цалингийн өдөр болсон';
-  }
-
-  @override
-  String ledgerIsntPayday(String name) {
-    return '$name цалингийн өдөр биш';
-  }
-
-  @override
-  String ledgerIsPaydayToast(String name) {
-    return '$name цалингийн өдөр · төсөөлөл түүнийг хүртэл тооцно';
-  }
-
-  @override
-  String ledgerIsntPaydayToast(String name) {
-    return '$name цалингийн өдөр биш · төсөөлөл түүнийг давж тооцно';
-  }
-
-  @override
   String ledgerAlreadyCategory(String name) {
     return '$name нэртэй ангилал аль хэдийн байна';
-  }
-
-  @override
-  String ledgerIsNowIncome(String name) {
-    return '$name одоо орлого';
-  }
-
-  @override
-  String ledgerIsNowSpending(String name) {
-    return '$name одоо зарлага';
-  }
-
-  @override
-  String ledgerIsNowIncomeToast(String name) {
-    return '$name одоо орлого · цалингийн өдөр шиг төсөөллийг дуусгана';
   }
 
   @override
@@ -928,9 +884,6 @@ class WordsMn extends Words {
   String get ledgerDbPayIsIn => 'Цалин бол орж ирэх мөнгө';
 
   @override
-  String get ledgerDbNotCategoryKind => 'Ангиллын төрөл биш';
-
-  @override
   String get ledgerDbNotCategory => 'Ангилал биш';
 
   @override
@@ -1156,9 +1109,6 @@ class WordsMn extends Words {
   String get planSpending => 'Зарлага';
 
   @override
-  String get planIncome => 'Орлого';
-
-  @override
   String planShowArchived(int count) {
     return 'Архивласныг харуулах ($count)';
   }
@@ -1172,13 +1122,10 @@ class WordsMn extends Words {
   String get planShowInMenus => 'Цэсэнд харуулах';
 
   @override
-  String get planNotPayday => 'цалингийн өдөр биш';
+  String get planPaydayNoRegular => 'Тогтмол цалингүй';
 
   @override
-  String get planPaydayNoRegular => 'цалингийн өдөр · тогтмол цалингүй';
-
-  @override
-  String get planPaydayNotSetUp => 'цалин тохируулаагүй';
+  String get planPaydayNotSetUp => 'Цалин тохируулаагүй';
 
   @override
   String planMorePay(int count) {
@@ -1206,12 +1153,12 @@ class WordsMn extends Words {
 
   @override
   String planPaydayPay(String pay) {
-    return 'цалингийн өдөр · $pay';
+    return 'Цалин: $pay';
   }
 
   @override
   String planPaydayPayNext(String pay, String date) {
-    return 'цалингийн өдөр · $pay · дараагийнх $date';
+    return 'Цалин: $pay · дараагийнх $date';
   }
 
   @override
@@ -1236,12 +1183,6 @@ class WordsMn extends Words {
   String get planShowTheseRows => 'Эдгээр гүйлгээг харуулах';
 
   @override
-  String get planPayMenu => 'Цалин…';
-
-  @override
-  String get planUnmarkPayday => 'Цалингийн өдөр биш';
-
-  @override
   String get planArchive => 'Архивлах';
 
   @override
@@ -1255,10 +1196,6 @@ class WordsMn extends Words {
 
   @override
   String get planAdd => 'Нэмэх';
-
-  @override
-  String get planIncomeEndsForecast =>
-      'Орлого нь цалингийн өдөр шиг төсөөллийг дуусгана.';
 
   @override
   String get planNothingFiled => 'Энэ ангилалд одоогоор гүйлгээ алга.';
@@ -1279,22 +1216,12 @@ class WordsMn extends Words {
 
   @override
   String planIntoIncome(String name) {
-    return '$name бол орлого: эдгээр гүйлгээ орлогод тооцогдоно.';
+    return '$name бол орлого: эдгээр гүйлгээний орсон мөнгө орлогод тооцогдож, гарсан мөнгө түүнээс хасагдана.';
   }
 
   @override
   String planIntoIncomeScheduled(String name) {
-    return '$name бол орлого: эдгээр гүйлгээ орлогод тооцогдож, товлосон нь төсөөллийг дуусгана.';
-  }
-
-  @override
-  String planIntoSpending(String name) {
-    return '$name бол зарлага: эдгээр гүйлгээ орлогод тооцогдохоо болино.';
-  }
-
-  @override
-  String planIntoSpendingScheduled(String name) {
-    return '$name бол зарлага: эдгээр гүйлгээ орлогод тооцогдохоо болиод, төсөөллийг дуусгахаа болино.';
+    return '$name бол орлого: эдгээр гүйлгээний орсон мөнгө орлогод тооцогдож, гарсан мөнгө түүнээс хасагдана; товлосон орлого төсөөллийг дуусгаж болно.';
   }
 
   @override
@@ -1808,9 +1735,6 @@ class WordsMn extends Words {
   String get rowsNewCategoryNote => 'шинэ ангилал';
 
   @override
-  String get rowsNewIncomeCategoryNote => 'шинэ орлогын ангилал';
-
-  @override
   String rowsTransferFromTo(String from, String to) {
     return '$from данснаас $to данс руу';
   }
@@ -2320,9 +2244,6 @@ class WordsMn extends Words {
 
   @override
   String get setupYourPay => 'Таны цалин';
-
-  @override
-  String get setupFiledUnder => 'Ангилал';
 
   @override
   String get setupPaidInto => 'Орох данс';
@@ -3203,9 +3124,6 @@ class WordsMn extends Words {
   String get planLeft => 'Үлдсэн';
 
   @override
-  String get planCameIn => 'Орсон';
-
-  @override
   String planNotAssigned(String amount) {
     return '$amount ангилалд хуваарилаагүй байна';
   }
@@ -3955,20 +3873,9 @@ class WordsMn extends Words {
       'Төлөвлөсөн дүн байхгүй. Хэдийг хуваарилахаа өөрөө шийднэ.';
 
   @override
-  String get planEditPaydayYes => 'Цалингийн өдөр мөн';
-
-  @override
   String planEditedUndo(String category) {
     return '$category ангиллын өөрчлөлт';
   }
-
-  @override
-  String get planEditPaydayHelpYes =>
-      'Төсөөлөл энэ цалингийн өдөр хүртэл тооцно.';
-
-  @override
-  String get planEditPaydayHelpNo =>
-      'Энэ орлого орсон ч төсөөлөл түүнийг давж тооцно.';
 
   @override
   String get planAccountsAll => 'Бүх данс';
@@ -3986,4 +3893,27 @@ class WordsMn extends Words {
 
   @override
   String get setupCurrencyNoMatch => 'Ийм нэртэй валют алга';
+
+  @override
+  String get ledgerIncome => 'Орлого';
+
+  @override
+  String planIncomeLine(String amounts) {
+    return 'Орлого: $amounts';
+  }
+
+  @override
+  String get rowsNewCategoryRefundNote =>
+      'шинэ ангилал · орсон мөнгө буцаалтад тооцогдоно; цалин бол Орлого-г сонгоно';
+
+  @override
+  String ledgerPayReplaced(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'гараар товлосон $count орлогыг орлууллаа',
+      one: 'гараар товлосон орлогыг орлууллаа',
+    );
+    return '$_temp0';
+  }
 }

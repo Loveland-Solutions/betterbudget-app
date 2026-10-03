@@ -1280,6 +1280,79 @@ What's known so far:
     - Rejected: keeping the click-to-rename name beside Edit (two ways to
       do one thing, and a double-click would have started a rename).
 
+30. **There is one Income, and it's the app's own** (owner's call,
+    2026-10-03). Asked what an income category was for, the answer was
+    that it isn't a budget category at all: it's a label for money
+    arriving, and "not assigned to a category yet" is already the place
+    that says there's money needing a category. The owner: "do we even
+    need a category or just a place that says we have money that needs a
+    category?" This replaces the income categories of rules 22 and 24 and
+    the Spending or Income and payday choices of rule 29.
+    - **One built-in category, Income** ("Орлого"), made by the app. Money
+      coming in that isn't a refund is filed under it. It can't be deleted
+      or merged away.
+    - **It's in the ledger's category dropdown** (owner: "There should
+      still be an option in the ledger dropdown for income"). Picking it
+      makes the amount money in, as an income category did.
+    - **It's per currency** (owner: "we have to track where the money is
+      and if the budget category has that account selected and is for
+      that currency"). A row under Income is in the currency of the
+      account it came into, and it raises that currency's "not assigned".
+      Which categories can use that money is still rule 28's accounts.
+    - **The Budget page has no Income list.** Under the "not assigned"
+      lines, one line says the period's income, each currency on its own
+      ("Income: ₮2,500,000.00 · $120.00"; a click shows the rows). It
+      first read "Came in: …" (owner's correction, the same day: "Why
+      are you talking like a cave man. It's income"),
+      and beside it what pay is set up ("Pay: ₮2,100,000 on the 25th ·
+      next 10.25"), or "Pay not set up" (gold), or that the estimate wants
+      updating (rule 24's nudges). A click opens that pay. With more than
+      one pay, the note is about the one that wants updating, else the one
+      the budget's period follows, else the one that comes next.
+    - **Edit and Add category have no Spending or Income choice** and no
+      payday choice. Every category the user makes is a spending one. A
+      new name typed in the entry row with a `+` amount makes a spending
+      category holding a refund, and the gold note says so: "new category ·
+      money in counts as a refund to it; for pay, pick Income". No
+      category of the user's can be called Income or Орлого; typing either
+      as a new name means Income.
+    - **Pay is filed under Income.** The pay setup no longer asks which
+      category. Settings names a pay by its payee, or "Income".
+    - **What ends a forecast** (owner: "The forecast can still track
+      hand-typed income if needed"): a payday from pay that was set up.
+      Income typed by hand ends it only when no pay is set up anywhere;
+      once any is, it's money in that lifts the line, in every account.
+      There is no payday mark any more. First built as "when no set-up
+      payday is ahead in this account"; both reviews found that an
+      allowance then ended the forecast before the rent after it, in an
+      account pay doesn't come into and on the morning a paycheck is late
+      (the case rule 24 fixed).
+    - **From the reviews** (2026-10-03): saving pay takes over income
+      scheduled by hand only when it's the same pay (the same payer, or
+      with none named the same amount) and the toast says it did; before,
+      it would have taken an allowance near the first payday. The pay
+      setup's "your last paychecks" counts only income from the payer
+      typed, and shows nothing with none. A payday with no payer is
+      named by its category in the user's language, not stored as
+      "Income". Merging into Income sends the category's assigned money
+      back to not assigned and says so. Income can't be renamed, archived
+      or given a budget amount or plan. The New ledger dialog doesn't
+      count Income among "your categories".
+    - **A category can still be merged into Income** (Delete…, or a rename
+      onto its name): the fix for one made for income by mistake. The
+      dialog says in gold that its rows will count as money in.
+    - **The upgrade (schema v13)** turns every income category into
+      Income: their rows and pay move to it and the old names go (owner:
+      "I'm not using this in production. Stop worrying about the data").
+    - Rejected: keeping income categories off the Budget page, managed
+      somewhere smaller (an element without much purpose); and, earlier
+      the same day, moving the Spending or Income choice to a small line
+      at the bottom of Edit.
+    - Left as it was: imported money in still lands in "Not categorized",
+      so the Income line doesn't count it until it's filed under Income (asked
+      of the owner: should the line name it?). Telling salary from other
+      income is by payee only.
+
 ### The smallest window (owner, 2026-10-01)
 
 The owner's correction: "We seem to be letting the app collapse farther than

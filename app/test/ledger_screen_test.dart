@@ -1767,7 +1767,7 @@ void main() {
     ]) {
       expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
     }
-    expect(find.text('Your 15 categories'), findsOneWidget);
+    expect(find.text('Your 14 categories'), findsOneWidget);
     expect(
       find.text('Kept with no rows in them, ready for your real accounts.'),
       findsOneWidget,
@@ -1821,16 +1821,16 @@ void main() {
     await tester.runAsync(() => dir.delete(recursive: true));
   });
 
-  test('a new ledger without categories starts with nothing', () async {
+  test('a new ledger without categories starts with only Income', () async {
     final db = AppDatabase(NativeDatabase.memory());
     await seedDemoIfEmpty(db, DateTime(2026, 9, 16));
     await db.startNewLedger(DateTime(2026, 9, 16), keepCategories: false);
     final ledger = await db.loadLedger();
-    expect(ledger.accounts, isEmpty);
+    expect(ledger.accounts.values.single, ledger.income);
     expect(ledger.txns, isEmpty);
     expect(await db.startedOwnLedger(), isTrue);
     await seedDemoIfEmpty(db, DateTime(2026, 9, 17));
-    expect((await db.loadLedger()).accounts, isEmpty);
+    expect((await db.loadLedger()).accounts, hasLength(1));
     await db.close();
   });
 
@@ -2963,8 +2963,8 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openBudget(tester);
-      expect(find.text('Income'), findsOneWidget);
-      expect(find.text('Salary'), findsOneWidget);
+      // Income isn't a category in the list: one line says the period's income.
+      expect(find.byKey(const ValueKey('income-line')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -3219,16 +3219,9 @@ void main() {
       expect(data.plans[gifts]!.amount, 5000000);
       expect(data.accountsOff[gifts], {wallet});
 
-      // Made income, it shows under Income; its plan and accounts stay
-      // as they were for the day it's spending again.
+      // Spending or income isn't a choice: income is the app's own.
       await editCategory(tester, 'Presents');
-      await tester.tap(find.byKey(const ValueKey('edit-kind-income')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('plan-amount')), findsNothing);
-      await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
-      await reload();
-      expect(data.accounts[gifts]!.type, AccountType.income);
-      expect(find.textContaining('Presents is now income'), findsOneWidget);
+      expect(find.byKey(const ValueKey('edit-kind-income')), findsNothing);
       await tidy(tester, db);
     });
 
@@ -3618,7 +3611,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.text(
-          'Salary · ₮2,100,000 or more · every 2 weeks · into Cash wallet',
+          'Income · ₮2,100,000 or more · every 2 weeks · into Cash wallet',
         ),
         findsOneWidget,
       );
@@ -3641,9 +3634,7 @@ void main() {
         final checking = data.balanceSheetAccounts
             .firstWhere((a) => a.name == 'TDB Checking')
             .id;
-        final salary = data.categories.firstWhere((c) => c.name == 'Salary');
         await db.savePaySchedule(
-          categoryId: salary.id,
           accountId: checking,
           amount: 250000000,
           rule: PayRule.twiceMonthly,
@@ -3706,7 +3697,7 @@ void main() {
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
       expect(
         find.text(
-          'Salary · ₮500,000 on the 10th and ₮1,600,000 on the 25th · '
+          'Income · ₮500,000 on the 10th and ₮1,600,000 on the 25th · '
           'into TDB Checking',
         ),
         findsOneWidget,
@@ -3760,7 +3751,7 @@ void main() {
         expect(find.byKey(const ValueKey('add-pay')), findsNothing);
         await tester.tap(find.text('Budget'));
         await tester.pumpAndSettle();
-        expect(find.text('payday · no regular pay'), findsOneWidget);
+        expect(find.text('No regular pay'), findsOneWidget);
 
         await tester.tap(find.byKey(const ValueKey('settings')));
         await tester.pumpAndSettle();
@@ -3801,29 +3792,23 @@ void main() {
       },
     );
 
-    testWidgets('the Budget screen says which income is payday', (
+    testWidgets('the Budget screen says the income and what pay is set up', (
       tester,
     ) async {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      expect(find.text('payday · pay not set up'), findsOneWidget);
-      // Edit on income: payday or not, and its pay.
-      await tester.tap(find.text('Salary'), buttons: kSecondaryButton);
+      // The demo's salary, this month.
+      expect(find.text('Income: ₮2,500,000.00'), findsOneWidget);
+      expect(find.text('Pay not set up'), findsOneWidget);
+      // The note opens the pay setup, which no longer asks for a category.
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('pay-note')));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('category-edit')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('edit-pay')), findsOneWidget);
-      expect(find.byKey(const ValueKey('plan-kind-none')), findsNothing);
-      expect(find.text('Forecasts run to this payday.'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('edit-payday-off')));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Forecasts run past it when it comes in.'),
-        findsOneWidget,
-      );
-      await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
-      expect(find.text('not a payday'), findsOneWidget);
+      expect(find.byKey(const ValueKey('pay-amount')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pay-category')), findsNothing);
       await tidy(tester, db);
     });
 
@@ -3832,11 +3817,9 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       final ledger = await tester.runAsync(db.loadLedger);
-      final salary = ledger!.categories.firstWhere((c) => c.name == 'Salary');
-      final checking = ledger.openAccounts.first.id;
+      final checking = ledger!.openAccounts.first.id;
       await tester.runAsync(
         () => db.savePaySchedule(
-          categoryId: salary.id,
           accountId: checking,
           amount: 210000000,
           varies: true,
@@ -3846,7 +3829,7 @@ void main() {
         ),
       );
       await settle(tester);
-      final payday = find.text('Salary').first;
+      final payday = find.text('Income').first;
       expect(payday, findsWidgets);
       final row = (await tester.runAsync(db.loadLedger))!
           .registerFor(checking)

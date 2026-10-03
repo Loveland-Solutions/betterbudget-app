@@ -26,6 +26,18 @@ const balanceAdjustmentsName = 'Balance adjustments';
 /// entries still add up to zero with no rate stored (ROADMAP E).
 const currencyExchangeName = 'Currency exchange';
 
+/// The one income category, which the app makes itself (rule 30): money
+/// coming in that isn't a refund is filed under it. Stored under this name;
+/// [LedgerData.withIncomeNamed] gives it the user's word on screen.
+const incomeAccountName = 'Income';
+
+/// Income's name in every language the app speaks: no category of the
+/// user's own may be called any of them.
+const incomeNames = {'Income', 'Орлого'};
+
+bool isIncomeName(String name) =>
+    incomeNames.any((n) => n.toLowerCase() == name.trim().toLowerCase());
+
 /// The payee a reconcile adjustment is stored with (`rowPayee` words it).
 const reconcileAdjustmentPayee = 'Reconcile adjustment';
 
@@ -55,7 +67,6 @@ class AccountInfo {
     this.sortOrder = 0,
     this.archived = false,
     this.deleted = false,
-    this.payday = false,
     this.role,
     this.currency = Currency.mnt,
   });
@@ -66,10 +77,6 @@ class AccountInfo {
 
   /// What it's for on the Savings steps; null for most accounts.
   final AccountRole? role;
-
-  /// An income category whose rows end the forecast (Salary, not child
-  /// allowance).
-  final bool payday;
 
   final int id;
   final String name;
@@ -97,6 +104,8 @@ class AccountInfo {
   /// A credit account: what's owed reads as a positive amount, the way the
   /// bank shows it, and owing is never a warning.
   bool get isOwed => type == AccountType.liability;
+
+  /// The app's one income category (rule 30).
   bool get isIncome => type == AccountType.income;
   bool get isCategory =>
       type == AccountType.income || type == AccountType.expense;
@@ -251,8 +260,7 @@ class RegisterRow {
   /// Locked by the account's most recent reconcile, which can be taken back.
   final bool latestReconcile;
 
-  /// The category is a payday income category (Salary), not a refund,
-  /// transfer or child allowance.
+  /// Filed under Income, not a refund or a transfer.
   final bool incomeCategory;
 
   /// A transfer whose other account is archived or deleted: that side stays
@@ -597,6 +605,41 @@ class LedgerData {
       ?plan,
     ],
   );
+
+  /// This ledger with the app's Income category called [name]: the word
+  /// for it in the user's language, so menus, rows and typed names all use
+  /// it.
+  LedgerData withIncomeNamed(String name) => LedgerData(
+    accounts: [
+      for (final a in accounts.values)
+        if (a.isIncome)
+          AccountInfo(
+            id: a.id,
+            name: name,
+            type: a.type,
+            sortOrder: a.sortOrder,
+            archived: a.archived,
+            deleted: a.deleted,
+            currency: a.currency,
+          )
+        else
+          a,
+    ],
+    txns: txns,
+    reconciliations: reconciliations,
+    paySchedules: paySchedules,
+    stoppedPaySchedules: stoppedPaySchedules,
+    prefs: prefs,
+    budgetAmounts: budgetAmounts,
+    accountsOff: accountsOff,
+    plans: plans.values.toList(),
+  );
+
+  /// The app's one income category (rule 30); null in a ledger built
+  /// without one.
+  late final AccountInfo? income = accounts.values
+      .where((a) => a.isIncome && !a.deleted)
+      .firstOrNull;
 
   /// The schedule the budget runs by, or null for calendar months.
   PaySchedule? get periodSchedule =>
@@ -1002,9 +1045,9 @@ class LedgerData {
       } else {
         label = other.name;
         categoryId = other.id;
-        // Only a payday ends a forecast: child allowance is income, and
-        // rent due after it is still before payday.
-        incomeCategory = other.type == AccountType.income && other.payday;
+        incomeCategory = other.isIncome;
+        // Pay set up with no "who from" is named by its category.
+        if (payee.isEmpty && t.payScheduleId != null) payee = other.name;
       }
     } else {
       kind = RowKind.split;

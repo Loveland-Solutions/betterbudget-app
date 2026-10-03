@@ -1255,7 +1255,7 @@ void main() {
     tearDown(() => db.close());
 
     test('setting an amount replaces it, undo puts it back', () async {
-      final food = await db.createCategory('Groceries', income: false);
+      final food = await db.createCategory('Groceries');
       await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
       final before = await db.setBudgetAmount(
         food,
@@ -1275,7 +1275,7 @@ void main() {
     });
 
     test('an amount anywhere in the period is replaced or cleared', () async {
-      final food = await db.createCategory('Groceries', income: false);
+      final food = await db.createCategory('Groceries');
       // Assigned by month, then viewed by a pay period 09.25–10.09.
       await db.setBudgetAmount(food, oct.start, oct.end, 50000000);
       final p = (start: DateTime(2026, 9, 25), end: DateTime(2026, 10, 9));
@@ -1294,7 +1294,7 @@ void main() {
     test(
       'starting next period moves the amounts, undo moves them back',
       () async {
-        final food = await db.createCategory('Groceries', income: false);
+        final food = await db.createCategory('Groceries');
         await db.setBudgetAmount(food, oct.start, oct.end, 50000000);
         final moved = await db.moveBudgetAmounts(oct.start, oct.end, nov.start);
         expect((await db.loadLedger()).budgetAmounts.single.date, nov.start);
@@ -1304,7 +1304,7 @@ void main() {
     );
 
     test('a plan is kept, replaced and taken away', () async {
-      final food = await db.createCategory('Groceries', income: false);
+      final food = await db.createCategory('Groceries');
       final plan = CategoryPlan(
         categoryId: food,
         kind: PlanKind.dueOn,
@@ -1335,7 +1335,7 @@ void main() {
     test(
       'a plan stays with a deleted category; starting over erases it',
       () async {
-        final food = await db.createCategory('Groceries', income: false);
+        final food = await db.createCategory('Groceries');
         final plan = CategoryPlan(
           categoryId: food,
           kind: PlanKind.spend,
@@ -1374,7 +1374,7 @@ void main() {
     );
 
     test('a category’s currency and accounts, and back', () async {
-      final food = await db.createCategory('Groceries', income: false);
+      final food = await db.createCategory('Groceries');
       final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
       await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
       final plan = CategoryPlan(
@@ -1413,7 +1413,7 @@ void main() {
       expect(d.accountsOff[food], {bank});
       // A new bank account starts unchecked on a category already
       // narrowed, and checked on the rest.
-      final other = await db.createCategory('Fun', income: false);
+      final other = await db.createCategory('Fun');
       final next = await db.createAccount(
         name: 'Golomt',
         type: AccountType.asset,
@@ -1454,8 +1454,8 @@ void main() {
     });
 
     test('several amounts in one write, and back', () async {
-      final food = await db.createCategory('Groceries', income: false);
-      final fun = await db.createCategory('Fun', income: false);
+      final food = await db.createCategory('Groceries');
+      final fun = await db.createCategory('Fun');
       await db.setBudgetAmount(food, oct.start, oct.end, 50000000);
       final before = await db.setBudgetAmounts(
         {food: 90000000, fun: 10000000},
@@ -1476,15 +1476,15 @@ void main() {
     });
 
     test('a new ledger clears the amounts', () async {
-      final food = await db.createCategory('Groceries', income: false);
+      final food = await db.createCategory('Groceries');
       await db.setBudgetAmount(food, oct.start, oct.end, 50000000);
       await db.startNewLedger(today, keepCategories: true);
       expect((await db.loadLedger()).budgetAmounts, isEmpty);
     });
 
     test('a merge moves the amounts, undo moves them back', () async {
-      final food = await db.createCategory('Groceries', income: false);
-      final snacks = await db.createCategory('Snacks', income: false);
+      final food = await db.createCategory('Groceries');
+      final snacks = await db.createCategory('Snacks');
       await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
       await db.setBudgetAmount(snacks, oct.start, oct.end, 5000000);
       final gone = await db.deleteCategory(snacks, into: food);

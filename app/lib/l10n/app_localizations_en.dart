@@ -100,11 +100,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String ledgerNewIncomeCategory(String name) {
-    return 'new income category “$name”';
-  }
-
-  @override
   String ledgerScheduledFor(String date) {
     return 'scheduled for $date';
   }
@@ -330,10 +325,6 @@ class WordsEn extends Words {
   String get ledgerUnclearedThere => 'uncleared there until it clears';
 
   @override
-  String get ledgerAddIncomeCategoryFirst =>
-      'Add an income category on the Budget screen first';
-
-  @override
   String get ledgerAddBankAccountFirst => 'Add a bank account first';
 
   @override
@@ -518,43 +509,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String ledgerMarksPayday(String name) {
-    return '$name marks payday';
-  }
-
-  @override
-  String ledgerIsntPayday(String name) {
-    return '$name isn’t a payday';
-  }
-
-  @override
-  String ledgerIsPaydayToast(String name) {
-    return '$name is a payday · forecasts run to it';
-  }
-
-  @override
-  String ledgerIsntPaydayToast(String name) {
-    return '$name isn’t a payday · forecasts run past it';
-  }
-
-  @override
   String ledgerAlreadyCategory(String name) {
     return '$name is already a category';
-  }
-
-  @override
-  String ledgerIsNowIncome(String name) {
-    return '$name is now income';
-  }
-
-  @override
-  String ledgerIsNowSpending(String name) {
-    return '$name is now spending';
-  }
-
-  @override
-  String ledgerIsNowIncomeToast(String name) {
-    return '$name is now income · it ends forecasts, like payday';
   }
 
   @override
@@ -936,9 +892,6 @@ class WordsEn extends Words {
   String get ledgerDbPayIsIn => 'Pay is money in';
 
   @override
-  String get ledgerDbNotCategoryKind => 'Not a category kind';
-
-  @override
   String get ledgerDbNotCategory => 'Not a category';
 
   @override
@@ -1206,9 +1159,6 @@ class WordsEn extends Words {
   String get planSpending => 'Spending';
 
   @override
-  String get planIncome => 'Income';
-
-  @override
   String planShowArchived(int count) {
     return 'Show archived ($count)';
   }
@@ -1222,13 +1172,10 @@ class WordsEn extends Words {
   String get planShowInMenus => 'Show in menus';
 
   @override
-  String get planNotPayday => 'not a payday';
+  String get planPaydayNoRegular => 'No regular pay';
 
   @override
-  String get planPaydayNoRegular => 'payday · no regular pay';
-
-  @override
-  String get planPaydayNotSetUp => 'payday · pay not set up';
+  String get planPaydayNotSetUp => 'Pay not set up';
 
   @override
   String planMorePay(int count) {
@@ -1256,12 +1203,12 @@ class WordsEn extends Words {
 
   @override
   String planPaydayPay(String pay) {
-    return 'payday · $pay';
+    return 'Pay: $pay';
   }
 
   @override
   String planPaydayPayNext(String pay, String date) {
-    return 'payday · $pay · next $date';
+    return 'Pay: $pay · next $date';
   }
 
   @override
@@ -1298,12 +1245,6 @@ class WordsEn extends Words {
   String get planShowTheseRows => 'Show these rows';
 
   @override
-  String get planPayMenu => 'Pay…';
-
-  @override
-  String get planUnmarkPayday => 'Not a payday';
-
-  @override
   String get planArchive => 'Archive';
 
   @override
@@ -1317,9 +1258,6 @@ class WordsEn extends Words {
 
   @override
   String get planAdd => 'Add';
-
-  @override
-  String get planIncomeEndsForecast => 'Income ends a forecast, like payday.';
 
   @override
   String get planNothingFiled => 'Nothing is filed under it yet.';
@@ -1354,22 +1292,12 @@ class WordsEn extends Words {
 
   @override
   String planIntoIncome(String name) {
-    return '$name is income: these rows will count as money in.';
+    return '$name is income: money in these rows will count as income, and money out will take away from it.';
   }
 
   @override
   String planIntoIncomeScheduled(String name) {
-    return '$name is income: these rows will count as money in, and the scheduled ones will end forecasts.';
-  }
-
-  @override
-  String planIntoSpending(String name) {
-    return '$name is spending: these rows will no longer count as income.';
-  }
-
-  @override
-  String planIntoSpendingScheduled(String name) {
-    return '$name is spending: these rows will no longer count as income or end forecasts.';
+    return '$name is income: money in these rows will count as income, money out will take away from it, and scheduled money in can end a forecast.';
   }
 
   @override
@@ -1891,9 +1819,6 @@ class WordsEn extends Words {
   String get rowsNewCategoryNote => 'new category';
 
   @override
-  String get rowsNewIncomeCategoryNote => 'new income category';
-
-  @override
   String rowsTransferFromTo(String from, String to) {
     return 'From $from to $to';
   }
@@ -2407,9 +2332,6 @@ class WordsEn extends Words {
 
   @override
   String get setupYourPay => 'Your pay';
-
-  @override
-  String get setupFiledUnder => 'Filed under';
 
   @override
   String get setupPaidInto => 'Paid into';
@@ -3361,9 +3283,6 @@ class WordsEn extends Words {
   String get planLeft => 'Left';
 
   @override
-  String get planCameIn => 'Came in';
-
-  @override
   String planNotAssigned(String amount) {
     return '$amount not assigned to a category yet';
   }
@@ -4119,18 +4038,9 @@ class WordsEn extends Words {
       'Nothing is planned for it. You decide what to assign.';
 
   @override
-  String get planEditPaydayYes => 'A payday';
-
-  @override
   String planEditedUndo(String category) {
     return 'Changes to $category';
   }
-
-  @override
-  String get planEditPaydayHelpYes => 'Forecasts run to this payday.';
-
-  @override
-  String get planEditPaydayHelpNo => 'Forecasts run past it when it comes in.';
 
   @override
   String get planAccountsAll => 'All accounts';
@@ -4148,4 +4058,27 @@ class WordsEn extends Words {
 
   @override
   String get setupCurrencyNoMatch => 'No currency by that name';
+
+  @override
+  String get ledgerIncome => 'Income';
+
+  @override
+  String planIncomeLine(String amounts) {
+    return 'Income: $amounts';
+  }
+
+  @override
+  String get rowsNewCategoryRefundNote =>
+      'new category · money in counts as a refund to it; for pay, pick Income';
+
+  @override
+  String ledgerPayReplaced(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'replaced $count incomes you scheduled by hand',
+      one: 'replaced the income you scheduled by hand',
+    );
+    return '$_temp0';
+  }
 }

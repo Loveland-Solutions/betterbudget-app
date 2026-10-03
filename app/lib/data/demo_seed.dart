@@ -45,14 +45,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       type: AccountType.equity,
     );
 
-    final cat = <String, int>{};
-    for (final n in ['Salary']) {
-      cat[n] = await db.addAccount(
-        name: n,
-        type: AccountType.income,
-        payday: true,
-      );
-    }
+    final cat = <String, int>{'Salary': await db.incomeCategory()};
     for (final n in [
       'Groceries',
       'Household',

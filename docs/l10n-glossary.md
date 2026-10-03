@@ -41,7 +41,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | off by | зөрүү | |
 | budget | төсөв | |
 | spending | зарлага | |
-| income | орлого | |
+| income | орлого | Also the name of the app's one income category, "Income" / "Орлого" (rule 30) |
 | transfer | шилжүүлэг in sentences; the category reads "Данс хооронд" | banks call any payment to a person шилжүүлэг |
 | opening balance | эхний үлдэгдэл | |
 | scheduled | товлосон | a future bill or income |
@@ -121,7 +121,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | assigned (a budget amount) | хуваарилсан | column title; to assign = хуваарилах |
 | spent / left | зарцуулсан / үлдсэн | the budget's other two columns |
 | not assigned to a category | ангилалд хуваарилаагүй | the budget's top line |
-| came in | орсон | income in a period |
+| income (a period's) | орлого | The Budget page's line reads "Income: …"; not "came in" (owner, 2026-10-03) |
 | from before | өмнөөс | what a category carried in |
 | plan (a category's) | төлөвлөгөө | what the category is for and how much goes in each period |
 | due (a bill's date) | төлөх өдөр | "{amount}, төлөх өдөр: {date}": the date never takes a case ending |

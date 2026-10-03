@@ -162,7 +162,6 @@ String dbProblem(Words t, DbException e) => switch (e.problem) {
   DbProblem.notAnAccount => t.ledgerDbNotAnAccount,
   DbProblem.splitNotEditable => t.ledgerDbSplitNotEditable,
   DbProblem.payIsIn => t.ledgerDbPayIsIn,
-  DbProblem.notCategoryKind => t.ledgerDbNotCategoryKind,
   DbProblem.notCategory => t.ledgerDbNotCategory,
   DbProblem.sameCategory => t.ledgerDbSameCategory,
   DbProblem.accountDeleted => t.ledgerDbAccountDeleted,

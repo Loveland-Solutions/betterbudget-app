@@ -105,6 +105,7 @@ Forecast buildForecast({
   required List<RegisterRow> scheduled,
   bool owed = false,
   ({DateTime date, int amount})? Function(RegisterRow payday)? paydayAfter,
+  bool payIsSetUp = false,
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -126,14 +127,22 @@ Forecast buildForecast({
 
   // A card has no payday: it looks 30 days out. A late salary isn't payday:
   // the forecast runs on to the next one.
-  final payday = owed
-      ? null
+  // Pay that was set up is the payday. Income typed by hand ends the
+  // forecast only when no pay is set up anywhere ([payIsSetUp], rule 30):
+  // with pay set up it's money in like any other, so an allowance before
+  // rent, or on the morning the paycheck is late, doesn't hide the bills
+  // after it.
+  final coming = owed
+      ? const <RegisterRow>[]
       : counted
             .where(
               (r) =>
                   r.isIncome && !when(r).isAfter(start.add(_paydayLookahead)),
             )
-            .firstOrNull;
+            .toList();
+  final payday =
+      coming.where((r) => r.payScheduleId != null).firstOrNull ??
+      (payIsSetUp ? null : coming.firstOrNull);
   // The payday after it, from its pay plan: only the next payday of a plan
   // is ever scheduled.
   var after = payday == null ? null : paydayAfter?.call(payday);

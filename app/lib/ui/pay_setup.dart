@@ -6,7 +6,6 @@ part of 'ledger_screen.dart';
 
 /// What the pay setup saves.
 typedef PayDraft = ({
-  int categoryId,
   int accountId,
   String? payee,
   int amount,
@@ -68,7 +67,6 @@ List<Widget> _withFields(String text, List<Widget> fields) {
 
 class _PaySetupDialog extends StatefulWidget {
   const _PaySetupDialog({
-    required this.categories,
     required this.accounts,
     required this.category,
     required this.account,
@@ -89,23 +87,23 @@ class _PaySetupDialog extends StatefulWidget {
   /// An account or category's name, by id.
   final String Function(int id) names;
 
-  /// Income categories to file pay under, and accounts it can go into.
-  final List<AccountInfo> categories;
+  /// Accounts pay can go into.
   final List<AccountInfo> accounts;
+
+  /// Income, which pay is filed under.
   final AccountInfo category;
   final AccountInfo account;
   final DateTime today;
   final PaySchedule? existing;
 
-  /// Recent paychecks for a category and account, newest first.
-  final Future<List<int>> Function(int categoryId, int accountId) history;
+  /// Recent pay into an account from a payer, newest first.
+  final Future<List<int>> Function(int accountId, String payee) history;
 
   @override
   State<_PaySetupDialog> createState() => _PaySetupDialogState();
 }
 
 class _PaySetupDialogState extends State<_PaySetupDialog> {
-  late AccountInfo _category = widget.category;
   late AccountInfo _account = widget.account;
   late final _payee = TextEditingController(text: widget.existing?.payee);
 
@@ -167,8 +165,10 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   }
 
   Future<void> _loadHistory() async {
-    final h = await widget.history(_category.id, _account.id);
-    if (mounted) setState(() => _history = h);
+    final payee = _payee.text.trim();
+    final h = await widget.history(_account.id, payee);
+    // The answer to an older question: the payer was typed on since.
+    if (mounted && payee == _payee.text.trim()) setState(() => _history = h);
   }
 
   int? get _amountValue => parseAmount(_amount.text, _account.currency);
@@ -276,7 +276,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
       ? null
       : PaySchedule(
           id: 0,
-          categoryId: _category.id,
+          categoryId: widget.category.id,
           accountId: _account.id,
           amount: _plan.amount,
           amount2: _plan.amount2,
@@ -293,7 +293,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     if (_problem != null) return;
     Navigator.of(context).pop(
       PaySave((
-        categoryId: _category.id,
         accountId: _account.id,
         payee: _payee.text,
         amount: _plan.amount,
@@ -465,17 +464,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     style: onest(17, weight: 600, letterSpacing: -0.2),
                   ),
                   const SizedBox(height: 16),
-                  if (widget.categories.length > 1)
-                    line(
-                      t.setupFiledUnder,
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: pick(widget.categories, _category, (c) {
-                          setState(() => _category = c);
-                          _loadHistory();
-                        }, 'pay-category'),
-                      ),
-                    ),
                   line(
                     t.setupPaidInto,
                     Align(
@@ -960,7 +948,7 @@ class _BudgetSettings extends StatelessWidget {
                         Expanded(
                           child: Text(
                             t.setupPayLine(
-                              name(p.categoryId),
+                              p.payee ?? name(p.categoryId),
                               payAmounts(
                                 t,
                                 p,
