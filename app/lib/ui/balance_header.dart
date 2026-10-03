@@ -138,7 +138,7 @@ class _Balances extends StatelessWidget {
               status: Cleared.uncleared,
               amount: shown(s.uncleared),
               signed: true,
-              note: n == 0 ? t.planEverythingCleared : t.planNotClearedYet(n),
+              note: n == 0 ? '' : t.planNotClearedYet(n),
               hovered: hovered,
               active: active == Cleared.uncleared,
               onTap: () => onTap(Cleared.uncleared),

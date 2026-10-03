@@ -272,9 +272,13 @@ What's known so far:
    before it clears, so copy must say "not cleared yet", never "not posted" (an owner
    correction). Nor "settled" (owner, 2026-09-30: it reads as AI-written): the app's
    word is **cleared**.
+   **With nothing uncleared the line carries no note** (owner, 2026-10-03: "Everything
+   has cleared" told them what they already know); "3 not cleared yet" still shows.
    **Search sits in the register's tab row**, between the tabs and Add (owner,
    2026-09-30), not at the top of the page: the page starts higher and gives the
-   header more room.
+   header more room. **Its hint shows ⌘F** (owner, 2026-10-03), the Mac's own key
+   for finding in a list; ⌘K, copied from other apps' command palettes, still works
+   but isn't shown.
    **On a credit card every amount is what's owed, positive**, as the bank shows it
    (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
    normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
@@ -327,7 +331,20 @@ What's known so far:
    noise, especially while reconciling). The symbol changing is the confirmation.
    Adding stays quiet too, because the row appears. **Toasts are gold with dark
    text** (owner's call) so they get noticed; the dark toast they replaced was easy to
-   miss. Undo is bold and underlined. **⌘⇧Z redoes** (Ctrl+Y or Ctrl+Shift+Z on
+   miss. **A row that can't be saved says why in the same popup** (owner, 2026-10-03):
+   beside Add there was room for "Say how muc…" and no more. It goes away once the row
+   is edited. The wording is an instruction in plain office English ("Enter the amount
+   arriving in Chase", "Enter the date as 2026.09.16"), never "Say how much…", which
+   the owner read as written by a child. The short notes that show while typing
+   ("needs amount", "= ₮150.00", "new category") stay beside Add. Undo is bold and
+   underlined. **One row is open for typing at a time** (owner, 2026-10-03: Edit and a
+   new transaction were open together). Add closes an untouched Edit, and Edit closes
+   an empty new row; if the open one holds changes it stays and the popup says "Save
+   with Enter, or press Esc to discard your changes". **An Edit closes with the mouse
+   too** (owner, 2026-10-03: Esc was the only way out): a **Cancel** button sits beside
+   Save where "Esc to cancel" was written, and a click away closes an Edit nothing was
+   changed in. One with changes stays through a click away, so nothing typed is lost;
+   Cancel or Esc drops it. **⌘⇧Z redoes** (Ctrl+Y or Ctrl+Shift+Z on
    Windows), and any new action clears what could be redone. The history lasts for the
    session and isn't saved.
 10. **Confirming a scheduled item means it happened now.** Confirming before its due

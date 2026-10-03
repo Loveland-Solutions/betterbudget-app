@@ -904,9 +904,6 @@ class WordsEn extends Words {
   String get ledgerDbNeverReconciled => 'Never reconciled';
 
   @override
-  String get planEverythingCleared => 'Everything has cleared';
-
-  @override
   String planNotClearedYet(int count) {
     return '$count not cleared yet';
   }
@@ -1829,7 +1826,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get rowsErrorDate => 'Date should look like 2026.09.16';
+  String get rowsErrorDate => 'Enter the date as 2026.09.16';
 
   @override
   String get rowsErrorSameAccount => 'Can’t transfer to the same account';
@@ -1841,7 +1838,7 @@ class WordsEn extends Words {
 
   @override
   String rowsErrorAmount(String typed) {
-    return 'Can’t read “$typed” as an amount';
+    return '“$typed” isn’t a valid amount';
   }
 
   @override
@@ -1878,9 +1875,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String rowsKeyToCancel(String key) {
-    return '$key to cancel';
-  }
+  String get rowsCancelEdit => 'Cancel';
 
   @override
   String get rowsReconciledTip =>
@@ -2897,7 +2892,7 @@ class WordsEn extends Words {
 
   @override
   String get importColumnsHint =>
-      'Say what each column holds. The app filled in its best guess; check the date and the amount.';
+      'Choose what each column holds. The app filled in its best guess; check the date and the amount.';
 
   @override
   String get importRoleIgnore => 'Not used';
@@ -3164,12 +3159,12 @@ class WordsEn extends Words {
 
   @override
   String rowsErrorLeftOther(Object account) {
-    return 'Say how much was sent from $account';
+    return 'Enter the amount sent from $account';
   }
 
   @override
   String rowsErrorArrivesOther(Object account) {
-    return 'Say how much arrives in $account';
+    return 'Enter the amount arriving in $account';
   }
 
   @override

@@ -169,6 +169,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Last row click, to recognise a double-click without delaying single ones.
   ({int id, DateTime at})? _lastTap;
   Timer? _toastTimer;
+  String? _entryProblemShown;
 
   /// Rows of the current account, by transaction id, from the latest build.
   Map<int, RegisterRow> _rows = const {};
@@ -188,6 +189,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addListener(_keepKeys);
     // Each pay schedule's next payday is scheduled before the first look.
     _ledger = Stream.fromFuture(
       seedDemoIfEmpty(db, today).then((_) => db.ensurePaydays(today)),
@@ -196,7 +198,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       onSubmit: _post,
       suggestCategory: (payee) =>
           db.lastCategoryFor(payee, _entryAccountId ?? _accountId!),
-    );
+    )..onProblem = _entryProblem;
     _keySaved = widget.recoveryKeySaved;
     PackageInfo.fromPlatform().then(
       (p) {
@@ -266,6 +268,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_keepKeys);
     _search.dispose();
     _searchFocus.dispose();
     _registerFocus.dispose();
@@ -467,6 +470,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (mounted) _showToast(context.t.ledgerRedone(a.label));
   }
 
+  /// Why an entry row couldn't be saved, as a popup; gone once the row is
+  /// edited, unless another popup has taken its place.
+  void _entryProblem(String? message) {
+    if (!mounted) return;
+    if (message != null) {
+      _showToast(message);
+    } else if (_entryProblemShown != null &&
+        _toast?.message == _entryProblemShown) {
+      _toastTimer?.cancel();
+      setState(() => _toast = null);
+    }
+    _entryProblemShown = message;
+  }
+
   void _showToast(String message, {Future<void> Function()? undo}) {
     _toastTimer?.cancel();
     setState(
@@ -632,6 +649,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   void _newEntry() {
+    // One row open for typing at a time: an untouched Edit closes, one
+    // with changes keeps the floor.
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showToast(context.t.ledgerSaveOrDiscard);
+        return;
+      }
+      _cancelEdit();
+    }
     setState(() {
       _section = AppSection.ledger;
       _adding = true;
@@ -679,11 +705,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startEdit(int id, EditField field, {bool confirming = false}) {
     final row = _rows[id];
     if (row == null) return;
+    // The new-transaction row gives way the same way: closed when empty,
+    // kept when it holds typing.
+    if (_adding && _entry.isDirty()) {
+      _showToast(context.t.ledgerSaveOrDiscard);
+      return;
+    }
     // Reconciled rows open too: payee, memo and category can still change.
-    final controller = EntryRowController(
-      onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
-      suggestCategory: (payee) => db.lastCategoryFor(payee, row.accountId),
-    )..payeeNames = _entry.payeeNames;
+    final controller =
+        EntryRowController(
+            onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
+            suggestCategory: (payee) =>
+                db.lastCategoryFor(payee, row.accountId),
+          )
+          ..payeeNames = _entry.payeeNames
+          ..onProblem = _entryProblem;
     setState(() {
       _editing = (
         txnId: id,
@@ -692,6 +728,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         confirming: confirming,
       );
       _selected = id;
+      _adding = false;
     });
   }
 
@@ -2276,6 +2313,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () => db.setAccountRole(account.id, role),
     );
     _keysBack();
+  }
+
+  /// A click out of a text field drops focus onto the page itself, above
+  /// the screen's keys, so ⌘F and ⌘Z went dead until a row was clicked.
+  /// Whenever nothing on the page holds focus, the register takes it. A
+  /// dialog has its own scope, so this leaves it alone.
+  void _keepKeys() {
+    if (_registerFocus.context == null) return;
+    if (FocusManager.instance.primaryFocus == _registerFocus.enclosingScope) {
+      _registerFocus.requestFocus();
+    }
   }
 
   /// A menu closing leaves focus on the page, out of reach of ⌘Z; give it
@@ -4272,7 +4320,7 @@ class _SearchField extends StatelessWidget {
                           )
                         else
                           Text('Ctrl ', style: onest(11.5, color: Mid.ink3)),
-                        Text('K', style: onest(11.5, color: Mid.ink3)),
+                        Text('F', style: onest(11.5, color: Mid.ink3)),
                       ],
                     ),
                   ),

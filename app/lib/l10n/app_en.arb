@@ -1285,10 +1285,6 @@
   "@ledgerDbNeverReconciled": {
     "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
   },
-  "planEverythingCleared": "Everything has cleared",
-  "@planEverythingCleared": {
-    "description": "Account header, balance sum: note beside the pending line when nothing is pending"
-  },
   "planNotClearedYet": "{count} not cleared yet",
   "@planNotClearedYet": {
     "description": "Account header, balance sum: note beside the pending line; count = pending transactions",
@@ -2687,26 +2683,26 @@
       }
     }
   },
-  "rowsErrorDate": "Date should look like 2026.09.16",
+  "rowsErrorDate": "Enter the date as 2026.09.16",
   "@rowsErrorDate": {
-    "description": "Entry row error when the date typed isn’t a real date. Keep the example date as is"
+    "description": "Popup at the bottom when an entry row can’t be saved when the date typed isn’t a real date. Keep the example date as is"
   },
   "rowsErrorSameAccount": "Can’t transfer to the same account",
   "@rowsErrorSameAccount": {
-    "description": "Entry row error: a transfer to the account the row is in"
+    "description": "Popup at the bottom when an entry row can’t be saved: a transfer to the account the row is in"
   },
   "rowsErrorNoAccount": "No account “{name}”",
   "@rowsErrorNoAccount": {
-    "description": "Entry row error: the → name typed in Category isn’t an account",
+    "description": "Popup at the bottom when an entry row can’t be saved: the → name typed in Category isn’t an account",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
-  "rowsErrorAmount": "Can’t read “{typed}” as an amount",
+  "rowsErrorAmount": "“{typed}” isn’t a valid amount",
   "@rowsErrorAmount": {
-    "description": "Entry row error: the amount typed isn’t a number. typed is what was typed",
+    "description": "Popup at the bottom when an entry row can’t be saved: the amount typed isn’t a number. typed is what was typed",
     "placeholders": {
       "typed": {
         "type": "String"
@@ -2760,14 +2756,9 @@
       }
     }
   },
-  "rowsKeyToCancel": "{key} to cancel",
-  "@rowsKeyToCancel": {
-    "description": "Entry row, note by Save while editing. key is the Esc key’s name",
-    "placeholders": {
-      "key": {
-        "type": "String"
-      }
-    }
+  "rowsCancelEdit": "Cancel",
+  "@rowsCancelEdit": {
+    "description": "Entry row, button beside Save while editing a transaction: closes the row without saving"
   },
   "rowsReconciledTip": "Reconciled · this matches a bank statement, so it can’t change",
   "@rowsReconciledTip": {
@@ -4279,7 +4270,7 @@
   "@importChangeColumns": {
     "description": "Import window: button that shows the file's columns to change what each holds."
   },
-  "importColumnsHint": "Say what each column holds. The app filled in its best guess; check the date and the amount.",
+  "importColumnsHint": "Choose what each column holds. The app filled in its best guess; check the date and the amount.",
   "@importColumnsHint": {
     "description": "Import window, above the file's columns."
   },
@@ -4615,16 +4606,16 @@
       "account": {}
     }
   },
-  "rowsErrorLeftOther": "Say how much was sent from {account}",
+  "rowsErrorLeftOther": "Enter the amount sent from {account}",
   "@rowsErrorLeftOther": {
-    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "description": "Popup at the bottom when an entry row can’t be saved: a transfer between currencies needs the other side's amount.",
     "placeholders": {
       "account": {}
     }
   },
-  "rowsErrorArrivesOther": "Say how much arrives in {account}",
+  "rowsErrorArrivesOther": "Enter the amount arriving in {account}",
   "@rowsErrorArrivesOther": {
-    "description": "Entry row error: a transfer between currencies needs the other side's amount.",
+    "description": "Popup at the bottom when an entry row can’t be saved: a transfer between currencies needs the other side's amount.",
     "placeholders": {
       "account": {}
     }
