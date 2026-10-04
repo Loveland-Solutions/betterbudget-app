@@ -1294,6 +1294,9 @@ class WordsMn extends Words {
   String get planSetAside => 'Хойшлуулсан';
 
   @override
+  String get planSetAsideState => 'хуримтлагдсан';
+
+  @override
   String planSetAsideUndo(String step) {
     return '«$step» хойшлуулсан';
   }
@@ -3561,60 +3564,6 @@ class WordsMn extends Words {
   String get appearanceColorsHide => 'Өнгийг нуух';
 
   @override
-  String get planKindSpendMonth => 'Сарын турш зарцуулах';
-
-  @override
-  String get planKindSpendPay => 'Цалингийн үеийн турш зарцуулах';
-
-  @override
-  String get planKindSaveUp => 'Хуримтлуулж, хэрэгтэй үед зарцуулах';
-
-  @override
-  String get planKindDueOn => 'Тодорхой өдөр төлөх';
-
-  @override
-  String get planKindGoal => 'Зорилго';
-
-  @override
-  String get planHelpSpend => 'Сар бүр мөнгө орж, зарцуулагдана.';
-
-  @override
-  String get planHelpSaveUp =>
-      'Сар бүр тогтсон дүн орно. Хэрэг болох хүртэл хуримтлагдана.';
-
-  @override
-  String get planHelpDueOn =>
-      'Төлөх өдөртэй төлбөр. Төлөх өдөр хүртэл тэнцүү хэсгүүдэд хуваана.';
-
-  @override
-  String get planHelpGoal =>
-      'Тодорхой өдөр гэхэд хуримтлуулах дүн. Дутуу байгаа дүнг үлдсэн саруудад хуваадаг тул бага хийсэн сарын дараа өснө.';
-
-  @override
-  String get planLabelEachMonth => 'Сар бүр';
-
-  @override
-  String get planLabelEachPay => 'Цалингийн үе бүр';
-
-  @override
-  String get planLabelBill => 'Төлбөр';
-
-  @override
-  String get planLabelDue => 'Төлөх өдөр';
-
-  @override
-  String get planLabelRepeats => 'Давтамж';
-
-  @override
-  String get planLabelGoal => 'Зорилго';
-
-  @override
-  String get planLabelBy => 'Хэзээ гэхэд';
-
-  @override
-  String get planRepeatNone => 'Давтагдахгүй';
-
-  @override
   String planRepeatMonths(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3637,12 +3586,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planCarryOn => 'Үлдсэн нь дараагийн үед шилжинэ';
-
-  @override
-  String get planCarryOff => 'Үлдсэн нь хуваарилаагүй мөнгө рүү буцна';
-
-  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }
@@ -3653,15 +3596,27 @@ class WordsMn extends Words {
   }
 
   @override
+  String planThisMonth(String amount) {
+    return 'энэ сард $amount';
+  }
+
+  @override
+  String planThisPay(String amount) {
+    return 'энэ цалингийн үед $amount';
+  }
+
+  @override
+  String planPaidFromArchived(String account) {
+    return '$account архивлагдсан тул энэ товлогдохгүй';
+  }
+
+  @override
   String get planNoCarry => 'үлдсэн нь шилжихгүй';
 
   @override
   String planWentBack(String amount) {
     return 'өмнөх сараас үлдсэн $amount хуваарилаагүй мөнгө рүү буцсан';
   }
-
-  @override
-  String get planSavingUp => 'хуримтлуулж байна';
 
   @override
   String planDue(String amount, String date) {
@@ -3685,9 +3640,6 @@ class WordsMn extends Words {
   String planShort(String amount) {
     return '$amount дутуу';
   }
-
-  @override
-  String get planReached => 'хүрсэн';
 
   @override
   String planAssignThis(String amount) {
@@ -3731,17 +3683,6 @@ class WordsMn extends Words {
   String planRemoveUndo(String category) {
     return '$category ангиллын төлөвлөгөөг арилгалаа';
   }
-
-  @override
-  String get planHelpSpendPay => 'Цалингийн үе бүрт мөнгө орж, зарцуулагдана.';
-
-  @override
-  String get planHelpSaveUpPay =>
-      'Цалингийн үе бүрт тогтсон дүн орно. Хэрэг болох хүртэл хуримтлагдана.';
-
-  @override
-  String get planHelpGoalPay =>
-      'Тодорхой өдөр гэхэд хуримтлуулах дүн. Дутуу байгаа дүнг үлдсэн цалингийн үеүдэд хуваадаг тул бага хийсэн үеийн дараа өснө.';
 
   @override
   String planWentBackPay(String amount) {
@@ -3858,14 +3799,184 @@ class WordsMn extends Words {
   String get planEditName => 'Нэр';
 
   @override
-  String get planEditType => 'Төрөл';
+  String get planDueDateQ => 'Төлөх өдөр бий юу?';
 
   @override
-  String get planKindNone => 'Төлөвлөгөөгүй';
+  String get planNo => 'Үгүй';
 
   @override
-  String get planHelpNone =>
-      'Төлөвлөсөн дүн байхгүй. Хэдийг хуваарилахаа өөрөө шийднэ.';
+  String get planYes => 'Тийм';
+
+  @override
+  String get planSetAsideMonth => 'Сар бүр хуримтлуулах';
+
+  @override
+  String get planSetAsidePay => 'Цалингийн үе бүрт хуримтлуулах';
+
+  @override
+  String get planNothingSet => 'тогтоогоогүй';
+
+  @override
+  String get planEmptyHint => 'Хоосон үлдээвэл сар бүр өөрөө шийднэ.';
+
+  @override
+  String get planEmptyHintPay =>
+      'Хоосон үлдээвэл цалингийн үе бүрт өөрөө шийднэ.';
+
+  @override
+  String get planLeftMonthEnd => 'Сарын эцэст үлдсэн нь';
+
+  @override
+  String get planLeftPeriodEnd => 'Үеийн эцэст үлдсэн нь';
+
+  @override
+  String get planStaysHere => 'Энд үлдэнэ';
+
+  @override
+  String get planGoesBack => 'Хуваарилаагүй мөнгө рүү буцна';
+
+  @override
+  String get planStopAt => 'Дээд хэмжээ';
+
+  @override
+  String get planNoLimit => 'хязгааргүй';
+
+  @override
+  String get planStopAtHint => 'Энэ хэмжээнд хүрмэгц асуухаа болино.';
+
+  @override
+  String get planAmountDue => 'Төлөх дүн';
+
+  @override
+  String get planLabelDueDate => 'Төлөх өдөр';
+
+  @override
+  String get planHowOften => 'Давтамж';
+
+  @override
+  String get planOnce => 'Нэг удаа';
+
+  @override
+  String planRepeatDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count өдөр тутам',
+      one: 'Өдөр бүр',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planRepeatWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count долоо хоног тутам',
+      one: 'Долоо хоног бүр',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get planEveryPayday => 'Цалин бүрт';
+
+  @override
+  String planEveryPaydayOf(String name) {
+    return 'Цалин бүрт · $name';
+  }
+
+  @override
+  String get planEveryCustom => 'Тутам…';
+
+  @override
+  String get planEveryWord => 'тутам:';
+
+  @override
+  String get planOnDates => 'Эдгээр өдрүүдэд…';
+
+  @override
+  String get planUnitDays => 'өдөр';
+
+  @override
+  String get planUnitWeeks => 'долоо хоног';
+
+  @override
+  String get planUnitMonths => 'сар';
+
+  @override
+  String get planUnitYears => 'жил';
+
+  @override
+  String get planDatesLabel => 'Өдрүүд';
+
+  @override
+  String get planDatesHint => '04.15, 06.15, 09.15, 01.15';
+
+  @override
+  String planDatesAYear(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'жилд $count удаа',
+      zero: 'Эдгээр өдрүүдэд',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get planDaysAfterPay => 'өдрийн дараа (цалин орсноос)';
+
+  @override
+  String get planOnPayday => 'цалин орох өдөр';
+
+  @override
+  String get planWeekendKeep => 'Тэр өдөртөө';
+
+  @override
+  String get planWeekendBefore => 'Амралтын өдрөөс өмнө';
+
+  @override
+  String get planWeekendAfter => 'Амралтын өдрийн дараа';
+
+  @override
+  String planPaidFromHint(String account, String date) {
+    return '$account дансны таамаглалд $date-нд харагдана; төлөгдсөн үед нь та баталгаажуулна.';
+  }
+
+  @override
+  String get planPaidFromHintNone =>
+      'Данс сонговол төлбөр тэр дансны таамаглалд харагдана.';
+
+  @override
+  String planWorkedOut(String amount) {
+    return '$amount · өдрөөс тооцсон';
+  }
+
+  @override
+  String get planEnterAmountDate => 'Дүн болон өдрөө оруулна уу';
+
+  @override
+  String get planNothingMore => 'өөр хуримтлуулах зүйлгүй';
+
+  @override
+  String get planRowWillRead => 'Мөр ингэж харагдана';
+
+  @override
+  String get planLabelPaidFrom => 'Төлөх данс';
+
+  @override
+  String get planPaidFromNone => 'Данс сонгоогүй';
+
+  @override
+  String planUpTo(String amount) {
+    return '$amount хүртэл';
+  }
+
+  @override
+  String planSetAsideAmount(String amount) {
+    return '$amount хуримтлагдсан';
+  }
 
   @override
   String planEditedUndo(String category) {

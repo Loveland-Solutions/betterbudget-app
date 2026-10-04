@@ -186,6 +186,32 @@ Roughly in the order they will block something.
 
 ## Next step
 
+**2026-10-03, branch `budget-two-types`, not yet a PR (version 0.6.0, schema v14):
+two budget types instead of four, and the bill in the forecast.** The owner asked what
+the five choices under a category's Type were for; Spend and Save up came to the same
+number, so a `budget-expert` agent (new, `.claude/agents/budget-expert.md`: how
+households plan money, for designing the budget; `budget-app-expert` stays the review
+pass) walked the owner's scenarios through. The owner's calls: merge Save up into one
+"Any time" type with an optional cap ("up to ₮X", not mandatory); spread a missed part
+over the periods left (so Goal merges into "On a date, once"); count what was assigned,
+not what's left (a $20 gift in April is part of the $100 birthday in August); repeats up
+to every three years; **Paid from** on a dated plan schedules the bill in that account
+so the forecast counts it (A of two); the Edit panel is designed as one thing (2026-10-04,
+after the owner's "all the features shoved on a page" and a four-agent design
+committee): the name as heading, one question ("Is there a due date? No | Yes"), a
+short labelled form, "Stop at" for the cap, the monthly amount worked out for a dated
+plan, and the row drawn as it will read. "No plan" is an empty amount. **How often**
+covers every situation (owner, 2026-10-04): the presets, Every payday (from the pay
+schedule, with days after), Every… (a number and days/weeks/months/years), On these
+dates… (a typed list, yearly), and a weekend rule; schema v15. All in ADR 0004 rule 27. Also on the
+branch: "Kind" → "Type" on the New account page. **Both reviews done, their fixes
+in** (rule 27 names them: a bill taken a day early counts on its date, a re-dated
+one-time plan reaches the forecast again, undo brings back the very bill, "this month"
+in the last period, "Not scheduled", an archived Paid-from account said in gold).
+**For the owner to call:** a Paid-from bill that arrives through a TDB import leaves
+the scheduled row behind; the import matching a scheduled row would fix it (new).
+Next: PR, merge.
+
 **2026-10-03, PR #34 merged (version 0.5.1): ledger fixes from the owner using the
 app.** "Everything has cleared" is gone from the header. The search box shows ⌘F, and
 the screen's keys (⌘F, ⌘Z, ⌘N) no longer go dead after a click on an empty part of
@@ -487,6 +513,13 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **Two budget types and the bill in the forecast (2026-10-03, version 0.6.0,
+  schema v14):** Any time (a set amount each period, carry over or not, an optional
+  cap) and On a date (an amount by a date, once or repeating up to every three years,
+  a missed part spread over the periods left, counted by what was assigned; Paid from
+  keeps the bill scheduled in its account, confirmed like a payday). The four kinds of
+  2026-10-01 map onto them in the upgrade. ADR 0004 rule 27 rewritten.
 
 - **A category's currency and accounts (2026-10-02, version 0.3.0, schema v12):**
   the owner's design after asking how car insurance paid in dollars would be

@@ -5,6 +5,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/budget.dart' show Budget;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
@@ -104,6 +105,10 @@ class Transactions extends Table {
   /// A payday a pay schedule scheduled.
   IntColumn get payScheduleId =>
       integer().nullable().references(PaySchedules, #id)();
+
+  /// A bill a category's plan scheduled (rule 27), by the category.
+  IntColumn get planCategoryId =>
+      integer().nullable().references(Accounts, #id)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
@@ -166,20 +171,42 @@ class CategoryPlans extends Table {
   IntColumn get categoryId => integer().references(Accounts, #id)();
   TextColumn get kind => textEnum<PlanKind>()();
 
-  /// Each period's amount, the bill, or the goal, by [kind].
+  /// Each period's amount, or the amount wanted by the date, by [kind].
   IntColumn get amountMinor => integer()();
 
   /// Calendar date as `YYYY-MM-DD`: the day the plan was made.
   TextColumn get start => text()();
 
-  /// A bill's first due date, or the day a goal is to be reached by.
+  /// The date, or the first of them when it repeats.
   TextColumn get due => text().nullable()();
 
-  /// A bill that comes again every this many months; null for once.
+  /// It comes again every this many months; null unless by months.
   IntColumn get everyMonths => integer().nullable()();
 
-  /// Spend through the period: what's left stays in the category.
+  /// Every this many days (7 a week); null unless by days (v15).
+  IntColumn get everyDays => integer().nullable()();
+
+  /// On these dates each year, `MM-DD,MM-DD`; null unless so (v15).
+  TextColumn get onDates => text().nullable()();
+
+  /// Every payday of this schedule, [daysAfterPay] days after (v15).
+  IntColumn get payScheduleId =>
+      integer().nullable().references(PaySchedules, #id)();
+  IntColumn get daysAfterPay => integer().withDefault(const Constant(0))();
+
+  /// A date on a weekend: before, after or keep (v15).
+  TextColumn get weekend =>
+      textEnum<PayWeekend>().withDefault(const Constant('keep'))();
+
+  /// Each period: what's left stays in the category.
   BoolColumn get rollover => boolean().withDefault(const Constant(true))();
+
+  /// Each period, carrying over: stop asking once it holds this much.
+  IntColumn get upToMinor => integer().nullable()();
+
+  /// The account a dated plan's bill is paid from: it's kept scheduled
+  /// there.
+  IntColumn get paidFromId => integer().nullable().references(Accounts, #id)();
 
   @override
   Set<Column> get primaryKey => {categoryId};
@@ -571,6 +598,14 @@ String fileStamp(DateTime n) {
   return '${n.year}${two(n.month)}${two(n.day)}-${two(n.hour)}${two(n.minute)}${two(n.second)}';
 }
 
+/// A plan change, for undo (rule 27): the plan before, the scheduled
+/// bills it took away, and the ones it made.
+typedef PlanChange = ({
+  CategoryPlan? before,
+  List<int> removed,
+  List<int> made,
+});
+
 @DriftDatabase(
   tables: [
     Accounts,
@@ -618,7 +653,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -721,6 +756,29 @@ class AppDatabase extends _$AppDatabase {
         if (from < 13) {
           await _oneIncome();
           await incomeCategory();
+        }
+        if (from < 14) {
+          // Two kinds of plan instead of four (rule 27): "save up" is
+          // each period, carrying over; a goal is an amount by a date,
+          // once. SQLite reads the old row in every SET.
+          await _addColumnOnce(m, categoryPlans, categoryPlans.upToMinor);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.paidFromId);
+          await _addColumnOnce(m, transactions, transactions.planCategoryId);
+          await customStatement(
+            "UPDATE category_plans SET kind = CASE WHEN kind IN ('spend', "
+            "'saveUp') THEN 'each' ELSE 'byDate' END, rollover = CASE WHEN "
+            "kind = 'saveUp' THEN 1 ELSE rollover END WHERE kind IN "
+            "('spend', 'saveUp', 'dueOn', 'goal')",
+          );
+        }
+        if (from < 15) {
+          // How often a dated plan comes: by days, on fixed dates, every
+          // payday, and a weekend rule, beside by months (rule 27).
+          await _addColumnOnce(m, categoryPlans, categoryPlans.everyDays);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.onDates);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.payScheduleId);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.daysAfterPay);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.weekend);
         }
       });
     },
@@ -1020,6 +1078,7 @@ class AppDatabase extends _$AppDatabase {
             memo: t.memo,
             scheduled: t.scheduled,
             payScheduleId: t.payScheduleId,
+            planCategoryId: t.planCategoryId,
             entries: byTxn[t.id] ?? const [],
           ),
       ],
@@ -1075,6 +1134,7 @@ class AppDatabase extends _$AppDatabase {
     String? memo,
     bool scheduled = false,
     int? payScheduleId,
+    int? planCategoryId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
   }) {
     return transaction(() async {
@@ -1087,6 +1147,7 @@ class AppDatabase extends _$AppDatabase {
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
           scheduled: Value(scheduled),
           payScheduleId: Value(payScheduleId),
+          planCategoryId: Value(planCategoryId),
           createdAt: now,
           updatedAt: now,
         ),
@@ -1998,31 +2059,276 @@ class AppDatabase extends _$AppDatabase {
   });
 
   /// Gives [categoryId] the plan [plan], or takes its plan away with null.
-  /// Returns the plan it had, so undo can put it back.
+  /// Returns the plan it had, so undo can put it back. The bills the old
+  /// plan had scheduled go with it unless the new one has the same bill
+  /// in the same account ([ensurePlanBills] schedules the new plan's);
+  /// confirmed ones stay. [changeCategoryPlan] does the same and keeps
+  /// what it took away and made, for an exact undo.
   Future<CategoryPlan?> setCategoryPlan(int categoryId, CategoryPlan? plan) =>
+      transaction(() async => (await _changePlan(categoryId, plan)).before);
+
+  /// [setCategoryPlan], then the new plan's next bill scheduled, with
+  /// what it took away and made kept for [undoPlanChange] and
+  /// [redoPlanChange].
+  Future<PlanChange> changeCategoryPlan(
+    int categoryId,
+    CategoryPlan? plan,
+    DateTime today,
+  ) => transaction(() async {
+    final c = await _changePlan(categoryId, plan);
+    final made = await ensurePlanBills(today, only: categoryId);
+    return (before: c.before, removed: c.removed, made: made);
+  });
+
+  /// Puts back the plan [change] replaced, and the very bills it took
+  /// away (with whatever the user had typed on them), and takes away the
+  /// ones it made.
+  Future<void> undoPlanChange(int categoryId, PlanChange change) =>
       transaction(() async {
-        await _assertOwnCategory(categoryId);
-        final old = await (select(
-          categoryPlans,
-        )..where((p) => p.categoryId.equals(categoryId))).getSingleOrNull();
-        await (delete(
-          categoryPlans,
-        )..where((p) => p.categoryId.equals(categoryId))).go();
-        if (plan != null) {
-          await into(categoryPlans).insert(
-            CategoryPlansCompanion.insert(
-              categoryId: Value(categoryId),
-              kind: plan.kind,
-              amountMinor: plan.amount,
-              start: dateKey(dateOnly(plan.start)),
-              due: Value(plan.due == null ? null : dateKey(plan.due!)),
-              everyMonths: Value(plan.everyMonths),
-              rollover: Value(plan.rollover),
-            ),
-          );
-        }
-        return old == null ? null : _plan(old);
+        await _dropPlanBills(change.made);
+        await _writePlan(categoryId, change.before);
+        await bringBackPlanBills(change.removed, categoryId);
       });
+
+  /// [changeCategoryPlan] again, with the same bills as the first time.
+  Future<void> redoPlanChange(
+    int categoryId,
+    CategoryPlan? plan,
+    PlanChange change,
+  ) => transaction(() async {
+    await _dropPlanBills(change.removed);
+    await _writePlan(categoryId, plan);
+    await bringBackPlanBills(change.made, categoryId);
+  });
+
+  Future<({CategoryPlan? before, List<int> removed})> _changePlan(
+    int categoryId,
+    CategoryPlan? plan,
+  ) async {
+    await _assertOwnCategory(categoryId);
+    final old = await (select(
+      categoryPlans,
+    )..where((p) => p.categoryId.equals(categoryId))).getSingleOrNull();
+    final before = old == null ? null : _plan(old);
+    var removed = const <int>[];
+    if (before != null && !_sameBills(before, plan)) {
+      removed = await _comingPlanBills(categoryId);
+      await _dropPlanBills(removed);
+    }
+    await _writePlan(categoryId, plan);
+    return (before: before, removed: removed);
+  }
+
+  Future<void> _writePlan(int categoryId, CategoryPlan? plan) async {
+    await (delete(
+      categoryPlans,
+    )..where((p) => p.categoryId.equals(categoryId))).go();
+    if (plan != null) {
+      await into(categoryPlans).insert(
+        CategoryPlansCompanion.insert(
+          categoryId: Value(categoryId),
+          kind: plan.kind,
+          amountMinor: plan.amount,
+          start: dateKey(dateOnly(plan.start)),
+          due: Value(plan.due == null ? null : dateKey(plan.due!)),
+          everyMonths: Value(plan.everyMonths),
+          everyDays: Value(plan.everyDays),
+          onDates: Value(
+            plan.onDates == null
+                ? null
+                : [
+                    for (final (m, d) in plan.onDates!)
+                      '${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}',
+                  ].join(','),
+          ),
+          payScheduleId: Value(plan.payScheduleId),
+          daysAfterPay: Value(plan.daysAfterPay),
+          weekend: Value(plan.weekend),
+          rollover: Value(plan.rollover),
+          upToMinor: Value(plan.upTo),
+          paidFromId: Value(plan.paidFrom),
+        ),
+      );
+    }
+  }
+
+  /// A pay schedule that's still going, for a plan that follows its
+  /// paydays; null once it's stopped, when the plan's first date stands
+  /// alone.
+  Future<PaySchedule?> _livePaySchedule(int id) async {
+    final row = await (select(
+      paySchedules,
+    )..where((p) => p.id.equals(id) & p.deletedAt.isNull())).getSingleOrNull();
+    return row == null ? null : _schedule(row);
+  }
+
+  /// Two plans schedule the same bills: dated, the same amount on the
+  /// same dates, paid from the same account.
+  static bool _sameBills(CategoryPlan a, CategoryPlan? b) =>
+      b != null &&
+      a.kind == PlanKind.byDate &&
+      b.kind == PlanKind.byDate &&
+      a.amount == b.amount &&
+      a.sameRepeat(b) &&
+      a.paidFrom == b.paidFrom;
+
+  /// The category's bills still scheduled.
+  Future<List<int>> _comingPlanBills(int categoryId) =>
+      (selectOnly(transactions)
+            ..addColumns([transactions.id])
+            ..where(
+              transactions.planCategoryId.equals(categoryId) &
+                  transactions.scheduled.equals(true) &
+                  transactions.deletedAt.isNull(),
+            ))
+          .map((r) => r.read(transactions.id)!)
+          .get();
+
+  /// Bills the app takes away itself (a changed plan, an undo) are
+  /// unlinked as well as deleted, like [dropPaydays]: only a bill the
+  /// user deleted stays linked, which is how a skipped bill stays skipped.
+  Future<void> dropPlanBills(List<int> ids) =>
+      transaction(() => _dropPlanBills(ids));
+
+  Future<void> _dropPlanBills(List<int> ids) async {
+    if (ids.isEmpty) return;
+    await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+      TransactionsCompanion(
+        deletedAt: Value(_now),
+        planCategoryId: const Value(null),
+      ),
+    );
+  }
+
+  /// Undo for [dropPlanBills]: back, and linked to [categoryId] again.
+  Future<void> bringBackPlanBills(List<int> ids, int categoryId) =>
+      transaction(() async {
+        if (ids.isEmpty) return;
+        await (update(transactions)..where((t) => t.id.isIn(ids))).write(
+          TransactionsCompanion(
+            deletedAt: const Value(null),
+            planCategoryId: Value(categoryId),
+          ),
+        );
+      });
+
+  /// Keeps each dated plan's next bill scheduled in the account it's paid
+  /// from (rule 27), the way [ensurePaydays] keeps paydays: a plan with
+  /// nothing waiting from [today] on gets the bill after its latest
+  /// planned one (confirmed early or late, it counts as the bill it was
+  /// for; deleted by the user, it's skipped and doesn't come back). An
+  /// amount wanted once is scheduled once. Returns what it scheduled,
+  /// for undo.
+  Future<List<int>> ensurePlanBills(
+    DateTime today, {
+    int? only,
+  }) => transaction(() async {
+    final created = <int>[];
+    final t = dateOnly(today);
+    final todayKey = dateKey(t);
+    final rows =
+        await (select(categoryPlans)..where(
+              (p) =>
+                  p.paidFromId.isNotNull() &
+                  (only == null
+                      ? const Constant(true)
+                      : p.categoryId.equals(only)),
+            ))
+            .get();
+    for (final row in rows) {
+      final plan = _plan(row);
+      final paidFrom = plan.paidFrom;
+      if (plan.kind != PlanKind.byDate ||
+          paidFrom == null ||
+          (plan.due == null && plan.payScheduleId == null)) {
+        continue;
+      }
+      // Payday by payday: its schedule, while that's still going.
+      final pay = plan.payScheduleId == null
+          ? null
+          : await _livePaySchedule(plan.payScheduleId!);
+      final first = Budget.dueAfter(plan, 0, pay: pay);
+      final repeats = plan.repeats;
+      final category = await (select(
+        accounts,
+      )..where((a) => a.id.equals(plan.categoryId))).getSingle();
+      final account = await (select(
+        accounts,
+      )..where((a) => a.id.equals(paidFrom))).getSingle();
+      // Nothing lands in an account or category that's gone or put away.
+      if (category.deletedAt != null ||
+          account.deletedAt != null ||
+          category.archivedAt != null ||
+          account.archivedAt != null) {
+        continue;
+      }
+      // The plan's own rows: from the day it was made (a changed
+      // amount or date is a new plan, and the old one's confirmed
+      // bills aren't its).
+      final linked =
+          await (select(transactions)..where(
+                (x) =>
+                    x.planCategoryId.equals(plan.categoryId) &
+                    x.date.isBiggerOrEqualValue(dateKey(dateOnly(plan.start))),
+              ))
+              .get();
+      if (linked.any(
+        (x) =>
+            x.deletedAt == null &&
+            x.scheduled &&
+            x.date.compareTo(todayKey) >= 0,
+      )) {
+        continue;
+      }
+      // Once: scheduled once, whatever became of it.
+      if (!repeats && linked.isNotEmpty) continue;
+      // The bill each row was for: a scheduled one's date, else the
+      // bill date nearest the day it was confirmed.
+      DateTime? latest;
+      for (final x in linked) {
+        final d = parseDateKey(x.date);
+        final bill = x.scheduled ? d : Budget.billDate(plan, d, pay: pay);
+        if (bill != null && (latest == null || bill.isAfter(latest))) {
+          latest = bill;
+        }
+      }
+      final yesterday = DateTime(t.year, t.month, t.day - 1);
+      final from = latest == null || latest.isBefore(yesterday)
+          ? yesterday
+          : latest;
+      final DateTime date;
+      if (!repeats) {
+        if (!first.isAfter(from)) continue;
+        date = first;
+      } else {
+        var n = 0;
+        while (!Budget.dueAfter(plan, n, pay: pay).isAfter(from) && n < 5200) {
+          n++;
+        }
+        date = Budget.dueAfter(plan, n, pay: pay);
+      }
+      created.add(
+        await postTransaction(
+          date: date,
+          scheduled: true,
+          planCategoryId: plan.categoryId,
+          lines: [
+            (
+              accountId: paidFrom,
+              amount: -plan.amount,
+              cleared: Cleared.uncleared,
+            ),
+            (
+              accountId: plan.categoryId,
+              amount: plan.amount,
+              cleared: Cleared.uncleared,
+            ),
+          ],
+        ),
+      );
+    }
+    return created;
+  });
 
   /// Puts [categoryId] in [currency], using every account in it but
   /// [off]. A change of currency takes back what was assigned to it and
@@ -2113,7 +2419,19 @@ class AppDatabase extends _$AppDatabase {
     start: parseDateKey(p.start),
     due: p.due == null ? null : parseDateKey(p.due!),
     everyMonths: p.everyMonths,
+    everyDays: p.everyDays,
+    onDates: p.onDates == null || p.onDates!.isEmpty
+        ? null
+        : [
+            for (final piece in p.onDates!.split(','))
+              (int.parse(piece.split('-')[0]), int.parse(piece.split('-')[1])),
+          ],
+    payScheduleId: p.payScheduleId,
+    daysAfterPay: p.daysAfterPay,
+    weekend: p.weekend,
     rollover: p.rollover,
+    upTo: p.upToMinor,
+    paidFrom: p.paidFromId,
   );
 
   Expression<bool> _dateIn(

@@ -54,15 +54,13 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
       in the browser. The app never checks on its own.
 
 ### C. Budget page, polished (owner item 2)
-Budget types, as understood (owner, correct me):
-- **Spend through the month** (groceries): money goes in each period and is spent down.
-  Choose whether what's left rolls over.
-- **Save up, spend any time** (Christmas, car repairs): a set amount goes in each
-  period, and the balance builds and can be spent whenever needed.
-- **Due on a date** (annual insurance, quarterly СӨХ or taxes): the bill amount divided
-  into equal parts up to the due date, with "on track / ₮X short" shown.
-- **Goal** (₮X by a date): the amount needed each period is worked out from what's left
-  and the time left. Linked to Savings (D).
+Budget types (owner, 2026-10-03, two instead of four; ADR 0004 rule 27):
+- **Any time** (groceries, car repairs): a set amount each period. What's left carries
+  over or goes back; carrying over, an optional cap ("up to ₮X") stops the asking.
+- **On a date** (water, annual insurance, quarterly СӨХ, a certificate every three
+  years, a birthday): an amount by a date, once or repeating, split over the periods
+  left; a missed part spreads over the rest. Paid from an account, the bill is kept
+  scheduled there so the forecast counts it. Goals in Savings (D) are these.
 
 Work:
 - [x] Sketch the Budget page (envelopes, decided): Put in · Spent · Left a line,
@@ -70,10 +68,13 @@ Work:
 - [x] Budget amounts per category per period (month or pay period, set in Settings)
 - [x] Rollover, including what happens after overspending: sketched as options
       (carries as minus, rule 26)
-- [x] The four budget types above: a plan per category, a note under its name, and
-      "Assign what's planned" (ADR 0004 rule 27, schema v11)
-- [x] Bills due less often than monthly: a Due on a date plan that repeats every
-      1, 2, 3, 4 or 6 months, every year or two (rule 27)
+- [x] Plans: a plan per category, a note under its name, and "Assign what's planned"
+      (ADR 0004 rule 27, schema v11); the four types became the two above, with the
+      cap, the spread of a missed part, repeats up to every three years, and Paid from
+      scheduling the bill in its account (2026-10-03, schema v14)
+- [x] Bills due less often than monthly, or oftener: How often is Once, the presets,
+      Every payday, Every N days/weeks/months/years, or On these dates each year,
+      with a weekend rule (rule 27, schema v15)
 - [x] A category's rows, opened from Budget, show that period (STATUS open question 4)
 - [x] Money not yet budgeted, shown plainly
 - [ ] Move money between categories ("Money can be moved in from another

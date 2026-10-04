@@ -1045,6 +1045,9 @@ class _CategoryRowState extends State<_CategoryRow> {
                           Text(
                             before,
                             key: ValueKey('from-before-${c.id}'),
+                            // Wrapped, it stays against the right edge
+                            // instead of running into Spent.
+                            textAlign: TextAlign.end,
                             style: onest(11.5, color: Mid.ink3, tabular: true),
                           ),
                       ],
@@ -1572,7 +1575,7 @@ class _StartOffer extends StatelessWidget {
 }
 
 /// What a plan says under its category's name: the plan, then whether a
-/// bill or goal has what it should ("on track", or "₮200,000 short" in
+/// dated one has what it should ("on track", or "₮200,000 short" in
 /// gold).
 typedef _PlanNote = ({String text, String? state, bool behind});
 
@@ -1584,54 +1587,56 @@ _PlanNote _planNote(
   Currency currency,
 ) {
   final p = line.plan!;
+  final byPay = period.label == payPeriodLabel;
   String money(int v) => formatShort(v, currency: currency);
-  String each(int v) => period.label == payPeriodLabel
-      ? t.planEachPay(money(v))
-      : t.planEachMonth(money(v));
-  // This year's dates need no year; a goal for 2028 does.
+  // In the last period before a date, the part is the rest: "this month".
+  String each(int v) => p.lastPeriod
+      ? (byPay ? t.planThisPay(money(v)) : t.planThisMonth(money(v)))
+      : (byPay ? t.planEachPay(money(v)) : t.planEachMonth(money(v)));
+  // This year's dates need no year; a date in 2028 does.
   String date(DateTime d) =>
       d.year == today.year ? sayDate(t, d) : sayFullDate(t, d);
   final due = p.due ?? p.plan.due ?? p.plan.start;
-  final goal = p.plan.kind == PlanKind.goal;
+  final once = p.plan.kind == PlanKind.byDate && !p.plan.repeats;
   // What went back is said once the period it went back in has begun;
   // looking ahead, it hasn't happened yet.
   final wentBack = p.wentBack > 0 && !period.start.isAfter(today);
-  // A bill or goal names its part only while it wants one.
-  final wants = p.each > 0 && p.planned > 0 && !(goal && p.done);
+  // A dated plan names its part only while it wants one.
+  final wants = p.each > 0 && p.planned > 0 && !(once && p.done);
+  final cap = p.plan.rollover ? p.plan.upTo : null;
   final parts = switch (p.plan.kind) {
-    PlanKind.spend => [
-      each(p.each),
+    PlanKind.each => [
+      // Holding its cap, the line says so in place of the amount.
+      if (cap != null && p.done)
+        t.planSetAsideAmount(money(cap))
+      else
+        each(p.each),
+      if (cap != null && !p.done) t.planUpTo(money(cap)),
       if (wentBack)
-        period.label == payPeriodLabel
+        byPay
             ? t.planWentBackPay(money(p.wentBack))
             : t.planWentBack(money(p.wentBack))
       else if (!p.plan.rollover)
         t.planNoCarry,
     ],
-    PlanKind.saveUp => [each(p.each), t.planSavingUp],
-    PlanKind.dueOn => [
-      p.done
-          ? t.planWasDue(money(p.plan.amount), date(due))
-          : t.planDue(money(p.plan.amount), date(due)),
-      if (wants) each(p.each),
-    ],
-    PlanKind.goal => [
-      t.planBy(money(p.plan.amount), date(due)),
+    PlanKind.byDate => [
+      if (!once)
+        t.planDue(money(p.plan.amount), date(due))
+      else if (p.done && due.isBefore(period.start))
+        t.planWasDue(money(p.plan.amount), date(due))
+      else
+        t.planBy(money(p.plan.amount), date(due)),
       if (wants) each(p.each),
     ],
   };
   final String? state;
   if (line.short > 0) {
     state = t.planShort(money(line.short));
-  } else if (goal && p.done) {
-    state = t.planReached;
-  } else if (p.plan.kind == PlanKind.spend ||
-      p.plan.kind == PlanKind.saveUp ||
-      p.waiting ||
-      p.done) {
+  } else if (once && p.done) {
+    state = t.planSetAsideState;
+  } else if (p.plan.kind == PlanKind.each || p.waiting || p.done) {
     state = null;
-  } else if (line.toAssign == 0 && p.held) {
-    // Assigned, and still there: not spent on something else since.
+  } else if (line.toAssign == 0) {
     state = t.planOnTrack;
   } else {
     state = null;
@@ -2039,23 +2044,36 @@ class _CategoryEditor extends StatefulWidget {
 }
 
 class _CategoryEditorState extends State<_CategoryEditor> {
-  /// The gaps between bills offered, in months.
-  static const _repeats = [1, 2, 3, 4, 6, 12, 24];
-
   late final _name = TextEditingController(text: widget.category.name);
   late final _amount = TextEditingController();
   late final _date = TextEditingController();
+  late final _upTo = TextEditingController();
+  late final _everyN = TextEditingController(text: '1');
+  late final _dates = TextEditingController();
+  late final _daysAfter = TextEditingController();
   final _nameFocus = FocusNode(debugLabel: 'category-name');
   final _amountFocus = FocusNode(debugLabel: 'plan-amount');
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
+  final _upToFocus = FocusNode(debugLabel: 'plan-up-to');
+  final _datesFocus = FocusNode(debugLabel: 'plan-dates');
   final _repeatMenu = MenuController();
+  final _unitMenu = MenuController();
+  final _weekendMenu = MenuController();
+  final _paidFromMenu = MenuController();
   final _accountsMenu = MenuController();
   final _currencyMenu = MenuController();
 
   /// Closes a dropdown that's open in the panel: Esc and Enter are its
   /// own before they're the panel's.
   bool _closeMenu() {
-    for (final m in [_repeatMenu, _accountsMenu, _currencyMenu]) {
+    for (final m in [
+      _repeatMenu,
+      _unitMenu,
+      _weekendMenu,
+      _paidFromMenu,
+      _accountsMenu,
+      _currencyMenu,
+    ]) {
       if (m.isOpen) {
         m.close();
         return true;
@@ -2071,10 +2089,22 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   late Currency _currency = widget.category.currency;
   late Set<int> _off = {..._savedOff};
 
-  /// The plan's kind; null for a category with no plan.
-  PlanKind? _kind;
-  int? _every;
+  /// The one question: is there a due date? No: a set amount each period
+  /// (or none, with the amount left empty). Yes: an amount by a date.
+  bool _hasDate = false;
+
+  /// How often it comes, as the question is asked: once, every so many
+  /// days, weeks, months or years, on fixed dates each year, or every
+  /// payday. [_custom] shows the number and unit for "Every…".
+  _Repeat _repeat = _Repeat.once;
+  bool _custom = false;
+  _Unit _unit = _Unit.months;
+  int? _payScheduleId;
+  PayWeekend _weekend = PayWeekend.keep;
   bool _rollover = true;
+
+  /// The account a dated plan's bill is paid from; null for none.
+  int? _paidFrom;
 
   /// Save was tried with something missing: say which.
   bool _tried = false;
@@ -2099,7 +2129,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   void initState() {
     super.initState();
     _showPlan(_savedPlan);
-    final atPlan = widget.atPlan && _kind != null;
+    final atPlan = widget.atPlan && _savedPlan != null;
     final first = atPlan ? _amount : _name;
     first.selection = TextSelection(
       baseOffset: 0,
@@ -2110,7 +2140,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) (atPlan ? _amountFocus : _nameFocus).requestFocus();
     });
-    for (final f in [_nameFocus, _amountFocus, _dateFocus]) {
+    for (final f in [
+      _nameFocus,
+      _amountFocus,
+      _dateFocus,
+      _upToFocus,
+      _datesFocus,
+    ]) {
       f.addListener(_keepKeys);
     }
   }
@@ -2151,9 +2187,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _name.dispose();
     _amount.dispose();
     _date.dispose();
+    _upTo.dispose();
+    _everyN.dispose();
+    _dates.dispose();
+    _daysAfter.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
     _dateFocus.dispose();
+    _upToFocus.dispose();
+    _datesFocus.dispose();
     _panelFocus.dispose();
     super.dispose();
   }
@@ -2162,25 +2204,47 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   /// Fills the plan's fields from [p], or empties them.
   void _showPlan(CategoryPlan? p) {
-    _kind = p?.kind;
+    _hasDate = p?.kind == PlanKind.byDate;
     _amount.text = _amountText(p?.amount ?? 0);
     _date.text = p?.due == null ? '' : fullDate(p!.due!);
-    _every = p?.everyMonths;
+    _custom = false;
+    _weekend = p?.weekend ?? PayWeekend.keep;
+    _payScheduleId = p?.payScheduleId;
+    final after = p?.daysAfterPay ?? 0;
+    _daysAfter.text = after == 0 ? '' : '$after';
+    _dates.text = p?.onDates == null
+        ? ''
+        : [for (final (m, d) in p!.onDates!) _monthDay(m, d)].join(', ');
+    var n = 1;
+    if (p?.payScheduleId != null) {
+      _repeat = _Repeat.payday;
+    } else if (p?.onDates != null) {
+      _repeat = _Repeat.dates;
+    } else if (p?.everyDays case final days?) {
+      _repeat = _Repeat.every;
+      _unit = days % 7 == 0 ? _Unit.weeks : _Unit.days;
+      n = days % 7 == 0 ? days ~/ 7 : days;
+      _custom = days != 7 && days != 14;
+    } else if (p?.everyMonths case final months?) {
+      _repeat = _Repeat.every;
+      _unit = months % 12 == 0 ? _Unit.years : _Unit.months;
+      n = months % 12 == 0 ? months ~/ 12 : months;
+      _custom = months != 1 && months != 3 && months != 12;
+    } else {
+      _repeat = _Repeat.once;
+      _unit = _Unit.months;
+    }
+    _everyN.text = '$n';
     _rollover = p?.rollover ?? true;
+    _upTo.text = _amountText(p?.upTo ?? 0);
+    _paidFrom = p?.paidFrom;
   }
 
-  void _pickKind(PlanKind? kind) {
+  void _pickDated(bool yes) {
     setState(() {
-      _kind = kind;
+      _hasDate = yes;
       _tried = false;
-      // A new plan starts from what's assigned this period.
-      if (kind != null &&
-          _amount.text.isEmpty &&
-          _currency == widget.category.currency) {
-        _amount.text = _amountText(widget.assigned);
-      }
     });
-    if (kind == null) return;
     _amount.selection = TextSelection(
       baseOffset: 0,
       extentOffset: _amount.text.length,
@@ -2190,13 +2254,30 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     });
   }
 
-  bool get _dated => _kind == PlanKind.dueOn || _kind == PlanKind.goal;
+  bool get _dated => _hasDate;
+
+  /// The plan the answers add up to: dated, a set amount, or none when
+  /// the amount is left empty.
+  PlanKind? get _kindNow => _hasDate
+      ? PlanKind.byDate
+      : _amount.text.trim().isEmpty
+      ? null
+      : PlanKind.each;
 
   int? get _typedAmount =>
       switch (parseAmount(_amount.text.trim(), _currency)) {
         final a? when a > 0 => a,
         _ => null,
       };
+
+  /// The cap, when one is typed; empty is no cap.
+  int? get _typedUpTo => switch (parseAmount(_upTo.text.trim(), _currency)) {
+    final a? when a > 0 => a,
+    _ => null,
+  };
+
+  /// Something is in the cap's field that isn't an amount.
+  bool get _wrongUpTo => _upTo.text.trim().isNotEmpty && _typedUpTo == null;
 
   /// A bill or goal is ahead: `03.15` typed in October is next March's,
   /// and a bill that repeats is its next time round (`10.10` typed on
@@ -2208,47 +2289,149 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     if (d == null || d.year > widget.today.year + 100) return null;
     final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
     if (pieces.length > 2 || !d.isBefore(widget.today)) return d;
-    final every = _kind == PlanKind.dueOn ? _every : null;
-    if (every == null) return DateTime(d.year + 1, d.month, d.day);
+    final months = _dated ? _everyMonthsNow : null;
+    final days = _dated ? _everyDaysNow : null;
+    if (months == null && days == null) {
+      return DateTime(d.year + 1, d.month, d.day);
+    }
     final day = d.day;
     while (d!.isBefore(widget.today)) {
-      final last = DateTime(d.year, d.month + every + 1, 0).day;
-      d = DateTime(d.year, d.month + every, day < last ? day : last);
+      if (days != null) {
+        d = DateTime(d.year, d.month, d.day + days);
+      } else {
+        final last = DateTime(d.year, d.month + months! + 1, 0).day;
+        d = DateTime(d.year, d.month + months, day < last ? day : last);
+      }
     }
     return d;
   }
 
+  static String _monthDay(int m, int d) =>
+      '${m.toString().padLeft(2, '0')}.${d.toString().padLeft(2, '0')}';
+
+  /// The number typed after "Every"; null when it isn't one.
+  int? get _typedEveryN => switch (int.tryParse(_everyN.text.trim())) {
+    final n? when n > 0 && n < 1000 => n,
+    _ => null,
+  };
+
+  /// Every so many months, when that's how it repeats.
+  int? get _everyMonthsNow {
+    if (_repeat != _Repeat.every) return null;
+    final n = _typedEveryN;
+    return switch (_unit) {
+      _Unit.months => n,
+      _Unit.years => n == null ? null : n * 12,
+      _ => null,
+    };
+  }
+
+  /// Every so many days, when that's how it repeats.
+  int? get _everyDaysNow {
+    if (_repeat != _Repeat.every) return null;
+    final n = _typedEveryN;
+    return switch (_unit) {
+      _Unit.days => n,
+      _Unit.weeks => n == null ? null : n * 7,
+      _ => null,
+    };
+  }
+
+  /// The dates typed for "On these dates", as (month, day); null when
+  /// one of them isn't a date.
+  List<(int, int)>? get _typedDates {
+    final pieces = _dates.text
+        .split(RegExp(r'[,;\s]+'))
+        .where((x) => x.isNotEmpty)
+        .toList();
+    final out = <(int, int)>[];
+    for (final piece in pieces) {
+      final d = parseEntryDate(piece, widget.today);
+      if (d == null) return null;
+      out.add((d.month, d.day));
+    }
+    return out;
+  }
+
+  /// The first of the typed dates from today on.
+  DateTime? _firstOfDates(List<(int, int)> dates) {
+    DateTime? first;
+    for (final (m, d) in dates) {
+      var on = DateTime(widget.today.year, m, d);
+      if (on.isBefore(widget.today)) on = DateTime(widget.today.year + 1, m, d);
+      if (first == null || on.isBefore(first)) first = on;
+    }
+    return first;
+  }
+
+  int get _daysAfterNow => switch (int.tryParse(_daysAfter.text.trim())) {
+    final n? when n > 0 && n < 100 => n,
+    _ => 0,
+  };
+
   /// The plan as typed. Null with a kind picked means something is missing.
   CategoryPlan? get _draft {
-    final kind = _kind;
+    final kind = _kindNow;
     if (kind == null) return null;
     final amount = _typedAmount;
-    final due = _dated ? _typedDate : null;
-    if (amount == null || (_dated && due == null)) return null;
-    final every = kind == PlanKind.dueOn ? _every : null;
+    if (amount == null) return null;
     final old = _plan;
-    final rollover = kind != PlanKind.spend || _rollover;
-    // A bill's parts count from the day its plan was made, and a category
-    // that doesn't carry over is emptied from that day on: only a plan
-    // that's really the same keeps its day. One that already didn't
-    // carry over keeps it through a new amount.
-    final same =
-        old != null &&
-        old.kind == kind &&
-        (kind == PlanKind.spend
-            ? old.rollover == rollover && (!rollover || old.amount == amount)
-            : old.amount == amount &&
-                  old.due == due &&
-                  old.everyMonths == every);
-    return CategoryPlan(
+    final rollover = kind != PlanKind.each || _rollover;
+    if (kind == PlanKind.each && rollover && _wrongUpTo) return null;
+    final upTo = kind == PlanKind.each && rollover ? _typedUpTo : null;
+    // How it comes again, and from when.
+    DateTime? due;
+    List<(int, int)>? dates;
+    int? payId;
+    if (_dated) {
+      switch (_repeat) {
+        case _Repeat.payday:
+          payId = _payScheduleId;
+          if (payId == null) return null;
+        case _Repeat.dates:
+          dates = _typedDates;
+          if (dates == null || dates.isEmpty) return null;
+          due = _firstOfDates(dates);
+        case _Repeat.every:
+          if (_typedEveryN == null) return null;
+          due = _typedDate;
+          if (due == null) return null;
+        case _Repeat.once:
+          due = _typedDate;
+          if (due == null) return null;
+      }
+    }
+    CategoryPlan make(DateTime start) => CategoryPlan(
       categoryId: widget.category.id,
       kind: kind,
       amount: amount,
-      start: same ? old.start : widget.today,
+      start: start,
       due: due,
-      everyMonths: every,
+      everyMonths: _dated ? _everyMonthsNow : null,
+      everyDays: _dated ? _everyDaysNow : null,
+      onDates: dates,
+      payScheduleId: payId,
+      daysAfterPay: payId == null ? 0 : _daysAfterNow,
+      weekend: _dated && _repeat != _Repeat.once && payId == null
+          ? _weekend
+          : PayWeekend.keep,
       rollover: rollover,
+      upTo: upTo,
+      paidFrom: _dated ? _paidFrom : null,
     );
+    final fresh = make(widget.today);
+    // A dated plan's parts count from the day it was made, and a category
+    // that doesn't carry over is emptied from that day on: only a plan
+    // that's really the same keeps its day. One that already didn't
+    // carry over keeps it through a new amount; a cap or the account a
+    // bill is paid from changes nothing about the count.
+    final same =
+        old != null &&
+        old.kind == kind &&
+        (kind == PlanKind.each
+            ? old.rollover == rollover && (!rollover || old.amount == amount)
+            : old.amount == amount && old.sameRepeat(fresh));
+    return same ? make(old.start) : fresh;
   }
 
   void _save() {
@@ -2260,173 +2443,499 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       return;
     }
     final draft = _draft;
-    if (_kind != null && draft == null) {
+    if (_kindNow != null && draft == null) {
       setState(() => _tried = true);
-      (_typedAmount == null ? _amountFocus : _dateFocus).requestFocus();
+      (_typedAmount == null
+              ? _amountFocus
+              : !_dated
+              ? _upToFocus
+              : _repeat == _Repeat.dates
+              ? _datesFocus
+              : _dateFocus)
+          .requestFocus();
       return;
     }
     _done = true;
     widget.onSave((name: name, currency: _currency, off: _off, plan: draft));
   }
 
-  String _repeatLabel(Words t, int? months) => months == null
-      ? t.planRepeatNone
-      : months % 12 == 0
-      ? t.planRepeatYears(months ~/ 12)
-      : t.planRepeatMonths(months);
+  String _everyLabel(Words t, int n, _Unit unit) => switch (unit) {
+    _Unit.days => t.planRepeatDays(n),
+    _Unit.weeks => t.planRepeatWeeks(n),
+    _Unit.months => t.planRepeatMonths(n),
+    _Unit.years => t.planRepeatYears(n),
+  };
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(text, style: onest(12, color: Mid.ink2)),
-  );
+  String _unitLabel(Words t, _Unit unit) => switch (unit) {
+    _Unit.days => t.planUnitDays,
+    _Unit.weeks => t.planUnitWeeks,
+    _Unit.months => t.planUnitMonths,
+    _Unit.years => t.planUnitYears,
+  };
 
-  Widget _labeled(String label, Widget child) => Padding(
-    padding: const EdgeInsets.only(right: 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [_label(label), child],
+  String _weekendLabel(Words t, PayWeekend w) => switch (w) {
+    PayWeekend.keep => t.planWeekendKeep,
+    PayWeekend.before => t.planWeekendBefore,
+    PayWeekend.after => t.planWeekendAfter,
+  };
+
+  /// "Every payday", or which pay when there's more than one.
+  String _paydayLabel(Words t, PaySchedule s) {
+    if (widget.data.paySchedules.length < 2) return t.planEveryPayday;
+    final name = s.payee ?? widget.data.accounts[s.accountId]?.name ?? '';
+    return t.planEveryPaydayOf(name);
+  }
+
+  /// What the How often button says.
+  String _repeatLabel(Words t) => switch (_repeat) {
+    _Repeat.once => t.planOnce,
+    _Repeat.every => _everyLabel(t, _typedEveryN ?? 1, _unit),
+    _Repeat.dates => t.planDatesAYear(_typedDates?.length ?? 0),
+    _Repeat.payday => switch (widget.data.payScheduleById(_payScheduleId)) {
+      final s? => _paydayLabel(t, s),
+      null => t.planEveryPayday,
+    },
+  };
+
+  void _preset(int n, _Unit unit) => setState(() {
+    _repeat = _Repeat.every;
+    _custom = false;
+    _everyN.text = '$n';
+    _unit = unit;
+  });
+
+  /// A control that says what it is by its value (the currency, the
+  /// accounts): no label over it, the label as its tooltip.
+  Widget _quiet(String label, Widget child) => Padding(
+    padding: const EdgeInsets.only(left: 10),
+    child: Tooltip(
+      message: label,
+      waitDuration: const Duration(milliseconds: 600),
+      child: child,
     ),
   );
 
-  /// The plan: which type, then what that type needs.
-  List<Widget> _planFields(Words t, {required bool byPay}) {
-    final kind = _kind;
-    final wrongAmount = _tried && _typedAmount == null;
+  /// One line of the form: a label in its column, the control, and a
+  /// quiet note beside it when one is needed.
+  Widget _formRow(String label, Widget child, {String? aside}) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 214,
+          child: Text(label, style: onest(13, color: Mid.ink2)),
+        ),
+        child,
+        if (aside != null)
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Text(
+                aside,
+                style: onest(12.5, color: Mid.ink3),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  /// The plan as a short form: is there a due date, then what that
+  /// needs. [line] is the category worked out with the answers so far,
+  /// for the amount a dated plan comes to each period.
+  List<Widget> _planFields(
+    Words t, {
+    required bool byPay,
+    required EnvelopeLine? line,
+    required CategoryPlan? draft,
+  }) {
+    final wrongAmount = _tried && _kindNow != null && _typedAmount == null;
     final wrongDate = _tried && _dated && _typedDate == null;
+    final wrongUpTo = _tried && !_dated && _wrongUpTo;
+    final data = widget.data;
+    final paidAccount = data.accounts[_paidFrom];
+    final hasAmount = _amount.text.trim().isNotEmpty;
+    String money(int v) => formatShort(v, currency: _currency);
+    Widget amountField(
+      TextEditingController controller,
+      FocusNode focus, {
+      required String key,
+      required bool wrong,
+      bool autofocus = false,
+      String? hint,
+    }) => SizedBox(
+      width: 170,
+      height: 34,
+      child: TextField(
+        key: ValueKey(key),
+        controller: controller,
+        focusNode: focus,
+        autofocus: autofocus,
+        textAlign: TextAlign.right,
+        style: onest(13.5, tabular: true),
+        onSubmitted: (_) => _save(),
+        decoration: _fieldDecoration(wrong: wrong).copyWith(
+          prefixText: _currency.prefix,
+          prefixStyle: onest(13.5, color: Mid.ink3),
+          hintText: hint,
+          hintStyle: onest(13.5, color: Mid.ink3),
+        ),
+      ),
+    );
+    Widget menu(
+      MenuController controller, {
+      required String key,
+      required String label,
+      required List<Widget> items,
+    }) => SizedBox(
+      height: 34,
+      child: MenuAnchor(
+        controller: controller,
+        style: _menuStyle,
+        menuChildren: items,
+        // Its own width: in a row, an Align would take the whole line.
+        child: Align(
+          alignment: Alignment.centerLeft,
+          widthFactor: 1,
+          child: BarButton(
+            key: ValueKey(key),
+            label: label,
+            trailing: Icons.expand_more_rounded,
+            active: controller.isOpen,
+            onTap: () {
+              // The date's calendar shows while the date has the keys,
+              // and would sit over the rows below: a dropdown takes them.
+              if (_dateFocus.hasFocus) _panelFocus.requestFocus();
+              controller.isOpen ? controller.close() : controller.open();
+            },
+          ),
+        ),
+      ),
+    );
+    Widget item(
+      String key,
+      String label, {
+      required bool on,
+      required VoidCallback onTap,
+    }) => MenuItemButton(
+      key: ValueKey(key),
+      onPressed: onTap,
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(180, 34)),
+        overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+      ),
+      child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+    );
+    final eachLabel = byPay ? t.planSetAsidePay : t.planSetAsideMonth;
+    // What a dated plan comes to each period, worked out from the date.
+    final String part;
+    if (draft == null) {
+      part = t.planEnterAmountDate;
+    } else if ((line?.plan?.each ?? 0) > 0) {
+      part = t.planWorkedOut(money(line!.plan!.each));
+    } else {
+      part = t.planNothingMore;
+    }
+    final due = line?.plan?.due ?? _typedDate;
+    final dueText = due == null
+        ? null
+        : due.year == widget.today.year
+        ? sayDate(t, due)
+        : sayFullDate(t, due);
     return [
-      _label(t.planEditType),
-      Wrap(
-        runSpacing: 6,
-        children: [
-          for (final (k, label) in [
-            (null, t.planKindNone),
-            (PlanKind.spend, byPay ? t.planKindSpendPay : t.planKindSpendMonth),
-            (PlanKind.saveUp, t.planKindSaveUp),
-            (PlanKind.dueOn, t.planKindDueOn),
-            (PlanKind.goal, t.planKindGoal),
-          ])
-            _Choice(
-              key: ValueKey('plan-kind-${k?.name ?? 'none'}'),
-              label: label,
-              on: kind == k,
-              onTap: () => _pickKind(k),
+      _formRow(
+        t.planDueDateQ,
+        _Segmented(
+          items: [
+            ('plan-dated-no', t.planNo, !_hasDate, () => _pickDated(false)),
+            ('plan-dated-yes', t.planYes, _hasDate, () => _pickDated(true)),
+          ],
+        ),
+      ),
+      if (!_hasDate) ...[
+        _formRow(
+          eachLabel,
+          amountField(
+            _amount,
+            _amountFocus,
+            key: 'plan-amount',
+            wrong: wrongAmount,
+            autofocus: widget.atPlan,
+            hint: t.planNothingSet,
+          ),
+          aside: hasAmount
+              ? null
+              : byPay
+              ? t.planEmptyHintPay
+              : t.planEmptyHint,
+        ),
+        if (hasAmount) ...[
+          _formRow(
+            byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
+            _Segmented(
+              items: [
+                (
+                  'plan-carry-on',
+                  t.planStaysHere,
+                  _rollover,
+                  () => setState(() => _rollover = true),
+                ),
+                (
+                  'plan-carry-off',
+                  t.planGoesBack,
+                  !_rollover,
+                  () => setState(() => _rollover = false),
+                ),
+              ],
+            ),
+          ),
+          if (_rollover)
+            _formRow(
+              t.planStopAt,
+              amountField(
+                _upTo,
+                _upToFocus,
+                key: 'plan-up-to',
+                wrong: wrongUpTo,
+                hint: t.planNoLimit,
+              ),
+              aside: t.planStopAtHint,
             ),
         ],
-      ),
-      const SizedBox(height: 8),
-      Text(switch (kind) {
-        null => t.planHelpNone,
-        PlanKind.spend => byPay ? t.planHelpSpendPay : t.planHelpSpend,
-        PlanKind.saveUp => byPay ? t.planHelpSaveUpPay : t.planHelpSaveUp,
-        PlanKind.dueOn => t.planHelpDueOn,
-        PlanKind.goal => byPay ? t.planHelpGoalPay : t.planHelpGoal,
-      }, style: onest(12.5, color: Mid.ink2)),
-      if (kind != null) ...[
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _labeled(
-              switch (kind) {
-                PlanKind.dueOn => t.planLabelBill,
-                PlanKind.goal => t.planLabelGoal,
-                _ => byPay ? t.planLabelEachPay : t.planLabelEachMonth,
-              },
-              SizedBox(
-                width: 170,
-                height: 34,
-                child: TextField(
-                  key: const ValueKey('plan-amount'),
-                  controller: _amount,
-                  focusNode: _amountFocus,
-                  autofocus: widget.atPlan,
-                  textAlign: TextAlign.right,
-                  style: onest(13.5, tabular: true),
-                  onSubmitted: (_) => _save(),
-                  decoration: _fieldDecoration(wrong: wrongAmount).copyWith(
-                    prefixText: _currency.prefix,
-                    prefixStyle: onest(13.5, color: Mid.ink3),
+      ] else ...[
+        _formRow(
+          t.planAmountDue,
+          amountField(
+            _amount,
+            _amountFocus,
+            key: 'plan-amount',
+            wrong: wrongAmount,
+            autofocus: widget.atPlan,
+          ),
+        ),
+        _formRow(
+          t.planHowOften,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              menu(
+                _repeatMenu,
+                key: 'plan-repeat',
+                label: _repeatLabel(t),
+                items: [
+                  item(
+                    'plan-repeat-0',
+                    t.planOnce,
+                    on: _repeat == _Repeat.once,
+                    onTap: () => setState(() => _repeat = _Repeat.once),
                   ),
-                ),
-              ),
-            ),
-            if (_dated)
-              _labeled(
-                kind == PlanKind.goal ? t.planLabelBy : t.planLabelDue,
-                SizedBox(
-                  width: 130,
-                  height: 34,
-                  child: DateField(
-                    key: const ValueKey('plan-date'),
-                    controller: _date,
-                    focusNode: _dateFocus,
-                    today: widget.today,
-                    small: true,
-                    wanted: wrongDate,
-                    onSubmitted: _save,
-                    onPicked: () {},
+                  for (final (key, n, unit, label) in [
+                    ('plan-repeat-d7', 1, _Unit.weeks, t.planRepeatWeeks(1)),
+                    ('plan-repeat-d14', 2, _Unit.weeks, t.planRepeatWeeks(2)),
+                    ('plan-repeat-1', 1, _Unit.months, t.planRepeatMonths(1)),
+                    ('plan-repeat-3', 3, _Unit.months, t.planRepeatMonths(3)),
+                    ('plan-repeat-12', 1, _Unit.years, t.planRepeatYears(1)),
+                  ])
+                    item(
+                      key,
+                      label,
+                      on:
+                          _repeat == _Repeat.every &&
+                          !_custom &&
+                          _unit == unit &&
+                          _typedEveryN == n,
+                      onTap: () => _preset(n, unit),
+                    ),
+                  // Payday by payday: only with pay set up.
+                  for (final pay in data.paySchedules)
+                    item(
+                      'plan-repeat-pay-${pay.id}',
+                      _paydayLabel(t, pay),
+                      on: _repeat == _Repeat.payday && _payScheduleId == pay.id,
+                      onTap: () => setState(() {
+                        _repeat = _Repeat.payday;
+                        _payScheduleId = pay.id;
+                      }),
+                    ),
+                  item(
+                    'plan-repeat-custom',
+                    t.planEveryCustom,
+                    on: _repeat == _Repeat.every && _custom,
+                    onTap: () => setState(() {
+                      _repeat = _Repeat.every;
+                      _custom = true;
+                    }),
                   ),
-                ),
+                  item(
+                    'plan-repeat-dates',
+                    t.planOnDates,
+                    on: _repeat == _Repeat.dates,
+                    onTap: () => setState(() => _repeat = _Repeat.dates),
+                  ),
+                ],
               ),
-            if (kind == PlanKind.dueOn)
-              _labeled(
-                t.planLabelRepeats,
+              if (_repeat == _Repeat.every && _custom) ...[
+                const SizedBox(width: 10),
+                Text(t.planEveryWord, style: onest(13, color: Mid.ink2)),
+                const SizedBox(width: 8),
                 SizedBox(
+                  width: 56,
                   height: 34,
-                  child: MenuAnchor(
-                    controller: _repeatMenu,
-                    style: _menuStyle,
-                    menuChildren: [
-                      for (final months in [null, ..._repeats])
-                        MenuItemButton(
-                          key: ValueKey('plan-repeat-${months ?? 0}'),
-                          onPressed: () => setState(() => _every = months),
-                          style: ButtonStyle(
-                            minimumSize: const WidgetStatePropertyAll(
-                              Size(180, 34),
-                            ),
-                            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-                          ),
-                          child: Text(
-                            _repeatLabel(t, months),
-                            style: onest(
-                              13,
-                              color: months == _every ? Mid.ink : Mid.ink2,
-                            ),
-                          ),
-                        ),
-                    ],
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: BarButton(
-                        key: const ValueKey('plan-repeat'),
-                        label: _repeatLabel(t, _every),
-                        trailing: Icons.expand_more_rounded,
-                        active: _repeatMenu.isOpen,
-                        onTap: () => _repeatMenu.isOpen
-                            ? _repeatMenu.close()
-                            : _repeatMenu.open(),
-                      ),
+                  child: TextField(
+                    key: const ValueKey('plan-every-n'),
+                    controller: _everyN,
+                    textAlign: TextAlign.center,
+                    style: onest(13.5, tabular: true),
+                    onSubmitted: (_) => _save(),
+                    decoration: _fieldDecoration(
+                      wrong: _tried && _typedEveryN == null,
                     ),
                   ),
                 ),
-              ),
-            if (kind == PlanKind.spend) ...[
-              _Choice(
-                key: const ValueKey('plan-carry-on'),
-                label: t.planCarryOn,
-                on: _rollover,
-                onTap: () => setState(() => _rollover = true),
-              ),
-              _Choice(
-                key: const ValueKey('plan-carry-off'),
-                label: t.planCarryOff,
-                on: !_rollover,
-                onTap: () => setState(() => _rollover = false),
-              ),
+                const SizedBox(width: 8),
+                menu(
+                  _unitMenu,
+                  key: 'plan-every-unit',
+                  label: _unitLabel(t, _unit),
+                  items: [
+                    for (final u in _Unit.values)
+                      item(
+                        'plan-every-unit-${u.name}',
+                        _unitLabel(t, u),
+                        on: u == _unit,
+                        onTap: () => setState(() => _unit = u),
+                      ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
+        ),
+        if (_repeat == _Repeat.payday)
+          _formRow(
+            t.planLabelDueDate,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 34,
+                  child: TextField(
+                    key: const ValueKey('plan-days-after'),
+                    controller: _daysAfter,
+                    textAlign: TextAlign.center,
+                    style: onest(13.5, tabular: true),
+                    onSubmitted: (_) => _save(),
+                    decoration: _fieldDecoration(wrong: false).copyWith(
+                      hintText: '0',
+                      hintStyle: onest(13.5, color: Mid.ink3),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(t.planDaysAfterPay, style: onest(13, color: Mid.ink2)),
+              ],
+            ),
+            aside: _daysAfterNow == 0 ? t.planOnPayday : null,
+          )
+        else
+          _formRow(
+            _repeat == _Repeat.dates ? t.planDatesLabel : t.planLabelDueDate,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_repeat == _Repeat.dates)
+                  SizedBox(
+                    width: 300,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('plan-dates'),
+                      controller: _dates,
+                      focusNode: _datesFocus,
+                      style: onest(13.5, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      decoration:
+                          _fieldDecoration(
+                            wrong:
+                                _tried &&
+                                (_typedDates == null || _typedDates!.isEmpty),
+                          ).copyWith(
+                            hintText: t.planDatesHint,
+                            hintStyle: onest(13.5, color: Mid.ink3),
+                          ),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: 130,
+                    height: 34,
+                    child: DateField(
+                      key: const ValueKey('plan-date'),
+                      controller: _date,
+                      focusNode: _dateFocus,
+                      today: widget.today,
+                      small: true,
+                      // Beside, not under: under it are Paid from and Save.
+                      calendarBeside: true,
+                      wanted: wrongDate,
+                      onSubmitted: _save,
+                      onPicked: () {},
+                    ),
+                  ),
+                // A weekend rule, for dates that can land on one.
+                if (_repeat != _Repeat.once) ...[
+                  const SizedBox(width: 10),
+                  menu(
+                    _weekendMenu,
+                    key: 'plan-weekend',
+                    label: _weekendLabel(t, _weekend),
+                    items: [
+                      for (final w in PayWeekend.values)
+                        item(
+                          'plan-weekend-${w.name}',
+                          _weekendLabel(t, w),
+                          on: w == _weekend,
+                          onTap: () => setState(() => _weekend = w),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        _formRow(
+          t.planLabelPaidFrom,
+          menu(
+            _paidFromMenu,
+            key: 'plan-paid-from',
+            label: paidAccount?.name ?? t.planPaidFromNone,
+            items: [
+              for (final a in [null, ..._moneyAccounts(data, _currency)])
+                item(
+                  'plan-paid-from-${a?.id ?? 0}',
+                  a?.name ?? t.planPaidFromNone,
+                  on: a?.id == _paidFrom,
+                  onTap: () => setState(() => _paidFrom = a?.id),
+                ),
+            ],
+          ),
+          aside: paidAccount == null || dueText == null
+              ? t.planPaidFromHintNone
+              : t.planPaidFromHint(paidAccount.name, dueText),
+        ),
+        _formRow(
+          eachLabel,
+          Text(
+            part,
+            key: const ValueKey('plan-part'),
+            style: onest(
+              13.5,
+              color: draft == null ? Mid.ink3 : Mid.ink,
+              tabular: true,
+            ),
+          ),
         ),
       ],
     ];
@@ -2441,7 +2950,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       return const [];
     }
     return [
-      _labeled(
+      _quiet(
         t.planMoneyCurrency,
         SizedBox(
           height: 34,
@@ -2469,7 +2978,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   _amount.clear();
                 }
               });
-              if (_kind != null) _amountFocus.requestFocus();
+              if (_hasDate) _amountFocus.requestFocus();
             },
           ),
         ),
@@ -2481,7 +2990,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// they're checked and unchecked; the button says how many it uses.
   Widget _accountsChoice(Words t, List<AccountInfo> accounts) {
     final used = accounts.where((a) => !_off.contains(a.id)).toList();
-    return _labeled(
+    return _quiet(
       t.planMoneyAccounts,
       SizedBox(
         height: 34,
@@ -2566,24 +3075,36 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     String say(int v) => formatShort(v, currency: _currency);
 
     return ListenableBuilder(
-      listenable: Listenable.merge([_amount, _date]),
+      listenable: Listenable.merge([
+        _amount,
+        _date,
+        _upTo,
+        _everyN,
+        _dates,
+        _daysAfter,
+      ]),
       builder: (context, _) {
         final draft = _draft;
-        // What the line would say with this plan, before it's saved.
-        String? preview;
         // What went back in earlier periods returns to the category when
         // it carries over again: said before it's saved.
         String? returns;
-        // No plan, picked over a saved one, can bring money back too.
-        final plans = draft != null || (_kind == null && _savedPlan != null);
-        if (plans && _currency == c.currency) {
-          final after = Budget.of(
-            data.withPlan(c.id, draft),
+        // The category as the answers so far make it: the row drawn as
+        // it will read, and a dated plan's part.
+        EnvelopeLine? line;
+        _PlanNote? note;
+        if (_currency == c.currency) {
+          Budget of(LedgerData d) => Budget.of(
+            d,
             start: widget.period.start,
             end: widget.period.end,
             today: widget.today,
           );
-          final line = after.lines[c.id];
+          final now = of(data);
+          // No plan, picked over a saved one, can bring money back too.
+          final plans =
+              draft != null || (_kindNow == null && _savedPlan != null);
+          final after = plans ? of(data.withPlan(c.id, draft)) : now;
+          line = after.lines[c.id];
           // In the category's own currency.
           int free(Budget b) =>
               b.pools
@@ -2591,16 +3112,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   .firstOrNull
                   ?.notAssigned ??
               0;
-          final back =
-              free(
-                Budget.of(
-                  data,
-                  start: widget.period.start,
-                  end: widget.period.end,
-                  today: widget.today,
-                ),
-              ) -
-              free(after);
+          final back = plans ? free(now) - free(after) : 0;
           if (back > 0) {
             returns = t.planReturns(
               formatMoney(back, currency: _currency),
@@ -2608,17 +3120,19 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             );
           }
           if (line?.plan != null) {
-            final note = _planNote(
-              t,
-              line!,
-              widget.period,
-              widget.today,
-              _currency,
-            );
-            preview = note.state == null
-                ? note.text
-                : '${note.text} · ${note.state}';
+            note = _planNote(t, line!, widget.period, widget.today, _currency);
           }
+        }
+        final preview = note == null
+            ? null
+            : note.state == null
+            ? note.text
+            : '${note.text} · ${note.state}';
+        // An account put away schedules nothing: said, not silent.
+        String? paidArchived;
+        final paidAccount = _dated ? data.accounts[_paidFrom] : null;
+        if (paidAccount != null && paidAccount.archived) {
+          paidArchived = t.planPaidFromArchived(paidAccount.name);
         }
 
         final accounts = _moneyAccounts(data, _currency).toList();
@@ -2657,7 +3171,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // Opened low in the list, or grown by a choice, Save would be
         // under the window's edge.
         final shape = Object.hash(
-          _kind,
+          _hasDate,
+          _kindNow,
           accounts.length,
           preview != null,
           returns != null,
@@ -2703,61 +3218,175 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 820),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // The name is the heading; the currency and the
+                          // accounts sit quiet beside it, set once.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  _labeled(
-                                    t.planEditName,
-                                    SizedBox(
-                                      width: 220,
-                                      height: 34,
-                                      child: TextField(
-                                        key: const ValueKey('edit-name'),
-                                        controller: _name,
-                                        focusNode: _nameFocus,
-                                        autofocus:
-                                            !(widget.atPlan && _kind != null),
-                                        style: onest(13.5),
-                                        onSubmitted: (_) => _save(),
-                                        decoration: _fieldDecoration(
-                                          wrong:
+                              Expanded(
+                                child: Tooltip(
+                                  message: t.planEditName,
+                                  waitDuration: const Duration(
+                                    milliseconds: 600,
+                                  ),
+                                  child: TextField(
+                                    key: const ValueKey('edit-name'),
+                                    controller: _name,
+                                    focusNode: _nameFocus,
+                                    autofocus:
+                                        !(widget.atPlan && _savedPlan != null),
+                                    style: onest(19, weight: 700),
+                                    onSubmitted: (_) => _save(),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: t.planEditName,
+                                      hintStyle: onest(19, color: Mid.ink3),
+                                      contentPadding: const EdgeInsets.fromLTRB(
+                                        2,
+                                        6,
+                                        2,
+                                        6,
+                                      ),
+                                      enabledBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color:
                                               _tried &&
-                                              _name.text.trim().isEmpty,
+                                                  _name.text.trim().isEmpty
+                                              ? Mid.coral
+                                              : Mid.rule,
                                         ),
+                                      ),
+                                      focusedBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(color: Mid.blue),
                                       ),
                                     ),
                                   ),
-                                  ..._currencyChoice(t),
-                                  _accountsChoice(t, accounts),
-                                ],
+                                ),
                               ),
-                              const SizedBox(height: 14),
-                              ..._planFields(t, byPay: byPay),
+                              const SizedBox(width: 12),
+                              ..._currencyChoice(t),
+                              _accountsChoice(t, accounts),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    if (preview != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Text(
-                          preview,
-                          key: const ValueKey('plan-preview'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: onest(12.5, color: Mid.ink, tabular: true),
-                        ),
+                          const SizedBox(height: 22),
+                          ..._planFields(
+                            t,
+                            byPay: byPay,
+                            line: line,
+                            draft: draft,
+                          ),
+                          // The row, as it will read after Save.
+                          const SizedBox(height: 6),
+                          Text(
+                            t.planRowWillRead,
+                            style: onest(12, color: Mid.ink3),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Mid.panel,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _name.text.trim().isEmpty
+                                            ? c.name
+                                            : _name.text.trim(),
+                                        style: onest(13.5, weight: 600),
+                                      ),
+                                      if (preview != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 2,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  preview,
+                                                  key: const ValueKey(
+                                                    'plan-preview',
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: onest(
+                                                    12.5,
+                                                    color: note!.behind
+                                                        ? Mid.gold
+                                                        : Mid.ink2,
+                                                    tabular: true,
+                                                  ),
+                                                ),
+                                              ),
+                                              if ((line?.toAssign ?? 0) > 0)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        left: 10,
+                                                      ),
+                                                  child: Text(
+                                                    t.planAssignThis(
+                                                      formatShort(
+                                                        line!.toAssign,
+                                                        currency: _currency,
+                                                      ),
+                                                    ),
+                                                    style: onest(
+                                                      12.5,
+                                                      color: Mid.blue,
+                                                      tabular: true,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                for (final v in [
+                                  line?.assigned ?? widget.assigned,
+                                  line?.spent ?? 0,
+                                  line?.left ?? 0,
+                                ])
+                                  SizedBox(
+                                    width: 120,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Money(
+                                        v,
+                                        size: 13,
+                                        currency: _currency,
+                                        color: v == 0 ? Mid.ink3 : Mid.ink2,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
                     if (returns != null)
                       warning(returns, 'plan-returns', Mid.gold),
+                    if (paidArchived != null)
+                      warning(paidArchived, 'plan-paid-archived', Mid.gold),
                     if (rest != null) warning(rest, 'money-rest', Mid.ink2),
                     if (loses)
                       warning(
@@ -2826,3 +3455,60 @@ String _moneyChange(Words t, AccountInfo c, int assigned, bool hasPlan) {
       ? t.planMoneyChange(amount)
       : t.planMoneyChangeAmount(amount);
 }
+
+/// Two or three answers side by side in one outline, the chosen one
+/// washed blue: "No | Yes", "Stays here | Goes back to not assigned".
+class _Segmented extends StatelessWidget {
+  const _Segmented({required this.items});
+
+  /// Key, label, whether it's the one picked, and what picking it does.
+  final List<(String, String, bool, VoidCallback)> items;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 34,
+    decoration: BoxDecoration(
+      border: Border.all(color: Mid.rule),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (i, (key, label, on, onTap)) in items.indexed)
+          Hoverable(
+            key: ValueKey(key),
+            onTap: onTap,
+            builder: (hover) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on
+                    ? Mid.blueWash
+                    : hover
+                    ? Mid.raised
+                    : Colors.transparent,
+                border: i == 0
+                    ? null
+                    : Border(left: BorderSide(color: Mid.rule)),
+              ),
+              child: Text(
+                label,
+                style: onest(
+                  13,
+                  color: on ? Mid.blue : Mid.ink2,
+                  weight: on ? 600 : 400,
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// How a dated plan comes again, as the panel asks it.
+enum _Repeat { once, every, dates, payday }
+
+/// The unit after "Every": days, weeks, months or years.
+enum _Unit { days, weeks, months, years }

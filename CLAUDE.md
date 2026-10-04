@@ -61,7 +61,14 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   search key (it's ⌘F; ⌘K was copied from other apps), and "Say how much arrives in…"
   squeezed beside Add (why a row can't be saved goes in the popup at the bottom, worded
   like "Enter an amount", not like a child talking), and an Edit only Esc could close
-  (everything must work with just the mouse: a Cancel button, and a click away).
+  (everything must work with just the mouse: a Cancel button, and a click away), and
+  "Kind" for an account's type (the word is **Type**), and five plan types of which two
+  came to the same number (two now, behind one question: "Is there a due date?"), and
+  "Any time" as an answer to when money is spent (a non-answer: "it's going to be
+  spent some time"), and a category's Edit laid out as a row of fields ("all the
+  features shoved on a page": it's designed as one thing, the name as heading, a short
+  labelled form, the row drawn as it will read), and a wizard for making a category
+  (the one question is the panel's first line).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
@@ -128,6 +135,16 @@ the owner rather than fixing everything silently:
 2. **Budget app review** by the `budget-app-expert` agent
    (`.claude/agents/budget-app-expert.md`): does it hold up for someone actually
    managing money in Mongolia? It flags gaps without copying other apps' conventions.
+
+## Design committee, for how a screen is presented
+
+When the owner says a screen has the right features but the wrong presentation, run
+the four agents in `.claude/agents/` in parallel and fold their reports into two or
+three mockups with a recommendation (the Design artifact type draws them):
+`ui-designer` (layout), `ux-writer` (words), `interaction-designer` (flow, clicks,
+focus), `first-time-user` (someone in Ulaanbaatar who has never used a budget app,
+reading it literally). `budget-expert` is for how money is counted, not presentation.
+Don't bring back the same row of controls with better words (owner, 2026-10-04).
 
 ## Checks before handing work back
 
