@@ -1412,6 +1412,7 @@ class DateField extends StatefulWidget {
     this.wanted = false,
     this.allowFuture = true,
     this.small = false,
+    this.calendarBeside = false,
   });
 
   final TextEditingController controller;
@@ -1427,6 +1428,10 @@ class DateField extends StatefulWidget {
   /// today can't be picked.
   final bool allowFuture;
   final bool small;
+
+  /// The calendar opens to the right of the field instead of under it:
+  /// in a form, under it is where the next rows are.
+  final bool calendarBeside;
 
   @override
   State<DateField> createState() => _DateFieldState();
@@ -1485,8 +1490,12 @@ class _DateFieldState extends State<DateField> {
         controller: _portal,
         overlayChildBuilder: (context) => CompositedTransformFollower(
           link: _link,
-          targetAnchor: Alignment.bottomLeft,
-          offset: const Offset(0, 6),
+          targetAnchor: widget.calendarBeside
+              ? Alignment.topRight
+              : Alignment.bottomLeft,
+          offset: widget.calendarBeside
+              ? const Offset(10, 0)
+              : const Offset(0, 6),
           child: Align(
             alignment: Alignment.topLeft,
             // Clicks in the calendar count as inside the field, so it keeps focus.

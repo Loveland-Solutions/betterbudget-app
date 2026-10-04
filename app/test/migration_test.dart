@@ -151,7 +151,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v13-from-v6-')),
+      contains(startsWith('betterbudget.before-v15-from-v6-')),
     );
   });
 
@@ -206,7 +206,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v13-from-v11-')),
+        contains(startsWith('betterbudget.before-v15-from-v11-')),
       );
     });
   }
@@ -288,10 +288,62 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v13-from-v12-')),
+        contains(startsWith('betterbudget.before-v15-from-v12-')),
       );
     },
   );
+
+  test('upgrades a v13 file: four kinds of plan become two', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final ids = (await db.loadLedger()).categories.map((c) => c.id).toList();
+    final kinds = ['spend', 'saveUp', 'dueOn', 'goal'];
+    for (var i = 0; i < kinds.length; i++) {
+      await db.customStatement(
+        'INSERT INTO category_plans (category_id, kind, amount_minor, start, '
+        'due, every_months, rollover) VALUES (?, ?, 100, ?, ?, ?, 0)',
+        [
+          ids[i],
+          kinds[i],
+          '2026-09-01',
+          i < 2 ? null : '2027-01-15',
+          i == 2 ? 12 : null,
+        ],
+      );
+    }
+    await db.customStatement('PRAGMA user_version = 13');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final plans = (await db.loadLedger()).plans;
+    // Spend keeps its carry-over choice; save up always carried over.
+    expect(
+      (plans[ids[0]]!.kind, plans[ids[0]]!.rollover),
+      (PlanKind.each, false),
+    );
+    expect(
+      (plans[ids[1]]!.kind, plans[ids[1]]!.rollover),
+      (PlanKind.each, true),
+    );
+    expect(
+      (plans[ids[2]]!.kind, plans[ids[2]]!.everyMonths),
+      (PlanKind.byDate, 12),
+    );
+    expect(
+      (plans[ids[3]]!.kind, plans[ids[3]]!.everyMonths),
+      (PlanKind.byDate, null),
+    );
+    expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v15-from-v13-')),
+    );
+  });
 
   test('upgrades a v10 file: amounts stay and a plan can be made', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -320,7 +372,7 @@ void main() {
     expect(data.plans, isEmpty);
     final plan = CategoryPlan(
       categoryId: food.id,
-      kind: PlanKind.spend,
+      kind: PlanKind.each,
       amount: 90000000,
       start: DateTime(2026, 9, 16),
     );
@@ -328,7 +380,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v13-from-v10-')),
+      contains(startsWith('betterbudget.before-v15-from-v10-')),
     );
   });
 
@@ -362,7 +414,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v13-from-v9-')),
+        contains(startsWith('betterbudget.before-v15-from-v9-')),
       );
     },
   );
@@ -398,7 +450,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v13-from-v8-')),
+      contains(startsWith('betterbudget.before-v15-from-v8-')),
     );
   });
 
@@ -502,7 +554,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v13-from-v5-')),
+        contains(startsWith('betterbudget.before-v15-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});

@@ -125,38 +125,40 @@ class PlanLine {
     this.done = false,
     this.wentBack = 0,
     this.waiting = false,
-    this.held = true,
+    this.lastPeriod = false,
   });
 
   final CategoryPlan plan;
 
-  /// What goes in each period: the set amount, a bill's equal part, or a
-  /// goal's part worked out from what's left to save and the time left.
-  /// 0 when nothing more is asked (a bill whose date passed, a goal
-  /// reached, a period before the plan).
+  /// What goes in each period: the set amount, or a dated plan's part,
+  /// worked out from what's still missing and the periods left. 0 when
+  /// nothing more is asked (a date passed, an amount reached or a cap
+  /// held, a period before the plan).
   final int each;
 
-  /// What Assigned should come to this period: [each], plus whatever a
-  /// bill is behind by, less whatever it is ahead by.
+  /// What Assigned should come to this period: [each], plus any more
+  /// bills due before the period ends; for a capped plan, no more than
+  /// the cap leaves room for.
   final int planned;
 
-  /// The part of [planned] that should have been in before this period:
-  /// what "short" names. For a goal or a bill past its date, all of it.
+  /// What should have been in before this period and wasn't: what
+  /// "short" names. For a plan whose date has passed, all of it.
   final int overdue;
 
-  /// The bill's due date this period is saving for, or the goal's date.
+  /// The date this period is saving for: the bill's due date, or the day
+  /// a one-time amount is wanted by.
   final DateTime? due;
 
-  /// A bill that doesn't repeat whose date has passed, or a goal reached.
+  /// A one-time amount reached (or its date passed), or a capped plan
+  /// holding its cap.
   final bool done;
 
   /// A period before the plan began: it asks for nothing yet.
   final bool waiting;
 
-  /// A bill: the category holds what its parts so far come to. False when
-  /// the money was assigned and then spent on something else, so "on
-  /// track" would be untrue.
-  final bool held;
+  /// A dated plan in the last period before its date: [each] is the
+  /// rest, said as "this month" rather than "a month".
+  final bool lastPeriod;
 
   /// A category that doesn't carry over: what was left when the period
   /// before this one ended, which went back to the money not assigned.
@@ -299,8 +301,7 @@ class Budget {
     // carry over is emptied at each period's end, and a bill or goal
     // starts from what the category held when its plan began.
     final dated = <int, List<({DateTime date, int amount})>>{
-      for (final p in plans.values)
-        if (p.kind != PlanKind.saveUp) p.categoryId: [],
+      for (final p in plans.values) p.categoryId: [],
     };
 
     DateTime? earliest;
@@ -333,7 +334,9 @@ class Budget {
     // and what was moved between accounts this period, by (from, to).
     final offPaid = <int, Map<int, int>>{};
     final moved = <(int, int), int>{};
-    void spend(int id, DateTime d, int amount, bool counted) {
+    // [on]: the day the plan counts it, when that isn't [d] (a bill the
+    // bank took a day before its date).
+    void spend(int id, DateTime d, int amount, bool counted, {DateTime? on}) {
       if (within(d)) {
         spent[id] = (spent[id] ?? 0) + amount;
         if (counted) spentCounted[id] = (spentCounted[id] ?? 0) + amount;
@@ -341,7 +344,7 @@ class Budget {
       if (counted) {
         spentAll[id] = (spentAll[id] ?? 0) + amount;
         if (!d.isAfter(e)) spentBy[id] = (spentBy[id] ?? 0) + amount;
-        dated[id]?.add((date: d, amount: -amount));
+        dated[id]?.add((date: on ?? d, amount: -amount));
       }
     }
 
@@ -399,7 +402,20 @@ class Budget {
             }
             continue;
           }
-          spend(a.id, d, x.amount, counted);
+          // A bill the plan itself scheduled counts on the date it was
+          // for: taken on the 30th instead of the 1st, it's still that
+          // month's bill, not an extra one the month before.
+          final planned = t.planCategoryId == a.id
+              ? switch (plans[a.id]) {
+                  final p? when p.kind == PlanKind.byDate => billDate(
+                    p,
+                    d,
+                    pay: data.payScheduleById(p.payScheduleId),
+                  ),
+                  _ => null,
+                }
+              : null;
+          spend(a.id, d, x.amount, counted, on: planned);
           // Paid from an account it doesn't use: counted all the same.
           final off = data.accountsOff[a.id];
           if (off != null && counted && within(d)) {
@@ -474,6 +490,7 @@ class Budget {
                 changes,
                 viewed,
                 by,
+                pay: data.payScheduleById(plan.payScheduleId),
                 began: began,
                 assigned: assigned[id] ?? 0,
                 left: left,
@@ -616,16 +633,79 @@ class Budget {
   /// have two decimals), so a bill in seven parts isn't ₮171,428.57 each.
   static const _unit = 100;
 
-  /// A spend-through-the-period category that doesn't carry over.
+  /// An each-period category that doesn't carry over.
   static bool _emptied(CategoryPlan p) =>
-      p.kind == PlanKind.spend && !p.rollover;
+      p.kind == PlanKind.each && !p.rollover;
 
   static int _ceilTo(int amount, int unit) =>
       amount <= 0 ? 0 : ((amount + unit - 1) ~/ unit) * unit;
 
-  /// The day [n] bills after [first], [every] months apart, kept on the
-  /// same day of the month where the month has it.
-  static DateTime _dueAfter(DateTime first, int every, int n) {
+  /// The date of [plan]'s bill that a row dated [d] paid: the nearest of
+  /// its dates. Null when [d] is more than half a gap before the first,
+  /// which was some earlier plan's bill, not this one's. A plan that
+  /// doesn't repeat has one date.
+  static DateTime? billDate(CategoryPlan plan, DateTime d, {PaySchedule? pay}) {
+    if (plan.due == null && plan.payScheduleId == null) return null;
+    final first = dueAfter(plan, 0, pay: pay);
+    if (!plan.repeats) return first;
+    var n = 0;
+    while (dueAfter(plan, n, pay: pay).isBefore(d) && n < _mostPeriods) {
+      n++;
+    }
+    final after = dueAfter(plan, n, pay: pay);
+    if (n == 0) {
+      final gap = dueAfter(plan, 1, pay: pay).difference(first);
+      return first.difference(d) * 2 > gap ? null : first;
+    }
+    final before = dueAfter(plan, n - 1, pay: pay);
+    return d.difference(before) < after.difference(d) ? before : after;
+  }
+
+  /// The date of [plan]'s bill number [n], counting from its first: by
+  /// months, by days, through its list of dates each year, or payday by
+  /// payday ([pay] is its schedule; without it, the first date stands
+  /// alone). Moved off a weekend by the plan's rule.
+  static DateTime dueAfter(CategoryPlan plan, int n, {PaySchedule? pay}) {
+    final first = dateOnly(plan.due ?? plan.start);
+    DateTime shift(DateTime d) => offWeekend(d, plan.weekend);
+    if (plan.payScheduleId != null && pay != null) {
+      var d = DateTime(plan.start.year, plan.start.month, plan.start.day - 1);
+      for (var i = 0; i <= n; i++) {
+        d = pay.nextAfter(d);
+      }
+      return DateTime(d.year, d.month, d.day + plan.daysAfterPay);
+    }
+    if (plan.onDates case final dates? when dates.isNotEmpty) {
+      final sorted = [...dates]
+        ..sort((a, b) => a.$1 != b.$1 ? a.$1 - b.$1 : a.$2 - b.$2);
+      // The first is the date in the list [first] falls on, or the next
+      // one after it.
+      var i0 = sorted.indexWhere(
+        (x) => x.$1 > first.month || (x.$1 == first.month && x.$2 >= first.day),
+      );
+      var year = first.year;
+      if (i0 < 0) {
+        i0 = 0;
+        year++;
+      }
+      final k = i0 + n;
+      final y = year + k ~/ sorted.length;
+      final (m, d) = sorted[k % sorted.length];
+      final last = DateTime(y, m + 1, 0).day;
+      return shift(DateTime(y, m, d < last ? d : last));
+    }
+    if (plan.everyDays case final days?) {
+      return shift(DateTime(first.year, first.month, first.day + days * n));
+    }
+    if (plan.everyMonths case final every?) {
+      return shift(_monthsAfter(first, every, n));
+    }
+    return first;
+  }
+
+  /// The day [n] steps of [every] months after [first], kept on the same
+  /// day of the month where the month has it.
+  static DateTime _monthsAfter(DateTime first, int every, int n) {
     final months = first.month - 1 + every * n;
     final y = first.year + months ~/ 12, m = months % 12 + 1;
     final last = DateTime(y, m + 1, 0).day;
@@ -691,21 +771,43 @@ class Budget {
     List<({DateTime date, int amount})> changes,
     BudgetSpan p,
     PaySchedule? by, {
+    required PaySchedule? pay,
     required DateTime? began,
     required int assigned,
     required int left,
     required int spent,
     required int wentBack,
   }) {
-    if (plan.kind == PlanKind.spend || plan.kind == PlanKind.saveUp) {
+    if (plan.kind == PlanKind.each) {
+      final cap = plan.rollover ? plan.upTo : null;
+      if (cap == null) {
+        return PlanLine(
+          plan: plan,
+          each: plan.amount,
+          planned: plan.amount,
+          wentBack: wentBack,
+        );
+      }
+      // The cap counts from what it held when the period began: a repair
+      // this period is asked for from the next one on, not twice over.
+      final before = left - assigned + spent;
+      final room = cap - before;
+      final wanted = room <= 0
+          ? 0
+          : room < plan.amount
+          ? room
+          : plan.amount;
       return PlanLine(
         plan: plan,
         each: plan.amount,
-        planned: plan.amount,
+        planned: wanted,
+        done: left >= cap,
         wentBack: wentBack,
       );
     }
-    final first = dateOnly(plan.due ?? plan.start);
+    final repeats = plan.repeats;
+    DateTime dueOf(int n) => dueAfter(plan, n, pay: pay);
+    final first = dueOf(0);
     // What it held at the start of [day], and what was assigned from
     // [from] up to [to].
     int heldBefore(DateTime day) {
@@ -727,6 +829,7 @@ class Budget {
     }
 
     int ceilDiv(int amount, int n) => _ceilTo((amount + n - 1) ~/ n, _unit);
+    int atLeast0(int v) => v < 0 ? 0 : v;
 
     // The plan counts from the period it was made in, or the budget's
     // first if that's later (the budget's start can be moved on).
@@ -755,64 +858,24 @@ class Budget {
     }
     // What the category held when the plan began counts toward it.
     final base = heldBefore(begins.start);
-
-    if (plan.kind == PlanKind.goal) {
-      // Counted by what was assigned, not what's left: spending the money
-      // on the thing itself isn't falling behind.
-      final toGo = plan.amount - base - assignedIn(begins.start, p.start);
-      if (toGo <= 0) {
-        return PlanLine(
-          plan: plan,
-          each: 0,
-          planned: 0,
-          due: first,
-          done: true,
-        );
-      }
-      // Past its date: all of what's missing is wanted now.
-      if (first.isBefore(p.start)) {
-        return PlanLine(
-          plan: plan,
-          each: 0,
-          planned: toGo,
-          overdue: toGo,
-          due: first,
-        );
-      }
-      final part = ceilDiv(toGo, _periodsThrough(p, first, by));
-      final each = part > toGo ? toGo : part;
-      return PlanLine(
-        plan: plan,
-        each: each,
-        planned: each,
-        due: first,
-        // This period's amount completes it.
-        done: assigned >= toGo,
-      );
-    }
-
-    // A bill due on a date.
-    final every = plan.everyMonths;
     final bill = plan.amount;
-    DateTime dueOf(int n) => every == null ? first : _dueAfter(first, every, n);
     // Bills are numbered from the first the plan could save for: the
     // first due in its first period or later.
     var n0 = 0;
-    if (every != null) {
+    if (repeats) {
       while (dueOf(n0).isBefore(begins.start) && n0 < _mostPeriods) {
         n0++;
       }
     }
-    final firstNeed = bill - base < 0 ? 0 : bill - base;
-    // A bill that doesn't repeat, its date gone: whatever is still
-    // missing is wanted now.
-    if (every == null && first.isBefore(p.start)) {
-      final missing = firstNeed - assignedIn(begins.start, p.start);
+    final firstNeed = atLeast0(bill - base);
+    // Once, its date gone: whatever is still missing is wanted now.
+    if (!repeats && first.isBefore(p.start)) {
+      final missing = atLeast0(firstNeed - assignedIn(begins.start, p.start));
       return PlanLine(
         plan: plan,
         each: 0,
-        planned: missing < 0 ? 0 : missing,
-        overdue: missing < 0 ? 0 : missing,
+        planned: missing,
+        overdue: missing,
         due: first,
         done: true,
       );
@@ -820,7 +883,7 @@ class Budget {
     // The bill this period saves for: the first due on or after it
     // starts.
     var n = n0;
-    if (every != null) {
+    if (repeats) {
       while (dueOf(n).isBefore(p.start) && n - n0 < _mostPeriods) {
         n++;
       }
@@ -833,52 +896,64 @@ class Budget {
     final from = n == n0
         ? begins
         : nextBudgetPeriod(budgetPeriod(dueOf(n - 1), by), by);
-    final int need, carried;
+    final int need;
     if (n == n0) {
       need = firstNeed;
-      carried = base;
     } else {
       // What a later bill starts from. A minus (the last one cost more
       // than was saved) is added to this one. What's left over isn't
       // counted, since it may be the last bill not paid yet; only what
       // the category held beyond a whole bill when the plan began is.
-      carried = heldBefore(from.start);
+      final carried = heldBefore(from.start);
       final extra = base - bill * (n - n0);
-      final wanted =
-          bill - (carried < 0 ? carried : 0) - (extra > 0 ? extra : 0);
-      need = wanted < 0 ? 0 : wanted;
+      need = atLeast0(bill + atLeast0(-carried) - atLeast0(extra));
     }
-    final parts = _periodsThrough(from, due, by);
-    var k = _periodsThrough(from, p.start, by);
-    if (k > parts) k = parts;
-    final part = ceilDiv(need, parts);
-    var target = part * k > need ? need : part * k;
-    var each = part > need ? need : part;
+    // What was assigned toward it before this period, and what's still
+    // missing. Counted by what was assigned, not what's left: spending
+    // the money on the thing itself (a gift bought early) isn't falling
+    // behind.
+    final before = assignedIn(from.start, p.start);
+    final missing = atLeast0(need - before);
+    // What's missing, split over the periods left through the date: a
+    // thin period spreads over the rest instead of being asked for all
+    // at once. With one period left, that is the rest.
+    int partIn(BudgetSpan span, int missing) {
+      final part = ceilDiv(missing, _periodsThrough(span, due, by));
+      return part > missing ? missing : part;
+    }
+
+    final lastPeriod = _periodsThrough(p, due, by) == 1;
+
+    var each = partIn(p, missing);
+    // Behind by what last period asked for and didn't get: how far the
+    // part had to rise. Kept up with, a part that rose isn't "short"
+    // again. The first period has nothing behind it.
+    var behind = 0;
+    final prev = previousBudgetPeriod(p, by);
+    if (!prev.start.isBefore(from.start)) {
+      final beforePrev = assignedIn(from.start, prev.start);
+      final asked = partIn(prev, atLeast0(need - beforePrev));
+      behind = atLeast0(beforePrev + asked - before);
+    }
     // More bills due before this period ends (a monthly bill just before
     // a payday that a weekend moved): each is wanted whole.
-    if (every != null) {
+    if (repeats) {
       var more = 0;
       while (!dueOf(n + more + 1).isAfter(p.end) && more < _mostPeriods) {
         more++;
       }
-      target += bill * more;
       each += bill * more;
     }
-    final before = assignedIn(from.start, p.start);
-    final planned = target - before < 0 ? 0 : target - before;
-    // What it should hold: its parts so far on top of what it started
-    // with. In the period the bill is due, paying it isn't a shortfall.
-    final dueNow = !due.isBefore(p.start) && !due.isAfter(p.end);
-    final should =
-        (n == n0 || carried < 0 ? carried : 0) +
-        (planned < assigned ? before + planned : before + assigned);
     return PlanLine(
       plan: plan,
       each: each,
-      planned: planned,
-      overdue: planned > each ? planned - each : 0,
+      planned: each,
+      overdue: behind,
       due: due,
-      held: left + (dueNow && spent > 0 ? spent : 0) >= should,
+      // Once: it had all of it already, or this period's amount
+      // completes it. A bill that comes again is never done.
+      done: !repeats && missing - assigned <= 0,
+      lastPeriod: lastPeriod,
     );
   }
 }

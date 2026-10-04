@@ -175,14 +175,7 @@ class PaySchedule {
   static DateTime _addDays(DateTime d, int n) =>
       DateTime(d.year, d.month, d.day + n);
 
-  DateTime _offWeekend(DateTime d) => switch ((d.weekday, weekend)) {
-    (_, PayWeekend.keep) => d,
-    (DateTime.saturday, PayWeekend.before) => _addDays(d, -1),
-    (DateTime.saturday, _) => _addDays(d, 2),
-    (DateTime.sunday, PayWeekend.before) => _addDays(d, -2),
-    (DateTime.sunday, _) => _addDays(d, 1),
-    _ => d,
-  };
+  DateTime _offWeekend(DateTime d) => offWeekend(d, weekend);
 
   /// Nominal paydays (before the weekend rule) from [from] on, in order.
   Iterable<DateTime> _nominalFrom(DateTime from) =>
@@ -300,3 +293,18 @@ class PaySchedule {
 /// [budgetPeriod]'s labels, in English.
 const payPeriodLabel = 'this pay period';
 const monthLabel = 'this month';
+
+/// [d] moved off a weekend by [rule]: the Friday before, the Monday
+/// after, or left where it is. Paydays and a plan's bills share it.
+DateTime offWeekend(DateTime d, PayWeekend rule) => switch ((d.weekday, rule)) {
+  (_, PayWeekend.keep) => d,
+  (DateTime.saturday, PayWeekend.before) => DateTime(
+    d.year,
+    d.month,
+    d.day - 1,
+  ),
+  (DateTime.saturday, _) => DateTime(d.year, d.month, d.day + 2),
+  (DateTime.sunday, PayWeekend.before) => DateTime(d.year, d.month, d.day - 2),
+  (DateTime.sunday, _) => DateTime(d.year, d.month, d.day + 1),
+  _ => d,
+};

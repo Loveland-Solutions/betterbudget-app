@@ -192,7 +192,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     FocusManager.instance.addListener(_keepKeys);
     // Each pay schedule's next payday is scheduled before the first look.
     _ledger = Stream.fromFuture(
-      seedDemoIfEmpty(db, today).then((_) => db.ensurePaydays(today)),
+      seedDemoIfEmpty(db, today)
+          .then((_) => db.ensurePaydays(today))
+          .then((_) => db.ensurePlanBills(today)),
     ).asyncExpand((_) => db.watchLedger());
     _entry = EntryRowController(
       onSubmit: _post,
@@ -800,10 +802,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
       final amount = d.amount ?? row.amount;
       final early = row.date.isAfter(today);
-      // A payday confirmed: its schedule's next one, from the plan. Only
-      // its own: confirming a bill never touches pay.
+      // A payday confirmed: its schedule's next one, from the plan; a
+      // plan's bill confirmed: the plan's next one. Only its own:
+      // confirming a bill never touches pay.
       var next = const <int>[];
+      var nextBills = const <int>[];
       final schedule = row.payScheduleId;
+      final planned = row.planCategoryId;
       if (schedule != null) {
         try {
           next = await db.ensurePaydays(today, only: schedule);
@@ -811,12 +816,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
           debugPrint('Scheduling the next payday failed: $e');
         }
       }
+      if (planned != null) {
+        try {
+          nextBills = await db.ensurePlanBills(today, only: planned);
+        } catch (e) {
+          debugPrint('Scheduling the next bill failed: $e');
+        }
+      }
       final pair = _alsoCategory(
         made,
         // One action: the confirm, any rest still owed and the next payday
-        // come and go together.
+        // or bill come and go together.
         () => db.transaction(() async {
           await db.dropPaydays(next);
+          await db.dropPlanBills(nextBills);
           await db.restoreSnapshot(before);
           if (owedId case final id?) {
             _expect((await db.softDeleteMany([id])).length == 1);
@@ -826,6 +839,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.restoreSnapshot(after);
           if (owedId case final id?) await db.restoreMany([id]);
           if (schedule != null) await db.bringBackPaydays(next, schedule);
+          if (planned != null) {
+            await db.bringBackPlanBills(nextBills, planned);
+          }
         }),
       );
       // Under an estimate is the direction that hurts: said once, here.
@@ -1814,9 +1830,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final label = plan == null
         ? t.planRemoveUndo(c.name)
         : t.planSetUndo(c.name);
-    CategoryPlan? before;
+    // A dated plan paid from an account keeps its next bill scheduled
+    // there from the moment it's saved; undo brings back the very bill
+    // the change took away.
+    late PlanChange change;
     if (!await _accountWrite(
-      () async => before = await db.setCategoryPlan(c.id, plan),
+      () async => change = await db.changeCategoryPlan(c.id, plan, today),
       what: 'category',
     )) {
       return;
@@ -1827,8 +1846,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       message: back > 0
           ? '$label · ${t.planReturns(formatMoney(back, currency: c.currency), c.name)}'
           : null,
-      undo: () => db.setCategoryPlan(c.id, before),
-      redo: () => db.setCategoryPlan(c.id, plan),
+      undo: () => db.undoPlanChange(c.id, change),
+      redo: () => db.redoPlanChange(c.id, plan, change),
     );
   }
 
@@ -1941,7 +1960,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final fromWas = data.prefs[fromKey];
     final from = dateKey(budgetPeriod(today, data.periodSchedule).start);
     late CategoryMoney moneyBefore;
-    CategoryPlan? planBefore;
+    PlanChange? planChange;
     Future<void> write() => db.transaction(() async {
       if (renamed) await db.renameAccount(c.id, e.name);
       if (money) {
@@ -1952,7 +1971,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
         if (currency) await db.setPreference(fromKey, from);
       }
-      if (plan) planBefore = await db.setCategoryPlan(c.id, e.plan);
+      if (plan) planChange = await db.changeCategoryPlan(c.id, e.plan, today);
     });
 
     if (!await _accountWrite(write, what: 'category')) return;
@@ -1965,10 +1984,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ?returns,
       ].join(' · '),
       undo: () => db.transaction(() async {
-        if (plan) await db.setCategoryPlan(c.id, planBefore);
+        if (plan) await db.undoPlanChange(c.id, planChange!);
         if (money) {
           await db.restoreCategoryMoney(c.id, moneyBefore);
           if (currency) await db.setPreference(fromKey, fromWas);
+          // A plan a currency change took away comes back with its bill.
+          await db.ensurePlanBills(today, only: c.id);
         }
         if (renamed) await db.renameAccount(c.id, c.name);
       }),
@@ -2591,9 +2612,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
-    // A restored file's pay schedules get their next paydays, as at launch.
+    // A restored file's pay schedules get their next paydays, and its
+    // plans their next bills, as at launch.
     try {
       await db.ensurePaydays(today);
+      await db.ensurePlanBills(today);
     } catch (e) {
       debugPrint('Scheduling paydays after restore failed: $e');
     }

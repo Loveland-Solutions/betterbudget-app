@@ -39,10 +39,12 @@ void main() {
     int amount, {
     bool scheduled = false,
     Currency currency = Currency.mnt,
+    int? plan,
   }) => TxnData(
     id: nextId++,
     date: date,
     scheduled: scheduled,
+    planCategoryId: plan,
     entries: [
       EntryData(
         id: nextId++,
@@ -391,6 +393,12 @@ void main() {
       int? every,
       bool rollover = true,
       DateTime? start,
+      int? upTo,
+      int? everyDays,
+      List<(int, int)>? onDates,
+      int? payScheduleId,
+      int daysAfterPay = 0,
+      PayWeekend weekend = PayWeekend.keep,
     }) => CategoryPlan(
       categoryId: category,
       kind: kind,
@@ -398,14 +406,20 @@ void main() {
       start: start ?? DateTime(2026, 10, 5),
       due: due,
       everyMonths: every,
+      everyDays: everyDays,
+      onDates: onDates,
+      payScheduleId: payScheduleId,
+      daysAfterPay: daysAfterPay,
+      weekend: weekend,
       rollover: rollover,
+      upTo: upTo,
     );
 
-    test('spend and save up: the set amount each period', () {
+    test('any time: the set amount each period', () {
       final d = ledger(
         plans: [
-          plan(food, PlanKind.spend, 90000000),
-          plan(xmas, PlanKind.saveUp, 5000000),
+          plan(food, PlanKind.each, 90000000),
+          plan(xmas, PlanKind.each, 5000000),
         ],
         amounts: [
           put(food, oct.start, 50000000),
@@ -430,7 +444,7 @@ void main() {
         plans: [
           plan(
             food,
-            PlanKind.spend,
+            PlanKind.each,
             90000000,
             rollover: false,
             start: sep.start,
@@ -468,7 +482,7 @@ void main() {
         plans: [
           plan(
             dining,
-            PlanKind.spend,
+            PlanKind.each,
             15000000,
             rollover: false,
             start: sep.start,
@@ -489,7 +503,7 @@ void main() {
 
     test('carried over: the same category keeps what is left', () {
       final d = ledger(
-        plans: [plan(food, PlanKind.spend, 90000000)],
+        plans: [plan(food, PlanKind.each, 90000000)],
         amounts: [put(food, sep.start, 90000000)],
         rows: [move(DateTime(2026, 9, 12), checking, food, 85800000)],
       );
@@ -499,7 +513,7 @@ void main() {
     test('a bill due on a date: equal parts up to it', () {
       final bill = plan(
         xmas,
-        PlanKind.dueOn,
+        PlanKind.byDate,
         120000000,
         due: DateTime(2027, 3, 15),
       );
@@ -521,12 +535,12 @@ void main() {
       expect(n.plan!.planned, 24000000);
       expect(n.short, 0);
 
-      // October's part in, November's skipped: December wants both, and
-      // one of them is short.
+      // October's part in, November's skipped: the ₮1,000,000 missing is
+      // spread over December to March, and November's part is short.
       d = ledger(plans: [bill], amounts: [put(xmas, oct.start, 20000000)]);
       final dc = of(d, dec).lines[xmas]!;
-      expect(dc.plan!.planned, 40000000);
-      expect(dc.toAssign, 40000000);
+      expect(dc.plan!.planned, 25000000);
+      expect(dc.toAssign, 25000000);
       expect(dc.short, 20000000);
 
       // October's part in: November is on track once its own is.
@@ -540,9 +554,10 @@ void main() {
       n = of(d, nov).lines[xmas]!;
       expect(n.plan!.planned, 20000000);
       expect(n.toAssign, 0);
-      // More than the part one period: the next asks for less.
+      // More than the part one period: the rest is spread over the five
+      // left, so the next asks for less.
       d = ledger(plans: [bill], amounts: [put(xmas, oct.start, 30000000)]);
-      expect(of(d, nov).lines[xmas]!.plan!.planned, 10000000);
+      expect(of(d, nov).lines[xmas]!.plan!.planned, 18000000);
       // Before the plan was made it asks for nothing.
       expect(of(d, sep).lines[xmas]!.plan!.planned, 0);
     });
@@ -550,7 +565,7 @@ void main() {
     test('a bill: what the category held already counts toward it', () {
       final d = ledger(
         plans: [
-          plan(xmas, PlanKind.dueOn, 120000000, due: DateTime(2027, 3, 15)),
+          plan(xmas, PlanKind.byDate, 120000000, due: DateTime(2027, 3, 15)),
         ],
         amounts: [put(xmas, sep.start, 40000000)],
       );
@@ -567,7 +582,7 @@ void main() {
         plans: [
           plan(
             xmas,
-            PlanKind.dueOn,
+            PlanKind.byDate,
             120000000,
             due: DateTime(2027, 3, 15),
             every: 12,
@@ -596,7 +611,7 @@ void main() {
         plans: [
           plan(
             xmas,
-            PlanKind.dueOn,
+            PlanKind.byDate,
             9000000,
             due: DateTime(2026, 11, 30),
             every: 3,
@@ -614,7 +629,7 @@ void main() {
     test('a bill that does not repeat, its date gone', () {
       final bill = plan(
         xmas,
-        PlanKind.dueOn,
+        PlanKind.byDate,
         30000000,
         due: DateTime(2026, 11, 20),
       );
@@ -635,10 +650,10 @@ void main() {
       expect(l.toAssign, 0);
     });
 
-    test('a goal: each period follows what is left and the time left', () {
+    test('an amount by a date, once: each period follows what is left', () {
       final goal = plan(
         coffee,
-        PlanKind.goal,
+        PlanKind.byDate,
         350000000,
         due: DateTime(2027, 6, 1),
       );
@@ -653,7 +668,7 @@ void main() {
       expect(o.short, 0);
       // Nothing in October: November's part is bigger, eight periods.
       expect(of(d, nov).lines[coffee]!.plan!.each, 31250000);
-      // Reached.
+      // Set aside in full.
       d = ledger(plans: [goal], amounts: [put(coffee, sep.start, 350000000)]);
       o = of(d, oct).lines[coffee]!;
       expect(o.plan!.done, isTrue);
@@ -661,7 +676,7 @@ void main() {
       // Its date gone: all of what's missing, and it's short.
       d = ledger(
         plans: [
-          plan(coffee, PlanKind.goal, 5000000, due: DateTime(2026, 9, 30)),
+          plan(coffee, PlanKind.byDate, 5000000, due: DateTime(2026, 9, 30)),
         ],
         amounts: [put(coffee, sep.start, 2000000)],
       );
@@ -685,7 +700,7 @@ void main() {
       final d = ledger(
         pay: [pay],
         plans: [
-          plan(xmas, PlanKind.dueOn, 6000000, due: DateTime(2026, 11, 30)),
+          plan(xmas, PlanKind.byDate, 6000000, due: DateTime(2026, 11, 30)),
         ],
       );
       // 09.25, 10.10, 10.25, 11.10 and 11.25: five pay periods.
@@ -731,7 +746,7 @@ void main() {
         plans: [
           plan(
             xmas,
-            PlanKind.dueOn,
+            PlanKind.byDate,
             10000000,
             due: DateTime(2026, 10, 24),
             every: 1,
@@ -764,7 +779,7 @@ void main() {
       final d = ledger(
         pay: [pay],
         plans: [
-          plan(coffee, PlanKind.goal, 520000000, due: DateTime(2046, 10, 16)),
+          plan(coffee, PlanKind.byDate, 520000000, due: DateTime(2046, 10, 16)),
         ],
       );
       final p = budgetPeriod(today, pay);
@@ -780,10 +795,10 @@ void main() {
       expect(l.plan!.each, inInclusiveRange(490000, 500000));
     });
 
-    test('a goal reached and then spent stays reached', () {
+    test('an amount set aside and then spent stays set aside', () {
       final goal = plan(
         coffee,
-        PlanKind.goal,
+        PlanKind.byDate,
         30000000,
         due: DateTime(2026, 12, 31),
       );
@@ -815,7 +830,7 @@ void main() {
       // September's ₮100,000 stays; chosen in October, it empties from
       // October on.
       final d = ledger(
-        plans: [plan(food, PlanKind.spend, 90000000, rollover: false)],
+        plans: [plan(food, PlanKind.each, 90000000, rollover: false)],
         amounts: [put(food, sep.start, 10000000)],
         rows: [move(DateTime(2026, 10, 3), checking, food, 8000000)],
       );
@@ -830,7 +845,7 @@ void main() {
     test('a bill is short by one bill at most, and a minus is made up', () {
       final bill = plan(
         xmas,
-        PlanKind.dueOn,
+        PlanKind.byDate,
         12000000,
         due: DateTime(2026, 10, 20),
         every: 1,
@@ -863,7 +878,7 @@ void main() {
         plans: [
           plan(
             xmas,
-            PlanKind.dueOn,
+            PlanKind.byDate,
             10000000,
             due: DateTime(2026, 10, 20),
             every: 1,
@@ -876,10 +891,12 @@ void main() {
       expect(of(d, dec).lines[xmas]!.plan!.planned, 5000000);
     });
 
-    test('on track only while the money is still there', () {
+    test('counted by what was assigned, not what is left', () {
+      // A gift bought in April counts toward the birthday in August: the
+      // money went where it was for, so nothing more is asked.
       final bill = plan(
         xmas,
-        PlanKind.dueOn,
+        PlanKind.byDate,
         120000000,
         due: DateTime(2027, 3, 15),
       );
@@ -888,8 +905,7 @@ void main() {
         put(xmas, nov.start, 20000000),
       ];
       var n = of(ledger(plans: [bill], amounts: amounts), nov).lines[xmas]!;
-      expect((n.toAssign, n.plan!.held), (0, true));
-      // A repair filed under it: assigned, but not there any more.
+      expect(n.toAssign, 0);
       n = of(
         ledger(
           plans: [bill],
@@ -898,19 +914,249 @@ void main() {
         ),
         nov,
       ).lines[xmas]!;
-      expect((n.toAssign, n.plan!.held), (0, false));
-      // Paying the bill in the period it's due isn't that.
-      final march = (start: DateTime(2027, 3, 1), end: DateTime(2027, 3, 31));
-      final paid = ledger(
-        plans: [bill],
-        amounts: [
-          for (var m = 10; m <= 15; m++)
-            put(xmas, DateTime(2026, m, 1), 20000000),
-        ],
-        rows: [move(DateTime(2027, 3, 15), checking, xmas, 120000000)],
+      expect(n.toAssign, 0);
+      expect(
+        of(
+          ledger(plans: [bill], amounts: amounts),
+          dec,
+        ).lines[xmas]!.plan!.each,
+        20000000,
       );
-      final m = of(paid, march).lines[xmas]!;
-      expect((m.toAssign, m.plan!.held), (0, true));
+    });
+
+    test('a missed part spreads over the periods left', () {
+      // СӨХ, ₮270,000 due 01.10, made in October: four parts of ₮67,500.
+      final fee = plan(
+        xmas,
+        PlanKind.byDate,
+        27000000,
+        due: DateTime(2027, 1, 10),
+      );
+      var d = ledger(plans: [fee], amounts: [put(xmas, oct.start, 6750000)]);
+      expect(of(d, oct).lines[xmas]!.plan!.each, 6750000);
+      // November skipped: December asks for ₮101,250, half of what's
+      // missing, and names November's part as short.
+      final dc = of(d, dec).lines[xmas]!;
+      expect(dc.plan!.each, 10125000);
+      expect(dc.toAssign, 10125000);
+      expect(dc.short, 6750000);
+      // December's in: on track, and January asks for the rest, with
+      // nothing short, since what was asked was put in.
+      d = ledger(
+        plans: [fee],
+        amounts: [
+          put(xmas, oct.start, 6750000),
+          put(xmas, dec.start, 10125000),
+        ],
+      );
+      expect(
+        (of(d, dec).lines[xmas]!.toAssign, of(d, dec).lines[xmas]!.short),
+        (0, 0),
+      );
+      final jan = (start: DateTime(2027, 1, 1), end: DateTime(2027, 1, 31));
+      final j = of(d, jan).lines[xmas]!;
+      expect((j.plan!.each, j.short), (10125000, 0));
+    });
+
+    test('any time with a cap: stops asking once it holds the cap', () {
+      final repairs = plan(xmas, PlanKind.each, 10000000, upTo: 30000000);
+      // ₮250,000 held: October asks only for the ₮50,000 of room left.
+      var d = ledger(
+        plans: [repairs],
+        amounts: [put(xmas, sep.start, 25000000)],
+      );
+      var o = of(d, oct).lines[xmas]!;
+      expect((o.plan!.planned, o.plan!.done), (5000000, false));
+      // Holding the cap: nothing asked, and the line says so.
+      d = ledger(plans: [repairs], amounts: [put(xmas, sep.start, 30000000)]);
+      o = of(d, oct).lines[xmas]!;
+      expect((o.plan!.planned, o.plan!.done, o.toAssign), (0, true, 0));
+      // A repair in October: asked for again from November, in full.
+      d = ledger(
+        plans: [repairs],
+        amounts: [put(xmas, sep.start, 30000000)],
+        rows: [move(DateTime(2026, 10, 12), checking, xmas, 18000000)],
+      );
+      o = of(d, oct).lines[xmas]!;
+      expect((o.plan!.planned, o.plan!.done), (0, false));
+      expect(of(d, nov).lines[xmas]!.plan!.planned, 10000000);
+      // The cap is only for a category that carries over.
+      d = ledger(
+        plans: [
+          plan(xmas, PlanKind.each, 10000000, upTo: 30000000, rollover: false),
+        ],
+        amounts: [put(xmas, sep.start, 30000000)],
+      );
+      expect(of(d, oct).lines[xmas]!.plan!.planned, 10000000);
+    });
+
+    test('a bill the bank took a day early counts on its date', () {
+      // Water, ₮45,000 on the 1st, paid from the plan's own scheduled
+      // row. December's is taken 11.30: still December's bill.
+      final water = plan(
+        xmas,
+        PlanKind.byDate,
+        4500000,
+        due: DateTime(2026, 11, 1),
+        every: 1,
+      );
+      final amounts = [
+        put(xmas, oct.start, 2250000),
+        put(xmas, nov.start, 2250000),
+      ];
+      final d = ledger(
+        plans: [water],
+        amounts: amounts,
+        rows: [
+          move(DateTime(2026, 11, 1), checking, xmas, 4500000, plan: xmas),
+          move(DateTime(2026, 11, 30), checking, xmas, 4500000, plan: xmas),
+        ],
+      );
+      expect(of(d, dec).lines[xmas]!.plan!.planned, 4500000);
+      // A row the user entered by hand on 11.30 is November's spending,
+      // and December makes up what it took.
+      final byHand = ledger(
+        plans: [water],
+        amounts: amounts,
+        rows: [
+          move(DateTime(2026, 11, 1), checking, xmas, 4500000, plan: xmas),
+          move(DateTime(2026, 11, 30), checking, xmas, 4500000),
+        ],
+      );
+      expect(of(byHand, dec).lines[xmas]!.plan!.planned, 9000000);
+      // The nearest date, either side; far before the first, not this
+      // plan's bill at all.
+      expect(
+        Budget.billDate(water, DateTime(2026, 12, 3)),
+        DateTime(2026, 12, 1),
+      );
+      expect(
+        Budget.billDate(water, DateTime(2026, 10, 20)),
+        DateTime(2026, 11, 1),
+      );
+      expect(Budget.billDate(water, DateTime(2026, 10, 10)), isNull);
+    });
+
+    test('every two weeks: the bills inside a month are all asked for', () {
+      // A cleaner every second Friday from 10.09: twice in October.
+      final cleaner = plan(
+        xmas,
+        PlanKind.byDate,
+        6000000,
+        due: DateTime(2026, 10, 9),
+        everyDays: 14,
+        start: DateTime(2026, 10, 1),
+      );
+      final o = of(ledger(plans: [cleaner]), oct).lines[xmas]!;
+      expect(o.plan!.due, DateTime(2026, 10, 9));
+      expect(o.plan!.planned, 12000000);
+      expect(Budget.dueAfter(cleaner, 3), DateTime(2026, 11, 20));
+    });
+
+    test('on these dates: taxes four times a year, uneven gaps', () {
+      final tax = plan(
+        xmas,
+        PlanKind.byDate,
+        40000000,
+        due: DateTime(2027, 1, 15),
+        onDates: [(4, 15), (6, 15), (9, 15), (1, 15)],
+      );
+      expect(Budget.dueAfter(tax, 0), DateTime(2027, 1, 15));
+      expect(Budget.dueAfter(tax, 1), DateTime(2027, 4, 15));
+      expect(Budget.dueAfter(tax, 3), DateTime(2027, 9, 15));
+      expect(Budget.dueAfter(tax, 4), DateTime(2028, 1, 15));
+      // October to January: four parts of ₮100,000; then three to April.
+      final d = ledger(plans: [tax]);
+      expect(of(d, oct).lines[xmas]!.plan!.each, 10000000);
+      final feb = (start: DateTime(2027, 2, 1), end: DateTime(2027, 2, 28));
+      final f = of(d, feb).lines[xmas]!;
+      expect((f.plan!.due, f.plan!.each), (DateTime(2027, 4, 15), 13333400));
+    });
+
+    test('every payday: the pay schedule’s dates, days after if asked', () {
+      const pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.twiceMonthly,
+        day1: 10,
+        day2: 25,
+        weekend: PayWeekend.keep,
+        definesPeriod: true,
+      );
+      final loan = plan(
+        xmas,
+        PlanKind.byDate,
+        15000000,
+        payScheduleId: 1,
+        start: DateTime(2026, 10, 1),
+      );
+      final d = ledger(pay: [pay], plans: [loan]);
+      expect(Budget.dueAfter(loan, 0, pay: pay), DateTime(2026, 10, 10));
+      expect(Budget.dueAfter(loan, 1, pay: pay), DateTime(2026, 10, 25));
+      // By pay period, each period has one bill: the whole amount.
+      final period = budgetPeriod(DateTime(2026, 10, 12), pay);
+      final l = Budget.of(
+        d,
+        start: period.start,
+        end: period.end,
+        today: today,
+      ).lines[xmas]!;
+      expect(l.plan!.planned, 15000000);
+      // Two days after payday.
+      final later = plan(
+        xmas,
+        PlanKind.byDate,
+        15000000,
+        payScheduleId: 1,
+        daysAfterPay: 2,
+        start: DateTime(2026, 10, 1),
+      );
+      expect(Budget.dueAfter(later, 0, pay: pay), DateTime(2026, 10, 12));
+      // The schedule gone, the plan has one date: the day it was made.
+      expect(Budget.dueAfter(loan, 1), DateTime(2026, 10, 1));
+    });
+
+    test('a weekend rule moves a bill off Saturday and Sunday', () {
+      // 2026.10.10 is a Saturday.
+      final before = plan(
+        xmas,
+        PlanKind.byDate,
+        100,
+        due: DateTime(2026, 10, 10),
+        every: 1,
+        weekend: PayWeekend.before,
+      );
+      expect(Budget.dueAfter(before, 0), DateTime(2026, 10, 9));
+      final after = plan(
+        xmas,
+        PlanKind.byDate,
+        100,
+        due: DateTime(2026, 10, 10),
+        every: 1,
+        weekend: PayWeekend.after,
+      );
+      expect(Budget.dueAfter(after, 0), DateTime(2026, 10, 12));
+      // November 10th is a Tuesday: untouched either way.
+      expect(Budget.dueAfter(before, 1), DateTime(2026, 11, 10));
+    });
+
+    test('every three years', () {
+      final cert = plan(
+        xmas,
+        PlanKind.byDate,
+        36000000,
+        due: DateTime(2027, 4, 1),
+        every: 36,
+      );
+      // October to April: seven parts.
+      final d = ledger(plans: [cert]);
+      expect(of(d, oct).lines[xmas]!.plan!.each, 5142900);
+      final may = (start: DateTime(2027, 5, 1), end: DateTime(2027, 5, 31));
+      final m = of(d, may).lines[xmas]!;
+      expect(m.plan!.due, DateTime(2030, 4, 1));
+      expect(m.plan!.each, 1000000);
     });
 
     test('the budget’s start moved on: a bill counts from there', () {
@@ -920,7 +1166,7 @@ void main() {
         plans: [
           plan(
             xmas,
-            PlanKind.dueOn,
+            PlanKind.byDate,
             200000000,
             due: DateTime(2027, 1, 15),
             start: DateTime(2026, 9, 20),
@@ -1307,7 +1553,7 @@ void main() {
       final food = await db.createCategory('Groceries');
       final plan = CategoryPlan(
         categoryId: food,
-        kind: PlanKind.dueOn,
+        kind: PlanKind.byDate,
         amount: 120000000,
         start: DateTime(2026, 10, 5),
         due: DateTime(2027, 3, 15),
@@ -1317,7 +1563,7 @@ void main() {
       expect((await db.loadLedger()).plans[food], plan);
       final other = CategoryPlan(
         categoryId: food,
-        kind: PlanKind.spend,
+        kind: PlanKind.each,
         amount: 90000000,
         start: DateTime(2026, 10, 6),
         rollover: false,
@@ -1333,12 +1579,235 @@ void main() {
     });
 
     test(
+      'a dated plan paid from an account keeps its bill scheduled',
+      () async {
+        final fee = await db.createCategory('СӨХ');
+        final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+        CategoryPlan plan({int amount = 27000000, bool paid = true}) =>
+            CategoryPlan(
+              categoryId: fee,
+              kind: PlanKind.byDate,
+              amount: amount,
+              start: today,
+              due: DateTime(2027, 1, 10),
+              everyMonths: 3,
+              paidFrom: paid ? bank : null,
+            );
+        Future<List<TxnData>> coming() async => (await db.loadLedger()).txns
+            .where((x) => x.planCategoryId == fee && x.scheduled)
+            .toList();
+        await db.setCategoryPlan(fee, plan());
+        expect(await db.ensurePlanBills(today), hasLength(1));
+        var bill = (await coming()).single;
+        expect(bill.date, DateTime(2027, 1, 10));
+        expect(
+          bill.entries.singleWhere((e) => e.accountId == bank).amount,
+          -27000000,
+        );
+        // Named by its category in the register.
+        final d = await db.loadLedger();
+        expect(d.registerFor(bank).scheduled.single.payee, 'СӨХ');
+        // Asked again, nothing more. Confirmed early, the next is scheduled.
+        expect(await db.ensurePlanBills(today), isEmpty);
+        final jan8 = DateTime(2027, 1, 8);
+        await db.editTransaction(
+          transactionId: bill.id,
+          accountId: bank,
+          date: jan8,
+          today: jan8,
+          confirm: true,
+        );
+        final next = await db.ensurePlanBills(jan8, only: fee);
+        expect(next, hasLength(1));
+        expect((await coming()).single.date, DateTime(2027, 4, 10));
+        // Undoing the confirm takes it away; redo brings it back.
+        await db.dropPlanBills(next);
+        expect(await coming(), isEmpty);
+        await db.bringBackPlanBills(next, fee);
+        expect(await coming(), hasLength(1));
+        // A changed bill starts over: the scheduled one goes, a new one comes.
+        await db.setCategoryPlan(fee, plan(amount: 30000000));
+        await db.ensurePlanBills(jan8, only: fee);
+        bill = (await coming()).single;
+        expect(
+          bill.entries.singleWhere((e) => e.accountId == bank).amount,
+          -30000000,
+        );
+        // With no account, nothing is scheduled; the confirmed one stays.
+        await db.setCategoryPlan(fee, plan(paid: false));
+        await db.ensurePlanBills(jan8, only: fee);
+        expect(await coming(), isEmpty);
+        expect(
+          (await db.loadLedger()).txns.where(
+            (x) => x.planCategoryId == fee && !x.scheduled,
+          ),
+          hasLength(1),
+        );
+      },
+    );
+
+    test('a plan change brings back the very bill undo took away', () async {
+      final fee = await db.createCategory('СӨХ');
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      CategoryPlan plan(int amount) => CategoryPlan(
+        categoryId: fee,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: today,
+        due: DateTime(2027, 1, 10),
+        everyMonths: 3,
+        paidFrom: bank,
+      );
+      Future<List<TxnData>> coming() async => (await db.loadLedger()).txns
+          .where((x) => x.planCategoryId == fee && x.scheduled)
+          .toList();
+      final first = await db.changeCategoryPlan(fee, plan(27000000), today);
+      expect(first.before, isNull);
+      expect(first.removed, isEmpty);
+      final x = first.made.single;
+      // The user types on the scheduled row; a changed amount replaces it.
+      await db.editTransaction(
+        transactionId: x,
+        accountId: bank,
+        date: DateTime(2027, 1, 10),
+        today: today,
+        memo: 'winter rate',
+      );
+      final second = await db.changeCategoryPlan(fee, plan(30000000), today);
+      expect(second.removed, [x]);
+      final y = second.made.single;
+      expect((await coming()).single.id, y);
+      // Undo: the same row, memo and all; redo: the new one again.
+      await db.undoPlanChange(fee, second);
+      var rows = await coming();
+      expect((rows.single.id, rows.single.memo), (x, 'winter rate'));
+      expect((await db.loadLedger()).plans[fee]!.amount, 27000000);
+      await db.redoPlanChange(fee, plan(30000000), second);
+      rows = await coming();
+      expect(rows.single.id, y);
+      expect((await db.loadLedger()).plans[fee]!.amount, 30000000);
+    });
+
+    test(
+      'a one-time plan given a new date reaches the forecast again',
+      () async {
+        // Tuition $2,000 on 01.15, paid; then $1,800 on 08.20.
+        final tuition = await db.createCategory('Tuition');
+        final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+        final jan = DateTime(2027, 1, 15);
+        await db.setCategoryPlan(
+          tuition,
+          CategoryPlan(
+            categoryId: tuition,
+            kind: PlanKind.byDate,
+            amount: 200000000,
+            start: today,
+            due: jan,
+            paidFrom: bank,
+          ),
+        );
+        final made = await db.ensurePlanBills(today);
+        await db.editTransaction(
+          transactionId: made.single,
+          accountId: bank,
+          date: jan,
+          today: jan,
+          confirm: true,
+        );
+        expect(await db.ensurePlanBills(jan), isEmpty);
+        await db.setCategoryPlan(
+          tuition,
+          CategoryPlan(
+            categoryId: tuition,
+            kind: PlanKind.byDate,
+            amount: 180000000,
+            start: DateTime(2027, 1, 16),
+            due: DateTime(2027, 8, 20),
+            paidFrom: bank,
+          ),
+        );
+        final next = await db.ensurePlanBills(DateTime(2027, 1, 16));
+        expect(next, hasLength(1));
+        final row = (await db.loadLedger()).txns.singleWhere(
+          (x) => x.id == next.single,
+        );
+        expect((row.date, row.scheduled), (DateTime(2027, 8, 20), true));
+      },
+    );
+
+    test('a bill every payday is scheduled on the paydays', () async {
+      final loan = await db.createCategory('Loan');
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      final pay = await db.savePaySchedule(
+        accountId: bank,
+        amount: 210000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      await db.setCategoryPlan(
+        loan,
+        CategoryPlan(
+          categoryId: loan,
+          kind: PlanKind.byDate,
+          amount: 15000000,
+          start: today,
+          payScheduleId: pay.after.id,
+          daysAfterPay: 1,
+          paidFrom: bank,
+        ),
+      );
+      final made = await db.ensurePlanBills(today);
+      expect(made, hasLength(1));
+      final row = (await db.loadLedger()).txns.singleWhere(
+        (x) => x.id == made.single,
+      );
+      // The day after the 10.25 payday (a Sunday, moved before: 10.23).
+      expect(row.date, DateTime(2026, 10, 24));
+    });
+
+    test('an amount wanted once is scheduled once', () async {
+      final gift = await db.createCategory('Birthday');
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      await db.setCategoryPlan(
+        gift,
+        CategoryPlan(
+          categoryId: gift,
+          kind: PlanKind.byDate,
+          amount: 10000000,
+          start: today,
+          due: DateTime(2027, 8, 20),
+          paidFrom: bank,
+        ),
+      );
+      final made = await db.ensurePlanBills(today);
+      expect(made, hasLength(1));
+      // Deleted by the user: skipped, it doesn't come back.
+      await db.softDeleteMany(made);
+      expect(await db.ensurePlanBills(today), isEmpty);
+      // A date already gone isn't scheduled.
+      final past = await db.createCategory('Was due');
+      await db.setCategoryPlan(
+        past,
+        CategoryPlan(
+          categoryId: past,
+          kind: PlanKind.byDate,
+          amount: 10000000,
+          start: today,
+          due: DateTime(2026, 9, 1),
+          paidFrom: bank,
+        ),
+      );
+      expect(await db.ensurePlanBills(today), isEmpty);
+    });
+
+    test(
       'a plan stays with a deleted category; starting over erases it',
       () async {
         final food = await db.createCategory('Groceries');
         final plan = CategoryPlan(
           categoryId: food,
-          kind: PlanKind.spend,
+          kind: PlanKind.each,
           amount: 90000000,
           start: DateTime(2026, 10, 5),
         );
@@ -1379,7 +1848,7 @@ void main() {
       await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
       final plan = CategoryPlan(
         categoryId: food,
-        kind: PlanKind.spend,
+        kind: PlanKind.each,
         amount: 90000000,
         start: DateTime(2026, 10, 5),
       );

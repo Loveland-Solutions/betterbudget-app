@@ -2704,14 +2704,7 @@ void main() {
         find.byKey(ValueKey('category-editor-$groceries')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('plan-amount')), findsNothing);
-      await pick('plan-kind-spend');
-      // Save with no amount typed: it stays open.
-      await save();
-      expect(
-        find.byKey(ValueKey('category-editor-$groceries')),
-        findsOneWidget,
-      );
+      // No due date, and an amount each month.
       await type('plan-amount', '900000');
       expect(preview(), '₮900,000 a month');
       await tester.runAsync(() async {
@@ -2721,7 +2714,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(ValueKey('category-editor-$groceries')), findsNothing);
       await reload();
-      expect(data.plans[groceries]!.kind, PlanKind.spend);
+      expect(data.plans[groceries]!.kind, PlanKind.each);
       expect(data.plans[groceries]!.amount, 90000000);
       expect(find.text('₮900,000 a month'), findsOneWidget);
 
@@ -2734,13 +2727,13 @@ void main() {
       // Tuition, a bill due on a date: 01.15 typed in September is next
       // January's. September to January is five parts.
       await editCategory(tester, 'Tuition');
-      await pick('plan-kind-dueOn');
+      await pick('plan-dated-yes');
       await type('plan-amount', '2000000');
       // The date is still missing: Save outlines it and stays.
       await save();
       expect(find.byKey(ValueKey('category-editor-$tuition')), findsOneWidget);
       await type('plan-date', '01.15');
-      expect(preview(), '₮2,000,000 due 2027.01.15 · ₮400,000 a month');
+      expect(preview(), '₮2,000,000 by 2027.01.15 · ₮400,000 a month');
       await tester.tap(find.byKey(const ValueKey('plan-repeat')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-repeat-12')));
@@ -2756,16 +2749,16 @@ void main() {
       expect(data.plans[tuition]!.everyMonths, 12);
       expect(data.plans[tuition]!.start, DateTime(2026, 9, 16));
 
-      // Gifts, saved up.
+      // Gifts, a set amount that builds.
       await editCategory(tester, 'Gifts');
-      await pick('plan-kind-saveUp');
       await type('plan-amount', '50000');
       await save();
-      expect(find.text('₮50,000 a month · saving up'), findsOneWidget);
+      expect(find.text('₮50,000 a month'), findsOneWidget);
 
-      // Clothing, a goal: September to December is four parts.
+      // Clothing, an amount by a date, once: September to December is
+      // four parts.
       await editCategory(tester, 'Clothing');
-      await pick('plan-kind-goal');
+      await pick('plan-dated-yes');
       await type('plan-amount', '600000');
       await type('plan-date', '2026.12.31');
       expect(preview(), '₮600,000 by 12.31 · ₮150,000 a month');
@@ -2819,7 +2812,8 @@ void main() {
       // brings it back.
       await tester.tap(find.byKey(ValueKey('plan-note-$gifts')));
       await tester.pumpAndSettle();
-      await pick('plan-kind-none');
+      // An empty amount is no plan.
+      await type('plan-amount', '');
       await save();
       await reload();
       expect(data.plans[gifts], isNull);
@@ -2827,7 +2821,7 @@ void main() {
       await chord(tester, LogicalKeyboardKey.keyZ);
       await settle(tester);
       await reload();
-      expect(data.plans[gifts]!.kind, PlanKind.saveUp);
+      expect(data.plans[gifts]!.kind, PlanKind.each);
 
       // Groceries no longer carries over; Esc on another leaves it alone.
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
@@ -2849,6 +2843,101 @@ void main() {
       expect(find.byKey(ValueKey('category-editor-$clothing')), findsNothing);
       await reload();
       expect(data.plans[clothing]!.amount, 60000000);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a plan paid from an account schedules its bill; a cap; ⌘Z', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final tuition = id('Tuition'), gifts = id('Gifts');
+      final checking = data.openAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> pick(String key) async {
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> save() async {
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('edit-save')));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      Iterable<TxnData> bills() =>
+          data.txns.where((x) => x.planCategoryId == tuition && x.scheduled);
+
+      // Tuition on 01.15, paid from TDB Checking: a scheduled row there,
+      // named by its category.
+      await editCategory(tester, 'Tuition');
+      await pick('plan-dated-yes');
+      await type('plan-amount', '2000000');
+      await type('plan-date', '01.15');
+      // Opened low in the list, the panel's lower rows can sit under the
+      // window's edge until it scrolls.
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-paid-from')));
+      await tester.pumpAndSettle();
+      await pick('plan-paid-from');
+      await pick('plan-paid-from-$checking');
+      // Every six months, typed under "Every…" (a gap the presets don't
+      // offer).
+      await pick('plan-repeat');
+      await pick('plan-repeat-custom');
+      await type('plan-every-n', '6');
+      await pick('plan-every-unit');
+      await pick('plan-every-unit-months');
+      expect(find.text('Every 6 months'), findsOneWidget);
+      await save();
+      await reload();
+      expect(data.plans[tuition]!.everyMonths, 6);
+      final bill = bills().single;
+      expect(bill.date, DateTime(2027, 1, 15));
+      expect(
+        bill.entries.singleWhere((e) => e.accountId == checking).amount,
+        -200000000,
+      );
+      expect(
+        data.registerFor(checking).scheduled.map((r) => r.payee),
+        contains('Tuition'),
+      );
+      // ⌘Z takes the plan and its bill away together.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.plans[tuition], isNull);
+      expect(bills(), isEmpty);
+
+      // Gifts, a set amount up to a cap.
+      await editCategory(tester, 'Gifts');
+      await type('plan-amount', '50000');
+      await type('plan-up-to', '200000');
+      await save();
+      await reload();
+      expect(data.plans[gifts]!.upTo, 20000000);
+      expect(find.text('₮50,000 a month · up to ₮200,000'), findsOneWidget);
       await tidy(tester, db);
     });
 
@@ -3032,9 +3121,15 @@ void main() {
 
         // Changing Car insurance to tugrik says what it takes back first.
         await editCategory(tester, 'Car insurance');
-        // A type picked first keeps its kind; its amount, typed in
-        // dollars, is emptied for the new currency.
-        await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+        // An amount typed in dollars is emptied for the new currency.
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(const ValueKey('plan-amount')),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          '120',
+        );
         await tester.pumpAndSettle();
         expect(
           tester
@@ -3058,8 +3153,6 @@ void main() {
           text('money-change'),
           r'Changing the currency takes back $120.00 assigned to it',
         );
-        await tester.tap(find.byKey(const ValueKey('plan-kind-none')));
-        await tester.pumpAndSettle();
         await click('edit-save');
         await reload();
         expect(data.accounts[insurance]!.currency, Currency.mnt);
@@ -3165,7 +3258,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(edit, findsNothing);
       await doubleClick();
-      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
+      await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
@@ -3303,8 +3396,6 @@ void main() {
         find.byKey(const ValueKey('edit-name')),
         'Presents',
       );
-      await tester.tap(find.byKey(const ValueKey('plan-kind-saveUp')));
-      await tester.pumpAndSettle();
       await tester.enterText(
         find.descendant(
           of: find.byKey(const ValueKey('plan-amount')),
@@ -3323,7 +3414,7 @@ void main() {
       await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
       await reload();
       expect(data.accounts[gifts]!.name, 'Presents');
-      expect(data.plans[gifts]!.kind, PlanKind.saveUp);
+      expect(data.plans[gifts]!.kind, PlanKind.each);
       expect(data.plans[gifts]!.amount, 5000000);
       expect(data.accountsOff[gifts], {wallet});
       expect(find.text('Changes to Presents'), findsOneWidget);

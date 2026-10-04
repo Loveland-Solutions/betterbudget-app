@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -185,6 +185,32 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-04, PR #35 merged (version 0.6.0, schema v14 and v15):
+two budget types instead of four, and the bill in the forecast.** The owner asked what
+the five choices under a category's Type were for; Spend and Save up came to the same
+number, so a `budget-expert` agent (new, `.claude/agents/budget-expert.md`: how
+households plan money, for designing the budget; `budget-app-expert` stays the review
+pass) walked the owner's scenarios through. The owner's calls: merge Save up into one
+"Any time" type with an optional cap ("up to ₮X", not mandatory); spread a missed part
+over the periods left (so Goal merges into "On a date, once"); count what was assigned,
+not what's left (a $20 gift in April is part of the $100 birthday in August); repeats up
+to every three years; **Paid from** on a dated plan schedules the bill in that account
+so the forecast counts it (A of two); the Edit panel is designed as one thing (2026-10-04,
+after the owner's "all the features shoved on a page" and a four-agent design
+committee): the name as heading, one question ("Is there a due date? No | Yes"), a
+short labelled form, "Stop at" for the cap, the monthly amount worked out for a dated
+plan, and the row drawn as it will read. "No plan" is an empty amount. **How often**
+covers every situation (owner, 2026-10-04): the presets, Every payday (from the pay
+schedule, with days after), Every… (a number and days/weeks/months/years), On these
+dates… (a typed list, yearly), and a weekend rule; schema v15. All in ADR 0004 rule 27. Also on the
+branch: "Kind" → "Type" on the New account page. **Both reviews done, their fixes
+in** (rule 27 names them: a bill taken a day early counts on its date, a re-dated
+one-time plan reaches the forecast again, undo brings back the very bill, "this month"
+in the last period, "Not scheduled", an archived Paid-from account said in gold).
+**For the owner to call:** a Paid-from bill that arrives through a TDB import leaves
+the scheduled row behind; the import matching a scheduled row would fix it (new). Also to call: the owner's data file is at schema v15 now (upgraded by the
+0.6.0 debug build on 2026-10-03 and 2026-10-04; copies from before are beside it).
 
 **2026-10-03, PR #34 merged (version 0.5.1): ledger fixes from the owner using the
 app.** "Everything has cleared" is gone from the header. The search box shows ⌘F, and
@@ -487,6 +513,13 @@ session loses the statement balance (finding J, leave for now). ⌘Z in the real
 been used for typing but a register undo there hasn't been tried.
 
 ### Recent work (details in ADR 0004 and the PRs)
+
+- **Two budget types and the bill in the forecast (2026-10-03, version 0.6.0,
+  schema v14):** Any time (a set amount each period, carry over or not, an optional
+  cap) and On a date (an amount by a date, once or repeating up to every three years,
+  a missed part spread over the periods left, counted by what was assigned; Paid from
+  keeps the bill scheduled in its account, confirmed like a payday). The four kinds of
+  2026-10-01 map onto them in the upgrade. ADR 0004 rule 27 rewritten.
 
 - **A category's currency and accounts (2026-10-02, version 0.3.0, schema v12):**
   the owner's design after asking how car insurance paid in dollars would be

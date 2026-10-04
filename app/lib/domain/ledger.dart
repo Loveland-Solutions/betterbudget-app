@@ -142,10 +142,14 @@ class TxnData {
     this.memo,
     this.scheduled = false,
     this.payScheduleId,
+    this.planCategoryId,
   });
 
   /// A payday a pay schedule scheduled.
   final int? payScheduleId;
+
+  /// A bill a category's plan scheduled (rule 27), by the category.
+  final int? planCategoryId;
   final int id;
   final DateTime date;
   final String? payee;
@@ -201,6 +205,7 @@ class RegisterRow {
     this.clearedIn,
     this.estimate,
     this.payScheduleId,
+    this.planCategoryId,
     this.balance = 0,
     this.clearedBalance = 0,
     this.currency = Currency.mnt,
@@ -278,6 +283,9 @@ class RegisterRow {
   /// A payday a pay schedule scheduled.
   final int? payScheduleId;
 
+  /// A bill a category's plan scheduled (rule 27), by the category.
+  final int? planCategoryId;
+
   /// A payday from pay that varies: the least it's likely to be. Coming in
   /// under it isn't "still owed", and the forecast calls it an estimate.
   final int? estimate;
@@ -325,6 +333,7 @@ class RegisterRow {
     clearedIn: clearedIn,
     estimate: estimate,
     payScheduleId: payScheduleId,
+    planCategoryId: planCategoryId,
     balance: balance,
     clearedBalance: clearedBalance,
     currency: currency,
@@ -356,6 +365,7 @@ class RegisterRow {
     accountId: accountId,
     estimate: estimate,
     payScheduleId: payScheduleId,
+    planCategoryId: planCategoryId,
     balance: b,
     clearedBalance: clearedTotal,
     currency: currency,
@@ -478,18 +488,13 @@ class BudgetAmount {
 /// What a spending category is for, which decides how much it should be
 /// assigned each period (rule 27).
 enum PlanKind {
-  /// Money goes in each period and is spent down (groceries).
-  spend,
+  /// Money goes out any time: a set amount each period, spent down
+  /// (groceries) or built up until it's needed (car repairs).
+  each,
 
-  /// A set amount each period; it builds until it's needed (car repairs).
-  saveUp,
-
-  /// A bill with a due date, saved for in equal parts (annual insurance).
-  dueOn,
-
-  /// An amount by a date; each period's part follows what's left to save
-  /// and the time left.
-  goal,
+  /// Money goes out on a date: an amount by a date, once (a birthday) or
+  /// again every so many months (a bill), saved for in parts.
+  byDate,
 }
 
 /// A spending category's plan (rule 27). One per category at most.
@@ -501,32 +506,89 @@ class CategoryPlan {
     required this.start,
     this.due,
     this.everyMonths,
+    this.everyDays,
+    this.onDates,
+    this.payScheduleId,
+    this.daysAfterPay = 0,
+    this.weekend = PayWeekend.keep,
     this.rollover = true,
+    this.upTo,
+    this.paidFrom,
   });
 
   final int categoryId;
   final PlanKind kind;
 
-  /// [PlanKind.spend] and [PlanKind.saveUp]: what goes in each period.
-  /// [PlanKind.dueOn]: the bill. [PlanKind.goal]: the amount to reach.
+  /// [PlanKind.each]: what goes in each period. [PlanKind.byDate]: the
+  /// amount wanted by the date.
   final int amount;
 
-  /// The day the plan was made: a bill's equal parts count from the period
+  /// The day the plan was made: a bill's parts count from the period
   /// this day is in.
   final DateTime start;
 
-  /// [PlanKind.dueOn]: the first due date. [PlanKind.goal]: the date to
-  /// reach it by.
+  /// [PlanKind.byDate]: the date, or the first of them when it repeats;
+  /// null when it follows paydays.
   final DateTime? due;
 
-  /// [PlanKind.dueOn]: the bill comes again every this many months (12 a
-  /// year, 3 a quarter); null for once.
+  /// [PlanKind.byDate]: it comes again every this many months (12 a
+  /// year, 3 a quarter). One of the four ways to repeat, or none: once.
   final int? everyMonths;
 
-  /// [PlanKind.spend]: what's left when a period ends stays in the
+  /// [PlanKind.byDate]: every this many days (7 a week, 14 every two).
+  final int? everyDays;
+
+  /// [PlanKind.byDate]: on these dates each year, as (month, day), when
+  /// the gaps aren't even (taxes four times a year).
+  final List<(int, int)>? onDates;
+
+  /// [PlanKind.byDate]: every payday of this pay schedule, [daysAfterPay]
+  /// days after it (0: on the day).
+  final int? payScheduleId;
+  final int daysAfterPay;
+
+  /// A date that lands on a weekend: paid before it, after it, or on the
+  /// day. Paydays bring their own rule.
+  final PayWeekend weekend;
+
+  /// It comes again, one way or another.
+  bool get repeats =>
+      everyMonths != null ||
+      everyDays != null ||
+      onDates != null ||
+      payScheduleId != null;
+
+  /// The same dates as [o]: how often, from where, and the weekend rule.
+  bool sameRepeat(CategoryPlan o) =>
+      due == o.due &&
+      everyMonths == o.everyMonths &&
+      everyDays == o.everyDays &&
+      _sameDates(onDates, o.onDates) &&
+      payScheduleId == o.payScheduleId &&
+      daysAfterPay == o.daysAfterPay &&
+      weekend == o.weekend;
+
+  static bool _sameDates(List<(int, int)>? a, List<(int, int)>? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// [PlanKind.each]: what's left when a period ends stays in the
   /// category. False sends it back to the money not assigned; what's
   /// overspent carries either way.
   final bool rollover;
+
+  /// [PlanKind.each] that carries over: once the category holds this
+  /// much, the plan stops asking until some is spent. Null: no cap.
+  final int? upTo;
+
+  /// [PlanKind.byDate]: the account the bill is paid from. With one, the
+  /// bill is kept scheduled there, so that account's forecast counts it.
+  final int? paidFrom;
 
   @override
   bool operator ==(Object other) =>
@@ -535,13 +597,28 @@ class CategoryPlan {
       other.kind == kind &&
       other.amount == amount &&
       other.start == start &&
-      other.due == due &&
-      other.everyMonths == everyMonths &&
-      other.rollover == rollover;
+      sameRepeat(other) &&
+      other.rollover == rollover &&
+      other.upTo == upTo &&
+      other.paidFrom == paidFrom;
 
   @override
-  int get hashCode =>
-      Object.hash(categoryId, kind, amount, start, due, everyMonths, rollover);
+  int get hashCode => Object.hash(
+    categoryId,
+    kind,
+    amount,
+    start,
+    due,
+    everyMonths,
+    everyDays,
+    onDates?.length,
+    payScheduleId,
+    daysAfterPay,
+    weekend,
+    rollover,
+    upTo,
+    paidFrom,
+  );
 }
 
 class LedgerData {
@@ -584,6 +661,10 @@ class LedgerData {
 
   /// Stopped ones: their overdue paydays are still estimates.
   final List<PaySchedule> stoppedPaySchedules;
+
+  /// A pay schedule by id, stopped ones included; null for none.
+  PaySchedule? payScheduleById(int? id) => _schedulesById[id];
+
   late final Map<int, PaySchedule> _schedulesById = {
     for (final p in [...stoppedPaySchedules, ...paySchedules]) p.id: p,
   };
@@ -1046,8 +1127,12 @@ class LedgerData {
         label = other.name;
         categoryId = other.id;
         incomeCategory = other.isIncome;
-        // Pay set up with no "who from" is named by its category.
-        if (payee.isEmpty && t.payScheduleId != null) payee = other.name;
+        // Pay set up with no "who from", and a bill a plan scheduled, are
+        // named by their category.
+        if (payee.isEmpty &&
+            (t.payScheduleId != null || t.planCategoryId != null)) {
+          payee = other.name;
+        }
       }
     } else {
       kind = RowKind.split;
@@ -1095,6 +1180,7 @@ class LedgerData {
       equity: equity,
       accountId: e.accountId,
       payScheduleId: t.payScheduleId,
+      planCategoryId: t.planCategoryId,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amountOn(t.date),
         _ => null,
