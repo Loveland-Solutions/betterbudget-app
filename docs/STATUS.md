@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -186,7 +186,7 @@ Roughly in the order they will block something.
 
 ## Next step
 
-**2026-10-03, branch `budget-two-types`, not yet a PR (version 0.6.0, schema v14):
+**2026-10-04, PR #35 merged (version 0.6.0, schema v14 and v15):
 two budget types instead of four, and the bill in the forecast.** The owner asked what
 the five choices under a category's Type were for; Spend and Save up came to the same
 number, so a `budget-expert` agent (new, `.claude/agents/budget-expert.md`: how
@@ -209,8 +209,8 @@ in** (rule 27 names them: a bill taken a day early counts on its date, a re-date
 one-time plan reaches the forecast again, undo brings back the very bill, "this month"
 in the last period, "Not scheduled", an archived Paid-from account said in gold).
 **For the owner to call:** a Paid-from bill that arrives through a TDB import leaves
-the scheduled row behind; the import matching a scheduled row would fix it (new).
-Next: PR, merge.
+the scheduled row behind; the import matching a scheduled row would fix it (new). Also to call: the owner's data file is at schema v15 now (upgraded by the
+0.6.0 debug build on 2026-10-03 and 2026-10-04; copies from before are beside it).
 
 **2026-10-03, PR #34 merged (version 0.5.1): ledger fixes from the owner using the
 app.** "Everything has cleared" is gone from the header. The search box shows ⌘F, and
