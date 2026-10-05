@@ -3369,24 +3369,6 @@ class WordsEn extends Words {
   String get planLeft => 'Left';
 
   @override
-  String planNotAssigned(String amount) {
-    return '$amount not assigned to a category yet';
-  }
-
-  @override
-  String planAssignedOver(String amount) {
-    return '$amount more assigned than you have';
-  }
-
-  @override
-  String get planAllAssigned => 'Everything is assigned to a category';
-
-  @override
-  String planNotAssignedTip(String money, String held) {
-    return '$money you have (cash and bank, less what cards owe), less $held assigned to categories';
-  }
-
-  @override
   String planFromBefore(String amount) {
     return '$amount from before';
   }
@@ -3429,18 +3411,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String planCardsOwe(String amount) {
-    return 'Cards owe $amount more than you have in cash and bank';
-  }
-
-  @override
-  String planUncategorized(String count, String amount) {
-    return '$count rows not categorized ($amount), counted in the line above · show them';
-  }
-
-  @override
   String planStartOffer(String amount, String count) {
-    return 'You\'re starting partway through this period: $amount was already spent in $count categories with nothing assigned, and it counts against them.';
+    return '$amount was spent in $count categories before anything was assigned. It counts against them this period.';
   }
 
   @override
@@ -3941,7 +3913,49 @@ class WordsEn extends Words {
 
   @override
   String planFillOver(String amount) {
-    return '$amount more than you have left to assign';
+    return 'That’s $amount more than you have';
+  }
+
+  @override
+  String get planKeyHave => 'You have';
+
+  @override
+  String get planKeyHaveTip => 'Cash and bank, less what cards owe';
+
+  @override
+  String get planKeyAssigned => 'In categories';
+
+  @override
+  String get planKeyNotAssigned => 'Not assigned';
+
+  @override
+  String planOverConsequence(String amount) {
+    return 'Spend what the categories hold and the accounts go $amount below zero.';
+  }
+
+  @override
+  String get planCardsOweShort => 'Cards owe more than you have';
+
+  @override
+  String planUncategorizedRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows not categorized · show them',
+      one: '1 row not categorized · show them',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planUncategorizedMoney(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$amount in $count rows not categorized · show them',
+      one: '$amount in 1 row not categorized · show them',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -4070,11 +4084,6 @@ class WordsEn extends Words {
   @override
   String planBackingShared(String held, int count, String have) {
     return '$held left in $count categories kept in the same accounts, which hold $have';
-  }
-
-  @override
-  String planAllAssignedIn(String symbol) {
-    return 'Everything in $symbol is assigned to a category';
   }
 
   @override

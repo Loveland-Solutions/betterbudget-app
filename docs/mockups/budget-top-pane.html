@@ -1,0 +1,265 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Budget Top Pane</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Manrope:wght@500;700;800&display=swap">
+<style>
+/* Layout: one column of three mockups, each drawn in the app's own light look, with the dark look following the viewer. */
+:root {
+  --page: #f5f2ec;       /* the app's light ground */
+  --panel: #ffffff;
+  --rule: #e4e0d6;
+  --ink: #1c2140;
+  --ink2: #4a5070;
+  --ink3: #7c8198;
+  --coral: #c8472f;
+  --coral-wash: #fbeae6;
+  --gold: #a9741c;
+  --gold-wash: #fbf3df;
+  --blue: #3d53d6;
+  --blue-wash: #eceefc;
+  --stripe: #f4f3fb;
+  --doc-bg: #ebe7df;     /* the page around the mockups */
+  --doc-fg: #1c2140;
+  --doc-muted: #5e6378;
+  --display: "Onest", "Helvetica Neue", Arial, sans-serif;
+  --money: "Manrope", "Onest", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #141733; --panel: #1d2144; --rule: #2d3160; --ink: #eef0ff; --ink2: #b9bdd8; --ink3: #8a8fb0;
+    --coral: #ff8a73; --coral-wash: #3a2330; --gold: #e9b94c; --gold-wash: #342c1c; --blue: #8c9dff; --blue-wash: #2a2f5c;
+    --stripe: #222657; --doc-bg: #0e1026; --doc-fg: #eef0ff; --doc-muted: #a3a8c6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #141733; --panel: #1d2144; --rule: #2d3160; --ink: #eef0ff; --ink2: #b9bdd8; --ink3: #8a8fb0;
+  --coral: #ff8a73; --coral-wash: #3a2330; --gold: #e9b94c; --gold-wash: #342c1c; --blue: #8c9dff; --blue-wash: #2a2f5c;
+  --stripe: #222657; --doc-bg: #0e1026; --doc-fg: #eef0ff; --doc-muted: #a3a8c6; color-scheme: dark;
+}
+body { background: var(--doc-bg); color: var(--doc-fg); font-family: var(--display); margin: 0; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 36px 60px; padding-inline: 16px; display: grid; gap: 40px; }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; margin: 0 0 6px; text-wrap: balance; }
+h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.2px; margin: 0; }
+p { line-height: 1.5; margin: 0; max-width: 68ch; }
+.intro p + p { margin-top: 8px; }
+.muted { color: var(--doc-muted); font-size: 14px; }
+.option { display: grid; gap: 14px; }
+.option-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pick { font-size: 12px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--blue); background: var(--blue-wash); padding: 3px 8px; border-radius: 6px; }
+.state { font-size: 12.5px; color: var(--doc-muted); margin: 0 0 -6px; letter-spacing: 0.2px; }
+.notes { display: grid; gap: 4px; font-size: 14px; line-height: 1.45; max-width: 76ch; }
+.notes b { font-weight: 600; }
+
+/* The app's page, cropped to the top pane */
+.app { background: var(--page); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 24px 18px; color: var(--ink); overflow-x: auto; }
+.app * { box-sizing: border-box; }
+.title { display: flex; align-items: center; gap: 14px; height: 32px; margin-bottom: 14px; white-space: nowrap; }
+.title .budget { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; margin-right: 6px; }
+.title .arrow { width: 24px; height: 24px; display: inline-grid; place-items: center; color: var(--ink3); border-radius: 6px; font-size: 18px; }
+.title .period { font-size: 14.5px; font-weight: 500; color: var(--ink2); }
+.title .chev { color: var(--ink3); font-size: 12px; margin-left: 2px; }
+.title .today { font-size: 13px; color: var(--ink3); }
+.title .view { font-size: 13px; color: var(--ink2); margin-left: 6px; }
+.title .spacer { flex: 1; }
+.btn { background: var(--blue); color: #fff; font-size: 13.5px; font-weight: 600; padding: 7px 14px; border-radius: 9px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 5px 10px; font-size: 13px; color: var(--ink); white-space: nowrap; }
+.money { font-family: var(--money); font-variant-numeric: tabular-nums; }
+.coral { color: var(--coral); }
+.gold { color: var(--gold); }
+.link { text-decoration: none; }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; }
+.rows { margin-top: 12px; padding: 12px 14px 4px; }
+.tabs { display: flex; gap: 6px; font-size: 13.5px; color: var(--ink3); align-items: center; }
+.tabs .on { background: var(--blue-wash); color: var(--ink); padding: 4px 11px; border-radius: 8px; }
+.tabs .cols { margin-left: auto; display: grid; grid-template-columns: 110px 110px 110px; text-align: right; font-size: 12.5px; color: var(--ink3); }
+.row { display: grid; grid-template-columns: 1fr 110px 110px 110px 28px; align-items: center; padding: 9px 10px; font-size: 14px; border-radius: 8px; margin-top: 4px; }
+.row.stripe { background: var(--stripe); }
+.row .n { text-align: right; }
+.row .dots { color: var(--ink3); text-align: center; }
+.row .b { font-weight: 600; }
+
+/* Today */
+.today-pane { display: grid; gap: 6px; }
+.today-pane .line1 { font-size: 17px; font-weight: 600; }
+
+/* Option A: number first */
+.a-block { display: grid; grid-template-columns: 180px 1fr; column-gap: 16px; row-gap: 6px; align-items: baseline; }
+.a-block .fig { font-size: 20px; font-weight: 700; text-align: right; }
+.a-block .lab { font-size: 14.5px; color: var(--ink2); }
+.a-block .sub { grid-column: 2; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.a-block + .a-block { margin-top: 10px; }
+
+/* Option B: the key */
+.key { padding: 16px 18px 14px; display: grid; gap: 0; }
+.key .r { display: grid; grid-template-columns: 120px 150px 150px 1fr; column-gap: 28px; align-items: center; min-height: 26px; }
+.key .r.one { grid-template-columns: 120px 150px 1fr; }
+.key .lab { font-size: 13px; color: var(--ink3); }
+.key .n { font-size: 14px; text-align: right; }
+.key .note { font-size: 13px; color: var(--ink3); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.key .rule { height: 1px; background: var(--rule); margin: 8px 0; }
+.key .r.result .lab { font-size: 14px; font-weight: 500; color: var(--ink); }
+.key .r.result .n { font-size: 20px; font-weight: 700; }
+.key .r.result .note { font-size: 13px; }
+.key .offer { border-top: 1px solid var(--rule); margin-top: 12px; padding-top: 12px; display: grid; gap: 10px; }
+.key .offer p { font-size: 13.5px; color: var(--ink2); max-width: none; }
+.key .offer .btns { display: flex; gap: 8px; }
+.key .offer .chip.gold { color: var(--gold); border-color: var(--gold); }
+
+/* Option C: side by side */
+.side { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px 40px; }
+.side .blk { display: grid; gap: 5px; }
+.side .fig { font-size: 22px; font-weight: 700; }
+.side .fig small { font-family: var(--display); font-size: 14.5px; font-weight: 500; color: var(--ink2); margin-left: 8px; }
+.side .sum { font-size: 13px; color: var(--ink3); }
+.side .acts { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13px; margin-top: 3px; }
+
+@media (max-width: 720px) {
+  .key .r, .key .r.one { grid-template-columns: 100px 1fr; row-gap: 4px; }
+  .key .note { grid-column: 1 / -1; }
+  .a-block { grid-template-columns: 1fr; }
+  .a-block .fig { text-align: left; }
+  .a-block .sub { grid-column: 1; }
+  .row { grid-template-columns: 1fr 80px 80px 80px 20px; font-size: 12px; }
+  .tabs .cols { grid-template-columns: 80px 80px 80px; }
+}
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>The Budget page's top pane: three ways to lay it out</h1>
+    <p class="muted">Each is drawn twice: the common case (one currency, nothing wrong) and your screen today (two currencies, dollars over-assigned, two imported rows waiting). The rows card under it stays as it is.</p>
+    <p class="muted">What's wrong today, in one line: three sentences in three colours and three sizes, stacked at one edge, with the number you need (how much you can still assign) inside one of them and the "why" hidden in a hover tooltip.</p>
+  </header>
+
+  <!-- TODAY -->
+  <section class="option">
+    <div class="option-head"><h2>Today</h2></div>
+    <p class="state">Your screen now</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31</span><span class="arrow">›</span><span class="view">Month <span class="chev">⌄</span></span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="today-pane">
+        <div class="line1 coral money">$4,963,768.91 more assigned than you have</div>
+        <div class="line1 money">₮4,289,291.14 not assigned to a category yet</div>
+        <div class="gold" style="font-size:13px">2 rows not categorized (₮0.00), counted in the line above · show them</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPTION A -->
+  <section class="option">
+    <div class="option-head"><h2>A. Number first</h2><span class="muted">the smallest change</span></div>
+    <p class="state">One currency, nothing wrong</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="a-block">
+        <div class="fig money">₮4,289,291.14</div><div class="lab">Not assigned</div>
+        <div class="sub"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span></div>
+      </div>
+    </div>
+    <p class="state">Your screen today</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="a-block">
+        <div class="fig money">₮4,289,291.14</div><div class="lab">Not assigned</div>
+        <div class="sub"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span><span class="gold link">2 rows not categorized · show them</span></div>
+      </div>
+      <div class="a-block">
+        <div class="fig money coral">−$4,963,768.91</div><div class="lab coral">More assigned than you have</div>
+        <div class="sub coral">Spend what the categories hold and the dollar accounts go $4,963,768.91 below zero.</div>
+      </div>
+    </div>
+    <div class="notes">
+      <div><b>What it fixes.</b> The number is a number, with a short label; the two currencies line up; the gold line and the chip hang under the figure they belong to; the warning says what will happen.</div>
+      <div><b>What it doesn't.</b> Where the figure comes from is still a hover tooltip, so "I got paid ₮2,100,000, why is only ₮1,400,000 free?" still has no visible answer. The pane's height changes with every state.</div>
+    </div>
+  </section>
+
+  <!-- OPTION B -->
+  <section class="option">
+    <div class="option-head"><h2>B. The key</h2><span class="pick">Recommended</span><span class="muted">the same shape as an account page's header</span></div>
+    <p class="state">One currency, nothing wrong</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="card key">
+        <div class="r one"><span class="lab">You have</span><span class="n money">₮4,389,291.14</span><span class="note"></span></div>
+        <div class="r one"><span class="lab">Assigned</span><span class="n money">₮100,000.00</span><span class="note"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span></span></div>
+        <div class="rule"></div>
+        <div class="r one result"><span class="lab">Not assigned</span><span class="n money">₮4,289,291.14</span><span class="note"></span></div>
+      </div>
+      <div class="card rows">
+        <div class="tabs"><span class="on">Spending</span><span style="padding:4px 11px">Income</span><span class="cols"><span>Assigned</span><span>Spent</span><span>Left</span></span></div>
+        <div class="row"><span>Groceries</span><span class="n money">₮0.00</span><span class="n money">₮0.00</span><span class="n money b">₮0.00</span><span class="dots">…</span></div>
+      </div>
+    </div>
+    <p class="state">Your screen today</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="card key">
+        <div class="r"><span class="lab">You have</span><span class="n money">₮4,389,291.14</span><span class="n money">$100,000.00</span><span class="note"><span class="gold link">2 rows not categorized · show them</span></span></div>
+        <div class="r"><span class="lab">Assigned</span><span class="n money">₮100,000.00</span><span class="n money">$5,063,768.91</span><span class="note"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span></span></div>
+        <div class="rule"></div>
+        <div class="r result"><span class="lab">Not assigned</span><span class="n money">₮4,289,291.14</span><span class="n money coral">−$4,963,768.91</span><span class="note coral">Spend what the categories hold and the dollar accounts go $4,963,768.91 below zero.</span></div>
+      </div>
+    </div>
+    <p class="state">Starting partway through a period (the offer joins the same card)</p>
+    <div class="app">
+      <div class="card key">
+        <div class="r one"><span class="lab">You have</span><span class="n money">₮4,389,291.14</span><span class="note"></span></div>
+        <div class="r one"><span class="lab">Assigned</span><span class="n money">₮0.00</span><span class="note"></span></div>
+        <div class="rule"></div>
+        <div class="r one result"><span class="lab">Not assigned</span><span class="n money">₮4,389,291.14</span><span class="note"></span></div>
+        <div class="offer">
+          <p><span class="money">₮295,090.50</span> was spent in 7 categories before anything was assigned. It counts against them this period.</p>
+          <div class="btns"><span class="chip gold">Start the budget on 11.01 instead</span><span class="chip">Keep it as it is</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div><b>What it fixes.</b> The sum is on the page: what you have, less what's assigned, is what's free. That is the tooltip's sentence as three rows, so the payday question answers itself. Each note sits on the row it is about, so colour means state, not position: rows not categorized on "You have" (they are money in accounts), the chip on "Assigned", the warning on "Not assigned". Two currencies are two columns of the same thing. The first-period offer is a strip inside the card, so the page is title, key, rows, like an account page's header and register.</div>
+      <div><b>What it costs.</b> About 50px taller than today's one line in the common case, and it never jumps. Two currencies both with plans wrap the Assigned row to two lines.</div>
+    </div>
+  </section>
+
+  <!-- OPTION C -->
+  <section class="option">
+    <div class="option-head"><h2>C. Side by side</h2><span class="muted">one block per currency, the sum spelled under the figure</span></div>
+    <p class="state">One currency, nothing wrong</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="side">
+        <div class="blk">
+          <div class="fig money">₮4,289,291.14<small>not assigned</small></div>
+          <div class="sum">₮4,389,291.14 cash and bank, less ₮100,000.00 assigned to categories</div>
+          <div class="acts"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="state">Your screen today</p>
+    <div class="app">
+      <div class="title"><span class="budget">Budget</span><span class="arrow">‹</span><span class="period">This month · 10.01–10.31 <span class="chev">⌄</span></span><span class="arrow">›</span><span class="spacer"></span><span class="btn">+ Add category</span></div>
+      <div class="side">
+        <div class="blk">
+          <div class="fig money">₮4,289,291.14<small>not assigned</small></div>
+          <div class="sum">₮4,389,291.14 cash and bank, less ₮100,000.00 assigned to categories</div>
+          <div class="acts"><span class="chip">Assign what's planned · ₮600,000 in 3 categories</span><span class="gold link">2 rows not categorized · show them</span></div>
+        </div>
+        <div class="blk">
+          <div class="fig money coral">−$4,963,768.91<small class="coral">more assigned than you have</small></div>
+          <div class="sum">$100,000.00 cash and bank, less $5,063,768.91 assigned · $4,900,000.00 of it for 11.01–11.30 · go there</div>
+          <div class="acts coral">Spend what the categories hold and the dollar accounts go $4,963,768.91 below zero.</div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div><b>What it fixes.</b> The same figure and label as A, with the sum visible as one line under it instead of a tooltip, and a pull toward the cause when the over-assigning sits in a later period ("go there" steps to it). Two currencies sit beside each other instead of stacked.</div>
+      <div><b>What it costs.</b> The sum is a sentence again, so it reads as prose, and with two currencies the two sentences fight for width. The warning has no row of its own; it is one more line in the block.</div>
+    </div>
+  </section>
+
+  <section class="option">
+    <div class="option-head"><h2>In all three</h2></div>
+    <div class="notes">
+      <div><b>Words.</b> "Not assigned" as the label (the app's word already; "to a category yet" goes). The warning says what will happen, with the number. "2 rows not categorized · show them", and with money in them "−₮84,300 in 2 rows not categorized · show them"; "(₮0.00)" and "counted in the line above" go. Beside the chip, "That's ₮X more than you have" when it would overdraw.</div>
+      <div><b>The title row.</b> Drawn here with the period title as the dropdown ("This month · 10.01–10.31 ⌄" opens Month / Jeff / Jenny), the way the forecast's "Until your 10.10 paycheck ⌄" works. One control instead of two; "Month ⌄" next to "This month" read as the same thing twice to a first-time reader. This changes today's "a dropdown beside the period", so it's a question for you, not a decision.</div>
+      <div><b>⌘N on the Budget page</b> would add a category (today it jumps to the Ledger and opens an entry row).</div>
+    </div>
+  </section>
+</div>

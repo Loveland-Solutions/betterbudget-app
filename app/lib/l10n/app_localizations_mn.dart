@@ -3211,24 +3211,6 @@ class WordsMn extends Words {
   String get planLeft => 'Үлдсэн';
 
   @override
-  String planNotAssigned(String amount) {
-    return '$amount ангилалд хуваарилаагүй байна';
-  }
-
-  @override
-  String planAssignedOver(String amount) {
-    return 'Байгаа мөнгөнөөс $amount илүү хуваарилсан';
-  }
-
-  @override
-  String get planAllAssigned => 'Бүх мөнгө ангилалд хуваарилагдсан';
-
-  @override
-  String planNotAssignedTip(String money, String held) {
-    return 'Танд байгаа $money (бэлэн мөнгө, банк, картын өрийг хасаад), үүнээс ангилалд хуваарилсан $held-г хассан';
-  }
-
-  @override
   String planFromBefore(String amount) {
     return 'өмнөөс $amount';
   }
@@ -3270,18 +3252,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String planCardsOwe(String amount) {
-    return 'Картын өр бэлэн мөнгө, банкны үлдэгдлээс $amount-өөр их байна';
-  }
-
-  @override
-  String planUncategorized(String count, String amount) {
-    return '$count мөр ангилаагүй ($amount), дээрх дүнд тооцсон · харуулах';
-  }
-
-  @override
   String planStartOffer(String amount, String count) {
-    return 'Та энэ үеийн дундаас эхэлж байна: юу ч хуваарилаагүй $count ангилалд $amount аль хэдийн зарцуулсан бөгөөд тэдгээрээс хасагдана.';
+    return 'Юу ч хуваарилахаас өмнө $count ангилалд $amount зарцуулсан байна. Энэ үед тэдгээрээс хасагдана.';
   }
 
   @override
@@ -3781,7 +3753,49 @@ class WordsMn extends Words {
 
   @override
   String planFillOver(String amount) {
-    return 'хуваарилах үлдсэн мөнгөнөөс $amount илүү';
+    return 'Энэ нь байгаа мөнгөнөөс $amount илүү';
+  }
+
+  @override
+  String get planKeyHave => 'Танд байгаа';
+
+  @override
+  String get planKeyHaveTip => 'Бэлэн мөнгө, банк, картын өрийг хассан';
+
+  @override
+  String get planKeyAssigned => 'Ангилалд байгаа';
+
+  @override
+  String get planKeyNotAssigned => 'Хуваарилаагүй';
+
+  @override
+  String planOverConsequence(String amount) {
+    return 'Ангиллуудын мөнгийг бүгдийг зарцуулбал данснуудад $amount дутна.';
+  }
+
+  @override
+  String get planCardsOweShort => 'Картын өр танд байгаа мөнгөнөөс их';
+
+  @override
+  String planUncategorizedRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангилаагүй мөр · харуулах',
+      one: '1 ангилаагүй мөр · харуулах',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planUncategorizedMoney(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангилаагүй мөр, $amount · харуулах',
+      one: '1 ангилаагүй мөр, $amount · харуулах',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -3907,11 +3921,6 @@ class WordsMn extends Words {
   @override
   String planBackingShared(String held, int count, String have) {
     return 'Ижил дансанд хадгалдаг $count ангилалд $held үлдсэн боловч тэдгээр дансанд $have л байна';
-  }
-
-  @override
-  String planAllAssignedIn(String symbol) {
-    return '$symbol валютын бүх мөнгө ангилалд хуваарилагдсан';
   }
 
   @override

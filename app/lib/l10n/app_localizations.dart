@@ -4692,30 +4692,6 @@ abstract class Words {
   /// **'Left'**
   String get planLeft;
 
-  /// Budget page, top line: money the user has that isn't assigned to any category
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} not assigned to a category yet'**
-  String planNotAssigned(String amount);
-
-  /// Budget page, top line in coral: more was assigned to categories than the user has
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} more assigned than you have'**
-  String planAssignedOver(String amount);
-
-  /// Budget page, top line: nothing left to assign, nothing over
-  ///
-  /// In en, this message translates to:
-  /// **'Everything is assigned to a category'**
-  String get planAllAssigned;
-
-  /// Budget page: tooltip on the top line, showing how it's worked out
-  ///
-  /// In en, this message translates to:
-  /// **'{money} you have (cash and bank, less what cards owe), less {held} assigned to categories'**
-  String planNotAssignedTip(String money, String held);
-
   /// Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods
   ///
   /// In en, this message translates to:
@@ -4782,22 +4758,10 @@ abstract class Words {
   /// **'{usage} · show them'**
   String planShowAllRows(String usage);
 
-  /// Budget page, top line in coral when nothing is assigned and cards owe more than cash and bank hold
-  ///
-  /// In en, this message translates to:
-  /// **'Cards owe {amount} more than you have in cash and bank'**
-  String planCardsOwe(String amount);
-
-  /// Budget page, under the top line: imported rows waiting in Not categorized; amount is signed (−₮ out, +₮ in); click opens them
-  ///
-  /// In en, this message translates to:
-  /// **'{count} rows not categorized ({amount}), counted in the line above · show them'**
-  String planUncategorized(String count, String amount);
-
   /// Budget page, gold note after the first amount is assigned in a period that already started (owner's call: offer to start next period)
   ///
   /// In en, this message translates to:
-  /// **'You\'re starting partway through this period: {amount} was already spent in {count} categories with nothing assigned, and it counts against them.'**
+  /// **'{amount} was spent in {count} categories before anything was assigned. It counts against them this period.'**
   String planStartOffer(String amount, String count);
 
   /// Budget page: button on the first-period note; moves what was assigned to the next period, which is where the budget then starts
@@ -5652,11 +5616,59 @@ abstract class Words {
   /// **'{count, plural, =1{Assign what’s planned · {amount} in 1 category} other{Assign what’s planned · {amount} in {count} categories}}'**
   String planFill(int count, String amount);
 
-  /// Budget page: coral note beside the Assign what's planned button, when the plans want more than the money not assigned
+  /// Budget page, the key card, beside "Assign what's planned" on the Assigned row: what it would take beyond the money free. Coral; said before it's done.
   ///
   /// In en, this message translates to:
-  /// **'{amount} more than you have left to assign'**
+  /// **'That’s {amount} more than you have'**
   String planFillOver(String amount);
+
+  /// Budget page, the key card, first row's label: cash and bank less what cards owe, one figure per currency. Short.
+  ///
+  /// In en, this message translates to:
+  /// **'You have'**
+  String get planKeyHave;
+
+  /// Budget page, the key card: tooltip on "You have".
+  ///
+  /// In en, this message translates to:
+  /// **'Cash and bank, less what cards owe'**
+  String get planKeyHaveTip;
+
+  /// Budget page, the key card, second row's label: what the categories hold now (assigned, less spent since the budget began; below zero when overspent). Short.
+  ///
+  /// In en, this message translates to:
+  /// **'In categories'**
+  String get planKeyAssigned;
+
+  /// Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Not assigned'**
+  String get planKeyNotAssigned;
+
+  /// Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend what the categories hold and the accounts go {amount} below zero.'**
+  String planOverConsequence(String amount);
+
+  /// Budget page, the key card, coral note on the You have row when cards owe more than cash and bank hold (nothing assigned could be "too much").
+  ///
+  /// In en, this message translates to:
+  /// **'Cards owe more than you have'**
+  String get planCardsOweShort;
+
+  /// Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized that add up to nothing. Click opens them.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}'**
+  String planUncategorizedRows(int count);
+
+  /// Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}'**
+  String planUncategorizedMoney(int count, String amount);
 
   /// Toast and undo history label after Assign what's planned
   ///
@@ -5800,12 +5812,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{held} left in {count} categories kept in the same accounts, which hold {have}'**
   String planBackingShared(String held, int count, String have);
-
-  /// Budget page, top line for one currency when there are accounts in two: everything in that currency is assigned. symbol is ₮ or $
-  ///
-  /// In en, this message translates to:
-  /// **'Everything in {symbol} is assigned to a category'**
-  String planAllAssignedIn(String symbol);
 
   /// Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same
   ///

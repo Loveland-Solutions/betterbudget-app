@@ -108,6 +108,19 @@ class _BudgetPageState extends State<_BudgetPage> {
   BudgetSpan get _current =>
       budgetPeriod(widget.today, widget.data.periodSchedule);
 
+  /// ⌘N: the add box for a category, or Add pay on the Income tab.
+  void addNew() {
+    if (_tab == _BudgetTab.income) {
+      widget.onPay(null);
+      return;
+    }
+    setState(() {
+      _open = null;
+      _editing = null;
+      _adding = true;
+    });
+  }
+
   /// Esc reached the screen with Edit open (the click before it was
   /// outside the panel): it closes, as from inside. False with none open.
   bool closeEdit() {
@@ -160,7 +173,6 @@ class _BudgetPageState extends State<_BudgetPage> {
       for (final c in Currency.values)
         if (data.openAccounts.any((a) => a.currency == c)) c,
     ];
-    final both = currencies.length > 1;
 
     void edit(int? id) {
       setState(() => _editing = id);
@@ -352,93 +364,6 @@ class _BudgetPageState extends State<_BudgetPage> {
       );
     }
 
-    // One currency's top lines: its money not assigned, "Assign what's
-    // planned" for its categories, and its rows not categorized.
-    List<Widget> top(BudgetPool pool) {
-      final c = pool.currency;
-      // The first pool keeps the plain keys.
-      final tag = c == budget.currency ? '' : '-${c.code}';
-      final held = pool.money - pool.notAssigned;
-      final line = pool.notAssigned > 0
-          ? t.planNotAssigned(money(pool.notAssigned, c))
-          : pool.notAssigned == 0
-          ? t.planAllAssigned
-          // Below zero with nothing held: cards owe more than there is,
-          // and nothing was assigned that could be "too much".
-          : held <= 0 && pool.money < 0
-          ? t.planCardsOwe(money(-pool.money, c))
-          : t.planAssignedOver(money(-pool.notAssigned, c));
-      // What "Assign what's planned" would do: every plan's amount that
-      // isn't assigned yet this period.
-      final planned = {
-        for (final x in spending)
-          if (budget.lines[x.id] case final l?
-              when x.currency == c && l.toAssign > 0)
-            x: l.plan!.planned,
-      };
-      final plannedTotal = planned.keys.fold(
-        0,
-        (sum, x) => sum + budget.lines[x.id]!.toAssign,
-      );
-      // Said before it's done: it would take more than there is.
-      final plannedOver =
-          plannedTotal - (pool.notAssigned > 0 ? pool.notAssigned : 0);
-      return [
-        Tooltip(
-          message: t.planNotAssignedTip(money(pool.money, c), money(held, c)),
-          waitDuration: const Duration(milliseconds: 500),
-          child: Text(
-            // With two currencies, "everything is assigned" needs its own.
-            both && pool.notAssigned == 0 ? t.planAllAssignedIn(c.shown) : line,
-            key: ValueKey('not-assigned$tag'),
-            style: onest(
-              17,
-              weight: 600,
-              color: pool.notAssigned < 0 ? Mid.coral : Mid.ink,
-              tabular: true,
-            ),
-          ),
-        ),
-        if (planned.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              BarButton(
-                key: ValueKey('assign-planned$tag'),
-                label: t.planFill(planned.length, planMoney(plannedTotal, c)),
-                onTap: () {
-                  setState(() => _editing = null);
-                  widget.onAssignPlanned(period, planned);
-                },
-              ),
-              if (plannedOver > 0)
-                Text(
-                  t.planFillOver(planMoney(plannedOver, c)),
-                  key: ValueKey('assign-planned-over$tag'),
-                  style: onest(13, color: Mid.coral, tabular: true),
-                ),
-            ],
-          ),
-        ],
-        if (pool.uncategorizedRows > 0) ...[
-          const SizedBox(height: 4),
-          Hoverable(
-            key: ValueKey('uncategorized-line$tag'),
-            onTap: widget.onShowUncategorized,
-            builder: (hover) => Text(
-              t.planUncategorized(
-                '${pool.uncategorizedRows}',
-                pool.uncategorizedNet > 0
-                    ? '+${money(pool.uncategorizedNet, c)}'
-                    : money(pool.uncategorizedNet, c),
-              ),
-              style: onest(13, color: hover ? Mid.blue : Mid.gold),
-            ),
-          ),
-        ],
-      ];
-    }
-
     // Started partway through a period, with spending in categories
     // nothing was assigned to: offer the next period instead (owner's
     // call). Answered once, it goes.
@@ -449,6 +374,232 @@ class _BudgetPageState extends State<_BudgetPage> {
         !began.isAfter(period.end) &&
         widget.today.isAfter(period.start) &&
         budget.unassignedSpent.count > 0;
+
+    // The key (ADR 0004 "The top pane", the owner's pick B, 2026-10-05):
+    // what you have, less what's assigned, is what's free, one column per
+    // currency, each note on the row it's about, so colour means state,
+    // not position. The first-period offer is a strip in the same card.
+    Widget keyCard() {
+      final pools = budget.pools;
+      String tagOf(Currency c) => c == budget.currency ? '' : '-${c.code}';
+      // One pool's figures: have, assigned, free; and its states.
+      final held = {for (final p in pools) p.currency: p.money - p.notAssigned};
+      bool cardsOwe(BudgetPool p) =>
+          p.notAssigned < 0 && held[p.currency]! <= 0 && p.money < 0;
+      bool over(BudgetPool p) => p.notAssigned < 0 && !cardsOwe(p);
+      Widget figure(
+        String key,
+        int v,
+        Currency c, {
+        bool big = false,
+        bool coral = false,
+      }) => Text(
+        money(v, c),
+        key: ValueKey(key),
+        textAlign: TextAlign.right,
+        style: big
+            ? onest(
+                20,
+                weight: 700,
+                color: coral ? Mid.coral : Mid.ink,
+                tabular: true,
+              )
+            : onest(
+                14,
+                weight: 500,
+                color: coral ? Mid.coral : Mid.ink,
+                tabular: true,
+              ),
+      );
+      Widget label(String text, {bool big = false, String? tip}) {
+        final w = Text(
+          text,
+          style: big
+              ? onest(14, weight: 500, color: Mid.ink)
+              : onest(13, color: Mid.ink3),
+        );
+        return tip == null
+            ? w
+            : Tooltip(
+                message: tip,
+                waitDuration: const Duration(milliseconds: 500),
+                child: w,
+              );
+      }
+
+      Widget row(
+        Widget lab,
+        List<Widget> figures,
+        List<Widget> notes, {
+        bool big = false,
+      }) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(width: 120, child: lab),
+            // Wide enough for a tugrik sum with cents at the big size.
+            for (final f in figures) ...[
+              SizedBox(width: 200, child: f),
+              const SizedBox(width: 28),
+            ],
+            Expanded(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: notes,
+              ),
+            ),
+          ],
+        ),
+      );
+      // Notes on "You have": rows waiting in Not categorized (money in
+      // accounts, already counted), and cards owing more than there is.
+      final haveNotes = <Widget>[
+        for (final p in pools) ...[
+          if (p.uncategorizedRows > 0)
+            Hoverable(
+              key: ValueKey('uncategorized-line${tagOf(p.currency)}'),
+              onTap: widget.onShowUncategorized,
+              builder: (hover) => Text(
+                p.uncategorizedNet == 0
+                    ? t.planUncategorizedRows(p.uncategorizedRows)
+                    : t.planUncategorizedMoney(
+                        p.uncategorizedRows,
+                        p.uncategorizedNet > 0
+                            ? '+${money(p.uncategorizedNet, p.currency)}'
+                            : money(p.uncategorizedNet, p.currency),
+                      ),
+                style: onest(13, color: hover ? Mid.blue : Mid.gold),
+              ),
+            ),
+          if (cardsOwe(p))
+            Text(
+              t.planCardsOweShort,
+              key: ValueKey('cards-owe${tagOf(p.currency)}'),
+              style: onest(13, color: Mid.coral),
+            ),
+        ],
+      ];
+      // Notes on "Assigned": one click for everything planned, and what
+      // that would overdraw, said before it's done.
+      final assignedNotes = <Widget>[];
+      for (final p in pools) {
+        final c = p.currency, tag = tagOf(c);
+        final planned = {
+          for (final x in spending)
+            if (budget.lines[x.id] case final l?
+                when x.currency == c && l.toAssign > 0)
+              x: l.plan!.planned,
+        };
+        if (planned.isEmpty) continue;
+        final plannedTotal = planned.keys.fold(
+          0,
+          (sum, x) => sum + budget.lines[x.id]!.toAssign,
+        );
+        final plannedOver =
+            plannedTotal - (p.notAssigned > 0 ? p.notAssigned : 0);
+        assignedNotes.add(
+          BarButton(
+            key: ValueKey('assign-planned$tag'),
+            label: t.planFill(planned.length, planMoney(plannedTotal, c)),
+            onTap: () {
+              setState(() => _editing = null);
+              widget.onAssignPlanned(period, planned);
+            },
+          ),
+        );
+        if (plannedOver > 0) {
+          assignedNotes.add(
+            Text(
+              t.planFillOver(planMoney(plannedOver, c)),
+              key: ValueKey('assign-planned-over$tag'),
+              style: onest(13, color: Mid.coral, tabular: true),
+            ),
+          );
+        }
+      }
+      // Notes on "Not assigned": the one real warning, with what happens.
+      final freeNotes = <Widget>[
+        for (final p in pools)
+          if (over(p))
+            Text(
+              t.planOverConsequence(money(-p.notAssigned, p.currency)),
+              key: ValueKey('assigned-over${tagOf(p.currency)}'),
+              style: onest(13, color: Mid.coral, tabular: true),
+            ),
+      ];
+      return Container(
+        key: const ValueKey('budget-key'),
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        decoration: BoxDecoration(
+          color: Mid.panel,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Mid.rule),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            row(label(t.planKeyHave, tip: t.planKeyHaveTip), [
+              for (final p in pools)
+                figure(
+                  'you-have${tagOf(p.currency)}',
+                  p.money,
+                  p.currency,
+                  coral: cardsOwe(p),
+                ),
+            ], haveNotes),
+            row(label(t.planKeyAssigned), [
+              for (final p in pools)
+                figure(
+                  'assigned-sum${tagOf(p.currency)}',
+                  held[p.currency]!,
+                  p.currency,
+                ),
+            ], assignedNotes),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Container(height: 1, color: Mid.rule),
+            ),
+            row(
+              label(t.planKeyNotAssigned, big: true),
+              [
+                for (final p in pools)
+                  figure(
+                    'not-assigned${tagOf(p.currency)}',
+                    p.notAssigned,
+                    p.currency,
+                    big: true,
+                    coral: p.notAssigned < 0,
+                  ),
+              ],
+              freeNotes,
+              big: true,
+            ),
+            if (offerStart)
+              _StartOffer(
+                text: t.planStartOffer(
+                  money(budget.unassignedSpent.amount),
+                  '${budget.unassignedSpent.count}',
+                ),
+                later: t.planStartLater(
+                  sayDate(t, nextBudgetPeriod(period, by).start),
+                ),
+                onLater: () {
+                  final next = nextBudgetPeriod(period, by);
+                  widget.onStartLater(period, next);
+                  setState(() {
+                    _editing = null;
+                    _period = next;
+                  });
+                },
+                onKeep: widget.onKeepStart,
+              ),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
@@ -475,14 +626,17 @@ class _BudgetPageState extends State<_BudgetPage> {
                     _period = previousBudgetPeriod(period, by);
                   }),
                 ),
-                Text(
-                  t.planPeriodTitle(
+                // The title is the view's dropdown once there's pay
+                // (ADR 0004 "The top pane"): Month, or a pay by name.
+                _ViewChoice(
+                  data: data,
+                  by: by,
+                  title: t.planPeriodTitle(
                     _spanName(t, period, widget.today),
                     shortDate(period.start),
                     shortDate(period.end),
                   ),
-                  key: const ValueKey('period-title'),
-                  style: onest(14.5, weight: 500, color: Mid.ink2),
+                  onPick: widget.onBudgetBy,
                 ),
                 _PeriodArrow(
                   key: const ValueKey('period-next'),
@@ -509,14 +663,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                     ),
                   ),
                 ],
-                // The view: by month, or by one pay's periods (owner,
-                // 2026-10-05: two earners). Each category keeps its own
-                // period; this only chooses the ruler. Nothing to choose
-                // until there's pay.
-                if (data.paySchedules.isNotEmpty) ...[
-                  const SizedBox(width: 14),
-                  _ViewChoice(data: data, by: by, onPick: widget.onBudgetBy),
-                ],
                 const Spacer(),
                 // One button for the tab that's on: a category, or a pay.
                 if (_tab == _BudgetTab.income)
@@ -541,32 +687,8 @@ class _BudgetPageState extends State<_BudgetPage> {
             ),
           ),
           const SizedBox(height: 14),
-          for (final (n, pool) in budget.pools.indexed) ...[
-            if (n > 0) const SizedBox(height: 10),
-            ...top(pool),
-          ],
-          if (offerStart) ...[
-            const SizedBox(height: 10),
-            _StartOffer(
-              text: t.planStartOffer(
-                money(budget.unassignedSpent.amount),
-                '${budget.unassignedSpent.count}',
-              ),
-              later: t.planStartLater(
-                sayDate(t, nextBudgetPeriod(period, by).start),
-              ),
-              onLater: () {
-                final next = nextBudgetPeriod(period, by);
-                widget.onStartLater(period, next);
-                setState(() {
-                  _editing = null;
-                  _period = next;
-                });
-              },
-              onKeep: widget.onKeepStart,
-            ),
-          ],
-          const SizedBox(height: 16),
+          keyCard(),
+          const SizedBox(height: 12),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -957,17 +1079,21 @@ String _spanName(Words t, BudgetSpan p, DateTime today) {
   return p.start.year == today.year ? m : '$m ${p.start.year}';
 }
 
-/// The Budget page's view: "Month ▾", or a pay's name. Picking one asks the
+/// The period title ("This month · 10.01–10.31"), which is the view's
+/// dropdown once there's pay: Month, or a pay by name (ADR 0004 "The top
+/// pane"; one control, like the forecast's title). Picking one asks the
 /// screen to view by it; the choice is kept in the ledger (one pay at most
-/// has it).
+/// has it). Without pay, the title alone.
 class _ViewChoice extends StatefulWidget {
   const _ViewChoice({
     required this.data,
     required this.by,
+    required this.title,
     required this.onPick,
   });
   final LedgerData data;
   final PaySchedule? by;
+  final String title;
   final ValueChanged<PaySchedule?> onPick;
 
   @override
@@ -981,7 +1107,12 @@ class _ViewChoiceState extends State<_ViewChoice> {
   Widget build(BuildContext context) {
     final t = context.t;
     final by = widget.by;
-    final label = by == null ? t.planViewMonth : payTitle(t, widget.data, by);
+    final title = Text(
+      widget.title,
+      key: const ValueKey('period-title'),
+      style: onest(14.5, weight: 500, color: Mid.ink2),
+    );
+    if (widget.data.paySchedules.isEmpty) return title;
     Widget item(String key, String label, bool on, VoidCallback onTap) =>
         MenuItemButton(
           key: ValueKey(key),
@@ -1021,11 +1152,12 @@ class _ViewChoiceState extends State<_ViewChoice> {
           key: const ValueKey('budget-view'),
           onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
           builder: (hover) {
-            final color = hover || _menu.isOpen ? Mid.ink : Mid.ink2;
+            final color = hover || _menu.isOpen ? Mid.ink : Mid.ink3;
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: onest(13, color: color)),
+                title,
+                const SizedBox(width: 2),
                 Icon(Icons.expand_more_rounded, size: 16, color: color),
               ],
             );
@@ -1929,19 +2061,20 @@ class _StartOffer extends StatelessWidget {
   final VoidCallback onLater;
   final VoidCallback onKeep;
 
+  // A strip under the key's rows, inside the same card: the one thing
+  // here that's a question, gone once answered.
   @override
   Widget build(BuildContext context) => Container(
     key: const ValueKey('start-offer'),
-    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+    margin: const EdgeInsets.only(top: 10),
+    padding: const EdgeInsets.only(top: 12),
     decoration: BoxDecoration(
-      color: Mid.gold.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Mid.gold.withValues(alpha: 0.4)),
+      border: Border(top: BorderSide(color: Mid.rule)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(text, style: onest(13.5, color: Mid.ink)),
+        Text(text, style: onest(13.5, color: Mid.ink2)),
         const SizedBox(height: 10),
         Row(
           children: [

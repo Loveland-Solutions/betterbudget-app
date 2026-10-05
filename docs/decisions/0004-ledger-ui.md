@@ -1766,6 +1766,52 @@ person. The owner's design, built (version 0.8.0, schema v17):
   payday it sees and through that pay's period (rule 24's note); a bill paid
   "Every payday" is pinned to one pay.
 
+### The top pane: the key (owner, 2026-10-05)
+
+"Let's make this top pane prettier. It looks like a mess up there." The
+Budget page's top pane was three sentences in three colours and three sizes
+("$4,963,768.91 more assigned than you have" in coral, "₮4,289,291.14 not
+assigned to a category yet", "2 rows not categorized (₮0.00), counted in the
+line above · show them" in gold), stacked at one edge, the number a person
+needs inside one of them and the sum behind a hover tooltip. The design
+committee (ui-designer, ux-writer, interaction-designer, first-time-user) ran;
+three mockups were drawn (`docs/mockups/budget-top-pane.html`); **the owner
+picked B, "the key"**.
+
+- **A card like an account page's header**: "You have" (cash and bank, less
+  what cards owe; the old tooltip's words are its tooltip), "In categories"
+  (what they hold now: assigned less spent, below zero when overspent), a
+  rule, then **"Not assigned"** big: the result. The payday question ("I got
+  paid ₮2,100,000, why is only ₮1,400,000 free?") answers itself. One column
+  per currency, the budget's first, so two currencies are two of the same
+  thing. Then the rows card. Rejected: A, the figure with a label and the
+  sentences under it (the sum still a tooltip, the height jumping with each
+  state); C, one block per currency with the sum as a sentence under the
+  figure (prose again, two blocks fighting for width).
+- **Each note sits on the row it is about**, so colour means state, not
+  position: the gold "2 rows not categorized · show them" (or "−₮84,300 in 2
+  rows not categorized · show them"; "(₮0.00)" and "counted in the line
+  above" are gone) on You have, since they are money in accounts; the "Assign
+  what's planned" chip on In categories, with "That's ₮X more than you have"
+  in coral beside it when it would overdraw; the one real warning on Not
+  assigned, the figure coral and a sentence that says what will happen:
+  "Spend what the categories hold and the accounts go $4,963,768.91 below
+  zero." Cards owing more than there is colours You have and says "Cards owe
+  more than you have". Everything assigned is ₮0.00 and no sentence (the
+  owner's rule: don't tell them what they already know).
+- **The first-period offer is a strip in the same card**, under a rule, worded
+  "₮295,090.50 was spent in 7 categories before anything was assigned. It
+  counts against them this period." with its two buttons. One card, not a box
+  above a card.
+- **The period title is the view's dropdown** ("This month · 10.01–10.31 ⌄"
+  opens Month / Jeff / Jenny), as the forecast's title is: one control. The
+  separate "Month ▾" beside it, built that morning ("Two earners"), read as
+  the same thing twice to a first-time reader. Without pay the title is plain.
+- **⌘N on the Budget page adds a category** (Add pay on the Income tab); it
+  used to jump to the Ledger and open an entry row.
+- Costs: about 50px taller than the old one-line common case, and it never
+  jumps with the state.
+
 ### The smallest window (owner, 2026-10-01)
 
 The owner's correction: "We seem to be letting the app collapse farther than

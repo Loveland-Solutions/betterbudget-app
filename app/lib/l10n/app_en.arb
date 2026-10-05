@@ -4937,40 +4937,6 @@
   "@planLeft": {
     "description": "Budget page: column title over what each spending category holds now, what carried over included"
   },
-  "planNotAssigned": "{amount} not assigned to a category yet",
-  "@planNotAssigned": {
-    "description": "Budget page, top line: money the user has that isn't assigned to any category",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planAssignedOver": "{amount} more assigned than you have",
-  "@planAssignedOver": {
-    "description": "Budget page, top line in coral: more was assigned to categories than the user has",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planAllAssigned": "Everything is assigned to a category",
-  "@planAllAssigned": {
-    "description": "Budget page, top line: nothing left to assign, nothing over"
-  },
-  "planNotAssignedTip": "{money} you have (cash and bank, less what cards owe), less {held} assigned to categories",
-  "@planNotAssignedTip": {
-    "description": "Budget page: tooltip on the top line, showing how it's worked out",
-    "placeholders": {
-      "money": {
-        "type": "String"
-      },
-      "held": {
-        "type": "String"
-      }
-    }
-  },
   "planFromBefore": "{amount} from before",
   "@planFromBefore": {
     "description": "Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods",
@@ -5044,28 +5010,7 @@
       }
     }
   },
-  "planCardsOwe": "Cards owe {amount} more than you have in cash and bank",
-  "@planCardsOwe": {
-    "description": "Budget page, top line in coral when nothing is assigned and cards owe more than cash and bank hold",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planUncategorized": "{count} rows not categorized ({amount}), counted in the line above · show them",
-  "@planUncategorized": {
-    "description": "Budget page, under the top line: imported rows waiting in Not categorized; amount is signed (−₮ out, +₮ in); click opens them",
-    "placeholders": {
-      "count": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planStartOffer": "You're starting partway through this period: {amount} was already spent in {count} categories with nothing assigned, and it counts against them.",
+  "planStartOffer": "{amount} was spent in {count} categories before anything was assigned. It counts against them this period.",
   "@planStartOffer": {
     "description": "Budget page, gold note after the first amount is assigned in a period that already started (owner's call: offer to start next period)",
     "placeholders": {
@@ -5802,10 +5747,60 @@
       }
     }
   },
-  "planFillOver": "{amount} more than you have left to assign",
+  "planFillOver": "That\u2019s {amount} more than you have",
   "@planFillOver": {
-    "description": "Budget page: coral note beside the Assign what's planned button, when the plans want more than the money not assigned",
+    "description": "Budget page, the key card, beside \"Assign what's planned\" on the Assigned row: what it would take beyond the money free. Coral; said before it's done.",
     "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyHave": "You have",
+  "@planKeyHave": {
+    "description": "Budget page, the key card, first row's label: cash and bank less what cards owe, one figure per currency. Short."
+  },
+  "planKeyHaveTip": "Cash and bank, less what cards owe",
+  "@planKeyHaveTip": {
+    "description": "Budget page, the key card: tooltip on \"You have\"."
+  },
+  "planKeyAssigned": "In categories",
+  "@planKeyAssigned": {
+    "description": "Budget page, the key card, second row's label: what the categories hold now (assigned, less spent since the budget began; below zero when overspent). Short."
+  },
+  "planKeyNotAssigned": "Not assigned",
+  "@planKeyNotAssigned": {
+    "description": "Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short."
+  },
+  "planOverConsequence": "Spend what the categories hold and the accounts go {amount} below zero.",
+  "@planOverConsequence": {
+    "description": "Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planCardsOweShort": "Cards owe more than you have",
+  "@planCardsOweShort": {
+    "description": "Budget page, the key card, coral note on the You have row when cards owe more than cash and bank hold (nothing assigned could be \"too much\")."
+  },
+  "planUncategorizedRows": "{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}",
+  "@planUncategorizedRows": {
+    "description": "Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized that add up to nothing. Click opens them.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planUncategorizedMoney": "{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}",
+  "@planUncategorizedMoney": {
+    "description": "Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
       "amount": {
         "type": "String"
       }
@@ -6059,15 +6054,6 @@
         "type": "int"
       },
       "have": {
-        "type": "String"
-      }
-    }
-  },
-  "planAllAssignedIn": "Everything in {symbol} is assigned to a category",
-  "@planAllAssignedIn": {
-    "description": "Budget page, top line for one currency when there are accounts in two: everything in that currency is assigned. symbol is ₮ or $",
-    "placeholders": {
-      "symbol": {
         "type": "String"
       }
     }
