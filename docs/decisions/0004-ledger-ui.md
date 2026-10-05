@@ -243,6 +243,10 @@ What's known so far:
    **A credit card forecasts what will be owed** (owner's call): "Next 30 days",
    "₮0 owed after 09.25", "1 payment · ₮640,200 before 10.16", a blue line, never coral
    and never "runs out". Owing on a card is normal.
+   **How far it looks is a dropdown on its small title** (2026-10-05; see "From the
+   2026-10-05 call" below): the pay period as before, or 30, 60 or 90 days, six
+   months or a year, with the paydays and plan bills after the scheduled ones
+   projected that far.
 3. **One signed amount column, not In/Out.** A transaction moves money one way in one
    account. The two-column layout is a paper-checkbook and bank-statement habit. Money
    out is plain; money in is green with a `+`.
@@ -422,6 +426,8 @@ What's known so far:
     toggle, where clicking an open section closes it again. Here clicking a section
     switches to it, and it stays open until you pick another. The blue icon and bold
     label already mark the current section. Accounts line up with the section label.
+    **A coral dot after an account's name says its forecast runs out** (2026-10-05;
+    see "From the 2026-10-05 call" below).
 15. **The date field opens a calendar under it (option A of three considered).** It
     shows while the date field has focus, styled in Midnight, Monday first. Typing
     still works and the calendar follows it to the typed month. Clicking a day fills
@@ -1174,6 +1180,9 @@ What's known so far:
       *Rejected:* the forecast reading dated plans directly
       (B): two kinds of entry in the bill list, and a plan would still
       have had to say which account's forecast it belonged in.
+      **Since 2026-10-05 Paid from is the one accounts row** of Edit (see
+      "From the 2026-10-05 call" below): the bill is scheduled in the one
+      account left checked there.
     - **A note under the category's name** says the plan (owner's pick,
       option A of three, 2026-10-01): "₮900,000 a month", "₮100,000 a
       month · up to ₮1,500,000", "₮1,500,000 set aside", "₮270,000 due
@@ -1407,7 +1416,8 @@ What's known so far:
       put in Edit when it opens (the screen held the keys, so Esc and
       Enter did nothing until a field was clicked); pay set up from Pay…
       while Edit is open isn't undone by Save.
-    - **Left for later:** Add category opening this same Edit; a rename
+    - **Left for later:** ~~Add category opening this same Edit~~ (done
+      2026-10-05, see "From the 2026-10-05 call" below); a rename
       that becomes a merge closes Edit first, so cancelling the merge
       drops the other changes typed with it; opening another row's Edit,
       or Archive, drops what was typed without a word; a plan typed in a
@@ -1489,6 +1499,80 @@ What's known so far:
       so the Income line doesn't count it until it's filed under Income (asked
       of the owner: should the line name it?). Telling salary from other
       income is by payee only.
+
+### From the 2026-10-05 call with Cynthia G. Loveland (owner's notes)
+
+The owner went through the Budget page with Cynthia (see "Credits") and
+brought back six notes. Four are built on the `budget-page-layout` branch;
+the rest are open, below.
+
+- **Add category opens Edit under the new row** (her question: "Why don't I
+  see the budget wizard when I first create the budget category?"). Typing a
+  name and pressing Enter makes the category and opens its Edit at once, the
+  cursor in the amount, so the panel's one question is asked when it
+  matters. The add box closes (one thing open at a time, rule 6); a name
+  that's taken keeps the box with the name selected; a name that's an
+  archived category's brings that one back and opens it. This closes rule
+  29's "Add category opening this same Edit". There is still no wizard
+  (rule 27): Edit is the whole of it.
+- **One account control, "Paid from"** (her question: "Why are there two
+  account selectors in the budget creation wizard? Just have one."). The
+  quiet "All accounts" dropdown beside the name (rule 28's "Accounts this
+  category uses") and the dated plan's "Paid from" dropdown (rule 27) were
+  one idea twice: where the category's money is. Now there's one row,
+  **Paid from**, under both answers to "Is there a due date?": the same
+  dropdown of checkboxes over the accounts in the category's currency, all
+  checked to begin with (rule 28's meaning and warnings stand). For a dated
+  plan **the bill is scheduled in the one account left checked**; with
+  several checked, or none, the note beside it reads "Leave one account
+  checked and the bill shows in its forecast" and nothing is scheduled.
+  Opening a plan saved with a Paid from account shows that account alone
+  checked. Rejected: two controls with clearer labels (the labels weren't
+  the problem), and a single-pick dropdown in the dated form only (an
+  emergency fund kept in one savings account has no date and still needs
+  the row).
+- **The forecast looks as far as you say** (her note: "We should be able to
+  change the date range that it covers"). The small title above the
+  forecast's headline ("Until your 10.10 paycheck", "Next 30 days") is a
+  dropdown: the pay period as before (named by the paycheck's date, and
+  offered when a payday ends this account's forecast), Next 30 days, Next
+  60 days, Next 90 days, Next 6 months, Next year. One choice for every
+  account, kept in the ledger (`forecast.span`), changed quietly like the
+  Budget page's period (no toast, no undo). Only the next payday of a pay
+  schedule and the next bill of a plan are ever scheduled, so a longer
+  forecast **projects the ones after**: paydays from the pay schedule (its
+  dates and amounts, weekend rule included), bills from the plan's How
+  often, each drawn as a copy of the scheduled row, so a click opens that
+  row. Rows scheduled by hand are what they are. To a chosen date,
+  everything through it counts, the paycheck is a step like any other, and
+  the end is just where it stops looking (no closing paycheck line). Through
+  the pay period nothing changes.
+- **A coral dot beside an account that will run out** (her note: an alert
+  when "the account balance drops to zero or below", as "a red badge for
+  that account under the ledger heading, and/or red clickable text above the
+  forecast pane"). The sidebar's account tile gets a 7 px coral dot after
+  its name whenever that account's forecast goes below zero, with the
+  header's own warning as its tooltip ("Runs out on 10.15 · up to ₮X
+  short"); clicking the tile opens the account, whose headline is already
+  coral. An account already below zero shows its balance in coral there
+  instead, as before. Cards never (owing isn't a warning, rule 2). The dot
+  follows the forecast's span, so a longer span can light more accounts.
+
+**Open, for the owner to call:**
+
+- **A Spending / Income tab on the Budget page, with the paychecks on
+  Income** (her first note: pay tracked "in a highly visible place like the
+  budget income tab, not the settings menu"; several sources, in several
+  currencies if need be). The app already keeps several pay schedules, each
+  in its account's currency (rule 24), listed in Settings → Budget; rule 30
+  put one Income line on the Budget page in their place.
+- **How often as a recurrence picker like Outlook's** (her note). Rule 27's
+  dropdown covers every interval and fixed dates; what Outlook adds is
+  weekday patterns ("the last Friday of every month", "every Monday") and
+  an end ("until 2029.03", "after 36 times").
+- Whether "the Forecast pane on the expenses section" and the "red clickable
+  text above the forecast pane" mean a forecast on the Budget page itself
+  (there is none today; forecasts are per account).
 
 ### The smallest window (owner, 2026-10-01)
 

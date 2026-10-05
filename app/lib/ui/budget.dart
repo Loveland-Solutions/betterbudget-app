@@ -64,7 +64,9 @@ class _BudgetPage extends StatefulWidget {
 
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
-  final void Function(String name, Currency currency) onCreate;
+  /// Add category: the new category's id, or null when nothing was made
+  /// (the name was taken). Edit opens under the new row.
+  final Future<int?> Function(String name, Currency currency) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
 
   /// A Put in amount was typed for the period starting on the date.
@@ -499,9 +501,16 @@ class _BudgetPageState extends State<_BudgetPage> {
                 children: [
                   if (_adding)
                     _NewCategory(
-                      // Stays open for the next one, like the entry row;
-                      // Esc or Cancel closes it.
+                      // A category just made opens in Edit under its row,
+                      // so what it's for is asked at once (owner's
+                      // request, 2026-10-05); Esc or Cancel closes the box.
                       onCreate: widget.onCreate,
+                      onCreated: (id) => setState(() {
+                        _adding = false;
+                        _editing = null;
+                        _open = id;
+                        _openAtPlan = true;
+                      }),
                       currencies: currencies,
                       currency: budget.currency,
                       onCancel: () => setState(() => _adding = false),
@@ -1108,11 +1117,15 @@ List<Widget> _categoryMenu(
 class _NewCategory extends StatefulWidget {
   const _NewCategory({
     required this.onCreate,
+    required this.onCreated,
     required this.onCancel,
     required this.currencies,
     required this.currency,
   });
-  final void Function(String name, Currency currency) onCreate;
+  final Future<int?> Function(String name, Currency currency) onCreate;
+
+  /// The category was made: its id, for the Edit that opens under it.
+  final ValueChanged<int> onCreated;
   final VoidCallback onCancel;
 
   /// The currencies there are accounts in. With both, a spending category
@@ -1136,13 +1149,19 @@ class _NewCategoryState extends State<_NewCategory> {
     super.dispose();
   }
 
-  void _create() {
+  Future<void> _create() async {
     final n = _name.text.trim();
     // Nothing typed: nothing to call it, so nothing is made.
     if (n.isEmpty) return widget.onCancel();
-    widget.onCreate(n, _currency);
-    // Ready for the next: setting up several is one after another.
-    _name.clear();
+    final id = await widget.onCreate(n, _currency);
+    if (!mounted) return;
+    // Made: its Edit opens under its row. Not made (the name is taken):
+    // the name stays selected, ready to be changed.
+    if (id != null) return widget.onCreated(id);
+    _name.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _name.text.length,
+    );
     _focus.requestFocus();
   }
 
@@ -2059,7 +2078,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _repeatMenu = MenuController();
   final _unitMenu = MenuController();
   final _weekendMenu = MenuController();
-  final _paidFromMenu = MenuController();
   final _accountsMenu = MenuController();
   final _currencyMenu = MenuController();
 
@@ -2070,7 +2088,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _repeatMenu,
       _unitMenu,
       _weekendMenu,
-      _paidFromMenu,
       _accountsMenu,
       _currencyMenu,
     ]) {
@@ -2103,8 +2120,17 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   PayWeekend _weekend = PayWeekend.keep;
   bool _rollover = true;
 
-  /// The account a dated plan's bill is paid from; null for none.
-  int? _paidFrom;
+  /// The account a dated plan's bill is scheduled in: the one account the
+  /// category is paid from, when it's narrowed to one. One control says
+  /// both (owner, 2026-10-05: "two account selectors: just have one").
+  int? get _paidFromNow {
+    if (!_dated) return null;
+    final used = _moneyAccounts(
+      widget.data,
+      _currency,
+    ).where((a) => !_off.contains(a.id)).toList();
+    return used.length == 1 ? used.single.id : null;
+  }
 
   /// Save was tried with something missing: say which.
   bool _tried = false;
@@ -2129,7 +2155,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   void initState() {
     super.initState();
     _showPlan(_savedPlan);
-    final atPlan = widget.atPlan && _savedPlan != null;
+    final atPlan = widget.atPlan;
     final first = atPlan ? _amount : _name;
     first.selection = TextSelection(
       baseOffset: 0,
@@ -2237,7 +2263,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _everyN.text = '$n';
     _rollover = p?.rollover ?? true;
     _upTo.text = _amountText(p?.upTo ?? 0);
-    _paidFrom = p?.paidFrom;
+    // A bill's account is the one account the category is paid from: a
+    // plan saved with one narrows the list to it.
+    if (p?.paidFrom case final id?) {
+      _off = {
+        for (final a in _moneyAccounts(widget.data, _currency))
+          if (a.id != id) a.id,
+      };
+    }
   }
 
   void _pickDated(bool yes) {
@@ -2417,7 +2450,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           : PayWeekend.keep,
       rollover: rollover,
       upTo: upTo,
-      paidFrom: _dated ? _paidFrom : null,
+      paidFrom: _paidFromNow,
     );
     final fresh = make(widget.today);
     // A dated plan's parts count from the day it was made, and a category
@@ -2555,7 +2588,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     final wrongDate = _tried && _dated && _typedDate == null;
     final wrongUpTo = _tried && !_dated && _wrongUpTo;
     final data = widget.data;
-    final paidAccount = data.accounts[_paidFrom];
+    final paidAccount = data.accounts[_paidFromNow];
     final hasAmount = _amount.text.trim().isNotEmpty;
     String money(int v) => formatShort(v, currency: _currency);
     Widget amountField(
@@ -2704,6 +2737,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               aside: t.planStopAtHint,
             ),
         ],
+        _accountsRow(t),
       ] else ...[
         _formRow(
           t.planAmountDue,
@@ -2905,22 +2939,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
-        _formRow(
-          t.planLabelPaidFrom,
-          menu(
-            _paidFromMenu,
-            key: 'plan-paid-from',
-            label: paidAccount?.name ?? t.planPaidFromNone,
-            items: [
-              for (final a in [null, ..._moneyAccounts(data, _currency)])
-                item(
-                  'plan-paid-from-${a?.id ?? 0}',
-                  a?.name ?? t.planPaidFromNone,
-                  on: a?.id == _paidFrom,
-                  onTap: () => setState(() => _paidFrom = a?.id),
-                ),
-            ],
-          ),
+        _accountsRow(
+          t,
           aside: paidAccount == null || dueText == null
               ? t.planPaidFromHintNone
               : t.planPaidFromHint(paidAccount.name, dueText),
@@ -2986,12 +3006,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ];
   }
 
-  /// The accounts in its currency, in a dropdown that stays open while
-  /// they're checked and unchecked; the button says how many it uses.
-  Widget _accountsChoice(Words t, List<AccountInfo> accounts) {
+  /// Paid from: the accounts in its currency, in a dropdown that stays
+  /// open while they're checked and unchecked; the button says how many
+  /// it uses. The one row for both what rule 28 called the accounts a
+  /// category uses and the account a dated plan's bill is scheduled in.
+  Widget _accountsRow(Words t, {String? aside}) {
+    final accounts = _moneyAccounts(widget.data, _currency).toList();
     final used = accounts.where((a) => !_off.contains(a.id)).toList();
-    return _quiet(
-      t.planMoneyAccounts,
+    return _formRow(
+      t.planLabelPaidFrom,
       SizedBox(
         height: 34,
         child: MenuAnchor(
@@ -3063,6 +3086,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           ),
         ),
       ),
+      aside: aside,
     );
   }
 
@@ -3130,7 +3154,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             : '${note.text} · ${note.state}';
         // An account put away schedules nothing: said, not silent.
         String? paidArchived;
-        final paidAccount = _dated ? data.accounts[_paidFrom] : null;
+        final paidAccount = data.accounts[_paidFromNow];
         if (paidAccount != null && paidAccount.archived) {
           paidArchived = t.planPaidFromArchived(paidAccount.name);
         }
@@ -3223,8 +3247,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // The name is the heading; the currency and the
-                          // accounts sit quiet beside it, set once.
+                          // The name is the heading; the currency sits
+                          // quiet beside it, set once.
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
@@ -3238,8 +3262,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                     key: const ValueKey('edit-name'),
                                     controller: _name,
                                     focusNode: _nameFocus,
-                                    autofocus:
-                                        !(widget.atPlan && _savedPlan != null),
+                                    autofocus: !widget.atPlan,
                                     style: onest(19, weight: 700),
                                     onSubmitted: (_) => _save(),
                                     decoration: InputDecoration(
@@ -3270,7 +3293,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               ),
                               const SizedBox(width: 12),
                               ..._currencyChoice(t),
-                              _accountsChoice(t, accounts),
                             ],
                           ),
                           const SizedBox(height: 22),

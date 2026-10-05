@@ -1119,6 +1119,20 @@ class WordsEn extends Words {
   String get planNext30Days => 'Next 30 days';
 
   @override
+  String planNextDays(int count) {
+    return 'Next $count days';
+  }
+
+  @override
+  String get planNext6Months => 'Next 6 months';
+
+  @override
+  String get planNextYear => 'Next year';
+
+  @override
+  String get planSpanTip => 'How far ahead the forecast looks';
+
+  @override
   String get planAddPay => ' · no payday ahead · Add your pay →';
 
   @override
@@ -3884,9 +3898,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Accounts this category uses';
-
-  @override
   String planMoneyChange(String amount) {
     return 'Changing the currency takes back $amount assigned to it and removes its plan';
   }
@@ -4115,7 +4126,7 @@ class WordsEn extends Words {
 
   @override
   String get planPaidFromHintNone =>
-      'Pick an account and the bill shows in its forecast.';
+      'Leave one account checked and the bill shows in its forecast.';
 
   @override
   String planWorkedOut(String amount) {
@@ -4133,9 +4144,6 @@ class WordsEn extends Words {
 
   @override
   String get planLabelPaidFrom => 'Paid from';
-
-  @override
-  String get planPaidFromNone => 'No account';
 
   @override
   String planUpTo(String amount) {

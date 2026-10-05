@@ -1,4 +1,88 @@
+import 'budget.dart' show Budget;
 import 'ledger.dart';
+import 'pay.dart';
+
+/// How far the forecast looks (owner's request, 2026-10-05): through the
+/// next pay period, as it always has, or a fixed span from today. One
+/// choice for every account, kept in the ledger's preferences.
+enum ForecastSpan {
+  payPeriod,
+  days30,
+  days60,
+  days90,
+  months6,
+  year;
+
+  static const prefKey = 'forecast.span';
+
+  static ForecastSpan parse(String? stored) =>
+      values.where((s) => s.name == stored).firstOrNull ?? payPeriod;
+
+  /// The last day a fixed span covers, from [start]; null for the pay
+  /// period, which the forecast works out from the paydays.
+  DateTime? endFrom(DateTime start) {
+    final d = dateOnly(start);
+    return switch (this) {
+      payPeriod => null,
+      days30 => DateTime(d.year, d.month, d.day + 30),
+      days60 => DateTime(d.year, d.month, d.day + 60),
+      days90 => DateTime(d.year, d.month, d.day + 90),
+      months6 => DateTime(d.year, d.month + 6, d.day),
+      year => DateTime(d.year + 1, d.month, d.day),
+    };
+  }
+}
+
+/// Only the next payday of a pay schedule, and the next bill of a plan,
+/// is ever scheduled. A forecast that looks further needs the ones after:
+/// each as a copy of its scheduled row, dated when it will come, through
+/// [until] (a click on one opens the scheduled row it continues). Paydays
+/// follow the schedule's dates and amounts; bills follow the plan's.
+List<RegisterRow> projectScheduled(
+  List<RegisterRow> scheduled, {
+  required DateTime until,
+  required PaySchedule? Function(int? id) payById,
+  required CategoryPlan? Function(int categoryId) planOf,
+}) {
+  const atMost = 400;
+  // From the latest scheduled one of each: an overdue payday beside the
+  // next one mustn't project the same dates twice.
+  final paydays = <int, RegisterRow>{}, bills = <int, RegisterRow>{};
+  for (final r in scheduled) {
+    if (r.payScheduleId case final id? when r.amount > 0) {
+      if ((paydays[id]?.date.isBefore(r.date)) ?? true) paydays[id] = r;
+    } else if (r.planCategoryId case final id? when r.amount < 0) {
+      if ((bills[id]?.date.isBefore(r.date)) ?? true) bills[id] = r;
+    }
+  }
+  final out = <RegisterRow>[];
+  for (final MapEntry(key: id, value: r) in paydays.entries) {
+    final pay = payById(id);
+    if (pay == null) continue;
+    // From the payday it was planned as, like the one the app schedules
+    // after it's confirmed.
+    var d = pay.plannedFor(r.date, paid: r.amount);
+    for (var i = 0; i < atMost; i++) {
+      d = pay.nextAfter(d);
+      if (d.isAfter(until)) break;
+      if (!d.isAfter(r.date)) continue;
+      out.add(r.copyWith(date: d, amount: pay.amountOn(d)));
+    }
+  }
+  for (final MapEntry(key: id, value: r) in bills.entries) {
+    final plan = planOf(id);
+    if (plan == null || !plan.repeats) continue;
+    final pay = payById(plan.payScheduleId);
+    if (plan.payScheduleId != null && pay == null) continue;
+    for (var n = 0; n < atMost; n++) {
+      final d = Budget.dueAfter(plan, n, pay: pay);
+      if (d.isAfter(until)) break;
+      if (!d.isAfter(r.date)) continue;
+      out.add(r.copyWith(date: d));
+    }
+  }
+  return out;
+}
 
 /// Answers "will this account make it through the next pay period?" from
 /// scheduled transactions and the pay plan. Deterministic and local: no
@@ -20,6 +104,7 @@ class Forecast {
     required this.payday,
     required this.low,
     required this.lowDate,
+    this.fixedEnd = false,
     required this.firstShort,
     required this.billTotal,
     required this.billCount,
@@ -50,12 +135,21 @@ class Forecast {
   /// The payday after [payday], from its pay plan: where the forecast ends.
   final DateTime? nextPayday;
 
+  /// The forecast runs to a date the user chose ([ForecastSpan]), not to
+  /// a payday: the end is just where it stops looking.
+  final bool fixedEnd;
+
   /// What the plan expects on [nextPayday] (not counted: it ends the
   /// forecast).
   final int? nextPayAmount;
 
   /// Runs through the pay period [payday] starts, not just up to it.
   bool get throughPeriod => payday != null && nextPayday != null;
+
+  /// The next paycheck is one of the steps: through the pay period it
+  /// always is; with a fixed end, when it comes before that end.
+  bool get paydayCounted =>
+      payday != null && steps.any((s) => identical(s.row, payday));
   final int low;
   final DateTime lowDate;
 
@@ -106,6 +200,8 @@ Forecast buildForecast({
   bool owed = false,
   ({DateTime date, int amount})? Function(RegisterRow payday)? paydayAfter,
   bool payIsSetUp = false,
+  DateTime? until,
+  List<RegisterRow> projected = const [],
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -149,16 +245,22 @@ Forecast buildForecast({
   if (payday != null && after != null && !after.date.isAfter(when(payday))) {
     after = null;
   }
-  final nextPayday = after?.date;
+  // To a chosen date, the paydays after the next come as projected rows,
+  // not as the period's end.
+  final nextPayday = until == null ? after?.date : null;
   final end =
+      until ??
       nextPayday ??
       (payday != null ? when(payday) : start.add(_fallbackHorizon));
+  final rows = [...counted, if (until != null) ...projected];
 
   // Bills on the last day count; money in on it doesn't (like the paycheck
   // that ends it, it may land after them), except a transfer, the user's own
   // doing. The next paycheck counts only when the forecast runs past it.
+  // To a chosen date, everything through it counts.
   bool counts(RegisterRow r) {
     if (when(r).isAfter(end)) return false;
+    if (until != null) return true;
     if (identical(r, payday)) return nextPayday != null;
     final lastDayIn =
         nextPayday != null &&
@@ -173,7 +275,7 @@ Forecast buildForecast({
   int paidLast(RegisterRow r) => r.isIncome ? 1 : 0;
   final inRange =
       [
-        for (final (i, r) in counted.indexed)
+        for (final (i, r) in rows.indexed)
           if (counts(r)) (i: i, r: r),
       ]..sort((a, b) {
         final d = when(a.r).compareTo(when(b.r));
@@ -222,6 +324,7 @@ Forecast buildForecast({
     late: late,
     owed: owed,
     nextPayday: nextPayday,
-    nextPayAmount: after?.amount,
+    nextPayAmount: until == null ? after?.amount : null,
+    fixedEnd: until != null,
   );
 }

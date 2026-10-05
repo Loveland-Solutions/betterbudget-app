@@ -341,6 +341,41 @@ class RegisterRow {
     otherCurrency: otherCurrency,
   );
 
+  /// The same row on another day, or for another amount: a payday or a
+  /// plan's bill the forecast projects past the one that's scheduled.
+  RegisterRow copyWith({DateTime? date, int? amount}) => RegisterRow(
+    txnId: txnId,
+    entryId: entryId,
+    date: date ?? this.date,
+    payee: payee,
+    memo: memo,
+    amount: amount ?? this.amount,
+    cleared: cleared,
+    scheduled: scheduled,
+    kind: kind,
+    categoryLabel: categoryLabel,
+    categoryId: categoryId,
+    splitLines: splitLines,
+    txnPayee: txnPayee,
+    lockedIn: lockedIn,
+    reconciledOn: reconciledOn,
+    latestReconcile: latestReconcile,
+    incomeCategory: incomeCategory,
+    otherClosed: otherClosed,
+    deletedOther: deletedOther,
+    equity: equity,
+    accountId: accountId,
+    clearedIn: clearedIn,
+    estimate: estimate,
+    payScheduleId: payScheduleId,
+    planCategoryId: planCategoryId,
+    balance: balance,
+    clearedBalance: clearedBalance,
+    currency: currency,
+    otherAmount: otherAmount,
+    otherCurrency: otherCurrency,
+  );
+
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
     txnId: txnId,
     entryId: entryId,

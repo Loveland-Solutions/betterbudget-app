@@ -670,6 +670,69 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The payday after [row] by its pay plan, so the forecast can run
   /// through the whole period. Null for income typed by hand: it belongs
   /// to no plan.
+  /// How far every forecast looks: the user's choice, kept in the ledger.
+  ForecastSpan _span(LedgerData data) =>
+      ForecastSpan.parse(data.prefs[ForecastSpan.prefKey]);
+
+  /// An account's forecast, as its header shows it: through the next pay
+  /// period, or to the date the chosen span ends on ([span] overrides the
+  /// ledger's choice), with the paydays and plan bills after the scheduled
+  /// ones projected that far.
+  Forecast _forecastFor(
+    LedgerData data,
+    AccountInfo account, {
+    ForecastSpan? span,
+  }) {
+    final scheduled = data.registerFor(account.id).scheduled;
+    final until = (span ?? _span(data)).endFrom(today);
+    return buildForecast(
+      working: data.summaryFor(account.id).working,
+      today: today,
+      scheduled: scheduled,
+      owed: account.isOwed,
+      paydayAfter: (row) => _paydayAfter(data, row),
+      payIsSetUp: data.paySchedules.isNotEmpty,
+      until: until,
+      projected: until == null
+          ? const []
+          : projectScheduled(
+              scheduled,
+              until: until,
+              payById: data.payScheduleById,
+              planOf: (id) => data.plans[id],
+            ),
+    );
+  }
+
+  /// The forecast's span was picked: one choice for every account, kept
+  /// quietly like the Budget page's period (a view, not a change to the
+  /// ledger's money).
+  Future<void> _setSpan(ForecastSpan span) async {
+    try {
+      await db.setPreference(ForecastSpan.prefKey, span.name);
+    } catch (e) {
+      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+    }
+    _keysBack();
+  }
+
+  /// Accounts whose forecast goes below zero, with the header's own
+  /// warning for each: a dot beside the account in the sidebar says so
+  /// from anywhere in the app (owner's request, 2026-10-05). One already
+  /// below zero shows its balance in coral there instead.
+  Map<int, String> _runsOut(LedgerData data) {
+    final t = context.t;
+    return {
+      for (final a in data.openAccounts)
+        if (!a.isOwed)
+          if (_forecastFor(data, a) case final f when f.isShort && !f.shortNow)
+            a.id: t.planRunsOut(
+              sayDate(t, f.firstShort!),
+              roundedIn(context, f.low.abs()),
+            ),
+    };
+  }
+
   ({DateTime date, int amount})? _paydayAfter(
     LedgerData data,
     RegisterRow row,
@@ -2011,27 +2074,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A name that's already taken makes nothing new: an archived one comes
   /// back instead, so there's never two of it.
-  Future<void> _createCategory(String name, Currency currency) async {
+  /// The new category's id, so its Edit can open; null when nothing was
+  /// made. A name that's an archived category's brings that one back.
+  Future<int?> _createCategory(String name, Currency currency) async {
     final t = context.t;
     final data = _data;
     final existing = data == null ? null : _categoryNamed(data, name);
     if (existing != null) {
-      if (existing.archived) return _archiveCategory(existing, false);
+      if (existing.archived) {
+        await _archiveCategory(existing, false);
+        return existing.id;
+      }
       _showToast(t.ledgerAlreadyCategory(existing.name));
-      return;
+      return null;
     }
     late int id;
     if (!await _accountWrite(
       () async => id = await db.createCategory(name, currency: currency),
       what: 'category',
     )) {
-      return;
+      return null;
     }
     _did(
       t.ledgerAdded(name),
       undo: () async => _expect(await db.deleteEmptyAccount(id)),
       redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
     );
+    return id;
   }
 
   /// Renaming onto another category's name is what merging looks like, so
@@ -2812,6 +2881,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     children: [
                       _Sidebar(
                         data: data,
+                        runsOut: _runsOut(data),
                         section: _section,
                         onSection: (sec) {
                           if (!_mayLeave()) return;
@@ -2981,14 +3051,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_editing != null && !_rows.containsKey(_editing!.txnId)) {
       _editing = null;
     }
-    final forecast = buildForecast(
-      working: summary.working,
-      today: today,
-      scheduled: register.scheduled,
-      owed: account.isOwed,
-      paydayAfter: (row) => _paydayAfter(data, row),
-      payIsSetUp: data.paySchedules.isNotEmpty,
-    );
+    final forecast = _forecastFor(data, account);
+    // The pay-period choice is named by its date: the date that forecast
+    // would run to, worked out when another span is on.
+    final span = _span(data);
+    final byPay = span == ForecastSpan.payPeriod
+        ? forecast
+        : _forecastFor(data, account, span: ForecastSpan.payPeriod);
+    final payPeriodEnd = byPay.payday != null ? byPay.end : null;
     final activeStatus = switch (_filter) {
       RegisterFilter.uncleared => Cleared.uncleared,
       RegisterFilter.cleared => Cleared.cleared,
@@ -3036,6 +3106,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
               owed: account.isOwed,
               summary: summary,
               forecast: forecast,
+              span: span,
+              payPeriodEnd: payPeriodEnd,
+              onSpan: _setSpan,
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
@@ -3157,9 +3230,13 @@ class _Sidebar extends StatelessWidget {
     required this.actionsFor,
     required this.allActive,
     required this.onAll,
+    required this.runsOut,
   });
   final bool allActive;
   final VoidCallback onAll;
+
+  /// Accounts whose forecast goes below zero, each with the warning.
+  final Map<int, String> runsOut;
 
   /// For the right-click menu on each account.
   final _AccountActions Function(AccountInfo) actionsFor;
@@ -3274,6 +3351,7 @@ class _Sidebar extends StatelessWidget {
                                     padding: const EdgeInsets.only(left: 26),
                                     child: _AccountTile(
                                       account: a,
+                                      runsOut: runsOut[a.id],
                                       balance: data.balanceOf(a.id),
                                       active: a.id == selected,
                                       onTap: () => onSelect(a.id),
@@ -4217,12 +4295,17 @@ class _AccountTile extends StatefulWidget {
     required this.active,
     required this.onTap,
     required this.actions,
+    this.runsOut,
   });
   final AccountInfo account;
   final int balance;
   final bool active;
   final VoidCallback onTap;
   final _AccountActions actions;
+
+  /// Its forecast goes below zero: the header's warning, for a coral dot
+  /// beside the name.
+  final String? runsOut;
 
   @override
   State<_AccountTile> createState() => _AccountTileState();
@@ -4268,12 +4351,36 @@ class _AccountTileState extends State<_AccountTile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.account.name,
-              style: onest(
-                13.5,
-                color: widget.active ? Mid.sideInk : Mid.sideInk2,
-              ),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    widget.account.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(
+                      13.5,
+                      color: widget.active ? Mid.sideInk : Mid.sideInk2,
+                    ),
+                  ),
+                ),
+                if (widget.runsOut case final why?) ...[
+                  const SizedBox(width: 7),
+                  Tooltip(
+                    message: why,
+                    waitDuration: const Duration(milliseconds: 400),
+                    child: Container(
+                      key: ValueKey('runs-out-${widget.account.id}'),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Mid.sideCoral,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 2),
             Text(

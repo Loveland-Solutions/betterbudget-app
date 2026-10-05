@@ -23,10 +23,19 @@ class BalanceHeader extends StatelessWidget {
     this.reconcile,
     this.owed = false,
     this.onAddPay,
+    this.span = ForecastSpan.payPeriod,
+    this.payPeriodEnd,
+    this.onSpan,
   });
 
   /// No payday ahead: the forecast offers to put pay in.
   final VoidCallback? onAddPay;
+
+  /// How far the forecast looks, the date a pay-period forecast would run
+  /// to (null with no payday ahead here), and the choice being changed.
+  final ForecastSpan span;
+  final DateTime? payPeriodEnd;
+  final ValueChanged<ForecastSpan>? onSpan;
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
@@ -84,6 +93,9 @@ class BalanceHeader extends StatelessWidget {
                 forecast,
                 onOpen: onOpenScheduled,
                 onAddPay: onAddPay,
+                span: span,
+                payPeriodEnd: payPeriodEnd,
+                onSpan: onSpan,
               ),
             ),
           ],
@@ -449,10 +461,25 @@ String _payeeText(Words t, RegisterRow r) => r.kind != RowKind.transfer
 
 /// The header's one chart. It exists to warn: most days it is quiet.
 class ForecastPanel extends StatelessWidget {
-  const ForecastPanel(this.f, {super.key, required this.onOpen, this.onAddPay});
+  const ForecastPanel(
+    this.f, {
+    super.key,
+    required this.onOpen,
+    this.onAddPay,
+    this.span = ForecastSpan.payPeriod,
+    this.payPeriodEnd,
+    this.onSpan,
+  });
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
   final VoidCallback? onAddPay;
+
+  /// How far it looks (owner's request, 2026-10-05): the small title is
+  /// the control. [payPeriodEnd] names the pay-period choice by its date;
+  /// without one, that choice isn't offered here.
+  final ForecastSpan span;
+  final DateTime? payPeriodEnd;
+  final ValueChanged<ForecastSpan>? onSpan;
 
   @override
   Widget build(BuildContext context) {
@@ -508,7 +535,7 @@ class ForecastPanel extends StatelessWidget {
         headline = t.planNothingScheduled;
       } else if (f.low >= f.startBalance) {
         headline = t.planLowestToday(money(f.startBalance));
-      } else if (f.throughPeriod &&
+      } else if (f.paydayCounted &&
           f.lowDate.isAfter(
             f.steps.firstWhere((s) => identical(s.row, payday)).date,
           )) {
@@ -545,7 +572,23 @@ class ForecastPanel extends StatelessWidget {
     // jump, meaning nothing to someone new. Say what's known in words, and
     // what to add for the forecast to be worth something.
     final knownOnly =
-        !f.owed && payday != null && f.billCount == 0 && !f.shortNow;
+        !f.owed &&
+        payday != null &&
+        f.billCount == 0 &&
+        !f.shortNow &&
+        (f.paydayCounted || !f.fixedEnd);
+    // How far it looks, as the title says it.
+    final spanLabel = switch (span) {
+      ForecastSpan.payPeriod =>
+        payday == null || f.fixedEnd
+            ? t.planNext30Days
+            : t.planUntilPaycheck(sayDate(t, f.end)),
+      ForecastSpan.days30 => t.planNext30Days,
+      ForecastSpan.days60 => t.planNextDays(60),
+      ForecastSpan.days90 => t.planNextDays(90),
+      ForecastSpan.months6 => t.planNext6Months,
+      ForecastSpan.year => t.planNextYear,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,14 +605,12 @@ class ForecastPanel extends StatelessWidget {
         Row(
           key: const ValueKey('forecast-horizon'),
           children: [
-            // The list names its own dates.
-            if (!knownOnly)
-              Text(
-                payday == null
-                    ? t.planNext30Days
-                    : t.planUntilPaycheck(sayDate(t, f.end)),
-                style: onest(12, color: Mid.ink3),
-              ),
+            _SpanChoice(
+              label: spanLabel,
+              span: span,
+              payPeriodEnd: payPeriodEnd,
+              onSpan: onSpan,
+            ),
             if (late.isNotEmpty)
               Flexible(
                 child: _LateNote(late: late, today: f.start, onOpen: onOpen),
@@ -632,6 +673,102 @@ class ForecastPanel extends StatelessWidget {
 
 /// The forecast with pay but no bills: today, what comes in, where it ends,
 /// and what to add. Each line opens its row.
+/// The forecast's small title, and the dropdown that says how far it
+/// looks: through the next pay period (named by the paycheck's date), or
+/// 30, 60 or 90 days, six months or a year from today.
+class _SpanChoice extends StatefulWidget {
+  const _SpanChoice({
+    required this.label,
+    required this.span,
+    required this.payPeriodEnd,
+    required this.onSpan,
+  });
+  final String label;
+  final ForecastSpan span;
+  final DateTime? payPeriodEnd;
+  final ValueChanged<ForecastSpan>? onSpan;
+
+  @override
+  State<_SpanChoice> createState() => _SpanChoiceState();
+}
+
+class _SpanChoiceState extends State<_SpanChoice> {
+  final _menu = MenuController();
+
+  @override
+  Widget build(BuildContext context) {
+    final onSpan = widget.onSpan;
+    if (onSpan == null) {
+      return Text(widget.label, style: onest(12, color: Mid.ink3));
+    }
+    final t = context.t;
+    String name(ForecastSpan s) => switch (s) {
+      ForecastSpan.payPeriod => t.planUntilPaycheck(
+        sayDate(t, widget.payPeriodEnd!),
+      ),
+      ForecastSpan.days30 => t.planNext30Days,
+      ForecastSpan.days60 => t.planNextDays(60),
+      ForecastSpan.days90 => t.planNextDays(90),
+      ForecastSpan.months6 => t.planNext6Months,
+      ForecastSpan.year => t.planNextYear,
+    };
+    return MenuAnchor(
+      controller: _menu,
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Mid.raised),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 6),
+        ),
+      ),
+      onOpen: () => setState(() {}),
+      onClose: () {
+        if (mounted) setState(() {});
+      },
+      menuChildren: [
+        for (final s in ForecastSpan.values)
+          // The pay period needs a payday ahead in this account to be
+          // named by; without one, the fixed spans are what's offered.
+          if (s != ForecastSpan.payPeriod || widget.payPeriodEnd != null)
+            MenuItemButton(
+              key: ValueKey('forecast-span-${s.name}'),
+              onPressed: () => onSpan(s),
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(Size(200, 34)),
+                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+              ),
+              child: Text(
+                name(s),
+                style: onest(13, color: s == widget.span ? Mid.ink : Mid.ink2),
+              ),
+            ),
+      ],
+      child: Tooltip(
+        message: t.planSpanTip,
+        waitDuration: const Duration(milliseconds: 600),
+        child: Hoverable(
+          key: const ValueKey('forecast-span'),
+          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
+          builder: (hover) {
+            final color = hover || _menu.isOpen ? Mid.ink2 : Mid.ink3;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(widget.label, style: onest(12, color: color)),
+                Icon(Icons.expand_more_rounded, size: 14, color: color),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _KnownList extends StatelessWidget {
   const _KnownList({required this.f, required this.onOpen});
   final Forecast f;
@@ -713,7 +850,8 @@ class _KnownList extends StatelessWidget {
         for (final s in f.steps)
           line(
             shortDate(s.date),
-            identical(s.row, payday)
+            // A payday from the pay plan, scheduled or projected.
+            identical(s.row, payday) || s.row.payScheduleId != null
                 ? t.planExpectedIncome
                 : _payeeText(t, s.row),
             plus(s.row.amount),
@@ -725,7 +863,8 @@ class _KnownList extends StatelessWidget {
             t.planExpectedIncome,
             f.nextPayAmount == null ? null : plus(f.nextPayAmount!),
           )
-        else
+        // To a chosen date, the end is just where it stops looking.
+        else if (!f.fixedEnd)
           line(
             shortDate(f.end),
             t.planExpectedIncome,
@@ -918,8 +1057,9 @@ class _BillsCard extends StatelessWidget {
                   onTap: () => onOpen(s.row),
                 ),
               // Ending at payday, the paycheck closes the list; running
-              // through the period, it's already a line above.
-              if (payday != null && !f.throughPeriod) ...[
+              // through the period, or to a chosen date, it's already a
+              // line above (or beyond the date).
+              if (payday != null && !f.paydayCounted && !f.fixedEnd) ...[
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1093,7 +1233,7 @@ class _ForecastChart extends StatelessWidget {
             painter: _ForecastPainter(
               f,
               CurrencyScope.of(context),
-              payLabel: f.throughPeriod
+              payLabel: f.paydayCounted
                   ? context.t.planChartPay(
                       roundedIn(context, f.payday!.amount.abs()),
                     )
@@ -1113,7 +1253,7 @@ class _ForecastChart extends StatelessWidget {
               onOpen: onOpen,
             ),
           ),
-        if (payday != null && !f.throughPeriod)
+        if (payday != null && !f.paydayCounted && !f.fixedEnd)
           LayoutId(
             key: const ValueKey('forecast-payday'),
             id: 'payday',
@@ -1473,7 +1613,7 @@ class _ForecastPainter extends CustomPainter {
     // Just dates: where the chart starts and ends, and when the paycheck
     // comes (hover its dot for the amount). Too close to an end, it's left
     // off rather than drawn over that end's date.
-    if (f.throughPeriod) {
+    if (f.paydayCounted) {
       final pd = f.steps.firstWhere((s) => identical(s.row, f.payday)).date;
       final px = x(pd);
       canvas.drawLine(Offset(px, 2), Offset(px, h), paydayLine);

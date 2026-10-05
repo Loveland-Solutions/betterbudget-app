@@ -1553,11 +1553,35 @@ abstract class Words {
     String inAmount,
   );
 
-  /// Account header, forecast panel: small title above the headline when there is no payday ahead
+  /// Account header, forecast panel: small title above the headline when there is no payday ahead, or the 30-day span was chosen; also that choice in the span dropdown
   ///
   /// In en, this message translates to:
   /// **'Next 30 days'**
   String get planNext30Days;
+
+  /// Account header, forecast panel: the small title and its dropdown's choices for a span of 60 or 90 days
+  ///
+  /// In en, this message translates to:
+  /// **'Next {count} days'**
+  String planNextDays(int count);
+
+  /// Account header, forecast panel: the small title and its dropdown's choice for a span of six months
+  ///
+  /// In en, this message translates to:
+  /// **'Next 6 months'**
+  String get planNext6Months;
+
+  /// Account header, forecast panel: the small title and its dropdown's choice for a span of a year from today
+  ///
+  /// In en, this message translates to:
+  /// **'Next year'**
+  String get planNextYear;
+
+  /// Account header, forecast panel: tooltip on the small title, which is a dropdown of spans (until the paycheck after next, 30, 60 or 90 days, 6 months, a year)
+  ///
+  /// In en, this message translates to:
+  /// **'How far ahead the forecast looks'**
+  String get planSpanTip;
 
   /// Account header, forecast panel: gold link after the small title; opens pay setup
   ///
@@ -5580,12 +5604,6 @@ abstract class Words {
   /// **'{category} is now in {symbol}'**
   String planMoneyCurrencyUndo(String category, String symbol);
 
-  /// Budget page, Edit under a spending category's row: label over the dropdown of accounts in the category's currency (cash, bank and cards), each with a checkbox, all checked to begin with
-  ///
-  /// In en, this message translates to:
-  /// **'Accounts this category uses'**
-  String get planMoneyAccounts;
-
   /// Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan
   ///
   /// In en, this message translates to:
@@ -5915,10 +5933,10 @@ abstract class Words {
   /// **'Shows in {account}’s forecast on {date}; you confirm it when it’s paid.'**
   String planPaidFromHint(String account, String date);
 
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is chosen
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)
   ///
   /// In en, this message translates to:
-  /// **'Pick an account and the bill shows in its forecast.'**
+  /// **'Leave one account checked and the bill shows in its forecast.'**
   String get planPaidFromHintNone;
 
   /// Budget page, Edit under a category's row (Yes): the amount set aside each period, which the app works out rather than asks for
@@ -5945,17 +5963,11 @@ abstract class Words {
   /// **'The row will read'**
   String get planRowWillRead;
 
-  /// Budget page, a category's plan (On a date): label over the choice of account the bill is paid from
+  /// Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked
   ///
   /// In en, this message translates to:
   /// **'Paid from'**
   String get planLabelPaidFrom;
-
-  /// Budget page, Edit under a category's row (Yes): the first choice under Paid from, none; the bill isn't scheduled anywhere
-  ///
-  /// In en, this message translates to:
-  /// **'No account'**
-  String get planPaidFromNone;
 
   /// Budget page: part of the note under a category's name, after the amount and a dot; the plan's cap
   ///

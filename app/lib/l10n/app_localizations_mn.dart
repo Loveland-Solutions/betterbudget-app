@@ -1069,6 +1069,20 @@ class WordsMn extends Words {
   String get planNext30Days => 'Дараагийн 30 хоног';
 
   @override
+  String planNextDays(int count) {
+    return 'Дараагийн $count хоног';
+  }
+
+  @override
+  String get planNext6Months => 'Дараагийн 6 сар';
+
+  @override
+  String get planNextYear => 'Дараагийн 12 сар';
+
+  @override
+  String get planSpanTip => 'Таамаглал хэр хол харахыг сонгоно';
+
+  @override
   String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
 
   @override
@@ -3722,9 +3736,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Энэ ангиллын ашиглах данснууд';
-
-  @override
   String planMoneyChange(String amount) {
     return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцаж, төлөвлөгөө нь арилна';
   }
@@ -3950,7 +3961,7 @@ class WordsMn extends Words {
 
   @override
   String get planPaidFromHintNone =>
-      'Данс сонговол төлбөр тэр дансны таамаглалд харагдана.';
+      'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны таамаглалд харагдана.';
 
   @override
   String planWorkedOut(String amount) {
@@ -3968,9 +3979,6 @@ class WordsMn extends Words {
 
   @override
   String get planLabelPaidFrom => 'Төлөх данс';
-
-  @override
-  String get planPaidFromNone => 'Данс сонгоогүй';
 
   @override
   String planUpTo(String amount) {
