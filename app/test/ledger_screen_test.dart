@@ -2903,7 +2903,8 @@ void main() {
       String notAssigned() =>
           tester.widget<Text>(find.byKey(const ValueKey('not-assigned'))).data!;
       final before = notAssigned();
-      expect(before, endsWith('not assigned to a category yet'));
+      expect(before, startsWith('₮'));
+      expect(find.text('Not assigned'), findsOneWidget);
       expect(find.text('This month · 09.01–09.30'), findsOneWidget);
 
       // Type Groceries' amount, Tab to the next category, type, Enter.
@@ -3467,15 +3468,9 @@ void main() {
         String text(String key) =>
             tester.widget<Text>(find.byKey(ValueKey(key))).data!;
 
-        // Each currency has its own money not assigned.
-        expect(
-          text('not-assigned'),
-          endsWith('not assigned to a category yet'),
-        );
-        expect(
-          text('not-assigned-USD'),
-          r'$2,500.00 not assigned to a category yet',
-        );
+        // Each currency has its own column in the key.
+        expect(text('not-assigned'), startsWith('₮'));
+        expect(text('not-assigned-USD'), r'$2,500.00');
 
         // A new category in dollars.
         await tester.tap(find.byKey(const ValueKey('add-category')));
@@ -3516,10 +3511,7 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 300));
         });
         await tester.pumpAndSettle();
-        expect(
-          text('not-assigned-USD'),
-          r'$2,380.00 not assigned to a category yet',
-        );
+        expect(text('not-assigned-USD'), r'$2,380.00');
         // The tugrik line is its own: no dollars in it.
         expect(text('not-assigned'), startsWith('₮'));
 
@@ -3664,10 +3656,7 @@ void main() {
         expect(data.budgetAmounts, isEmpty);
         // It counts from this period on in its new currency.
         expect(data.prefs['budget.from.$insurance'], '2026-09-01');
-        expect(
-          text('not-assigned-USD'),
-          r'$2,500.00 not assigned to a category yet',
-        );
+        expect(text('not-assigned-USD'), r'$2,500.00');
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
         await reload();
@@ -3798,9 +3787,16 @@ void main() {
       await settle(tester);
       expect(find.text('Coffee & tea'), findsNothing);
       await tester.pump(const Duration(seconds: 7)); // the toast goes
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('show-archived-categories')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('show-archived-categories')));
       await tester.pumpAndSettle();
       expect(find.text('Coffee & tea'), findsOneWidget);
+      // Under the key card the list runs past the window: scrolled to.
+      await tester.ensureVisible(find.text('Show in menus'));
+      await tester.pumpAndSettle();
       await tapAndWait(tester, find.text('Show in menus'));
       expect(
         find.byKey(const ValueKey('show-archived-categories')),

@@ -651,6 +651,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   void _newEntry() {
+    // On the Budget page, ⌘N adds a category (or pay on the Income tab),
+    // not a ledger row somewhere else (interaction review, 2026-10-05).
+    if (_section == AppSection.budget) {
+      _budgetKey.currentState?.addNew();
+      return;
+    }
     // One row open for typing at a time: an untouched Edit closes, one
     // with changes keeps the floor.
     if (_editing != null) {

@@ -12,6 +12,12 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
+**PR #39 merged (2026-10-05, version 0.10.0, no schema change): the Budget page's top
+pane as "the key".** "You have · In categories · rule · Not assigned", one column per
+currency, each note on its row, the first-period offer a strip in the card, the period
+title as the view dropdown, ⌘N adds a category (ADR 0004 "The top pane"; mockups in
+`docs/mockups/budget-top-pane.html`, the owner picked B of three).
+
 **PR #38 merged (2026-10-05, version 0.9.0, no schema change): the owner's two calls
 on two earners.** A share bigger than the amount says why ("₮600,000 still to put in
 for 10.23–11.24 · plus about ₮180,000 toward the next"), and stopping a pay that
@@ -54,7 +60,8 @@ answer means beside it, "What's left at month's end" shows under No always, and 
 Income tab reads "₮2,100,000 received of ₮4,200,000 expected this period" (the owner's
 words). **Open (Next step):** two questions, in plain examples.
 
-**Git state:** `main` has everything through PR #38 (2026-10-05, version 0.9.0: the
+**Git state:** `main` has everything through PR #39 (2026-10-05, version 0.10.0: the
+Budget page's top pane as the key), PR #38 (2026-10-05, version 0.9.0: the
 owner's calls on two earners), PR #37 (2026-10-05, version 0.8.0, schema
 v17: two earners, see above), PR #36 (2026-10-05, version 0.7.0, schema
 v16: the Budget page from the call with Cynthia), PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
@@ -246,7 +253,12 @@ the category's own periods (`Budget.spread`, `_budgetRows` in `ledger_screen.dar
 often starts as the view's period; a cut share rounds to ₮100; a stopped pay reads
 "(stopped)"; picking the view it already is writes nothing. Tests: 411 (`flutter test`
 passes; `goldens/budget_two_earners.png` new, Settings and pay setup goldens redrawn).
-The owner's two calls, built in PR #38 (version 0.9.0): the catch-up share says what the
+The top pane, built in PR #39 (version 0.10.0): `keyCard()` in `_BudgetPageState.build`
+(`you-have`, `assigned-sum`, `not-assigned` keys, `-USD` for a second currency;
+`uncategorized-line`, `assign-planned`, `assign-planned-over`, `assigned-over`,
+`cards-owe`), `_ViewChoice` now wraps the period title, `_StartOffer` a strip,
+`addNew()` for ⌘N. Budget goldens redrawn. Before that, the owner's two calls, built in
+PR #38 (version 0.9.0): the catch-up share says what the
 period before still needs plus the share toward the next (`planStillFor`,
 `planPlusNext`), and Stop on a pay with categories per it opens `_StopPayDialog`
 (`pay-stop` → `stop-move-month` / `stop-move-<id>` → `stop-pay-confirm`), the plans
