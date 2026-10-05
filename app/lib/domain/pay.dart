@@ -22,6 +22,7 @@ class PaySchedule {
     required this.amount,
     required this.rule,
     this.amount2,
+    this.name,
     this.payee,
     this.varies = false,
     this.day1 = 25,
@@ -48,6 +49,15 @@ class PaySchedule {
   /// advance on one day, the rest on the other). Null: the same both days.
   final int? amount2;
   final bool varies;
+
+  /// What the user calls this pay ("Jenny", "Jeff's school"): how two
+  /// earners' pays are told apart on the Budget page. Null until named;
+  /// `payTitle` in ui/data_words.dart falls back to the payer, then the
+  /// account.
+  final String? name;
+
+  /// Who it comes from (the employer), optional. Pay history is matched by
+  /// it.
   final String? payee;
   final PayRule rule;
 
@@ -63,7 +73,9 @@ class PaySchedule {
   /// Where a payday on a Saturday or Sunday goes.
   final PayWeekend weekend;
 
-  /// Budget by pay period, and this schedule's paydays are its bounds.
+  /// The Budget page is viewed by this schedule's pay periods (at most
+  /// one is; none means by month). A view: each category keeps its own
+  /// period, a month or a pay's, in its plan.
   final bool definesPeriod;
 
   /// Two different amounts, one for each day of the month.

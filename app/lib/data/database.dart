@@ -60,6 +60,9 @@ class PaySchedules extends Table {
   IntColumn get accountId => integer().references(Accounts, #id)();
   TextColumn get payee => text().nullable()();
 
+  /// What the user calls this pay, to tell two earners' apart (v17).
+  TextColumn get name => text().nullable()();
+
   /// Positive; with [varies], the least it's likely to be.
   IntColumn get amountMinor => integer()();
 
@@ -77,7 +80,9 @@ class PaySchedules extends Table {
   /// A weekend payday stays on its day, whatever [weekendBefore] says (v9).
   BoolColumn get weekendKeep => boolean().withDefault(const Constant(false))();
 
-  /// The budget runs by this schedule's pay periods (at most one does).
+  /// The Budget page is viewed by this schedule's pay periods (at most one
+  /// is). Since v17 a view only: each set amount's own period is in its
+  /// plan ([CategoryPlans.payScheduleId]).
   BoolColumn get definesPeriod =>
       boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
@@ -189,7 +194,9 @@ class CategoryPlans extends Table {
   /// On these dates each year, `MM-DD,MM-DD`; null unless so (v15).
   TextColumn get onDates => text().nullable()();
 
-  /// Every payday of this schedule, [daysAfterPay] days after (v15).
+  /// A bill: every payday of this schedule, [daysAfterPay] days after
+  /// (v15). A set amount: per this schedule's pay period, not per month
+  /// (v17).
   IntColumn get payScheduleId =>
       integer().nullable().references(PaySchedules, #id)();
   IntColumn get daysAfterPay => integer().withDefault(const Constant(0))();
@@ -666,7 +673,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -800,6 +807,20 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnOnce(m, categoryPlans, categoryPlans.nthWeekday);
           await _addColumnOnce(m, categoryPlans, categoryPlans.endDate);
           await _addColumnOnce(m, categoryPlans, categoryPlans.endCount);
+        }
+        if (from < 17) {
+          // Two earners (owner, 2026-10-05): a pay can be named, and each
+          // set amount is per month or per one pay, its own choice. Budget
+          // by pay period used to be the whole budget's; the set amounts
+          // keep meaning what they meant, each per that pay.
+          await _addColumnOnce(m, paySchedules, paySchedules.name);
+          await customStatement(
+            "UPDATE category_plans SET pay_schedule_id = (SELECT id FROM "
+            'pay_schedules WHERE defines_period = 1 AND deleted_at IS NULL '
+            "LIMIT 1) WHERE kind = 'each' AND pay_schedule_id IS NULL AND "
+            'EXISTS (SELECT 1 FROM pay_schedules WHERE defines_period = 1 '
+            'AND deleted_at IS NULL)',
+          );
         }
       });
     },
@@ -1987,17 +2008,27 @@ class AppDatabase extends _$AppDatabase {
     int categoryId,
     DateTime start,
     DateTime end,
-    int amount,
-  ) => transaction(() async {
+    int amount, {
+    List<({DateTime date, int amount})>? rows,
+  }) => transaction(() async {
     await _assertOwnCategory(categoryId);
     final before = await _budgetIn(categoryId, start, end);
     await _clearBudgetIn(categoryId, start, end);
-    if (amount != 0) {
+    // One amount dated at the span's start, or, for a category whose own
+    // period isn't the span's, [rows] dated in each of its periods
+    // ([Budget.spread]); every row must fall in the span.
+    final s = dateOnly(start), e = dateOnly(end);
+    for (final r in rows ?? [(date: s, amount: amount)]) {
+      final d = dateOnly(r.date);
+      if (r.amount == 0) continue;
+      if (d.isBefore(s) || d.isAfter(e)) {
+        throw ArgumentError('budget amount dated outside its span');
+      }
       await into(budgetAmounts).insert(
         BudgetAmountsCompanion.insert(
           categoryId: categoryId,
-          date: dateKey(dateOnly(start)),
-          amountMinor: amount,
+          date: dateKey(d),
+          amountMinor: r.amount,
         ),
       );
     }
@@ -2058,13 +2089,13 @@ class AppDatabase extends _$AppDatabase {
   /// (the plans' amounts, assigned together). Returns what each had, for
   /// [restoreBudgetAmountsOf].
   Future<Map<int, List<BudgetAmount>>> setBudgetAmounts(
-    Map<int, int> amounts,
+    Map<int, List<({DateTime date, int amount})>> rows,
     DateTime start,
     DateTime end,
   ) => transaction(() async {
     return {
-      for (final e in amounts.entries)
-        e.key: await setBudgetAmount(e.key, start, end, e.value),
+      for (final e in rows.entries)
+        e.key: await setBudgetAmount(e.key, start, end, 0, rows: e.value),
     };
   });
 
@@ -2659,6 +2690,7 @@ class AppDatabase extends _$AppDatabase {
     amount: p.amountMinor,
     amount2: p.amount2Minor,
     varies: p.varies,
+    name: p.name,
     payee: p.payee,
     rule: p.rule,
     day1: p.day1,
@@ -2710,8 +2742,8 @@ class AppDatabase extends _$AppDatabase {
     return from.isEmpty ? const [] : read(false);
   }
 
-  /// Adds or changes a pay schedule. With [definesPeriod] the budget runs
-  /// by it and no other. Paydays it had scheduled from today on are replaced
+  /// Adds or changes a pay schedule. With [definesPeriod] the Budget page
+  /// is viewed by it and no other. Paydays it had scheduled from today on are replaced
   /// by ones from the new plan, and so is the same pay the user had
   /// scheduled by hand in that account within a week of the first payday:
   /// income from the same payer or, with no payer named, of the same
@@ -2723,6 +2755,7 @@ class AppDatabase extends _$AppDatabase {
     int? amount2,
     required PayRule rule,
     required DateTime today,
+    String? name,
     String? payee,
     bool varies = false,
     int day1 = 25,
@@ -2748,6 +2781,7 @@ class AppDatabase extends _$AppDatabase {
       categoryId: Value(categoryId),
       accountId: Value(accountId),
       payee: Value(payee?.trim().isEmpty ?? true ? null : payee!.trim()),
+      name: Value(name?.trim().isEmpty ?? true ? null : name!.trim()),
       amountMinor: Value(amount),
       // Only twice a month has a second day, and the same twice is one.
       amount2Minor: Value(
@@ -2880,8 +2914,9 @@ class AppDatabase extends _$AppDatabase {
     await softDeleteMany(c.replaced);
   });
 
-  /// The budget runs by [id]'s pay periods, or by month with null. Returns
-  /// the schedules that defined it before (empty for month), for undo.
+  /// The Budget page is viewed by [id]'s pay periods, or by month with
+  /// null. Returns the schedules that defined it before (empty for month),
+  /// for undo.
   Future<List<int>> setPeriodSchedule(int? id) => transaction(() async {
     final before = await _periodIds();
     await _setPeriodIds([?id]);

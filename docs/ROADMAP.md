@@ -65,7 +65,8 @@ Budget types (owner, 2026-10-03, two instead of four; ADR 0004 rule 27):
 Work:
 - [x] Sketch the Budget page (envelopes, decided): Put in · Spent · Left a line,
       overspending carries as minus, card debt reduces the money (ADR 0004 rule 26)
-- [x] Budget amounts per category per period (month or pay period, set in Settings)
+- [x] Budget amounts per category per period (month or pay period; since 0.8.0 each
+      category's own, and the Budget page's view, ADR 0004 "Two earners")
 - [x] Rollover, including what happens after overspending: sketched as options
       (carries as minus, rule 26)
 - [x] Plans: a plan per category, a note under its name, and "Assign what's planned"

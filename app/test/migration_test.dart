@@ -124,6 +124,69 @@ void main() {
     });
   }
 
+  test(
+    'upgrades a v16 file: a set amount keeps the pay period it ran by',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      final ledger = await db.loadLedger();
+      final checking = ledger.openAccounts.first.id;
+      int category(String name) =>
+          ledger.categories.firstWhere((c) => c.name == name).id;
+      final food = category('Groceries'), rent = category('Housing');
+      // Budget by this pay's periods (as v16 had it), a set amount, and a
+      // bill: only the set amount meant "each pay period".
+      final pay = await db.savePaySchedule(
+        accountId: checking,
+        amount: 210000000,
+        rule: PayRule.twiceMonthly,
+        today: today,
+        definesPeriod: true,
+      );
+      await db.changeCategoryPlan(
+        food,
+        CategoryPlan(
+          categoryId: food,
+          kind: PlanKind.each,
+          amount: 40000000,
+          start: today,
+        ),
+        today,
+      );
+      await db.changeCategoryPlan(
+        rent,
+        CategoryPlan(
+          categoryId: rent,
+          kind: PlanKind.byDate,
+          amount: 180000000,
+          start: today,
+          due: DateTime(2026, 10, 20),
+          everyMonths: 1,
+        ),
+        today,
+      );
+      await dropAddedInV17(db);
+      await db.customStatement('PRAGMA user_version = 16');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final after = await db.loadLedger();
+      expect(after.plans[food]!.payScheduleId, pay.after.id);
+      expect(after.plans[rent]!.payScheduleId, isNull);
+      expect(after.periodSchedule!.id, pay.after.id);
+      expect(after.paySchedules.single.name, isNull);
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v17-from-v16-')),
+      );
+    },
+  );
+
   test('upgrades a v15 file: a plan gets its Custom… columns', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
     addTearDown(() => dir.delete(recursive: true));
@@ -177,7 +240,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v16-from-v15-')),
+      contains(startsWith('betterbudget.before-v17-from-v15-')),
     );
   });
 
@@ -208,7 +271,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v16-from-v6-')),
+      contains(startsWith('betterbudget.before-v17-from-v6-')),
     );
   });
 
@@ -263,7 +326,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v16-from-v11-')),
+        contains(startsWith('betterbudget.before-v17-from-v11-')),
       );
     });
   }
@@ -345,7 +408,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v16-from-v12-')),
+        contains(startsWith('betterbudget.before-v17-from-v12-')),
       );
     },
   );
@@ -398,7 +461,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v16-from-v13-')),
+      contains(startsWith('betterbudget.before-v17-from-v13-')),
     );
   });
 
@@ -437,7 +500,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v16-from-v10-')),
+      contains(startsWith('betterbudget.before-v17-from-v10-')),
     );
   });
 
@@ -471,7 +534,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v16-from-v9-')),
+        contains(startsWith('betterbudget.before-v17-from-v9-')),
       );
     },
   );
@@ -507,7 +570,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v16-from-v8-')),
+      contains(startsWith('betterbudget.before-v17-from-v8-')),
     );
   });
 
@@ -611,7 +674,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v16-from-v5-')),
+        contains(startsWith('betterbudget.before-v17-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -693,6 +756,11 @@ Future<void> dropAddedInV10(AppDatabase db) async {
 }
 
 /// The v8 schema: a weekend payday always moved.
+/// v17: a pay's name; set amounts per pay period keep their pay.
+Future<void> dropAddedInV17(AppDatabase db) async {
+  await db.customStatement('ALTER TABLE pay_schedules DROP COLUMN name');
+}
+
 /// v16: Custom…'s weekday patterns and an end on a category's plan.
 Future<void> dropAddedInV16(AppDatabase db) async {
   for (final column in [
@@ -702,9 +770,7 @@ Future<void> dropAddedInV16(AppDatabase db) async {
     'end_date',
     'end_count',
   ]) {
-    await db.customStatement(
-      'ALTER TABLE category_plans DROP COLUMN $column',
-    );
+    await db.customStatement('ALTER TABLE category_plans DROP COLUMN $column');
   }
 }
 

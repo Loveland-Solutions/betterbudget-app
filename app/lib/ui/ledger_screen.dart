@@ -1248,10 +1248,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         existing: existing,
         history: (a, payee) =>
             db.payHistory(a, scheduleId: existing?.id, payee: payee),
-        periodBy: data.periodSchedule?.id == existing?.id
-            ? null
-            : data.periodSchedule,
-        names: (id) => data.accounts[id]?.name ?? '',
         offerNoPay:
             data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
       ),
@@ -1279,6 +1275,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           () async => change = await db.savePaySchedule(
             id: existing?.id,
             accountId: draft.accountId,
+            name: draft.name,
             payee: draft.payee,
             amount: draft.amount,
             amount2: draft.amount2,
@@ -1289,7 +1286,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
             weeks: draft.weeks,
             anchor: draft.anchor,
             weekend: draft.weekend,
-            definesPeriod: draft.definesPeriod,
+            // The Budget page's view is chosen there; editing a pay
+            // leaves it as it is.
+            definesPeriod: existing?.definesPeriod ?? false,
             today: today,
           ),
           what: 'pay',
@@ -1406,9 +1405,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Budget by month, or by [schedule]'s pay periods.
+  /// The Budget page viewed by month, or by [schedule]'s pay periods (the
+  /// dropdown beside the period; owner, 2026-10-05). A view, so no toast;
+  /// ⌘Z still puts the last one back.
   Future<void> _budgetBy(PaySchedule? schedule) async {
     final t = context.t;
+    // The view it already is: nothing to write or undo.
+    if (schedule?.id == _data?.periodSchedule?.id) return;
     late List<int> before;
     if (!await _accountWrite(
       () async => before = await db.setPeriodSchedule(schedule?.id),
@@ -1417,7 +1420,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _did(
-      schedule == null ? t.ledgerBudgetByMonth : t.ledgerBudgetByPayPeriod,
+      schedule == null
+          ? t.ledgerBudgetByMonth
+          : t.ledgerBudgetByPayPeriod(payTitle(t, _data!, schedule)),
+      toast: false,
       undo: () async {
         await db.setPeriodSchedule(before.firstOrNull);
       },
@@ -1768,6 +1774,46 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// payday it's typed a dozen times in a row, and ⌘Z takes any of them
   /// back. The first amount ever also fixes the day the budget began and
   /// its currency, so neither moves on its own later.
+  /// How a new Assigned [amount] for [period] is written for [c]: one row
+  /// at the period's start, or, when the category's own period (its set
+  /// amount's month or pay) isn't the one on screen and the span holds
+  /// more than one of them, the rows already dated in the span kept and
+  /// the difference spread over its periods ([Budget.spread]), so an
+  /// emptying category isn't handed the lot in its first period.
+  List<({DateTime date, int amount})> _budgetRows(
+    LedgerData data,
+    Budget budget,
+    AccountInfo c,
+    BudgetSpan period,
+    int amount,
+  ) {
+    final plan = data.plans[c.id];
+    final own = plan?.kind == PlanKind.each
+        ? data.payScheduleById(plan!.payScheduleId)
+        : data.periodSchedule;
+    final onePeriod =
+        own?.id == data.periodSchedule?.id ||
+        !budgetPeriod(period.start, own).end.isBefore(period.end);
+    if (onePeriod) return [(date: period.start, amount: amount)];
+    final kept = [
+      for (final b in data.budgetAmounts)
+        if (b.categoryId == c.id &&
+            !b.date.isBefore(period.start) &&
+            !b.date.isAfter(period.end))
+          (date: dateOnly(b.date), amount: b.amount),
+    ];
+    final have = kept.fold(0, (sum, r) => sum + r.amount);
+    return [
+      ...kept,
+      ...Budget.spread(
+        span: period,
+        own: own,
+        shares: budget.lines[c.id]?.plan?.shares ?? const [],
+        delta: amount - have,
+      ),
+    ];
+  }
+
   Future<void> _setBudgetAmount(
     AccountInfo c,
     BudgetSpan period,
@@ -1778,8 +1824,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final first = data.prefs[BudgetKeys.began] == null;
     final currency = Budget.currencyOf(data);
     final start = period.start, end = period.end;
+    final rows = _budgetRows(
+      data,
+      Budget.of(data, start: start, end: end, today: today),
+      c,
+      period,
+      amount,
+    );
     Future<List<BudgetAmount>> write() async {
-      final before = await db.setBudgetAmount(c.id, start, end, amount);
+      final before = await db.setBudgetAmount(
+        c.id,
+        start,
+        end,
+        amount,
+        rows: rows,
+      );
       if (first) {
         await db.setPreference(BudgetKeys.began, dateKey(start));
         await db.setPreference(BudgetKeys.currency, currency.code);
@@ -1827,7 +1886,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       0,
       (sum, e) => sum + e.value - (b.lines[e.key.id]?.assigned ?? 0),
     );
-    final byId = {for (final e in amounts.entries) e.key.id: e.value};
+    final byId = {
+      for (final e in amounts.entries)
+        e.key.id: _budgetRows(data, b, e.key, period, e.value),
+    };
     late Map<int, List<BudgetAmount>> before;
     Future<void> write() async {
       before = await db.setBudgetAmounts(byId, start, end);
@@ -2979,10 +3041,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 onChanged: (l) => _setLanguage(c, l),
                               ),
                             },
-                            budget: _BudgetSettings(
-                              data: data,
-                              onBudgetBy: _budgetBy,
-                            ),
                             archived: data.archivedAccounts.isEmpty
                                 ? null
                                 : _ArchivedAccounts(
@@ -2998,6 +3056,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 _openAll(category: c.id, period: period),
                             onShowAllRows: (c) => _openAll(category: c.id),
                             onSetAmount: _setBudgetAmount,
+                            onBudgetBy: _budgetBy,
                             onStartLater: _startBudgetLater,
                             onAssignPlanned: _assignPlanned,
                             onKeepStart: () => _setPref(
@@ -3578,7 +3637,6 @@ class _SettingsPage extends StatelessWidget {
     this.encrypted = false,
     this.onCheckRecoveryKey,
     this.archived,
-    this.budget,
     this.appearance,
     this.language,
   });
@@ -3590,9 +3648,6 @@ class _SettingsPage extends StatelessWidget {
   /// English, Mongolian or the system's; null without a [LanguageScope]
   /// (tests).
   final Widget? language;
-
-  /// Budget by month or pay period, and pay schedules.
-  final Widget? budget;
 
   /// Archived accounts, when there are any.
   final Widget? archived;
@@ -3749,7 +3804,6 @@ class _SettingsPage extends StatelessWidget {
                     },
                   ),
                 ),
-                if (budget != null) ...[const SizedBox(height: 16), budget!],
                 if (appearance != null) ...[
                   const SizedBox(height: 16),
                   appearance!,

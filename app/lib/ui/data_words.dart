@@ -143,6 +143,32 @@ String payAmounts(
       : t.startPaySplit(first, firstDay, second, secondDay);
 }
 
+/// What a pay is called on screen: the name the user gave it, else the
+/// payer, else "Income" (or, with more than one pay, "Income into TDB
+/// Checking", so two unnamed pays are told apart by the account).
+String payTitle(Words t, LedgerData data, PaySchedule p) {
+  // A pay since stopped (a category can still be per it) says so.
+  if (!data.paySchedules.any((x) => x.id == p.id)) {
+    return t.payStopped(_payTitle(t, data, p));
+  }
+  return _payTitle(t, data, p);
+}
+
+String _payTitle(Words t, LedgerData data, PaySchedule p) {
+  if (p.name case final n? when n.isNotEmpty) return n;
+  if (p.payee case final who? when who.isNotEmpty) return who;
+  if (data.paySchedules.length < 2) return t.ledgerIncome;
+  final a = data.accounts[p.accountId];
+  final account = a == null
+      ? ''
+      : a.deleted
+      ? t.startDeletedAccount(a.name)
+      : a.archived
+      ? t.setupNameArchived(a.name)
+      : a.name;
+  return t.setupCategoryInto(t.ledgerIncome, account);
+}
+
 /// The budget span's name: "This pay period" or "This month".
 String periodName(Words t, ({DateTime start, DateTime end, String label}) p) =>
     p.label == payPeriodLabel ? t.startThisPayPeriod : t.startThisMonth;

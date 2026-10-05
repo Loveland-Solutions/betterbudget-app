@@ -624,7 +624,10 @@ class ForecastPanel extends StatelessWidget {
               waitDuration: const Duration(milliseconds: 500),
               child: Text(
                 s.low == 0
-                    ? t.planShortAheadZero(sayDate(t, f.end), sayDate(t, s.date))
+                    ? t.planShortAheadZero(
+                        sayDate(t, f.end),
+                        sayDate(t, s.date),
+                      )
                     : t.planShortAhead(
                         sayDate(t, f.end),
                         sayDate(t, s.date),

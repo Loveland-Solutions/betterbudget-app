@@ -7,6 +7,7 @@ part of 'ledger_screen.dart';
 /// What the pay setup saves.
 typedef PayDraft = ({
   int accountId,
+  String? name,
   String? payee,
   int amount,
   int? amount2,
@@ -17,7 +18,6 @@ typedef PayDraft = ({
   int weeks,
   DateTime anchor,
   PayWeekend weekend,
-  bool definesPeriod,
 });
 
 /// The setup's answer: save this, or stop the schedule.
@@ -72,20 +72,12 @@ class _PaySetupDialog extends StatefulWidget {
     required this.account,
     required this.today,
     required this.history,
-    required this.names,
     this.existing,
-    this.periodBy,
     this.offerNoPay = false,
   });
 
   /// There's no pay anywhere yet: offer "I don't have regular pay".
   final bool offerNoPay;
-
-  /// Another schedule the budget runs by, if one does.
-  final PaySchedule? periodBy;
-
-  /// An account or category's name, by id.
-  final String Function(int id) names;
 
   /// Accounts pay can go into.
   final List<AccountInfo> accounts;
@@ -105,6 +97,7 @@ class _PaySetupDialog extends StatefulWidget {
 
 class _PaySetupDialogState extends State<_PaySetupDialog> {
   late AccountInfo _account = widget.account;
+  late final _name = TextEditingController(text: widget.existing?.name);
   late final _payee = TextEditingController(text: widget.existing?.payee);
 
   /// Twice a month with two amounts: [_amount] is the earlier day's, and
@@ -135,7 +128,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   );
   final _anchorFocus = FocusNode(debugLabel: 'pay-anchor');
   late PayWeekend _weekend = widget.existing?.weekend ?? PayWeekend.before;
-  late bool _byPeriod = widget.existing?.definesPeriod ?? false;
   List<int> _history = const [];
 
   @override
@@ -150,6 +142,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
   @override
   void dispose() {
     for (final c in [
+      _name,
       _payee,
       _amount,
       _amount2,
@@ -294,6 +287,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
     Navigator.of(context).pop(
       PaySave((
         accountId: _account.id,
+        name: _name.text,
         payee: _payee.text,
         amount: _plan.amount,
         amount2: _plan.amount2,
@@ -304,7 +298,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
         weeks: _weeksValue ?? 2,
         anchor: _anchorValue ?? widget.today,
         weekend: _weekend,
-        definesPeriod: _byPeriod,
       )),
     );
   }
@@ -464,6 +457,25 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                     style: onest(17, weight: 600, letterSpacing: -0.2),
                   ),
                   const SizedBox(height: 16),
+                  // Whose pay (owner, 2026-10-05: two earners): the name
+                  // the Budget page's view and a category's "How often"
+                  // call it by.
+                  line(
+                    t.setupName,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SizedBox(
+                        width: 260,
+                        height: 30,
+                        child: TextField(
+                          key: const ValueKey('pay-name'),
+                          controller: _name,
+                          style: onest(13.5),
+                          decoration: _fieldDecoration(hint: t.setupNameHint),
+                        ),
+                      ),
+                    ),
+                  ),
                   line(
                     t.setupPaidInto,
                     Align(
@@ -681,35 +693,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                       ],
                     ),
                   ),
-                  line(
-                    t.setupBudgetBy,
-                    Row(
-                      children: [
-                        choice(
-                          t.setupMonth,
-                          !_byPeriod,
-                          () => setState(() => _byPeriod = false),
-                          'pay-by-month',
-                        ),
-                        const SizedBox(width: 8),
-                        choice(
-                          t.setupPayPeriod,
-                          _byPeriod,
-                          () => setState(() => _byPeriod = true),
-                          'pay-by-period',
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Another schedule sets the period: "Month" here would only mean
-                  // "not this pay", so say what's in effect.
-                  if (widget.periodBy case final other? when !_byPeriod)
-                    hint(
-                      t.setupPeriodOther(
-                        other.payee ?? widget.names(other.categoryId),
-                      ),
-                      key: const ValueKey('pay-period-other'),
-                    ),
                   if (preview != null && preview.perYear > 24)
                     hint(
                       t.setupPaydaysAYear(preview.perYear),
@@ -794,137 +777,6 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Settings: what the budget runs by, and the pay schedules behind it.
-class _BudgetSettings extends StatelessWidget {
-  const _BudgetSettings({required this.data, required this.onBudgetBy});
-  final LedgerData data;
-  final ValueChanged<PaySchedule?> onBudgetBy;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final pays = data.paySchedules;
-    final by = data.periodSchedule;
-    String name(int id) {
-      final a = data.accounts[id];
-      if (a == null) return '';
-      return a.deleted
-          ? t.startDeletedAccount(a.name)
-          : a.archived
-          ? t.setupNameArchived(a.name)
-          : a.name;
-    }
-
-    Widget choice(String label, bool on, VoidCallback onTap, String key) =>
-        Padding(
-          padding: const EdgeInsets.only(right: 8, bottom: 6),
-          child: Hoverable(
-            key: ValueKey(key),
-            onTap: onTap,
-            builder: (hover) => Container(
-              height: 30,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: on
-                    ? Mid.blueWash
-                    : (hover ? Mid.raised : Colors.transparent),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Center(
-                widthFactor: 1,
-                child: Text(
-                  label,
-                  style: onest(13, color: on ? Mid.ink : Mid.ink2),
-                ),
-              ),
-            ),
-          ),
-        );
-
-    Widget line(String label, Widget value) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(label, style: onest(13.5, color: Mid.ink3)),
-            ),
-          ),
-          Expanded(child: value),
-        ],
-      ),
-    );
-
-    return Container(
-      key: const ValueKey('settings-budget'),
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-      decoration: BoxDecoration(
-        color: Mid.panel,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Mid.rule),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(t.setupBudget, style: onest(16, weight: 600)),
-          const SizedBox(height: 14),
-          line(
-            t.setupBudgetBy,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  children: [
-                    choice(
-                      t.setupMonth,
-                      by == null,
-                      () => onBudgetBy(null),
-                      'budget-by-month',
-                    ),
-                    // A pay period needs a schedule to define it; with two
-                    // earners, whose pay it follows is the choice.
-                    for (final p in pays)
-                      choice(
-                        pays.length == 1
-                            ? t.setupPayPeriod
-                            // The employer is how people tell two apart.
-                            : t.setupPayPeriodOf(
-                                p.payee ??
-                                    t.setupCategoryInto(
-                                      name(p.categoryId),
-                                      name(p.accountId),
-                                    ),
-                              ),
-                        by?.id == p.id,
-                        () => onBudgetBy(p),
-                        'budget-by-${p.id}',
-                      ),
-                  ],
-                ),
-                Text(
-                  pays.isEmpty
-                      ? t.setupPeriodsFromPay
-                      : by == null
-                      ? t.setupRunsMonth
-                      : t.setupRunsPeriod(payWhen(t, by)),
-                  style: onest(12.5, color: Mid.ink3),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
