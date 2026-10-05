@@ -1984,6 +1984,194 @@ sides of a transfer between currencies. Built on that:
   fund picker shows those accounts but can't pick them, and a typed month of spending
   is kept with its currency. The owner decides how Savings treats two currencies.
 
+### Onboarding: the first half hour (owner, 2026-10-05)
+
+A new person's first launch opened on the demo's TDB Checking and Golomt Visa with
+nothing saying it was a demo, and Settings → Start over was the only way to their own
+money. The `budget-expert` agent designed the setup from the accounting: what has to be
+true before the first period's numbers mean anything. Its three findings about the app
+as it stood:
+
+- **An unmarked home loan makes the Budget page unusable.** "You have" is cash and bank
+  less what the cards owe (`Budget.of`, `BudgetPool.money`), and a mortgage or student
+  loan is left out of it only if the account carries that role — which could only be set
+  on the Savings page. A ₮68,000,000 home loan added as "Card or loan" gave You have
+  = −₮61,210,000 and a top pane reading "Cards owe more than you have", with nothing
+  saying why.
+- **A savings balance switches the coral warning off.** Money in Khan Savings counts in
+  Not assigned, so "more assigned than you have" can't fire until that money is spoken
+  for. On ₮6,790,000 across the accounts with ₮1,755,000 assigned, Not assigned read
+  ₮5,035,000 in black, ₮6,200,000 of it renovation money.
+- **Nobody chose when the budget started.** `BudgetKeys.began` was written as a side
+  effect of the first assignment (`_setBudgetAmount`), set to the period's first day.
+
+The decisions:
+
+- **Money already saved gets an envelope in the wizard** (owner, 2026-10-05). A step
+  asks what the saved money is for and makes a category with that one account checked,
+  on the dedicated-account rule and the Stop at cap. Nothing changes in how money is
+  counted; the coral warning starts working because the money has a job. *Rejected:*
+  leaving accounts marked as the fund out of You have (spending from them then breaks:
+  the money was never in the pool it's spent from), and saying it in words under Not
+  assigned while the warning stays off.
+- **What's owed is not the Budget page's job** (owner, 2026-10-05: "Cards should just be
+  budget categories. We'll track their balance and paydown later on the Savings page." …
+  "Same with Loans." … "the savings page that we haven't really worked on will track what
+  they owe and help them pay it off. That's not the job of the budget screen."). This
+  **reverses the 2026-09-30 call** recorded above under the first build ("Card debt
+  reduces the money", option A, which rejected a card-payment category as the common
+  convention). What forced the reversal: option A made the pane's first figure an
+  intermediate subtotal — accounts less debt — that no bank shows, nobody holds in their
+  head, and nothing can be checked against. The owner asked twice what it meant ("What
+  does 'You have' mean???"), which is the answer.
+  - **"You have" is cash and bank, and nothing else.** No subtraction, nothing hidden,
+    no tooltip doing the real work. It ties to the sidebar and to a bank app. In the
+    demo ledger it reads ₮16,868,950 while net worth reads ₮16,228,750; the difference
+    is the Visa, which is what net worth is for.
+  - **A credit card or loan's payment is budgeted as a category, like rent** (owner's
+    choice of two): you make a category, give it an amount and a due date, and paying
+    the card from the bank is that category's spending. *Rejected:* a category that
+    fills itself as the card is used — always arithmetically right, but it's the
+    convention other apps use and it's a category that behaves unlike every other one.
+  - **What is owed, and paying it down, belong to Savings**, which is barely built. The
+    Budget page never shows a balance owed.
+  - **The consequence, accepted:** buying on a credit card *raises* Not assigned, by the
+    amount of the purchase, until the card is paid. The category records the spending
+    while no money leaves the bank, and `notAssigned = money − held` does the rest. This
+    is unavoidable once a balance owed is out of the sum — the only alternative is the
+    self-filling category that was rejected. Covered by a test in `budget_test.dart`.
+  - **Two predicates, not one.** `Budget.counts` is money to budget: assets only.
+    `Budget.spendable` is the accounts a category can be spent from: cash, bank and
+    credit cards, never a mortgage or student loan — the owner's 2026-10-02 correction
+    ("a card is an account; if they plan to pay with it, let them") lives here. They were
+    one function, and separating them is what keeps the Visa in a category's **Paid
+    from** list while taking it out of the money.
+  - **Every credit card and loan can name the category its payment comes from**, through
+    the account menu's "Payments come out of ▸"; it used to be offered for a mortgage or
+    student loan only.
+  - **Gone with it:** "Credit cards owe more than you have" on the pane (impossible now),
+    and the `paidOverTime` role plus the "Paid off" question on Add account, both built
+    earlier the same day for the superseded model. Keeping a control that changes nothing
+    would have been an element without a purpose.
+  - **Say "credit card", never "card"** (owner, 2026-10-05: "Are they gift cards?").
+    "Credit card or loan" on Add account and in the account menu, "Credit cards owe…"
+    wherever it survives. The UI-card sense in translator notes is left alone.
+  - **The first row is "Cash & bank"**, not "You have" (owner, 2026-10-06: "come up with
+    something better than 'You have', for heaven's sake"; the `ux-writer` pass chose it).
+    The figure stopped being a possession and became a place — the money sitting in two
+    kinds of account — so the label names the place. **Deliberately the same words as the
+    sidebar group**, so the number can be checked twice: against the sidebar and against
+    a bank app. It also ends the collision with **Net worth** below it, which counts what
+    's owed and is therefore smaller: one row says where the money is, the sidebar says
+    what it all comes to. The pane now reads `Cash & bank → In categories → Not assigned`.
+    *Rejected:* "In accounts" (good parallel with "In categories", but a credit card is
+    an account, so it would be wrong about the Visa and would need the tooltip back);
+    "In the bank" (leaves out cash, which is not a rounding error in Mongolia);
+    "Accounts" bare (reads as a section heading); and "Spendable", "Available",
+    "To Budget", "Ready to Assign" — other apps' words, and abstractions nothing can be
+    checked against.
+  - **"Not assigned" stays.** The "reads like an error state" finding came from the vague
+    row above it; with the top row naming a place, the bottom row is plainly the rest.
+  - **The tooltip is gone.** `planKeyHaveTip` said "Cash and bank", which is now the
+    label — an element with no purpose. Its Mongolian still said "less what the cards
+    owe", which had become false. The `tip:` parameter it was the only user of went too.
+  - **The label column is measured from the Mongolian**, not the English: "Бэлэн мөнгө ба
+    банк" wrapped to two lines at 120 px and made the first row ragged, so it is 150.
+  - `planOverConsequence` now says cash and bank go below zero, not "the accounts" — a
+    credit card is an account but isn't in this sum.
+  - **Cash is its own Type** (owner, 2026-10-06: "I don't even think we should call it
+    'Cash and bank' unless one of the accounts is cash. That should probably be an
+    account type."). Add account offers **Bank account · Cash · Credit card or loan**.
+    Both of the first two are `AccountType.asset` to the ledger — the double-entry model
+    is untouched — and the Type the person picked is kept in the sidebar-group column,
+    which was already derived from the type and is never edited by hand
+    (`LedgerGroups.cash` / `.bank` / `.credit`, `AccountInfo.isCash`).
+    - **A cash account is offered neither Reconcile nor Import**, and loses the "Last
+      reconciled" line: there is no statement to be checked against and no bank file to
+      read. This is what earns the Type beyond the label; it was wrong before and nobody
+      had noticed. A counting flow for cash is still not wanted and stays on the roadmap.
+    - **The sidebar has three groups**, Bank / Cash / Credit, where it had two.
+    - **The Budget row names what the ledger actually holds**: "Cash & bank" only with
+      both, otherwise "Bank" or "Cash" — the same principle as telling two currencies
+      apart only when a ledger holds both. With no asset accounts at all it reads
+      "Cash & bank", the fullest name for what could go there.
+    - **Schema v18** renames the old `Cash & bank` group to `Bank`. **No existing
+      account is made cash**: the ledger can't know which is a wallet, and guessing from
+      a name would be wrong in any language. The person says so, by making it or by
+      changing its Type. Covered in `migration_test.dart`.
+    - Cash counts as money to budget exactly as before. Nothing about the arithmetic
+      moved.
+- **No demo at first launch** (owner, 2026-10-05). The wizard is the first screen, on an
+  empty ledger. What a filled-in Budget page looks like is shown as a picture where an
+  envelope has to be explained — nothing written to the database. Fake money teaches
+  nothing about the person's own money. *Rejected:* the demo as a labelled second ledger
+  opened and closed from Help (the app has no notion of two ledgers; worth revisiting as
+  a tour), and leaving it as it was.
+- **The sequence**, six screens of real work, about half an hour. The recovery key stays
+  first, before any data, and is never mentioned again.
+  1. **One date for every opening balance**, defaulted to today — the heading of step 2,
+     not a screen of its own. Accounts dated different days make You have a figure from
+     no single day.
+  2. **The accounts and what's in each today**, with a list to jog memory (the bank pay
+     goes into, other banks, savings, cash in the wallet, every card, Storepay or
+     лизинг, a dollar account, a home loan, money for a business — a business till
+     inside the household wallet makes the shop's takings read as income). **An account
+     that owes money is asked how it gets paid** — in full each month, or a set amount —
+     which is what decides whether its balance comes off You have ("Only debt due now"
+     above), and a set amount leads on to the payment as a bill. A home or student loan
+     is marked here too, not left on the Savings page. One cash question: "How do you pay
+     for everyday things? Card and bank · Cash · Both", because the drift from unrecorded
+     cash never corrects itself.
+  3. **Import, optional and skipped by default** — and **before the first assignment**,
+     because rows imported into a budgeted period push envelopes under with no warning.
+     Placed earlier, the first-period offer catches them. It buys payee autocomplete and
+     real figures to look at; nothing the budget's correctness needs.
+  4. **Which period the budget starts in:** this one, or the next when the period is
+     more than half gone and nothing has been assigned.
+  5. **Pay**, the setup that exists, reached in order instead of from the gold nag.
+     Answered, never skipped: "I don't have regular pay" is one of the answers, or the
+     Income tab wears a gold dot an irregular earner can never clear. The amount is
+     **what arrives in the bank, after any loan taken from the salary** — typed gross,
+     the forecast is optimistic every period.
+  6. **The bills with dates:** rent or the home loan payment, СӨХ, electricity and
+     heating, water, phone and internet, kindergarten or school, insurance, an
+     instalment. These are the ones that fail silently.
+  7. **Two or three everyday amounts:** food, transport, everything else. Every field
+     may be left empty, so it blocks nothing.
+  8. **Money already saved: what is it for?** Shown only when an account they don't
+     spend from holds money. "Nothing yet" is a valid answer.
+  9. **Assign what you have now**, the bills due before the next payday first.
+  10. **What to do tomorrow**, one screen and no data: record everything including cash;
+      **moving money between your own accounts is a transfer, never a category** (the
+      commonest way an envelope budget breaks: the envelope empties and the money reads
+      as spent); confirm a scheduled bill instead of typing it fresh; come back on
+      payday and assign the rest.
+- **Eight to ten categories on day one, not fourteen.** Three to six dated bills, two or
+  three everyday amounts, one line for money already saved. Splitting a category later
+  is a name and one question; un-splitting four is a merge. *Rejected on day one:* a
+  category per card or instalment (a card envelope can never be spent from), and
+  "Bank fees" as its own ₮380 line.
+- **Decided along the owner's rules rather than asked:** Paid from defaults to the one
+  account pay lands in (answering the 2026-10-05 open question — a dated bill with no
+  account left checked is in nobody's forecast); the wizard writes the budget's start
+  on purpose instead of it falling out of the first assignment; a mid-period start says
+  so in a quiet line ("This period counts from 10.10") because Spent is then only part
+  of a month and the plans read short until payday; the first period's Income reads ₮0
+  with opening balances only, which is a line and not data (recording the paycheck would
+  take the money out of the accounts twice).
+- **Uncleared rows are not asked about at setup.** The opening balance is cleared, the
+  bank's figure already holds everything posted, and the budget and forecast read posted
+  rows whatever their cleared state. One sentence beside a card covers the exception: a
+  charge made today that hasn't posted means the owed figure is low.
+- **The wizard sets `ledger.started` the moment it opens**, or a wizard opened and
+  abandoned gets the demo seeded underneath it at the next launch
+  (`seedDemoIfEmpty` skips only a ledger where `startedOwnLedger()` is true).
+
+Still to build for the sequence: one date across a set of opening balances, an
+add-another-account step, the loan question at Add account, writing `began` deliberately,
+a designed empty-ledger screen, and the mid-period line. Presentation is a separate pass.
+
+
 ## Credits
 
 - **Settings ends with a credit line** under the version (owner, 2026-10-05): "The

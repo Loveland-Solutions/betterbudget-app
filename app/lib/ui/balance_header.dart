@@ -50,7 +50,7 @@ class BalanceHeader extends StatelessWidget {
 
   /// Shown in place of the balance sum while reconciling.
   final Widget? reconcile;
-  final VoidCallback onReconcile;
+  final VoidCallback? onReconcile;
 
   /// Brings a bank file's rows in.
   final VoidCallback? onImport;
@@ -128,7 +128,7 @@ class _Balances extends StatelessWidget {
 
   final AccountSummary s;
   final bool owed;
-  final VoidCallback onReconcile;
+  final VoidCallback? onReconcile;
   final VoidCallback? onImport;
   final ValueNotifier<Cleared?> hovered;
   final Cleared? active;
@@ -179,23 +179,27 @@ class _Balances extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                _StatusLine(
-                  status: Cleared.reconciled,
-                  amount: null,
-                  // When matters here, not how much: no amount column.
-                  label: s.reconciledOn == null
-                      ? t.planNeverReconciled
-                      : t.planLastReconciled(sayDate(t, s.reconciledOn!)),
-                  note: '',
-                  hovered: hovered,
-                  active: active == Cleared.reconciled,
-                  onTap: () => onTap(Cleared.reconciled),
-                ),
-                BarButton(
-                  key: const ValueKey('reconcile'),
-                  label: t.planReconcile,
-                  onTap: onReconcile,
-                ),
+                // Cash has no statement to be checked against, so neither
+                // the line nor the button means anything on a wallet.
+                if (onReconcile case final reconcile?) ...[
+                  _StatusLine(
+                    status: Cleared.reconciled,
+                    amount: null,
+                    // When matters here, not how much: no amount column.
+                    label: s.reconciledOn == null
+                        ? t.planNeverReconciled
+                        : t.planLastReconciled(sayDate(t, s.reconciledOn!)),
+                    note: '',
+                    hovered: hovered,
+                    active: active == Cleared.reconciled,
+                    onTap: () => onTap(Cleared.reconciled),
+                  ),
+                  BarButton(
+                    key: const ValueKey('reconcile'),
+                    label: t.planReconcile,
+                    onTap: reconcile,
+                  ),
+                ],
                 if (onImport != null)
                   BarButton(
                     key: const ValueKey('import'),

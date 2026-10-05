@@ -384,9 +384,7 @@ class _BudgetPageState extends State<_BudgetPage> {
       String tagOf(Currency c) => c == budget.currency ? '' : '-${c.code}';
       // One pool's figures: have, assigned, free; and its states.
       final held = {for (final p in pools) p.currency: p.money - p.notAssigned};
-      bool cardsOwe(BudgetPool p) =>
-          p.notAssigned < 0 && held[p.currency]! <= 0 && p.money < 0;
-      bool over(BudgetPool p) => p.notAssigned < 0 && !cardsOwe(p);
+      bool over(BudgetPool p) => p.notAssigned < 0;
       Widget figure(
         String key,
         int v,
@@ -411,21 +409,12 @@ class _BudgetPageState extends State<_BudgetPage> {
                 tabular: true,
               ),
       );
-      Widget label(String text, {bool big = false, String? tip}) {
-        final w = Text(
-          text,
-          style: big
-              ? onest(14, weight: 500, color: Mid.ink)
-              : onest(13, color: Mid.ink3),
-        );
-        return tip == null
-            ? w
-            : Tooltip(
-                message: tip,
-                waitDuration: const Duration(milliseconds: 500),
-                child: w,
-              );
-      }
+      Widget label(String text, {bool big = false}) => Text(
+        text,
+        style: big
+            ? onest(14, weight: 500, color: Mid.ink)
+            : onest(13, color: Mid.ink3),
+      );
 
       Widget row(
         Widget lab,
@@ -437,7 +426,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(width: 120, child: lab),
+            SizedBox(width: 150, child: lab),
             // Wide enough for a tugrik sum with cents at the big size.
             for (final f in figures) ...[
               SizedBox(width: 200, child: f),
@@ -473,12 +462,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                       ),
                 style: onest(13, color: hover ? Mid.blue : Mid.gold),
               ),
-            ),
-          if (cardsOwe(p))
-            Text(
-              t.planCardsOweShort,
-              key: ValueKey('cards-owe${tagOf(p.currency)}'),
-              style: onest(13, color: Mid.coral),
             ),
         ],
       ];
@@ -541,14 +524,13 @@ class _BudgetPageState extends State<_BudgetPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            row(label(t.planKeyHave, tip: t.planKeyHaveTip), [
+            // Names only what the ledger actually holds, the way two
+            // currencies are told apart only when both are there.
+            row(label(cashBankLabel(t, data)), [
               for (final p in pools)
-                figure(
-                  'you-have${tagOf(p.currency)}',
-                  p.money,
-                  p.currency,
-                  coral: cardsOwe(p),
-                ),
+                // Cash and bank only, so it can't go below zero and has no
+                // coral state: what's owed is the Savings page's business.
+                figure('you-have${tagOf(p.currency)}', p.money, p.currency),
             ], haveNotes),
             row(label(t.planKeyAssigned), [
               for (final p in pools)
@@ -2490,11 +2472,32 @@ List<(Currency, int)> _cameIn(Map<Currency, int>? came, Currency main) {
   return lines.isEmpty ? [(main, 0)] : lines;
 }
 
-/// The accounts in [currency] a category can use: cash, bank and cards
-/// (owner, 2026-10-02: a bill planned for the Visa is the Visa's). Not a
-/// mortgage or student loan.
-Iterable<AccountInfo> _moneyAccounts(LedgerData data, Currency currency) =>
-    data.openAccounts.where((a) => Budget.counts(a, currency));
+/// The first row of the key card names where the money is: "Cash & bank"
+/// only when the ledger holds both, otherwise whichever one it has (owner,
+/// 2026-10-06: don't say cash unless one of the accounts is cash).
+String cashBankLabel(Words t, LedgerData data) {
+  var cash = false, bank = false;
+  for (final a in data.openAccounts) {
+    if (a.type != AccountType.asset) continue;
+    if (a.isCash) {
+      cash = true;
+    } else {
+      bank = true;
+    }
+  }
+  // With neither, the row is ₮0 and "Cash & bank" is the fullest name for
+  // what could go there.
+  if (cash && !bank) return t.planKeyCash;
+  if (bank && !cash) return t.planKeyBank;
+  return t.planKeyCashBank;
+}
+
+/// The accounts in [currency] a category can use: cash, bank and credit
+/// cards (owner, 2026-10-02: a bill planned for the Visa is the Visa's). Not
+/// a mortgage or student loan. [Budget.spendable], not [Budget.counts]: the
+/// latter is only where money sits, and a card holds none.
+Iterable<AccountInfo> _categoryAccounts(LedgerData data, Currency currency) =>
+    data.openAccounts.where((a) => Budget.spendable(a, currency));
 
 /// What a spending line says about its money (rule 28): the accounts it's
 /// kept in, when those hold less than is left in it ([today]: only in the
@@ -2513,7 +2516,7 @@ List<_LineFlag> _lineFlags(
   String money(int v, [Currency? currency]) =>
       formatShort(v, currency: currency ?? c.currency);
   final off = data.accountsOff[c.id] ?? const <int>{};
-  final mine = _moneyAccounts(data, c.currency).toList();
+  final mine = _categoryAccounts(data, c.currency).toList();
   final used = mine.where((a) => !off.contains(a.id)).toList();
   return [
     if (used.length < mine.length)
@@ -2702,7 +2705,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// both (owner, 2026-10-05: "two account selectors: just have one").
   int? get _paidFromNow {
     if (!_dated) return null;
-    final used = _moneyAccounts(
+    final used = _categoryAccounts(
       widget.data,
       _currency,
     ).where((a) => !_off.contains(a.id)).toList();
@@ -3849,7 +3852,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           // forecast, said with the count (budget review, 2026-10-05).
           aside: paidAccount != null && dueText != null
               ? t.planPaidFromHint(paidAccount.name, dueText)
-              : switch (_moneyAccounts(
+              : switch (_categoryAccounts(
                   data,
                   _currency,
                 ).where((a) => !_off.contains(a.id)).length) {
@@ -3924,7 +3927,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// it uses. The one row for both what rule 28 called the accounts a
   /// category uses and the account a dated plan's bill is scheduled in.
   Widget _accountsRow(Words t, {String? aside}) {
-    final accounts = _moneyAccounts(widget.data, _currency).toList();
+    final accounts = _categoryAccounts(widget.data, _currency).toList();
     final used = accounts.where((a) => !_off.contains(a.id)).toList();
     return _formRow(
       t.planLabelPaidFrom,
@@ -4081,7 +4084,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           paidArchived = t.planPaidFromArchived(paidAccount.name);
         }
 
-        final accounts = _moneyAccounts(data, _currency).toList();
+        final accounts = _categoryAccounts(data, _currency).toList();
         // In another currency its amounts and plan mean nothing: they go,
         // and the panel says so first.
         final assigned = data.budgetAmounts

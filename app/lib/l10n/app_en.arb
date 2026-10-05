@@ -701,7 +701,7 @@
       }
     }
   },
-  "ledgerIsNowCardOrLoan": "{name} is now a card or loan",
+  "ledgerIsNowCardOrLoan": "{name} is now a credit card or loan",
   "@ledgerIsNowCardOrLoan": {
     "description": "Toast and undo-menu label after an account’s kind is changed to owed money.",
     "placeholders": {
@@ -939,7 +939,15 @@
   },
   "ledgerGroupCashBank": "Cash & bank",
   "@ledgerGroupCashBank": {
-    "description": "Sidebar heading over bank accounts and cash."
+    "description": "Sidebar heading over bank accounts and cash. Kept for a ledger made before cash was its own Type."
+  },
+  "ledgerGroupBank": "Bank",
+  "@ledgerGroupBank": {
+    "description": "Sidebar heading over bank accounts (checking, savings)."
+  },
+  "ledgerGroupCash": "Cash",
+  "@ledgerGroupCash": {
+    "description": "Sidebar heading over cash accounts (a wallet, a tin)."
   },
   "ledgerGroupCredit": "Credit",
   "@ledgerGroupCredit": {
@@ -2326,7 +2334,7 @@
       }
     }
   },
-  "planNoCardsOwing": "No cards or loans owing",
+  "planNoCardsOwing": "No credit cards or loans owing",
   "@planNoCardsOwing": {
     "description": "Savings page, consumer debt step: nothing owed"
   },
@@ -3221,17 +3229,25 @@
   },
   "setupKindBank": "Bank account",
   "@setupKindBank": {
-    "description": "New account page, a kind of account (checking, savings or cash). Short button."
+    "description": "New account page, a kind of account (checking or savings). Short button."
   },
-  "setupKindOwed": "Card or loan",
+  "setupKindCash": "Cash",
+  "@setupKindCash": {
+    "description": "New account page, a kind of account: cash in hand, a wallet or a tin. Short button."
+  },
+  "setupKindCashHint": "Cash you hold: a wallet, a tin at home. There\u2019s no statement to check it against, so it\u2019s yours to keep true \u2014 type what you spend.",
+  "@setupKindCashHint": {
+    "description": "New account page, note under the kinds when Cash is picked."
+  },
+  "setupKindOwed": "Credit card or loan",
   "@setupKindOwed": {
     "description": "New account page, a kind of account (credit card, loan, Storepay). Short button."
   },
   "setupKindOwedHint": "A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.",
   "@setupKindOwedHint": {
-    "description": "New account page, note under the kinds when Card or loan is picked."
+    "description": "New account page, note under the kinds when Credit card or loan is picked."
   },
-  "setupKindBankHint": "Checking, savings or cash.",
+  "setupKindBankHint": "Checking or savings, at a bank.",
   "@setupKindBankHint": {
     "description": "New account page, note under the kinds when Bank account is picked."
   },
@@ -3321,7 +3337,7 @@
   "@setupToBank": {
     "description": "Account menu: turn a card or loan account into a bank account."
   },
-  "setupToOwed": "Change to card or loan",
+  "setupToOwed": "Change to credit card or loan",
   "@setupToOwed": {
     "description": "Account menu: turn a bank account into a card or loan account."
   },
@@ -5756,13 +5772,17 @@
       }
     }
   },
-  "planKeyHave": "You have",
-  "@planKeyHave": {
-    "description": "Budget page, the key card, first row's label: cash and bank less what cards owe, one figure per currency. Short."
+  "planKeyBank": "Bank",
+  "@planKeyBank": {
+    "description": "Budget page, the key card, first row's label when the ledger has bank accounts but no cash account. Matches the sidebar group."
   },
-  "planKeyHaveTip": "Cash and bank, less what cards owe",
-  "@planKeyHaveTip": {
-    "description": "Budget page, the key card: tooltip on \"You have\"."
+  "planKeyCash": "Cash",
+  "@planKeyCash": {
+    "description": "Budget page, the key card, first row's label when the ledger has cash but no bank account. Matches the sidebar group."
+  },
+  "planKeyCashBank": "Cash & bank",
+  "@planKeyCashBank": {
+    "description": "Budget page, the key card, first row's label: what is in the cash and bank accounts, one figure per currency. Deliberately the same words as the sidebar group ledgerGroupCashBank, so the figure can be checked against it. Short."
   },
   "planKeyAssigned": "In categories",
   "@planKeyAssigned": {
@@ -5772,7 +5792,7 @@
   "@planKeyNotAssigned": {
     "description": "Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short."
   },
-  "planOverConsequence": "Spend what the categories hold and the accounts go {amount} below zero.",
+  "planOverConsequence": "Spend what the categories hold and cash and bank go {amount} below zero.",
   "@planOverConsequence": {
     "description": "Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.",
     "placeholders": {
@@ -5781,13 +5801,9 @@
       }
     }
   },
-  "planCardsOweShort": "Cards owe more than you have",
-  "@planCardsOweShort": {
-    "description": "Budget page, the key card, coral note on the You have row when cards owe more than cash and bank hold (nothing assigned could be \"too much\")."
-  },
   "planUncategorizedRows": "{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}",
   "@planUncategorizedRows": {
-    "description": "Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized that add up to nothing. Click opens them.",
+    "description": "Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized that add up to nothing. Click opens them.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -5796,7 +5812,7 @@
   },
   "planUncategorizedMoney": "{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}",
   "@planUncategorizedMoney": {
-    "description": "Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.",
+    "description": "Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.",
     "placeholders": {
       "count": {
         "type": "int"

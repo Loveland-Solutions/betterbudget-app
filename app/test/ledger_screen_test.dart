@@ -531,6 +531,25 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('cash is offered neither Reconcile nor Import', (tester) async {
+    final db = await pumpLedger(tester);
+    // The ledger opens on a bank account, which has both.
+    expect(find.byKey(const ValueKey('reconcile')), findsOneWidget);
+    expect(find.byKey(const ValueKey('import')), findsOneWidget);
+    expect(find.textContaining('reconciled'), findsWidgets);
+
+    await tester.tap(find.text('Cash wallet'));
+    await tester.pumpAndSettle();
+    // A wallet has no statement to be checked against and no bank file, so
+    // neither the buttons nor the reconciled line means anything (ADR 0004).
+    expect(find.byKey(const ValueKey('reconcile')), findsNothing);
+    expect(find.byKey(const ValueKey('import')), findsNothing);
+    expect(find.textContaining('reconciled'), findsNothing);
+    // It is still money, and still in the sidebar under its own heading.
+    expect(find.text('Cash'), findsWidgets);
+    await tidy(tester, db);
+  });
+
   testWidgets('forecast dots do nothing while reconciling', (tester) async {
     final db = await pumpLedger(tester);
     await tester.tap(find.byKey(const ValueKey('reconcile')));
@@ -1166,7 +1185,7 @@ void main() {
       find.text('Reconcile of 09.10 undone · 5 rows back to cleared'),
       findsOneWidget,
     );
-    expect(find.text('Never reconciled'), findsOneWidget);
+    expect(find.textContaining('reconciled'), findsWidgets);
 
     await chord(LogicalKeyboardKey.keyZ);
     await settle(tester);
@@ -1176,14 +1195,14 @@ void main() {
     await chord(LogicalKeyboardKey.keyZ, shift: true);
     await settle(tester);
     expect(find.text('Redone · Reconcile of 09.10 undone'), findsOneWidget);
-    expect(find.text('Never reconciled'), findsOneWidget);
+    expect(find.textContaining('reconciled'), findsWidgets);
 
     // Ctrl+Y redoes too, once something has been undone.
     await chord(LogicalKeyboardKey.keyZ);
     await settle(tester);
     await chord(LogicalKeyboardKey.keyY);
     await settle(tester);
-    expect(find.text('Never reconciled'), findsOneWidget);
+    expect(find.textContaining('reconciled'), findsWidgets);
     await chord(LogicalKeyboardKey.keyY);
     await settle(tester);
     expect(find.text('Nothing to redo'), findsOneWidget);
