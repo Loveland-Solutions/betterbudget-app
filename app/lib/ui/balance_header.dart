@@ -26,6 +26,8 @@ class BalanceHeader extends StatelessWidget {
     this.span = ForecastSpan.payPeriod,
     this.payPeriodEnd,
     this.onSpan,
+    this.shortAhead,
+    this.onShowShort,
   });
 
   /// No payday ahead: the forecast offers to put pay in.
@@ -36,6 +38,12 @@ class BalanceHeader extends StatelessWidget {
   final ForecastSpan span;
   final DateTime? payPeriodEnd;
   final ValueChanged<ForecastSpan>? onSpan;
+
+  /// The balance goes to zero or below past what the forecast shows: the
+  /// day and how low. A coral line above the forecast says so; a click
+  /// looks that far.
+  final ({DateTime date, int low})? shortAhead;
+  final VoidCallback? onShowShort;
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
@@ -96,6 +104,8 @@ class BalanceHeader extends StatelessWidget {
                 span: span,
                 payPeriodEnd: payPeriodEnd,
                 onSpan: onSpan,
+                shortAhead: shortAhead,
+                onShowShort: onShowShort,
               ),
             ),
           ],
@@ -469,10 +479,19 @@ class ForecastPanel extends StatelessWidget {
     this.span = ForecastSpan.payPeriod,
     this.payPeriodEnd,
     this.onSpan,
+    this.shortAhead,
+    this.onShowShort,
   });
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
   final VoidCallback? onAddPay;
+
+  /// Past this view, the balance goes to zero or below: said in coral above
+  /// the title, and a click looks that far (owner, 2026-10-05: "if at any
+  /// point in the paychecks tracked for that account, the balance drops to
+  /// or below zero, we need to let the user know").
+  final ({DateTime date, int low})? shortAhead;
+  final VoidCallback? onShowShort;
 
   /// How far it looks (owner's request, 2026-10-05): the small title is
   /// the control. [payPeriodEnd] names the pay-period choice by its date;
@@ -530,6 +549,8 @@ class ForecastPanel extends StatelessWidget {
         final on = sayDate(t, f.firstShort!);
         headline = unless != null
             ? t.planRunsOutUnless(on, unless)
+            : f.low == 0
+            ? t.planRunsOutZero(on)
             : t.planRunsOut(on, money(f.low));
       } else if (f.steps.isEmpty) {
         headline = t.planNothingScheduled;
@@ -593,6 +614,33 @@ class ForecastPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Trouble past this view, said before anything else.
+        if (shortAhead case final s?) ...[
+          Hoverable(
+            key: const ValueKey('forecast-short-ahead'),
+            onTap: onShowShort ?? () {},
+            builder: (hover) => Tooltip(
+              message: t.planShortAheadTip(sayDate(t, s.date)),
+              waitDuration: const Duration(milliseconds: 500),
+              child: Text(
+                s.low == 0
+                    ? t.planShortAheadZero(sayDate(t, f.end), sayDate(t, s.date))
+                    : t.planShortAhead(
+                        sayDate(t, f.end),
+                        sayDate(t, s.date),
+                        money(s.low),
+                      ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: onest(12.5, color: Mid.coral, tabular: true).copyWith(
+                  decoration: hover ? TextDecoration.underline : null,
+                  decorationColor: Mid.coral,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
         // What this part of the header is, for someone seeing it first.
         Center(
           child: Text(

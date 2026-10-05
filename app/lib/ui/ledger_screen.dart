@@ -716,20 +716,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _keysBack();
   }
 
-  /// Accounts whose forecast goes below zero, with the header's own
-  /// warning for each: a dot beside the account in the sidebar says so
-  /// from anywhere in the app (owner's request, 2026-10-05). One already
-  /// below zero shows its balance in coral there instead.
+  /// Looking a year of paychecks ahead, whatever span is on screen: the
+  /// day an account's balance first goes to zero or below, and how low,
+  /// or null when it doesn't (or is below zero already, which its balance
+  /// says).
+  ({DateTime date, int low})? _shortAhead(LedgerData data, AccountInfo a) {
+    if (a.isOwed) return null;
+    final f = _forecastFor(data, a, span: ForecastSpan.year);
+    if (!f.isShort || f.shortNow) return null;
+    return (date: f.firstShort!, low: f.low);
+  }
+
+  /// Accounts whose balance goes to zero or below within a year of
+  /// paychecks, with the header's own warning for each: a dot beside the
+  /// account in the sidebar says so from anywhere in the app (owner's
+  /// request, 2026-10-05). One already below zero shows its balance in
+  /// coral there instead.
   Map<int, String> _runsOut(LedgerData data) {
     final t = context.t;
     return {
       for (final a in data.openAccounts)
-        if (!a.isOwed)
-          if (_forecastFor(data, a) case final f when f.isShort && !f.shortNow)
-            a.id: t.planRunsOut(
-              sayDate(t, f.firstShort!),
-              roundedIn(context, f.low.abs()),
-            ),
+        if (_shortAhead(data, a) case final s?)
+          a.id: s.low == 0
+              ? t.planRunsOutZero(sayDate(t, s.date))
+              : t.planRunsOut(
+                  sayDate(t, s.date),
+                  roundedIn(context, s.low.abs()),
+                ),
     };
   }
 
@@ -3059,6 +3072,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ? forecast
         : _forecastFor(data, account, span: ForecastSpan.payPeriod);
     final payPeriodEnd = byPay.payday != null ? byPay.end : null;
+    // Trouble past this view: said above the forecast, and a click picks
+    // the shortest span that shows it. Within the view, the headline
+    // already says it.
+    final ahead = _shortAhead(data, account);
+    final beyond = ahead != null && ahead.date.isAfter(forecast.end)
+        ? ahead
+        : null;
     final activeStatus = switch (_filter) {
       RegisterFilter.uncleared => Cleared.uncleared,
       RegisterFilter.cleared => Cleared.cleared,
@@ -3109,6 +3129,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
               span: span,
               payPeriodEnd: payPeriodEnd,
               onSpan: _setSpan,
+              shortAhead: beyond,
+              onShowShort: beyond == null
+                  ? null
+                  : () => _setSpan(
+                      ForecastSpan.values
+                          .skip(1)
+                          .firstWhere(
+                            (s) => !s.endFrom(today)!.isBefore(beyond.date),
+                            orElse: () => ForecastSpan.year,
+                          ),
+                    ),
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,

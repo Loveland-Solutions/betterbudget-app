@@ -1238,6 +1238,27 @@ void main() {
       expect(f.low, -70775000);
     });
 
+    test('landing exactly on zero is short too', () {
+      final r = RegisterRow(
+        txnId: 1,
+        entryId: 1,
+        date: DateTime(2026, 9, 20),
+        payee: 'Rent',
+        memo: '',
+        amount: -500,
+        cleared: Cleared.uncleared,
+        scheduled: true,
+        kind: RowKind.simple,
+        categoryLabel: 'Housing',
+        categoryId: 1,
+        splitLines: const [],
+      );
+      final f = buildForecast(working: 500, today: today, scheduled: [r]);
+      expect(f.isShort, isTrue);
+      expect(f.firstShort, DateTime(2026, 9, 20));
+      expect(f.low, 0);
+    });
+
     test('already below zero counts as short from today', () {
       final f = buildForecast(working: -500, today: today, scheduled: const []);
       expect(f.isShort, isTrue);

@@ -306,7 +306,8 @@ Forecast buildForecast({
       low = bal;
       lowDate = when(r);
     }
-    if (!owed && bal < 0 && firstShort == null) firstShort = when(r);
+    // To zero or below (owner, 2026-10-05): nothing left is already short.
+    if (!owed && bal <= 0 && firstShort == null) firstShort = when(r);
   }
 
   return Forecast(

@@ -1000,6 +1000,26 @@ class WordsMn extends Words {
   }
 
   @override
+  String planRunsOutZero(String date) {
+    return 'Мөнгө дуусах өдөр: $date';
+  }
+
+  @override
+  String planShortAhead(String end, String date, String amount) {
+    return '$end-с хойш: $date-нд мөнгө дуусна · $amount хүртэл дутна';
+  }
+
+  @override
+  String planShortAheadZero(String end, String date) {
+    return '$end-с хойш: $date-нд мөнгө дуусна';
+  }
+
+  @override
+  String planShortAheadTip(String date) {
+    return '$date хүртэл харах';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Доод үлдэгдэл $amount · $date';
   }

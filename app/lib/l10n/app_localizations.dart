@@ -1464,6 +1464,30 @@ abstract class Words {
   /// **'Runs out on {date} · up to {amount} short'**
   String planRunsOut(String date, String amount);
 
+  /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out on {date}'**
+  String planRunsOutZero(String date);
+
+  /// Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day); a click looks that far
+  ///
+  /// In en, this message translates to:
+  /// **'Past {end}: runs out on {date} · up to {amount} short'**
+  String planShortAhead(String end, String date, String amount);
+
+  /// Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches
+  ///
+  /// In en, this message translates to:
+  /// **'Past {end}: runs out on {date}'**
+  String planShortAheadZero(String end, String date);
+
+  /// Account header, forecast panel: tooltip on the coral line above the Forecast title; clicking it widens the forecast's span to include that day
+  ///
+  /// In en, this message translates to:
+  /// **'Look as far as {date}'**
+  String planShortAheadTip(String date);
+
   /// Account header, forecast panel: headline, the lowest the balance gets before next income
   ///
   /// In en, this message translates to:

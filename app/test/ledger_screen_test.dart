@@ -2273,6 +2273,54 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('trouble past the view is said above the forecast', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    // A bill on 11.20, past the pay period the forecast shows (to 10.10),
+    // bigger than what's left after the 10.10 salary.
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      await db.postSimple(
+        accountId: ledger.openAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id,
+        date: DateTime(2026, 11, 20),
+        today: DateTime(2026, 9, 16),
+        payee: 'МУИС',
+        counterAccountId: ledger.categories
+            .firstWhere((c) => c.name == 'Tuition')
+            .id,
+        amount: -500000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // The headline is calm; the line above the title isn't, and the
+    // sidebar's dot agrees.
+    expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
+    expect(
+      find.text('Past 10.10: runs out on 11.20 · up to ₮1,107,750 short'),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip('Runs out on 11.20 · up to ₮1,107,750 short'),
+      findsOneWidget,
+    );
+    // A click looks that far: 90 days reaches 11.20, 60 don't.
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-short-ahead')),
+    );
+    expect(find.text('Next 90 days'), findsOneWidget);
+    expect(
+      find.text('Runs out on 11.20 · up to ₮1,107,750 short'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('forecast-short-ahead')), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('the forecast looks as far as the small title says', (
     tester,
   ) async {

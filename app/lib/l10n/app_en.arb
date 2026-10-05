@@ -1489,6 +1489,51 @@
       }
     }
   },
+  "planRunsOutZero": "Runs out on {date}",
+  "@planRunsOutZero": {
+    "description": "Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAhead": "Past {end}: runs out on {date} · up to {amount} short",
+  "@planShortAhead": {
+    "description": "Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day); a click looks that far",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAheadZero": "Past {end}: runs out on {date}",
+  "@planShortAheadZero": {
+    "description": "Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAheadTip": "Look as far as {date}",
+  "@planShortAheadTip": {
+    "description": "Account header, forecast panel: tooltip on the coral line above the Forecast title; clicking it widens the forecast's span to include that day",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planLowest": "Lowest {amount} on {date}",
   "@planLowest": {
     "description": "Account header, forecast panel: headline, the lowest the balance gets before next income",

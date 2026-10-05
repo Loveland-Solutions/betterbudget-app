@@ -1555,8 +1555,20 @@ the rest are open, below.
   header's own warning as its tooltip ("Runs out on 10.15 · up to ₮X
   short"); clicking the tile opens the account, whose headline is already
   coral. An account already below zero shows its balance in coral there
-  instead, as before. Cards never (owing isn't a warning, rule 2). The dot
-  follows the forecast's span, so a longer span can light more accounts.
+  instead, as before. Cards never (owing isn't a warning, rule 2).
+  **The owner's call on her "red clickable text above the forecast pane"
+  (2026-10-05):** it's the account's own forecast pane, and "if at any
+  point in the paychecks tracked for that account, the balance drops to or
+  below zero, we need to let the user know." So the app looks **a year of
+  paychecks ahead** for every account, whatever span is on screen (the same
+  projection the spans use). When the balance goes to zero or below past
+  what the forecast shows, a coral line sits above the "Forecast" title:
+  "Past 10.10: runs out on 11.20 · up to ₮1,107,750 short"; clicking it
+  picks the shortest span that reaches that day, where the headline then
+  says it. Within the view the headline already says it, so the line isn't
+  repeated. The sidebar's dot uses the same year's look-ahead. **To zero or
+  below:** landing exactly on zero now counts as short ("Runs out on
+  11.20", with no "short" amount), where before only below zero did.
 
 **Open, for the owner to call:**
 
@@ -1570,9 +1582,6 @@ the rest are open, below.
   dropdown covers every interval and fixed dates; what Outlook adds is
   weekday patterns ("the last Friday of every month", "every Monday") and
   an end ("until 2029.03", "after 36 times").
-- Whether "the Forecast pane on the expenses section" and the "red clickable
-  text above the forecast pane" mean a forecast on the Budget page itself
-  (there is none today; forecasts are per account).
 
 ### The smallest window (owner, 2026-10-01)
 

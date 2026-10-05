@@ -1038,6 +1038,26 @@ class WordsEn extends Words {
   }
 
   @override
+  String planRunsOutZero(String date) {
+    return 'Runs out on $date';
+  }
+
+  @override
+  String planShortAhead(String end, String date, String amount) {
+    return 'Past $end: runs out on $date · up to $amount short';
+  }
+
+  @override
+  String planShortAheadZero(String end, String date) {
+    return 'Past $end: runs out on $date';
+  }
+
+  @override
+  String planShortAheadTip(String date) {
+    return 'Look as far as $date';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Lowest $amount on $date';
   }
