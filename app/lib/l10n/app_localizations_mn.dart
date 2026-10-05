@@ -710,6 +710,10 @@ class WordsMn extends Words {
   }
 
   @override
+  String get settingsCredit =>
+      'Төсөв хуудсыг зохион байгуулахад Cynthia G. Loveland тусалсан.';
+
+  @override
   String get ledgerEraseAndStartOverButton => 'Бүгдийг устгаж шинээр эхлэх…';
 
   @override

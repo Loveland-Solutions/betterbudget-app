@@ -1662,6 +1662,14 @@ sides of a transfer between currencies. Built on that:
   fund picker shows those accounts but can't pick them, and a typed month of spending
   is kept with its currency. The owner decides how Savings treats two currencies.
 
+## Credits
+
+- **Settings ends with a credit line** under the version (owner, 2026-10-05): "The
+  Budget page was laid out with help from Cynthia G. Loveland." One line where someone
+  already looks to learn about the app. Rejected: a separate About page (a page holding
+  one name has nothing else to do) and the macOS About panel's credits file (macOS only,
+  outside the l10n files, gone on the phones).
+
 ## Consequences
 
 - Desktop and mobile get separate layouts over one data layer

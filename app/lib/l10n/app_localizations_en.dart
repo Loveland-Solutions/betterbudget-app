@@ -714,6 +714,10 @@ class WordsEn extends Words {
   }
 
   @override
+  String get settingsCredit =>
+      'The Budget page was laid out with help from Cynthia G. Loveland.';
+
+  @override
   String get ledgerEraseAndStartOverButton =>
       'Erase everything and start over…';
 

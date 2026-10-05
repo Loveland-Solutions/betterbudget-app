@@ -3727,6 +3727,12 @@ class _SettingsPage extends StatelessWidget {
                     style: onest(13, color: Mid.ink3),
                   ),
                 ],
+                SizedBox(height: version == null ? 16 : 6),
+                SelectableText(
+                  t.settingsCredit,
+                  key: const ValueKey('app-credit'),
+                  style: onest(13, color: Mid.ink3),
+                ),
               ],
             ),
           ),

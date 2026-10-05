@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-03**
+**Last updated: 2026-10-05**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -11,6 +11,11 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
+
+**Uncommitted (2026-10-05, version 0.6.1):** a credit line at the bottom of Settings under
+the version ("The Budget page was laid out with help from Cynthia G. Loveland."), in both
+languages, with a Thanks section in the README and the choice in ADR 0004 "Credits".
+Goldens of the Settings pages were updated. Needs: branch, commit, PR.
 
 **Git state:** `main` has everything through PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the

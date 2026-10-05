@@ -158,6 +158,7 @@
   "ledgerStartOverTitle": "Шинээр эхлэх",
   "ledgerStartOverNote": "Энэ нь дэвтрийн бүх данс, гүйлгээг устгаж, та хоосноос эхэлнэ. Ангиллууд үлдэх эсэхийг та сонгоно. Одоо байгаа өгөгдөл тань эхлээд нөөц хуулбарт хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.",
   "settingsVersion": "Хувилбар {version} ({build})",
+  "settingsCredit": "Төсөв хуудсыг зохион байгуулахад Cynthia G. Loveland тусалсан.",
   "ledgerEraseAndStartOverButton": "Бүгдийг устгаж шинээр эхлэх…",
   "ledgerRestoreTitle": "Энэ нөөц хуулбарыг сэргээх үү?",
   "ledgerBackupFrom": "Хуулбарын огноо",

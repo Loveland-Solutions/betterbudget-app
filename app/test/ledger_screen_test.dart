@@ -4733,6 +4733,12 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Version 0.1.0 (134)'), findsOneWidget);
+    expect(
+      find.text(
+        'The Budget page was laid out with help from Cynthia G. Loveland.',
+      ),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 }

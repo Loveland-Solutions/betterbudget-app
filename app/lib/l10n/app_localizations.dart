@@ -1056,6 +1056,12 @@ abstract class Words {
   /// **'Version {version} ({build})'**
   String settingsVersion(String version, String build);
 
+  /// Settings, bottom of the page, under the version line: who helped design the app. Keep the name in Latin letters.
+  ///
+  /// In en, this message translates to:
+  /// **'The Budget page was laid out with help from Cynthia G. Loveland.'**
+  String get settingsCredit;
+
   /// Settings → Start over card, button.
   ///
   /// In en, this message translates to:

@@ -1065,6 +1065,10 @@
       }
     }
   },
+  "settingsCredit": "The Budget page was laid out with help from Cynthia G. Loveland.",
+  "@settingsCredit": {
+    "description": "Settings, bottom of the page, under the version line: who helped design the app. Keep the name in Latin letters."
+  },
   "ledgerEraseAndStartOverButton": "Erase everything and start over…",
   "@ledgerEraseAndStartOverButton": {
     "description": "Settings → Start over card, button."
