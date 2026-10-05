@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-05**
+**Last updated: 2026-10-05 (later)**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -11,6 +11,19 @@ summarizes how to work in this repo.
 The owner is refining the ledger by using it and giving feedback; **the budget comes only
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
+
+**PR #37 merged (2026-10-05, version 0.8.0, schema v17): two earners.** The owner
+asked "Jeff and Jenny are married. They both get paychecks. Can they use this
+budget?" and designed the answer (ADR 0004 "Two earners"): Budget by is gone from
+Settings and the pay setup; it's a **view dropdown on the Budget page** beside the
+period ("Month ▾" or a pay's name, once there's pay; no toast, ⌘Z goes back). A set
+amount's Edit has a **How often** row, "Every month" (default) or "Every pay period ·
+Jenny": the category's own period (its amount, its month-end emptying, its words).
+Seen by another period it's **prorated by days**, said "about", of what its own
+period still wants; bills divide as before. A **pay has a Name** (the setup's first
+line) that the dropdown, How often, the note and the Income tab use. Schema v17:
+`pay_schedules.name`; set amounts of a ledger that budgeted by pay period get that
+pay. Both review passes done, fixes in (see Next step).
 
 **PR #36 merged (2026-10-05, version 0.7.0, schema v16):** the owner's
 notes from a call with Cynthia G. Loveland about the Budget page. Its first commit is the
@@ -25,7 +38,8 @@ projected that far); a coral dot in the sidebar beside an account whose forecast
 out. The owner's calls on the rest came the same day and are built: a coral line above
 an account's forecast when it runs out past the view (accounts pay goes into are looked
 at a year of paychecks ahead; landing on zero counts); **Spending and Income tabs on the
-Budget page, pay listed and added on Income** (Settings → Budget keeps only Budget by);
+Budget page, pay listed and added on Income** (Settings → Budget kept only Budget by,
+until 0.8.0 moved it to the Budget page);
 and How often's "Every…" is an Outlook-style **Custom…** block (weekday chips, the nth
 weekday of the month, Ends never / on a date / after N times; schema v16). **Both
 review passes done, their fixes in** (ADR 0004 "From the reviews (2026-10-05)").
@@ -34,8 +48,9 @@ answer means beside it, "What's left at month's end" shows under No always, and 
 Income tab reads "₮2,100,000 received of ₮4,200,000 expected this period" (the owner's
 words). **Open (Next step):** two questions, in plain examples.
 
-**Git state:** `main` has everything through PR #36 (2026-10-05, version 0.7.0, schema
-v16: the Budget page from the call with Cynthia; see above), PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**Git state:** `main` has everything through PR #37 (2026-10-05, version 0.8.0, schema
+v17: two earners, see above), PR #36 (2026-10-05, version 0.7.0, schema
+v16: the Budget page from the call with Cynthia), PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -43,8 +58,8 @@ Language), PR #22 (roadmap to beta), PR #21 (blue Add button, the bee beside
 the wordmark), PR #20 (logo wordmark, Steppe night dark mode, light mode and Settings →
 Appearance), PR #18 (pay options, schema v7) and the
 app icon (the bee, tilted; logo SVGs cleaned). Keep the pattern: branch, commit, PR,
-merge. The owner's data file is at schema version 12 (upgraded 2026-10-02 by the 0.3.0 build, from
-v10; the copy before it, `before-v12-from-v10-…`, is beside it).
+merge. The owner's data file is at schema version 17 (upgraded 2026-10-05 by the 0.8.0 build, from
+v16; the copy before it, `before-v17-from-v16-…`, is beside it).
 
 Visual direction and the register's UX rules are settled in
 [ADR 0004](decisions/0004-ledger-ui.md). Read it before changing any UI.
@@ -62,7 +77,7 @@ Visual direction and the register's UX rules are settled in
 | Categories | Managed on the Budget screen; every one is a spending category, and income is the app's one Income (rule 30, 2026-10-03: in the ledger's dropdown, not listed on the Budget page, can't be deleted). Add category. **One Edit per category** (rule 29, 2026-10-02): right-click or ⋯ gives Edit and Delete… only, a double-click opens Edit under the row, and Edit holds the name, Spending or Income, the Type (No plan or one of the four plans), currency, accounts, payday and Pay…, the usage ("42 rows · last 09.12 · show them") and Archive (leaves the menus, rows keep the name); one Save, one ⌘Z. Delete… (with rows: pick where they move, a merge). A new name typed in the entry row offers "+ New category" and a gold "new category" note; saving makes it, one ⌘Z undoes both (rule 22) |
 | All accounts | Under Ledger, above the groups: every account's rows in one register, Account as the last column, a transfer once. Adding asks for the account (a dropdown that remembers the last). Clicking a category's usage on the Budget screen opens it with a "Category: X ✕" chip and "n rows · ₮X spent"; Esc clears (rule 23) |
 | Savings | The steps to getting financially prepared, in the self-reliance course's order, tithing left out (rule 25): one month of expenses set aside, health coverage, no consumer debt, 3–6 months, retirement, mortgage and student loans. The current step is the first not done; any can be set aside. A month is the last 3 months' average spending or typed; the fund is the accounts the user picks; cards and loans are consumer debt unless marked mortgage, student loan or paid monthly. Schema v6 (account role, preferences) |
-| Pay | Filed under Income (rule 30): a set-up payday ends the forecast, and income typed by hand does only when no pay is set up anywhere; no payday mark and no category in the pay setup. Before 2026-10-03: payday mark on income categories (only paydays end forecasts). Pay setup (forecast "no payday ahead · Add your pay", Budget screen, Settings): account, from, same or varies ("Expect at least", history, warning if high), monthly / twice a month / every N weeks, weekend rule; the next payday is always scheduled from the plan. Settings: Budget by Month or Pay period, pay list with Edit (rule 24). Schema v5 |
+| Pay | Filed under Income (rule 30): a set-up payday ends the forecast, and income typed by hand does only when no pay is set up anywhere; no payday mark and no category in the pay setup. Before 2026-10-03: payday mark on income categories (only paydays end forecasts). Pay setup (forecast "no payday ahead · Add your pay", Budget screen, Settings): account, from, same or varies ("Expect at least", history, warning if high), monthly / twice a month / every N weeks, weekend rule; the next payday is always scheduled from the plan. Since 0.8.0 (ADR 0004 "Two earners"): a pay has a Name; the Budget page's view dropdown is by month or by a pay's periods; a set amount is per month or per one pay (How often in its Edit) and prorated by days when seen by another period. Schema v5, v17 |
 | Header | A cleared + uncleared = working sum whose total is the large number, plus the date last reconciled and a Reconcile button; the uncleared line carries "3 not cleared yet" and nothing when all has cleared; on a credit card every amount is what's owed, positive, with "Owed" as the total; the lines double as the symbol key (hover highlights, click filters) |
 | Forecast | Today → next scheduled income: lowest point, or a coral warning with the date it runs out (or "Below zero now"); 30-day horizon if no income is scheduled. Scheduled money in (transfers, refunds) steps the line up; only an income-category row ends it. Money in due today or earlier and not confirmed isn't counted (the header says so in gold and opens it); on payday "Runs out 10.15 unless ₮2,500,000 due today comes". A credit card shows what will be owed over 30 days. Under the headline, "3 bills · ₮2,790,200 before 10.10" (never payee names); clicking it lists every bill and the income with the balance after each. Chart ends are labeled with plain dates. Hover a dot for the bill, click a dot or a listed bill to open it |
 | Register | Full dates, running balance, one signed amount column, every other row tinted a faint blue with a hover clearly lighter than the tint, transfer and split glyphs, split lines in the memo; tabs All / Uncleared (n) / Scheduled (n); search across payee, memo, category, amount |
@@ -208,6 +223,26 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-05 (later), PR #37 `two-earners` (version 0.8.0, schema v17): two
+earners.** Built as the owner designed it in conversation (ADR 0004 "Two earners"):
+the view dropdown on the Budget page (`_ViewChoice` in `ui/budget.dart`,
+`_budgetBy` in `ledger_screen.dart`, kept in `pay_schedules.defines_period` as
+before); a set amount's own period in its plan's `pay_schedule_id` (How often row in
+the Edit's No branch, `_eachPayId`); proration and emptying inside a span in
+`Budget._planLine` and `Budget._emptying` (`PlanLine.approx`); `pay_schedules.name`
+with `payTitle` in `ui/data_words.dart`; Settings → Budget and the setup's Budget by
+removed. **Both review passes done, their fixes in** (ADR 0004 "Two earners" → "From
+the budget review"): money assigned from another period's view is dated into each of
+the category's own periods (`Budget.spread`, `_budgetRows` in `ledger_screen.dart`,
+`setBudgetAmount(rows:)`); emptying inside a span stops at today; a new category's How
+often starts as the view's period; a cut share rounds to ₮100; a stopped pay reads
+"(stopped)"; picking the view it already is writes nothing. Tests: 411 (`flutter test`
+passes; `goldens/budget_two_earners.png` new, Settings and pay setup goldens redrawn).
+**Next:** the owner's call on the two points below. Open for the owner (not re-asked): a share
+bigger than the amount after a skipped period reads as a contradiction; stopping a pay
+leaves its categories on its old rhythm; still one person's words in the forecast
+("Until your 10.15 paycheck"). The owner's two questions below stay open too.
 
 **2026-10-05, branch `budget-page-layout` (version 0.7.0): the Budget page after the
 owner's call with Cynthia G. Loveland.** Six notes came back. Built: a new category

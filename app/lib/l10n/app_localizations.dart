@@ -558,17 +558,17 @@ abstract class Words {
   /// **'The forecast will ask for your pay again'**
   String get ledgerAskForPayAgainToast;
 
-  /// Toast and undo-menu label: the budget now runs by calendar month.
+  /// Undo-menu label (no toast): the Budget page is now viewed by calendar month.
   ///
   /// In en, this message translates to:
-  /// **'Budget by month'**
+  /// **'Budget viewed by month'**
   String get ledgerBudgetByMonth;
 
-  /// Toast and undo-menu label: the budget now runs by pay period.
+  /// Undo-menu label (no toast): the Budget page is now viewed by one pay's periods, named by the pay.
   ///
   /// In en, this message translates to:
-  /// **'Budget by pay period'**
-  String get ledgerBudgetByPayPeriod;
+  /// **'Budget viewed by pay period · {name}'**
+  String ledgerBudgetByPayPeriod(String name);
 
   /// Settings → Appearance card, title.
   ///
@@ -3053,7 +3053,7 @@ abstract class Words {
   /// **'New account'**
   String get setupNewAccount;
 
-  /// New account page, label beside the name field.
+  /// Pay setup, label beside the name field (first line): what the user calls this pay, to tell two earners' apart. Short.
   ///
   /// In en, this message translates to:
   /// **'Name'**
@@ -3401,7 +3401,7 @@ abstract class Words {
   /// **'When is a payday? ({example})'**
   String setupWhenPayday(String example);
 
-  /// Pay setup dialog title for new pay; Settings → Budget button when there is no pay yet.
+  /// Pay setup dialog title for new pay; the Budget page's Income tab button when there is no pay yet.
   ///
   /// In en, this message translates to:
   /// **'Add your pay'**
@@ -3430,6 +3430,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Employer (optional)'**
   String get setupEmployerHint;
+
+  /// Pay setup, hint in the empty name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Jenny, or Jeff’s job (optional)'**
+  String get setupNameHint;
 
   /// Pay setup, label beside "About the same each time" / "It varies". Short.
   ///
@@ -3575,34 +3581,16 @@ abstract class Words {
   /// **'Keep the day'**
   String get setupKeepTheDay;
 
-  /// Pay setup and Settings → Budget, label: whether a budget covers a month or a pay period. Short.
-  ///
-  /// In en, this message translates to:
-  /// **'Budget by'**
-  String get setupBudgetBy;
-
-  /// Pay setup and Settings → Budget, choice beside "Budget by".
+  /// Was the pay setup's "Budget by" choice; unused since 2026-10-05, kept for the Mongolian review sheet.
   ///
   /// In en, this message translates to:
   /// **'Month'**
   String get setupMonth;
 
-  /// Pay setup and Settings → Budget, choice beside "Budget by": payday to the day before the next.
-  ///
-  /// In en, this message translates to:
-  /// **'Pay period'**
-  String get setupPayPeriod;
-
-  /// Pay setup, note when another pay schedule sets the budget's periods. name is that pay's employer or category.
-  ///
-  /// In en, this message translates to:
-  /// **'The budget follows {name}’s pay periods. Pay period here moves it to this pay.'**
-  String setupPeriodOther(String name);
-
   /// Pay setup, note for every-two-weeks pay (26 paydays).
   ///
   /// In en, this message translates to:
-  /// **'{count} paydays a year: two months a year have three. Budgeting by pay period follows your paychecks.'**
+  /// **'{count} paydays a year: two months a year have three.'**
   String setupPaydaysAYear(int count);
 
   /// Pay setup, summary by Save. date is a full date in a sentence.
@@ -3651,79 +3639,49 @@ abstract class Words {
   /// **'Save pay'**
   String get setupSavePay;
 
-  /// Settings → Budget, an account that was archived.
+  /// Budget page, Income tab (a pay's line) and a pay's title: an account that was archived.
   ///
   /// In en, this message translates to:
   /// **'{name} (archived · no paydays until it’s back)'**
   String setupNameArchived(String name);
 
-  /// Settings, card title.
-  ///
-  /// In en, this message translates to:
-  /// **'Budget'**
-  String get setupBudget;
-
-  /// Settings → Budget, choice when there are two or more pays. who is the employer, or "category into account".
-  ///
-  /// In en, this message translates to:
-  /// **'Pay period · {who}'**
-  String setupPayPeriodOf(String who);
-
-  /// Settings → Budget: a pay with no employer, named by its category and the account it goes into.
+  /// A pay with no name and no employer, when there is more than one pay: Income into the account it goes into (the Income tab, the view dropdown, How often).
   ///
   /// In en, this message translates to:
   /// **'{category} into {account}'**
   String setupCategoryInto(String category, String account);
 
-  /// Settings → Budget, note when there is no pay yet.
-  ///
-  /// In en, this message translates to:
-  /// **'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.'**
-  String get setupPeriodsFromPay;
-
-  /// Settings → Budget, note when budgeting by month.
-  ///
-  /// In en, this message translates to:
-  /// **'Each budget runs from the 1st to the month’s end.'**
-  String get setupRunsMonth;
-
-  /// Settings → Budget, note when budgeting by pay period. when is like "monthly on the 25th".
-  ///
-  /// In en, this message translates to:
-  /// **'Each budget runs from one payday to the day before the next ({when}).'**
-  String setupRunsPeriod(String when);
-
-  /// Settings → Budget, label beside the list of pay schedules. Short.
+  /// Was Settings → Budget's label beside the pay list; unused since 2026-10-05 (pay is listed on the Budget page's Income tab).
   ///
   /// In en, this message translates to:
   /// **'Pay'**
   String get setupPay;
 
-  /// Settings → Budget, one pay schedule. amounts is like "₮2,100,000 · monthly on the 25th".
+  /// Budget page, Income tab, one pay. amounts is like "₮2,100,000 · monthly on the 25th".
   ///
   /// In en, this message translates to:
   /// **'{category} · {amounts} · into {account}'**
   String setupPayLine(String category, String amounts, String account);
 
-  /// Settings → Budget, button beside a pay schedule.
+  /// Budget page, Income tab, button beside a pay.
   ///
   /// In en, this message translates to:
   /// **'Edit'**
   String get setupEdit;
 
-  /// Settings → Budget, after "I don't have regular pay".
+  /// Budget page, Income tab, after "I don't have regular pay".
   ///
   /// In en, this message translates to:
   /// **'You said you don’t have regular pay, so the forecast doesn’t ask for it.'**
   String get setupSaidNoPay;
 
-  /// Settings → Budget, button that undoes "I don't have regular pay".
+  /// Budget page, Income tab, button that undoes "I don't have regular pay".
   ///
   /// In en, this message translates to:
   /// **'Ask me again'**
   String get setupAskAgain;
 
-  /// Settings → Budget, button when some pay is already set up.
+  /// Budget page, Income tab, the add button when some pay is already set up.
   ///
   /// In en, this message translates to:
   /// **'Add other pay'**
@@ -4740,6 +4698,18 @@ abstract class Words {
   /// **'Pay period'**
   String get planPayPeriod;
 
+  /// Budget page, the view dropdown beside the period: by calendar month (the other choices are each pay's name). Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get planViewMonth;
+
+  /// Budget page, tooltip on the view dropdown beside the period.
+  ///
+  /// In en, this message translates to:
+  /// **'View by month, or by one pay’s periods'**
+  String get planViewTip;
+
   /// Budget page: the period shown, beside the arrows. name is a month name, "This month", "This pay period" or "Pay period"; start and end are month.day
   ///
   /// In en, this message translates to:
@@ -5562,6 +5532,24 @@ abstract class Words {
   /// **'{account} is archived, so this isn’t scheduled'**
   String planPaidFromArchived(String account);
 
+  /// Budget page: note under a category's name, a set amount per one of several pays' periods, named by the pay
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} each pay period · {name}'**
+  String planEachPayOf(String amount, String name);
+
+  /// Budget page: note under a category's name, viewing by month a set amount that is per pay period: its share of this month, by days
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} this month'**
+  String planAboutThisMonth(String amount);
+
+  /// Budget page: note under a category's name, viewing by a pay's periods a set amount that is per month (or per another pay): its share of this period, by days
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} this pay period'**
+  String planAboutThisPay(String amount);
+
   /// Budget page: part of the note under a category's name, after the amount and a dot
   ///
   /// In en, this message translates to:
@@ -5646,11 +5634,17 @@ abstract class Words {
   /// **'Remove the plan for {category}'**
   String planRemoveUndo(String category);
 
-  /// Budget page: note under a category's name, when the budget runs by pay period; what the period before left unspent, returned to the money not assigned
+  /// Budget page: note under a category's name, for a set amount per pay period; what the period before left unspent, returned to the money not assigned
   ///
   /// In en, this message translates to:
   /// **'{amount} left last pay period went back to not assigned'**
   String planWentBackPay(String amount);
+
+  /// Budget page: note under a category's name, seen by another period than its own (a per-pay amount by the month, or a monthly one by a pay): what went back at its last period end in the span, on that day
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} went back to not assigned on {date}'**
+  String planWentBackOn(String amount, String date);
 
   /// Budget page: gold line in a category's plan before saving, and part of the toast after, when changing or removing a plan that didn't carry over brings back what earlier periods returned
   ///
@@ -5933,11 +5927,23 @@ abstract class Words {
   /// **'Every payday'**
   String get planEveryPayday;
 
-  /// Budget page, Edit under a category's row (Yes): how often, each payday of one of several pay schedules, named by who pays or the account
+  /// Budget page, Edit under a category's row (Yes): how often, each payday of one of several pays, named by the pay's name (else who pays, else the account)
   ///
   /// In en, this message translates to:
   /// **'Every payday · {name}'**
   String planEveryPaydayOf(String name);
+
+  /// Budget page, Edit under a category's row (No): How often for a set amount, per the one pay's periods instead of per month
+  ///
+  /// In en, this message translates to:
+  /// **'Every pay period'**
+  String get planEveryPayPeriod;
+
+  /// Budget page, Edit under a category's row (No): How often for a set amount, per one of several pays' periods, named by the pay
+  ///
+  /// In en, this message translates to:
+  /// **'Every pay period · {name}'**
+  String planEveryPayPeriodOf(String name);
 
   /// Budget page, Edit under a category's row (Yes): how often, the entry that opens the Custom block (Repeat every N unit; weekdays or the nth weekday; Ends), like a calendar app's recurrence
   ///
@@ -6238,6 +6244,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Income'**
   String get ledgerIncome;
+
+  /// A pay that was stopped, named where a category is still per its periods: the plan note, How often. name is the pay's title.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} (stopped)'**
+  String payStopped(String name);
 
   /// Budget page, under the not-assigned lines: this period's income, each currency on its own, like "Income: ₮3,200,000.00 · $120.00". A click shows the rows.
   ///

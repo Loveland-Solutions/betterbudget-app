@@ -357,10 +357,12 @@ class WordsEn extends Words {
       'The forecast will ask for your pay again';
 
   @override
-  String get ledgerBudgetByMonth => 'Budget by month';
+  String get ledgerBudgetByMonth => 'Budget viewed by month';
 
   @override
-  String get ledgerBudgetByPayPeriod => 'Budget by pay period';
+  String ledgerBudgetByPayPeriod(String name) {
+    return 'Budget viewed by pay period · $name';
+  }
 
   @override
   String get ledgerAppearanceTitle => 'Appearance';
@@ -2423,6 +2425,9 @@ class WordsEn extends Words {
   String get setupEmployerHint => 'Employer (optional)';
 
   @override
+  String get setupNameHint => 'Jenny, or Jeff’s job (optional)';
+
+  @override
   String get setupPayIs => 'Pay is';
 
   @override
@@ -2516,22 +2521,11 @@ class WordsEn extends Words {
   String get setupKeepTheDay => 'Keep the day';
 
   @override
-  String get setupBudgetBy => 'Budget by';
-
-  @override
   String get setupMonth => 'Month';
 
   @override
-  String get setupPayPeriod => 'Pay period';
-
-  @override
-  String setupPeriodOther(String name) {
-    return 'The budget follows $name’s pay periods. Pay period here moves it to this pay.';
-  }
-
-  @override
   String setupPaydaysAYear(int count) {
-    return '$count paydays a year: two months a year have three. Budgeting by pay period follows your paychecks.';
+    return '$count paydays a year: two months a year have three.';
   }
 
   @override
@@ -2573,29 +2567,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupBudget => 'Budget';
-
-  @override
-  String setupPayPeriodOf(String who) {
-    return 'Pay period · $who';
-  }
-
-  @override
   String setupCategoryInto(String category, String account) {
     return '$category into $account';
-  }
-
-  @override
-  String get setupPeriodsFromPay =>
-      'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.';
-
-  @override
-  String get setupRunsMonth =>
-      'Each budget runs from the 1st to the month’s end.';
-
-  @override
-  String setupRunsPeriod(String when) {
-    return 'Each budget runs from one payday to the day before the next ($when).';
   }
 
   @override
@@ -3389,6 +3362,12 @@ class WordsEn extends Words {
   String get planPayPeriod => 'Pay period';
 
   @override
+  String get planViewMonth => 'Month';
+
+  @override
+  String get planViewTip => 'View by month, or by one pay’s periods';
+
+  @override
   String planPeriodTitle(String name, String start, String end) {
     return '$name · $start–$end';
   }
@@ -3853,6 +3832,21 @@ class WordsEn extends Words {
   }
 
   @override
+  String planEachPayOf(String amount, String name) {
+    return '$amount each pay period · $name';
+  }
+
+  @override
+  String planAboutThisMonth(String amount) {
+    return 'about $amount this month';
+  }
+
+  @override
+  String planAboutThisPay(String amount) {
+    return 'about $amount this pay period';
+  }
+
+  @override
   String get planNoCarry => 'what’s left doesn’t carry over';
 
   @override
@@ -3931,6 +3925,11 @@ class WordsEn extends Words {
   @override
   String planWentBackPay(String amount) {
     return '$amount left last pay period went back to not assigned';
+  }
+
+  @override
+  String planWentBackOn(String amount, String date) {
+    return '$amount went back to not assigned on $date';
   }
 
   @override
@@ -4142,6 +4141,14 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planEveryPayPeriod => 'Every pay period';
+
+  @override
+  String planEveryPayPeriodOf(String name) {
+    return 'Every pay period · $name';
+  }
+
+  @override
   String get planEveryCustom => 'Custom…';
 
   @override
@@ -4316,6 +4323,11 @@ class WordsEn extends Words {
 
   @override
   String get ledgerIncome => 'Income';
+
+  @override
+  String payStopped(String name) {
+    return '$name (stopped)';
+  }
 
   @override
   String planIncomeLine(String amounts) {

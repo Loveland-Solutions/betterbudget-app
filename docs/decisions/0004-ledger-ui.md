@@ -785,9 +785,11 @@ What's known so far:
     says "Last 3 came in above ₮X · raise the estimate?". Nothing changes the
     estimate but the user.
     **Budget by month or pay period, the user's choice** (owner's call: people
-    paid every two weeks). It's in the pay setup and in Settings ("Budget by: Month
-    / Pay period"), and it starts on Month. A pay period needs a pay schedule; with
-    two earners, whose pay it follows is the choice. Every-two-weeks pay notes "26
+    paid every two weeks). ~~It's in the pay setup and in Settings ("Budget by: Month
+    / Pay period")~~ Since 2026-10-05 it's a view on the Budget page, and each
+    category has its own period (see "Two earners" below); it starts on Month. A
+    pay period needs a pay schedule; with two earners, whose pay it follows is the
+    choice. Every-two-weeks pay notes "26
     paydays a year: two months a year have three". For now it decides the span of a
     category's rows opened from Budget: a "This month · 09.01–09.30" (or "This pay
     period") chip, removed with ✕ or Esc for all time. The budget's periods will use
@@ -1678,6 +1680,75 @@ branch, the last three after the owner's calls the same day.
   on its own (where the rent rows were paid from) so the bill shows in the
   forecast at once, instead of "All accounts" and no forecast until one is
   left checked.
+
+### Two earners: each category's own period, and a view (owner, 2026-10-05)
+
+"Jeff and Jenny are married. They both get paychecks. Can they use this
+budget?" Mostly, since pay was already a list; what didn't hold was Budget by
+pay period, which followed one pay for the whole budget (rule 24: "with two
+earners, whose pay it follows is the choice"), and the words that assumed one
+person. The owner's design, built (version 0.8.0, schema v17):
+
+- **Budget by leaves Settings and the pay setup. It's a view on the Budget
+  page:** a dropdown beside the period, "Month ▾" or a pay's name, shown once
+  there's pay. The owner: "The budget screen is the only place we need to see
+  it." A view, not a change to the money: no toast (⌘Z still puts the last
+  view back), and switching never re-buckets anything. The choice is kept in
+  the ledger as before (one pay at most). Rejected: the budget's grain as one
+  global setting flipped from the page with a warning (the first draft here;
+  the owner: "Not necessarily").
+- **Each category says how it's budgeted** (owner: "When you create a budget
+  category, you would need to tell how you want it. Once a month, or by pay
+  period, and if so, for which paycheck."). A set amount (No due date) has a
+  **How often** row: "Every month" (the default, so a new category isn't
+  asked; rule: a default over a required choice) or "Every pay period" (·
+  name, with more than one pay). It's the plan's own period: its amount is
+  per it, "What's left at the period's end" happens at its ends, and its
+  wording ("Set aside each pay period") follows it, not the view. A bill
+  (Yes) has a due date and How often already, and divides over whatever
+  periods are on screen. Stored in the plan's existing pay column; v17 sets it
+  on every set amount of a ledger that budgeted by pay period, so those keep
+  meaning "each pay period".
+- **Seen by another period than its own, a set amount is prorated** (owner:
+  "if you make a view that is from a different paycheck and they don't fall
+  on the same day, you would just prorate it"). Assigned, Spent and Left need
+  none of it: they're sums over the dates on screen, exact for any span.
+  Only the plan's "what should be here" is: each of its own periods the span
+  touches still wants its amount less what was put in before the span began,
+  spread by days over the rest of that period, and the span takes its days'
+  share. Shares add up to the whole over time, a period already filled asks
+  for nothing more, and a span that holds all of a period's rest asks for the
+  whole, exactly. A cut share reads "about": "₮600,000 each pay period · Jeff
+  · about ₮280,000 this pay period"; "Assign ₮280,000" at the note's end
+  assigns the share. Rejected: prorating a bill (a bill due on the 1st seen
+  by fortnights is "₮300,000 this paycheck, ₮300,000 next", which the dated
+  plan's parts already do; a day-share would leave them short).
+- **A pay has a name** (owner: "the user should be able to name the
+  paycheck"). The setup's first line, "Name", hint "Jenny, or Jeff’s job
+  (optional)"; the employer stays as "From" (history is matched by it). The
+  name is what the view dropdown, How often, the plan note and the Income tab
+  call the pay by; unnamed, the payer, then "Income" or "Income into TDB
+  Checking" with two. Still one person's words elsewhere ("Until your 10.15
+  paycheck", "your last 6 paychecks"): left for a later pass.
+- **One purse.** "Not assigned" is one pool per currency across every
+  account, so Jenny's view counts Jeff's balance too: for a couple who pool
+  money that's right, and a bill they split needs nothing (the envelope wants
+  the whole; a transfer between their accounts is a move, not spending). A
+  couple who truly keep separate money are two ledgers. No person entity.
+- **From the budget review (2026-10-05):** money assigned from a view that
+  isn't the category's own is dated into each of its own periods the span
+  touches (by the plan's shares, else by days; the rows already there stay),
+  so a no-carry-over category isn't handed a month's worth in one fortnight
+  and the rest given back at the next payday. Inside a span, only period
+  ends up to today empty anything ("₮150,000 went back to not assigned on
+  10.09"). A new category's How often starts as the period on screen. A cut
+  share rounds to ₮100. A stopped pay reads "Jeff (stopped)" where a
+  category is still per it.
+- Left for later: the forecast on a shared account still runs to the first
+  payday it sees and through that pay's period (rule 24's note); a bill paid
+  "Every payday" is pinned to one pay; a share bigger than the amount after a
+  skipped period ("₮600,000 each … · about ₮700,000 this …") says nothing of
+  why; stopping a pay leaves its categories on its old rhythm.
 
 ### The smallest window (owner, 2026-10-01)
 

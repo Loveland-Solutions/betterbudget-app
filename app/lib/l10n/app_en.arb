@@ -539,13 +539,18 @@
   "@ledgerAskForPayAgainToast": {
     "description": "Toast after Settings → ask for pay again."
   },
-  "ledgerBudgetByMonth": "Budget by month",
+  "ledgerBudgetByMonth": "Budget viewed by month",
   "@ledgerBudgetByMonth": {
-    "description": "Toast and undo-menu label: the budget now runs by calendar month."
+    "description": "Undo-menu label (no toast): the Budget page is now viewed by calendar month."
   },
-  "ledgerBudgetByPayPeriod": "Budget by pay period",
+  "ledgerBudgetByPayPeriod": "Budget viewed by pay period · {name}",
   "@ledgerBudgetByPayPeriod": {
-    "description": "Toast and undo-menu label: the budget now runs by pay period."
+    "description": "Undo-menu label (no toast): the Budget page is now viewed by one pay's periods, named by the pay.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "ledgerAppearanceTitle": "Appearance",
   "@ledgerAppearanceTitle": {
@@ -3563,7 +3568,7 @@
   },
   "setupAddYourPay": "Add your pay",
   "@setupAddYourPay": {
-    "description": "Pay setup dialog title for new pay; Settings → Budget button when there is no pay yet."
+    "description": "Pay setup dialog title for new pay; the Budget page's Income tab button when there is no pay yet."
   },
   "setupYourPay": "Your pay",
   "@setupYourPay": {
@@ -3580,6 +3585,14 @@
   "setupEmployerHint": "Employer (optional)",
   "@setupEmployerHint": {
     "description": "Pay setup, hint in the empty employer field."
+  },
+  "setupName": "Name",
+  "@setupName": {
+    "description": "Pay setup, label beside the name field (first line): what the user calls this pay, to tell two earners' apart. Short."
+  },
+  "setupNameHint": "Jenny, or Jeff’s job (optional)",
+  "@setupNameHint": {
+    "description": "Pay setup, hint in the empty name field."
   },
   "setupPayIs": "Pay is",
   "@setupPayIs": {
@@ -3725,28 +3738,11 @@
   "@setupKeepTheDay": {
     "description": "Pay setup, choice: a weekend payday stays on its Saturday or Sunday (some are paid on a Saturday)."
   },
-  "setupBudgetBy": "Budget by",
-  "@setupBudgetBy": {
-    "description": "Pay setup and Settings → Budget, label: whether a budget covers a month or a pay period. Short."
-  },
   "setupMonth": "Month",
   "@setupMonth": {
-    "description": "Pay setup and Settings → Budget, choice beside \"Budget by\"."
+    "description": "Was the pay setup's \"Budget by\" choice; unused since 2026-10-05, kept for the Mongolian review sheet."
   },
-  "setupPayPeriod": "Pay period",
-  "@setupPayPeriod": {
-    "description": "Pay setup and Settings → Budget, choice beside \"Budget by\": payday to the day before the next."
-  },
-  "setupPeriodOther": "The budget follows {name}’s pay periods. Pay period here moves it to this pay.",
-  "@setupPeriodOther": {
-    "description": "Pay setup, note when another pay schedule sets the budget's periods. name is that pay's employer or category.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "setupPaydaysAYear": "{count} paydays a year: two months a year have three. Budgeting by pay period follows your paychecks.",
+  "setupPaydaysAYear": "{count} paydays a year: two months a year have three.",
   "@setupPaydaysAYear": {
     "description": "Pay setup, note for every-two-weeks pay (26 paydays).",
     "placeholders": {
@@ -3823,29 +3819,16 @@
   },
   "setupNameArchived": "{name} (archived · no paydays until it’s back)",
   "@setupNameArchived": {
-    "description": "Settings → Budget, an account that was archived.",
+    "description": "Budget page, Income tab (a pay's line) and a pay's title: an account that was archived.",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
-  "setupBudget": "Budget",
-  "@setupBudget": {
-    "description": "Settings, card title."
-  },
-  "setupPayPeriodOf": "Pay period · {who}",
-  "@setupPayPeriodOf": {
-    "description": "Settings → Budget, choice when there are two or more pays. who is the employer, or \"category into account\".",
-    "placeholders": {
-      "who": {
-        "type": "String"
-      }
-    }
-  },
   "setupCategoryInto": "{category} into {account}",
   "@setupCategoryInto": {
-    "description": "Settings → Budget: a pay with no employer, named by its category and the account it goes into.",
+    "description": "A pay with no name and no employer, when there is more than one pay: Income into the account it goes into (the Income tab, the view dropdown, How often).",
     "placeholders": {
       "category": {
         "type": "String"
@@ -3855,30 +3838,13 @@
       }
     }
   },
-  "setupPeriodsFromPay": "Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.",
-  "@setupPeriodsFromPay": {
-    "description": "Settings → Budget, note when there is no pay yet."
-  },
-  "setupRunsMonth": "Each budget runs from the 1st to the month’s end.",
-  "@setupRunsMonth": {
-    "description": "Settings → Budget, note when budgeting by month."
-  },
-  "setupRunsPeriod": "Each budget runs from one payday to the day before the next ({when}).",
-  "@setupRunsPeriod": {
-    "description": "Settings → Budget, note when budgeting by pay period. when is like \"monthly on the 25th\".",
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
   "setupPay": "Pay",
   "@setupPay": {
-    "description": "Settings → Budget, label beside the list of pay schedules. Short."
+    "description": "Was Settings → Budget's label beside the pay list; unused since 2026-10-05 (pay is listed on the Budget page's Income tab)."
   },
   "setupPayLine": "{category} · {amounts} · into {account}",
   "@setupPayLine": {
-    "description": "Settings → Budget, one pay schedule. amounts is like \"₮2,100,000 · monthly on the 25th\".",
+    "description": "Budget page, Income tab, one pay. amounts is like \"₮2,100,000 · monthly on the 25th\".",
     "placeholders": {
       "category": {
         "type": "String"
@@ -3893,19 +3859,19 @@
   },
   "setupEdit": "Edit",
   "@setupEdit": {
-    "description": "Settings → Budget, button beside a pay schedule."
+    "description": "Budget page, Income tab, button beside a pay."
   },
   "setupSaidNoPay": "You said you don’t have regular pay, so the forecast doesn’t ask for it.",
   "@setupSaidNoPay": {
-    "description": "Settings → Budget, after \"I don't have regular pay\"."
+    "description": "Budget page, Income tab, after \"I don't have regular pay\"."
   },
   "setupAskAgain": "Ask me again",
   "@setupAskAgain": {
-    "description": "Settings → Budget, button that undoes \"I don't have regular pay\"."
+    "description": "Budget page, Income tab, button that undoes \"I don't have regular pay\"."
   },
   "setupAddOtherPay": "Add other pay",
   "@setupAddOtherPay": {
-    "description": "Settings → Budget, button when some pay is already set up."
+    "description": "Budget page, Income tab, the add button when some pay is already set up."
   },
   "startKeyFileName": "BetterBudget recovery key.txt",
   "@startKeyFileName": {
@@ -4977,6 +4943,14 @@
   "@planPayPeriod": {
     "description": "Budget page: the period title when budgeting by pay period and it isn't the current one"
   },
+  "planViewMonth": "Month",
+  "@planViewMonth": {
+    "description": "Budget page, the view dropdown beside the period: by calendar month (the other choices are each pay's name). Short."
+  },
+  "planViewTip": "View by month, or by one pay’s periods",
+  "@planViewTip": {
+    "description": "Budget page, tooltip on the view dropdown beside the period."
+  },
   "planPeriodTitle": "{name} · {start}–{end}",
   "@planPeriodTitle": {
     "description": "Budget page: the period shown, beside the arrows. name is a month name, \"This month\", \"This pay period\" or \"Pay period\"; start and end are month.day",
@@ -5646,6 +5620,36 @@
       }
     }
   },
+  "planEachPayOf": "{amount} each pay period · {name}",
+  "@planEachPayOf": {
+    "description": "Budget page: note under a category's name, a set amount per one of several pays' periods, named by the pay",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planAboutThisMonth": "about {amount} this month",
+  "@planAboutThisMonth": {
+    "description": "Budget page: note under a category's name, viewing by month a set amount that is per pay period: its share of this month, by days",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planAboutThisPay": "about {amount} this pay period",
+  "@planAboutThisPay": {
+    "description": "Budget page: note under a category's name, viewing by a pay's periods a set amount that is per month (or per another pay): its share of this period, by days",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "planNoCarry": "what’s left doesn’t carry over",
   "@planNoCarry": {
     "description": "Budget page: part of the note under a category's name, after the amount and a dot"
@@ -5774,9 +5778,21 @@
   },
   "planWentBackPay": "{amount} left last pay period went back to not assigned",
   "@planWentBackPay": {
-    "description": "Budget page: note under a category's name, when the budget runs by pay period; what the period before left unspent, returned to the money not assigned",
+    "description": "Budget page: note under a category's name, for a set amount per pay period; what the period before left unspent, returned to the money not assigned",
     "placeholders": {
       "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planWentBackOn": "{amount} went back to not assigned on {date}",
+  "@planWentBackOn": {
+    "description": "Budget page: note under a category's name, seen by another period than its own (a per-pay amount by the month, or a monthly one by a pay): what went back at its last period end in the span, on that day",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
         "type": "String"
       }
     }
@@ -6105,7 +6121,20 @@
   },
   "planEveryPaydayOf": "Every payday · {name}",
   "@planEveryPaydayOf": {
-    "description": "Budget page, Edit under a category's row (Yes): how often, each payday of one of several pay schedules, named by who pays or the account",
+    "description": "Budget page, Edit under a category's row (Yes): how often, each payday of one of several pays, named by the pay's name (else who pays, else the account)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planEveryPayPeriod": "Every pay period",
+  "@planEveryPayPeriod": {
+    "description": "Budget page, Edit under a category's row (No): How often for a set amount, per the one pay's periods instead of per month"
+  },
+  "planEveryPayPeriodOf": "Every pay period · {name}",
+  "@planEveryPayPeriodOf": {
+    "description": "Budget page, Edit under a category's row (No): How often for a set amount, per one of several pays' periods, named by the pay",
     "placeholders": {
       "name": {
         "type": "String"
@@ -6366,6 +6395,15 @@
   "ledgerIncome": "Income",
   "@ledgerIncome": {
     "description": "The app's one income category, which money coming in (not a refund) is filed under: the category menu, the entry row and register rows."
+  },
+  "payStopped": "{name} (stopped)",
+  "@payStopped": {
+    "description": "A pay that was stopped, named where a category is still per its periods: the plan note, How often. name is the pay's title.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "planIncomeLine": "Income: {amounts}",
   "@planIncomeLine": {

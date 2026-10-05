@@ -30,6 +30,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onShowRows,
     required this.onShowAllRows,
     required this.onSetAmount,
+    required this.onBudgetBy,
     required this.onKeysBack,
     required this.onStartLater,
     required this.onKeepStart,
@@ -68,6 +69,7 @@ class _BudgetPage extends StatefulWidget {
 
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
+
   /// Add category: the new category's id, or null when nothing was made
   /// (the name was taken). Edit opens under the new row.
   final Future<int?> Function(String name, Currency currency) onCreate;
@@ -75,6 +77,9 @@ class _BudgetPage extends StatefulWidget {
 
   /// A Put in amount was typed for the period starting on the date.
   final void Function(AccountInfo, BudgetSpan, int) onSetAmount;
+
+  /// The view dropdown: by month (null), or by a pay's periods.
+  final ValueChanged<PaySchedule?> onBudgetBy;
 
   @override
   State<_BudgetPage> createState() => _BudgetPageState();
@@ -267,7 +272,14 @@ class _BudgetPageState extends State<_BudgetPage> {
         striped: striped,
         planNote: line == null || planLine == null
             ? null
-            : _planNote(t, line, period, widget.today, currency),
+            : _planNote(
+                t,
+                line,
+                period,
+                widget.today,
+                currency,
+                payName: _ownPayName(t, data, planLine.plan),
+              ),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
         open: _open == c.id,
@@ -496,6 +508,14 @@ class _BudgetPageState extends State<_BudgetPage> {
                     ),
                   ),
                 ],
+                // The view: by month, or by one pay's periods (owner,
+                // 2026-10-05: two earners). Each category keeps its own
+                // period; this only chooses the ruler. Nothing to choose
+                // until there's pay.
+                if (data.paySchedules.isNotEmpty) ...[
+                  const SizedBox(width: 14),
+                  _ViewChoice(data: data, by: by, onPick: widget.onBudgetBy),
+                ],
                 const Spacer(),
                 // One button for the tab that's on: a category, or a pay.
                 if (_tab == _BudgetTab.income)
@@ -576,83 +596,85 @@ class _BudgetPageState extends State<_BudgetPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                  if (_adding)
-                    _NewCategory(
-                      // A category just made opens in Edit under its row,
-                      // so what it's for is asked at once (owner's
-                      // request, 2026-10-05); Esc or Cancel closes the box.
-                      onCreate: widget.onCreate,
-                      onCreated: (id) => setState(() {
-                        _adding = false;
-                        _editing = null;
-                        _open = id;
-                        _openAtPlan = true;
-                      }),
-                      currencies: currencies,
-                      currency: budget.currency,
-                      onCancel: () => setState(() => _adding = false),
-                    ),
-                  for (final (i, c) in spending.indexed)
-                    row(c, striped: i.isOdd),
-                  const SizedBox(height: 14),
-                  if (archived.isNotEmpty) ...[
-                    Hoverable(
-                      key: const ValueKey('show-archived-categories'),
-                      onTap: () =>
-                          setState(() => _showArchived = !_showArchived),
-                      builder: (hover) => Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-                        child: Text(
-                          _showArchived
-                              ? t.planHideArchived(archived.length)
-                              : t.planShowArchived(archived.length),
-                          style: onest(
-                            12.5,
-                            color: hover ? Mid.ink2 : Mid.ink3,
+                        if (_adding)
+                          _NewCategory(
+                            // A category just made opens in Edit under its row,
+                            // so what it's for is asked at once (owner's
+                            // request, 2026-10-05); Esc or Cancel closes the box.
+                            onCreate: widget.onCreate,
+                            onCreated: (id) => setState(() {
+                              _adding = false;
+                              _editing = null;
+                              _open = id;
+                              _openAtPlan = true;
+                            }),
+                            currencies: currencies,
+                            currency: budget.currency,
+                            onCancel: () => setState(() => _adding = false),
                           ),
-                        ),
-                      ),
-                    ),
-                    if (_showArchived)
-                      for (final c in archived)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  c.name,
-                                  style: onest(13.5, color: Mid.ink2),
+                        for (final (i, c) in spending.indexed)
+                          row(c, striped: i.isOdd),
+                        const SizedBox(height: 14),
+                        if (archived.isNotEmpty) ...[
+                          Hoverable(
+                            key: const ValueKey('show-archived-categories'),
+                            onTap: () =>
+                                setState(() => _showArchived = !_showArchived),
+                            builder: (hover) => Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                              child: Text(
+                                _showArchived
+                                    ? t.planHideArchived(archived.length)
+                                    : t.planShowArchived(archived.length),
+                                style: onest(
+                                  12.5,
+                                  color: hover ? Mid.ink2 : Mid.ink3,
                                 ),
                               ),
-                              Text(
-                                _usageText(t, data.categoryUsage[c.id]),
-                                style: onest(12.5, color: Mid.ink3),
-                              ),
-                              // Money can still sit in an archived one.
-                              if (budget.lines[c.id]?.left case final left?
-                                  when left != 0) ...[
-                                const SizedBox(width: 16),
-                                Money(
-                                  left,
-                                  size: 13,
-                                  currency: c.currency,
-                                  color: left < 0 ? Mid.coral : Mid.ink2,
-                                ),
-                              ],
-                              const SizedBox(width: 16),
-                              BarButton(
-                                key: ValueKey('unarchive-category-${c.id}'),
-                                label: t.planShowInMenus,
-                                onTap: () => widget.onUnarchive(c),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                  ],
+                          if (_showArchived)
+                            for (final c in archived)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        c.name,
+                                        style: onest(13.5, color: Mid.ink2),
+                                      ),
+                                    ),
+                                    Text(
+                                      _usageText(t, data.categoryUsage[c.id]),
+                                      style: onest(12.5, color: Mid.ink3),
+                                    ),
+                                    // Money can still sit in an archived one.
+                                    if (budget.lines[c.id]?.left
+                                        case final left? when left != 0) ...[
+                                      const SizedBox(width: 16),
+                                      Money(
+                                        left,
+                                        size: 13,
+                                        currency: c.currency,
+                                        color: left < 0 ? Mid.coral : Mid.ink2,
+                                      ),
+                                    ],
+                                    const SizedBox(width: 16),
+                                    BarButton(
+                                      key: ValueKey(
+                                        'unarchive-category-${c.id}',
+                                      ),
+                                      label: t.planShowInMenus,
+                                      onTap: () => widget.onUnarchive(c),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                        ],
                       ],
                     ),
                   ),
@@ -849,15 +871,10 @@ class _IncomeTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            // Two pays with no payer: told apart by the
-                            // account (budget review, 2026-10-05).
-                            p.payee ??
-                                (pays.length > 1
-                                    ? t.setupCategoryInto(
-                                        t.ledgerIncome,
-                                        name(p.accountId),
-                                      )
-                                    : t.ledgerIncome),
+                            // Its name; else the payer; two with neither
+                            // are told apart by the account (budget
+                            // review, 2026-10-05).
+                            payTitle(t, data, p),
                             style: onest(14.5, weight: 600),
                           ),
                           const SizedBox(height: 2),
@@ -876,7 +893,11 @@ class _IncomeTab extends StatelessWidget {
                             Text(
                               note.text,
                               key: ValueKey('pay-nudge-${p.id}'),
-                              style: onest(12.5, color: Mid.gold, tabular: true),
+                              style: onest(
+                                12.5,
+                                color: Mid.gold,
+                                tabular: true,
+                              ),
                             ),
                           ],
                         ],
@@ -933,6 +954,85 @@ String _spanName(Words t, BudgetSpan p, DateTime today) {
   if (p.label == payPeriodLabel) return t.planPayPeriod;
   final m = monthName(t, p.start.month);
   return p.start.year == today.year ? m : '$m ${p.start.year}';
+}
+
+/// The Budget page's view: "Month ▾", or a pay's name. Picking one asks the
+/// screen to view by it; the choice is kept in the ledger (one pay at most
+/// has it).
+class _ViewChoice extends StatefulWidget {
+  const _ViewChoice({
+    required this.data,
+    required this.by,
+    required this.onPick,
+  });
+  final LedgerData data;
+  final PaySchedule? by;
+  final ValueChanged<PaySchedule?> onPick;
+
+  @override
+  State<_ViewChoice> createState() => _ViewChoiceState();
+}
+
+class _ViewChoiceState extends State<_ViewChoice> {
+  final _menu = MenuController();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final by = widget.by;
+    final label = by == null ? t.planViewMonth : payTitle(t, widget.data, by);
+    Widget item(String key, String label, bool on, VoidCallback onTap) =>
+        MenuItemButton(
+          key: ValueKey(key),
+          onPressed: onTap,
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size(180, 34)),
+            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+          ),
+          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+        );
+    return MenuAnchor(
+      controller: _menu,
+      style: _menuStyle,
+      onOpen: () => setState(() {}),
+      onClose: () {
+        if (mounted) setState(() {});
+      },
+      menuChildren: [
+        item(
+          'budget-view-month',
+          t.planViewMonth,
+          by == null,
+          () => widget.onPick(null),
+        ),
+        for (final p in widget.data.paySchedules)
+          item(
+            'budget-view-${p.id}',
+            payTitle(t, widget.data, p),
+            by?.id == p.id,
+            () => widget.onPick(p),
+          ),
+      ],
+      child: Tooltip(
+        message: t.planViewTip,
+        waitDuration: const Duration(milliseconds: 600),
+        child: Hoverable(
+          key: const ValueKey('budget-view'),
+          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
+          builder: (hover) {
+            final color = hover || _menu.isOpen ? Mid.ink : Mid.ink2;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: onest(13, color: color)),
+                Icon(Icons.expand_more_rounded, size: 16, color: color),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _PeriodArrow extends StatelessWidget {
@@ -1863,6 +1963,15 @@ class _StartOffer extends StatelessWidget {
   );
 }
 
+/// The pay a set amount is per, by name, when there's more than one pay to
+/// tell it from; null for a monthly one, or the only pay.
+String? _ownPayName(Words t, LedgerData data, CategoryPlan plan) {
+  if (plan.kind != PlanKind.each || plan.payScheduleId == null) return null;
+  if (data.paySchedules.length < 2) return null;
+  final pay = data.payScheduleById(plan.payScheduleId);
+  return pay == null ? null : payTitle(t, data, pay);
+}
+
 /// What a plan says under its category's name: the plan, then whether a
 /// dated one has what it should ("on track", or "₮200,000 short" in
 /// gold).
@@ -1873,15 +1982,25 @@ _PlanNote _planNote(
   EnvelopeLine line,
   BudgetSpan period,
   DateTime today,
-  Currency currency,
-) {
+  Currency currency, {
+  String? payName,
+}) {
   final p = line.plan!;
+  // The period on screen, and a set amount's own (its month or its pay,
+  // named when there's more than one pay to tell apart).
   final byPay = period.label == payPeriodLabel;
+  final ownPay = p.plan.kind == PlanKind.each
+      ? p.plan.payScheduleId != null
+      : byPay;
   String money(int v) => formatShort(v, currency: currency);
   // In the last period before a date, the part is the rest: "this month".
   String each(int v) => p.lastPeriod
       ? (byPay ? t.planThisPay(money(v)) : t.planThisMonth(money(v)))
-      : (byPay ? t.planEachPay(money(v)) : t.planEachMonth(money(v)));
+      : !ownPay
+      ? t.planEachMonth(money(v))
+      : payName != null
+      ? t.planEachPayOf(money(v), payName)
+      : t.planEachPay(money(v));
   // This year's dates need no year; a date in 2028 does.
   String date(DateTime d) =>
       d.year == today.year ? sayDate(t, d) : sayFullDate(t, d);
@@ -1900,9 +2019,18 @@ _PlanNote _planNote(
         t.planSetAsideAmount(money(cap))
       else
         each(p.each),
-      if (cap != null && !p.done) t.planUpTo(money(cap)),
-      if (wentBack)
+      // Seen by another period than its own: its share of this one, by
+      // days, said as about.
+      if (p.approx && p.planned > 0 && !(cap != null && p.done))
         byPay
+            ? t.planAboutThisPay(money(p.planned))
+            : t.planAboutThisMonth(money(p.planned)),
+      if (cap != null && !p.done) t.planUpTo(money(cap)),
+      // Seen by its own period, "last month"; by another, the day.
+      if (wentBack)
+        ownPay != byPay && p.wentBackOn != null
+            ? t.planWentBackOn(money(p.wentBack), date(p.wentBackOn!))
+            : ownPay
             ? t.planWentBackPay(money(p.wentBack))
             : t.planWentBack(money(p.wentBack))
       else if (!p.plan.rollover)
@@ -2350,6 +2478,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _upToFocus = FocusNode(debugLabel: 'plan-up-to');
   final _datesFocus = FocusNode(debugLabel: 'plan-dates');
   final _repeatMenu = MenuController();
+  final _eachMenu = MenuController();
+
+  /// A set amount's own period: per this pay's periods, or per month
+  /// (null). Owner, 2026-10-05: each category says how it's budgeted.
+  int? _eachPayId;
   final _unitMenu = MenuController();
   final _weekendMenu = MenuController();
   final _nthMenu = MenuController();
@@ -2532,7 +2665,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _date.text = p?.due == null ? '' : fullDate(p!.due!);
     _custom = false;
     _weekend = p?.weekend ?? PayWeekend.keep;
-    _payScheduleId = p?.payScheduleId;
+    _payScheduleId = p?.kind == PlanKind.byDate ? p?.payScheduleId : null;
+    // A set amount's own period: its own, or for a new one the period on
+    // screen (budget review, 2026-10-05: made while viewing by a pay, it
+    // shouldn't start as "each month · about ₮93,300 this pay period").
+    _eachPayId = p?.kind == PlanKind.each
+        ? p?.payScheduleId
+        : widget.data.periodSchedule?.id;
     final after = p?.daysAfterPay ?? 0;
     _daysAfter.text = after == 0 ? '' : '$after';
     _dates.text = p?.onDates == null
@@ -2784,7 +2923,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       everyMonths: _dated ? _everyMonthsNow : null,
       everyDays: _dated ? _everyDaysNow : null,
       onDates: dates,
-      payScheduleId: payId,
+      payScheduleId: _dated ? payId : _eachPayId,
       daysAfterPay: payId == null ? 0 : _daysAfterNow,
       // Chosen weekdays are the days; a weekend rule would move a
       // Saturday onto Friday's bill (code review).
@@ -2814,7 +2953,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         old != null &&
         old.kind == kind &&
         (kind == PlanKind.each
-            ? old.rollover == rollover && (!rollover || old.amount == amount)
+            ? old.rollover == rollover &&
+                  old.payScheduleId == _eachPayId &&
+                  (!rollover || old.amount == amount)
             : old.amount == amount && old.sameRepeat(fresh));
     return same ? make(old.start) : fresh;
   }
@@ -2906,8 +3047,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// "Every payday", or which pay when there's more than one.
   String _paydayLabel(Words t, PaySchedule s) {
     if (widget.data.paySchedules.length < 2) return t.planEveryPayday;
-    final name = s.payee ?? widget.data.accounts[s.accountId]?.name ?? '';
-    return t.planEveryPaydayOf(name);
+    return t.planEveryPaydayOf(payTitle(t, widget.data, s));
+  }
+
+  /// "Every pay period", or with more than one pay, "Every pay period ·
+  /// Jenny".
+  String _eachPayLabel(Words t, PaySchedule s) {
+    if (widget.data.paySchedules.length < 2) return t.planEveryPayPeriod;
+    return t.planEveryPayPeriodOf(payTitle(t, widget.data, s));
   }
 
   /// What the How often button says.
@@ -2973,7 +3120,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// for the amount a dated plan comes to each period.
   List<Widget> _planFields(
     Words t, {
-    required bool byPay,
     required EnvelopeLine? line,
     required CategoryPlan? draft,
   }) {
@@ -3054,6 +3200,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       ),
       child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
     );
+    // A set amount's wording follows its own period, not the view's.
+    final byPay = _eachPayId != null;
     final eachLabel = byPay ? t.planSetAsidePay : t.planSetAsideMonth;
     // What a dated plan comes to each period, worked out from the date.
     final String part;
@@ -3104,6 +3252,42 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? t.planEmptyHintPay
               : t.planEmptyHint,
         ),
+        // Per month, or per one pay's periods (owner, 2026-10-05: Jeff
+        // and Jenny). Month is the default; without pay there's nothing
+        // else to pick, so no row. A pay since stopped stays pickable
+        // while the plan is on it.
+        if (data.paySchedules.isNotEmpty || _eachPayId != null)
+          _formRow(
+            t.planHowOften,
+            menu(
+              _eachMenu,
+              key: 'plan-each-period',
+              label: switch (data.payScheduleById(_eachPayId)) {
+                null => t.planRepeatMonths(1),
+                final pay => _eachPayLabel(t, pay),
+              },
+              items: [
+                item(
+                  'plan-each-month',
+                  t.planRepeatMonths(1),
+                  on: _eachPayId == null,
+                  onTap: () => setState(() => _eachPayId = null),
+                ),
+                for (final pay in [
+                  ...data.paySchedules,
+                  if (data.payScheduleById(_eachPayId) case final p?
+                      when !data.paySchedules.any((x) => x.id == p.id))
+                    p,
+                ])
+                  item(
+                    'plan-each-pay-${pay.id}',
+                    _eachPayLabel(t, pay),
+                    on: _eachPayId == pay.id,
+                    onTap: () => setState(() => _eachPayId = pay.id),
+                  ),
+              ],
+            ),
+          ),
         // Shown whether or not an amount is typed: it answers "do we
         // ever zero it out?" (owner, 2026-10-05).
         ...[
@@ -3470,12 +3654,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       controller: _endDate,
                       style: onest(13.5, tabular: true),
                       onSubmitted: (_) => _save(),
-                      decoration: _fieldDecoration(
-                        wrong: _tried && _typedEndDate == null,
-                      ).copyWith(
-                        hintText: t.planEndDateHint,
-                        hintStyle: onest(13.5, color: Mid.ink3),
-                      ),
+                      decoration:
+                          _fieldDecoration(
+                            wrong: _tried && _typedEndDate == null,
+                          ).copyWith(
+                            hintText: t.planEndDateHint,
+                            hintStyle: onest(13.5, color: Mid.ink3),
+                          ),
                     ),
                   ),
                 ],
@@ -3666,7 +3851,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     final t = context.t;
     final c = widget.category;
     final data = widget.data;
-    final byPay = widget.period.label == payPeriodLabel;
     String say(int v) => formatShort(v, currency: _currency);
 
     return ListenableBuilder(
@@ -3717,7 +3901,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             );
           }
           if (line?.plan != null) {
-            note = _planNote(t, line!, widget.period, widget.today, _currency);
+            note = _planNote(
+              t,
+              line!,
+              widget.period,
+              widget.today,
+              _currency,
+              payName: _ownPayName(t, data, line.plan!.plan),
+            );
           }
         }
         final preview = note == null
@@ -3876,12 +4067,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             ],
                           ),
                           const SizedBox(height: 22),
-                          ..._planFields(
-                            t,
-                            byPay: byPay,
-                            line: line,
-                            draft: draft,
-                          ),
+                          ..._planFields(t, line: line, draft: draft),
                           // The row, as it will read after Save.
                           const SizedBox(height: 6),
                           Text(

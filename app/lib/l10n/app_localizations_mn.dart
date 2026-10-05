@@ -356,10 +356,12 @@ class WordsMn extends Words {
   String get ledgerAskForPayAgainToast => 'Төсөөлөл таны цалинг дахин асууна';
 
   @override
-  String get ledgerBudgetByMonth => 'Төсөв сараар';
+  String get ledgerBudgetByMonth => 'Төсвийг сараар харуулав';
 
   @override
-  String get ledgerBudgetByPayPeriod => 'Төсөв цалингийн үеэр';
+  String ledgerBudgetByPayPeriod(String name) {
+    return 'Төсвийг цалингийн үеэр харуулав · $name';
+  }
 
   @override
   String get ledgerAppearanceTitle => 'Харагдах байдал';
@@ -2335,6 +2337,9 @@ class WordsMn extends Words {
   String get setupEmployerHint => 'Ажил олгогч (заавал биш)';
 
   @override
+  String get setupNameHint => 'Жени, эсвэл Жеффийн ажил (заавал биш)';
+
+  @override
   String get setupPayIs => 'Цалин';
 
   @override
@@ -2427,22 +2432,11 @@ class WordsMn extends Words {
   String get setupKeepTheDay => 'Тэр өдөртөө';
 
   @override
-  String get setupBudgetBy => 'Төсвийн үе';
-
-  @override
   String get setupMonth => 'Сараар';
 
   @override
-  String get setupPayPeriod => 'Цалингийн үеэр';
-
-  @override
-  String setupPeriodOther(String name) {
-    return 'Төсөв одоогоор “$name” цалингийн үеийг дагаж байна. Энд “Цалингийн үеэр” сонговол энэ цалинд шилжинэ.';
-  }
-
-  @override
   String setupPaydaysAYear(int count) {
-    return 'Жилд $count цалин: жилийн хоёр сард гурван цалин орно. Цалингийн үеэр төсөвлөвөл цалин бүрийг дагана.';
+    return 'Жилд $count цалин: жилийн хоёр сард гурван цалин орно.';
   }
 
   @override
@@ -2484,28 +2478,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupBudget => 'Төсөв';
-
-  @override
-  String setupPayPeriodOf(String who) {
-    return 'Цалингийн үеэр · $who';
-  }
-
-  @override
   String setupCategoryInto(String category, String account) {
     return '$category · $account';
-  }
-
-  @override
-  String get setupPeriodsFromPay =>
-      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол Төсөв хуудасны Орлого хэсэгт цалингаа нэмээрэй.';
-
-  @override
-  String get setupRunsMonth => 'Төсөв бүр сарын 1-нээс сарын эцэс хүртэл.';
-
-  @override
-  String setupRunsPeriod(String when) {
-    return 'Төсөв бүр нэг цалингийн өдрөөс дараагийн цалингийн өмнөх өдөр хүртэл ($when).';
   }
 
   @override
@@ -3230,6 +3204,12 @@ class WordsMn extends Words {
   String get planPayPeriod => 'Цалингийн үе';
 
   @override
+  String get planViewMonth => 'Сар';
+
+  @override
+  String get planViewTip => 'Сараар, эсвэл нэг цалингийн үеэр харах';
+
+  @override
   String planPeriodTitle(String name, String start, String end) {
     return '$name · $start–$end';
   }
@@ -3693,6 +3673,21 @@ class WordsMn extends Words {
   }
 
   @override
+  String planEachPayOf(String amount, String name) {
+    return 'цалингийн үе бүрт $amount · $name';
+  }
+
+  @override
+  String planAboutThisMonth(String amount) {
+    return 'энэ сард ойролцоогоор $amount';
+  }
+
+  @override
+  String planAboutThisPay(String amount) {
+    return 'энэ цалингийн үед ойролцоогоор $amount';
+  }
+
+  @override
   String get planNoCarry => 'үлдсэн нь шилжихгүй';
 
   @override
@@ -3769,6 +3764,11 @@ class WordsMn extends Words {
   @override
   String planWentBackPay(String amount) {
     return 'өмнөх цалингийн үеэс үлдсэн $amount хуваарилаагүй мөнгө рүү буцсан';
+  }
+
+  @override
+  String planWentBackOn(String amount, String date) {
+    return '$date-нд $amount хуваарилаагүй мөнгө рүү буцсан';
   }
 
   @override
@@ -3977,6 +3977,14 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planEveryPayPeriod => 'Цалингийн үе бүрт';
+
+  @override
+  String planEveryPayPeriodOf(String name) {
+    return 'Цалингийн үе бүрт · $name';
+  }
+
+  @override
   String get planEveryCustom => 'Өөрөө тохируулах…';
 
   @override
@@ -4149,6 +4157,11 @@ class WordsMn extends Words {
 
   @override
   String get ledgerIncome => 'Орлого';
+
+  @override
+  String payStopped(String name) {
+    return '$name (зогссон)';
+  }
 
   @override
   String planIncomeLine(String amounts) {

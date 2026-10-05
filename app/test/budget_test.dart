@@ -1197,7 +1197,12 @@ void main() {
       expect(n.ended, isFalse);
       expect(n.due, DateTime(2026, 11, 15));
       // No end: it goes on.
-      expect(Budget.lastDue(plan(xmas, PlanKind.byDate, 1, due: DateTime(2026, 10, 15), every: 1)), isNull);
+      expect(
+        Budget.lastDue(
+          plan(xmas, PlanKind.byDate, 1, due: DateTime(2026, 10, 15), every: 1),
+        ),
+        isNull,
+      );
     });
 
     test('every payday: the pay schedule’s dates, days after if asked', () {
@@ -1244,6 +1249,206 @@ void main() {
       // The schedule gone, the plan has one date: the day it was made.
       expect(Budget.dueAfter(loan, 1), DateTime(2026, 10, 1));
     });
+
+    test('a monthly amount seen by pay periods: a share by days, as about', () {
+      // Paid every 2 weeks from 09.11: the periods 10.09–10.22 and
+      // 10.23–11.05 (owner, 2026-10-05: Jeff and Jenny).
+      final pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.everyWeeks,
+        weeks: 2,
+        anchor: DateTime(2026, 9, 11),
+        weekend: PayWeekend.keep,
+        definesPeriod: true,
+      );
+      // ₮600,000 a month for groceries: its own period is the month.
+      final groceries = plan(
+        food,
+        PlanKind.each,
+        60000000,
+        start: DateTime(2026, 10, 1),
+      );
+      final p = budgetPeriod(DateTime(2026, 10, 12), pay);
+      expect((p.start, p.end), (DateTime(2026, 10, 9), DateTime(2026, 10, 22)));
+      Budget at(LedgerData d, ({DateTime start, DateTime end}) span) =>
+          Budget.of(d, start: span.start, end: span.end, today: today);
+      final pp = (start: p.start, end: p.end);
+      // Nothing in yet: the 14 days of October's 23 left from 10.09, said
+      // in its own terms with the share beside it.
+      var l = at(ledger(pay: [pay], plans: [groceries]), pp).lines[food]!;
+      expect(l.plan!.approx, isTrue);
+      expect(l.plan!.each, 60000000);
+      expect(l.plan!.planned, 36530000);
+      expect(l.toAssign, 36530000);
+      // ₮300,000 already in for October: the share is of the rest.
+      l = at(
+        ledger(
+          pay: [pay],
+          plans: [groceries],
+          amounts: [put(food, DateTime(2026, 10, 1), 30000000)],
+        ),
+        pp,
+      ).lines[food]!;
+      expect(l.plan!.planned, 18270000);
+      // The share put in; the next pay period takes what's left of
+      // October (its last 9 days, all of them) and November's first 5 of
+      // 30. So the shares add up to the month.
+      final next = nextBudgetPeriod(p, pay);
+      l = at(
+        ledger(
+          pay: [pay],
+          plans: [groceries],
+          amounts: [
+            put(food, DateTime(2026, 10, 1), 30000000),
+            put(food, p.start, 18270000),
+          ],
+        ),
+        (start: next.start, end: next.end),
+      ).lines[food]!;
+      expect(l.plan!.planned, 11730000 + 10000000);
+      // Seen by the month (the pay no longer the view): exact, and
+      // nothing is about.
+      final monthView = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.everyWeeks,
+        weeks: 2,
+        anchor: DateTime(2026, 9, 11),
+        weekend: PayWeekend.keep,
+      );
+      l = at(
+        ledger(
+          pay: [monthView],
+          plans: [groceries],
+          amounts: [put(food, DateTime(2026, 10, 1), 30000000)],
+        ),
+        oct,
+      ).lines[food]!;
+      expect(l.plan!.approx, isFalse);
+      expect(l.plan!.planned, 60000000);
+      expect(l.toAssign, 30000000);
+    });
+
+    test(
+      'an amount per pay period seen by the month: emptied at each payday',
+      () {
+        // ₮200,000 each 2-week pay period (09.25, 10.09, 10.23), not carried
+        // over; the pay doesn't set the view.
+        PaySchedule pay({bool view = false}) => PaySchedule(
+          id: 1,
+          categoryId: salary,
+          accountId: checking,
+          amount: 100,
+          rule: PayRule.everyWeeks,
+          weeks: 2,
+          anchor: DateTime(2026, 9, 11),
+          weekend: PayWeekend.keep,
+          definesPeriod: view,
+        );
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          20000000,
+          rollover: false,
+          payScheduleId: 1,
+          start: DateTime(2026, 9, 25),
+        );
+        LedgerData d({bool view = false}) => ledger(
+          pay: [pay(view: view)],
+          plans: [groceries],
+          amounts: [
+            put(food, DateTime(2026, 9, 25), 20000000),
+            put(food, DateTime(2026, 10, 9), 20000000),
+          ],
+          rows: [
+            move(DateTime(2026, 9, 30), checking, food, 5000000),
+            move(DateTime(2026, 10, 12), checking, food, 8000000),
+          ],
+        );
+        // October, by the month, today 10.20: it began with 09.25's
+        // ₮150,000 left, which went back on 10.09. The 10.23 payday hasn't
+        // come, so what 10.09's holds (less what was spent) is still Left,
+        // as the top line counts it (both reviews, 2026-10-05).
+        final o = of(d(), oct);
+        final l = o.lines[food]!;
+        expect(l.fromBefore, 15000000);
+        expect(l.assigned, 20000000);
+        expect(l.spent, 8000000);
+        expect(l.left, 12000000);
+        expect(l.plan!.wentBack, 15000000);
+        expect(l.plan!.wentBackOn, DateTime(2026, 10, 9));
+        expect(o.notAssigned, o.money - 12000000);
+        // Its plan by the month: 10.09's ₮200,000 whole, 10.23's 9 of 14
+        // days (to ₮100), and 09.25's already in before the month; each
+        // own period's share dated where it meets the month.
+        expect(l.plan!.approx, isTrue);
+        expect(l.plan!.planned, 20000000 + 12860000);
+        expect(l.plan!.shares, [
+          (date: DateTime(2026, 10, 1), amount: 0),
+          (date: DateTime(2026, 10, 9), amount: 20000000),
+          (date: DateTime(2026, 10, 23), amount: 12860000),
+        ]);
+        // Assigning what's planned from the month view puts each period's
+        // share in that period, so none of it is emptied at 10.09 (both
+        // reviews, 2026-10-05: one row dated 10.01 was, and took the
+        // 10.09 row with it).
+        expect(
+          Budget.spread(
+            span: (start: oct.start, end: oct.end, label: ''),
+            own: pay(),
+            shares: l.plan!.shares,
+            delta: l.plan!.planned,
+          ),
+          [
+            (date: DateTime(2026, 10, 9), amount: 20000000),
+            (date: DateTime(2026, 10, 23), amount: 12860000),
+          ],
+        );
+        // Nothing planned (or more than the plan): by days, the rounding
+        // on the last.
+        expect(
+          Budget.spread(
+            span: (start: oct.start, end: oct.end, label: ''),
+            own: pay(),
+            shares: const [],
+            delta: 3100000,
+          ),
+          [
+            (date: DateTime(2026, 10, 1), amount: 800000),
+            (date: DateTime(2026, 10, 9), amount: 1400000),
+            (date: DateTime(2026, 10, 23), amount: 900000),
+          ],
+        );
+        // Once both of October's paydays have come, the month ends at zero.
+        final l2 = Budget.of(
+          d(),
+          start: oct.start,
+          end: oct.end,
+          today: DateTime(2026, 11, 1),
+        ).lines[food]!;
+        expect(l2.left, 0);
+        expect(l2.plan!.wentBack, 27000000);
+        expect(l2.plan!.wentBackOn, DateTime(2026, 10, 23));
+        // By its own pay period (10.09–10.22): exact.
+        final p = budgetPeriod(today, pay());
+        final own = Budget.of(
+          d(view: true),
+          start: p.start,
+          end: p.end,
+          today: today,
+        ).lines[food]!;
+        expect(own.fromBefore, 0);
+        expect(own.left, 12000000);
+        expect(own.plan!.approx, isFalse);
+        expect(own.plan!.planned, 20000000);
+        expect(own.plan!.wentBack, 15000000);
+      },
+    );
 
     test('a weekend rule moves a bill off Saturday and Sunday', () {
       // 2026.10.10 is a Saturday.
@@ -2054,7 +2259,10 @@ void main() {
       final fun = await db.createCategory('Fun');
       await db.setBudgetAmount(food, oct.start, oct.end, 50000000);
       final before = await db.setBudgetAmounts(
-        {food: 90000000, fun: 10000000},
+        {
+          food: [(date: oct.start, amount: 90000000)],
+          fun: [(date: oct.start, amount: 10000000)],
+        },
         oct.start,
         oct.end,
       );
@@ -2068,6 +2276,36 @@ void main() {
       expect(
         {for (final b in d.budgetAmounts) b.categoryId: b.amount},
         {food: 50000000},
+      );
+      // Rows dated in the span, one per own period, keep their dates;
+      // one outside the span is refused.
+      await db.setBudgetAmount(
+        food,
+        oct.start,
+        oct.end,
+        0,
+        rows: [
+          (date: DateTime(2026, 10, 9), amount: 20000000),
+          (date: DateTime(2026, 10, 23), amount: 12860000),
+        ],
+      );
+      d = await db.loadLedger();
+      expect(
+        [
+          for (final b in d.budgetAmounts)
+            if (b.categoryId == food) (b.date, b.amount),
+        ],
+        [(DateTime(2026, 10, 9), 20000000), (DateTime(2026, 10, 23), 12860000)],
+      );
+      await expectLater(
+        db.setBudgetAmount(
+          food,
+          oct.start,
+          oct.end,
+          0,
+          rows: [(date: DateTime(2026, 11, 1), amount: 1)],
+        ),
+        throwsArgumentError,
       );
     });
 

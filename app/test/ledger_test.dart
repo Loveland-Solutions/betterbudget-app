@@ -1542,94 +1542,100 @@ void main() {
       );
     });
 
-    test('a chosen span runs to its date, paydays and bills projected', () async {
-      // Pay on the 25th into checking: 09.25 is scheduled. Water on the
-      // 1st, monthly, paid from checking: 10.01 is scheduled.
-      await db.savePaySchedule(
-        accountId: checking,
-        amount: 100000000,
-        rule: PayRule.monthly,
-        day1: 25,
-        today: today,
-      );
-      final water = await categoryId('Household');
-      await db.changeCategoryPlan(
-        water,
-        CategoryPlan(
-          categoryId: water,
-          kind: PlanKind.byDate,
-          amount: 5000000,
-          start: today,
-          due: DateTime(2026, 10, 1),
-          everyMonths: 1,
-          paidFrom: checking,
-        ),
-        today,
-      );
-      final ledger = await db.loadLedger();
-      final scheduled = ledger.registerFor(checking).scheduled;
-      final until = ForecastSpan.days90.endFrom(today);
-      expect(until, DateTime(2026, 12, 15));
-      final projected = projectScheduled(
-        scheduled,
-        until: DateTime(2026, 12, 31),
-        payById: ledger.payScheduleById,
-        planOf: (id) => ledger.plans[id],
-      );
-      final f = buildForecast(
-        working: ledger.summaryFor(checking).working,
-        today: today,
-        scheduled: scheduled,
-        payIsSetUp: true,
-        until: DateTime(2026, 12, 31),
-        projected: projected,
-      );
-      expect(f.fixedEnd, isTrue);
-      expect(f.throughPeriod, isFalse);
-      expect(f.end, DateTime(2026, 12, 31));
-      // The scheduled payday is a step, and the three after it follow the
-      // schedule (10.25 is a Sunday: the Friday before).
-      expect(f.paydayCounted, isTrue);
-      expect(
-        f.steps.where((s) => s.row.payScheduleId != null).map((s) => s.date),
-        [
-          DateTime(2026, 9, 25),
-          DateTime(2026, 10, 23),
-          DateTime(2026, 11, 25),
-          DateTime(2026, 12, 25),
-        ],
-      );
-      // The projected paychecks are money in, beside the demo's own
-      // salary typed by hand on 10.10 (with pay set up, money in, not a
-      // payday); the scheduled payday is the step.
-      expect(f.inTotal, 300000000 + 250000000);
-      // The bill comes on the 1st each month through the date, the
-      // projected ones as copies of the scheduled row (a click opens it).
-      final bills = f.steps.where((s) => s.row.planCategoryId == water);
-      expect(bills.map((s) => s.date), [
-        DateTime(2026, 10, 1),
-        DateTime(2026, 11, 1),
-        DateTime(2026, 12, 1),
-      ]);
-      expect(bills.map((s) => s.row.txnId).toSet().length, 1);
-      // Through the pay period (09.25 to 10.23), nothing is projected: the
-      // one scheduled bill, as before.
-      final pay = ledger.paySchedules.single;
-      final byPay = buildForecast(
-        working: ledger.summaryFor(checking).working,
-        today: today,
-        scheduled: scheduled,
-        payIsSetUp: true,
-        paydayAfter: (row) {
-          final next = pay.nextAfter(row.date);
-          return (date: next, amount: pay.amountOn(next));
-        },
-        projected: projected,
-      );
-      expect(byPay.fixedEnd, isFalse);
-      expect(byPay.end, DateTime(2026, 10, 23));
-      expect(byPay.steps.where((s) => s.row.planCategoryId == water).length, 1);
-    });
+    test(
+      'a chosen span runs to its date, paydays and bills projected',
+      () async {
+        // Pay on the 25th into checking: 09.25 is scheduled. Water on the
+        // 1st, monthly, paid from checking: 10.01 is scheduled.
+        await db.savePaySchedule(
+          accountId: checking,
+          amount: 100000000,
+          rule: PayRule.monthly,
+          day1: 25,
+          today: today,
+        );
+        final water = await categoryId('Household');
+        await db.changeCategoryPlan(
+          water,
+          CategoryPlan(
+            categoryId: water,
+            kind: PlanKind.byDate,
+            amount: 5000000,
+            start: today,
+            due: DateTime(2026, 10, 1),
+            everyMonths: 1,
+            paidFrom: checking,
+          ),
+          today,
+        );
+        final ledger = await db.loadLedger();
+        final scheduled = ledger.registerFor(checking).scheduled;
+        final until = ForecastSpan.days90.endFrom(today);
+        expect(until, DateTime(2026, 12, 15));
+        final projected = projectScheduled(
+          scheduled,
+          until: DateTime(2026, 12, 31),
+          payById: ledger.payScheduleById,
+          planOf: (id) => ledger.plans[id],
+        );
+        final f = buildForecast(
+          working: ledger.summaryFor(checking).working,
+          today: today,
+          scheduled: scheduled,
+          payIsSetUp: true,
+          until: DateTime(2026, 12, 31),
+          projected: projected,
+        );
+        expect(f.fixedEnd, isTrue);
+        expect(f.throughPeriod, isFalse);
+        expect(f.end, DateTime(2026, 12, 31));
+        // The scheduled payday is a step, and the three after it follow the
+        // schedule (10.25 is a Sunday: the Friday before).
+        expect(f.paydayCounted, isTrue);
+        expect(
+          f.steps.where((s) => s.row.payScheduleId != null).map((s) => s.date),
+          [
+            DateTime(2026, 9, 25),
+            DateTime(2026, 10, 23),
+            DateTime(2026, 11, 25),
+            DateTime(2026, 12, 25),
+          ],
+        );
+        // The projected paychecks are money in, beside the demo's own
+        // salary typed by hand on 10.10 (with pay set up, money in, not a
+        // payday); the scheduled payday is the step.
+        expect(f.inTotal, 300000000 + 250000000);
+        // The bill comes on the 1st each month through the date, the
+        // projected ones as copies of the scheduled row (a click opens it).
+        final bills = f.steps.where((s) => s.row.planCategoryId == water);
+        expect(bills.map((s) => s.date), [
+          DateTime(2026, 10, 1),
+          DateTime(2026, 11, 1),
+          DateTime(2026, 12, 1),
+        ]);
+        expect(bills.map((s) => s.row.txnId).toSet().length, 1);
+        // Through the pay period (09.25 to 10.23), nothing is projected: the
+        // one scheduled bill, as before.
+        final pay = ledger.paySchedules.single;
+        final byPay = buildForecast(
+          working: ledger.summaryFor(checking).working,
+          today: today,
+          scheduled: scheduled,
+          payIsSetUp: true,
+          paydayAfter: (row) {
+            final next = pay.nextAfter(row.date);
+            return (date: next, amount: pay.amountOn(next));
+          },
+          projected: projected,
+        );
+        expect(byPay.fixedEnd, isFalse);
+        expect(byPay.end, DateTime(2026, 10, 23));
+        expect(
+          byPay.steps.where((s) => s.row.planCategoryId == water).length,
+          1,
+        );
+      },
+    );
 
     test('a late advance on split pay still ends at the rest', () {
       // Advance on the 10th, the rest on the 25th; the 09.10 advance moved
@@ -2331,6 +2337,26 @@ void main() {
         expect(data.periodSchedule!.id, s2.after.id);
       },
     );
+
+    test('a pay keeps the name it was given, trimmed; empty is none', () async {
+      final made = await db.savePaySchedule(
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.monthly,
+        name: ' Jenny ',
+        today: today,
+      );
+      expect((await db.loadLedger()).paySchedules.single.name, 'Jenny');
+      await db.savePaySchedule(
+        id: made.after.id,
+        accountId: checking,
+        amount: 100000,
+        rule: PayRule.monthly,
+        name: '',
+        today: today,
+      );
+      expect((await db.loadLedger()).paySchedules.single.name, isNull);
+    });
 
     test('one schedule defines the pay period at a time', () async {
       final a = await db.savePaySchedule(
