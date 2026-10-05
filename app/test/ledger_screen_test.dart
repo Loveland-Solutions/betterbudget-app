@@ -3534,6 +3534,34 @@ void main() {
         // The tugrik line is its own: no dollars in it.
         expect(text('not-assigned'), startsWith('₮'));
 
+        // More assigned than there is: Not assigned stops at zero, never
+        // a minus, and a row of its own says how much too much, in that
+        // currency's column only.
+        Future<void> assign(String amount) async {
+          await tester.tap(find.byKey(ValueKey('assigned-$insurance')));
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byKey(const ValueKey('assign-field')),
+            amount,
+          );
+          await tester.runAsync(() async {
+            await tester.testTextInput.receiveAction(TextInputAction.done);
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+          });
+          await tester.pumpAndSettle();
+        }
+
+        expect(find.text('Assigned too much'), findsNothing);
+        await assign('3000');
+        expect(text('not-assigned-USD'), r'$0.00');
+        expect(text('assigned-over-USD'), r'$500.00');
+        expect(find.text('Assigned too much'), findsOneWidget);
+        expect(find.byKey(const ValueKey('assigned-over')), findsNothing);
+        expect(text('not-assigned'), startsWith('₮'));
+        await assign('120');
+        expect(find.text('Assigned too much'), findsNothing);
+        expect(text('not-assigned-USD'), r'$2,380.00');
+
         // Its accounts: the one dollar account, checked. Groceries lists
         // the tugrik ones; unchecking all but Khan Savings says so on the
         // line.

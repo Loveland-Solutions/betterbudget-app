@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-05 (later)**
+**Last updated: 2026-10-06**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -12,7 +12,14 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**On branch `budget-debt-and-cash` (version 0.11.0, schema v18): what's owed left the
+**PR #41 merged (2026-10-06, version 0.11.1, no schema change): "Not assigned"
+on the Budget page never shows a minus.** With more assigned than there is it reads
+$0.00, and a coral row under it, **"Assigned too much"**, holds the amount (in the
+column of the currency that is over). The sentence "Spend what the categories hold and
+cash and bank go $X below zero." is gone. The owner picked this of three sketches (ADR
+0004 "Assigned too much").
+
+**PR #40 merged (2026-10-05, version 0.11.0, schema v18): what's owed left the
 Budget page, and Cash became a Type.** The top pane's first figure used to be cash and
 bank *less what the credit cards owe* — an intermediate subtotal no bank shows and
 nothing can be checked against. The owner asked twice what it meant, which was the

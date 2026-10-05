@@ -1796,7 +1796,7 @@ picked B, "the key"**.
   in coral beside it when it would overdraw; the one real warning on Not
   assigned, the figure coral and a sentence that says what will happen:
   "Spend what the categories hold and the accounts go $4,963,768.91 below
-  zero." Cards owing more than there is colours You have and says "Cards owe
+  zero." (Replaced 2026-10-06 by a row of its own: see "Assigned too much".) Cards owing more than there is colours You have and says "Cards owe
   more than you have". Everything assigned is ₮0.00 and no sentence (the
   owner's rule: don't tell them what they already know).
 - **The first-period offer is a strip in the same card**, under a rule, worded
@@ -1811,6 +1811,30 @@ picked B, "the key"**.
   used to jump to the Ledger and open an entry row.
 - Costs: about 50px taller than the old one-line common case, and it never
   jumps with the state.
+
+### Assigned too much: no minus beside "Not assigned" (owner, 2026-10-06)
+
+The owner, looking at "Not assigned −$4,963,768.91" with "Spend what the
+categories hold and cash and bank go $4,963,768.91 below zero." beside it:
+"Does it make sense to have a negative assigned. Shouldn't it then say I
+assigned more than I have?" The first answer kept the minus, because the
+three rows are a sum, and only reworded the sentence. The owner: "You're
+thinking like a computer. The arithmetic is right, but it's confusing to
+users."
+
+- **"Not assigned" never goes below zero.** With more assigned than there
+  is, nothing is left unassigned, so it reads $0.00, in plain ink.
+- **A coral row of its own, "Assigned too much", sits under it** with the
+  amount, big, no minus, and only when there is one. No sentence: the label
+  and the figure say it. With two currencies the figure is in the column of
+  the one that is over and the other column is empty. The card is a row
+  taller in that state.
+- Rejected (three were sketched; the owner picked this one): $0.00 with a
+  coral sentence beside it carrying the amount (the number a person needs
+  inside small text, which the key was built to end); the coral amount in
+  Not assigned's place with "too much" after it (the row would still be
+  labeled Not assigned). Rejected first, by the owner: keeping the minus
+  so the sum checks.
 
 ### The smallest window (owner, 2026-10-01)
 

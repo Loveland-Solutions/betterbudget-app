@@ -3945,9 +3945,7 @@ class WordsEn extends Words {
   String get planKeyNotAssigned => 'Not assigned';
 
   @override
-  String planOverConsequence(String amount) {
-    return 'Spend what the categories hold and cash and bank go $amount below zero.';
-  }
+  String get planKeyOver => 'Assigned too much';
 
   @override
   String planUncategorizedRows(int count) {

@@ -409,10 +409,10 @@ class _BudgetPageState extends State<_BudgetPage> {
                 tabular: true,
               ),
       );
-      Widget label(String text, {bool big = false}) => Text(
+      Widget label(String text, {bool big = false, bool coral = false}) => Text(
         text,
         style: big
-            ? onest(14, weight: 500, color: Mid.ink)
+            ? onest(14, weight: 500, color: coral ? Mid.coral : Mid.ink)
             : onest(13, color: Mid.ink3),
       );
 
@@ -503,16 +503,6 @@ class _BudgetPageState extends State<_BudgetPage> {
           );
         }
       }
-      // Notes on "Not assigned": the one real warning, with what happens.
-      final freeNotes = <Widget>[
-        for (final p in pools)
-          if (over(p))
-            Text(
-              t.planOverConsequence(money(-p.notAssigned, p.currency)),
-              key: ValueKey('assigned-over${tagOf(p.currency)}'),
-              style: onest(13, color: Mid.coral, tabular: true),
-            ),
-      ];
       return Container(
         key: const ValueKey('budget-key'),
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
@@ -548,17 +538,39 @@ class _BudgetPageState extends State<_BudgetPage> {
               label(t.planKeyNotAssigned, big: true),
               [
                 for (final p in pools)
+                  // Never below zero: with more assigned than there is,
+                  // nothing is left unassigned, and the row under this one
+                  // says how much too much (owner, 2026-10-06).
                   figure(
                     'not-assigned${tagOf(p.currency)}',
-                    p.notAssigned,
+                    over(p) ? 0 : p.notAssigned,
                     p.currency,
                     big: true,
-                    coral: p.notAssigned < 0,
                   ),
               ],
-              freeNotes,
+              const [],
               big: true,
             ),
+            // The one real warning, a row of its own, there only when a
+            // currency is over; the others' columns stay empty.
+            if (pools.any(over))
+              row(
+                label(t.planKeyOver, big: true, coral: true),
+                [
+                  for (final p in pools)
+                    over(p)
+                        ? figure(
+                            'assigned-over${tagOf(p.currency)}',
+                            -p.notAssigned,
+                            p.currency,
+                            big: true,
+                            coral: true,
+                          )
+                        : const SizedBox(),
+                ],
+                const [],
+                big: true,
+              ),
             if (offerStart)
               _StartOffer(
                 text: t.planStartOffer(

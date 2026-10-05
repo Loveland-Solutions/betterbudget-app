@@ -5676,11 +5676,11 @@ abstract class Words {
   /// **'Not assigned'**
   String get planKeyNotAssigned;
 
-  /// Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.
+  /// Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short.
   ///
   /// In en, this message translates to:
-  /// **'Spend what the categories hold and cash and bank go {amount} below zero.'**
-  String planOverConsequence(String amount);
+  /// **'Assigned too much'**
+  String get planKeyOver;
 
   /// Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized that add up to nothing. Click opens them.
   ///
