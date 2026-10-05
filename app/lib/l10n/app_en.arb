@@ -510,6 +510,18 @@
   "@ledgerPayStoppedToast": {
     "description": "Toast after a pay schedule is stopped."
   },
+  "ledgerPayStoppedMoved": "{count, plural, =1{Pay no longer scheduled · 1 category now {how}} other{Pay no longer scheduled · {count} categories now {how}}}",
+  "@ledgerPayStoppedMoved": {
+    "description": "Toast after stopping a pay and moving the categories per it. how is \"Every month\" or \"Every pay period · Jenny\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "how": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerPaySaved": "Pay saved",
   "@ledgerPaySaved": {
     "description": "Toast and undo-menu label after a pay schedule is saved."
@@ -3813,6 +3825,35 @@
   "@setupStopPay": {
     "description": "Pay setup (editing), red button that removes the pay schedule."
   },
+  "stopPayTitle": "Stop this pay?",
+  "@stopPayTitle": {
+    "description": "Dialog title when stopping a pay that categories are budgeted per. Coral."
+  },
+  "stopPayPerIt": "{count, plural, =1{1 category is budgeted per this pay: {names}} other{{count} categories are budgeted per this pay: {names}}}",
+  "@stopPayPerIt": {
+    "description": "Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "stopPayFromNow": "From now, budget them",
+  "@stopPayFromNow": {
+    "description": "Stop-pay dialog, label over the choices: Every month, or another pay's periods."
+  },
+  "stopPayBillsMonthly": "A bill every payday comes every month from its next payday: {names}.",
+  "@stopPayBillsMonthly": {
+    "description": "Stop-pay dialog, under Every month when some of the categories are bills every payday of this pay. names is a comma list.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "setupSavePay": "Save pay",
   "@setupSavePay": {
     "description": "Pay setup, main button."
@@ -5644,6 +5685,30 @@
   "planAboutThisPay": "about {amount} this pay period",
   "@planAboutThisPay": {
     "description": "Budget page: note under a category's name, viewing by a pay's periods a set amount that is per month (or per another pay): its share of this period, by days",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planStillFor": "{amount} still to put in for {start}–{end}",
+  "@planStillFor": {
+    "description": "Budget page: note under a category's name, seen by another period than its own, when the period before was never filled and the rest of it is in view: what that period still needs, with its dates (like 10.23–11.24)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlusNext": "plus about {amount} toward the next",
+  "@planPlusNext": {
+    "description": "Budget page: note under a category's name, after planStillFor: the share, by days, toward the category's next own period",
     "placeholders": {
       "amount": {
         "type": "String"

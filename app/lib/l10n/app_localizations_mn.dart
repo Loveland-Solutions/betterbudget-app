@@ -335,6 +335,17 @@ class WordsMn extends Words {
       'Цалин товлогдохоо больсон · өнгөрсөн цалингийн өдрүүд хэвээр үлдэнэ';
 
   @override
+  String ledgerPayStoppedMoved(int count, String how) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Цалин товлогдохоо больсон · $count ангилал одоо $how',
+      one: 'Цалин товлогдохоо больсон · 1 ангилал одоо $how',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get ledgerPaySaved => 'Цалин хадгалагдлаа';
 
   @override
@@ -2470,6 +2481,28 @@ class WordsMn extends Words {
   String get setupStopPay => 'Цалин товлохоо болих';
 
   @override
+  String get stopPayTitle => 'Энэ цалинг зогсоох уу?';
+
+  @override
+  String stopPayPerIt(int count, String names) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангилал энэ цалингаар төсөвлөгдсөн: $names',
+      one: '1 ангилал энэ цалингаар төсөвлөгдсөн: $names',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get stopPayFromNow => 'Одооноос тэдгээрийг төсөвлөх';
+
+  @override
+  String stopPayBillsMonthly(String names) {
+    return 'Цалин бүрийн төлбөр дараагийн цалингийн өдрөөс сар бүр ирнэ: $names.';
+  }
+
+  @override
   String get setupSavePay => 'Цалин хадгалах';
 
   @override
@@ -3685,6 +3718,16 @@ class WordsMn extends Words {
   @override
   String planAboutThisPay(String amount) {
     return 'энэ цалингийн үед ойролцоогоор $amount';
+  }
+
+  @override
+  String planStillFor(String amount, String start, String end) {
+    return '$start–$end-д $amount оруулах хэрэгтэй хэвээр';
+  }
+
+  @override
+  String planPlusNext(String amount) {
+    return 'дээр нь дараагийнхад ойролцоогоор $amount';
   }
 
   @override

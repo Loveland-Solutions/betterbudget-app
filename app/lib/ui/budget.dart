@@ -279,6 +279,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                 widget.today,
                 currency,
                 payName: _ownPayName(t, data, planLine.plan),
+                own: data.payScheduleById(planLine.plan.payScheduleId),
               ),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
@@ -1984,6 +1985,7 @@ _PlanNote _planNote(
   DateTime today,
   Currency currency, {
   String? payName,
+  PaySchedule? own,
 }) {
   final p = line.plan!;
   // The period on screen, and a set amount's own (its month or its pay,
@@ -2020,8 +2022,30 @@ _PlanNote _planNote(
       else
         each(p.each),
       // Seen by another period than its own: its share of this one, by
-      // days, said as about.
-      if (p.approx && p.planned > 0 && !(cap != null && p.done))
+      // days, said as about. More than one period's worth (the one before
+      // was never filled, and the rest of it is in view) is said as what
+      // that period still needs, plus what's toward the next (owner,
+      // 2026-10-05: "₮600,000 each … · about ₮700,000 this …" read as a
+      // contradiction).
+      if (p.shares.length > 1 &&
+          p.planned > p.each &&
+          p.shares.first.amount > 0 &&
+          own != null &&
+          !(cap != null && p.done))
+        ...() {
+          final first = p.shares.first;
+          final period = budgetPeriod(first.date, own);
+          final rest = p.planned - first.amount;
+          return [
+            t.planStillFor(
+              money(first.amount),
+              date(period.start),
+              date(period.end),
+            ),
+            if (rest > 0) t.planPlusNext(money(rest)),
+          ];
+        }()
+      else if (p.approx && p.planned > 0 && !(cap != null && p.done))
         byPay
             ? t.planAboutThisPay(money(p.planned))
             : t.planAboutThisMonth(money(p.planned)),
@@ -3908,6 +3932,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               widget.today,
               _currency,
               payName: _ownPayName(t, data, line.plan!.plan),
+              own: data.payScheduleById(line.plan!.plan.payScheduleId),
             );
           }
         }

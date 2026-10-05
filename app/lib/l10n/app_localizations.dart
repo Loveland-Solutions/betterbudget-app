@@ -522,6 +522,12 @@ abstract class Words {
   /// **'Pay no longer scheduled · paydays already past stay'**
   String get ledgerPayStoppedToast;
 
+  /// Toast after stopping a pay and moving the categories per it. how is "Every month" or "Every pay period · Jenny".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Pay no longer scheduled · 1 category now {how}} other{Pay no longer scheduled · {count} categories now {how}}}'**
+  String ledgerPayStoppedMoved(int count, String how);
+
   /// Toast and undo-menu label after a pay schedule is saved.
   ///
   /// In en, this message translates to:
@@ -3633,6 +3639,30 @@ abstract class Words {
   /// **'Stop scheduling pay'**
   String get setupStopPay;
 
+  /// Dialog title when stopping a pay that categories are budgeted per. Coral.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop this pay?'**
+  String get stopPayTitle;
+
+  /// Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 category is budgeted per this pay: {names}} other{{count} categories are budgeted per this pay: {names}}}'**
+  String stopPayPerIt(int count, String names);
+
+  /// Stop-pay dialog, label over the choices: Every month, or another pay's periods.
+  ///
+  /// In en, this message translates to:
+  /// **'From now, budget them'**
+  String get stopPayFromNow;
+
+  /// Stop-pay dialog, under Every month when some of the categories are bills every payday of this pay. names is a comma list.
+  ///
+  /// In en, this message translates to:
+  /// **'A bill every payday comes every month from its next payday: {names}.'**
+  String stopPayBillsMonthly(String names);
+
   /// Pay setup, main button.
   ///
   /// In en, this message translates to:
@@ -5549,6 +5579,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'about {amount} this pay period'**
   String planAboutThisPay(String amount);
+
+  /// Budget page: note under a category's name, seen by another period than its own, when the period before was never filled and the rest of it is in view: what that period still needs, with its dates (like 10.23–11.24)
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} still to put in for {start}–{end}'**
+  String planStillFor(String amount, String start, String end);
+
+  /// Budget page: note under a category's name, after planStillFor: the share, by days, toward the category's next own period
+  ///
+  /// In en, this message translates to:
+  /// **'plus about {amount} toward the next'**
+  String planPlusNext(String amount);
 
   /// Budget page: part of the note under a category's name, after the amount and a dot
   ///

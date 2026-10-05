@@ -1248,6 +1248,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         existing: existing,
         history: (a, payee) =>
             db.payHistory(a, scheduleId: existing?.id, payee: payee),
+        data: data,
+        perPay: [
+          if (existing != null)
+            for (final c in data.categories)
+              if (data.plans[c.id]?.payScheduleId == existing.id) c,
+        ],
         offerNoPay:
             data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
       ),
@@ -1257,18 +1263,55 @@ class _LedgerScreenState extends State<LedgerScreen> {
     switch (result) {
       case PayNone():
         await _setNoRegularPay(true);
-      case PayStop():
-        if (!await _accountWrite(
-          () async => change = await db.stopPaySchedule(existing!.id, today),
-          what: 'pay',
-        )) {
+      case PayStop(:final movePlans, :final moveTo):
+        // The categories per this pay go where the dialog said: another
+        // pay's periods, or the month; one undo with the stop.
+        final moved = <int, CategoryPlan>{};
+        if (movePlans) {
+          final next = existing!.nextAfter(today);
+          for (final p in data.plans.values) {
+            if (p.payScheduleId == existing.id) {
+              moved[p.categoryId] = p.movedToPay(moveTo, nextPayday: next);
+            }
+          }
+        }
+        final planChanges = <int, PlanChange>{};
+        if (!await _accountWrite(() async {
+          change = await db.stopPaySchedule(existing!.id, today);
+          for (final e in moved.entries) {
+            planChanges[e.key] = await db.changeCategoryPlan(
+              e.key,
+              e.value,
+              today,
+            );
+          }
+        }, what: 'pay')) {
           return;
         }
+        final movedTo = moved.isEmpty
+            ? null
+            : moveTo == null
+            ? t.planRepeatMonths(1)
+            : t.planEveryPayPeriodOf(
+                payTitle(t, data, data.payScheduleById(moveTo)!),
+              );
         _did(
           t.ledgerPayStopped,
-          message: t.ledgerPayStoppedToast,
-          undo: () => db.undoPayChange(change),
-          redo: () => db.redoPayChange(change),
+          message: movedTo == null
+              ? t.ledgerPayStoppedToast
+              : t.ledgerPayStoppedMoved(moved.length, movedTo),
+          undo: () async {
+            for (final e in planChanges.entries) {
+              await db.undoPlanChange(e.key, e.value);
+            }
+            await db.undoPayChange(change);
+          },
+          redo: () async {
+            await db.redoPayChange(change);
+            for (final e in planChanges.entries) {
+              await db.redoPlanChange(e.key, moved[e.key], e.value);
+            }
+          },
         );
       case PaySave(:final draft):
         if (!await _accountWrite(

@@ -12,6 +12,12 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
+**PR #38 merged (2026-10-05, version 0.9.0, no schema change): the owner's two calls
+on two earners.** A share bigger than the amount says why ("₮600,000 still to put in
+for 10.23–11.24 · plus about ₮180,000 toward the next"), and stopping a pay that
+categories are per warns, names them and moves them to another pay or the month, one
+⌘Z (ADR 0004 "Two earners", last two points).
+
 **PR #37 merged (2026-10-05, version 0.8.0, schema v17): two earners.** The owner
 asked "Jeff and Jenny are married. They both get paychecks. Can they use this
 budget?" and designed the answer (ADR 0004 "Two earners"): Budget by is gone from
@@ -48,7 +54,8 @@ answer means beside it, "What's left at month's end" shows under No always, and 
 Income tab reads "₮2,100,000 received of ₮4,200,000 expected this period" (the owner's
 words). **Open (Next step):** two questions, in plain examples.
 
-**Git state:** `main` has everything through PR #37 (2026-10-05, version 0.8.0, schema
+**Git state:** `main` has everything through PR #38 (2026-10-05, version 0.9.0: the
+owner's calls on two earners), PR #37 (2026-10-05, version 0.8.0, schema
 v17: two earners, see above), PR #36 (2026-10-05, version 0.7.0, schema
 v16: the Budget page from the call with Cynthia), PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
@@ -239,10 +246,13 @@ the category's own periods (`Budget.spread`, `_budgetRows` in `ledger_screen.dar
 often starts as the view's period; a cut share rounds to ₮100; a stopped pay reads
 "(stopped)"; picking the view it already is writes nothing. Tests: 411 (`flutter test`
 passes; `goldens/budget_two_earners.png` new, Settings and pay setup goldens redrawn).
-**Next:** the owner's call on the two points below. Open for the owner (not re-asked): a share
-bigger than the amount after a skipped period reads as a contradiction; stopping a pay
-leaves its categories on its old rhythm; still one person's words in the forecast
-("Until your 10.15 paycheck"). The owner's two questions below stay open too.
+The owner's two calls, built in PR #38 (version 0.9.0): the catch-up share says what the
+period before still needs plus the share toward the next (`planStillFor`,
+`planPlusNext`), and Stop on a pay with categories per it opens `_StopPayDialog`
+(`pay-stop` → `stop-move-month` / `stop-move-<id>` → `stop-pay-confirm`), the plans
+moved with `CategoryPlan.movedToPay` in one undo with the stop. Tests: 413. **Next:**
+still one person's words in the forecast ("Until your 10.15 paycheck"); the owner's two
+questions below stay open.
 
 **2026-10-05, branch `budget-page-layout` (version 0.7.0): the Budget page after the
 owner's call with Cynthia G. Loveland.** Six notes came back. Built: a new category

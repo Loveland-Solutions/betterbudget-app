@@ -1744,11 +1744,27 @@ person. The owner's design, built (version 0.8.0, schema v17):
   10.09"). A new category's How often starts as the period on screen. A cut
   share rounds to ₮100. A stopped pay reads "Jeff (stopped)" where a
   category is still per it.
+- **A share bigger than the amount says why** (owner, 2026-10-05: "fix it").
+  When the category's period before was never filled and the rest of it is
+  in view, the note reads "₮600,000 each pay period · Jeff · ₮600,000 still
+  to put in for 10.23–11.24 · plus about ₮180,000 toward the next" instead
+  of "about ₮780,000 this pay period", which read as a contradiction.
+- **Stopping a pay warns and moves what was per it** (owner, 2026-10-05:
+  "warn them and give them a chance to move the abandoned categories to a
+  new income source"). With categories budgeted per the pay (a set amount
+  each of its periods, or a bill every payday of it), Stop first shows a
+  coral dialog: "2 categories are budgeted per this pay: Groceries, Housing",
+  then "From now, budget them": Every month, or "Every pay period · Jenny"
+  for each other pay. With exactly one other pay that's the offered answer;
+  otherwise the month. A bill every payday moved to the month comes every
+  month from the stopped pay's next payday (plus its days after), and the
+  dialog says so. Stop goes ahead either way (warn, don't block); the toast
+  reads "Pay no longer scheduled · 2 categories now Every pay period ·
+  Jenny" and one ⌘Z puts the pay and every plan back. Rejected: leaving them
+  on the stopped pay's rhythm, shown "(stopped)" (the first build).
 - Left for later: the forecast on a shared account still runs to the first
   payday it sees and through that pay's period (rule 24's note); a bill paid
-  "Every payday" is pinned to one pay; a share bigger than the amount after a
-  skipped period ("₮600,000 each … · about ₮700,000 this …") says nothing of
-  why; stopping a pay leaves its categories on its old rhythm.
+  "Every payday" is pinned to one pay.
 
 ### The smallest window (owner, 2026-10-01)
 
