@@ -6061,13 +6061,97 @@
       }
     }
   },
-  "planEveryCustom": "Every…",
+  "planEveryCustom": "Custom…",
   "@planEveryCustom": {
-    "description": "Budget page, Edit under a category's row (Yes): how often, the entry that opens a number and a unit (every 6 weeks, every 3 years)"
+    "description": "Budget page, Edit under a category's row (Yes): how often, the entry that opens the Custom block (Repeat every N unit; weekdays or the nth weekday; Ends), like a calendar app's recurrence"
   },
-  "planEveryWord": "every",
-  "@planEveryWord": {
-    "description": "Budget page, Edit under a category's row (Yes): the word before the number and unit, after \"Every…\" is picked"
+  "planCustomOn": "Custom",
+  "@planCustomOn": {
+    "description": "Budget page, Edit under a category's row (Yes): what the How often button says while the Custom block is open under it"
+  },
+  "planRepeatEvery": "Repeat every",
+  "@planRepeatEvery": {
+    "description": "Budget page, Edit, the Custom block: label of the row with the number and the unit (days, weeks, months, years)"
+  },
+  "planOnWeekdays": "On",
+  "@planOnWeekdays": {
+    "description": "Budget page, Edit, the Custom block, every so many weeks: label of the row of weekday chips (Mo … Su)"
+  },
+  "planWeekdaysHint": "Pick the days; with none picked, the date’s own weekday.",
+  "@planWeekdaysHint": {
+    "description": "Budget page, Edit, the Custom block: note beside the weekday chips while none is picked"
+  },
+  "planOnLabel": "On",
+  "@planOnLabel": {
+    "description": "Budget page, Edit, the Custom block, every so many months or years: label of the row choosing the day of the month or a weekday (the second Tuesday)"
+  },
+  "planDayOfMonth": "Day of the month",
+  "@planDayOfMonth": {
+    "description": "Budget page, Edit, the Custom block: the first choice under On, the due date's own day each month"
+  },
+  "planAWeekday": "A weekday",
+  "@planAWeekday": {
+    "description": "Budget page, Edit, the Custom block: the second choice under On; picking it shows two dropdowns, which one (first … last) and which weekday"
+  },
+  "planNthFirst": "first",
+  "@planNthFirst": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month, in the dropdown beside A weekday"
+  },
+  "planNthSecond": "second",
+  "@planNthSecond": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthThird": "third",
+  "@planNthThird": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthFourth": "fourth",
+  "@planNthFourth": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthLast": "last",
+  "@planNthLast": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month, the last one"
+  },
+  "planWeekdayNames": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+  "@planWeekdayNames": {
+    "description": "Budget page, Edit, the Custom block: the weekday dropdown beside A weekday, Monday first, separated by |"
+  },
+  "planEnds": "Ends",
+  "@planEnds": {
+    "description": "Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops"
+  },
+  "planEndsNever": "Never",
+  "@planEndsNever": {
+    "description": "Budget page, Edit, the Custom block, Ends: it goes on"
+  },
+  "planEndsOn": "On a date",
+  "@planEndsOn": {
+    "description": "Budget page, Edit, the Custom block, Ends: no bill after the date typed beside it"
+  },
+  "planEndsAfter": "After",
+  "@planEndsAfter": {
+    "description": "Budget page, Edit, the Custom block, Ends: so many bills, the number typed beside it, then the word times"
+  },
+  "planEndsTimes": "times",
+  "@planEndsTimes": {
+    "description": "Budget page, Edit, the Custom block, Ends: after the number field (After 12 times)"
+  },
+  "planEndDateHint": "YYYY.MM.DD",
+  "@planEndDateHint": {
+    "description": "Budget page, Edit, the Custom block, Ends on a date: the empty date field's hint"
+  },
+  "planEnded": "{amount} · ended {date}",
+  "@planEnded": {
+    "description": "Budget page, the note under a category's name once a repeating plan's last bill (its Ends) is past: the amount and the last bill's date",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "planOnDates": "On these dates…",
   "@planOnDates": {

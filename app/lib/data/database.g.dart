@@ -4163,6 +4163,59 @@ class $CategoryPlansTable extends CategoryPlans
         requiredDuringInsert: false,
         defaultValue: const Constant('keep'),
       ).withConverter<PayWeekend>($CategoryPlansTable.$converterweekend);
+  static const VerificationMeta _weekdaysMeta = const VerificationMeta(
+    'weekdays',
+  );
+  @override
+  late final GeneratedColumn<String> weekdays = GeneratedColumn<String>(
+    'weekdays',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nthMeta = const VerificationMeta('nth');
+  @override
+  late final GeneratedColumn<int> nth = GeneratedColumn<int>(
+    'nth',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nthWeekdayMeta = const VerificationMeta(
+    'nthWeekday',
+  );
+  @override
+  late final GeneratedColumn<int> nthWeekday = GeneratedColumn<int>(
+    'nth_weekday',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<String> endDate = GeneratedColumn<String>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endCountMeta = const VerificationMeta(
+    'endCount',
+  );
+  @override
+  late final GeneratedColumn<int> endCount = GeneratedColumn<int>(
+    'end_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _rolloverMeta = const VerificationMeta(
     'rollover',
   );
@@ -4216,6 +4269,11 @@ class $CategoryPlansTable extends CategoryPlans
     payScheduleId,
     daysAfterPay,
     weekend,
+    weekdays,
+    nth,
+    nthWeekday,
+    endDate,
+    endCount,
     rollover,
     upToMinor,
     paidFromId,
@@ -4302,6 +4360,36 @@ class $CategoryPlansTable extends CategoryPlans
         ),
       );
     }
+    if (data.containsKey('weekdays')) {
+      context.handle(
+        _weekdaysMeta,
+        weekdays.isAcceptableOrUnknown(data['weekdays']!, _weekdaysMeta),
+      );
+    }
+    if (data.containsKey('nth')) {
+      context.handle(
+        _nthMeta,
+        nth.isAcceptableOrUnknown(data['nth']!, _nthMeta),
+      );
+    }
+    if (data.containsKey('nth_weekday')) {
+      context.handle(
+        _nthWeekdayMeta,
+        nthWeekday.isAcceptableOrUnknown(data['nth_weekday']!, _nthWeekdayMeta),
+      );
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('end_count')) {
+      context.handle(
+        _endCountMeta,
+        endCount.isAcceptableOrUnknown(data['end_count']!, _endCountMeta),
+      );
+    }
     if (data.containsKey('rollover')) {
       context.handle(
         _rolloverMeta,
@@ -4380,6 +4468,26 @@ class $CategoryPlansTable extends CategoryPlans
           data['${effectivePrefix}weekend'],
         )!,
       ),
+      weekdays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weekdays'],
+      ),
+      nth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth'],
+      ),
+      nthWeekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth_weekday'],
+      ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_date'],
+      ),
+      endCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_count'],
+      ),
       rollover: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}rollover'],
@@ -4435,6 +4543,19 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
   /// A date on a weekend: before, after or keep (v15).
   final PayWeekend weekend;
 
+  /// Every so many weeks, on these weekdays, `1,4` (Monday 1); null
+  /// unless chosen (v16, Custom…).
+  final String? weekdays;
+
+  /// Every so many months: the nth weekday of the month (1–4, -1 the
+  /// last) and which weekday (Monday 1); null unless chosen (v16).
+  final int? nth;
+  final int? nthWeekday;
+
+  /// No bill after this date `YYYY-MM-DD`, or after this many (v16).
+  final String? endDate;
+  final int? endCount;
+
   /// Each period: what's left stays in the category.
   final bool rollover;
 
@@ -4456,6 +4577,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     this.payScheduleId,
     required this.daysAfterPay,
     required this.weekend,
+    this.weekdays,
+    this.nth,
+    this.nthWeekday,
+    this.endDate,
+    this.endCount,
     required this.rollover,
     this.upToMinor,
     this.paidFromId,
@@ -4492,6 +4618,21 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
         $CategoryPlansTable.$converterweekend.toSql(weekend),
       );
     }
+    if (!nullToAbsent || weekdays != null) {
+      map['weekdays'] = Variable<String>(weekdays);
+    }
+    if (!nullToAbsent || nth != null) {
+      map['nth'] = Variable<int>(nth);
+    }
+    if (!nullToAbsent || nthWeekday != null) {
+      map['nth_weekday'] = Variable<int>(nthWeekday);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<String>(endDate);
+    }
+    if (!nullToAbsent || endCount != null) {
+      map['end_count'] = Variable<int>(endCount);
+    }
     map['rollover'] = Variable<bool>(rollover);
     if (!nullToAbsent || upToMinor != null) {
       map['up_to_minor'] = Variable<int>(upToMinor);
@@ -4523,6 +4664,19 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           : Value(payScheduleId),
       daysAfterPay: Value(daysAfterPay),
       weekend: Value(weekend),
+      weekdays: weekdays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekdays),
+      nth: nth == null && nullToAbsent ? const Value.absent() : Value(nth),
+      nthWeekday: nthWeekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nthWeekday),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      endCount: endCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endCount),
       rollover: Value(rollover),
       upToMinor: upToMinor == null && nullToAbsent
           ? const Value.absent()
@@ -4554,6 +4708,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       weekend: $CategoryPlansTable.$converterweekend.fromJson(
         serializer.fromJson<String>(json['weekend']),
       ),
+      weekdays: serializer.fromJson<String?>(json['weekdays']),
+      nth: serializer.fromJson<int?>(json['nth']),
+      nthWeekday: serializer.fromJson<int?>(json['nthWeekday']),
+      endDate: serializer.fromJson<String?>(json['endDate']),
+      endCount: serializer.fromJson<int?>(json['endCount']),
       rollover: serializer.fromJson<bool>(json['rollover']),
       upToMinor: serializer.fromJson<int?>(json['upToMinor']),
       paidFromId: serializer.fromJson<int?>(json['paidFromId']),
@@ -4578,6 +4737,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       'weekend': serializer.toJson<String>(
         $CategoryPlansTable.$converterweekend.toJson(weekend),
       ),
+      'weekdays': serializer.toJson<String?>(weekdays),
+      'nth': serializer.toJson<int?>(nth),
+      'nthWeekday': serializer.toJson<int?>(nthWeekday),
+      'endDate': serializer.toJson<String?>(endDate),
+      'endCount': serializer.toJson<int?>(endCount),
       'rollover': serializer.toJson<bool>(rollover),
       'upToMinor': serializer.toJson<int?>(upToMinor),
       'paidFromId': serializer.toJson<int?>(paidFromId),
@@ -4596,6 +4760,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     Value<int?> payScheduleId = const Value.absent(),
     int? daysAfterPay,
     PayWeekend? weekend,
+    Value<String?> weekdays = const Value.absent(),
+    Value<int?> nth = const Value.absent(),
+    Value<int?> nthWeekday = const Value.absent(),
+    Value<String?> endDate = const Value.absent(),
+    Value<int?> endCount = const Value.absent(),
     bool? rollover,
     Value<int?> upToMinor = const Value.absent(),
     Value<int?> paidFromId = const Value.absent(),
@@ -4613,6 +4782,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
         : this.payScheduleId,
     daysAfterPay: daysAfterPay ?? this.daysAfterPay,
     weekend: weekend ?? this.weekend,
+    weekdays: weekdays.present ? weekdays.value : this.weekdays,
+    nth: nth.present ? nth.value : this.nth,
+    nthWeekday: nthWeekday.present ? nthWeekday.value : this.nthWeekday,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    endCount: endCount.present ? endCount.value : this.endCount,
     rollover: rollover ?? this.rollover,
     upToMinor: upToMinor.present ? upToMinor.value : this.upToMinor,
     paidFromId: paidFromId.present ? paidFromId.value : this.paidFromId,
@@ -4640,6 +4814,13 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ? data.daysAfterPay.value
           : this.daysAfterPay,
       weekend: data.weekend.present ? data.weekend.value : this.weekend,
+      weekdays: data.weekdays.present ? data.weekdays.value : this.weekdays,
+      nth: data.nth.present ? data.nth.value : this.nth,
+      nthWeekday: data.nthWeekday.present
+          ? data.nthWeekday.value
+          : this.nthWeekday,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      endCount: data.endCount.present ? data.endCount.value : this.endCount,
       rollover: data.rollover.present ? data.rollover.value : this.rollover,
       upToMinor: data.upToMinor.present ? data.upToMinor.value : this.upToMinor,
       paidFromId: data.paidFromId.present
@@ -4662,6 +4843,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ..write('payScheduleId: $payScheduleId, ')
           ..write('daysAfterPay: $daysAfterPay, ')
           ..write('weekend: $weekend, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('nth: $nth, ')
+          ..write('nthWeekday: $nthWeekday, ')
+          ..write('endDate: $endDate, ')
+          ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
           ..write('upToMinor: $upToMinor, ')
           ..write('paidFromId: $paidFromId')
@@ -4682,6 +4868,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     payScheduleId,
     daysAfterPay,
     weekend,
+    weekdays,
+    nth,
+    nthWeekday,
+    endDate,
+    endCount,
     rollover,
     upToMinor,
     paidFromId,
@@ -4701,6 +4892,11 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           other.payScheduleId == this.payScheduleId &&
           other.daysAfterPay == this.daysAfterPay &&
           other.weekend == this.weekend &&
+          other.weekdays == this.weekdays &&
+          other.nth == this.nth &&
+          other.nthWeekday == this.nthWeekday &&
+          other.endDate == this.endDate &&
+          other.endCount == this.endCount &&
           other.rollover == this.rollover &&
           other.upToMinor == this.upToMinor &&
           other.paidFromId == this.paidFromId);
@@ -4718,6 +4914,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
   final Value<int?> payScheduleId;
   final Value<int> daysAfterPay;
   final Value<PayWeekend> weekend;
+  final Value<String?> weekdays;
+  final Value<int?> nth;
+  final Value<int?> nthWeekday;
+  final Value<String?> endDate;
+  final Value<int?> endCount;
   final Value<bool> rollover;
   final Value<int?> upToMinor;
   final Value<int?> paidFromId;
@@ -4733,6 +4934,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.payScheduleId = const Value.absent(),
     this.daysAfterPay = const Value.absent(),
     this.weekend = const Value.absent(),
+    this.weekdays = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.nthWeekday = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.endCount = const Value.absent(),
     this.rollover = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
@@ -4749,6 +4955,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.payScheduleId = const Value.absent(),
     this.daysAfterPay = const Value.absent(),
     this.weekend = const Value.absent(),
+    this.weekdays = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.nthWeekday = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.endCount = const Value.absent(),
     this.rollover = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
@@ -4767,6 +4978,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Expression<int>? payScheduleId,
     Expression<int>? daysAfterPay,
     Expression<String>? weekend,
+    Expression<String>? weekdays,
+    Expression<int>? nth,
+    Expression<int>? nthWeekday,
+    Expression<String>? endDate,
+    Expression<int>? endCount,
     Expression<bool>? rollover,
     Expression<int>? upToMinor,
     Expression<int>? paidFromId,
@@ -4783,6 +4999,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       if (payScheduleId != null) 'pay_schedule_id': payScheduleId,
       if (daysAfterPay != null) 'days_after_pay': daysAfterPay,
       if (weekend != null) 'weekend': weekend,
+      if (weekdays != null) 'weekdays': weekdays,
+      if (nth != null) 'nth': nth,
+      if (nthWeekday != null) 'nth_weekday': nthWeekday,
+      if (endDate != null) 'end_date': endDate,
+      if (endCount != null) 'end_count': endCount,
       if (rollover != null) 'rollover': rollover,
       if (upToMinor != null) 'up_to_minor': upToMinor,
       if (paidFromId != null) 'paid_from_id': paidFromId,
@@ -4801,6 +5022,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Value<int?>? payScheduleId,
     Value<int>? daysAfterPay,
     Value<PayWeekend>? weekend,
+    Value<String?>? weekdays,
+    Value<int?>? nth,
+    Value<int?>? nthWeekday,
+    Value<String?>? endDate,
+    Value<int?>? endCount,
     Value<bool>? rollover,
     Value<int?>? upToMinor,
     Value<int?>? paidFromId,
@@ -4817,6 +5043,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       payScheduleId: payScheduleId ?? this.payScheduleId,
       daysAfterPay: daysAfterPay ?? this.daysAfterPay,
       weekend: weekend ?? this.weekend,
+      weekdays: weekdays ?? this.weekdays,
+      nth: nth ?? this.nth,
+      nthWeekday: nthWeekday ?? this.nthWeekday,
+      endDate: endDate ?? this.endDate,
+      endCount: endCount ?? this.endCount,
       rollover: rollover ?? this.rollover,
       upToMinor: upToMinor ?? this.upToMinor,
       paidFromId: paidFromId ?? this.paidFromId,
@@ -4863,6 +5094,21 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
         $CategoryPlansTable.$converterweekend.toSql(weekend.value),
       );
     }
+    if (weekdays.present) {
+      map['weekdays'] = Variable<String>(weekdays.value);
+    }
+    if (nth.present) {
+      map['nth'] = Variable<int>(nth.value);
+    }
+    if (nthWeekday.present) {
+      map['nth_weekday'] = Variable<int>(nthWeekday.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<String>(endDate.value);
+    }
+    if (endCount.present) {
+      map['end_count'] = Variable<int>(endCount.value);
+    }
     if (rollover.present) {
       map['rollover'] = Variable<bool>(rollover.value);
     }
@@ -4889,6 +5135,11 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
           ..write('payScheduleId: $payScheduleId, ')
           ..write('daysAfterPay: $daysAfterPay, ')
           ..write('weekend: $weekend, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('nth: $nth, ')
+          ..write('nthWeekday: $nthWeekday, ')
+          ..write('endDate: $endDate, ')
+          ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
           ..write('upToMinor: $upToMinor, ')
           ..write('paidFromId: $paidFromId')
@@ -9090,6 +9341,11 @@ typedef $$CategoryPlansTableCreateCompanionBuilder =
       Value<int?> payScheduleId,
       Value<int> daysAfterPay,
       Value<PayWeekend> weekend,
+      Value<String?> weekdays,
+      Value<int?> nth,
+      Value<int?> nthWeekday,
+      Value<String?> endDate,
+      Value<int?> endCount,
       Value<bool> rollover,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
@@ -9107,6 +9363,11 @@ typedef $$CategoryPlansTableUpdateCompanionBuilder =
       Value<int?> payScheduleId,
       Value<int> daysAfterPay,
       Value<PayWeekend> weekend,
+      Value<String?> weekdays,
+      Value<int?> nth,
+      Value<int?> nthWeekday,
+      Value<String?> endDate,
+      Value<int?> endCount,
       Value<bool> rollover,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
@@ -9229,6 +9490,31 @@ class $$CategoryPlansTableFilterComposer
         column: $table.weekend,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endCount => $composableBuilder(
+    column: $table.endCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get rollover => $composableBuilder(
     column: $table.rollover,
@@ -9364,6 +9650,31 @@ class $$CategoryPlansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endCount => $composableBuilder(
+    column: $table.endCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get rollover => $composableBuilder(
     column: $table.rollover,
     builder: (column) => ColumnOrderings(column),
@@ -9486,6 +9797,23 @@ class $$CategoryPlansTableAnnotationComposer
   GeneratedColumnWithTypeConverter<PayWeekend, String> get weekend =>
       $composableBuilder(column: $table.weekend, builder: (column) => column);
 
+  GeneratedColumn<String> get weekdays =>
+      $composableBuilder(column: $table.weekdays, builder: (column) => column);
+
+  GeneratedColumn<int> get nth =>
+      $composableBuilder(column: $table.nth, builder: (column) => column);
+
+  GeneratedColumn<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<int> get endCount =>
+      $composableBuilder(column: $table.endCount, builder: (column) => column);
+
   GeneratedColumn<bool> get rollover =>
       $composableBuilder(column: $table.rollover, builder: (column) => column);
 
@@ -9605,6 +9933,11 @@ class $$CategoryPlansTableTableManager
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int> daysAfterPay = const Value.absent(),
                 Value<PayWeekend> weekend = const Value.absent(),
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> nth = const Value.absent(),
+                Value<int?> nthWeekday = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
+                Value<int?> endCount = const Value.absent(),
                 Value<bool> rollover = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
@@ -9620,6 +9953,11 @@ class $$CategoryPlansTableTableManager
                 payScheduleId: payScheduleId,
                 daysAfterPay: daysAfterPay,
                 weekend: weekend,
+                weekdays: weekdays,
+                nth: nth,
+                nthWeekday: nthWeekday,
+                endDate: endDate,
+                endCount: endCount,
                 rollover: rollover,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,
@@ -9637,6 +9975,11 @@ class $$CategoryPlansTableTableManager
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int> daysAfterPay = const Value.absent(),
                 Value<PayWeekend> weekend = const Value.absent(),
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> nth = const Value.absent(),
+                Value<int?> nthWeekday = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
+                Value<int?> endCount = const Value.absent(),
                 Value<bool> rollover = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
@@ -9652,6 +9995,11 @@ class $$CategoryPlansTableTableManager
                 payScheduleId: payScheduleId,
                 daysAfterPay: daysAfterPay,
                 weekend: weekend,
+                weekdays: weekdays,
+                nth: nth,
+                nthWeekday: nthWeekday,
+                endDate: endDate,
+                endCount: endCount,
                 rollover: rollover,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,

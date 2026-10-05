@@ -5891,17 +5891,131 @@ abstract class Words {
   /// **'Every payday · {name}'**
   String planEveryPaydayOf(String name);
 
-  /// Budget page, Edit under a category's row (Yes): how often, the entry that opens a number and a unit (every 6 weeks, every 3 years)
+  /// Budget page, Edit under a category's row (Yes): how often, the entry that opens the Custom block (Repeat every N unit; weekdays or the nth weekday; Ends), like a calendar app's recurrence
   ///
   /// In en, this message translates to:
-  /// **'Every…'**
+  /// **'Custom…'**
   String get planEveryCustom;
 
-  /// Budget page, Edit under a category's row (Yes): the word before the number and unit, after "Every…" is picked
+  /// Budget page, Edit under a category's row (Yes): what the How often button says while the Custom block is open under it
   ///
   /// In en, this message translates to:
-  /// **'every'**
-  String get planEveryWord;
+  /// **'Custom'**
+  String get planCustomOn;
+
+  /// Budget page, Edit, the Custom block: label of the row with the number and the unit (days, weeks, months, years)
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat every'**
+  String get planRepeatEvery;
+
+  /// Budget page, Edit, the Custom block, every so many weeks: label of the row of weekday chips (Mo … Su)
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get planOnWeekdays;
+
+  /// Budget page, Edit, the Custom block: note beside the weekday chips while none is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the days; with none picked, the date’s own weekday.'**
+  String get planWeekdaysHint;
+
+  /// Budget page, Edit, the Custom block, every so many months or years: label of the row choosing the day of the month or a weekday (the second Tuesday)
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get planOnLabel;
+
+  /// Budget page, Edit, the Custom block: the first choice under On, the due date's own day each month
+  ///
+  /// In en, this message translates to:
+  /// **'Day of the month'**
+  String get planDayOfMonth;
+
+  /// Budget page, Edit, the Custom block: the second choice under On; picking it shows two dropdowns, which one (first … last) and which weekday
+  ///
+  /// In en, this message translates to:
+  /// **'A weekday'**
+  String get planAWeekday;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month, in the dropdown beside A weekday
+  ///
+  /// In en, this message translates to:
+  /// **'first'**
+  String get planNthFirst;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'second'**
+  String get planNthSecond;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'third'**
+  String get planNthThird;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'fourth'**
+  String get planNthFourth;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month, the last one
+  ///
+  /// In en, this message translates to:
+  /// **'last'**
+  String get planNthLast;
+
+  /// Budget page, Edit, the Custom block: the weekday dropdown beside A weekday, Monday first, separated by |
+  ///
+  /// In en, this message translates to:
+  /// **'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'**
+  String get planWeekdayNames;
+
+  /// Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get planEnds;
+
+  /// Budget page, Edit, the Custom block, Ends: it goes on
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get planEndsNever;
+
+  /// Budget page, Edit, the Custom block, Ends: no bill after the date typed beside it
+  ///
+  /// In en, this message translates to:
+  /// **'On a date'**
+  String get planEndsOn;
+
+  /// Budget page, Edit, the Custom block, Ends: so many bills, the number typed beside it, then the word times
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get planEndsAfter;
+
+  /// Budget page, Edit, the Custom block, Ends: after the number field (After 12 times)
+  ///
+  /// In en, this message translates to:
+  /// **'times'**
+  String get planEndsTimes;
+
+  /// Budget page, Edit, the Custom block, Ends on a date: the empty date field's hint
+  ///
+  /// In en, this message translates to:
+  /// **'YYYY.MM.DD'**
+  String get planEndDateHint;
+
+  /// Budget page, the note under a category's name once a repeating plan's last bill (its Ends) is past: the amount and the last bill's date
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} · ended {date}'**
+  String planEnded(String amount, String date);
 
   /// Budget page, Edit under a category's row (Yes): how often, fixed dates each year that aren't evenly spaced (taxes four times a year)
   ///

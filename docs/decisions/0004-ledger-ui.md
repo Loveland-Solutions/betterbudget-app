@@ -1503,8 +1503,8 @@ What's known so far:
 ### From the 2026-10-05 call with Cynthia G. Loveland (owner's notes)
 
 The owner went through the Budget page with Cynthia (see "Credits") and
-brought back six notes. Four are built on the `budget-page-layout` branch;
-the rest are open, below.
+brought back six notes; all six are built on the `budget-page-layout`
+branch, the last three after the owner's calls the same day.
 
 - **Add category opens Edit under the new row** (her question: "Why don't I
   see the budget wizard when I first create the budget category?"). Typing a
@@ -1595,11 +1595,28 @@ the rest are open, below.
   visible. Several pay schedules in several currencies were already there
   (rule 24): each is in its account's currency.
 
-**Open, for the owner to call:**
-- **How often as a recurrence picker like Outlook's** (her note). Rule 27's
-  dropdown covers every interval and fixed dates; what Outlook adds is
-  weekday patterns ("the last Friday of every month", "every Monday") and
-  an end ("until 2029.03", "after 36 times").
+- **How often's "Every…" is "Custom…", an Outlook-like block** (her note:
+  "a better recurrence selector like what Outlook uses"; owner's call,
+  2026-10-05, option A of three, with the name changed from "Every…" to
+  "Custom…"). The dropdown keeps its quick choices (Once, Every week, Every
+  2 weeks, Every month, Every 3 months, Every year, Every payday, On these
+  dates…) and reads "Custom" while the block is open. **Custom…** opens a
+  block of rows in place, under the Due date it starts from: **Repeat
+  every** [N] [days | weeks | months | years]; every so many weeks, **On** a
+  row of weekday chips (Mo … Su; none picked means the date's own weekday);
+  every so many months or years, **On** "Day of the month" or "A weekday"
+  with two dropdowns, first · second · third · fourth · last and Monday …
+  Sunday (picking A weekday starts from the date typed: 10.15 is the third
+  Thursday); and **Ends**: Never · On a date [YYYY.MM.DD] · After [N]
+  times. The first bill of a weekday pattern is the first match on or
+  after the Due date (October's second Tuesday being before 10.15, the
+  first is November's). Past its last bill a plan asks for nothing,
+  schedules nothing, is projected no further, and its note reads
+  "₮300,000 · ended 2027.01.12". Schema v16 adds `weekdays`, `nth`,
+  `nth_weekday`, `end_date` and `end_count` to `category_plans`. Rejected:
+  Outlook's full dialog as a popup (B), and only an Ends field added to
+  the row (C). Not taken from Outlook: "every weekday", and a separate
+  start date (the Due date is the start).
 
 ### The smallest window (owner, 2026-10-01)
 

@@ -70,7 +70,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   labelled form, the row drawn as it will read), and a wizard for making a category
   (the one question is the panel's first line), and two account dropdowns in a
   category's Edit (one row, **Paid from**), and a new category left closed after Add
-  (its Edit opens).
+  (its Edit opens), and "Every…" for the repeat you set up yourself (the word is
+  **Custom…**).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

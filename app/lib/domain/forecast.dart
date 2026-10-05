@@ -76,7 +76,7 @@ List<RegisterRow> projectScheduled(
     if (plan.payScheduleId != null && pay == null) continue;
     for (var n = 0; n < atMost; n++) {
       final d = Budget.dueAfter(plan, n, pay: pay);
-      if (d.isAfter(until)) break;
+      if (d.isAfter(until) || Budget.over(plan, d, pay: pay)) break;
       if (!d.isAfter(r.date)) continue;
       out.add(r.copyWith(date: d));
     }

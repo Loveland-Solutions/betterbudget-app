@@ -3944,10 +3944,70 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planEveryCustom => 'Тутам…';
+  String get planEveryCustom => 'Өөрөө тохируулах…';
 
   @override
-  String get planEveryWord => 'тутам:';
+  String get planCustomOn => 'Өөрөө тохируулсан';
+
+  @override
+  String get planRepeatEvery => 'Давтамж';
+
+  @override
+  String get planOnWeekdays => 'Гарагууд';
+
+  @override
+  String get planWeekdaysHint =>
+      'Өдрүүдээ сонгоно уу; сонгоогүй бол огнооны гараг.';
+
+  @override
+  String get planOnLabel => 'Өдөр';
+
+  @override
+  String get planDayOfMonth => 'Сарын өдрөөр';
+
+  @override
+  String get planAWeekday => 'Гарагаар';
+
+  @override
+  String get planNthFirst => 'эхний';
+
+  @override
+  String get planNthSecond => '2 дахь';
+
+  @override
+  String get planNthThird => '3 дахь';
+
+  @override
+  String get planNthFourth => '4 дэх';
+
+  @override
+  String get planNthLast => 'сүүлийн';
+
+  @override
+  String get planWeekdayNames => 'Даваа|Мягмар|Лхагва|Пүрэв|Баасан|Бямба|Ням';
+
+  @override
+  String get planEnds => 'Дуусах';
+
+  @override
+  String get planEndsNever => 'Хэзээ ч';
+
+  @override
+  String get planEndsOn => 'Өдрөөр';
+
+  @override
+  String get planEndsAfter => 'Тоогоор';
+
+  @override
+  String get planEndsTimes => 'удаагийн дараа';
+
+  @override
+  String get planEndDateHint => 'ЖЖЖЖ.СС.ӨӨ';
+
+  @override
+  String planEnded(String amount, String date) {
+    return '$amount · $date-нд дууссан';
+  }
 
   @override
   String get planOnDates => 'Эдгээр өдрүүдэд…';

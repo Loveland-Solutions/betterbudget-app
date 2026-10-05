@@ -546,6 +546,11 @@ class CategoryPlan {
     this.payScheduleId,
     this.daysAfterPay = 0,
     this.weekend = PayWeekend.keep,
+    this.weekdays,
+    this.nth,
+    this.nthWeekday,
+    this.endDate,
+    this.endCount,
     this.rollover = true,
     this.upTo,
     this.paidFrom,
@@ -586,6 +591,21 @@ class CategoryPlan {
   /// day. Paydays bring their own rule.
   final PayWeekend weekend;
 
+  /// Every so many weeks, on these weekdays (Monday 1 … Sunday 7), in
+  /// order; null when it's the due date's own weekday (Custom…, v16).
+  final List<int>? weekdays;
+
+  /// Every so many months or years: on the [nth] [nthWeekday] of the
+  /// month (1 to 4, or -1 for the last; Monday 1 … Sunday 7) instead of
+  /// the due date's day of the month. Null: the day of the month.
+  final int? nth;
+  final int? nthWeekday;
+
+  /// One that repeats stops: no bill after this date, or after this many
+  /// bills. Null: it goes on.
+  final DateTime? endDate;
+  final int? endCount;
+
   /// It comes again, one way or another.
   bool get repeats =>
       everyMonths != null ||
@@ -601,7 +621,21 @@ class CategoryPlan {
       _sameDates(onDates, o.onDates) &&
       payScheduleId == o.payScheduleId &&
       daysAfterPay == o.daysAfterPay &&
-      weekend == o.weekend;
+      weekend == o.weekend &&
+      _sameInts(weekdays, o.weekdays) &&
+      nth == o.nth &&
+      nthWeekday == o.nthWeekday &&
+      endDate == o.endDate &&
+      endCount == o.endCount;
+
+  static bool _sameInts(List<int>? a, List<int>? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   static bool _sameDates(List<(int, int)>? a, List<(int, int)>? b) {
     if (a == null || b == null) return a == b;

@@ -151,7 +151,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v15-from-v6-')),
+      contains(startsWith('betterbudget.before-v16-from-v6-')),
     );
   });
 
@@ -206,7 +206,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v15-from-v11-')),
+        contains(startsWith('betterbudget.before-v16-from-v11-')),
       );
     });
   }
@@ -288,7 +288,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v15-from-v12-')),
+        contains(startsWith('betterbudget.before-v16-from-v12-')),
       );
     },
   );
@@ -341,7 +341,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v15-from-v13-')),
+      contains(startsWith('betterbudget.before-v16-from-v13-')),
     );
   });
 
@@ -380,7 +380,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v15-from-v10-')),
+      contains(startsWith('betterbudget.before-v16-from-v10-')),
     );
   });
 
@@ -414,7 +414,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v15-from-v9-')),
+        contains(startsWith('betterbudget.before-v16-from-v9-')),
       );
     },
   );
@@ -450,7 +450,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v15-from-v8-')),
+      contains(startsWith('betterbudget.before-v16-from-v8-')),
     );
   });
 
@@ -554,7 +554,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v15-from-v5-')),
+        contains(startsWith('betterbudget.before-v16-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});

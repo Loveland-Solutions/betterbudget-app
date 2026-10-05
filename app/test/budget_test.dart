@@ -399,6 +399,11 @@ void main() {
       int? payScheduleId,
       int daysAfterPay = 0,
       PayWeekend weekend = PayWeekend.keep,
+      List<int>? weekdays,
+      int? nth,
+      int? nthWeekday,
+      DateTime? endDate,
+      int? endCount,
     }) => CategoryPlan(
       categoryId: category,
       kind: kind,
@@ -411,6 +416,11 @@ void main() {
       payScheduleId: payScheduleId,
       daysAfterPay: daysAfterPay,
       weekend: weekend,
+      weekdays: weekdays,
+      nth: nth,
+      nthWeekday: nthWeekday,
+      endDate: endDate,
+      endCount: endCount,
       rollover: rollover,
       upTo: upTo,
     );
@@ -1071,6 +1081,107 @@ void main() {
       final feb = (start: DateTime(2027, 2, 1), end: DateTime(2027, 2, 28));
       final f = of(d, feb).lines[xmas]!;
       expect((f.plan!.due, f.plan!.each), (DateTime(2027, 4, 15), 13333400));
+    });
+
+    test('Custom…: every 2 weeks on Mondays and Thursdays', () {
+      // From Wednesday 09.16: that week's Thursday, then the week after
+      // next's Monday and Thursday.
+      final gym = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 9, 16),
+        everyDays: 14,
+        weekdays: [1, 4],
+      );
+      expect(
+        [for (var n = 0; n < 5; n++) Budget.dueAfter(gym, n)],
+        [
+          DateTime(2026, 9, 17),
+          DateTime(2026, 9, 28),
+          DateTime(2026, 10, 1),
+          DateTime(2026, 10, 12),
+          DateTime(2026, 10, 15),
+        ],
+      );
+    });
+
+    test('Custom…: the second Tuesday, and the last Friday, of the month', () {
+      // September's second Tuesday (09.08) is before 09.16: October's is
+      // the first.
+      final club = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 9, 16),
+        every: 1,
+        nth: 2,
+        nthWeekday: 2,
+      );
+      expect(Budget.dueAfter(club, 0), DateTime(2026, 10, 13));
+      expect(Budget.dueAfter(club, 1), DateTime(2026, 11, 10));
+      // September's last Friday is 09.25, still ahead; October's is 10.30.
+      final payroll = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 9, 16),
+        every: 1,
+        nth: -1,
+        nthWeekday: 5,
+      );
+      expect(Budget.dueAfter(payroll, 0), DateTime(2026, 9, 25));
+      expect(Budget.dueAfter(payroll, 1), DateTime(2026, 10, 30));
+      expect(Budget.dueAfter(payroll, 2), DateTime(2026, 11, 27));
+      // Every year on the last Friday of September.
+      final yearly = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 9, 16),
+        every: 12,
+        nth: -1,
+        nthWeekday: 5,
+      );
+      expect(Budget.dueAfter(yearly, 1), DateTime(2027, 9, 24));
+    });
+
+    test('Custom…: Ends after so many times, or on a date', () {
+      final threeTimes = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 10, 15),
+        every: 1,
+        endCount: 3,
+        start: DateTime(2026, 10, 1),
+      );
+      expect(Budget.lastDue(threeTimes), DateTime(2026, 12, 15));
+      expect(Budget.over(threeTimes, DateTime(2026, 12, 15)), isFalse);
+      expect(Budget.over(threeTimes, DateTime(2027, 1, 15)), isTrue);
+      final untilJan = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 10, 15),
+        every: 1,
+        endDate: DateTime(2027, 1, 20),
+        start: DateTime(2026, 10, 1),
+      );
+      expect(Budget.lastDue(untilJan), DateTime(2027, 1, 15));
+      // Past the last bill the line asks for nothing and says it ended.
+      final feb = (start: DateTime(2027, 2, 1), end: DateTime(2027, 2, 28));
+      final f = of(ledger(plans: [untilJan]), feb).lines[xmas]!.plan!;
+      expect(f.ended, isTrue);
+      expect(f.planned, 0);
+      expect(f.due, DateTime(2027, 1, 15));
+      // Before it, the bills count as ever.
+      final nov = (start: DateTime(2026, 11, 1), end: DateTime(2026, 11, 30));
+      final n = of(ledger(plans: [untilJan]), nov).lines[xmas]!.plan!;
+      expect(n.ended, isFalse);
+      expect(n.due, DateTime(2026, 11, 15));
+      // No end: it goes on.
+      expect(Budget.lastDue(plan(xmas, PlanKind.byDate, 1, due: DateTime(2026, 10, 15), every: 1)), isNull);
     });
 
     test('every payday: the pay schedule’s dates, days after if asked', () {

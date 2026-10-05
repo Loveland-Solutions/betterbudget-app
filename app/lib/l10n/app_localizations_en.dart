@@ -4108,10 +4108,71 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planEveryCustom => 'Every…';
+  String get planEveryCustom => 'Custom…';
 
   @override
-  String get planEveryWord => 'every';
+  String get planCustomOn => 'Custom';
+
+  @override
+  String get planRepeatEvery => 'Repeat every';
+
+  @override
+  String get planOnWeekdays => 'On';
+
+  @override
+  String get planWeekdaysHint =>
+      'Pick the days; with none picked, the date’s own weekday.';
+
+  @override
+  String get planOnLabel => 'On';
+
+  @override
+  String get planDayOfMonth => 'Day of the month';
+
+  @override
+  String get planAWeekday => 'A weekday';
+
+  @override
+  String get planNthFirst => 'first';
+
+  @override
+  String get planNthSecond => 'second';
+
+  @override
+  String get planNthThird => 'third';
+
+  @override
+  String get planNthFourth => 'fourth';
+
+  @override
+  String get planNthLast => 'last';
+
+  @override
+  String get planWeekdayNames =>
+      'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday';
+
+  @override
+  String get planEnds => 'Ends';
+
+  @override
+  String get planEndsNever => 'Never';
+
+  @override
+  String get planEndsOn => 'On a date';
+
+  @override
+  String get planEndsAfter => 'After';
+
+  @override
+  String get planEndsTimes => 'times';
+
+  @override
+  String get planEndDateHint => 'YYYY.MM.DD';
+
+  @override
+  String planEnded(String amount, String date) {
+    return '$amount · ended $date';
+  }
 
   @override
   String get planOnDates => 'On these dates…';

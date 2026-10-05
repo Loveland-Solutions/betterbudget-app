@@ -1880,7 +1880,9 @@ _PlanNote _planNote(
         t.planNoCarry,
     ],
     PlanKind.byDate => [
-      if (!once)
+      if (p.ended)
+        t.planEnded(money(p.plan.amount), date(due))
+      else if (!once)
         t.planDue(money(p.plan.amount), date(due))
       else if (p.done && due.isBefore(period.start))
         t.planWasDue(money(p.plan.amount), date(due))
@@ -2311,6 +2313,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   late final _everyN = TextEditingController(text: '1');
   late final _dates = TextEditingController();
   late final _daysAfter = TextEditingController();
+  late final _endDate = TextEditingController();
+  late final _endCount = TextEditingController(text: '12');
   final _nameFocus = FocusNode(debugLabel: 'category-name');
   final _amountFocus = FocusNode(debugLabel: 'plan-amount');
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
@@ -2319,6 +2323,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _repeatMenu = MenuController();
   final _unitMenu = MenuController();
   final _weekendMenu = MenuController();
+  final _nthMenu = MenuController();
+  final _nthWeekdayMenu = MenuController();
   final _accountsMenu = MenuController();
   final _currencyMenu = MenuController();
 
@@ -2329,6 +2335,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _repeatMenu,
       _unitMenu,
       _weekendMenu,
+      _nthMenu,
+      _nthWeekdayMenu,
       _accountsMenu,
       _currencyMenu,
     ]) {
@@ -2357,6 +2365,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   _Repeat _repeat = _Repeat.once;
   bool _custom = false;
   _Unit _unit = _Unit.months;
+
+  /// Custom… (owner, 2026-10-05, an Outlook-like block): every so many
+  /// weeks on these weekdays (Monday 1); every so many months or years on
+  /// the nth weekday instead of the day of the month; and when it ends.
+  final Set<int> _weekdays = {};
+  bool _nthOn = false;
+  int _nth = 1;
+  int _nthWeekday = 1;
+  _Ends _ends = _Ends.never;
   int? _payScheduleId;
   PayWeekend _weekend = PayWeekend.keep;
   bool _rollover = true;
@@ -2458,6 +2475,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _everyN.dispose();
     _dates.dispose();
     _daysAfter.dispose();
+    _endDate.dispose();
+    _endCount.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
     _dateFocus.dispose();
@@ -2502,6 +2521,27 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _unit = _Unit.months;
     }
     _everyN.text = '$n';
+    // Custom…'s own answers: any of them makes the repeat a custom one.
+    _weekdays
+      ..clear()
+      ..addAll(p?.weekdays ?? const []);
+    _nthOn = p?.nth != null;
+    _nth = p?.nth ?? 1;
+    _nthWeekday = p?.nthWeekday ?? 1;
+    _ends = p?.endCount != null
+        ? _Ends.count
+        : p?.endDate != null
+        ? _Ends.date
+        : _Ends.never;
+    _endDate.text = p?.endDate == null ? '' : fullDate(p!.endDate!);
+    _endCount.text = '${p?.endCount ?? 12}';
+    if (p != null &&
+        (p.weekdays != null ||
+            p.nth != null ||
+            p.endDate != null ||
+            p.endCount != null)) {
+      _custom = true;
+    }
     _rollover = p?.rollover ?? true;
     _upTo.text = _amountText(p?.upTo ?? 0);
     // A bill's account is the one account the category is paid from: a
@@ -2611,6 +2651,35 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     };
   }
 
+  /// Custom… is on: its block shows, and its answers count.
+  bool get _customOn => _repeat == _Repeat.every && _custom;
+
+  /// The weekdays picked, every so many weeks; null for the date's own.
+  List<int>? get _weekdaysNow =>
+      _customOn && _unit == _Unit.weeks && _weekdays.isNotEmpty
+      ? ([..._weekdays]..sort())
+      : null;
+
+  /// On the nth weekday of the month, every so many months or years.
+  bool get _nthNow =>
+      _customOn && (_unit == _Unit.months || _unit == _Unit.years) && _nthOn;
+
+  DateTime? get _typedEndDate {
+    final d = parseEntryDate(_endDate.text.trim(), widget.today);
+    if (d == null || d.year > widget.today.year + 100) return null;
+    return d;
+  }
+
+  int? get _typedEndCount => switch (int.tryParse(_endCount.text.trim())) {
+    final n? when n > 0 && n < 1000 => n,
+    _ => null,
+  };
+
+  DateTime? get _endDateNow =>
+      _customOn && _ends == _Ends.date ? _typedEndDate : null;
+  int? get _endCountNow =>
+      _customOn && _ends == _Ends.count ? _typedEndCount : null;
+
   /// The dates typed for "On these dates", as (month, day); null when
   /// one of them isn't a date.
   List<(int, int)>? get _typedDates {
@@ -2670,6 +2739,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           if (_typedEveryN == null) return null;
           due = _typedDate;
           if (due == null) return null;
+          if (_custom && _ends == _Ends.date && _typedEndDate == null) {
+            return null;
+          }
+          if (_custom && _ends == _Ends.count && _typedEndCount == null) {
+            return null;
+          }
         case _Repeat.once:
           due = _typedDate;
           if (due == null) return null;
@@ -2689,6 +2764,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       weekend: _dated && _repeat != _Repeat.once && payId == null
           ? _weekend
           : PayWeekend.keep,
+      weekdays: _dated ? _weekdaysNow : null,
+      nth: _dated && _nthNow ? _nth : null,
+      nthWeekday: _dated && _nthNow ? _nthWeekday : null,
+      endDate: _dated ? _endDateNow : null,
+      endCount: _dated ? _endCountNow : null,
       rollover: rollover,
       upTo: upTo,
       paidFrom: _paidFromNow,
@@ -2753,6 +2833,45 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     PayWeekend.after => t.planWeekendAfter,
   };
 
+  /// "first" … "fourth", or "last" (-1).
+  String _nthLabel(Words t, int n) => switch (n) {
+    1 => t.planNthFirst,
+    2 => t.planNthSecond,
+    3 => t.planNthThird,
+    4 => t.planNthFourth,
+    _ => t.planNthLast,
+  };
+
+  /// Monday (1) … Sunday (7), in full.
+  String _weekdayName(Words t, int wd) => t.planWeekdayNames.split('|')[wd - 1];
+
+  /// One weekday in Custom…'s row of them, lit when picked.
+  Widget _dayChip(
+    String label, {
+    required String key,
+    required bool on,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsets.only(right: 6),
+    child: Hoverable(
+      key: ValueKey(key),
+      onTap: onTap,
+      builder: (hover) => Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(label, style: onest(12.5, color: on ? Mid.ink : Mid.ink2)),
+      ),
+    ),
+  );
+
   /// "Every payday", or which pay when there's more than one.
   String _paydayLabel(Words t, PaySchedule s) {
     if (widget.data.paySchedules.length < 2) return t.planEveryPayday;
@@ -2763,6 +2882,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// What the How often button says.
   String _repeatLabel(Words t) => switch (_repeat) {
     _Repeat.once => t.planOnce,
+    // Custom… open: the block under it says the pattern.
+    _Repeat.every when _custom => t.planCustomOn,
     _Repeat.every => _everyLabel(t, _typedEveryN ?? 1, _unit),
     _Repeat.dates => t.planDatesAYear(_typedDates?.length ?? 0),
     _Repeat.payday => switch (widget.data.payScheduleById(_payScheduleId)) {
@@ -3051,40 +3172,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   ),
                 ],
               ),
-              if (_repeat == _Repeat.every && _custom) ...[
-                const SizedBox(width: 10),
-                Text(t.planEveryWord, style: onest(13, color: Mid.ink2)),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 56,
-                  height: 34,
-                  child: TextField(
-                    key: const ValueKey('plan-every-n'),
-                    controller: _everyN,
-                    textAlign: TextAlign.center,
-                    style: onest(13.5, tabular: true),
-                    onSubmitted: (_) => _save(),
-                    decoration: _fieldDecoration(
-                      wrong: _tried && _typedEveryN == null,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                menu(
-                  _unitMenu,
-                  key: 'plan-every-unit',
-                  label: _unitLabel(t, _unit),
-                  items: [
-                    for (final u in _Unit.values)
-                      item(
-                        'plan-every-unit-${u.name}',
-                        _unitLabel(t, u),
-                        on: u == _unit,
-                        onTap: () => setState(() => _unit = u),
-                      ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
@@ -3180,6 +3267,198 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
+        // Custom…: the pattern laid out like a calendar app's recurrence
+        // (owner, 2026-10-05), under the date it starts from: how many of
+        // which unit, the weekdays or the nth weekday when the unit has
+        // them, and when it ends.
+        if (_customOn) ...[
+          _formRow(
+            t.planRepeatEvery,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 34,
+                  child: TextField(
+                    key: const ValueKey('plan-every-n'),
+                    controller: _everyN,
+                    textAlign: TextAlign.center,
+                    style: onest(13.5, tabular: true),
+                    onSubmitted: (_) => _save(),
+                    decoration: _fieldDecoration(
+                      wrong: _tried && _typedEveryN == null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                menu(
+                  _unitMenu,
+                  key: 'plan-every-unit',
+                  label: _unitLabel(t, _unit),
+                  items: [
+                    for (final u in _Unit.values)
+                      item(
+                        'plan-every-unit-${u.name}',
+                        _unitLabel(t, u),
+                        on: u == _unit,
+                        onTap: () => setState(() => _unit = u),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (_unit == _Unit.weeks)
+            _formRow(
+              t.planOnWeekdays,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (i, initial)
+                      in t.rowsWeekdayInitials.split('|').indexed)
+                    _dayChip(
+                      initial,
+                      key: 'plan-weekday-${i + 1}',
+                      on: _weekdays.contains(i + 1),
+                      onTap: () => setState(
+                        () => _weekdays.contains(i + 1)
+                            ? _weekdays.remove(i + 1)
+                            : _weekdays.add(i + 1),
+                      ),
+                    ),
+                ],
+              ),
+              aside: _weekdays.isEmpty ? t.planWeekdaysHint : null,
+            ),
+          if (_unit == _Unit.months || _unit == _Unit.years)
+            _formRow(
+              t.planOnLabel,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Segmented(
+                    items: [
+                      (
+                        'plan-nth-off',
+                        t.planDayOfMonth,
+                        !_nthOn,
+                        () => setState(() => _nthOn = false),
+                      ),
+                      (
+                        'plan-nth-on',
+                        t.planAWeekday,
+                        _nthOn,
+                        () => setState(() {
+                          _nthOn = true;
+                          // Start from the date typed: its weekday, and
+                          // which one of the month it is.
+                          if (_typedDate case final d?) {
+                            _nthWeekday = d.weekday;
+                            _nth = (d.day - 1) ~/ 7 + 1;
+                            if (_nth > 4) _nth = -1;
+                          }
+                        }),
+                      ),
+                    ],
+                  ),
+                  if (_nthOn) ...[
+                    const SizedBox(width: 8),
+                    menu(
+                      _nthMenu,
+                      key: 'plan-nth',
+                      label: _nthLabel(t, _nth),
+                      items: [
+                        for (final n in const [1, 2, 3, 4, -1])
+                          item(
+                            'plan-nth-$n',
+                            _nthLabel(t, n),
+                            on: n == _nth,
+                            onTap: () => setState(() => _nth = n),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    menu(
+                      _nthWeekdayMenu,
+                      key: 'plan-nth-weekday',
+                      label: _weekdayName(t, _nthWeekday),
+                      items: [
+                        for (var wd = 1; wd <= 7; wd++)
+                          item(
+                            'plan-nth-weekday-$wd',
+                            _weekdayName(t, wd),
+                            on: wd == _nthWeekday,
+                            onTap: () => setState(() => _nthWeekday = wd),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          _formRow(
+            t.planEnds,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Segmented(
+                  items: [
+                    for (final (e, label) in [
+                      (_Ends.never, t.planEndsNever),
+                      (_Ends.date, t.planEndsOn),
+                      (_Ends.count, t.planEndsAfter),
+                    ])
+                      (
+                        'plan-ends-${e.name}',
+                        label,
+                        _ends == e,
+                        () => setState(() => _ends = e),
+                      ),
+                  ],
+                ),
+                if (_ends == _Ends.date) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 130,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('plan-end-date'),
+                      controller: _endDate,
+                      style: onest(13.5, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      decoration: _fieldDecoration(
+                        wrong: _tried && _typedEndDate == null,
+                      ).copyWith(
+                        hintText: t.planEndDateHint,
+                        hintStyle: onest(13.5, color: Mid.ink3),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_ends == _Ends.count) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 56,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('plan-end-count'),
+                      controller: _endCount,
+                      textAlign: TextAlign.center,
+                      style: onest(13.5, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      decoration: _fieldDecoration(
+                        wrong: _tried && _typedEndCount == null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(t.planEndsTimes, style: onest(13, color: Mid.ink2)),
+                ],
+              ],
+            ),
+          ),
+        ],
         _accountsRow(
           t,
           aside: paidAccount == null || dueText == null
@@ -3347,6 +3626,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         _everyN,
         _dates,
         _daysAfter,
+        _endDate,
+        _endCount,
       ]),
       builder: (context, _) {
         final draft = _draft;
@@ -3772,6 +4053,9 @@ class _Segmented extends StatelessWidget {
 
 /// How a dated plan comes again, as the panel asks it.
 enum _Repeat { once, every, dates, payday }
+
+/// Custom…: when a repeating plan stops.
+enum _Ends { never, date, count }
 
 /// The unit after "Every": days, weeks, months or years.
 enum _Unit { days, weeks, months, years }

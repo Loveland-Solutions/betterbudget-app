@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
-import 'package:betterbudget/domain/budget.dart' show BudgetKeys;
+import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
@@ -2943,6 +2943,105 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('Custom…: the second Tuesday of the month, three times', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      final clothing = data.categories
+          .firstWhere((c) => c.name == 'Clothing')
+          .id;
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> pick(String key) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      await editCategory(tester, 'Clothing');
+      await pick('plan-dated-yes');
+      await type('plan-amount', '300000');
+      await type('plan-date', '2026.10.15');
+      // Custom… opens the block: every 1 month, on a weekday, ends after
+      // 3 times.
+      await pick('plan-repeat');
+      await pick('plan-repeat-custom');
+      expect(find.byKey(const ValueKey('plan-every-n')), findsOneWidget);
+      expect(find.text('Day of the month'), findsOneWidget);
+      // Picking A weekday starts from the date: 10.15 is the third
+      // Thursday.
+      await pick('plan-nth-on');
+      expect(find.text('third'), findsOneWidget);
+      expect(find.text('Thursday'), findsOneWidget);
+      await pick('plan-nth');
+      await pick('plan-nth-2');
+      await pick('plan-nth-weekday');
+      await pick('plan-nth-weekday-2');
+      await pick('plan-ends-count');
+      await type('plan-end-count', '3');
+      // The whole panel in the picture, from its heading.
+      await tester.ensureVisible(find.byKey(const ValueKey('edit-name')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plan_custom.png'),
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('edit-save')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await reload();
+      final plan = data.plans[clothing]!;
+      expect((plan.everyMonths, plan.nth, plan.nthWeekday), (1, 2, 2));
+      expect(plan.endCount, 3);
+      // October's second Tuesday (10.13) is before 10.15: the bills are
+      // November's, December's and January's, then no more.
+      expect(Budget.dueAfter(plan, 0), DateTime(2026, 11, 10));
+      expect(Budget.lastDue(plan), DateTime(2027, 1, 12));
+      // Opened again, the block shows what was saved.
+      await editCategory(tester, 'Clothing');
+      expect(find.text('second'), findsOneWidget);
+      expect(find.text('Tuesday'), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-end-count')), findsOneWidget);
+      // Every 2 weeks on Monday and Thursday instead.
+      await pick('plan-every-unit');
+      await pick('plan-every-unit-weeks');
+      await type('plan-every-n', '2');
+      await pick('plan-weekday-1');
+      await pick('plan-weekday-4');
+      await pick('plan-ends-never');
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('edit-save')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await reload();
+      final weekly = data.plans[clothing]!;
+      expect(weekly.everyDays, 14);
+      expect(weekly.weekdays, [1, 4]);
+      expect(weekly.endCount, isNull);
+      expect(Budget.dueAfter(weekly, 0), DateTime(2026, 10, 15));
+      expect(Budget.dueAfter(weekly, 1), DateTime(2026, 10, 26));
+      await tidy(tester, db);
+    });
+
     testWidgets('a plan paid from an account schedules its bill; a cap; ⌘Z', (
       tester,
     ) async {
@@ -2977,6 +3076,9 @@ void main() {
       }
 
       Future<void> save() async {
+        // The panel can have grown past the window's edge (Custom…).
+        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
           await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -3020,7 +3122,7 @@ void main() {
       await type('plan-every-n', '6');
       await pick('plan-every-unit');
       await pick('plan-every-unit-months');
-      expect(find.text('Every 6 months'), findsOneWidget);
+      expect(find.text('Custom'), findsOneWidget);
       await save();
       await reload();
       expect(data.plans[tuition]!.everyMonths, 6);
