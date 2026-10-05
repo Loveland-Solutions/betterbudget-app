@@ -1489,6 +1489,45 @@
       }
     }
   },
+  "planRunsOutBy": "Runs out on {date} · {amount} short",
+  "@planRunsOutBy": {
+    "description": "Sidebar, tooltip on the coral dot beside an account: the day its balance first goes below zero and how far below it is that day",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planExpected": "expected",
+  "@planExpected": {
+    "description": "Account header, the forecast's bill list: after a payday or bill the app expects from the pay plan or a category's plan past the scheduled one (not a row yet)",
+    "placeholders": {}
+  },
+  "planOfThemExpected": "{count} of them expected",
+  "@planOfThemExpected": {
+    "description": "Account header, forecast panel: after the bill count under the headline when some bills are the app's expectation past the scheduled rows (4 bills · ₮X through 12.15 · 2 of them expected)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planPaidFromSeveral": "Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.",
+  "@planPaidFromSeveral": {
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planPaidFromNoneChecked": "No account is checked, so this bill isn’t in any forecast.",
+  "@planPaidFromNoneChecked": {
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked"
+  },
   "planRunsOutZero": "Runs out on {date}",
   "@planRunsOutZero": {
     "description": "Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip",
@@ -1498,9 +1537,9 @@
       }
     }
   },
-  "planShortAhead": "Past {end}: runs out on {date} · up to {amount} short",
+  "planShortAhead": "After {end}: runs out on {date} · {amount} short",
   "@planShortAhead": {
-    "description": "Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day); a click looks that far",
+    "description": "Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day; {amount} is how far below zero it is that day); a click looks that far",
     "placeholders": {
       "end": {
         "type": "String"
@@ -1513,7 +1552,7 @@
       }
     }
   },
-  "planShortAheadZero": "Past {end}: runs out on {date}",
+  "planShortAheadZero": "After {end}: runs out on {date}",
   "@planShortAheadZero": {
     "description": "Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches",
     "placeholders": {

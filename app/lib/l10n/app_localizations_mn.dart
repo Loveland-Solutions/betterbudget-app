@@ -1000,13 +1000,35 @@ class WordsMn extends Words {
   }
 
   @override
+  String planRunsOutBy(String date, String amount) {
+    return 'Мөнгө дуусах өдөр: $date · $amount дутна';
+  }
+
+  @override
+  String get planExpected => 'хүлээгдэж буй';
+
+  @override
+  String planOfThemExpected(int count) {
+    return '$count нь хүлээгдэж буй';
+  }
+
+  @override
+  String planPaidFromSeveral(int count) {
+    return '$count данс сонгоотой тул энэ төлбөр ямар ч таамаглалд харагдахгүй. Нэг данс үлдээвэл тэнд харагдана.';
+  }
+
+  @override
+  String get planPaidFromNoneChecked =>
+      'Ямар ч данс сонгоогүй тул энэ төлбөр ямар ч таамаглалд харагдахгүй.';
+
+  @override
   String planRunsOutZero(String date) {
     return 'Мөнгө дуусах өдөр: $date';
   }
 
   @override
   String planShortAhead(String end, String date, String amount) {
-    return '$end-с хойш: $date-нд мөнгө дуусна · $amount хүртэл дутна';
+    return '$end-с хойш: $date-нд мөнгө дуусна · $amount дутна';
   }
 
   @override

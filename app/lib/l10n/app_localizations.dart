@@ -1464,22 +1464,52 @@ abstract class Words {
   /// **'Runs out on {date} · up to {amount} short'**
   String planRunsOut(String date, String amount);
 
+  /// Sidebar, tooltip on the coral dot beside an account: the day its balance first goes below zero and how far below it is that day
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out on {date} · {amount} short'**
+  String planRunsOutBy(String date, String amount);
+
+  /// Account header, the forecast's bill list: after a payday or bill the app expects from the pay plan or a category's plan past the scheduled one (not a row yet)
+  ///
+  /// In en, this message translates to:
+  /// **'expected'**
+  String get planExpected;
+
+  /// Account header, forecast panel: after the bill count under the headline when some bills are the app's expectation past the scheduled rows (4 bills · ₮X through 12.15 · 2 of them expected)
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of them expected'**
+  String planOfThemExpected(int count);
+
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.'**
+  String planPaidFromSeveral(int count);
+
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked
+  ///
+  /// In en, this message translates to:
+  /// **'No account is checked, so this bill isn’t in any forecast.'**
+  String get planPaidFromNoneChecked;
+
   /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
   ///
   /// In en, this message translates to:
   /// **'Runs out on {date}'**
   String planRunsOutZero(String date);
 
-  /// Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day); a click looks that far
+  /// Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day; {amount} is how far below zero it is that day); a click looks that far
   ///
   /// In en, this message translates to:
-  /// **'Past {end}: runs out on {date} · up to {amount} short'**
+  /// **'After {end}: runs out on {date} · {amount} short'**
   String planShortAhead(String end, String date, String amount);
 
   /// Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches
   ///
   /// In en, this message translates to:
-  /// **'Past {end}: runs out on {date}'**
+  /// **'After {end}: runs out on {date}'**
   String planShortAheadZero(String end, String date);
 
   /// Account header, forecast panel: tooltip on the coral line above the Forecast title; clicking it widens the forecast's span to include that day

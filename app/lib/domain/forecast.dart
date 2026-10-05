@@ -66,7 +66,7 @@ List<RegisterRow> projectScheduled(
       d = pay.nextAfter(d);
       if (d.isAfter(until)) break;
       if (!d.isAfter(r.date)) continue;
-      out.add(r.copyWith(date: d, amount: pay.amountOn(d)));
+      out.add(r.copyWith(date: d, amount: pay.amountOn(d), projected: true));
     }
   }
   for (final MapEntry(key: id, value: r) in bills.entries) {
@@ -74,11 +74,12 @@ List<RegisterRow> projectScheduled(
     if (plan == null || !plan.repeats) continue;
     final pay = payById(plan.payScheduleId);
     if (plan.payScheduleId != null && pay == null) continue;
+    final last = Budget.lastDue(plan, pay: pay);
     for (var n = 0; n < atMost; n++) {
       final d = Budget.dueAfter(plan, n, pay: pay);
-      if (d.isAfter(until) || Budget.over(plan, d, pay: pay)) break;
+      if (d.isAfter(until) || (last != null && d.isAfter(last))) break;
       if (!d.isAfter(r.date)) continue;
-      out.add(r.copyWith(date: d));
+      out.add(r.copyWith(date: d, projected: true));
     }
   }
   return out;
@@ -106,6 +107,8 @@ class Forecast {
     required this.lowDate,
     this.fixedEnd = false,
     required this.firstShort,
+    this.firstShortBalance = 0,
+    this.expectedBills = 0,
     required this.billTotal,
     required this.billCount,
     required this.inTotal,
@@ -156,6 +159,13 @@ class Forecast {
   /// First day the balance is below zero, if it is before [end]. Today when
   /// the account is already under. Never set on a credit account.
   final DateTime? firstShort;
+
+  /// The balance that day: what it would take to stay above zero there
+  /// (the first dip, not the lowest point).
+  final int firstShortBalance;
+
+  /// How many of the bills are expected (projected), not scheduled rows.
+  final int expectedBills;
 
   /// Money going out before [end], and how many rows.
   final int billTotal;
@@ -287,6 +297,7 @@ Forecast buildForecast({
   // On a card, balances are shown as what's owed.
   int shown(int v) => owed ? -v : v;
   var bal = working, billTotal = 0, billCount = 0, inTotal = 0;
+  var expectedBills = 0, firstShortBalance = !owed && working < 0 ? working : 0;
   var low = shown(working);
   var lowDate = start;
   DateTime? firstShort = !owed && working < 0 ? start : null;
@@ -297,6 +308,7 @@ Forecast buildForecast({
     if (r.amount < 0) {
       billTotal -= r.amount;
       billCount++;
+      if (r.projected) expectedBills++;
     } else if (!identical(r, payday)) {
       inTotal += r.amount;
     }
@@ -307,7 +319,10 @@ Forecast buildForecast({
       lowDate = when(r);
     }
     // To zero or below (owner, 2026-10-05): nothing left is already short.
-    if (!owed && bal <= 0 && firstShort == null) firstShort = when(r);
+    if (!owed && bal <= 0 && firstShort == null) {
+      firstShort = when(r);
+      firstShortBalance = bal;
+    }
   }
 
   return Forecast(
@@ -319,6 +334,8 @@ Forecast buildForecast({
     low: low,
     lowDate: lowDate,
     firstShort: firstShort,
+    firstShortBalance: firstShortBalance,
+    expectedBills: expectedBills,
     billTotal: billTotal,
     billCount: billCount,
     inTotal: inTotal,

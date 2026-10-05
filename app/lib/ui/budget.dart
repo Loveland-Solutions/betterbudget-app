@@ -189,12 +189,9 @@ class _BudgetPageState extends State<_BudgetPage> {
             label: t.planIncomeTab,
             active: _tab == _BudgetTab.income,
             dot: _payNote(t, data).nudge,
-            onTap: () => setState(() {
-              _tab = _BudgetTab.income;
-              _editing = null;
-              _open = null;
-              _adding = false;
-            }),
+            // The Spending list stays mounted under Income, so an Edit
+            // open there keeps what was typed (code review, 2026-10-05).
+            onTap: () => setState(() => _tab = _BudgetTab.income),
           ),
           const Spacer(),
           if (_tab == _BudgetTab.spending) ...[
@@ -560,8 +557,12 @@ class _BudgetPageState extends State<_BudgetPage> {
                           : () => widget.onShowRows(income, period),
                       onPay: widget.onPay,
                       onAskAgain: widget.onAskAgain,
-                    )
-                  else ...[
+                    ),
+                  Offstage(
+                    offstage: _tab == _BudgetTab.income,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                   if (_adding)
                     _NewCategory(
                       // A category just made opens in Edit under its row,
@@ -639,7 +640,9 @@ class _BudgetPageState extends State<_BudgetPage> {
                           ),
                         ),
                   ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -745,7 +748,8 @@ class _IncomeTab extends StatelessWidget {
         if (fromPay[c] case final pay? when pay > 0)
           t.planIncomeFromPay(
             formatShort(pay, currency: c),
-            formatShort(total - pay, currency: c),
+            // A payday row re-filed since still carries its schedule.
+            formatShort(total > pay ? total - pay : 0, currency: c),
           ),
     ];
     return Column(
@@ -828,7 +832,15 @@ class _IncomeTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            p.payee ?? t.ledgerIncome,
+                            // Two pays with no payer: told apart by the
+                            // account (budget review, 2026-10-05).
+                            p.payee ??
+                                (pays.length > 1
+                                    ? t.setupCategoryInto(
+                                        t.ledgerIncome,
+                                        name(p.accountId),
+                                      )
+                                    : t.ledgerIncome),
                             style: onest(14.5, weight: 600),
                           ),
                           const SizedBox(height: 2),
@@ -2387,7 +2399,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       widget.data,
       _currency,
     ).where((a) => !_off.contains(a.id)).toList();
-    return used.length == 1 ? used.single.id : null;
+    if (used.length == 1) return used.single.id;
+    // A plan saved with an account (before this row, or one since
+    // archived) keeps it while the checks aren't touched: nothing is
+    // rewritten behind the user's back (code review, 2026-10-05).
+    final saved = _plan?.paidFrom;
+    if (saved != null && !_off.contains(saved) && setEquals(_off, _savedOff)) {
+      return saved;
+    }
+    return null;
   }
 
   /// Save was tried with something missing: say which.
@@ -2535,23 +2555,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         : _Ends.never;
     _endDate.text = p?.endDate == null ? '' : fullDate(p!.endDate!);
     _endCount.text = '${p?.endCount ?? 12}';
-    if (p != null &&
-        (p.weekdays != null ||
-            p.nth != null ||
-            p.endDate != null ||
-            p.endCount != null)) {
-      _custom = true;
-    }
+    // A pattern makes it Custom…; an end alone doesn't, since Ends shows
+    // under every repeat.
+    if (p != null && (p.weekdays != null || p.nth != null)) _custom = true;
     _rollover = p?.rollover ?? true;
     _upTo.text = _amountText(p?.upTo ?? 0);
-    // A bill's account is the one account the category is paid from: a
-    // plan saved with one narrows the list to it.
-    if (p?.paidFrom case final id?) {
-      _off = {
-        for (final a in _moneyAccounts(widget.data, _currency))
-          if (a.id != id) a.id,
-      };
-    }
   }
 
   void _pickDated(bool yes) {
@@ -2675,10 +2683,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _ => null,
   };
 
+  /// Ends applies to any repeat typed as every so many (a preset or
+  /// Custom…): "Every month, 12 times" is an installment plan (budget
+  /// review, 2026-10-05).
+  bool get _endsOn => _repeat == _Repeat.every;
   DateTime? get _endDateNow =>
-      _customOn && _ends == _Ends.date ? _typedEndDate : null;
+      _endsOn && _ends == _Ends.date ? _typedEndDate : null;
   int? get _endCountNow =>
-      _customOn && _ends == _Ends.count ? _typedEndCount : null;
+      _endsOn && _ends == _Ends.count ? _typedEndCount : null;
 
   /// The dates typed for "On these dates", as (month, day); null when
   /// one of them isn't a date.
@@ -2739,12 +2751,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           if (_typedEveryN == null) return null;
           due = _typedDate;
           if (due == null) return null;
-          if (_custom && _ends == _Ends.date && _typedEndDate == null) {
-            return null;
-          }
-          if (_custom && _ends == _Ends.count && _typedEndCount == null) {
-            return null;
-          }
+          if (_ends == _Ends.date && _typedEndDate == null) return null;
+          if (_ends == _Ends.count && _typedEndCount == null) return null;
         case _Repeat.once:
           due = _typedDate;
           if (due == null) return null;
@@ -2761,7 +2769,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       onDates: dates,
       payScheduleId: payId,
       daysAfterPay: payId == null ? 0 : _daysAfterNow,
-      weekend: _dated && _repeat != _Repeat.once && payId == null
+      // Chosen weekdays are the days; a weekend rule would move a
+      // Saturday onto Friday's bill (code review).
+      weekend:
+          _dated &&
+              _repeat != _Repeat.once &&
+              payId == null &&
+              _weekdaysNow == null
           ? _weekend
           : PayWeekend.keep,
       weekdays: _dated ? _weekdaysNow : null,
@@ -3246,8 +3260,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       onPicked: () {},
                     ),
                   ),
-                // A weekend rule, for dates that can land on one.
-                if (_repeat != _Repeat.once) ...[
+                // A weekend rule, for dates that can land on one (not
+                // chosen weekdays: those are the days).
+                if (_repeat != _Repeat.once && _weekdaysNow == null) ...[
                   const SizedBox(width: 10),
                   menu(
                     _weekendMenu,
@@ -3397,6 +3412,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 ],
               ),
             ),
+        ],
+        if (_endsOn)
           _formRow(
             t.planEnds,
             Row(
@@ -3458,12 +3475,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
-        ],
         _accountsRow(
           t,
-          aside: paidAccount == null || dueText == null
-              ? t.planPaidFromHintNone
-              : t.planPaidFromHint(paidAccount.name, dueText),
+          // Warn, don't block: with several checked the bill is in no
+          // forecast, said with the count (budget review, 2026-10-05).
+          aside: paidAccount != null && dueText != null
+              ? t.planPaidFromHint(paidAccount.name, dueText)
+              : switch (_moneyAccounts(
+                  data,
+                  _currency,
+                ).where((a) => !_off.contains(a.id)).length) {
+                  0 => t.planPaidFromNoneChecked,
+                  1 => t.planPaidFromHintNone,
+                  final n => t.planPaidFromSeveral(n),
+                },
         ),
         _formRow(
           eachLabel,
@@ -3716,6 +3741,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
         // Opened low in the list, or grown by a choice, Save would be
         // under the window's edge.
+        // The repeat rows grow it too: Custom…, its unit, Ends.
         final shape = Object.hash(
           _hasDate,
           _kindNow,
@@ -3724,6 +3750,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           returns != null,
           rest != null,
           loses,
+          _repeat,
+          _customOn,
+          _unit,
+          _endsOn,
+          _ends,
+          _nthOn,
         );
         if (shape != _shape) {
           _shape = shape;

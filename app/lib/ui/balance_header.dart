@@ -705,7 +705,15 @@ class ForecastPanel extends StatelessWidget {
           if (f.steps.isEmpty)
             Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
           else
-            _BillsLink(label: detail, f: f, onOpen: onOpen),
+            _BillsLink(
+              // Looking further than the scheduled rows: how many of the
+              // bills are the app's expectation, not rows yet.
+              label: f.expectedBills > 0
+                  ? '$detail · ${t.planOfThemExpected(f.expectedBills)}'
+                  : detail,
+              f: f,
+              onOpen: onOpen,
+            ),
           const SizedBox(height: 14),
           Expanded(
             child: ConstrainedBox(
@@ -1184,6 +1192,14 @@ class _BillLineState extends State<_BillLine> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // Not a row yet: what the pay plan or the category's
+                    // plan expects after the scheduled one.
+                    if (r.projected)
+                      Text(
+                        ' · ${context.t.planExpected}',
+                        style: onest(12.5, color: Mid.ink3),
+                        maxLines: 1,
+                      ),
                     // Past due and counted as today: a transfer not made yet,
                     // or a bill not confirmed.
                     if (overdue != null)

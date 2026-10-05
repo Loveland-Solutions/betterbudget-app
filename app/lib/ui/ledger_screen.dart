@@ -716,15 +716,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _keysBack();
   }
 
-  /// Looking a year of paychecks ahead, whatever span is on screen: the
-  /// day an account's balance first goes to zero or below, and how low,
-  /// or null when it doesn't (or is below zero already, which its balance
-  /// says).
+  /// The day an account's balance first goes to zero or below, and the
+  /// balance that day, or null when it doesn't (or is below zero already,
+  /// which its balance says). An account pay goes into is looked at a
+  /// year of paychecks ahead, whatever span is on screen (the owner's
+  /// "paychecks tracked for that account"); any other account only as far
+  /// as its forecast shows, since nothing feeds it there but transfers
+  /// (budget review, 2026-10-05).
   ({DateTime date, int low})? _shortAhead(LedgerData data, AccountInfo a) {
     if (a.isOwed) return null;
-    final f = _forecastFor(data, a, span: ForecastSpan.year);
+    final paidInto = data.paySchedules.any((p) => p.accountId == a.id);
+    final f = paidInto
+        ? _forecastFor(data, a, span: ForecastSpan.year)
+        : _forecastFor(data, a);
     if (!f.isShort || f.shortNow) return null;
-    return (date: f.firstShort!, low: f.low);
+    return (date: f.firstShort!, low: f.firstShortBalance);
   }
 
   /// Accounts whose balance goes to zero or below within a year of
@@ -733,18 +739,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// request, 2026-10-05). One already below zero shows its balance in
   /// coral there instead.
   Map<int, String> _runsOut(LedgerData data) {
+    // Worked out once per ledger snapshot (and language), not on every
+    // hover or keystroke: it's a year's projection per account.
     final t = context.t;
-    return {
+    if (identical(_runsOutFor, data) && _runsOutWords == t) {
+      return _runsOutCache;
+    }
+    _runsOutFor = data;
+    _runsOutWords = t;
+    return _runsOutCache = {
       for (final a in data.openAccounts)
         if (_shortAhead(data, a) case final s?)
           a.id: s.low == 0
               ? t.planRunsOutZero(sayDate(t, s.date))
-              : t.planRunsOut(
+              : t.planRunsOutBy(
                   sayDate(t, s.date),
                   roundedIn(context, s.low.abs()),
                 ),
     };
   }
+
+  LedgerData? _runsOutFor;
+  Words? _runsOutWords;
+  Map<int, String> _runsOutCache = const {};
 
   ({DateTime date, int amount})? _paydayAfter(
     LedgerData data,

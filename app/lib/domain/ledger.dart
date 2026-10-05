@@ -211,7 +211,12 @@ class RegisterRow {
     this.currency = Currency.mnt,
     this.otherAmount,
     this.otherCurrency,
+    this.projected = false,
   });
+
+  /// Not a row in the ledger: a payday or a plan's bill the forecast
+  /// expects after the scheduled one, drawn from it ([copyWith]).
+  final bool projected;
 
   /// What [amount] and the balances are in: the account's currency.
   final Currency currency;
@@ -343,7 +348,8 @@ class RegisterRow {
 
   /// The same row on another day, or for another amount: a payday or a
   /// plan's bill the forecast projects past the one that's scheduled.
-  RegisterRow copyWith({DateTime? date, int? amount}) => RegisterRow(
+  RegisterRow copyWith({DateTime? date, int? amount, bool? projected}) =>
+      RegisterRow(
     txnId: txnId,
     entryId: entryId,
     date: date ?? this.date,
@@ -374,6 +380,7 @@ class RegisterRow {
     currency: currency,
     otherAmount: otherAmount,
     otherCurrency: otherCurrency,
+    projected: projected ?? this.projected,
   );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(

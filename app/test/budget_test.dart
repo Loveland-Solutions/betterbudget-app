@@ -1146,6 +1146,22 @@ void main() {
       expect(Budget.dueAfter(yearly, 1), DateTime(2027, 9, 24));
     });
 
+    test('Custom…: an ended plan asks for no bill past its end', () {
+      // Every week from 10.07, twice: October holds two bills, not four.
+      final twice = plan(
+        xmas,
+        PlanKind.byDate,
+        1000000,
+        due: DateTime(2026, 10, 7),
+        everyDays: 7,
+        endCount: 2,
+        start: DateTime(2026, 10, 1),
+      );
+      final o = of(ledger(plans: [twice]), oct).lines[xmas]!.plan!;
+      expect(o.planned, 2000000);
+      expect(o.ended, isFalse);
+    });
+
     test('Custom…: Ends after so many times, or on a date', () {
       final threeTimes = plan(
         xmas,

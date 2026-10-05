@@ -2256,8 +2256,10 @@ void main() {
           (w.key as ValueKey<String>).value.startsWith('runs-out-'),
     );
     expect(short, findsOneWidget);
+    // The dot names the first dip, what it would take to stay above zero
+    // that day; the headline keeps the lowest point.
     expect(
-      find.byTooltip('Runs out on 09.30 · up to ₮707,750 short'),
+      find.byTooltip('Runs out on 09.30 · ₮357,750 short'),
       findsOneWidget,
     );
     // The entry row stays open with a blinking cursor; hold it steady so the
@@ -2277,44 +2279,57 @@ void main() {
     tester,
   ) async {
     final db = await pumpLedger(tester);
-    // A bill on 11.20, past the pay period the forecast shows (to 10.10),
-    // bigger than what's left after the 10.10 salary.
+    // Pay on the 10th into TDB Checking (it takes over the demo's salary
+    // typed for 10.10), so the account is looked at a year of paychecks
+    // ahead; and a bill on 11.20, past the pay period the forecast shows
+    // (to the 11.10 paycheck), bigger than what's there by then.
     await tester.runAsync(() async {
       final ledger = await db.loadLedger();
+      final checking = ledger.openAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await db.savePaySchedule(
+        accountId: checking,
+        amount: 250000000,
+        rule: PayRule.monthly,
+        day1: 10,
+        today: DateTime(2026, 9, 16),
+      );
       await db.postSimple(
-        accountId: ledger.openAccounts
-            .firstWhere((a) => a.name == 'TDB Checking')
-            .id,
+        accountId: checking,
         date: DateTime(2026, 11, 20),
         today: DateTime(2026, 9, 16),
         payee: 'МУИС',
         counterAccountId: ledger.categories
             .firstWhere((c) => c.name == 'Tuition')
             .id,
-        amount: -500000000,
+        amount: -800000000,
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
     // The headline is calm; the line above the title isn't, and the
-    // sidebar's dot agrees.
+    // sidebar's dot agrees. Both name the first dip: what it would take
+    // to stay above zero that day.
+    expect(find.text('Until your 11.10 paycheck'), findsOneWidget);
     expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
     expect(
-      find.text('Past 10.10: runs out on 11.20 · up to ₮1,107,750 short'),
+      find.text('After 11.10: runs out on 11.20 · ₮1,607,750 short'),
       findsOneWidget,
     );
     expect(
-      find.byTooltip('Runs out on 11.20 · up to ₮1,107,750 short'),
+      find.byTooltip('Runs out on 11.20 · ₮1,607,750 short'),
       findsOneWidget,
     );
-    // A click looks that far: 90 days reaches 11.20, 60 don't.
+    // A click looks that far: 90 days reaches 11.20, 60 don't. The
+    // December paycheck is expected, not a row.
     await tapAndWait(
       tester,
       find.byKey(const ValueKey('forecast-short-ahead')),
     );
     expect(find.text('Next 90 days'), findsOneWidget);
     expect(
-      find.text('Runs out on 11.20 · up to ₮1,107,750 short'),
+      find.text('Runs out on 11.20 · up to ₮1,607,750 short'),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('forecast-short-ahead')), findsNothing);
@@ -3102,7 +3117,7 @@ void main() {
       // One control for the accounts: left checked alone, TDB Checking is
       // where the bill is scheduled.
       expect(
-        find.text('Leave one account checked and the bill shows in its forecast.'),
+        find.textContaining('accounts, so this bill isn’t in any forecast'),
         findsOneWidget,
       );
       await pick('money-accounts');

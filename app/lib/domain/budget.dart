@@ -1025,7 +1025,9 @@ class Budget {
     // a payday that a weekend moved): each is wanted whole.
     if (repeats) {
       var more = 0;
-      while (!dueOf(n + more + 1).isAfter(p.end) && more < _mostPeriods) {
+      while (!dueOf(n + more + 1).isAfter(p.end) &&
+          !over(plan, dueOf(n + more + 1), pay: pay) &&
+          more < _mostPeriods) {
         more++;
       }
       each += bill * more;

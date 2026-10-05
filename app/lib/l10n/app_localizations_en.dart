@@ -1038,18 +1038,40 @@ class WordsEn extends Words {
   }
 
   @override
+  String planRunsOutBy(String date, String amount) {
+    return 'Runs out on $date · $amount short';
+  }
+
+  @override
+  String get planExpected => 'expected';
+
+  @override
+  String planOfThemExpected(int count) {
+    return '$count of them expected';
+  }
+
+  @override
+  String planPaidFromSeveral(int count) {
+    return 'Checked in $count accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.';
+  }
+
+  @override
+  String get planPaidFromNoneChecked =>
+      'No account is checked, so this bill isn’t in any forecast.';
+
+  @override
   String planRunsOutZero(String date) {
     return 'Runs out on $date';
   }
 
   @override
   String planShortAhead(String end, String date, String amount) {
-    return 'Past $end: runs out on $date · up to $amount short';
+    return 'After $end: runs out on $date · $amount short';
   }
 
   @override
   String planShortAheadZero(String end, String date) {
-    return 'Past $end: runs out on $date';
+    return 'After $end: runs out on $date';
   }
 
   @override

@@ -1524,10 +1524,12 @@ branch, the last three after the owner's calls the same day.
   dropdown of checkboxes over the accounts in the category's currency, all
   checked to begin with (rule 28's meaning and warnings stand). For a dated
   plan **the bill is scheduled in the one account left checked**; with
-  several checked, or none, the note beside it reads "Leave one account
-  checked and the bill shows in its forecast" and nothing is scheduled.
-  Opening a plan saved with a Paid from account shows that account alone
-  checked. Rejected: two controls with clearer labels (the labels weren't
+  several checked, or none, the note beside it says so with the count
+  (below) and nothing is scheduled. A plan saved with a Paid from account
+  (before this row, or one since archived) keeps that account while the
+  checks aren't touched, and the note names it; changing the checks is
+  what moves the bill. Rejected: two controls with clearer labels (the
+  labels weren't
   the problem), and a single-pick dropdown in the dated form only (an
   emergency fund kept in one savings account has no date and still needs
   the row).
@@ -1617,6 +1619,48 @@ branch, the last three after the owner's calls the same day.
   Outlook's full dialog as a popup (B), and only an Ends field added to
   the row (C). Not taken from Outlook: "every weekday", and a separate
   start date (the Due date is the start).
+
+**From the reviews (2026-10-05, decided along the lines above):**
+
+- **The year's look-ahead is only for accounts pay goes into** (the
+  owner's "paychecks tracked for that account"). Any other account, fed by
+  transfers the app can't project, gets the dot only when its forecast on
+  screen goes under; before, a cash wallet with kindergarten paid from it
+  wore the dot from day one, for a year of bills and no money in.
+- **The dot and the coral line name the first dip, not the year's low:**
+  "After 10.10: runs out on 11.20 · ₮120,000 short" is what has to be moved
+  in before 11.20; the headline keeps "up to ₮X short" once the span is
+  widened. "Past 10.10" became "After 10.10" (it read as the past).
+- **Expected rows say so.** A payday or bill the forecast projects past the
+  scheduled one reads "· expected" in the bill list, and the line under the
+  headline adds "· 3 of them expected", so the count no longer disagrees
+  with the Scheduled tab without saying why.
+- **Paid from with several accounts checked says what that does**, in the
+  warn-don't-block voice with the count: "Checked in 3 accounts, so this
+  bill isn't in any forecast. Uncheck down to one to see it there." (The
+  old note read as if done.)
+- **Ends shows under every repeat typed as every so many**, not only in
+  Custom…: "Every month, 12 times" is an installment plan (лизинг), the
+  common ending plan. A pattern (weekdays, a weekday of the month) is what
+  makes a plan Custom…
+- **Two pays with no payer are told apart by their account** on the Income
+  tab ("Income into Khan Savings").
+- Left as decided: zero counting as short (the owner's words), the one-word
+  "Paid from" for an emergency fund with no date, projected pay at the
+  "or more" floor.
+- **From the code review:** an ended plan no longer asks for bills past
+  its end when several fall in one period (every week, twice, in a month);
+  the Spending list stays mounted under the Income tab, so an Edit open
+  there keeps what was typed through a tab switch; chosen weekdays turn
+  the weekend rule off (a Saturday moved to Friday doubled Friday's bill);
+  the sidebar's look-ahead is worked out once per ledger snapshot; "other"
+  income never reads below zero; a v15 file's upgrade is tested.
+- **Asked of the owner** (new ways of counting): whether a span past the pay
+  period should take each Any-time category's Assigned as everyday
+  spending (a 6-month line today is pay and dated bills only, so it climbs);
+  whether the Income tab should say "₮2,100,000 of ₮4,200,000 expected this
+  period"; and whether a new dated plan should start with one account
+  chosen from where its rows were last paid.
 
 ### The smallest window (owner, 2026-10-01)
 
