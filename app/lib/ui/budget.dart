@@ -24,6 +24,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onArchive,
     required this.onDelete,
     required this.onPay,
+    required this.onAskAgain,
     required this.onCreate,
     required this.onUnarchive,
     required this.onShowRows,
@@ -41,8 +42,11 @@ class _BudgetPage extends StatefulWidget {
   final ValueChanged<AccountInfo> onArchive;
   final ValueChanged<AccountInfo> onDelete;
 
-  /// The pay note was clicked: change the pay it's about, or set one up.
+  /// Income tab: a pay's Edit, or Add pay (null).
   final ValueChanged<PaySchedule?> onPay;
+
+  /// Income tab: "Ask me again" after "I don't have regular pay".
+  final VoidCallback onAskAgain;
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
@@ -79,6 +83,10 @@ class _BudgetPage extends StatefulWidget {
 class _BudgetPageState extends State<_BudgetPage> {
   bool _adding = false;
   bool _showArchived = false;
+
+  /// Spending (the categories) or Income (the pay, and what came in):
+  /// the owner's call, 2026-10-05, from Cynthia's notes.
+  _BudgetTab _tab = _BudgetTab.spending;
 
   /// The period on screen; null for the one today is in.
   BudgetSpan? _period;
@@ -163,26 +171,63 @@ class _BudgetPageState extends State<_BudgetPage> {
       edit(i >= 0 && i + 1 < spending.length ? spending[i + 1].id : null);
     }
 
-    Widget columns(String title, List<String> heads) => Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+    // The panel's top row: the two tabs, and over the categories their
+    // column heads. A gold dot on Income says pay wants attention (not set
+    // up, or an estimate to update).
+    Widget tabs() => Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
       child: Row(
         children: [
-          Expanded(
-            child: Text(title, style: onest(12.5, color: Mid.ink3)),
+          _PageTab(
+            key: const ValueKey('budget-tab-spending'),
+            label: t.planSpending,
+            active: _tab == _BudgetTab.spending,
+            onTap: () => setState(() => _tab = _BudgetTab.spending),
           ),
-          for (final h in heads)
-            SizedBox(
-              width: _amountWidth,
-              child: Text(
-                h,
-                textAlign: TextAlign.right,
-                style: onest(12.5, color: Mid.ink3),
+          _PageTab(
+            key: const ValueKey('budget-tab-income'),
+            label: t.planIncomeTab,
+            active: _tab == _BudgetTab.income,
+            dot: _payNote(t, data).nudge,
+            onTap: () => setState(() {
+              _tab = _BudgetTab.income;
+              _editing = null;
+              _open = null;
+              _adding = false;
+            }),
+          ),
+          const Spacer(),
+          if (_tab == _BudgetTab.spending) ...[
+            for (final h in [t.planAssigned, t.planSpent, t.planLeft])
+              SizedBox(
+                width: _amountWidth,
+                child: Text(
+                  h,
+                  textAlign: TextAlign.right,
+                  style: onest(12.5, color: Mid.ink3),
+                ),
               ),
-            ),
-          const SizedBox(width: 40),
+            const SizedBox(width: 40),
+          ],
         ],
       ),
     );
+
+    // This period's income that came from set-up pay, by currency: the
+    // paydays confirmed in the period, on their account's side.
+    final moneyIds = {for (final a in data.balanceSheetAccounts) a.id};
+    final fromPay = <Currency, int>{};
+    for (final x in data.txns) {
+      if (x.scheduled || x.payScheduleId == null) continue;
+      if (x.date.isBefore(period.start) || x.date.isAfter(period.end)) {
+        continue;
+      }
+      for (final e in x.entries) {
+        if (e.amount > 0 && moneyIds.contains(e.accountId)) {
+          fromPay[e.currency] = (fromPay[e.currency] ?? 0) + e.amount;
+        }
+      }
+    }
 
     void open(int? id, {bool atPlan = false}) {
       setState(() {
@@ -443,13 +488,25 @@ class _BudgetPageState extends State<_BudgetPage> {
                   ),
                 ],
                 const Spacer(),
-                _PrimaryButton(
-                  key: const ValueKey('add-category'),
-                  label: t.planAddCategory,
-                  icon: Icons.add_rounded,
-                  tooltip: t.planAddCategoryTip,
-                  onTap: () => setState(() => _adding = true),
-                ),
+                // One button for the tab that's on: a category, or a pay.
+                if (_tab == _BudgetTab.income)
+                  _PrimaryButton(
+                    key: const ValueKey('income-add-pay'),
+                    label: data.paySchedules.isEmpty
+                        ? t.setupAddYourPay
+                        : t.setupAddOtherPay,
+                    icon: Icons.add_rounded,
+                    tooltip: t.setupAddPayTip,
+                    onTap: () => widget.onPay(null),
+                  )
+                else
+                  _PrimaryButton(
+                    key: const ValueKey('add-category'),
+                    label: t.planAddCategory,
+                    icon: Icons.add_rounded,
+                    tooltip: t.planAddCategoryTip,
+                    onTap: () => setState(() => _adding = true),
+                  ),
               ],
             ),
           ),
@@ -457,15 +514,6 @@ class _BudgetPageState extends State<_BudgetPage> {
           for (final (n, pool) in budget.pools.indexed) ...[
             if (n > 0) const SizedBox(height: 10),
             ...top(pool),
-          ],
-          if (income != null) ...[
-            const SizedBox(height: 10),
-            _IncomeLine(
-              cameIn: _cameIn(budget.cameIn[income.id], budget.currency),
-              payNote: _payNote(t, data),
-              onShowRows: () => widget.onShowRows(income, period),
-              onPay: widget.onPay,
-            ),
           ],
           if (offerStart) ...[
             const SizedBox(height: 10),
@@ -499,6 +547,21 @@ class _BudgetPageState extends State<_BudgetPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
                 children: [
+                  tabs(),
+                  if (_tab == _BudgetTab.income)
+                    _IncomeTab(
+                      data: data,
+                      cameIn: income == null
+                          ? const []
+                          : _cameIn(budget.cameIn[income.id], budget.currency),
+                      fromPay: fromPay,
+                      onShowRows: income == null
+                          ? null
+                          : () => widget.onShowRows(income, period),
+                      onPay: widget.onPay,
+                      onAskAgain: widget.onAskAgain,
+                    )
+                  else ...[
                   if (_adding)
                     _NewCategory(
                       // A category just made opens in Edit under its row,
@@ -515,11 +578,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                       currency: budget.currency,
                       onCancel: () => setState(() => _adding = false),
                     ),
-                  columns(t.planSpending, [
-                    t.planAssigned,
-                    t.planSpent,
-                    t.planLeft,
-                  ]),
                   for (final (i, c) in spending.indexed)
                     row(c, striped: i.isOdd),
                   const SizedBox(height: 14),
@@ -581,6 +639,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                           ),
                         ),
                   ],
+                  ],
                 ],
               ),
             ),
@@ -593,61 +652,243 @@ class _BudgetPageState extends State<_BudgetPage> {
 
 const double _amountWidth = 136;
 
-/// This period's income, each currency on its own (a click shows the
-/// rows), and what pay is set up (a click opens it).
-class _IncomeLine extends StatelessWidget {
-  const _IncomeLine({
+enum _BudgetTab { spending, income }
+
+/// A tab in the panel's top row, drawn like the register's.
+class _PageTab extends StatelessWidget {
+  const _PageTab({
+    super.key,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.dot = false,
+  });
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  /// Something on the tab wants attention: a small gold dot after it.
+  final bool dot;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Hoverable(
+      onTap: onTap,
+      builder: (hover) => Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: active ? Mid.raised : (hover ? Mid.hover : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: onest(13, color: active ? Mid.ink : Mid.ink3)),
+            if (dot) ...[
+              const SizedBox(width: 6),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Mid.gold,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The Income tab (owner's call, 2026-10-05, from Cynthia's notes: pay
+/// "in a highly visible place like the budget income tab, not the
+/// settings menu"): this period's income, each currency on its own, with
+/// how much of it came from pay; then one line per pay, as Settings used
+/// to list them, each with Edit. Add pay is the page's top-right button.
+class _IncomeTab extends StatelessWidget {
+  const _IncomeTab({
+    required this.data,
     required this.cameIn,
-    required this.payNote,
+    required this.fromPay,
     required this.onShowRows,
     required this.onPay,
+    required this.onAskAgain,
   });
+  final LedgerData data;
   final List<(Currency, int)> cameIn;
-  final ({String text, bool nudge, PaySchedule? schedule}) payNote;
-  final VoidCallback onShowRows;
+  final Map<Currency, int> fromPay;
+  final VoidCallback? onShowRows;
   final ValueChanged<PaySchedule?> onPay;
+  final VoidCallback onAskAgain;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final noteColor = payNote.nudge ? Mid.gold : Mid.ink2;
-    TextStyle style(Color color, bool hover) =>
-        onest(13, color: color, tabular: true).copyWith(
-          decoration: hover ? TextDecoration.underline : null,
-          decorationColor: color,
-        );
-    return Row(
+    final pays = data.paySchedules;
+    String name(int id) {
+      final a = data.accounts[id];
+      if (a == null) return '';
+      return a.deleted
+          ? t.startDeletedAccount(a.name)
+          : a.archived
+          ? t.setupNameArchived(a.name)
+          : a.name;
+    }
+
+    // "₮2,100,000 from pay · ₮400,000 other", once some pay has come.
+    final split = [
+      for (final (c, total) in cameIn)
+        if (fromPay[c] case final pay? when pay > 0)
+          t.planIncomeFromPay(
+            formatShort(pay, currency: c),
+            formatShort(total - pay, currency: c),
+          ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Tooltip(
-          message: t.planShowTheseRows,
-          waitDuration: const Duration(milliseconds: 500),
-          child: Hoverable(
-            key: const ValueKey('income-line'),
-            onTap: onShowRows,
-            builder: (hover) => Text(
-              t.planIncomeLine(
-                [
-                  for (final (currency, amount) in cameIn)
-                    formatMoney(amount, currency: currency),
-                ].join(' · '),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: Row(
+            children: [
+              Tooltip(
+                message: t.planShowTheseRows,
+                waitDuration: const Duration(milliseconds: 500),
+                child: Hoverable(
+                  key: const ValueKey('income-line'),
+                  onTap: onShowRows ?? () {},
+                  builder: (hover) => Text(
+                    t.planIncomeLine(
+                      cameIn.isEmpty
+                          ? formatMoney(0, currency: mainCurrency(data))
+                          : [
+                              for (final (c, v) in cameIn)
+                                formatMoney(v, currency: c),
+                            ].join(' · '),
+                    ),
+                    style: onest(15, weight: 600, tabular: true).copyWith(
+                      decoration: hover ? TextDecoration.underline : null,
+                      decorationColor: Mid.ink,
+                    ),
+                  ),
+                ),
               ),
-              style: style(Mid.ink2, hover),
-            ),
+              if (split.isNotEmpty) ...[
+                const SizedBox(width: 14),
+                Flexible(
+                  child: Text(
+                    split.join(' · '),
+                    key: const ValueKey('income-from-pay'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(13, color: Mid.ink3, tabular: true),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(width: 18),
-        Flexible(
-          child: Hoverable(
-            key: const ValueKey('pay-note'),
-            onTap: () => onPay(payNote.schedule),
-            builder: (hover) => Text(
-              payNote.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: style(noteColor, hover),
-            ),
+        const SizedBox(height: 8),
+        for (final (i, p) in pays.indexed)
+          Builder(
+            builder: (context) {
+              final currency =
+                  data.accounts[p.accountId]?.currency ?? Currency.mnt;
+              final amounts = payAmounts(
+                t,
+                p,
+                (v) => formatShort(v, currency: currency),
+                dotted: true,
+              );
+              final next = data
+                  .registerFor(p.accountId)
+                  .scheduled
+                  .where((r) => r.payScheduleId == p.id)
+                  .firstOrNull
+                  ?.date;
+              final note = _payNoteOf(t, data, p, '');
+              return Container(
+                key: ValueKey('pay-row-${p.id}'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: i.isOdd ? Mid.stripe : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.payee ?? t.ledgerIncome,
+                            style: onest(14.5, weight: 600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            next == null
+                                ? t.planPayInto(amounts, name(p.accountId))
+                                : t.planPayIntoNext(
+                                    amounts,
+                                    name(p.accountId),
+                                    sayDate(t, next),
+                                  ),
+                            style: onest(12.5, color: Mid.ink3, tabular: true),
+                          ),
+                          if (note.nudge) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              note.text,
+                              key: ValueKey('pay-nudge-${p.id}'),
+                              style: onest(12.5, color: Mid.gold, tabular: true),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    BarButton(
+                      key: ValueKey('edit-pay-${p.id}'),
+                      label: t.setupEdit,
+                      onTap: () => onPay(p),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        ),
+        if (pays.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: data.prefs[noRegularPayKey] == '1'
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          t.setupSaidNoPay,
+                          key: const ValueKey('income-no-pay'),
+                          style: onest(13.5, color: Mid.ink2),
+                        ),
+                      ),
+                      BarButton(
+                        key: const ValueKey('income-ask-pay'),
+                        label: t.setupAskAgain,
+                        onTap: onAskAgain,
+                      ),
+                    ],
+                  )
+                : Text(
+                    t.planPaydayNotSetUp,
+                    key: const ValueKey('income-not-set-up'),
+                    style: onest(13.5, color: Mid.gold),
+                  ),
+          ),
       ],
     );
   }

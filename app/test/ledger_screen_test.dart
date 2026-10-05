@@ -3300,8 +3300,14 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openBudget(tester);
-      // Income isn't a category in the list: one line says the period's income.
+      // Income isn't a category in the list: the Income tab says the
+      // period's income.
+      expect(find.byKey(const ValueKey('income-line')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('income-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('budget-tab-spending')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -3965,14 +3971,26 @@ void main() {
         matchesGoldenFile('goldens/forecast_pay_period.png'),
       );
 
-      await tester.tap(find.byKey(const ValueKey('settings')));
+      // The pay is listed on the Budget page's Income tab, with its next
+      // payday; Settings keeps only Budget by.
+      await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
+      expect(find.text('Income'), findsWidgets);
       expect(
         find.text(
-          'Income · ₮2,100,000 or more · every 2 weeks · into Cash wallet',
+          '₮2,100,000 or more · every 2 weeks · into Cash wallet · next 09.25',
         ),
         findsOneWidget,
       );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_income_pay.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('settings-add-pay')), findsNothing);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/settings_budget.png'),
@@ -4012,10 +4030,13 @@ void main() {
 
     testWidgets('twice a month: an advance, then the rest', (tester) async {
       final db = await pumpLedger(tester);
-      await tester.tap(find.byKey(const ValueKey('settings')));
+      // Pay is set up from the Budget page's Income tab.
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
       await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+        await tester.tap(find.byKey(const ValueKey('income-add-pay')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
@@ -4054,8 +4075,8 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
       expect(
-        find.text(
-          'Income · ₮500,000 on the 10th and ₮1,600,000 on the 25th · '
+        find.textContaining(
+          '₮500,000 on the 10th and ₮1,600,000 on the 25th · '
           'into TDB Checking',
         ),
         findsOneWidget,
@@ -4102,30 +4123,26 @@ void main() {
         await tapAndWait(tester, find.byKey(const ValueKey('pay-none')));
         expect(
           find.text(
-            'No regular pay · the app won’t ask for it · Settings changes this',
+            'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this',
           ),
           findsOneWidget,
         );
         expect(find.byKey(const ValueKey('add-pay')), findsNothing);
         await tester.tap(find.text('Budget'));
         await tester.pumpAndSettle();
-        expect(find.text('No regular pay'), findsOneWidget);
-
-        await tester.tap(find.byKey(const ValueKey('settings')));
+        await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
-        await tapAndWait(
-          tester,
-          find.byKey(const ValueKey('settings-ask-pay')),
-        );
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsNothing);
+        expect(find.byKey(const ValueKey('income-no-pay')), findsOneWidget);
+        await tapAndWait(tester, find.byKey(const ValueKey('income-ask-pay')));
+        expect(find.byKey(const ValueKey('income-no-pay')), findsNothing);
+        expect(find.byKey(const ValueKey('income-not-set-up')), findsOneWidget);
         // ⌘Z puts "no regular pay" back.
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
+        expect(find.byKey(const ValueKey('income-no-pay')), findsOneWidget);
         // Adding pay anyway: the saying goes with it, and comes back on undo.
         await tester.runAsync(() async {
-          await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+          await tester.tap(find.byKey(const ValueKey('income-add-pay')));
           await Future<void>.delayed(const Duration(milliseconds: 200));
         });
         await tester.pumpAndSettle();
@@ -4156,12 +4173,19 @@ void main() {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      // The demo's salary, this month.
+      // The Income tab carries a gold dot while pay isn't set up; on it,
+      // the demo's salary this month, and that pay isn't set up.
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
       expect(find.text('Income: ₮2,500,000.00'), findsOneWidget);
       expect(find.text('Pay not set up'), findsOneWidget);
-      // The note opens the pay setup, which no longer asks for a category.
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_income.png'),
+      );
+      // Add your pay opens the pay setup, which doesn't ask for a category.
       await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('pay-note')));
+        await tester.tap(find.byKey(const ValueKey('income-add-pay')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();

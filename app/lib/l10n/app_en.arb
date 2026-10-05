@@ -531,7 +531,7 @@
   "@ledgerAskingForPayAgain": {
     "description": "Undo-menu label after Settings → \"ask again\" for pay."
   },
-  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · Settings changes this",
+  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this",
   "@ledgerNoRegularPayToast": {
     "description": "Toast after \"I don’t have regular pay\" is chosen."
   },
@@ -1743,6 +1743,53 @@
   "planAddCategoryTip": "Add a category",
   "@planAddCategoryTip": {
     "description": "Budget page: tooltip on the Add category button"
+  },
+  "setupAddPayTip": "Set up a paycheck: how much, how often, and the account it goes into",
+  "@setupAddPayTip": {
+    "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
+  },
+  "planIncomeTab": "Income",
+  "@planIncomeTab": {
+    "description": "Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up"
+  },
+  "planIncomeFromPay": "{pay} from pay · {other} other",
+  "@planIncomeFromPay": {
+    "description": "Budget page, Income tab, beside the Income line: how much of the period's income came from set-up pay and how much from anything else, per currency",
+    "placeholders": {
+      "pay": {
+        "type": "String"
+      },
+      "other": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayInto": "{amounts} · into {account}",
+  "@planPayInto": {
+    "description": "Budget page, Income tab, under a pay's name: how much and when, and the account it is paid into, when no payday is scheduled",
+    "placeholders": {
+      "amounts": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayIntoNext": "{amounts} · into {account} · next {date}",
+  "@planPayIntoNext": {
+    "description": "Budget page, Income tab, under a pay's name: how much and when, the account it is paid into, and the next payday",
+    "placeholders": {
+      "amounts": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "planSpending": "Spending",
   "@planSpending": {
@@ -3769,7 +3816,7 @@
       }
     }
   },
-  "setupPeriodsFromPay": "Pay periods come from your pay: add it below to budget by them.",
+  "setupPeriodsFromPay": "Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.",
   "@setupPeriodsFromPay": {
     "description": "Settings → Budget, note when there is no pay yet."
   },

@@ -2965,9 +2965,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             budget: _BudgetSettings(
                               data: data,
                               onBudgetBy: _budgetBy,
-                              onEdit: (p) => _openPaySetup(existing: p),
-                              onAdd: () => _openPaySetup(),
-                              onAskAgain: () => _setNoRegularPay(false),
                             ),
                             archived: data.archivedAccounts.isEmpty
                                 ? null
@@ -2998,6 +2995,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               if (c != null) _openAll(category: c.id);
                             },
                             onKeysBack: _keysBack,
+                            onAskAgain: () => _setNoRegularPay(false),
                             onSave: _saveCategory,
                             onArchive: (c) => _archiveCategory(c, true),
                             onDelete: (c) => _deleteCategory(data, c),

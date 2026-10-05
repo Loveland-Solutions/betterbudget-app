@@ -350,7 +350,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerNoRegularPayToast =>
-      'Тогтмол цалингүй · апп цалин асуухгүй · Тохиргооноос өөрчилнө';
+      'Тогтмол цалингүй · апп цалин асуухгүй · Төсөв хуудасны Орлого хэсгээс өөрчилнө';
 
   @override
   String get ledgerAskForPayAgainToast => 'Төсөөлөл таны цалинг дахин асууна';
@@ -1139,6 +1139,28 @@ class WordsMn extends Words {
 
   @override
   String get planAddCategoryTip => 'Шинэ ангилал нэмэх';
+
+  @override
+  String get setupAddPayTip =>
+      'Цалингаа тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
+
+  @override
+  String get planIncomeTab => 'Орлого';
+
+  @override
+  String planIncomeFromPay(String pay, String other) {
+    return '$pay цалингаас · $other бусад';
+  }
+
+  @override
+  String planPayInto(String amounts, String account) {
+    return '$amounts · данс: $account';
+  }
+
+  @override
+  String planPayIntoNext(String amounts, String account, String date) {
+    return '$amounts · данс: $account · дараагийн $date';
+  }
 
   @override
   String get planSpending => 'Зарлага';
@@ -2454,7 +2476,7 @@ class WordsMn extends Words {
 
   @override
   String get setupPeriodsFromPay =>
-      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол доор цалингаа нэмээрэй.';
+      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол Төсөв хуудасны Орлого хэсэгт цалингаа нэмээрэй.';
 
   @override
   String get setupRunsMonth => 'Төсөв бүр сарын 1-нээс сарын эцэс хүртэл.';

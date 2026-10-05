@@ -350,7 +350,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerNoRegularPayToast =>
-      'No regular pay · the app won’t ask for it · Settings changes this';
+      'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this';
 
   @override
   String get ledgerAskForPayAgainToast =>
@@ -1189,6 +1189,28 @@ class WordsEn extends Words {
 
   @override
   String get planAddCategoryTip => 'Add a category';
+
+  @override
+  String get setupAddPayTip =>
+      'Set up a paycheck: how much, how often, and the account it goes into';
+
+  @override
+  String get planIncomeTab => 'Income';
+
+  @override
+  String planIncomeFromPay(String pay, String other) {
+    return '$pay from pay · $other other';
+  }
+
+  @override
+  String planPayInto(String amounts, String account) {
+    return '$amounts · into $account';
+  }
+
+  @override
+  String planPayIntoNext(String amounts, String account, String date) {
+    return '$amounts · into $account · next $date';
+  }
 
   @override
   String get planSpending => 'Spending';
@@ -2543,7 +2565,7 @@ class WordsEn extends Words {
 
   @override
   String get setupPeriodsFromPay =>
-      'Pay periods come from your pay: add it below to budget by them.';
+      'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.';
 
   @override
   String get setupRunsMonth =>

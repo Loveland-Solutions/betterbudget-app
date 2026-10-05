@@ -1570,14 +1570,32 @@ the rest are open, below.
   below:** landing exactly on zero now counts as short ("Runs out on
   11.20", with no "short" amount), where before only below zero did.
 
-**Open, for the owner to call:**
-
-- **A Spending / Income tab on the Budget page, with the paychecks on
+- **Spending and Income are tabs on the Budget page, and pay lives on
   Income** (her first note: pay tracked "in a highly visible place like the
   budget income tab, not the settings menu"; several sources, in several
-  currencies if need be). The app already keeps several pay schedules, each
-  in its account's currency (rule 24), listed in Settings → Budget; rule 30
-  put one Income line on the Budget page in their place.
+  currencies if need be; owner's call, 2026-10-05, option A of three). The
+  panel's top row holds two tabs drawn like the register's, Spending and
+  Income; over the categories the column heads stay on that row. **Income**
+  shows this period's income, each currency on its own ("Income:
+  ₮2,500,000.00 · $120.00", a click shows the rows) and beside it, once
+  some pay has come, how much was pay ("₮2,100,000 from pay · ₮400,000
+  other"); then one striped line per pay, as Settings listed them: who from
+  (or "Income"), "₮2,100,000 or more · every 2 weeks · into Cash wallet ·
+  next 10.15", an estimate nudge in gold under it, and Edit; with no pay,
+  "Pay not set up" in gold, or the "You said you don't have regular pay"
+  line with **Ask me again**. The page's top-right button is **Add
+  category** on Spending and **Add your pay** / **Add other pay** on
+  Income: one button for the tab that's on. A gold dot on the Income tab
+  says pay wants attention (not set up, or an estimate to update), since
+  rule 30's gold note left the Spending tab with the Income line. Settings
+  → Budget keeps only Budget by; its Pay list, Add pay and Ask me again
+  moved here, and the no-regular-pay toast now points at the Income tab.
+  Rejected: an Income section above the Spending list on one page (B), and
+  the one Income line opening the pay list on a click (C), the least
+  visible. Several pay schedules in several currencies were already there
+  (rule 24): each is in its account's currency.
+
+**Open, for the owner to call:**
 - **How often as a recurrence picker like Outlook's** (her note). Rule 27's
   dropdown covers every interval and fixed dates; what Outlook adds is
   weekday patterns ("the last Friday of every month", "every Monday") and

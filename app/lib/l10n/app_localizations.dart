@@ -549,7 +549,7 @@ abstract class Words {
   /// Toast after "I don’t have regular pay" is chosen.
   ///
   /// In en, this message translates to:
-  /// **'No regular pay · the app won’t ask for it · Settings changes this'**
+  /// **'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this'**
   String get ledgerNoRegularPayToast;
 
   /// Toast after Settings → ask for pay again.
@@ -1666,6 +1666,36 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Add a category'**
   String get planAddCategoryTip;
+
+  /// Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a paycheck: how much, how often, and the account it goes into'**
+  String get setupAddPayTip;
+
+  /// Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get planIncomeTab;
+
+  /// Budget page, Income tab, beside the Income line: how much of the period's income came from set-up pay and how much from anything else, per currency
+  ///
+  /// In en, this message translates to:
+  /// **'{pay} from pay · {other} other'**
+  String planIncomeFromPay(String pay, String other);
+
+  /// Budget page, Income tab, under a pay's name: how much and when, and the account it is paid into, when no payday is scheduled
+  ///
+  /// In en, this message translates to:
+  /// **'{amounts} · into {account}'**
+  String planPayInto(String amounts, String account);
+
+  /// Budget page, Income tab, under a pay's name: how much and when, the account it is paid into, and the next payday
+  ///
+  /// In en, this message translates to:
+  /// **'{amounts} · into {account} · next {date}'**
+  String planPayIntoNext(String amounts, String account, String date);
 
   /// Budget page: group title, and the kind toggle in the new-category form
   ///
@@ -3618,7 +3648,7 @@ abstract class Words {
   /// Settings → Budget, note when there is no pay yet.
   ///
   /// In en, this message translates to:
-  /// **'Pay periods come from your pay: add it below to budget by them.'**
+  /// **'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.'**
   String get setupPeriodsFromPay;
 
   /// Settings → Budget, note when budgeting by month.
