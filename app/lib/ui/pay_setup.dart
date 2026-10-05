@@ -31,7 +31,13 @@ class PaySave extends PaySetupResult {
 }
 
 class PayStop extends PaySetupResult {
-  const PayStop();
+  const PayStop({this.movePlans = false, this.moveTo});
+
+  /// Categories budgeted per this pay move to [moveTo]'s periods, or to
+  /// the month with null (owner, 2026-10-05: warn, and offer to move
+  /// them). False when nothing was per it.
+  final bool movePlans;
+  final int? moveTo;
 }
 
 /// "I don't have regular pay": stop asking for it.
@@ -72,12 +78,21 @@ class _PaySetupDialog extends StatefulWidget {
     required this.account,
     required this.today,
     required this.history,
+    required this.data,
     this.existing,
+    this.perPay = const [],
     this.offerNoPay = false,
   });
 
   /// There's no pay anywhere yet: offer "I don't have regular pay".
   final bool offerNoPay;
+
+  /// The ledger, for the other pays' names.
+  final LedgerData data;
+
+  /// Categories whose plan is per [existing]: a set amount each of its pay
+  /// periods, or a bill every payday of it. Stopping asks where they go.
+  final List<AccountInfo> perPay;
 
   /// Accounts pay can go into.
   final List<AccountInfo> accounts;
@@ -281,6 +296,31 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
           anchor: _anchorValue,
           weekend: _weekend,
         );
+
+  /// Stop this pay. With categories budgeted per it, first say so and
+  /// ask where they go: another pay, or the month (warn, don't block).
+  Future<void> _stop() async {
+    if (widget.perPay.isEmpty) {
+      Navigator.of(context).pop(const PayStop());
+      return;
+    }
+    final others = [
+      for (final p in widget.data.paySchedules)
+        if (p.id != widget.existing!.id) p,
+    ];
+    final picked = await showDialog<_StopPayChoice>(
+      context: context,
+      builder: (_) => _StopPayDialog(
+        data: widget.data,
+        categories: widget.perPay,
+        others: others,
+        // One other pay: the likely answer. More, or none: the month.
+        initial: others.length == 1 ? others.single.id : null,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    Navigator.of(context).pop(PayStop(movePlans: true, moveTo: picked.payId));
+  }
 
   void _save() {
     if (_problem != null) return;
@@ -751,8 +791,7 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                           key: const ValueKey('pay-stop'),
                           label: t.setupStopPay,
                           color: Mid.coral,
-                          onTap: () =>
-                              Navigator.of(context).pop(const PayStop()),
+                          onTap: _stop,
                         ),
                       const Spacer(),
                       BarButton(
@@ -775,6 +814,153 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The answer to "where do the categories per this pay go": a pay's id,
+/// or null for the month.
+class _StopPayChoice {
+  const _StopPayChoice(this.payId);
+  final int? payId;
+}
+
+/// Stopping a pay that categories are budgeted per: names them, and asks
+/// what they're budgeted by from now (owner, 2026-10-05: "warn them and
+/// give them a chance to move the abandoned categories to a new income
+/// source"). Stop goes ahead either way; ⌘Z puts it all back.
+class _StopPayDialog extends StatefulWidget {
+  const _StopPayDialog({
+    required this.data,
+    required this.categories,
+    required this.others,
+    required this.initial,
+  });
+  final LedgerData data;
+  final List<AccountInfo> categories;
+  final List<PaySchedule> others;
+  final int? initial;
+
+  @override
+  State<_StopPayDialog> createState() => _StopPayDialogState();
+}
+
+class _StopPayDialogState extends State<_StopPayDialog> {
+  late int? _to = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final names = widget.categories.map((c) => c.name).join(', ');
+    final bills = [
+      for (final c in widget.categories)
+        if (widget.data.plans[c.id]?.kind == PlanKind.byDate) c.name,
+    ];
+    Widget choice(
+      String label,
+      bool on,
+      VoidCallback onTap,
+      String key,
+    ) => Hoverable(
+      key: ValueKey(key),
+      onTap: onTap,
+      builder: (hover) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Center(
+          widthFactor: 1,
+          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+        ),
+      ),
+    );
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Mid.coral),
+      ),
+      child: SizedBox(
+        width: 480,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.stopPayTitle,
+                style: onest(
+                  17,
+                  weight: 600,
+                  letterSpacing: -0.2,
+                  color: Mid.coral,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                t.stopPayPerIt(widget.categories.length, names),
+                key: const ValueKey('stop-pay-per-it'),
+                style: onest(13.5),
+              ),
+              const SizedBox(height: 14),
+              Text(t.stopPayFromNow, style: onest(13.5, color: Mid.ink3)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  choice(
+                    t.planRepeatMonths(1),
+                    _to == null,
+                    () => setState(() => _to = null),
+                    'stop-move-month',
+                  ),
+                  for (final p in widget.others)
+                    choice(
+                      t.planEveryPayPeriodOf(payTitle(t, widget.data, p)),
+                      _to == p.id,
+                      () => setState(() => _to = p.id),
+                      'stop-move-${p.id}',
+                    ),
+                ],
+              ),
+              if (_to == null && bills.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  t.stopPayBillsMonthly(bills.join(', ')),
+                  style: onest(12.5, color: Mid.ink3),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Spacer(),
+                  BarButton(
+                    key: const ValueKey('stop-pay-cancel'),
+                    label: t.setupCancel,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 8),
+                  _PrimaryButton(
+                    key: const ValueKey('stop-pay-confirm'),
+                    label: t.setupStopPay,
+                    icon: Icons.check_rounded,
+                    tooltip: 'Enter',
+                    onTap: () => Navigator.of(context).pop(_StopPayChoice(_to)),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

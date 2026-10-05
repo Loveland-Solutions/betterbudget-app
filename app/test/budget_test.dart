@@ -1450,6 +1450,33 @@ void main() {
       },
     );
 
+    test('a plan moved off a stopped pay: to another pay, or to the month', () {
+      final each = plan(food, PlanKind.each, 60000000, payScheduleId: 1);
+      expect(each.movedToPay(2, nextPayday: today).payScheduleId, 2);
+      expect(each.movedToPay(null, nextPayday: today).payScheduleId, isNull);
+      // A bill 2 days after every payday: another pay's paydays, or
+      // monthly from the stopped pay's next payday plus those days.
+      final bill = plan(
+        xmas,
+        PlanKind.byDate,
+        15000000,
+        payScheduleId: 1,
+        daysAfterPay: 2,
+        start: DateTime(2026, 10, 1),
+      );
+      expect(bill.movedToPay(2, nextPayday: today).payScheduleId, 2);
+      expect(bill.movedToPay(2, nextPayday: today).daysAfterPay, 2);
+      final monthly = bill.movedToPay(null, nextPayday: DateTime(2026, 10, 23));
+      expect(monthly.payScheduleId, isNull);
+      expect(monthly.due, DateTime(2026, 10, 25));
+      expect(monthly.everyMonths, 1);
+      expect(monthly.daysAfterPay, 0);
+      expect(monthly.amount, 15000000);
+      // A bill on a date of its own has no pay to move.
+      final dated = plan(xmas, PlanKind.byDate, 1, due: DateTime(2026, 11, 1));
+      expect(dated.movedToPay(2, nextPayday: today).payScheduleId, isNull);
+    });
+
     test('a weekend rule moves a bill off Saturday and Sunday', () {
       // 2026.10.10 is a Saturday.
       final before = plan(

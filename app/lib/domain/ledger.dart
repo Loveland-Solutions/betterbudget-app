@@ -614,6 +614,43 @@ class CategoryPlan {
   final int? endCount;
 
   /// It comes again, one way or another.
+  /// This plan with its pay changed to [payId] (null: no pay). A set
+  /// amount is then per that pay's periods, or per month. A bill every
+  /// payday follows the new pay's paydays, or, with none, comes monthly
+  /// from [nextPayday] (the stopped pay's next, plus its days after).
+  /// Owner, 2026-10-05: stopping a pay offers to move what was per it.
+  CategoryPlan movedToPay(int? payId, {required DateTime nextPayday}) {
+    final bill = kind == PlanKind.byDate && payScheduleId != null;
+    final monthly = bill && payId == null;
+    return CategoryPlan(
+      categoryId: categoryId,
+      kind: kind,
+      amount: amount,
+      start: start,
+      due: monthly
+          ? DateTime(
+              nextPayday.year,
+              nextPayday.month,
+              nextPayday.day + daysAfterPay,
+            )
+          : due,
+      everyMonths: monthly ? 1 : everyMonths,
+      everyDays: everyDays,
+      onDates: onDates,
+      payScheduleId: payScheduleId == null ? null : payId,
+      daysAfterPay: monthly ? 0 : daysAfterPay,
+      weekend: weekend,
+      weekdays: weekdays,
+      nth: nth,
+      nthWeekday: nthWeekday,
+      endDate: endDate,
+      endCount: endCount,
+      rollover: rollover,
+      upTo: upTo,
+      paidFrom: paidFrom,
+    );
+  }
+
   bool get repeats =>
       everyMonths != null ||
       everyDays != null ||

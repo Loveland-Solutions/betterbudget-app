@@ -2736,7 +2736,23 @@ void main() {
           ),
           findsOneWidget,
         );
-        await tester.tap(find.byKey(const ValueKey('period-prev')));
+        // Jenny's 11.20–12.03 holds the last 5 days of Jeff's 10.23–11.24,
+        // never filled, and 9 of his next 30: said as what that period
+        // still needs, plus the share toward the next, not as "about
+        // ₮780,000" (owner, 2026-10-05).
+        for (var i = 0; i < 4; i++) {
+          await tester.tap(find.byKey(const ValueKey('period-next')));
+          await tester.pumpAndSettle();
+        }
+        expect(title(), 'Pay period · 11.20–12.03');
+        expect(
+          find.text(
+            '₮600,000 each pay period · Jeff · ₮600,000 still to put in for '
+            '10.23–11.24 · plus about ₮180,000 toward the next',
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('period-today')));
         await tester.pumpAndSettle();
         await expectLater(
           find.byType(LedgerScreen),
@@ -2763,6 +2779,114 @@ void main() {
         await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
         await settle(tester);
         expect(title(), 'This pay period · 09.11–09.24');
+        await tidy(tester, db);
+      },
+    );
+
+    testWidgets(
+      'stopping a pay moves the categories per it, and ⌘Z puts all back',
+      (tester) async {
+        final db = await pumpLedger(tester);
+        late int jeff, jenny, groceries, housing;
+        await tester.runAsync(() async {
+          final data = await db.loadLedger();
+          int account(String name) =>
+              data.balanceSheetAccounts.firstWhere((a) => a.name == name).id;
+          int category(String name) =>
+              data.categories.firstWhere((c) => c.name == name).id;
+          groceries = category('Groceries');
+          housing = category('Housing');
+          final today = DateTime(2026, 9, 16);
+          jeff = (await db.savePaySchedule(
+            accountId: account('TDB Checking'),
+            name: 'Jeff',
+            amount: 250000000,
+            rule: PayRule.monthly,
+            day1: 25,
+            today: today,
+          )).after.id;
+          jenny = (await db.savePaySchedule(
+            accountId: account('Khan Savings'),
+            name: 'Jenny',
+            amount: 120000000,
+            rule: PayRule.everyWeeks,
+            weeks: 2,
+            anchor: DateTime(2026, 9, 11),
+            weekend: PayWeekend.keep,
+            today: today,
+          )).after.id;
+          // A set amount per Jeff's pay, and a bill every payday of it.
+          await db.changeCategoryPlan(
+            groceries,
+            CategoryPlan(
+              categoryId: groceries,
+              kind: PlanKind.each,
+              amount: 60000000,
+              start: today,
+              payScheduleId: jeff,
+            ),
+            today,
+          );
+          await db.changeCategoryPlan(
+            housing,
+            CategoryPlan(
+              categoryId: housing,
+              kind: PlanKind.byDate,
+              amount: 180000000,
+              start: today,
+              payScheduleId: jeff,
+            ),
+            today,
+          );
+        });
+        await settle(tester);
+        await openBudget(tester);
+        await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(ValueKey('edit-pay-$jeff')));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        });
+        await tester.pumpAndSettle();
+        // Stop: the categories per Jeff are named, and the one other pay is
+        // the offered answer; Every month is the other.
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('pay-stop')));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        });
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            '2 categories are budgeted per this pay: Groceries, Housing',
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('stop-move-month')), findsOneWidget);
+        expect(find.byKey(ValueKey('stop-move-$jenny')), findsOneWidget);
+        expect(find.text('Every pay period · Jenny'), findsOneWidget);
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('stop-pay-confirm')));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await settle(tester);
+        expect(
+          find.text(
+            'Pay no longer scheduled · 2 categories now Every pay period · Jenny',
+          ),
+          findsOneWidget,
+        );
+        var data = (await tester.runAsync(db.loadLedger))!;
+        expect(data.paySchedules.map((p) => p.name), ['Jenny']);
+        expect(data.plans[groceries]!.payScheduleId, jenny);
+        expect(data.plans[housing]!.payScheduleId, jenny);
+        expect(data.plans[housing]!.kind, PlanKind.byDate);
+        // One ⌘Z: Jeff's pay back, and both categories per it again.
+        await chord(tester, LogicalKeyboardKey.keyZ);
+        await settle(tester);
+        data = (await tester.runAsync(db.loadLedger))!;
+        expect(data.paySchedules.map((p) => p.name), ['Jeff', 'Jenny']);
+        expect(data.plans[groceries]!.payScheduleId, jeff);
+        expect(data.plans[housing]!.payScheduleId, jeff);
         await tidy(tester, db);
       },
     );
