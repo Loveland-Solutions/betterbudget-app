@@ -1718,10 +1718,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String name,
     AccountType type,
     Currency currency,
+    bool cash,
   ) async {
     final int id;
     try {
-      id = await db.createAccount(name: name, type: type, currency: currency);
+      id = await db.createAccount(
+        name: name,
+        type: type,
+        currency: currency,
+        cash: cash,
+      );
     } catch (e) {
       debugPrint('Add account failed: $e');
       if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
@@ -2364,7 +2370,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         changeKind: () => _changeKind(account),
         archive: () => _archive(data, account),
         delete: () => _deleteAccount(data, account),
-        loanPaidFrom: Budget.isLongLoan(account)
+        loanPaidFrom: account.isOwed
             ? (
                 categories: data.categories
                     .where((c) => !c.isIncome && !isUncategorized(c))
@@ -3266,8 +3272,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
-              onReconcile: () => _startReconcile(data, account),
-              onImport: () => _startImport(data, account, summary.cleared),
+              // Cash: no statement to reconcile against, no bank file.
+              onReconcile: account.isCash
+                  ? null
+                  : () => _startReconcile(data, account),
+              onImport: account.isCash
+                  ? null
+                  : () => _startImport(data, account, summary.cleared),
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
@@ -3415,8 +3426,11 @@ class _Sidebar extends StatelessWidget {
     }
     String groupName(String? g) => switch (g) {
       null => t.ledgerGroupAccounts,
+      LedgerGroups.cash => t.ledgerGroupCash,
+      LedgerGroups.bank => t.ledgerGroupBank,
+      LedgerGroups.credit => t.ledgerGroupCredit,
+      // A ledger made before cash was its own Type, not yet reopened.
       'Cash & bank' => t.ledgerGroupCashBank,
-      'Credit' => t.ledgerGroupCredit,
       final other => other,
     };
     // Archived accounts still hold money, or debt. Each currency on its

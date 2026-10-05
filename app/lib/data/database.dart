@@ -673,7 +673,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -820,6 +820,15 @@ class AppDatabase extends _$AppDatabase {
             "LIMIT 1) WHERE kind = 'each' AND pay_schedule_id IS NULL AND "
             'EXISTS (SELECT 1 FROM pay_schedules WHERE defines_period = 1 '
             'AND deleted_at IS NULL)',
+          );
+        }
+        if (from < 18) {
+          // Cash is its own Type (owner, 2026-10-06), so the sidebar bucket
+          // that used to hold both now holds the bank accounts alone. No
+          // existing account becomes cash: the user says which is which.
+          await customStatement(
+            "UPDATE accounts SET sidebar_group = '${LedgerGroups.bank}' "
+            "WHERE sidebar_group = 'Cash & bank'",
           );
         }
       });
@@ -1953,15 +1962,20 @@ class AppDatabase extends _$AppDatabase {
 
   static const openingBalancesName = openingBalancesAccountName;
 
-  /// The sidebar group a new or changed account goes in.
-  static String groupFor(AccountType type) =>
-      type == AccountType.liability ? 'Credit' : 'Cash & bank';
+  /// The sidebar group a new or changed account goes in, which is also
+  /// where the Type the user picked is kept: cash and a bank account are
+  /// both assets to the ledger, and only this tells them apart.
+  static String groupFor(AccountType type, {bool cash = false}) =>
+      type == AccountType.liability
+      ? LedgerGroups.credit
+      : (cash ? LedgerGroups.cash : LedgerGroups.bank);
 
   /// A bank account or credit card, last in the sidebar.
   Future<int> createAccount({
     required String name,
     required AccountType type,
     Currency currency = Currency.mnt,
+    bool cash = false,
   }) => transaction(() async {
     final last =
         await (selectOnly(accounts)..addColumns([accounts.sortOrder.max()]))
@@ -1970,7 +1984,7 @@ class AppDatabase extends _$AppDatabase {
     final id = await addAccount(
       name: name.trim(),
       type: type,
-      group: groupFor(type),
+      group: groupFor(type, cash: cash),
       sortOrder: (last ?? 0) + 1,
     );
     await (update(accounts)..where((a) => a.id.equals(id))).write(
@@ -2611,7 +2625,10 @@ class AppDatabase extends _$AppDatabase {
       await (update(accounts)..where((a) => a.id.equals(accountId))).write(
         AccountsCompanion(
           type: Value(type),
-          sidebarGroup: Value(groupFor(type)),
+          // Cash that becomes a credit card and back is cash again.
+          sidebarGroup: Value(
+            groupFor(type, cash: current.sidebarGroup == LedgerGroups.cash),
+          ),
         ),
       );
       if (current.type == type) return false;

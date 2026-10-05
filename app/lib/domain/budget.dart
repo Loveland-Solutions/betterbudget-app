@@ -259,12 +259,20 @@ class Budget {
   /// was assigned to: what the first-month offer names.
   final ({int count, int amount}) unassignedSpent;
 
-  /// Accounts whose balance counts as money to budget: cash, bank and
-  /// cards. A mortgage or student loan is paid down over years, not out of
-  /// this month's money, so it's left out (the line Savings draws too);
-  /// its payments come out of the category it's paid from.
+  /// Accounts whose balance counts as money to budget: cash and bank, and
+  /// nothing else (ADR 0004, "What's owed is not the Budget page's job").
+  /// What a credit card or loan owes is tracked on the Savings page; here
+  /// only its payment matters, which is budgeted as a category like rent.
   static bool counts(AccountInfo a, Currency main) =>
-      a.isBalanceSheet && !a.deleted && a.currency == main && !isLongLoan(a);
+      a.type == AccountType.asset && !a.deleted && a.currency == main;
+
+  /// Accounts a category can be spent from: cash, bank and credit cards (a
+  /// card is an account; if they plan to pay with it, let them — ADR 0004).
+  /// Wider than [counts], which is only about where money sits: a card holds
+  /// none but is spent from all the time. A mortgage or student loan is
+  /// neither, so it's out of both.
+  static bool spendable(AccountInfo a, Currency c) =>
+      a.isBalanceSheet && !a.deleted && a.currency == c && !isLongLoan(a);
 
   static bool isLongLoan(AccountInfo a) =>
       a.role == AccountRole.mortgage || a.role == AccountRole.studentLoan;
@@ -303,11 +311,12 @@ class Budget {
         if (!a.deleted && isUncategorized(a)) a.id,
     };
     Currency currencyOfCategory(int id) => data.accounts[id]!.currency;
-    // A long loan's payments are its category's spending, when the two
-    // are in the same currency.
+    // Paying a credit card or loan is its category's spending, when the two
+    // are in the same currency: the payment is budgeted like rent, and what's
+    // owed is the Savings page's business.
     final loans = <int, int>{};
     for (final a in data.accounts.values) {
-      if (a.deleted || !isLongLoan(a)) continue;
+      if (a.deleted || !a.isOwed) continue;
       final c = loanCategory(data, a.id);
       if (c != null &&
           envelopes.contains(c) &&
@@ -557,7 +566,7 @@ class Budget {
       final c = currencyOfCategory(id);
       return {
         for (final a in data.accounts.values)
-          if (counts(a, c) &&
+          if (spendable(a, c) &&
               (!moneyOnly || a.type == AccountType.asset) &&
               !off.contains(a.id))
             a.id,
@@ -568,7 +577,7 @@ class Budget {
     // archived or deleted limits nothing anyone can see.
     bool limits(int id, int account) {
       final a = data.accounts[account];
-      return a != null && !a.archived && counts(a, currencyOfCategory(id));
+      return a != null && !a.archived && spendable(a, currencyOfCategory(id));
     }
 
     final limited = {

@@ -71,7 +71,12 @@ class _NewAccountPage extends StatefulWidget {
     this.onCancel,
     this.currency = Currency.mnt,
   });
-  final void Function(String name, AccountType type, Currency currency)
+  final void Function(
+    String name,
+    AccountType type,
+    Currency currency,
+    bool cash,
+  )
   onCreate;
 
   /// Where the choice starts.
@@ -88,6 +93,10 @@ class _NewAccountPageState extends State<_NewAccountPage> {
   String get _defaultName => context.t.setupNewAccount;
   final _name = TextEditingController();
   var _type = AccountType.asset;
+
+  /// Cash in hand rather than a bank account. Both are [AccountType.asset]
+  /// to the ledger; this is the Type the user picked (ADR 0004).
+  var _cash = false;
   late var _currency = widget.currency;
 
   @override
@@ -98,7 +107,7 @@ class _NewAccountPageState extends State<_NewAccountPage> {
 
   void _create() {
     final n = _name.text.trim();
-    widget.onCreate(n.isEmpty ? _defaultName : n, _type, _currency);
+    widget.onCreate(n.isEmpty ? _defaultName : n, _type, _currency, _cash);
   }
 
   Widget _choice(String label, bool on, VoidCallback onTap, String key) =>
@@ -125,11 +134,16 @@ class _NewAccountPageState extends State<_NewAccountPage> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    Widget kind(AccountType k, String label) => _choice(
+    // Three Types, two of them assets: the ledger can't tell cash from a
+    // bank account, and the person can.
+    Widget kind(AccountType k, String label, {bool cash = false}) => _choice(
       label,
-      _type == k,
-      () => setState(() => _type = k),
-      'kind-${k.name}',
+      _type == k && (k != AccountType.asset || _cash == cash),
+      () => setState(() {
+        _type = k;
+        _cash = cash;
+      }),
+      cash ? 'kind-cash' : 'kind-${k.name}',
     );
     return CallbackShortcuts(
       bindings: {
@@ -188,6 +202,12 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                           children: [
                             kind(AccountType.asset, t.setupKindBank),
                             const SizedBox(width: 8),
+                            kind(
+                              AccountType.asset,
+                              t.setupKindCash,
+                              cash: true,
+                            ),
+                            const SizedBox(width: 8),
                             kind(AccountType.liability, t.setupKindOwed),
                           ],
                         ),
@@ -195,9 +215,11 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                       Padding(
                         padding: const EdgeInsets.only(left: 100, bottom: 12),
                         child: Text(
-                          _type == AccountType.liability
-                              ? t.setupKindOwedHint
-                              : t.setupKindBankHint,
+                          switch ((_type, _cash)) {
+                            (AccountType.liability, _) => t.setupKindOwedHint,
+                            (_, true) => t.setupKindCashHint,
+                            _ => t.setupKindBankHint,
+                          },
                           style: onest(12.5, color: Mid.ink3),
                         ),
                       ),

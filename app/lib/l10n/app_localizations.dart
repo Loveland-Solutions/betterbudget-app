@@ -699,7 +699,7 @@ abstract class Words {
   /// Toast and undo-menu label after an account’s kind is changed to owed money.
   ///
   /// In en, this message translates to:
-  /// **'{name} is now a card or loan'**
+  /// **'{name} is now a credit card or loan'**
   String ledgerIsNowCardOrLoan(String name);
 
   /// Toast and undo-menu label after an account’s kind is changed to a bank account.
@@ -894,11 +894,23 @@ abstract class Words {
   /// **'Accounts'**
   String get ledgerGroupAccounts;
 
-  /// Sidebar heading over bank accounts and cash.
+  /// Sidebar heading over bank accounts and cash. Kept for a ledger made before cash was its own Type.
   ///
   /// In en, this message translates to:
   /// **'Cash & bank'**
   String get ledgerGroupCashBank;
+
+  /// Sidebar heading over bank accounts (checking, savings).
+  ///
+  /// In en, this message translates to:
+  /// **'Bank'**
+  String get ledgerGroupBank;
+
+  /// Sidebar heading over cash accounts (a wallet, a tin).
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get ledgerGroupCash;
 
   /// Sidebar heading over credit cards and loans.
   ///
@@ -2162,7 +2174,7 @@ abstract class Words {
   /// Savings page, consumer debt step: nothing owed
   ///
   /// In en, this message translates to:
-  /// **'No cards or loans owing'**
+  /// **'No credit cards or loans owing'**
   String get planNoCardsOwing;
 
   /// Savings page, consumer debt step: total owed
@@ -3071,19 +3083,31 @@ abstract class Words {
   /// **'Type'**
   String get setupKind;
 
-  /// New account page, a kind of account (checking, savings or cash). Short button.
+  /// New account page, a kind of account (checking or savings). Short button.
   ///
   /// In en, this message translates to:
   /// **'Bank account'**
   String get setupKindBank;
 
+  /// New account page, a kind of account: cash in hand, a wallet or a tin. Short button.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get setupKindCash;
+
+  /// New account page, note under the kinds when Cash is picked.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash you hold: a wallet, a tin at home. There’s no statement to check it against, so it’s yours to keep true — type what you spend.'**
+  String get setupKindCashHint;
+
   /// New account page, a kind of account (credit card, loan, Storepay). Short button.
   ///
   /// In en, this message translates to:
-  /// **'Card or loan'**
+  /// **'Credit card or loan'**
   String get setupKindOwed;
 
-  /// New account page, note under the kinds when Card or loan is picked.
+  /// New account page, note under the kinds when Credit card or loan is picked.
   ///
   /// In en, this message translates to:
   /// **'A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.'**
@@ -3092,7 +3116,7 @@ abstract class Words {
   /// New account page, note under the kinds when Bank account is picked.
   ///
   /// In en, this message translates to:
-  /// **'Checking, savings or cash.'**
+  /// **'Checking or savings, at a bank.'**
   String get setupKindBankHint;
 
   /// Button that closes a form or dialog without doing anything (new account page, account warnings, pay setup).
@@ -3188,7 +3212,7 @@ abstract class Words {
   /// Account menu: turn a bank account into a card or loan account.
   ///
   /// In en, this message translates to:
-  /// **'Change to card or loan'**
+  /// **'Change to credit card or loan'**
   String get setupToOwed;
 
   /// Account menu: take the account out of the sidebar (asks first).
@@ -5622,17 +5646,23 @@ abstract class Words {
   /// **'That’s {amount} more than you have'**
   String planFillOver(String amount);
 
-  /// Budget page, the key card, first row's label: cash and bank less what cards owe, one figure per currency. Short.
+  /// Budget page, the key card, first row's label when the ledger has bank accounts but no cash account. Matches the sidebar group.
   ///
   /// In en, this message translates to:
-  /// **'You have'**
-  String get planKeyHave;
+  /// **'Bank'**
+  String get planKeyBank;
 
-  /// Budget page, the key card: tooltip on "You have".
+  /// Budget page, the key card, first row's label when the ledger has cash but no bank account. Matches the sidebar group.
   ///
   /// In en, this message translates to:
-  /// **'Cash and bank, less what cards owe'**
-  String get planKeyHaveTip;
+  /// **'Cash'**
+  String get planKeyCash;
+
+  /// Budget page, the key card, first row's label: what is in the cash and bank accounts, one figure per currency. Deliberately the same words as the sidebar group ledgerGroupCashBank, so the figure can be checked against it. Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash & bank'**
+  String get planKeyCashBank;
 
   /// Budget page, the key card, second row's label: what the categories hold now (assigned, less spent since the budget began; below zero when overspent). Short.
   ///
@@ -5649,22 +5679,16 @@ abstract class Words {
   /// Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.
   ///
   /// In en, this message translates to:
-  /// **'Spend what the categories hold and the accounts go {amount} below zero.'**
+  /// **'Spend what the categories hold and cash and bank go {amount} below zero.'**
   String planOverConsequence(String amount);
 
-  /// Budget page, the key card, coral note on the You have row when cards owe more than cash and bank hold (nothing assigned could be "too much").
-  ///
-  /// In en, this message translates to:
-  /// **'Cards owe more than you have'**
-  String get planCardsOweShort;
-
-  /// Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized that add up to nothing. Click opens them.
+  /// Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized that add up to nothing. Click opens them.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}'**
   String planUncategorizedRows(int count);
 
-  /// Budget page, the key card, gold link on the You have row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.
+  /// Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}'**

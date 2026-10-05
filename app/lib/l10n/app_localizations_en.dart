@@ -474,7 +474,7 @@ class WordsEn extends Words {
 
   @override
   String ledgerIsNowCardOrLoan(String name) {
-    return '$name is now a card or loan';
+    return '$name is now a credit card or loan';
   }
 
   @override
@@ -627,6 +627,12 @@ class WordsEn extends Words {
 
   @override
   String get ledgerGroupCashBank => 'Cash & bank';
+
+  @override
+  String get ledgerGroupBank => 'Bank';
+
+  @override
+  String get ledgerGroupCash => 'Cash';
 
   @override
   String get ledgerGroupCredit => 'Credit';
@@ -1577,7 +1583,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planNoCardsOwing => 'No cards or loans owing';
+  String get planNoCardsOwing => 'No credit cards or loans owing';
 
   @override
   String planAmountOwed(String amount) {
@@ -2164,14 +2170,21 @@ class WordsEn extends Words {
   String get setupKindBank => 'Bank account';
 
   @override
-  String get setupKindOwed => 'Card or loan';
+  String get setupKindCash => 'Cash';
+
+  @override
+  String get setupKindCashHint =>
+      'Cash you hold: a wallet, a tin at home. There’s no statement to check it against, so it’s yours to keep true — type what you spend.';
+
+  @override
+  String get setupKindOwed => 'Credit card or loan';
 
   @override
   String get setupKindOwedHint =>
       'A credit card, a loan or Storepay: shows what you owe, as a positive amount, the way the bank does.';
 
   @override
-  String get setupKindBankHint => 'Checking, savings or cash.';
+  String get setupKindBankHint => 'Checking or savings, at a bank.';
 
   @override
   String get setupCancel => 'Cancel';
@@ -2231,7 +2244,7 @@ class WordsEn extends Words {
   String get setupToBank => 'Change to bank account';
 
   @override
-  String get setupToOwed => 'Change to card or loan';
+  String get setupToOwed => 'Change to credit card or loan';
 
   @override
   String get setupArchiveMenu => 'Archive…';
@@ -3917,10 +3930,13 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planKeyHave => 'You have';
+  String get planKeyBank => 'Bank';
 
   @override
-  String get planKeyHaveTip => 'Cash and bank, less what cards owe';
+  String get planKeyCash => 'Cash';
+
+  @override
+  String get planKeyCashBank => 'Cash & bank';
 
   @override
   String get planKeyAssigned => 'In categories';
@@ -3930,11 +3946,8 @@ class WordsEn extends Words {
 
   @override
   String planOverConsequence(String amount) {
-    return 'Spend what the categories hold and the accounts go $amount below zero.';
+    return 'Spend what the categories hold and cash and bank go $amount below zero.';
   }
-
-  @override
-  String get planCardsOweShort => 'Cards owe more than you have';
 
   @override
   String planUncategorizedRows(int count) {

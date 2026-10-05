@@ -15,7 +15,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       type: AccountType.asset,
       institution: 'Trade and Development Bank',
       mask: '4410',
-      group: 'Cash & bank',
+      group: LedgerGroups.bank,
       sortOrder: 0,
     );
     final savings = await db.addAccount(
@@ -23,13 +23,13 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       type: AccountType.asset,
       institution: 'Khan Bank',
       mask: '2291',
-      group: 'Cash & bank',
+      group: LedgerGroups.bank,
       sortOrder: 1,
     );
     final cash = await db.addAccount(
       name: 'Cash wallet',
       type: AccountType.asset,
-      group: 'Cash & bank',
+      group: LedgerGroups.cash,
       sortOrder: 2,
     );
     final visa = await db.addAccount(
@@ -37,7 +37,7 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
       type: AccountType.liability,
       institution: 'Golomt Bank',
       mask: '7788',
-      group: 'Credit',
+      group: LedgerGroups.credit,
       sortOrder: 3,
     );
     final opening = await db.addAccount(

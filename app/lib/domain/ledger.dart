@@ -7,6 +7,17 @@ import 'pay.dart';
 
 enum AccountType { asset, liability, income, expense, equity }
 
+/// The sidebar buckets the app makes itself. They double as the Type the
+/// user picked on Add account: cash and a bank account are both
+/// [AccountType.asset] to the ledger, and only this tells them apart
+/// (ADR 0004, "Cash is its own Type"). Anything else in the column is a
+/// group the ledger came with, and is shown as it's stored.
+abstract final class LedgerGroups {
+  static const cash = 'Cash';
+  static const bank = 'Bank';
+  static const credit = 'Credit';
+}
+
 enum Cleared { uncleared, cleared, reconciled }
 
 /// What an account is for on the Savings steps (ADR 0004, rule 25). A bank
@@ -84,6 +95,10 @@ class AccountInfo {
   final String? institution;
   final String? mask;
   final String? group;
+
+  /// Cash in hand, not money in a bank: nothing to reconcile against and no
+  /// file to import. Still an asset, and still counts as money to budget.
+  bool get isCash => group == LedgerGroups.cash;
   final int sortOrder;
 
   /// Out of the sidebar and the account lists, still in net worth.

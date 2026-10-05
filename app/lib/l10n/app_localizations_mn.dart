@@ -625,6 +625,12 @@ class WordsMn extends Words {
   String get ledgerGroupCashBank => 'Бэлэн мөнгө ба банк';
 
   @override
+  String get ledgerGroupBank => 'Банк';
+
+  @override
+  String get ledgerGroupCash => 'Бэлэн мөнгө';
+
+  @override
   String get ledgerGroupCredit => 'Карт, зээл';
 
   @override
@@ -2084,7 +2090,14 @@ class WordsMn extends Words {
   String get setupKindBank => 'Банкны данс';
 
   @override
-  String get setupKindOwed => 'Карт, зээл';
+  String get setupKindCash => 'Бэлэн мөнгө';
+
+  @override
+  String get setupKindCashHint =>
+      'Таны гарт байгаа бэлэн мөнгө: түнэ, гэрт байгаа хайрцаг. Тулгах хуулга байхгүй тул өөрсдөө үнэн байлгах хэрэгтэй — зарцуулсанаа бүртгээрэй.';
+
+  @override
+  String get setupKindOwed => 'Зээлийн карт эсвэл зээл';
 
   @override
   String get setupKindOwedHint =>
@@ -2151,7 +2164,7 @@ class WordsMn extends Words {
   String get setupToBank => 'Банкны данс болгох';
 
   @override
-  String get setupToOwed => 'Карт, зээл болгох';
+  String get setupToOwed => 'Зээлийн карт эсвэл зээл болгох';
 
   @override
   String get setupArchiveMenu => 'Архивлах…';
@@ -3757,10 +3770,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planKeyHave => 'Танд байгаа';
+  String get planKeyBank => 'Банк';
 
   @override
-  String get planKeyHaveTip => 'Бэлэн мөнгө, банк, картын өрийг хассан';
+  String get planKeyCash => 'Бэлэн мөнгө';
+
+  @override
+  String get planKeyCashBank => 'Бэлэн мөнгө ба банк';
 
   @override
   String get planKeyAssigned => 'Ангилалд байгаа';
@@ -3770,11 +3786,8 @@ class WordsMn extends Words {
 
   @override
   String planOverConsequence(String amount) {
-    return 'Ангиллуудын мөнгийг бүгдийг зарцуулбал данснуудад $amount дутна.';
+    return 'Ангиллуудын мөнгийг бүгдийг зарцуулбал бэлэн мөнгө, банкны дансанд $amount дутна.';
   }
-
-  @override
-  String get planCardsOweShort => 'Картын өр танд байгаа мөнгөнөөс их';
 
   @override
   String planUncategorizedRows(int count) {
