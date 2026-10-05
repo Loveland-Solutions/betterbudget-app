@@ -3785,9 +3785,7 @@ class WordsMn extends Words {
   String get planKeyNotAssigned => 'Хуваарилаагүй';
 
   @override
-  String planOverConsequence(String amount) {
-    return 'Ангиллуудын мөнгийг бүгдийг зарцуулбал бэлэн мөнгө, банкны дансанд $amount дутна.';
-  }
+  String get planKeyOver => 'Илүү хуваарилсан';
 
   @override
   String planUncategorizedRows(int count) {

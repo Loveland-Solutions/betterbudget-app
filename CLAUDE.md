@@ -73,7 +73,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   (its Edit opens), and "Every…" for the repeat you set up yourself (the word is
   **Custom…**), and Budget by as a setting (it's a view on the Budget page, and each
   category has its own period: month or a named pay; a set amount seen by another
-  period is prorated by days).
+  period is prorated by days), and a minus beside "Not assigned" (it stops at zero and a
+  red row, **Assigned too much**, holds the amount), defended because "the sum adds
+  up" (arithmetic that's right can still confuse; don't think like a computer).
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

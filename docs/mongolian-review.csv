@@ -996,7 +996,7 @@ planKeyHave,"Budget page, the key card, first row's label.",You have,Танд б
 planKeyHaveTip,"Budget page, tooltip on You have.","Cash and bank, less what cards owe","Бэлэн мөнгө, банк, картын өрийг хассан",,
 planKeyAssigned,"Budget page, the key card, second row's label: what the categories hold now.",In categories,Ангилалд байгаа,,
 planKeyNotAssigned,"Budget page, the key card, the result row's label.",Not assigned,Хуваарилаагүй,,
-planOverConsequence,"Budget page, coral note when more is assigned than there is.",Spend what the categories hold and the accounts go {amount} below zero.,Ангиллуудын мөнгийг бүгдийг зарцуулбал данснуудад {amount} дутна.,,
+planKeyOver,"Budget page, label of the coral row shown when more is assigned than there is.",Assigned too much,Илүү хуваарилсан,,
 planCardsOweShort,"Budget page, coral note when cards owe more than cash and bank hold.",Cards owe more than you have,Картын өр танд байгаа мөнгөнөөс их,,
 planUncategorizedRows,"Budget page, gold link: imported rows waiting, adding up to nothing.",{count} rows not categorized · show them,{count} ангилаагүй мөр · харуулах,,
 planUncategorizedMoney,"Budget page, gold link: imported rows waiting, with their sum.",{amount} in {count} rows not categorized · show them,"{count} ангилаагүй мөр, {amount} · харуулах",,

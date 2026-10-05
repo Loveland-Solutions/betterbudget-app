@@ -5792,14 +5792,9 @@
   "@planKeyNotAssigned": {
     "description": "Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short."
   },
-  "planOverConsequence": "Spend what the categories hold and cash and bank go {amount} below zero.",
-  "@planOverConsequence": {
-    "description": "Budget page, the key card, coral note on the Not assigned row when more is assigned than there is: what will happen, with the shortfall.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
+  "planKeyOver": "Assigned too much",
+  "@planKeyOver": {
+    "description": "Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short."
   },
   "planUncategorizedRows": "{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}",
   "@planUncategorizedRows": {

@@ -923,7 +923,7 @@
   "planKeyCashBank": "Бэлэн мөнгө ба банк",
   "planKeyAssigned": "Ангилалд байгаа",
   "planKeyNotAssigned": "Хуваарилаагүй",
-  "planOverConsequence": "Ангиллуудын мөнгийг бүгдийг зарцуулбал бэлэн мөнгө, банкны дансанд {amount} дутна.",
+  "planKeyOver": "Илүү хуваарилсан",
   "planUncategorizedRows": "{count, plural, =1{1 ангилаагүй мөр · харуулах} other{{count} ангилаагүй мөр · харуулах}}",
   "planUncategorizedMoney": "{count, plural, =1{1 ангилаагүй мөр, {amount} · харуулах} other{{count} ангилаагүй мөр, {amount} · харуулах}}",
   "planFilled": "{count, plural, other{{count} ангилалд {amount} хуваариллаа}}",
