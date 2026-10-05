@@ -549,7 +549,7 @@ abstract class Words {
   /// Toast after "I don’t have regular pay" is chosen.
   ///
   /// In en, this message translates to:
-  /// **'No regular pay · the app won’t ask for it · Settings changes this'**
+  /// **'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this'**
   String get ledgerNoRegularPayToast;
 
   /// Toast after Settings → ask for pay again.
@@ -1056,6 +1056,12 @@ abstract class Words {
   /// **'Version {version} ({build})'**
   String settingsVersion(String version, String build);
 
+  /// Settings, bottom of the page, under the version line: who helped design the app. Keep the name in Latin letters.
+  ///
+  /// In en, this message translates to:
+  /// **'The Budget page was laid out with help from Cynthia G. Loveland.'**
+  String get settingsCredit;
+
   /// Settings → Start over card, button.
   ///
   /// In en, this message translates to:
@@ -1458,6 +1464,60 @@ abstract class Words {
   /// **'Runs out on {date} · up to {amount} short'**
   String planRunsOut(String date, String amount);
 
+  /// Sidebar, tooltip on the coral dot beside an account: the day its balance first goes below zero and how far below it is that day
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out on {date} · {amount} short'**
+  String planRunsOutBy(String date, String amount);
+
+  /// Account header, the forecast's bill list: after a payday or bill the app expects from the pay plan or a category's plan past the scheduled one (not a row yet)
+  ///
+  /// In en, this message translates to:
+  /// **'expected'**
+  String get planExpected;
+
+  /// Account header, forecast panel: after the bill count under the headline when some bills are the app's expectation past the scheduled rows (4 bills · ₮X through 12.15 · 2 of them expected)
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of them expected'**
+  String planOfThemExpected(int count);
+
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.'**
+  String planPaidFromSeveral(int count);
+
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked
+  ///
+  /// In en, this message translates to:
+  /// **'No account is checked, so this bill isn’t in any forecast.'**
+  String get planPaidFromNoneChecked;
+
+  /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out on {date}'**
+  String planRunsOutZero(String date);
+
+  /// Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day; {amount} is how far below zero it is that day); a click looks that far
+  ///
+  /// In en, this message translates to:
+  /// **'After {end}: runs out on {date} · {amount} short'**
+  String planShortAhead(String end, String date, String amount);
+
+  /// Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches
+  ///
+  /// In en, this message translates to:
+  /// **'After {end}: runs out on {date}'**
+  String planShortAheadZero(String end, String date);
+
+  /// Account header, forecast panel: tooltip on the coral line above the Forecast title; clicking it widens the forecast's span to include that day
+  ///
+  /// In en, this message translates to:
+  /// **'Look as far as {date}'**
+  String planShortAheadTip(String date);
+
   /// Account header, forecast panel: headline, the lowest the balance gets before next income
   ///
   /// In en, this message translates to:
@@ -1547,11 +1607,35 @@ abstract class Words {
     String inAmount,
   );
 
-  /// Account header, forecast panel: small title above the headline when there is no payday ahead
+  /// Account header, forecast panel: small title above the headline when there is no payday ahead, or the 30-day span was chosen; also that choice in the span dropdown
   ///
   /// In en, this message translates to:
   /// **'Next 30 days'**
   String get planNext30Days;
+
+  /// Account header, forecast panel: the small title and its dropdown's choices for a span of 60 or 90 days
+  ///
+  /// In en, this message translates to:
+  /// **'Next {count} days'**
+  String planNextDays(int count);
+
+  /// Account header, forecast panel: the small title and its dropdown's choice for a span of six months
+  ///
+  /// In en, this message translates to:
+  /// **'Next 6 months'**
+  String get planNext6Months;
+
+  /// Account header, forecast panel: the small title and its dropdown's choice for a span of a year from today
+  ///
+  /// In en, this message translates to:
+  /// **'Next year'**
+  String get planNextYear;
+
+  /// Account header, forecast panel: tooltip on the small title, which is a dropdown of spans (until the paycheck after next, 30, 60 or 90 days, 6 months, a year)
+  ///
+  /// In en, this message translates to:
+  /// **'How far ahead the forecast looks'**
+  String get planSpanTip;
 
   /// Account header, forecast panel: gold link after the small title; opens pay setup
   ///
@@ -1612,6 +1696,36 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Add a category'**
   String get planAddCategoryTip;
+
+  /// Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a paycheck: how much, how often, and the account it goes into'**
+  String get setupAddPayTip;
+
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)
+  ///
+  /// In en, this message translates to:
+  /// **'{received} received of {expected} expected this period'**
+  String planIncomeExpected(String received, String expected);
+
+  /// Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get planIncomeTab;
+
+  /// Budget page, Income tab, under a pay's name: how much and when, and the account it is paid into, when no payday is scheduled
+  ///
+  /// In en, this message translates to:
+  /// **'{amounts} · into {account}'**
+  String planPayInto(String amounts, String account);
+
+  /// Budget page, Income tab, under a pay's name: how much and when, the account it is paid into, and the next payday
+  ///
+  /// In en, this message translates to:
+  /// **'{amounts} · into {account} · next {date}'**
+  String planPayIntoNext(String amounts, String account, String date);
 
   /// Budget page: group title, and the kind toggle in the new-category form
   ///
@@ -3564,7 +3678,7 @@ abstract class Words {
   /// Settings → Budget, note when there is no pay yet.
   ///
   /// In en, this message translates to:
-  /// **'Pay periods come from your pay: add it below to budget by them.'**
+  /// **'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.'**
   String get setupPeriodsFromPay;
 
   /// Settings → Budget, note when budgeting by month.
@@ -5574,12 +5688,6 @@ abstract class Words {
   /// **'{category} is now in {symbol}'**
   String planMoneyCurrencyUndo(String category, String symbol);
 
-  /// Budget page, Edit under a spending category's row: label over the dropdown of accounts in the category's currency (cash, bank and cards), each with a checkbox, all checked to begin with
-  ///
-  /// In en, this message translates to:
-  /// **'Accounts this category uses'**
-  String get planMoneyAccounts;
-
   /// Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan
   ///
   /// In en, this message translates to:
@@ -5680,6 +5788,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Is there a due date?'**
   String get planDueDateQ;
+
+  /// Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount you spend through each month, like groceries.'**
+  String get planDueNoMeans;
+
+  /// Budget page, Edit: the same note while the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount you spend through each pay period, like groceries.'**
+  String get planDueNoMeansPay;
+
+  /// Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example
+  ///
+  /// In en, this message translates to:
+  /// **'An amount to have ready by a date, like rent or insurance.'**
+  String get planDueYesMeans;
 
   /// Budget page, Edit under a category's row: the first answer to "Is there a due date?"
   ///
@@ -5813,17 +5939,131 @@ abstract class Words {
   /// **'Every payday · {name}'**
   String planEveryPaydayOf(String name);
 
-  /// Budget page, Edit under a category's row (Yes): how often, the entry that opens a number and a unit (every 6 weeks, every 3 years)
+  /// Budget page, Edit under a category's row (Yes): how often, the entry that opens the Custom block (Repeat every N unit; weekdays or the nth weekday; Ends), like a calendar app's recurrence
   ///
   /// In en, this message translates to:
-  /// **'Every…'**
+  /// **'Custom…'**
   String get planEveryCustom;
 
-  /// Budget page, Edit under a category's row (Yes): the word before the number and unit, after "Every…" is picked
+  /// Budget page, Edit under a category's row (Yes): what the How often button says while the Custom block is open under it
   ///
   /// In en, this message translates to:
-  /// **'every'**
-  String get planEveryWord;
+  /// **'Custom'**
+  String get planCustomOn;
+
+  /// Budget page, Edit, the Custom block: label of the row with the number and the unit (days, weeks, months, years)
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat every'**
+  String get planRepeatEvery;
+
+  /// Budget page, Edit, the Custom block, every so many weeks: label of the row of weekday chips (Mo … Su)
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get planOnWeekdays;
+
+  /// Budget page, Edit, the Custom block: note beside the weekday chips while none is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the days; with none picked, the date’s own weekday.'**
+  String get planWeekdaysHint;
+
+  /// Budget page, Edit, the Custom block, every so many months or years: label of the row choosing the day of the month or a weekday (the second Tuesday)
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get planOnLabel;
+
+  /// Budget page, Edit, the Custom block: the first choice under On, the due date's own day each month
+  ///
+  /// In en, this message translates to:
+  /// **'Day of the month'**
+  String get planDayOfMonth;
+
+  /// Budget page, Edit, the Custom block: the second choice under On; picking it shows two dropdowns, which one (first … last) and which weekday
+  ///
+  /// In en, this message translates to:
+  /// **'A weekday'**
+  String get planAWeekday;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month, in the dropdown beside A weekday
+  ///
+  /// In en, this message translates to:
+  /// **'first'**
+  String get planNthFirst;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'second'**
+  String get planNthSecond;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'third'**
+  String get planNthThird;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month
+  ///
+  /// In en, this message translates to:
+  /// **'fourth'**
+  String get planNthFourth;
+
+  /// Budget page, Edit, the Custom block: which weekday of the month, the last one
+  ///
+  /// In en, this message translates to:
+  /// **'last'**
+  String get planNthLast;
+
+  /// Budget page, Edit, the Custom block: the weekday dropdown beside A weekday, Monday first, separated by |
+  ///
+  /// In en, this message translates to:
+  /// **'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'**
+  String get planWeekdayNames;
+
+  /// Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get planEnds;
+
+  /// Budget page, Edit, the Custom block, Ends: it goes on
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get planEndsNever;
+
+  /// Budget page, Edit, the Custom block, Ends: no bill after the date typed beside it
+  ///
+  /// In en, this message translates to:
+  /// **'On a date'**
+  String get planEndsOn;
+
+  /// Budget page, Edit, the Custom block, Ends: so many bills, the number typed beside it, then the word times
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get planEndsAfter;
+
+  /// Budget page, Edit, the Custom block, Ends: after the number field (After 12 times)
+  ///
+  /// In en, this message translates to:
+  /// **'times'**
+  String get planEndsTimes;
+
+  /// Budget page, Edit, the Custom block, Ends on a date: the empty date field's hint
+  ///
+  /// In en, this message translates to:
+  /// **'YYYY.MM.DD'**
+  String get planEndDateHint;
+
+  /// Budget page, the note under a category's name once a repeating plan's last bill (its Ends) is past: the amount and the last bill's date
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} · ended {date}'**
+  String planEnded(String amount, String date);
 
   /// Budget page, Edit under a category's row (Yes): how often, fixed dates each year that aren't evenly spaced (taxes four times a year)
   ///
@@ -5909,10 +6149,10 @@ abstract class Words {
   /// **'Shows in {account}’s forecast on {date}; you confirm it when it’s paid.'**
   String planPaidFromHint(String account, String date);
 
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is chosen
+  /// Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)
   ///
   /// In en, this message translates to:
-  /// **'Pick an account and the bill shows in its forecast.'**
+  /// **'Leave one account checked and the bill shows in its forecast.'**
   String get planPaidFromHintNone;
 
   /// Budget page, Edit under a category's row (Yes): the amount set aside each period, which the app works out rather than asks for
@@ -5939,17 +6179,11 @@ abstract class Words {
   /// **'The row will read'**
   String get planRowWillRead;
 
-  /// Budget page, a category's plan (On a date): label over the choice of account the bill is paid from
+  /// Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked
   ///
   /// In en, this message translates to:
   /// **'Paid from'**
   String get planLabelPaidFrom;
-
-  /// Budget page, Edit under a category's row (Yes): the first choice under Paid from, none; the bill isn't scheduled anywhere
-  ///
-  /// In en, this message translates to:
-  /// **'No account'**
-  String get planPaidFromNone;
 
   /// Budget page: part of the note under a category's name, after the amount and a dot; the plan's cap
   ///

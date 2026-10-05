@@ -24,6 +24,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onArchive,
     required this.onDelete,
     required this.onPay,
+    required this.onAskAgain,
     required this.onCreate,
     required this.onUnarchive,
     required this.onShowRows,
@@ -41,8 +42,11 @@ class _BudgetPage extends StatefulWidget {
   final ValueChanged<AccountInfo> onArchive;
   final ValueChanged<AccountInfo> onDelete;
 
-  /// The pay note was clicked: change the pay it's about, or set one up.
+  /// Income tab: a pay's Edit, or Add pay (null).
   final ValueChanged<PaySchedule?> onPay;
+
+  /// Income tab: "Ask me again" after "I don't have regular pay".
+  final VoidCallback onAskAgain;
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
@@ -64,7 +68,9 @@ class _BudgetPage extends StatefulWidget {
 
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
-  final void Function(String name, Currency currency) onCreate;
+  /// Add category: the new category's id, or null when nothing was made
+  /// (the name was taken). Edit opens under the new row.
+  final Future<int?> Function(String name, Currency currency) onCreate;
   final ValueChanged<AccountInfo> onUnarchive;
 
   /// A Put in amount was typed for the period starting on the date.
@@ -77,6 +83,10 @@ class _BudgetPage extends StatefulWidget {
 class _BudgetPageState extends State<_BudgetPage> {
   bool _adding = false;
   bool _showArchived = false;
+
+  /// Spending (the categories) or Income (the pay, and what came in):
+  /// the owner's call, 2026-10-05, from Cynthia's notes.
+  _BudgetTab _tab = _BudgetTab.spending;
 
   /// The period on screen; null for the one today is in.
   BudgetSpan? _period;
@@ -161,26 +171,72 @@ class _BudgetPageState extends State<_BudgetPage> {
       edit(i >= 0 && i + 1 < spending.length ? spending[i + 1].id : null);
     }
 
-    Widget columns(String title, List<String> heads) => Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+    // The panel's top row: the two tabs, and over the categories their
+    // column heads. A gold dot on Income says pay wants attention (not set
+    // up, or an estimate to update).
+    Widget tabs() => Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
       child: Row(
         children: [
-          Expanded(
-            child: Text(title, style: onest(12.5, color: Mid.ink3)),
+          _PageTab(
+            key: const ValueKey('budget-tab-spending'),
+            label: t.planSpending,
+            active: _tab == _BudgetTab.spending,
+            onTap: () => setState(() => _tab = _BudgetTab.spending),
           ),
-          for (final h in heads)
-            SizedBox(
-              width: _amountWidth,
-              child: Text(
-                h,
-                textAlign: TextAlign.right,
-                style: onest(12.5, color: Mid.ink3),
+          _PageTab(
+            key: const ValueKey('budget-tab-income'),
+            label: t.planIncomeTab,
+            active: _tab == _BudgetTab.income,
+            dot: _payNote(t, data).nudge,
+            // The Spending list stays mounted under Income, so an Edit
+            // open there keeps what was typed (code review, 2026-10-05).
+            onTap: () => setState(() => _tab = _BudgetTab.income),
+          ),
+          const Spacer(),
+          if (_tab == _BudgetTab.spending) ...[
+            for (final h in [t.planAssigned, t.planSpent, t.planLeft])
+              SizedBox(
+                width: _amountWidth,
+                child: Text(
+                  h,
+                  textAlign: TextAlign.right,
+                  style: onest(12.5, color: Mid.ink3),
+                ),
               ),
-            ),
-          const SizedBox(width: 40),
+            const SizedBox(width: 40),
+          ],
         ],
       ),
     );
+
+    // This period's pay, by currency: what the schedules expect in it,
+    // and what has come (the paydays confirmed in the period, on their
+    // account's side).
+    final moneyIds = {for (final a in data.balanceSheetAccounts) a.id};
+    final expectedPay = <Currency, int>{};
+    for (final p in data.paySchedules) {
+      final c = data.accounts[p.accountId]?.currency ?? Currency.mnt;
+      var d = p.nextAfter(
+        DateTime(period.start.year, period.start.month, period.start.day - 1),
+      );
+      for (var i = 0; i < 40 && !d.isAfter(period.end); i++) {
+        expectedPay[c] = (expectedPay[c] ?? 0) + p.amountOn(d);
+        d = p.nextAfter(d);
+      }
+    }
+    final fromPay = <Currency, int>{};
+    for (final x in data.txns) {
+      if (x.scheduled || x.payScheduleId == null) continue;
+      if (x.date.isBefore(period.start) || x.date.isAfter(period.end)) {
+        continue;
+      }
+      for (final e in x.entries) {
+        if (e.amount > 0 && moneyIds.contains(e.accountId)) {
+          fromPay[e.currency] = (fromPay[e.currency] ?? 0) + e.amount;
+        }
+      }
+    }
 
     void open(int? id, {bool atPlan = false}) {
       setState(() {
@@ -441,13 +497,25 @@ class _BudgetPageState extends State<_BudgetPage> {
                   ),
                 ],
                 const Spacer(),
-                _PrimaryButton(
-                  key: const ValueKey('add-category'),
-                  label: t.planAddCategory,
-                  icon: Icons.add_rounded,
-                  tooltip: t.planAddCategoryTip,
-                  onTap: () => setState(() => _adding = true),
-                ),
+                // One button for the tab that's on: a category, or a pay.
+                if (_tab == _BudgetTab.income)
+                  _PrimaryButton(
+                    key: const ValueKey('income-add-pay'),
+                    label: data.paySchedules.isEmpty
+                        ? t.setupAddYourPay
+                        : t.setupAddOtherPay,
+                    icon: Icons.add_rounded,
+                    tooltip: t.setupAddPayTip,
+                    onTap: () => widget.onPay(null),
+                  )
+                else
+                  _PrimaryButton(
+                    key: const ValueKey('add-category'),
+                    label: t.planAddCategory,
+                    icon: Icons.add_rounded,
+                    tooltip: t.planAddCategoryTip,
+                    onTap: () => setState(() => _adding = true),
+                  ),
               ],
             ),
           ),
@@ -455,15 +523,6 @@ class _BudgetPageState extends State<_BudgetPage> {
           for (final (n, pool) in budget.pools.indexed) ...[
             if (n > 0) const SizedBox(height: 10),
             ...top(pool),
-          ],
-          if (income != null) ...[
-            const SizedBox(height: 10),
-            _IncomeLine(
-              cameIn: _cameIn(budget.cameIn[income.id], budget.currency),
-              payNote: _payNote(t, data),
-              onShowRows: () => widget.onShowRows(income, period),
-              onPay: widget.onPay,
-            ),
           ],
           if (offerStart) ...[
             const SizedBox(height: 10),
@@ -497,20 +556,42 @@ class _BudgetPageState extends State<_BudgetPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
                 children: [
+                  tabs(),
+                  if (_tab == _BudgetTab.income)
+                    _IncomeTab(
+                      data: data,
+                      cameIn: income == null
+                          ? const []
+                          : _cameIn(budget.cameIn[income.id], budget.currency),
+                      fromPay: fromPay,
+                      expectedPay: expectedPay,
+                      onShowRows: income == null
+                          ? null
+                          : () => widget.onShowRows(income, period),
+                      onPay: widget.onPay,
+                      onAskAgain: widget.onAskAgain,
+                    ),
+                  Offstage(
+                    offstage: _tab == _BudgetTab.income,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                   if (_adding)
                     _NewCategory(
-                      // Stays open for the next one, like the entry row;
-                      // Esc or Cancel closes it.
+                      // A category just made opens in Edit under its row,
+                      // so what it's for is asked at once (owner's
+                      // request, 2026-10-05); Esc or Cancel closes the box.
                       onCreate: widget.onCreate,
+                      onCreated: (id) => setState(() {
+                        _adding = false;
+                        _editing = null;
+                        _open = id;
+                        _openAtPlan = true;
+                      }),
                       currencies: currencies,
                       currency: budget.currency,
                       onCancel: () => setState(() => _adding = false),
                     ),
-                  columns(t.planSpending, [
-                    t.planAssigned,
-                    t.planSpent,
-                    t.planLeft,
-                  ]),
                   for (final (i, c) in spending.indexed)
                     row(c, striped: i.isOdd),
                   const SizedBox(height: 14),
@@ -572,6 +653,9 @@ class _BudgetPageState extends State<_BudgetPage> {
                           ),
                         ),
                   ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -584,61 +668,256 @@ class _BudgetPageState extends State<_BudgetPage> {
 
 const double _amountWidth = 136;
 
-/// This period's income, each currency on its own (a click shows the
-/// rows), and what pay is set up (a click opens it).
-class _IncomeLine extends StatelessWidget {
-  const _IncomeLine({
+enum _BudgetTab { spending, income }
+
+/// A tab in the panel's top row, drawn like the register's.
+class _PageTab extends StatelessWidget {
+  const _PageTab({
+    super.key,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.dot = false,
+  });
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  /// Something on the tab wants attention: a small gold dot after it.
+  final bool dot;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Hoverable(
+      onTap: onTap,
+      builder: (hover) => Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: active ? Mid.raised : (hover ? Mid.hover : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: onest(13, color: active ? Mid.ink : Mid.ink3)),
+            if (dot) ...[
+              const SizedBox(width: 6),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Mid.gold,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The Income tab (owner's call, 2026-10-05, from Cynthia's notes: pay
+/// "in a highly visible place like the budget income tab, not the
+/// settings menu"): this period's income, each currency on its own, with
+/// how much of it came from pay; then one line per pay, as Settings used
+/// to list them, each with Edit. Add pay is the page's top-right button.
+class _IncomeTab extends StatelessWidget {
+  const _IncomeTab({
+    required this.data,
     required this.cameIn,
-    required this.payNote,
+    required this.fromPay,
+    required this.expectedPay,
     required this.onShowRows,
     required this.onPay,
+    required this.onAskAgain,
   });
+  final LedgerData data;
   final List<(Currency, int)> cameIn;
-  final ({String text, bool nudge, PaySchedule? schedule}) payNote;
-  final VoidCallback onShowRows;
+
+  /// This period's pay by currency: what has come, and what the
+  /// schedules expect.
+  final Map<Currency, int> fromPay;
+  final Map<Currency, int> expectedPay;
+  final VoidCallback? onShowRows;
   final ValueChanged<PaySchedule?> onPay;
+  final VoidCallback onAskAgain;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final noteColor = payNote.nudge ? Mid.gold : Mid.ink2;
-    TextStyle style(Color color, bool hover) =>
-        onest(13, color: color, tabular: true).copyWith(
-          decoration: hover ? TextDecoration.underline : null,
-          decorationColor: color,
-        );
-    return Row(
+    final pays = data.paySchedules;
+    String name(int id) {
+      final a = data.accounts[id];
+      if (a == null) return '';
+      return a.deleted
+          ? t.startDeletedAccount(a.name)
+          : a.archived
+          ? t.setupNameArchived(a.name)
+          : a.name;
+    }
+
+    // "₮2,100,000 received of ₮4,200,000 expected this period" (the
+    // owner's words, 2026-10-05), one per currency pay is set up in.
+    final split = [
+      for (final MapEntry(key: c, value: expected) in expectedPay.entries)
+        t.planIncomeExpected(
+          formatShort(fromPay[c] ?? 0, currency: c),
+          formatShort(expected, currency: c),
+        ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Tooltip(
-          message: t.planShowTheseRows,
-          waitDuration: const Duration(milliseconds: 500),
-          child: Hoverable(
-            key: const ValueKey('income-line'),
-            onTap: onShowRows,
-            builder: (hover) => Text(
-              t.planIncomeLine(
-                [
-                  for (final (currency, amount) in cameIn)
-                    formatMoney(amount, currency: currency),
-                ].join(' · '),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: Row(
+            children: [
+              Tooltip(
+                message: t.planShowTheseRows,
+                waitDuration: const Duration(milliseconds: 500),
+                child: Hoverable(
+                  key: const ValueKey('income-line'),
+                  onTap: onShowRows ?? () {},
+                  builder: (hover) => Text(
+                    t.planIncomeLine(
+                      cameIn.isEmpty
+                          ? formatMoney(0, currency: mainCurrency(data))
+                          : [
+                              for (final (c, v) in cameIn)
+                                formatMoney(v, currency: c),
+                            ].join(' · '),
+                    ),
+                    style: onest(15, weight: 600, tabular: true).copyWith(
+                      decoration: hover ? TextDecoration.underline : null,
+                      decorationColor: Mid.ink,
+                    ),
+                  ),
+                ),
               ),
-              style: style(Mid.ink2, hover),
-            ),
+              if (split.isNotEmpty) ...[
+                const SizedBox(width: 14),
+                Flexible(
+                  child: Text(
+                    split.join(' · '),
+                    key: const ValueKey('income-expected'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(13, color: Mid.ink3, tabular: true),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(width: 18),
-        Flexible(
-          child: Hoverable(
-            key: const ValueKey('pay-note'),
-            onTap: () => onPay(payNote.schedule),
-            builder: (hover) => Text(
-              payNote.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: style(noteColor, hover),
-            ),
+        const SizedBox(height: 8),
+        for (final (i, p) in pays.indexed)
+          Builder(
+            builder: (context) {
+              final currency =
+                  data.accounts[p.accountId]?.currency ?? Currency.mnt;
+              final amounts = payAmounts(
+                t,
+                p,
+                (v) => formatShort(v, currency: currency),
+                dotted: true,
+              );
+              final next = data
+                  .registerFor(p.accountId)
+                  .scheduled
+                  .where((r) => r.payScheduleId == p.id)
+                  .firstOrNull
+                  ?.date;
+              final note = _payNoteOf(t, data, p, '');
+              return Container(
+                key: ValueKey('pay-row-${p.id}'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: i.isOdd ? Mid.stripe : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            // Two pays with no payer: told apart by the
+                            // account (budget review, 2026-10-05).
+                            p.payee ??
+                                (pays.length > 1
+                                    ? t.setupCategoryInto(
+                                        t.ledgerIncome,
+                                        name(p.accountId),
+                                      )
+                                    : t.ledgerIncome),
+                            style: onest(14.5, weight: 600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            next == null
+                                ? t.planPayInto(amounts, name(p.accountId))
+                                : t.planPayIntoNext(
+                                    amounts,
+                                    name(p.accountId),
+                                    sayDate(t, next),
+                                  ),
+                            style: onest(12.5, color: Mid.ink3, tabular: true),
+                          ),
+                          if (note.nudge) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              note.text,
+                              key: ValueKey('pay-nudge-${p.id}'),
+                              style: onest(12.5, color: Mid.gold, tabular: true),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    BarButton(
+                      key: ValueKey('edit-pay-${p.id}'),
+                      label: t.setupEdit,
+                      onTap: () => onPay(p),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        ),
+        if (pays.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: data.prefs[noRegularPayKey] == '1'
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          t.setupSaidNoPay,
+                          key: const ValueKey('income-no-pay'),
+                          style: onest(13.5, color: Mid.ink2),
+                        ),
+                      ),
+                      BarButton(
+                        key: const ValueKey('income-ask-pay'),
+                        label: t.setupAskAgain,
+                        onTap: onAskAgain,
+                      ),
+                    ],
+                  )
+                : Text(
+                    t.planPaydayNotSetUp,
+                    key: const ValueKey('income-not-set-up'),
+                    style: onest(13.5, color: Mid.gold),
+                  ),
+          ),
       ],
     );
   }
@@ -1108,11 +1387,15 @@ List<Widget> _categoryMenu(
 class _NewCategory extends StatefulWidget {
   const _NewCategory({
     required this.onCreate,
+    required this.onCreated,
     required this.onCancel,
     required this.currencies,
     required this.currency,
   });
-  final void Function(String name, Currency currency) onCreate;
+  final Future<int?> Function(String name, Currency currency) onCreate;
+
+  /// The category was made: its id, for the Edit that opens under it.
+  final ValueChanged<int> onCreated;
   final VoidCallback onCancel;
 
   /// The currencies there are accounts in. With both, a spending category
@@ -1136,13 +1419,19 @@ class _NewCategoryState extends State<_NewCategory> {
     super.dispose();
   }
 
-  void _create() {
+  Future<void> _create() async {
     final n = _name.text.trim();
     // Nothing typed: nothing to call it, so nothing is made.
     if (n.isEmpty) return widget.onCancel();
-    widget.onCreate(n, _currency);
-    // Ready for the next: setting up several is one after another.
-    _name.clear();
+    final id = await widget.onCreate(n, _currency);
+    if (!mounted) return;
+    // Made: its Edit opens under its row. Not made (the name is taken):
+    // the name stays selected, ready to be changed.
+    if (id != null) return widget.onCreated(id);
+    _name.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _name.text.length,
+    );
     _focus.requestFocus();
   }
 
@@ -1620,7 +1909,9 @@ _PlanNote _planNote(
         t.planNoCarry,
     ],
     PlanKind.byDate => [
-      if (!once)
+      if (p.ended)
+        t.planEnded(money(p.plan.amount), date(due))
+      else if (!once)
         t.planDue(money(p.plan.amount), date(due))
       else if (p.done && due.isBefore(period.start))
         t.planWasDue(money(p.plan.amount), date(due))
@@ -2051,6 +2342,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   late final _everyN = TextEditingController(text: '1');
   late final _dates = TextEditingController();
   late final _daysAfter = TextEditingController();
+  late final _endDate = TextEditingController();
+  late final _endCount = TextEditingController(text: '12');
   final _nameFocus = FocusNode(debugLabel: 'category-name');
   final _amountFocus = FocusNode(debugLabel: 'plan-amount');
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
@@ -2059,7 +2352,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _repeatMenu = MenuController();
   final _unitMenu = MenuController();
   final _weekendMenu = MenuController();
-  final _paidFromMenu = MenuController();
+  final _nthMenu = MenuController();
+  final _nthWeekdayMenu = MenuController();
   final _accountsMenu = MenuController();
   final _currencyMenu = MenuController();
 
@@ -2070,7 +2364,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _repeatMenu,
       _unitMenu,
       _weekendMenu,
-      _paidFromMenu,
+      _nthMenu,
+      _nthWeekdayMenu,
       _accountsMenu,
       _currencyMenu,
     ]) {
@@ -2099,12 +2394,38 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   _Repeat _repeat = _Repeat.once;
   bool _custom = false;
   _Unit _unit = _Unit.months;
+
+  /// Custom… (owner, 2026-10-05, an Outlook-like block): every so many
+  /// weeks on these weekdays (Monday 1); every so many months or years on
+  /// the nth weekday instead of the day of the month; and when it ends.
+  final Set<int> _weekdays = {};
+  bool _nthOn = false;
+  int _nth = 1;
+  int _nthWeekday = 1;
+  _Ends _ends = _Ends.never;
   int? _payScheduleId;
   PayWeekend _weekend = PayWeekend.keep;
   bool _rollover = true;
 
-  /// The account a dated plan's bill is paid from; null for none.
-  int? _paidFrom;
+  /// The account a dated plan's bill is scheduled in: the one account the
+  /// category is paid from, when it's narrowed to one. One control says
+  /// both (owner, 2026-10-05: "two account selectors: just have one").
+  int? get _paidFromNow {
+    if (!_dated) return null;
+    final used = _moneyAccounts(
+      widget.data,
+      _currency,
+    ).where((a) => !_off.contains(a.id)).toList();
+    if (used.length == 1) return used.single.id;
+    // A plan saved with an account (before this row, or one since
+    // archived) keeps it while the checks aren't touched: nothing is
+    // rewritten behind the user's back (code review, 2026-10-05).
+    final saved = _plan?.paidFrom;
+    if (saved != null && !_off.contains(saved) && setEquals(_off, _savedOff)) {
+      return saved;
+    }
+    return null;
+  }
 
   /// Save was tried with something missing: say which.
   bool _tried = false;
@@ -2129,7 +2450,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   void initState() {
     super.initState();
     _showPlan(_savedPlan);
-    final atPlan = widget.atPlan && _savedPlan != null;
+    final atPlan = widget.atPlan;
     final first = atPlan ? _amount : _name;
     first.selection = TextSelection(
       baseOffset: 0,
@@ -2191,6 +2512,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _everyN.dispose();
     _dates.dispose();
     _daysAfter.dispose();
+    _endDate.dispose();
+    _endCount.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
     _dateFocus.dispose();
@@ -2235,9 +2558,25 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _unit = _Unit.months;
     }
     _everyN.text = '$n';
+    // Custom…'s own answers: any of them makes the repeat a custom one.
+    _weekdays
+      ..clear()
+      ..addAll(p?.weekdays ?? const []);
+    _nthOn = p?.nth != null;
+    _nth = p?.nth ?? 1;
+    _nthWeekday = p?.nthWeekday ?? 1;
+    _ends = p?.endCount != null
+        ? _Ends.count
+        : p?.endDate != null
+        ? _Ends.date
+        : _Ends.never;
+    _endDate.text = p?.endDate == null ? '' : fullDate(p!.endDate!);
+    _endCount.text = '${p?.endCount ?? 12}';
+    // A pattern makes it Custom…; an end alone doesn't, since Ends shows
+    // under every repeat.
+    if (p != null && (p.weekdays != null || p.nth != null)) _custom = true;
     _rollover = p?.rollover ?? true;
     _upTo.text = _amountText(p?.upTo ?? 0);
-    _paidFrom = p?.paidFrom;
   }
 
   void _pickDated(bool yes) {
@@ -2337,6 +2676,39 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     };
   }
 
+  /// Custom… is on: its block shows, and its answers count.
+  bool get _customOn => _repeat == _Repeat.every && _custom;
+
+  /// The weekdays picked, every so many weeks; null for the date's own.
+  List<int>? get _weekdaysNow =>
+      _customOn && _unit == _Unit.weeks && _weekdays.isNotEmpty
+      ? ([..._weekdays]..sort())
+      : null;
+
+  /// On the nth weekday of the month, every so many months or years.
+  bool get _nthNow =>
+      _customOn && (_unit == _Unit.months || _unit == _Unit.years) && _nthOn;
+
+  DateTime? get _typedEndDate {
+    final d = parseEntryDate(_endDate.text.trim(), widget.today);
+    if (d == null || d.year > widget.today.year + 100) return null;
+    return d;
+  }
+
+  int? get _typedEndCount => switch (int.tryParse(_endCount.text.trim())) {
+    final n? when n > 0 && n < 1000 => n,
+    _ => null,
+  };
+
+  /// Ends applies to any repeat typed as every so many (a preset or
+  /// Custom…): "Every month, 12 times" is an installment plan (budget
+  /// review, 2026-10-05).
+  bool get _endsOn => _repeat == _Repeat.every;
+  DateTime? get _endDateNow =>
+      _endsOn && _ends == _Ends.date ? _typedEndDate : null;
+  int? get _endCountNow =>
+      _endsOn && _ends == _Ends.count ? _typedEndCount : null;
+
   /// The dates typed for "On these dates", as (month, day); null when
   /// one of them isn't a date.
   List<(int, int)>? get _typedDates {
@@ -2396,6 +2768,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           if (_typedEveryN == null) return null;
           due = _typedDate;
           if (due == null) return null;
+          if (_ends == _Ends.date && _typedEndDate == null) return null;
+          if (_ends == _Ends.count && _typedEndCount == null) return null;
         case _Repeat.once:
           due = _typedDate;
           if (due == null) return null;
@@ -2412,12 +2786,23 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       onDates: dates,
       payScheduleId: payId,
       daysAfterPay: payId == null ? 0 : _daysAfterNow,
-      weekend: _dated && _repeat != _Repeat.once && payId == null
+      // Chosen weekdays are the days; a weekend rule would move a
+      // Saturday onto Friday's bill (code review).
+      weekend:
+          _dated &&
+              _repeat != _Repeat.once &&
+              payId == null &&
+              _weekdaysNow == null
           ? _weekend
           : PayWeekend.keep,
+      weekdays: _dated ? _weekdaysNow : null,
+      nth: _dated && _nthNow ? _nth : null,
+      nthWeekday: _dated && _nthNow ? _nthWeekday : null,
+      endDate: _dated ? _endDateNow : null,
+      endCount: _dated ? _endCountNow : null,
       rollover: rollover,
       upTo: upTo,
-      paidFrom: _dated ? _paidFrom : null,
+      paidFrom: _paidFromNow,
     );
     final fresh = make(widget.today);
     // A dated plan's parts count from the day it was made, and a category
@@ -2479,6 +2864,45 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     PayWeekend.after => t.planWeekendAfter,
   };
 
+  /// "first" … "fourth", or "last" (-1).
+  String _nthLabel(Words t, int n) => switch (n) {
+    1 => t.planNthFirst,
+    2 => t.planNthSecond,
+    3 => t.planNthThird,
+    4 => t.planNthFourth,
+    _ => t.planNthLast,
+  };
+
+  /// Monday (1) … Sunday (7), in full.
+  String _weekdayName(Words t, int wd) => t.planWeekdayNames.split('|')[wd - 1];
+
+  /// One weekday in Custom…'s row of them, lit when picked.
+  Widget _dayChip(
+    String label, {
+    required String key,
+    required bool on,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsets.only(right: 6),
+    child: Hoverable(
+      key: ValueKey(key),
+      onTap: onTap,
+      builder: (hover) => Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(label, style: onest(12.5, color: on ? Mid.ink : Mid.ink2)),
+      ),
+    ),
+  );
+
   /// "Every payday", or which pay when there's more than one.
   String _paydayLabel(Words t, PaySchedule s) {
     if (widget.data.paySchedules.length < 2) return t.planEveryPayday;
@@ -2489,6 +2913,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// What the How often button says.
   String _repeatLabel(Words t) => switch (_repeat) {
     _Repeat.once => t.planOnce,
+    // Custom… open: the block under it says the pattern.
+    _Repeat.every when _custom => t.planCustomOn,
     _Repeat.every => _everyLabel(t, _typedEveryN ?? 1, _unit),
     _Repeat.dates => t.planDatesAYear(_typedDates?.length ?? 0),
     _Repeat.payday => switch (widget.data.payScheduleById(_payScheduleId)) {
@@ -2555,7 +2981,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     final wrongDate = _tried && _dated && _typedDate == null;
     final wrongUpTo = _tried && !_dated && _wrongUpTo;
     final data = widget.data;
-    final paidAccount = data.accounts[_paidFrom];
+    final paidAccount = data.accounts[_paidFromNow];
     final hasAmount = _amount.text.trim().isNotEmpty;
     String money(int v) => formatShort(v, currency: _currency);
     Widget amountField(
@@ -2653,6 +3079,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             ('plan-dated-yes', t.planYes, _hasDate, () => _pickDated(true)),
           ],
         ),
+        // What the answer picked means, in one example (owner, 2026-10-05:
+        // "What happens if there isn't a due date?").
+        aside: _hasDate
+            ? t.planDueYesMeans
+            : byPay
+            ? t.planDueNoMeansPay
+            : t.planDueNoMeans,
       ),
       if (!_hasDate) ...[
         _formRow(
@@ -2671,7 +3104,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? t.planEmptyHintPay
               : t.planEmptyHint,
         ),
-        if (hasAmount) ...[
+        // Shown whether or not an amount is typed: it answers "do we
+        // ever zero it out?" (owner, 2026-10-05).
+        ...[
           _formRow(
             byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
             _Segmented(
@@ -2691,7 +3126,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
-          if (_rollover)
+          if (_rollover && hasAmount)
             _formRow(
               t.planStopAt,
               amountField(
@@ -2704,6 +3139,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               aside: t.planStopAtHint,
             ),
         ],
+        _accountsRow(t),
       ] else ...[
         _formRow(
           t.planAmountDue,
@@ -2776,40 +3212,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   ),
                 ],
               ),
-              if (_repeat == _Repeat.every && _custom) ...[
-                const SizedBox(width: 10),
-                Text(t.planEveryWord, style: onest(13, color: Mid.ink2)),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 56,
-                  height: 34,
-                  child: TextField(
-                    key: const ValueKey('plan-every-n'),
-                    controller: _everyN,
-                    textAlign: TextAlign.center,
-                    style: onest(13.5, tabular: true),
-                    onSubmitted: (_) => _save(),
-                    decoration: _fieldDecoration(
-                      wrong: _tried && _typedEveryN == null,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                menu(
-                  _unitMenu,
-                  key: 'plan-every-unit',
-                  label: _unitLabel(t, _unit),
-                  items: [
-                    for (final u in _Unit.values)
-                      item(
-                        'plan-every-unit-${u.name}',
-                        _unitLabel(t, u),
-                        on: u == _unit,
-                        onTap: () => setState(() => _unit = u),
-                      ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
@@ -2884,8 +3286,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       onPicked: () {},
                     ),
                   ),
-                // A weekend rule, for dates that can land on one.
-                if (_repeat != _Repeat.once) ...[
+                // A weekend rule, for dates that can land on one (not
+                // chosen weekdays: those are the days).
+                if (_repeat != _Repeat.once && _weekdaysNow == null) ...[
                   const SizedBox(width: 10),
                   menu(
                     _weekendMenu,
@@ -2905,25 +3308,213 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
-        _formRow(
-          t.planLabelPaidFrom,
-          menu(
-            _paidFromMenu,
-            key: 'plan-paid-from',
-            label: paidAccount?.name ?? t.planPaidFromNone,
-            items: [
-              for (final a in [null, ..._moneyAccounts(data, _currency)])
-                item(
-                  'plan-paid-from-${a?.id ?? 0}',
-                  a?.name ?? t.planPaidFromNone,
-                  on: a?.id == _paidFrom,
-                  onTap: () => setState(() => _paidFrom = a?.id),
+        // Custom…: the pattern laid out like a calendar app's recurrence
+        // (owner, 2026-10-05), under the date it starts from: how many of
+        // which unit, the weekdays or the nth weekday when the unit has
+        // them, and when it ends.
+        if (_customOn) ...[
+          _formRow(
+            t.planRepeatEvery,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 34,
+                  child: TextField(
+                    key: const ValueKey('plan-every-n'),
+                    controller: _everyN,
+                    textAlign: TextAlign.center,
+                    style: onest(13.5, tabular: true),
+                    onSubmitted: (_) => _save(),
+                    decoration: _fieldDecoration(
+                      wrong: _tried && _typedEveryN == null,
+                    ),
+                  ),
                 ),
-            ],
+                const SizedBox(width: 8),
+                menu(
+                  _unitMenu,
+                  key: 'plan-every-unit',
+                  label: _unitLabel(t, _unit),
+                  items: [
+                    for (final u in _Unit.values)
+                      item(
+                        'plan-every-unit-${u.name}',
+                        _unitLabel(t, u),
+                        on: u == _unit,
+                        onTap: () => setState(() => _unit = u),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          aside: paidAccount == null || dueText == null
-              ? t.planPaidFromHintNone
-              : t.planPaidFromHint(paidAccount.name, dueText),
+          if (_unit == _Unit.weeks)
+            _formRow(
+              t.planOnWeekdays,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (i, initial)
+                      in t.rowsWeekdayInitials.split('|').indexed)
+                    _dayChip(
+                      initial,
+                      key: 'plan-weekday-${i + 1}',
+                      on: _weekdays.contains(i + 1),
+                      onTap: () => setState(
+                        () => _weekdays.contains(i + 1)
+                            ? _weekdays.remove(i + 1)
+                            : _weekdays.add(i + 1),
+                      ),
+                    ),
+                ],
+              ),
+              aside: _weekdays.isEmpty ? t.planWeekdaysHint : null,
+            ),
+          if (_unit == _Unit.months || _unit == _Unit.years)
+            _formRow(
+              t.planOnLabel,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Segmented(
+                    items: [
+                      (
+                        'plan-nth-off',
+                        t.planDayOfMonth,
+                        !_nthOn,
+                        () => setState(() => _nthOn = false),
+                      ),
+                      (
+                        'plan-nth-on',
+                        t.planAWeekday,
+                        _nthOn,
+                        () => setState(() {
+                          _nthOn = true;
+                          // Start from the date typed: its weekday, and
+                          // which one of the month it is.
+                          if (_typedDate case final d?) {
+                            _nthWeekday = d.weekday;
+                            _nth = (d.day - 1) ~/ 7 + 1;
+                            if (_nth > 4) _nth = -1;
+                          }
+                        }),
+                      ),
+                    ],
+                  ),
+                  if (_nthOn) ...[
+                    const SizedBox(width: 8),
+                    menu(
+                      _nthMenu,
+                      key: 'plan-nth',
+                      label: _nthLabel(t, _nth),
+                      items: [
+                        for (final n in const [1, 2, 3, 4, -1])
+                          item(
+                            'plan-nth-$n',
+                            _nthLabel(t, n),
+                            on: n == _nth,
+                            onTap: () => setState(() => _nth = n),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    menu(
+                      _nthWeekdayMenu,
+                      key: 'plan-nth-weekday',
+                      label: _weekdayName(t, _nthWeekday),
+                      items: [
+                        for (var wd = 1; wd <= 7; wd++)
+                          item(
+                            'plan-nth-weekday-$wd',
+                            _weekdayName(t, wd),
+                            on: wd == _nthWeekday,
+                            onTap: () => setState(() => _nthWeekday = wd),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+        if (_endsOn)
+          _formRow(
+            t.planEnds,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Segmented(
+                  items: [
+                    for (final (e, label) in [
+                      (_Ends.never, t.planEndsNever),
+                      (_Ends.date, t.planEndsOn),
+                      (_Ends.count, t.planEndsAfter),
+                    ])
+                      (
+                        'plan-ends-${e.name}',
+                        label,
+                        _ends == e,
+                        () => setState(() => _ends = e),
+                      ),
+                  ],
+                ),
+                if (_ends == _Ends.date) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 130,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('plan-end-date'),
+                      controller: _endDate,
+                      style: onest(13.5, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      decoration: _fieldDecoration(
+                        wrong: _tried && _typedEndDate == null,
+                      ).copyWith(
+                        hintText: t.planEndDateHint,
+                        hintStyle: onest(13.5, color: Mid.ink3),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_ends == _Ends.count) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 56,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('plan-end-count'),
+                      controller: _endCount,
+                      textAlign: TextAlign.center,
+                      style: onest(13.5, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      decoration: _fieldDecoration(
+                        wrong: _tried && _typedEndCount == null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(t.planEndsTimes, style: onest(13, color: Mid.ink2)),
+                ],
+              ],
+            ),
+          ),
+        _accountsRow(
+          t,
+          // Warn, don't block: with several checked the bill is in no
+          // forecast, said with the count (budget review, 2026-10-05).
+          aside: paidAccount != null && dueText != null
+              ? t.planPaidFromHint(paidAccount.name, dueText)
+              : switch (_moneyAccounts(
+                  data,
+                  _currency,
+                ).where((a) => !_off.contains(a.id)).length) {
+                  0 => t.planPaidFromNoneChecked,
+                  1 => t.planPaidFromHintNone,
+                  final n => t.planPaidFromSeveral(n),
+                },
         ),
         _formRow(
           eachLabel,
@@ -2986,12 +3577,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ];
   }
 
-  /// The accounts in its currency, in a dropdown that stays open while
-  /// they're checked and unchecked; the button says how many it uses.
-  Widget _accountsChoice(Words t, List<AccountInfo> accounts) {
+  /// Paid from: the accounts in its currency, in a dropdown that stays
+  /// open while they're checked and unchecked; the button says how many
+  /// it uses. The one row for both what rule 28 called the accounts a
+  /// category uses and the account a dated plan's bill is scheduled in.
+  Widget _accountsRow(Words t, {String? aside}) {
+    final accounts = _moneyAccounts(widget.data, _currency).toList();
     final used = accounts.where((a) => !_off.contains(a.id)).toList();
-    return _quiet(
-      t.planMoneyAccounts,
+    return _formRow(
+      t.planLabelPaidFrom,
       SizedBox(
         height: 34,
         child: MenuAnchor(
@@ -3063,6 +3657,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           ),
         ),
       ),
+      aside: aside,
     );
   }
 
@@ -3082,6 +3677,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         _everyN,
         _dates,
         _daysAfter,
+        _endDate,
+        _endCount,
       ]),
       builder: (context, _) {
         final draft = _draft;
@@ -3130,7 +3727,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             : '${note.text} · ${note.state}';
         // An account put away schedules nothing: said, not silent.
         String? paidArchived;
-        final paidAccount = _dated ? data.accounts[_paidFrom] : null;
+        final paidAccount = data.accounts[_paidFromNow];
         if (paidAccount != null && paidAccount.archived) {
           paidArchived = t.planPaidFromArchived(paidAccount.name);
         }
@@ -3170,6 +3767,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
         // Opened low in the list, or grown by a choice, Save would be
         // under the window's edge.
+        // The repeat rows grow it too: Custom…, its unit, Ends.
         final shape = Object.hash(
           _hasDate,
           _kindNow,
@@ -3178,6 +3776,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           returns != null,
           rest != null,
           loses,
+          _repeat,
+          _customOn,
+          _unit,
+          _endsOn,
+          _ends,
+          _nthOn,
         );
         if (shape != _shape) {
           _shape = shape;
@@ -3223,8 +3827,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // The name is the heading; the currency and the
-                          // accounts sit quiet beside it, set once.
+                          // The name is the heading; the currency sits
+                          // quiet beside it, set once.
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
@@ -3238,8 +3842,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                     key: const ValueKey('edit-name'),
                                     controller: _name,
                                     focusNode: _nameFocus,
-                                    autofocus:
-                                        !(widget.atPlan && _savedPlan != null),
+                                    autofocus: !widget.atPlan,
                                     style: onest(19, weight: 700),
                                     onSubmitted: (_) => _save(),
                                     decoration: InputDecoration(
@@ -3270,7 +3873,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               ),
                               const SizedBox(width: 12),
                               ..._currencyChoice(t),
-                              _accountsChoice(t, accounts),
                             ],
                           ),
                           const SizedBox(height: 22),
@@ -3509,6 +4111,9 @@ class _Segmented extends StatelessWidget {
 
 /// How a dated plan comes again, as the panel asks it.
 enum _Repeat { once, every, dates, payday }
+
+/// Custom…: when a repeating plan stops.
+enum _Ends { never, date, count }
 
 /// The unit after "Every": days, weeks, months or years.
 enum _Unit { days, weeks, months, years }

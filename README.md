@@ -36,3 +36,9 @@ they don't get relitigated later.
 - [0002 — TDB statement import: target the unformatted Excel export](docs/decisions/0002-tdb-import-format.md)
 - [0003 — Ledger schema: double-entry storage, categories as accounts](docs/decisions/0003-double-entry-schema.md)
 - [0004 — Ledger UI: Midnight, and the rules the register follows](docs/decisions/0004-ledger-ui.md)
+
+## Thanks
+
+- **Cynthia G. Loveland** worked through the Budget page's layout with the owner
+  (2026-10-05): where things go and what kind of control each one is. The app credits
+  her at the bottom of Settings.

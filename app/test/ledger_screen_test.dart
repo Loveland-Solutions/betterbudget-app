@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
-import 'package:betterbudget/domain/budget.dart' show BudgetKeys;
+import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
@@ -2249,6 +2249,19 @@ void main() {
       find.text('Runs out on 09.30 · up to ₮707,750 short'),
       findsOneWidget,
     );
+    // The sidebar says so too, with a coral dot beside the account.
+    final short = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('runs-out-'),
+    );
+    expect(short, findsOneWidget);
+    // The dot names the first dip, what it would take to stay above zero
+    // that day; the headline keeps the lowest point.
+    expect(
+      find.byTooltip('Runs out on 09.30 · ₮357,750 short'),
+      findsOneWidget,
+    );
     // The entry row stays open with a blinking cursor; hold it steady so the
     // capture doesn't depend on when it's taken.
     EditableText.debugDeterministicCursor = true;
@@ -2259,6 +2272,105 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/ledger_short.png'),
     );
+    await tidy(tester, db);
+  });
+
+  testWidgets('trouble past the view is said above the forecast', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    // Pay on the 10th into TDB Checking (it takes over the demo's salary
+    // typed for 10.10), so the account is looked at a year of paychecks
+    // ahead; and a bill on 11.20, past the pay period the forecast shows
+    // (to the 11.10 paycheck), bigger than what's there by then.
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.openAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await db.savePaySchedule(
+        accountId: checking,
+        amount: 250000000,
+        rule: PayRule.monthly,
+        day1: 10,
+        today: DateTime(2026, 9, 16),
+      );
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 11, 20),
+        today: DateTime(2026, 9, 16),
+        payee: 'МУИС',
+        counterAccountId: ledger.categories
+            .firstWhere((c) => c.name == 'Tuition')
+            .id,
+        amount: -800000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // The headline is calm; the line above the title isn't, and the
+    // sidebar's dot agrees. Both name the first dip: what it would take
+    // to stay above zero that day.
+    expect(find.text('Until your 11.10 paycheck'), findsOneWidget);
+    expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
+    expect(
+      find.text('After 11.10: runs out on 11.20 · ₮1,607,750 short'),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip('Runs out on 11.20 · ₮1,607,750 short'),
+      findsOneWidget,
+    );
+    // A click looks that far: 90 days reaches 11.20, 60 don't. The
+    // December paycheck is expected, not a row.
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-short-ahead')),
+    );
+    expect(find.text('Next 90 days'), findsOneWidget);
+    expect(
+      find.text('Runs out on 11.20 · up to ₮1,607,750 short'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('forecast-short-ahead')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the forecast looks as far as the small title says', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    // The demo's salary on 10.10 ends the forecast; the title is the
+    // dropdown, and names that choice by the date.
+    expect(find.text('Until your 10.10 paycheck'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('forecast-span')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('forecast-span-payPeriod')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('forecast-span-year')), findsOneWidget);
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-span-days90')));
+    // 90 days from 09.16 is 12.15: the title and the bill line say so.
+    expect(find.text('Next 90 days'), findsOneWidget);
+    expect(find.textContaining('through 12.15'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/forecast_span_90.png'),
+    );
+    // One choice for every account, kept in the ledger.
+    var data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], 'days90');
+    // And back to the pay period.
+    await tester.tap(find.byKey(const ValueKey('forecast-span')));
+    await tester.pumpAndSettle();
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-span-payPeriod')),
+    );
+    expect(find.text('Until your 10.10 paycheck'), findsOneWidget);
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], 'payPeriod');
     await tidy(tester, db);
   });
 
@@ -2846,6 +2958,105 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('Custom…: the second Tuesday of the month, three times', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      final clothing = data.categories
+          .firstWhere((c) => c.name == 'Clothing')
+          .id;
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> pick(String key) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      await editCategory(tester, 'Clothing');
+      await pick('plan-dated-yes');
+      await type('plan-amount', '300000');
+      await type('plan-date', '2026.10.15');
+      // Custom… opens the block: every 1 month, on a weekday, ends after
+      // 3 times.
+      await pick('plan-repeat');
+      await pick('plan-repeat-custom');
+      expect(find.byKey(const ValueKey('plan-every-n')), findsOneWidget);
+      expect(find.text('Day of the month'), findsOneWidget);
+      // Picking A weekday starts from the date: 10.15 is the third
+      // Thursday.
+      await pick('plan-nth-on');
+      expect(find.text('third'), findsOneWidget);
+      expect(find.text('Thursday'), findsOneWidget);
+      await pick('plan-nth');
+      await pick('plan-nth-2');
+      await pick('plan-nth-weekday');
+      await pick('plan-nth-weekday-2');
+      await pick('plan-ends-count');
+      await type('plan-end-count', '3');
+      // The whole panel in the picture, from its heading.
+      await tester.ensureVisible(find.byKey(const ValueKey('edit-name')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plan_custom.png'),
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('edit-save')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await reload();
+      final plan = data.plans[clothing]!;
+      expect((plan.everyMonths, plan.nth, plan.nthWeekday), (1, 2, 2));
+      expect(plan.endCount, 3);
+      // October's second Tuesday (10.13) is before 10.15: the bills are
+      // November's, December's and January's, then no more.
+      expect(Budget.dueAfter(plan, 0), DateTime(2026, 11, 10));
+      expect(Budget.lastDue(plan), DateTime(2027, 1, 12));
+      // Opened again, the block shows what was saved.
+      await editCategory(tester, 'Clothing');
+      expect(find.text('second'), findsOneWidget);
+      expect(find.text('Tuesday'), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-end-count')), findsOneWidget);
+      // Every 2 weeks on Monday and Thursday instead.
+      await pick('plan-every-unit');
+      await pick('plan-every-unit-weeks');
+      await type('plan-every-n', '2');
+      await pick('plan-weekday-1');
+      await pick('plan-weekday-4');
+      await pick('plan-ends-never');
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('edit-save')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await reload();
+      final weekly = data.plans[clothing]!;
+      expect(weekly.everyDays, 14);
+      expect(weekly.weekdays, [1, 4]);
+      expect(weekly.endCount, isNull);
+      expect(Budget.dueAfter(weekly, 0), DateTime(2026, 10, 15));
+      expect(Budget.dueAfter(weekly, 1), DateTime(2026, 10, 26));
+      await tidy(tester, db);
+    });
+
     testWidgets('a plan paid from an account schedules its bill; a cap; ⌘Z', (
       tester,
     ) async {
@@ -2880,6 +3091,9 @@ void main() {
       }
 
       Future<void> save() async {
+        // The panel can have grown past the window's edge (Custom…).
+        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
           await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -2898,10 +3112,24 @@ void main() {
       await type('plan-date', '01.15');
       // Opened low in the list, the panel's lower rows can sit under the
       // window's edge until it scrolls.
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-paid-from')));
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
-      await pick('plan-paid-from');
-      await pick('plan-paid-from-$checking');
+      // One control for the accounts: left checked alone, TDB Checking is
+      // where the bill is scheduled.
+      expect(
+        find.textContaining('accounts, so this bill isn’t in any forecast'),
+        findsOneWidget,
+      );
+      await pick('money-accounts');
+      for (final a in data.openAccounts) {
+        if (a.id == checking) continue;
+        final box = find.byKey(ValueKey('money-account-${a.id}'));
+        if (box.evaluate().isEmpty) continue;
+        await tester.tap(box);
+        await tester.pumpAndSettle();
+      }
+      await pick('money-accounts');
+      expect(find.textContaining('Shows in TDB Checking'), findsOneWidget);
       // Every six months, typed under "Every…" (a gap the presets don't
       // offer).
       await pick('plan-repeat');
@@ -2909,7 +3137,7 @@ void main() {
       await type('plan-every-n', '6');
       await pick('plan-every-unit');
       await pick('plan-every-unit-months');
-      expect(find.text('Every 6 months'), findsOneWidget);
+      expect(find.text('Custom'), findsOneWidget);
       await save();
       await reload();
       expect(data.plans[tuition]!.everyMonths, 6);
@@ -3005,10 +3233,15 @@ void main() {
         await settle(tester);
         await tester.pump(const Duration(seconds: 7)); // the toast goes
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+        // The new category opened in Edit; nothing more to set here.
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
         await reload();
         final insurance = id('Car insurance');
+        expect(
+          find.byKey(ValueKey('category-editor-$insurance')),
+          findsNothing,
+        );
         expect(data.accounts[insurance]!.currency, Currency.usd);
 
         // Assigned in dollars, out of the dollar pool only.
@@ -3042,6 +3275,8 @@ void main() {
         // The accounts are a dropdown of checkboxes: it says "All
         // accounts" to begin with, and stays open while they're picked.
         expect(find.text('All accounts'), findsOneWidget);
+        await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         expect(
@@ -3066,6 +3301,8 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('edit-cancel')));
         await tester.pumpAndSettle();
         await editCategory(tester, 'Groceries');
+        await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         // Cards are accounts too: the Visa is in the list.
@@ -3081,6 +3318,8 @@ void main() {
         );
         // A click on the dropdown's button closes it; it names the one
         // account left.
+        await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         expect(
@@ -3178,8 +3417,14 @@ void main() {
     ) async {
       final db = await pumpLedger(tester);
       await openBudget(tester);
-      // Income isn't a category in the list: one line says the period's income.
+      // Income isn't a category in the list: the Income tab says the
+      // period's income.
+      expect(find.byKey(const ValueKey('income-line')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('income-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('budget-tab-spending')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -3193,9 +3438,19 @@ void main() {
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
-      expect(find.text('Coffee'), findsOneWidget);
       expect(find.text('Coffee added'), findsOneWidget);
-      // The add row stays open for the next; the same name again adds nothing.
+      // The new category opens in Edit under its row, so what it's for is
+      // asked at once; the add box closes.
+      expect(find.byKey(const ValueKey('new-category-name')), findsNothing);
+      expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-amount')), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('edit-name')), findsNothing);
+      expect(find.text('Coffee'), findsOneWidget);
+      // The same name again adds nothing, and the box stays for another.
+      await tester.tap(find.byKey(const ValueKey('add-category')));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('new-category-name')),
         'coffee',
@@ -3203,6 +3458,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
       expect(find.text('Coffee is already a category'), findsOneWidget);
+      expect(find.byKey(const ValueKey('new-category-name')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
       await tester.pumpAndSettle();
 
@@ -3404,11 +3660,15 @@ void main() {
         ),
         '50000',
       );
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('money-account-$wallet')));
       await tester.pumpAndSettle();
       expect(find.text('3 of 4 accounts'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
@@ -3828,14 +4088,26 @@ void main() {
         matchesGoldenFile('goldens/forecast_pay_period.png'),
       );
 
-      await tester.tap(find.byKey(const ValueKey('settings')));
+      // The pay is listed on the Budget page's Income tab, with its next
+      // payday; Settings keeps only Budget by.
+      await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
+      expect(find.text('Income'), findsWidgets);
       expect(
         find.text(
-          'Income · ₮2,100,000 or more · every 2 weeks · into Cash wallet',
+          '₮2,100,000 or more · every 2 weeks · into Cash wallet · next 09.25',
         ),
         findsOneWidget,
       );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_income_pay.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('settings-add-pay')), findsNothing);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/settings_budget.png'),
@@ -3875,10 +4147,13 @@ void main() {
 
     testWidgets('twice a month: an advance, then the rest', (tester) async {
       final db = await pumpLedger(tester);
-      await tester.tap(find.byKey(const ValueKey('settings')));
+      // Pay is set up from the Budget page's Income tab.
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
       await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+        await tester.tap(find.byKey(const ValueKey('income-add-pay')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
@@ -3917,8 +4192,8 @@ void main() {
       );
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
       expect(
-        find.text(
-          'Income · ₮500,000 on the 10th and ₮1,600,000 on the 25th · '
+        find.textContaining(
+          '₮500,000 on the 10th and ₮1,600,000 on the 25th · '
           'into TDB Checking',
         ),
         findsOneWidget,
@@ -3965,30 +4240,26 @@ void main() {
         await tapAndWait(tester, find.byKey(const ValueKey('pay-none')));
         expect(
           find.text(
-            'No regular pay · the app won’t ask for it · Settings changes this',
+            'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this',
           ),
           findsOneWidget,
         );
         expect(find.byKey(const ValueKey('add-pay')), findsNothing);
         await tester.tap(find.text('Budget'));
         await tester.pumpAndSettle();
-        expect(find.text('No regular pay'), findsOneWidget);
-
-        await tester.tap(find.byKey(const ValueKey('settings')));
+        await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
-        await tapAndWait(
-          tester,
-          find.byKey(const ValueKey('settings-ask-pay')),
-        );
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsNothing);
+        expect(find.byKey(const ValueKey('income-no-pay')), findsOneWidget);
+        await tapAndWait(tester, find.byKey(const ValueKey('income-ask-pay')));
+        expect(find.byKey(const ValueKey('income-no-pay')), findsNothing);
+        expect(find.byKey(const ValueKey('income-not-set-up')), findsOneWidget);
         // ⌘Z puts "no regular pay" back.
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
-        expect(find.byKey(const ValueKey('settings-no-pay')), findsOneWidget);
+        expect(find.byKey(const ValueKey('income-no-pay')), findsOneWidget);
         // Adding pay anyway: the saying goes with it, and comes back on undo.
         await tester.runAsync(() async {
-          await tester.tap(find.byKey(const ValueKey('settings-add-pay')));
+          await tester.tap(find.byKey(const ValueKey('income-add-pay')));
           await Future<void>.delayed(const Duration(milliseconds: 200));
         });
         await tester.pumpAndSettle();
@@ -4019,12 +4290,19 @@ void main() {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      // The demo's salary, this month.
+      // The Income tab carries a gold dot while pay isn't set up; on it,
+      // the demo's salary this month, and that pay isn't set up.
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
       expect(find.text('Income: ₮2,500,000.00'), findsOneWidget);
       expect(find.text('Pay not set up'), findsOneWidget);
-      // The note opens the pay setup, which no longer asks for a category.
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_income.png'),
+      );
+      // Add your pay opens the pay setup, which doesn't ask for a category.
       await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('pay-note')));
+        await tester.tap(find.byKey(const ValueKey('income-add-pay')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
@@ -4733,6 +5011,12 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Version 0.1.0 (134)'), findsOneWidget);
+    expect(
+      find.text(
+        'The Budget page was laid out with help from Cynthia G. Loveland.',
+      ),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 }

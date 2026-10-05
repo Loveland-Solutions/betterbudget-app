@@ -198,6 +198,19 @@ class CategoryPlans extends Table {
   TextColumn get weekend =>
       textEnum<PayWeekend>().withDefault(const Constant('keep'))();
 
+  /// Every so many weeks, on these weekdays, `1,4` (Monday 1); null
+  /// unless chosen (v16, Custom…).
+  TextColumn get weekdays => text().nullable()();
+
+  /// Every so many months: the nth weekday of the month (1–4, -1 the
+  /// last) and which weekday (Monday 1); null unless chosen (v16).
+  IntColumn get nth => integer().nullable()();
+  IntColumn get nthWeekday => integer().nullable()();
+
+  /// No bill after this date `YYYY-MM-DD`, or after this many (v16).
+  TextColumn get endDate => text().nullable()();
+  IntColumn get endCount => integer().nullable()();
+
   /// Each period: what's left stays in the category.
   BoolColumn get rollover => boolean().withDefault(const Constant(true))();
 
@@ -653,7 +666,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -779,6 +792,14 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnOnce(m, categoryPlans, categoryPlans.payScheduleId);
           await _addColumnOnce(m, categoryPlans, categoryPlans.daysAfterPay);
           await _addColumnOnce(m, categoryPlans, categoryPlans.weekend);
+        }
+        if (from < 16) {
+          // Custom… (owner, 2026-10-05): weekday patterns and an end.
+          await _addColumnOnce(m, categoryPlans, categoryPlans.weekdays);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.nth);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.nthWeekday);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.endDate);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.endCount);
         }
       });
     },
@@ -2144,6 +2165,11 @@ class AppDatabase extends _$AppDatabase {
           payScheduleId: Value(plan.payScheduleId),
           daysAfterPay: Value(plan.daysAfterPay),
           weekend: Value(plan.weekend),
+          weekdays: Value(plan.weekdays?.join(',')),
+          nth: Value(plan.nth),
+          nthWeekday: Value(plan.nthWeekday),
+          endDate: Value(plan.endDate == null ? null : dateKey(plan.endDate!)),
+          endCount: Value(plan.endCount),
           rollover: Value(plan.rollover),
           upToMinor: Value(plan.upTo),
           paidFromId: Value(plan.paidFrom),
@@ -2306,6 +2332,8 @@ class AppDatabase extends _$AppDatabase {
           n++;
         }
         date = Budget.dueAfter(plan, n, pay: pay);
+        // Past its last bill (Custom…'s Ends): nothing more to schedule.
+        if (Budget.over(plan, date, pay: pay)) continue;
       }
       created.add(
         await postTransaction(
@@ -2429,6 +2457,13 @@ class AppDatabase extends _$AppDatabase {
     payScheduleId: p.payScheduleId,
     daysAfterPay: p.daysAfterPay,
     weekend: p.weekend,
+    weekdays: p.weekdays == null || p.weekdays!.isEmpty
+        ? null
+        : [for (final piece in p.weekdays!.split(',')) int.parse(piece)],
+    nth: p.nth,
+    nthWeekday: p.nthWeekday,
+    endDate: p.endDate == null ? null : parseDateKey(p.endDate!),
+    endCount: p.endCount,
     rollover: p.rollover,
     upTo: p.upToMinor,
     paidFrom: p.paidFromId,

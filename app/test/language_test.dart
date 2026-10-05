@@ -348,7 +348,10 @@ void main() {
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('settings')));
+    // Pay is added from the Budget page's Income tab.
+    await tester.tap(find.byIcon(Icons.pie_chart_outline_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
     await tester.pumpAndSettle();
     await tester.tap(find.text(mn.setupAddYourPay));
     await tester.pumpAndSettle();

@@ -801,20 +801,9 @@ class _PaySetupDialogState extends State<_PaySetupDialog> {
 
 /// Settings: what the budget runs by, and the pay schedules behind it.
 class _BudgetSettings extends StatelessWidget {
-  const _BudgetSettings({
-    required this.data,
-    required this.onBudgetBy,
-    required this.onEdit,
-    required this.onAdd,
-    required this.onAskAgain,
-  });
+  const _BudgetSettings({required this.data, required this.onBudgetBy});
   final LedgerData data;
-
-  /// Undoes "I don't have regular pay".
-  final VoidCallback onAskAgain;
   final ValueChanged<PaySchedule?> onBudgetBy;
-  final ValueChanged<PaySchedule> onEdit;
-  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -931,78 +920,6 @@ class _BudgetSettings extends StatelessWidget {
                       ? t.setupRunsMonth
                       : t.setupRunsPeriod(payWhen(t, by)),
                   style: onest(12.5, color: Mid.ink3),
-                ),
-              ],
-            ),
-          ),
-          line(
-            t.setupPay,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final p in pays)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            t.setupPayLine(
-                              p.payee ?? name(p.categoryId),
-                              payAmounts(
-                                t,
-                                p,
-                                (v) => formatShort(
-                                  v,
-                                  currency:
-                                      data.accounts[p.accountId]?.currency ??
-                                      Currency.mnt,
-                                ),
-                                dotted: true,
-                              ),
-                              name(p.accountId),
-                            ),
-                            style: onest(13.5),
-                          ),
-                        ),
-                        BarButton(
-                          key: ValueKey('edit-pay-${p.id}'),
-                          label: t.setupEdit,
-                          onTap: () => onEdit(p),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (pays.isEmpty && data.prefs[noRegularPayKey] == '1')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            t.setupSaidNoPay,
-                            key: const ValueKey('settings-no-pay'),
-                            style: onest(13.5, color: Mid.ink2),
-                          ),
-                        ),
-                        BarButton(
-                          key: const ValueKey('settings-ask-pay'),
-                          label: t.setupAskAgain,
-                          onTap: onAskAgain,
-                        ),
-                      ],
-                    ),
-                  ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: BarButton(
-                    key: const ValueKey('settings-add-pay'),
-                    label: pays.isEmpty
-                        ? t.setupAddYourPay
-                        : t.setupAddOtherPay,
-                    leading: Icon(Icons.add_rounded, size: 14, color: Mid.ink3),
-                    onTap: onAdd,
-                  ),
                 ),
               ],
             ),

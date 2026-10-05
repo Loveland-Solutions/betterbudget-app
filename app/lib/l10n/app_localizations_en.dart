@@ -350,7 +350,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerNoRegularPayToast =>
-      'No regular pay · the app won’t ask for it · Settings changes this';
+      'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this';
 
   @override
   String get ledgerAskForPayAgainToast =>
@@ -714,6 +714,10 @@ class WordsEn extends Words {
   }
 
   @override
+  String get settingsCredit =>
+      'The Budget page was laid out with help from Cynthia G. Loveland.';
+
+  @override
   String get ledgerEraseAndStartOverButton =>
       'Erase everything and start over…';
 
@@ -1034,6 +1038,48 @@ class WordsEn extends Words {
   }
 
   @override
+  String planRunsOutBy(String date, String amount) {
+    return 'Runs out on $date · $amount short';
+  }
+
+  @override
+  String get planExpected => 'expected';
+
+  @override
+  String planOfThemExpected(int count) {
+    return '$count of them expected';
+  }
+
+  @override
+  String planPaidFromSeveral(int count) {
+    return 'Checked in $count accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.';
+  }
+
+  @override
+  String get planPaidFromNoneChecked =>
+      'No account is checked, so this bill isn’t in any forecast.';
+
+  @override
+  String planRunsOutZero(String date) {
+    return 'Runs out on $date';
+  }
+
+  @override
+  String planShortAhead(String end, String date, String amount) {
+    return 'After $end: runs out on $date · $amount short';
+  }
+
+  @override
+  String planShortAheadZero(String end, String date) {
+    return 'After $end: runs out on $date';
+  }
+
+  @override
+  String planShortAheadTip(String date) {
+    return 'Look as far as $date';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Lowest $amount on $date';
   }
@@ -1115,6 +1161,20 @@ class WordsEn extends Words {
   String get planNext30Days => 'Next 30 days';
 
   @override
+  String planNextDays(int count) {
+    return 'Next $count days';
+  }
+
+  @override
+  String get planNext6Months => 'Next 6 months';
+
+  @override
+  String get planNextYear => 'Next year';
+
+  @override
+  String get planSpanTip => 'How far ahead the forecast looks';
+
+  @override
   String get planAddPay => ' · no payday ahead · Add your pay →';
 
   @override
@@ -1151,6 +1211,28 @@ class WordsEn extends Words {
 
   @override
   String get planAddCategoryTip => 'Add a category';
+
+  @override
+  String get setupAddPayTip =>
+      'Set up a paycheck: how much, how often, and the account it goes into';
+
+  @override
+  String planIncomeExpected(String received, String expected) {
+    return '$received received of $expected expected this period';
+  }
+
+  @override
+  String get planIncomeTab => 'Income';
+
+  @override
+  String planPayInto(String amounts, String account) {
+    return '$amounts · into $account';
+  }
+
+  @override
+  String planPayIntoNext(String amounts, String account, String date) {
+    return '$amounts · into $account · next $date';
+  }
 
   @override
   String get planSpending => 'Spending';
@@ -2505,7 +2587,7 @@ class WordsEn extends Words {
 
   @override
   String get setupPeriodsFromPay =>
-      'Pay periods come from your pay: add it below to budget by them.';
+      'Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.';
 
   @override
   String get setupRunsMonth =>
@@ -3880,9 +3962,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Accounts this category uses';
-
-  @override
   String planMoneyChange(String amount) {
     return 'Changing the currency takes back $amount assigned to it and removes its plan';
   }
@@ -3964,6 +4043,18 @@ class WordsEn extends Words {
 
   @override
   String get planDueDateQ => 'Is there a due date?';
+
+  @override
+  String get planDueNoMeans =>
+      'A set amount you spend through each month, like groceries.';
+
+  @override
+  String get planDueNoMeansPay =>
+      'A set amount you spend through each pay period, like groceries.';
+
+  @override
+  String get planDueYesMeans =>
+      'An amount to have ready by a date, like rent or insurance.';
 
   @override
   String get planNo => 'No';
@@ -4051,10 +4142,71 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planEveryCustom => 'Every…';
+  String get planEveryCustom => 'Custom…';
 
   @override
-  String get planEveryWord => 'every';
+  String get planCustomOn => 'Custom';
+
+  @override
+  String get planRepeatEvery => 'Repeat every';
+
+  @override
+  String get planOnWeekdays => 'On';
+
+  @override
+  String get planWeekdaysHint =>
+      'Pick the days; with none picked, the date’s own weekday.';
+
+  @override
+  String get planOnLabel => 'On';
+
+  @override
+  String get planDayOfMonth => 'Day of the month';
+
+  @override
+  String get planAWeekday => 'A weekday';
+
+  @override
+  String get planNthFirst => 'first';
+
+  @override
+  String get planNthSecond => 'second';
+
+  @override
+  String get planNthThird => 'third';
+
+  @override
+  String get planNthFourth => 'fourth';
+
+  @override
+  String get planNthLast => 'last';
+
+  @override
+  String get planWeekdayNames =>
+      'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday';
+
+  @override
+  String get planEnds => 'Ends';
+
+  @override
+  String get planEndsNever => 'Never';
+
+  @override
+  String get planEndsOn => 'On a date';
+
+  @override
+  String get planEndsAfter => 'After';
+
+  @override
+  String get planEndsTimes => 'times';
+
+  @override
+  String get planEndDateHint => 'YYYY.MM.DD';
+
+  @override
+  String planEnded(String amount, String date) {
+    return '$amount · ended $date';
+  }
 
   @override
   String get planOnDates => 'On these dates…';
@@ -4111,7 +4263,7 @@ class WordsEn extends Words {
 
   @override
   String get planPaidFromHintNone =>
-      'Pick an account and the bill shows in its forecast.';
+      'Leave one account checked and the bill shows in its forecast.';
 
   @override
   String planWorkedOut(String amount) {
@@ -4129,9 +4281,6 @@ class WordsEn extends Words {
 
   @override
   String get planLabelPaidFrom => 'Paid from';
-
-  @override
-  String get planPaidFromNone => 'No account';
 
   @override
   String planUpTo(String amount) {

@@ -531,7 +531,7 @@
   "@ledgerAskingForPayAgain": {
     "description": "Undo-menu label after Settings → \"ask again\" for pay."
   },
-  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · Settings changes this",
+  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this",
   "@ledgerNoRegularPayToast": {
     "description": "Toast after \"I don’t have regular pay\" is chosen."
   },
@@ -1065,6 +1065,10 @@
       }
     }
   },
+  "settingsCredit": "The Budget page was laid out with help from Cynthia G. Loveland.",
+  "@settingsCredit": {
+    "description": "Settings, bottom of the page, under the version line: who helped design the app. Keep the name in Latin letters."
+  },
   "ledgerEraseAndStartOverButton": "Erase everything and start over…",
   "@ledgerEraseAndStartOverButton": {
     "description": "Settings → Start over card, button."
@@ -1485,6 +1489,90 @@
       }
     }
   },
+  "planRunsOutBy": "Runs out on {date} · {amount} short",
+  "@planRunsOutBy": {
+    "description": "Sidebar, tooltip on the coral dot beside an account: the day its balance first goes below zero and how far below it is that day",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planExpected": "expected",
+  "@planExpected": {
+    "description": "Account header, the forecast's bill list: after a payday or bill the app expects from the pay plan or a category's plan past the scheduled one (not a row yet)",
+    "placeholders": {}
+  },
+  "planOfThemExpected": "{count} of them expected",
+  "@planOfThemExpected": {
+    "description": "Account header, forecast panel: after the bill count under the headline when some bills are the app's expectation past the scheduled rows (4 bills · ₮X through 12.15 · 2 of them expected)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planPaidFromSeveral": "Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.",
+  "@planPaidFromSeveral": {
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planPaidFromNoneChecked": "No account is checked, so this bill isn’t in any forecast.",
+  "@planPaidFromNoneChecked": {
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked"
+  },
+  "planRunsOutZero": "Runs out on {date}",
+  "@planRunsOutZero": {
+    "description": "Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAhead": "After {end}: runs out on {date} · {amount} short",
+  "@planShortAhead": {
+    "description": "Account header, forecast panel: coral line above the Forecast title when the balance goes below zero later than the span on screen reaches ({end} is the span's last day; {amount} is how far below zero it is that day); a click looks that far",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAheadZero": "After {end}: runs out on {date}",
+  "@planShortAheadZero": {
+    "description": "Account header, forecast panel: the coral line above the Forecast title when the balance lands exactly on zero later than the span on screen reaches",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planShortAheadTip": "Look as far as {date}",
+  "@planShortAheadTip": {
+    "description": "Account header, forecast panel: tooltip on the coral line above the Forecast title; clicking it widens the forecast's span to include that day",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planLowest": "Lowest {amount} on {date}",
   "@planLowest": {
     "description": "Account header, forecast panel: headline, the lowest the balance gets before next income",
@@ -1612,7 +1700,28 @@
   },
   "planNext30Days": "Next 30 days",
   "@planNext30Days": {
-    "description": "Account header, forecast panel: small title above the headline when there is no payday ahead"
+    "description": "Account header, forecast panel: small title above the headline when there is no payday ahead, or the 30-day span was chosen; also that choice in the span dropdown"
+  },
+  "planNextDays": "Next {count} days",
+  "@planNextDays": {
+    "description": "Account header, forecast panel: the small title and its dropdown's choices for a span of 60 or 90 days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planNext6Months": "Next 6 months",
+  "@planNext6Months": {
+    "description": "Account header, forecast panel: the small title and its dropdown's choice for a span of six months"
+  },
+  "planNextYear": "Next year",
+  "@planNextYear": {
+    "description": "Account header, forecast panel: the small title and its dropdown's choice for a span of a year from today"
+  },
+  "planSpanTip": "How far ahead the forecast looks",
+  "@planSpanTip": {
+    "description": "Account header, forecast panel: tooltip on the small title, which is a dropdown of spans (until the paycheck after next, 30, 60 or 90 days, 6 months, a year)"
   },
   "planAddPay": " · no payday ahead · Add your pay →",
   "@planAddPay": {
@@ -1673,6 +1782,53 @@
   "planAddCategoryTip": "Add a category",
   "@planAddCategoryTip": {
     "description": "Budget page: tooltip on the Add category button"
+  },
+  "setupAddPayTip": "Set up a paycheck: how much, how often, and the account it goes into",
+  "@setupAddPayTip": {
+    "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
+  },
+  "planIncomeExpected": "{received} received of {expected} expected this period",
+  "@planIncomeExpected": {
+    "description": "Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)",
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "expected": {
+        "type": "String"
+      }
+    }
+  },
+  "planIncomeTab": "Income",
+  "@planIncomeTab": {
+    "description": "Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up"
+  },
+  "planPayInto": "{amounts} · into {account}",
+  "@planPayInto": {
+    "description": "Budget page, Income tab, under a pay's name: how much and when, and the account it is paid into, when no payday is scheduled",
+    "placeholders": {
+      "amounts": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayIntoNext": "{amounts} · into {account} · next {date}",
+  "@planPayIntoNext": {
+    "description": "Budget page, Income tab, under a pay's name: how much and when, the account it is paid into, and the next payday",
+    "placeholders": {
+      "amounts": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "planSpending": "Spending",
   "@planSpending": {
@@ -3699,7 +3855,7 @@
       }
     }
   },
-  "setupPeriodsFromPay": "Pay periods come from your pay: add it below to budget by them.",
+  "setupPeriodsFromPay": "Pay periods come from your pay: add it on the Budget page’s Income tab to budget by them.",
   "@setupPeriodsFromPay": {
     "description": "Settings → Budget, note when there is no pay yet."
   },
@@ -5683,10 +5839,6 @@
       }
     }
   },
-  "planMoneyAccounts": "Accounts this category uses",
-  "@planMoneyAccounts": {
-    "description": "Budget page, Edit under a spending category's row: label over the dropdown of accounts in the category's currency (cash, bank and cards), each with a checkbox, all checked to begin with"
-  },
   "planMoneyChange": "Changing the currency takes back {amount} assigned to it and removes its plan",
   "@planMoneyChange": {
     "description": "Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan",
@@ -5848,6 +6000,18 @@
   "@planDueDateQ": {
     "description": "Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date"
   },
+  "planDueNoMeans": "A set amount you spend through each month, like groceries.",
+  "@planDueNoMeans": {
+    "description": "Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example"
+  },
+  "planDueNoMeansPay": "A set amount you spend through each pay period, like groceries.",
+  "@planDueNoMeansPay": {
+    "description": "Budget page, Edit: the same note while the budget runs by pay period"
+  },
+  "planDueYesMeans": "An amount to have ready by a date, like rent or insurance.",
+  "@planDueYesMeans": {
+    "description": "Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example"
+  },
   "planNo": "No",
   "@planNo": {
     "description": "Budget page, Edit under a category's row: the first answer to \"Is there a due date?\""
@@ -5948,13 +6112,97 @@
       }
     }
   },
-  "planEveryCustom": "Every…",
+  "planEveryCustom": "Custom…",
   "@planEveryCustom": {
-    "description": "Budget page, Edit under a category's row (Yes): how often, the entry that opens a number and a unit (every 6 weeks, every 3 years)"
+    "description": "Budget page, Edit under a category's row (Yes): how often, the entry that opens the Custom block (Repeat every N unit; weekdays or the nth weekday; Ends), like a calendar app's recurrence"
   },
-  "planEveryWord": "every",
-  "@planEveryWord": {
-    "description": "Budget page, Edit under a category's row (Yes): the word before the number and unit, after \"Every…\" is picked"
+  "planCustomOn": "Custom",
+  "@planCustomOn": {
+    "description": "Budget page, Edit under a category's row (Yes): what the How often button says while the Custom block is open under it"
+  },
+  "planRepeatEvery": "Repeat every",
+  "@planRepeatEvery": {
+    "description": "Budget page, Edit, the Custom block: label of the row with the number and the unit (days, weeks, months, years)"
+  },
+  "planOnWeekdays": "On",
+  "@planOnWeekdays": {
+    "description": "Budget page, Edit, the Custom block, every so many weeks: label of the row of weekday chips (Mo … Su)"
+  },
+  "planWeekdaysHint": "Pick the days; with none picked, the date’s own weekday.",
+  "@planWeekdaysHint": {
+    "description": "Budget page, Edit, the Custom block: note beside the weekday chips while none is picked"
+  },
+  "planOnLabel": "On",
+  "@planOnLabel": {
+    "description": "Budget page, Edit, the Custom block, every so many months or years: label of the row choosing the day of the month or a weekday (the second Tuesday)"
+  },
+  "planDayOfMonth": "Day of the month",
+  "@planDayOfMonth": {
+    "description": "Budget page, Edit, the Custom block: the first choice under On, the due date's own day each month"
+  },
+  "planAWeekday": "A weekday",
+  "@planAWeekday": {
+    "description": "Budget page, Edit, the Custom block: the second choice under On; picking it shows two dropdowns, which one (first … last) and which weekday"
+  },
+  "planNthFirst": "first",
+  "@planNthFirst": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month, in the dropdown beside A weekday"
+  },
+  "planNthSecond": "second",
+  "@planNthSecond": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthThird": "third",
+  "@planNthThird": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthFourth": "fourth",
+  "@planNthFourth": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month"
+  },
+  "planNthLast": "last",
+  "@planNthLast": {
+    "description": "Budget page, Edit, the Custom block: which weekday of the month, the last one"
+  },
+  "planWeekdayNames": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+  "@planWeekdayNames": {
+    "description": "Budget page, Edit, the Custom block: the weekday dropdown beside A weekday, Monday first, separated by |"
+  },
+  "planEnds": "Ends",
+  "@planEnds": {
+    "description": "Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops"
+  },
+  "planEndsNever": "Never",
+  "@planEndsNever": {
+    "description": "Budget page, Edit, the Custom block, Ends: it goes on"
+  },
+  "planEndsOn": "On a date",
+  "@planEndsOn": {
+    "description": "Budget page, Edit, the Custom block, Ends: no bill after the date typed beside it"
+  },
+  "planEndsAfter": "After",
+  "@planEndsAfter": {
+    "description": "Budget page, Edit, the Custom block, Ends: so many bills, the number typed beside it, then the word times"
+  },
+  "planEndsTimes": "times",
+  "@planEndsTimes": {
+    "description": "Budget page, Edit, the Custom block, Ends: after the number field (After 12 times)"
+  },
+  "planEndDateHint": "YYYY.MM.DD",
+  "@planEndDateHint": {
+    "description": "Budget page, Edit, the Custom block, Ends on a date: the empty date field's hint"
+  },
+  "planEnded": "{amount} · ended {date}",
+  "@planEnded": {
+    "description": "Budget page, the note under a category's name once a repeating plan's last bill (its Ends) is past: the amount and the last bill's date",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "planOnDates": "On these dates…",
   "@planOnDates": {
@@ -6028,9 +6276,9 @@
       }
     }
   },
-  "planPaidFromHintNone": "Pick an account and the bill shows in its forecast.",
+  "planPaidFromHintNone": "Leave one account checked and the bill shows in its forecast.",
   "@planPaidFromHintNone": {
-    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while no account is chosen"
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)"
   },
   "planWorkedOut": "{amount} · worked out from the date",
   "@planWorkedOut": {
@@ -6058,11 +6306,7 @@
   },
   "planLabelPaidFrom": "Paid from",
   "@planLabelPaidFrom": {
-    "description": "Budget page, a category's plan (On a date): label over the choice of account the bill is paid from"
-  },
-  "planPaidFromNone": "No account",
-  "@planPaidFromNone": {
-    "description": "Budget page, Edit under a category's row (Yes): the first choice under Paid from, none; the bill isn't scheduled anywhere"
+    "description": "Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked"
   },
   "planUpTo": "up to {amount}",
   "@planUpTo": {

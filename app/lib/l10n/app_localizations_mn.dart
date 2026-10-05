@@ -350,7 +350,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerNoRegularPayToast =>
-      'Тогтмол цалингүй · апп цалин асуухгүй · Тохиргооноос өөрчилнө';
+      'Тогтмол цалингүй · апп цалин асуухгүй · Төсөв хуудасны Орлого хэсгээс өөрчилнө';
 
   @override
   String get ledgerAskForPayAgainToast => 'Төсөөлөл таны цалинг дахин асууна';
@@ -710,6 +710,10 @@ class WordsMn extends Words {
   }
 
   @override
+  String get settingsCredit =>
+      'Төсөв хуудсыг зохион байгуулахад Cynthia G. Loveland тусалсан.';
+
+  @override
   String get ledgerEraseAndStartOverButton => 'Бүгдийг устгаж шинээр эхлэх…';
 
   @override
@@ -996,6 +1000,48 @@ class WordsMn extends Words {
   }
 
   @override
+  String planRunsOutBy(String date, String amount) {
+    return 'Мөнгө дуусах өдөр: $date · $amount дутна';
+  }
+
+  @override
+  String get planExpected => 'хүлээгдэж буй';
+
+  @override
+  String planOfThemExpected(int count) {
+    return '$count нь хүлээгдэж буй';
+  }
+
+  @override
+  String planPaidFromSeveral(int count) {
+    return '$count данс сонгоотой тул энэ төлбөр ямар ч таамаглалд харагдахгүй. Нэг данс үлдээвэл тэнд харагдана.';
+  }
+
+  @override
+  String get planPaidFromNoneChecked =>
+      'Ямар ч данс сонгоогүй тул энэ төлбөр ямар ч таамаглалд харагдахгүй.';
+
+  @override
+  String planRunsOutZero(String date) {
+    return 'Мөнгө дуусах өдөр: $date';
+  }
+
+  @override
+  String planShortAhead(String end, String date, String amount) {
+    return '$end-с хойш: $date-нд мөнгө дуусна · $amount дутна';
+  }
+
+  @override
+  String planShortAheadZero(String end, String date) {
+    return '$end-с хойш: $date-нд мөнгө дуусна';
+  }
+
+  @override
+  String planShortAheadTip(String date) {
+    return '$date хүртэл харах';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Доод үлдэгдэл $amount · $date';
   }
@@ -1065,6 +1111,20 @@ class WordsMn extends Words {
   String get planNext30Days => 'Дараагийн 30 хоног';
 
   @override
+  String planNextDays(int count) {
+    return 'Дараагийн $count хоног';
+  }
+
+  @override
+  String get planNext6Months => 'Дараагийн 6 сар';
+
+  @override
+  String get planNextYear => 'Дараагийн 12 сар';
+
+  @override
+  String get planSpanTip => 'Таамаглал хэр хол харахыг сонгоно';
+
+  @override
   String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
 
   @override
@@ -1101,6 +1161,28 @@ class WordsMn extends Words {
 
   @override
   String get planAddCategoryTip => 'Шинэ ангилал нэмэх';
+
+  @override
+  String get setupAddPayTip =>
+      'Цалингаа тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
+
+  @override
+  String planIncomeExpected(String received, String expected) {
+    return 'Энэ үед хүлээгдэж буй $expected-с $received орсон';
+  }
+
+  @override
+  String get planIncomeTab => 'Орлого';
+
+  @override
+  String planPayInto(String amounts, String account) {
+    return '$amounts · данс: $account';
+  }
+
+  @override
+  String planPayIntoNext(String amounts, String account, String date) {
+    return '$amounts · данс: $account · дараагийн $date';
+  }
 
   @override
   String get planSpending => 'Зарлага';
@@ -2416,7 +2498,7 @@ class WordsMn extends Words {
 
   @override
   String get setupPeriodsFromPay =>
-      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол доор цалингаа нэмээрэй.';
+      'Цалингийн үе таны цалингаас гарна: түүгээр төсөвлөх бол Төсөв хуудасны Орлого хэсэгт цалингаа нэмээрэй.';
 
   @override
   String get setupRunsMonth => 'Төсөв бүр сарын 1-нээс сарын эцэс хүртэл.';
@@ -3718,9 +3800,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planMoneyAccounts => 'Энэ ангиллын ашиглах данснууд';
-
-  @override
   String planMoneyChange(String amount) {
     return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцаж, төлөвлөгөө нь арилна';
   }
@@ -3800,6 +3879,17 @@ class WordsMn extends Words {
 
   @override
   String get planDueDateQ => 'Төлөх өдөр бий юу?';
+
+  @override
+  String get planDueNoMeans => 'Сар бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
+
+  @override
+  String get planDueNoMeansPay =>
+      'Цалингийн үе бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
+
+  @override
+  String get planDueYesMeans =>
+      'Тодорхой өдөр гэхэд бэлэн байх дүн, жишээ нь түрээс, даатгал.';
 
   @override
   String get planNo => 'Үгүй';
@@ -3887,10 +3977,70 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planEveryCustom => 'Тутам…';
+  String get planEveryCustom => 'Өөрөө тохируулах…';
 
   @override
-  String get planEveryWord => 'тутам:';
+  String get planCustomOn => 'Өөрөө тохируулсан';
+
+  @override
+  String get planRepeatEvery => 'Давтамж';
+
+  @override
+  String get planOnWeekdays => 'Гарагууд';
+
+  @override
+  String get planWeekdaysHint =>
+      'Өдрүүдээ сонгоно уу; сонгоогүй бол огнооны гараг.';
+
+  @override
+  String get planOnLabel => 'Өдөр';
+
+  @override
+  String get planDayOfMonth => 'Сарын өдрөөр';
+
+  @override
+  String get planAWeekday => 'Гарагаар';
+
+  @override
+  String get planNthFirst => 'эхний';
+
+  @override
+  String get planNthSecond => '2 дахь';
+
+  @override
+  String get planNthThird => '3 дахь';
+
+  @override
+  String get planNthFourth => '4 дэх';
+
+  @override
+  String get planNthLast => 'сүүлийн';
+
+  @override
+  String get planWeekdayNames => 'Даваа|Мягмар|Лхагва|Пүрэв|Баасан|Бямба|Ням';
+
+  @override
+  String get planEnds => 'Дуусах';
+
+  @override
+  String get planEndsNever => 'Хэзээ ч';
+
+  @override
+  String get planEndsOn => 'Өдрөөр';
+
+  @override
+  String get planEndsAfter => 'Тоогоор';
+
+  @override
+  String get planEndsTimes => 'удаагийн дараа';
+
+  @override
+  String get planEndDateHint => 'ЖЖЖЖ.СС.ӨӨ';
+
+  @override
+  String planEnded(String amount, String date) {
+    return '$amount · $date-нд дууссан';
+  }
 
   @override
   String get planOnDates => 'Эдгээр өдрүүдэд…';
@@ -3946,7 +4096,7 @@ class WordsMn extends Words {
 
   @override
   String get planPaidFromHintNone =>
-      'Данс сонговол төлбөр тэр дансны таамаглалд харагдана.';
+      'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны таамаглалд харагдана.';
 
   @override
   String planWorkedOut(String amount) {
@@ -3964,9 +4114,6 @@ class WordsMn extends Words {
 
   @override
   String get planLabelPaidFrom => 'Төлөх данс';
-
-  @override
-  String get planPaidFromNone => 'Данс сонгоогүй';
 
   @override
   String planUpTo(String amount) {

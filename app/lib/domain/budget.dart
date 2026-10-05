@@ -126,9 +126,14 @@ class PlanLine {
     this.wentBack = 0,
     this.waiting = false,
     this.lastPeriod = false,
+    this.ended = false,
   });
 
   final CategoryPlan plan;
+
+  /// A repeating plan past its last bill (Custom…'s Ends): it asks for
+  /// nothing more, and [due] is that last bill.
+  final bool ended;
 
   /// What goes in each period: the set amount, or a dated plan's part,
   /// worked out from what's still missing and the periods left. 0 when
@@ -695,13 +700,83 @@ class Budget {
       return shift(DateTime(y, m, d < last ? d : last));
     }
     if (plan.everyDays case final days?) {
+      // Every so many weeks on chosen weekdays: the dates in the first
+      // date's week from it on, then each chosen week's.
+      if (days % 7 == 0 && (plan.weekdays?.isNotEmpty ?? false)) {
+        final wds = [...plan.weekdays!]..sort();
+        final weeks = days ~/ 7;
+        final monday = DateTime(
+          first.year,
+          first.month,
+          first.day - (first.weekday - 1),
+        );
+        DateTime day(int w, int wd) =>
+            DateTime(monday.year, monday.month, monday.day + 7 * w + wd - 1);
+        final week0 = [
+          for (final wd in wds)
+            if (!day(0, wd).isBefore(first)) day(0, wd),
+        ];
+        if (n < week0.length) return shift(week0[n]);
+        final m = n - week0.length;
+        return shift(day(weeks * (1 + m ~/ wds.length), wds[m % wds.length]));
+      }
       return shift(DateTime(first.year, first.month, first.day + days * n));
     }
     if (plan.everyMonths case final every?) {
+      // The nth weekday of the month: the first date's month, or the step
+      // after when that month's is already before the date.
+      if (plan.nth case final nth? when plan.nthWeekday != null) {
+        final wd = plan.nthWeekday!;
+        final k0 = nthWeekday(first.year, first.month, nth, wd).isBefore(first)
+            ? 1
+            : 0;
+        final base = _monthsAfter(first, every, n + k0);
+        return shift(nthWeekday(base.year, base.month, nth, wd));
+      }
       return shift(_monthsAfter(first, every, n));
     }
     return first;
   }
+
+  /// The [nth] (1 to 4, or -1 for the last) [weekday] (Monday 1 … Sunday
+  /// 7) of the month.
+  static DateTime nthWeekday(int y, int m, int nth, int weekday) {
+    if (nth > 0) {
+      final first = DateTime(y, m, 1);
+      final offset = (weekday - first.weekday + 7) % 7;
+      return DateTime(y, m, 1 + offset + 7 * (nth - 1));
+    }
+    final last = DateTime(y, m + 1, 0);
+    final back = (last.weekday - weekday + 7) % 7;
+    return DateTime(y, m, last.day - back);
+  }
+
+  /// A repeating plan's last bill, when it ends (Custom…'s Ends): by
+  /// count, or the last on or before its end date (the end date itself
+  /// when the first bill is already past it). Null: it goes on.
+  static DateTime? lastDue(CategoryPlan plan, {PaySchedule? pay}) {
+    if (!plan.repeats) return null;
+    if (plan.endCount case final c? when c > 0) {
+      return dueAfter(plan, c - 1, pay: pay);
+    }
+    if (plan.endDate case final end?) {
+      final e = dateOnly(end);
+      if (dueAfter(plan, 0, pay: pay).isAfter(e)) return e;
+      var n = 0;
+      while (n < _mostPeriods && !dueAfter(plan, n + 1, pay: pay).isAfter(e)) {
+        n++;
+      }
+      return dueAfter(plan, n, pay: pay);
+    }
+    return null;
+  }
+
+  /// [date] is past the plan's last bill.
+  static bool over(CategoryPlan plan, DateTime date, {PaySchedule? pay}) =>
+      switch (lastDue(plan, pay: pay)) {
+        final last? => date.isAfter(last),
+        null => false,
+      };
 
   /// The day [n] steps of [every] months after [first], kept on the same
   /// day of the month where the month has it.
@@ -889,6 +964,17 @@ class Budget {
       }
     }
     final due = dueOf(n);
+    // Past its last bill, the plan asks for nothing more.
+    if (repeats && over(plan, due, pay: pay)) {
+      return PlanLine(
+        plan: plan,
+        each: 0,
+        planned: 0,
+        due: lastDue(plan, pay: pay),
+        done: true,
+        ended: true,
+      );
+    }
     // Each bill is counted on its own, from the plan's first period or
     // from the period after the one before it was due. So a bill skipped
     // and never owed isn't asked for again, and "short" never grows past
@@ -939,7 +1025,9 @@ class Budget {
     // a payday that a weekend moved): each is wanted whole.
     if (repeats) {
       var more = 0;
-      while (!dueOf(n + more + 1).isAfter(p.end) && more < _mostPeriods) {
+      while (!dueOf(n + more + 1).isAfter(p.end) &&
+          !over(plan, dueOf(n + more + 1), pay: pay) &&
+          more < _mostPeriods) {
         more++;
       }
       each += bill * more;

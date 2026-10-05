@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-03**
+**Last updated: 2026-10-05**
 
 Start here if you are picking this up cold. For AI sessions, [`CLAUDE.md`](../CLAUDE.md)
 summarizes how to work in this repo.
@@ -12,7 +12,30 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Git state:** `main` has everything through PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
+**PR #36 merged (2026-10-05, version 0.7.0, schema v16):** the owner's
+notes from a call with Cynthia G. Loveland about the Budget page. Its first commit is the
+credit line at the bottom of Settings ("The Budget page was laid out with help from
+Cynthia G. Loveland.", both languages, a Thanks section in the README, ADR 0004
+"Credits"; 0.6.1). Then four of her six notes, built (ADR 0004 "From the 2026-10-05
+call"): Add category opens the new row's Edit; one **Paid from** row of checkboxes
+replaces the two account dropdowns in a category's Edit (a dated plan's bill is
+scheduled in the one account left checked); the forecast's small title is a dropdown
+of spans (the pay period, 30, 60 or 90 days, 6 months, a year; paydays and plan bills
+projected that far); a coral dot in the sidebar beside an account whose forecast runs
+out. The owner's calls on the rest came the same day and are built: a coral line above
+an account's forecast when it runs out past the view (accounts pay goes into are looked
+at a year of paychecks ahead; landing on zero counts); **Spending and Income tabs on the
+Budget page, pay listed and added on Income** (Settings → Budget keeps only Budget by);
+and How often's "Every…" is an Outlook-style **Custom…** block (weekday chips, the nth
+weekday of the month, Ends never / on a date / after N times; schema v16). **Both
+review passes done, their fixes in** (ADR 0004 "From the reviews (2026-10-05)").
+The owner then asked what "No" to the due date means, so the question says what each
+answer means beside it, "What's left at month's end" shows under No always, and the
+Income tab reads "₮2,100,000 received of ₮4,200,000 expected this period" (the owner's
+words). **Open (Next step):** two questions, in plain examples.
+
+**Git state:** `main` has everything through PR #36 (2026-10-05, version 0.7.0, schema
+v16: the Budget page from the call with Cynthia; see above), PR #35 (2026-10-04, version 0.6.0: two budget plans behind "Is there a due date?", How often for every case including Every payday, Paid from scheduling the bill in its account, the Edit panel designed as one thing, "Type" on the New account page; schema v14 and v15; ADR 0004 rule 27 rewritten), PR #34 (2026-10-03, version 0.5.1: ledger fixes from the owner's use: the search key, why a row can't be saved said in the popup, one row open at a time, Cancel on an Edit; no schema change), PR #33 (2026-10-03, version 0.5.0: one built-in Income instead of income categories, schema v13; ADR 0004 rule 30), PR #32 (2026-10-02, version 0.4.0: one Edit per category, every currency; ADR 0004 rule 29 and "Every currency"; no schema change), PR #31 (2026-10-02, version 0.3.0: a category's currency and accounts, schema v12; ADR 0004 rule 28) and PR #30 (2026-10-01, version 0.2.0: plans, the four budget types, schema v11; ADR 0004 rule 27), PR #29 (2026-10-01, version 0.1.1: the Budget page fills the window with striped rows, and the window stops at 1360 × 760; ADR 0004 "The smallest window"), PR #28 (version numbers: 0.1.0, build = commit count, shown at the bottom of Settings; ADR 0006), PR #27 (color schemes: Blue eclipse the default, Figma's 100 combinations in Settings → Appearance, a dark-mode logo in the sidebar), PR #26 (the Budget page's first slice:
 envelopes with Assigned · Spent · Left, schema v10; the account page's overflow noted), PR #25 (the items tabled 2026-09-30: the
 forecast through the next pay period, Keep the day, search in the tab row, wording),
 PR #24 (import, currencies), PR #23 (Mongolian interface, Settings →
@@ -185,6 +208,35 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-05, branch `budget-page-layout` (version 0.7.0): the Budget page after the
+owner's call with Cynthia G. Loveland.** Six notes came back. Built: a new category
+opens in Edit (no wizard: the panel's first line is the question); one "Paid from"
+row of checkboxes in Edit instead of two account dropdowns, the dated plan's bill
+scheduled in the one account left checked; the forecast's span as a dropdown on its
+small title, with paydays and plan bills projected past the scheduled ones
+(`projectScheduled` in `domain/forecast.dart`, `RegisterRow.copyWith`); a coral dot
+beside a sidebar account whose forecast runs out (the header's warning as its
+tooltip). The owner's calls the same day, built: a coral line above an account's
+forecast when it runs out past the view (accounts pay goes into are looked at a year
+of paychecks ahead; landing on zero counts); **Spending and Income tabs** on the
+Budget page, pay listed and added on Income, Settings → Budget down to Budget by; and
+How often's **Custom…** block (schema v16: `weekdays`, `nth`, `nth_weekday`,
+`end_date`, `end_count`; `Budget.lastDue` and `Budget.over` stop a plan's bills,
+counting and projection past its end). All in ADR 0004 "From the 2026-10-05 call",
+with both reviews' fixes under "From the reviews". The owner's last two calls: the
+Income tab says "₮2,100,000 received of ₮4,200,000 expected this period", and the
+panel's question says what No and Yes mean beside it ("A set amount you spend through
+each month, like groceries." / "An amount to have ready by a date, like rent or
+insurance."), with "What's left at month's end" shown under No always. **Asked, not
+answered, in plain examples:** (1) Set the forecast to Next 6 months on TDB Checking:
+it shows pay coming in and rent and water going out, nothing else, so the line climbs
+about ₮800,000 a month richer than the household will be. Should it also take out
+what's budgeted for groceries, transport and the rest each month? (2) Make a new Rent
+category, Yes to a due date, ₮1,800,000 on the 20th: Paid from says "All accounts", so
+the rent is in no account's forecast until TDB Checking is left checked alone. Should
+the app start with TDB Checking checked on its own, because that's where the rent rows
+were paid from?
 
 **2026-10-04, PR #35 merged (version 0.6.0, schema v14 and v15):
 two budget types instead of four, and the bill in the forecast.** The owner asked what
