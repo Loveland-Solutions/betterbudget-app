@@ -1703,17 +1703,17 @@ abstract class Words {
   /// **'Set up a paycheck: how much, how often, and the account it goes into'**
   String get setupAddPayTip;
 
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)
+  ///
+  /// In en, this message translates to:
+  /// **'{received} received of {expected} expected this period'**
+  String planIncomeExpected(String received, String expected);
+
   /// Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up
   ///
   /// In en, this message translates to:
   /// **'Income'**
   String get planIncomeTab;
-
-  /// Budget page, Income tab, beside the Income line: how much of the period's income came from set-up pay and how much from anything else, per currency
-  ///
-  /// In en, this message translates to:
-  /// **'{pay} from pay · {other} other'**
-  String planIncomeFromPay(String pay, String other);
 
   /// Budget page, Income tab, under a pay's name: how much and when, and the account it is paid into, when no payday is scheduled
   ///
@@ -5788,6 +5788,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Is there a due date?'**
   String get planDueDateQ;
+
+  /// Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount you spend through each month, like groceries.'**
+  String get planDueNoMeans;
+
+  /// Budget page, Edit: the same note while the budget runs by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'A set amount you spend through each pay period, like groceries.'**
+  String get planDueNoMeansPay;
+
+  /// Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example
+  ///
+  /// In en, this message translates to:
+  /// **'An amount to have ready by a date, like rent or insurance.'**
+  String get planDueYesMeans;
 
   /// Budget page, Edit under a category's row: the first answer to "Is there a due date?"
   ///

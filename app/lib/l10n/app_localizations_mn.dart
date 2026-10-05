@@ -1167,12 +1167,12 @@ class WordsMn extends Words {
       'Цалингаа тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
 
   @override
-  String get planIncomeTab => 'Орлого';
+  String planIncomeExpected(String received, String expected) {
+    return 'Энэ үед хүлээгдэж буй $expected-с $received орсон';
+  }
 
   @override
-  String planIncomeFromPay(String pay, String other) {
-    return '$pay цалингаас · $other бусад';
-  }
+  String get planIncomeTab => 'Орлого';
 
   @override
   String planPayInto(String amounts, String account) {
@@ -3879,6 +3879,17 @@ class WordsMn extends Words {
 
   @override
   String get planDueDateQ => 'Төлөх өдөр бий юу?';
+
+  @override
+  String get planDueNoMeans => 'Сар бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
+
+  @override
+  String get planDueNoMeansPay =>
+      'Цалингийн үе бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
+
+  @override
+  String get planDueYesMeans =>
+      'Тодорхой өдөр гэхэд бэлэн байх дүн, жишээ нь түрээс, даатгал.';
 
   @override
   String get planNo => 'Үгүй';

@@ -1787,21 +1787,21 @@
   "@setupAddPayTip": {
     "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
   },
-  "planIncomeTab": "Income",
-  "@planIncomeTab": {
-    "description": "Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up"
-  },
-  "planIncomeFromPay": "{pay} from pay · {other} other",
-  "@planIncomeFromPay": {
-    "description": "Budget page, Income tab, beside the Income line: how much of the period's income came from set-up pay and how much from anything else, per currency",
+  "planIncomeExpected": "{received} received of {expected} expected this period",
+  "@planIncomeExpected": {
+    "description": "Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)",
     "placeholders": {
-      "pay": {
+      "received": {
         "type": "String"
       },
-      "other": {
+      "expected": {
         "type": "String"
       }
     }
+  },
+  "planIncomeTab": "Income",
+  "@planIncomeTab": {
+    "description": "Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up"
   },
   "planPayInto": "{amounts} · into {account}",
   "@planPayInto": {
@@ -5999,6 +5999,18 @@
   "planDueDateQ": "Is there a due date?",
   "@planDueDateQ": {
     "description": "Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date"
+  },
+  "planDueNoMeans": "A set amount you spend through each month, like groceries.",
+  "@planDueNoMeans": {
+    "description": "Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example"
+  },
+  "planDueNoMeansPay": "A set amount you spend through each pay period, like groceries.",
+  "@planDueNoMeansPay": {
+    "description": "Budget page, Edit: the same note while the budget runs by pay period"
+  },
+  "planDueYesMeans": "An amount to have ready by a date, like rent or insurance.",
+  "@planDueYesMeans": {
+    "description": "Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example"
   },
   "planNo": "No",
   "@planNo": {

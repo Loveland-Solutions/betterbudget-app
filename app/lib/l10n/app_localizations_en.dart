@@ -1217,12 +1217,12 @@ class WordsEn extends Words {
       'Set up a paycheck: how much, how often, and the account it goes into';
 
   @override
-  String get planIncomeTab => 'Income';
+  String planIncomeExpected(String received, String expected) {
+    return '$received received of $expected expected this period';
+  }
 
   @override
-  String planIncomeFromPay(String pay, String other) {
-    return '$pay from pay · $other other';
-  }
+  String get planIncomeTab => 'Income';
 
   @override
   String planPayInto(String amounts, String account) {
@@ -4043,6 +4043,18 @@ class WordsEn extends Words {
 
   @override
   String get planDueDateQ => 'Is there a due date?';
+
+  @override
+  String get planDueNoMeans =>
+      'A set amount you spend through each month, like groceries.';
+
+  @override
+  String get planDueNoMeansPay =>
+      'A set amount you spend through each pay period, like groceries.';
+
+  @override
+  String get planDueYesMeans =>
+      'An amount to have ready by a date, like rent or insurance.';
 
   @override
   String get planNo => 'No';

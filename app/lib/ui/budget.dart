@@ -210,9 +210,21 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
 
-    // This period's income that came from set-up pay, by currency: the
-    // paydays confirmed in the period, on their account's side.
+    // This period's pay, by currency: what the schedules expect in it,
+    // and what has come (the paydays confirmed in the period, on their
+    // account's side).
     final moneyIds = {for (final a in data.balanceSheetAccounts) a.id};
+    final expectedPay = <Currency, int>{};
+    for (final p in data.paySchedules) {
+      final c = data.accounts[p.accountId]?.currency ?? Currency.mnt;
+      var d = p.nextAfter(
+        DateTime(period.start.year, period.start.month, period.start.day - 1),
+      );
+      for (var i = 0; i < 40 && !d.isAfter(period.end); i++) {
+        expectedPay[c] = (expectedPay[c] ?? 0) + p.amountOn(d);
+        d = p.nextAfter(d);
+      }
+    }
     final fromPay = <Currency, int>{};
     for (final x in data.txns) {
       if (x.scheduled || x.payScheduleId == null) continue;
@@ -552,6 +564,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                           ? const []
                           : _cameIn(budget.cameIn[income.id], budget.currency),
                       fromPay: fromPay,
+                      expectedPay: expectedPay,
                       onShowRows: income == null
                           ? null
                           : () => widget.onShowRows(income, period),
@@ -717,13 +730,18 @@ class _IncomeTab extends StatelessWidget {
     required this.data,
     required this.cameIn,
     required this.fromPay,
+    required this.expectedPay,
     required this.onShowRows,
     required this.onPay,
     required this.onAskAgain,
   });
   final LedgerData data;
   final List<(Currency, int)> cameIn;
+
+  /// This period's pay by currency: what has come, and what the
+  /// schedules expect.
   final Map<Currency, int> fromPay;
+  final Map<Currency, int> expectedPay;
   final VoidCallback? onShowRows;
   final ValueChanged<PaySchedule?> onPay;
   final VoidCallback onAskAgain;
@@ -742,15 +760,14 @@ class _IncomeTab extends StatelessWidget {
           : a.name;
     }
 
-    // "₮2,100,000 from pay · ₮400,000 other", once some pay has come.
+    // "₮2,100,000 received of ₮4,200,000 expected this period" (the
+    // owner's words, 2026-10-05), one per currency pay is set up in.
     final split = [
-      for (final (c, total) in cameIn)
-        if (fromPay[c] case final pay? when pay > 0)
-          t.planIncomeFromPay(
-            formatShort(pay, currency: c),
-            // A payday row re-filed since still carries its schedule.
-            formatShort(total > pay ? total - pay : 0, currency: c),
-          ),
+      for (final MapEntry(key: c, value: expected) in expectedPay.entries)
+        t.planIncomeExpected(
+          formatShort(fromPay[c] ?? 0, currency: c),
+          formatShort(expected, currency: c),
+        ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,7 +803,7 @@ class _IncomeTab extends StatelessWidget {
                 Flexible(
                   child: Text(
                     split.join(' · '),
-                    key: const ValueKey('income-from-pay'),
+                    key: const ValueKey('income-expected'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: onest(13, color: Mid.ink3, tabular: true),
@@ -3062,6 +3079,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             ('plan-dated-yes', t.planYes, _hasDate, () => _pickDated(true)),
           ],
         ),
+        // What the answer picked means, in one example (owner, 2026-10-05:
+        // "What happens if there isn't a due date?").
+        aside: _hasDate
+            ? t.planDueYesMeans
+            : byPay
+            ? t.planDueNoMeansPay
+            : t.planDueNoMeans,
       ),
       if (!_hasDate) ...[
         _formRow(
@@ -3080,7 +3104,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? t.planEmptyHintPay
               : t.planEmptyHint,
         ),
-        if (hasAmount) ...[
+        // Shown whether or not an amount is typed: it answers "do we
+        // ever zero it out?" (owner, 2026-10-05).
+        ...[
           _formRow(
             byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
             _Segmented(
@@ -3100,7 +3126,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
-          if (_rollover)
+          if (_rollover && hasAmount)
             _formRow(
               t.planStopAt,
               amountField(

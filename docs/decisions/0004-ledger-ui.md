@@ -1655,12 +1655,29 @@ branch, the last three after the owner's calls the same day.
   the weekend rule off (a Saturday moved to Friday doubled Friday's bill);
   the sidebar's look-ahead is worked out once per ledger snapshot; "other"
   income never reads below zero; a v15 file's upgrade is tested.
-- **Asked of the owner** (new ways of counting): whether a span past the pay
-  period should take each Any-time category's Assigned as everyday
-  spending (a 6-month line today is pay and dated bills only, so it climbs);
-  whether the Income tab should say "₮2,100,000 of ₮4,200,000 expected this
-  period"; and whether a new dated plan should start with one account
-  chosen from where its rows were last paid.
+- **The Income tab says "₮2,100,000 received of ₮4,200,000 expected this
+  period"** (the owner's wording, 2026-10-05), one per currency pay is set
+  up in: what the schedules expect in the period (each payday's amount, the
+  "or more" floor for pay that varies) against the paydays confirmed in it.
+  It replaced "from pay · other" from the first build.
+- **The question says what each answer means** (owner, 2026-10-05, on the
+  panel's first line: "What happens if there isn't a due date? We can spend
+  throughout the month like groceries?"). Beside "Is there a due date?", No
+  reads "A set amount you spend through each month, like groceries." (or
+  "each pay period") and Yes "An amount to have ready by a date, like rent
+  or insurance." One note beside the field that needs it, as the panel's
+  rule has it. And **"What's left at month's end: Stays here | Goes back to
+  not assigned" shows under No whether or not an amount is typed** (owner:
+  "We never zero it out again?"): the answer is on the panel the moment No
+  is picked, Stays here the default. Stop at still needs an amount.
+- **Asked of the owner, in plain examples** (new ways of counting): whether
+  a 6-month forecast should also take out what's budgeted for groceries,
+  transport and the rest each month (today it shows pay in and rent and
+  water out, nothing else, so it climbs richer than the household will
+  be); and whether a new Rent plan should start with TDB Checking checked
+  on its own (where the rent rows were paid from) so the bill shows in the
+  forecast at once, instead of "All accounts" and no forecast until one is
+  left checked.
 
 ### The smallest window (owner, 2026-10-01)
 
