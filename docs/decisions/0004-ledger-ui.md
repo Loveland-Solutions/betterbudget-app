@@ -1290,6 +1290,18 @@ What's known so far:
       currency to begin with), and one made from the entry row takes the
       currency of the account the row is in. With accounts in one
       currency there's nothing to choose. Income categories aren't tied.
+    - **The ledger's lists offer only the row's currency** (owner's
+      correction, 2026-10-06: "I don't love that USD category options are
+      showing up in the dropdown on my mnt ledger"). A row's category chip,
+      Categorize in its action bar and the list under Category while typing
+      a row hold the spending categories in that row's currency, plus Income
+      and Not categorized, which take any. A card's "payments come out of"
+      list is narrowed the same way, since a payment is only counted against
+      a category in the card's currency. Nothing is forbidden: a row already
+      filed under a category in the other currency keeps it and its tick,
+      and a name typed in full still finds it (the gold note on the Budget
+      page says the row isn't counted). In All accounts the list follows
+      the row's account.
     - **Currency and accounts…** in the category's ⋯ menu ("Accounts…"
       with one currency) opens a panel under the row (part of Edit since
       rule 29): the currency, then

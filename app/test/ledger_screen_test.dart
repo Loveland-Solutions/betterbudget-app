@@ -5797,6 +5797,87 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('the category lists offer only the row’s currency: Categorize '
+      'on a saved row and the list in the entry row', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final tdb = (await db.loadLedger()).balanceSheetAccounts.first.id;
+      final afcu = await db.createAccount(
+        name: 'AFCU Checking',
+        type: AccountType.asset,
+        currency: Currency.usd,
+      );
+      final insurance = await db.createCategory(
+        'Car insurance',
+        currency: Currency.usd,
+      );
+      await db.createCategory('Not categorized');
+      await db.postSimple(
+        accountId: afcu,
+        date: DateTime(2026, 9, 10),
+        today: DateTime(2026, 9, 16),
+        payee: 'State Farm',
+        counterAccountId: insurance,
+        amount: -12000,
+      );
+      // Filed under the dollar category before now, from tugrik.
+      await db.postSimple(
+        accountId: tdb,
+        date: DateTime(2026, 9, 15),
+        today: DateTime(2026, 9, 16),
+        payee: 'Mixed up',
+        counterAccountId: insurance,
+        amount: -30000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    Future<List<String>> offeredFor(String payee) async {
+      await tester.tap(find.text(payee));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final names = [
+        for (final b in tester.widgetList<MenuItemButton>(
+          find.byType(MenuItemButton),
+        ))
+          (b.child! as Text).data!,
+      ];
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      return names;
+    }
+
+    // A tugrik row: the tugrik categories, Income and Not categorized.
+    var names = await offeredFor('Sakura Coffee');
+    expect(names, containsAll(['Groceries', 'Income', 'Not categorized']));
+    expect(names, isNot(contains('Car insurance')));
+    // The row that's already under the dollar one still shows where it is.
+    expect(await offeredFor('Mixed up'), contains('Car insurance'));
+
+    // Typing a new tugrik row: the dollar category isn't in the list.
+    await openEntry(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Category'), 'insur');
+    await tester.pumpAndSettle();
+    expect(find.text('+ New category “insur”'), findsOneWidget);
+    // Only the "Mixed up" row's chip: not a choice in the list.
+    expect(find.text('Car insurance'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // A dollar row: the dollar category, and none of the tugrik ones.
+    await tester.tap(find.text('AFCU Checking').first);
+    await tester.pumpAndSettle();
+    names = await offeredFor('State Farm');
+    expect(names, containsAll(['Car insurance', 'Income', 'Not categorized']));
+    expect(names, isNot(contains('Groceries')));
+    await openEntry(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Category'), 'insur');
+    await tester.pumpAndSettle();
+    expect(find.text('Car insurance'), findsNWidgets(2)); // the chip, the list
+    await tidy(tester, db);
+  });
+
   testWidgets('import: rows before the opening balance move it, by default', (
     tester,
   ) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../domain/budget.dart' show categoryTakes;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
@@ -385,11 +386,16 @@ class _EntryRowState extends State<EntryRow> {
     return widget.pays.where((p) => p.label.toLowerCase() == q).firstOrNull?.id;
   }
 
-  /// What the list offers: not archived categories. With `+` typed before
-  /// the amount it's money in, and the income choices come first;
-  /// otherwise the spending categories do (owner, 2026-10-06).
+  /// What the list offers: not archived categories, nor ones in another
+  /// currency than the row's (a typed name still finds either). With `+`
+  /// typed before the amount it's money in, and the income choices come
+  /// first; otherwise the spending categories do (owner, 2026-10-06).
   Iterable<({String label, AccountInfo account})> get _listOptions {
-    final all = _counterOptions.where((o) => !o.account.archived);
+    final all = _counterOptions.where(
+      (o) =>
+          !o.account.archived &&
+          (o.account.isBalanceSheet || categoryTakes(o.account, _hereCurrency)),
+    );
     final income = all.where((o) => o.account.isIncome);
     final spending = all.where(
       (o) => !o.account.isIncome && !o.account.isBalanceSheet,

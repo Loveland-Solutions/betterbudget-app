@@ -81,7 +81,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   category brought in as an imported row's memo (not wanted; it's left out), and
   a tab listing every row ever left without a category (noise: the Not categorized
   tab holds the current budget period's), and questions written as fragments that
-  lean on work the owner hasn't seen (whole sentences, with what's on screen).
+  lean on work the owner hasn't seen (whole sentences, with what's on screen), and
+  dollar categories offered in a tugrik account's category list (a row is offered
+  the categories in its own currency).
 - **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
   testing my app by using it. The data that I have is now production data"). Every
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a
