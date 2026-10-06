@@ -1799,6 +1799,14 @@ picked B, "the key"**.
   zero." (Replaced 2026-10-06 by a row of its own: see "Assigned too much".) Cards owing more than there is colours You have and says "Cards owe
   more than you have". Everything assigned is ₮0.00 and no sentence (the
   owner's rule: don't tell them what they already know).
+- **"Rows not categorized" left the Budget page** (owner, 2026-10-06: "great,
+  but it belongs on the ledger page, not on the budget page"). It is a job
+  done in the register, so it is said there: a **Not categorized (2)** tab in
+  the register's tab row, after Scheduled, on an account's page and on All
+  accounts, shown only while rows wait there. A click shows just those rows;
+  when the last one gets a category the tab goes and every row is back. No
+  amount beside it (the rows show their own), and the Budget page's You have
+  row carries no note.
 - **The first-period offer is a strip in the same card**, under a rule, worded
   "₮295,090.50 was spent in 7 categories before anything was assigned. It
   counts against them this period." with its two buttons. One card, not a box
@@ -1944,6 +1952,109 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   into transfers); otherwise **Not categorized** (Ангилаагүй), an ordinary category the app
   makes in the language showing, which the person can rename or delete. It isn't
   called "Unassigned": in an envelope budget that means money waiting for a job.
+
+**Three calls on a US credit union's files (owner, 2026-10-06; detail in ADR 0002 "The
+owner's calls"):**
+
+- **The bank's own category is not brought in.** ("No, I don't want to use the bank's
+  categorization.") A column named Classification or Category, or an OFX memo that
+  holds nothing else, starts left out; the person can still pick it. Rejected: putting
+  it in the memo, which is the field for their own notes.
+- **An OFX file's one balance is shown** with its day against the cleared balance after
+  the import, as the table's last balance is.
+- **Rows already imported from the bank's other kind of file are caught** by day and
+  amount and start left out, tagged "Already in · same day and amount"; a click brings
+  one in. The owner's worry, two things at one price on one day, is answered by
+  counting (one row already in answers for one row of the file) and by name.
+
+**A new account can be answered by its bank file (owner, 2026-10-06: "Don't you think
+on the account creation wizard there should be an import option that could answer the
+balance question?"; picked A of three):**
+
+- Beside **Start account** on "What's in this account today?" is **Or import a file
+  from your bank** (not on a cash account: there's no file). It opens the import
+  window, whose first line reads "This file starts at $412.08 on 1 June 2026 and
+  ends at $1,860.75 on 5 October 2026. The account starts from it."
+- **The starting balance is the file's**, dated the day before its first row: a
+  table's first balance less its first row; an OFX file's one balance less every row.
+  Import writes it and the rows together, and one ⌘Z takes both back to the question.
+- **A file with no balance says so and asks** the same question in the window ("This
+  file doesn't give a balance. What's in this account today?"); what's typed is worked
+  back through the rows coming in. Left empty, the account starts at zero before them.
+- *Rejected:* B, type the balance first and be offered Import after (answering a
+  question the file could have); C, type it and import, the app comparing the two (the
+  safest, and the most work; the window already shows the bank's figure to check
+  against the banking app).
+- **This changes the onboarding sequence below:** import was step 3, "optional and
+  skipped by default", after every balance had been typed in step 2. It is now one of
+  the two ways to answer step 2 for an account that has a file.
+- **Start from** (owner, 2026-10-06: "Yes, it should default to the current budget
+  period"; the `budget-expert` agent's advice). The window has a **Start from** date,
+  first set to the first day of the budget period today is in (the month, or the pay
+  period the Budget page is viewed by) when the file reaches back before it, else to
+  the file's first row. Rows before it don't come in and aren't listed; beside the date
+  it says "4,474 earlier rows in this file are left out" and a **The whole file**
+  button brings them back. The line under it reads "The account starts on 1 October
+  2026 at $2,140.11. The file ends at $1,860.75 on 5 October 2026.", the balance being
+  the file's for that day. *Why not everything:* rows from before the budget began
+  change no figure on the Budget page, a new ledger has no categories for them to
+  learn, Savings looks back three months only, and 4,500 rows waiting in Not
+  categorized never get done. A short start can be made longer later (importing the
+  file again offers to move the opening balance back); a long one can't be made
+  shorter once the session's undo is gone. *Rejected:* defaulting to the whole file.
+
+**The Not categorized tab holds this budget period's rows** (owner, 2026-10-06: "don't
+give the user all that noise that serves no purpose. The uncategorized tab's view
+should default to those transactions that are uncategorized within a given budget
+period."). The tab and its count are the rows waiting in the period today is in (the
+month, or the pay period the Budget page is viewed by); with none in it the tab isn't
+there. Older ones are still in All, and a search for "Not categorized" finds them.
+*Not built:* choosing another period for the tab.
+
+**"Always file LoveSol under Income"** (owner, 2026-10-06: "you'd need to treat income
+the same as any other category. If I get something from LoveSol, and I choose my
+Loveland Solutions pay check from the ledger category dropdown, then the app should
+offer to remember that for the future."):
+
+- Picking a category from a row's dropdown shows, in the popup at the bottom beside
+  Undo, **Always file LoveSol under Income · 9 more rows waiting**. Clicking it moves
+  that payee's rows still in Not categorized on this account and keeps the rule; the
+  popup then reads "LoveSol will be filed under Income · 9 rows moved". One ⌘Z takes
+  back the moves and the rule. Not offered on a transfer or split, for Not categorized
+  itself, or when it's already the rule.
+- **A payee fits when its name starts with the one clicked**, whatever the capitals
+  (owner: "This is all good" to that), because banks put a date or a number after a
+  name. The longest beginning wins. Kept per account
+  (`import.rules.<account>` in preferences, `PayeeRule` in `import/mapping.dart`; no
+  schema change). An import asks the rule first, then the category the payee had last.
+- **Each pay is in the dropdown by its name** (owner, 2026-10-06: "if there is an
+  income transaction, then the Income categories should be at the top of the dropdown.
+  Otherwise, the outflow should be there. Obviously, you'd need to be able to assign
+  income to a given paycheck otherwise the whole budget app would fall apart").
+  - **On money in**, the dropdown starts with each pay paid into that account
+    ("Income · Loveland Solutions"; "Income · paycheck" for a single pay with no name),
+    then Income, then the spending categories. **On money out**, the spending
+    categories come first and Income last, and no pay is offered.
+  - **Picking a pay makes the row that pay's paycheck** (`takeAsPay`): it's filed
+    under Income and tied to the pay, so the Budget page's Income tab counts it as
+    received; the payday it stands for (the nearest planned one, early or late) stops
+    being expected, so the forecast doesn't count it twice; the next payday is
+    scheduled. The row's chip then reads "Income · Loveland Solutions". One ⌘Z.
+  - **The offer carries the pay:** "Always file LoveSol under Income · Loveland
+    Solutions" moves that payee's waiting money-in rows as paychecks, oldest first,
+    and the next import does the same (`PayeeRule.payId`; `ImportRecord.paid` for the
+    import's undo). Money out from the same payee is never a paycheck.
+  - **Typing a new row** (owner, 2026-10-06: "Well. Build it."): the Category field
+    lists each pay paid into the row's account by the same names, filed under Income.
+    Saving makes the row that pay's paycheck, in the same write and the same ⌘Z. The
+    list follows the same order: with `+` typed before the amount (money in) the pays
+    and Income lead; otherwise the spending categories do. A payee's remembered
+    category never fills in a pay by itself. A row dated ahead is only scheduled, and
+    stays plain income until it comes. Not while editing a row: there the dropdown on
+    the row does it.
+- **Loose ends:** a rule is changed by picking another category and taking the offer
+  again; there is no list of rules and no way to drop one after the session's undo. The
+  offer isn't made from a row's Edit, only from the dropdown.
 
 ### Every currency (owner, 2026-10-02)
 

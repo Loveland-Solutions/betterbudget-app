@@ -12,6 +12,7 @@ typedef ImportPick = ({
   List<ImportPlanRow> plan,
   bool proven,
   ({DateTime date, int amount})? moveOpening,
+  ({DateTime date, int amount})? start,
 });
 
 class _ImportDialog extends StatefulWidget {
@@ -26,7 +27,22 @@ class _ImportDialog extends StatefulWidget {
     required this.plan,
     required this.cleared,
     required this.owed,
+    this.starting = false,
+    this.today,
+    this.periodStart,
   });
+
+  /// For a new account: today, and the first day of the budget period
+  /// it's in. The rows come in from that day unless the person says
+  /// otherwise (owner, 2026-10-06): older ones change nothing the budget
+  /// shows and would all wait to be categorized.
+  final DateTime? today;
+  final DateTime? periodStart;
+
+  /// A new account, answered by its bank file instead of a typed balance
+  /// (owner, 2026-10-06): what the file says the account held before its
+  /// first row becomes the opening balance.
+  final bool starting;
 
   final String accountName;
 
@@ -55,6 +71,110 @@ class _ImportDialogState extends State<_ImportDialog> {
   ReadResult? _read;
   ImportPlan? _plan;
   int _asked = 0;
+
+  /// What's in a new account today, typed when its file gives no balance.
+  final _today = TextEditingController();
+  final _todayFocus = FocusNode(debugLabel: 'import-today');
+
+  /// The day a new account's rows start from, as typed.
+  final _from = TextEditingController();
+  final _fromFocus = FocusNode(debugLabel: 'import-from');
+  bool _fromSet = false;
+  DateTime? _fromUsed;
+
+  @override
+  void dispose() {
+    _today.dispose();
+    _todayFocus.dispose();
+    _from.dispose();
+    _fromFocus.dispose();
+    super.dispose();
+  }
+
+  /// The file's first and last days.
+  (DateTime, DateTime)? get _span {
+    final rows = _read?.rows;
+    if (rows == null || rows.isEmpty) return null;
+    var first = dateOnly(rows.first.date), last = first;
+    for (final r in rows) {
+      final d = dateOnly(r.date);
+      if (d.isBefore(first)) first = d;
+      if (d.isAfter(last)) last = d;
+    }
+    return (first, last);
+  }
+
+  DateTime? get _fromDay =>
+      widget.today == null ? null : parseEntryDate(_from.text, widget.today!);
+
+  bool get _fromWrong => widget.starting && _fromSet && _fromDay == null;
+
+  /// The day rows come in from, when it's after the file's first: rows
+  /// before it stay out and the account starts there.
+  DateTime? get _cut {
+    final span = _span, day = _fromDay;
+    if (!widget.starting || span == null || day == null) return null;
+    return day.isAfter(span.$1) ? day : null;
+  }
+
+  void _fromChanged() {
+    if (_fromDay != _fromUsed && _fromDay != null) _reread();
+  }
+
+  void _wholeFile() {
+    final span = _span;
+    if (span == null) return;
+    _from.text = fullDate(span.$1);
+  }
+
+  bool get _todayWrong =>
+      _today.text.trim().isNotEmpty &&
+      parseAmount(_today.text, widget.currency) == null;
+
+  /// For a new account: the day before the file's first row and what the
+  /// account held then, with the balance the file ends at when it gives
+  /// one. A table's comes from its first and last rows; an OFX file's one
+  /// balance is worked back through every row; with neither, what's typed
+  /// as today's is worked back through the rows coming in.
+  ({DateTime date, int amount, int? end, DateTime? endDay})? get _start {
+    final read = _read;
+    final span = _span;
+    if (!widget.starting || read == null || span == null) return null;
+    final (first, last) = span;
+    final cut = _cut;
+    final date = (cut ?? first).subtract(const Duration(days: 1));
+    // What the rows left out before the start day add up to.
+    final earlier = cut == null
+        ? 0
+        : read.rows
+              .where((r) => dateOnly(r.date).isBefore(cut))
+              .fold<int>(0, (s, r) => s + r.amount);
+    if (read.check case final c?) {
+      return (
+        date: date,
+        amount: c.opening + earlier,
+        end: c.closing,
+        endDay: last,
+      );
+    }
+    if (read.closing case final c?) {
+      // Banks write what a card owes with either sign.
+      final end = widget.owed && c > 0 ? -c : c;
+      return (
+        date: date,
+        amount: end - read.rows.fold<int>(0, (s, r) => s + r.amount) + earlier,
+        end: end,
+        endDay: read.closingDay ?? last,
+      );
+    }
+    final typed = parseAmount(_today.text, widget.currency);
+    if (typed == null) return (date: date, amount: 0, end: null, endDay: null);
+    var before = widget.owed ? -typed : typed;
+    for (final p in _plan?.rows ?? const <ImportPlanRow>[]) {
+      if (p.fate == ImportFate.add) before -= p.row.amount;
+    }
+    return (date: date, amount: before, end: null, endDay: null);
+  }
 
   /// Rows dated before the opening balance: move it before them (the
   /// default, owner 2026-09-30) or leave it and count them twice.
@@ -108,9 +228,34 @@ class _ImportDialogState extends State<_ImportDialog> {
       _plan = null;
     });
     if (read == null) return;
+    // A new account starts from the budget period it's in when the file
+    // reaches back before it, else from the file's first row.
+    if (widget.starting && !_fromSet) {
+      _fromSet = true;
+      final span = _span, period = widget.periodStart;
+      if (span != null) {
+        _from.text = fullDate(
+          period != null && period.isAfter(span.$1) && !period.isAfter(span.$2)
+              ? period
+              : span.$1,
+        );
+      }
+      _from.addListener(_fromChanged);
+    }
+    _fromUsed = _fromDay;
+    final cut = _cut;
+    // Keys are numbered over the whole file, so they're the same whatever
+    // day the rows come in from.
+    final keys = importKeys(widget.accountId, read.rows);
     final plan = await widget.plan(
-      read.rows,
-      importKeys(widget.accountId, read.rows),
+      [
+        for (final r in read.rows)
+          if (cut == null || !dateOnly(r.date).isBefore(cut)) r,
+      ],
+      [
+        for (final (i, r) in read.rows.indexed)
+          if (cut == null || !dateOnly(r.date).isBefore(cut)) keys[i],
+      ],
     );
     if (!mounted || ask != _asked) return;
     setState(() => _plan = plan);
@@ -128,12 +273,16 @@ class _ImportDialogState extends State<_ImportDialog> {
   void _import() {
     final plan = _plan;
     if (plan == null || _toWrite == 0) return;
+    if (_todayWrong) return _todayFocus.requestFocus();
+    if (_fromWrong) return _fromFocus.requestFocus();
     final check = _read?.check;
+    final start = _start;
     Navigator.of(context).pop<ImportPick>((
       mapping: _mapping,
       plan: plan.rows,
       proven: check == null || check.ok,
       moveOpening: _openingMove,
+      start: start == null ? null : (date: start.date, amount: start.amount),
     ));
   }
 
@@ -406,6 +555,122 @@ class _ImportDialogState extends State<_ImportDialog> {
   int _shown(int v) => widget.owed ? -v : v;
   String _money(int v) => moneyIn(context, v);
 
+  /// A new account: the day its rows come in from, how many earlier ones
+  /// that leaves out, and the way back to all of them.
+  Widget _fromLine(Words t) {
+    final cut = _cut;
+    final left = cut == null
+        ? 0
+        : _read!.rows.where((r) => dateOnly(r.date).isBefore(cut)).length;
+    return Row(
+      children: [
+        Text(t.importStartFrom, style: onest(13, color: Mid.ink2)),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 130,
+          height: 34,
+          child: DateField(
+            key: const ValueKey('import-from'),
+            controller: _from,
+            focusNode: _fromFocus,
+            today: widget.today!,
+            allowFuture: false,
+            small: true,
+            wanted: _fromWrong,
+            onSubmitted: () {},
+            onPicked: () {},
+          ),
+        ),
+        if (cut != null) ...[
+          const SizedBox(width: 10),
+          BarButton(
+            key: const ValueKey('import-whole-file'),
+            label: t.importWholeFile,
+            onTap: _wholeFile,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              t.importEarlierLeftOut(left),
+              key: const ValueKey('import-earlier'),
+              style: onest(12.5, color: Mid.ink3),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// A new account: where its file says it starts and ends, or, when the
+  /// file gives no balance, the question the file couldn't answer.
+  Widget _startNote(
+    Words t,
+    ({DateTime date, int amount, int? end, DateTime? endDay}) start,
+  ) {
+    final from = sayFullDate(t, start.date.add(const Duration(days: 1)));
+    if (start.end case final end?) {
+      final a = _money(_shown(start.amount)), b = _money(_shown(end));
+      final to = sayFullDate(t, start.endDay!);
+      return KeyedSubtree(
+        key: const ValueKey('import-start'),
+        child: _note(Icons.check_rounded, Mid.green, switch ((
+          _cut != null,
+          widget.owed,
+        )) {
+          (false, false) => t.importStartsEnds(a, from, b, to),
+          (false, true) => t.importStartsEndsOwed(a, from, b, to),
+          (true, false) => t.importStartsOn(from, a, b, to),
+          (true, true) => t.importStartsOnOwed(from, a, b, to),
+        }),
+      );
+    }
+    final zero = formatRounded(0, currency: widget.currency);
+    return Column(
+      key: const ValueKey('import-start'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _note(
+          Icons.info_outline_rounded,
+          Mid.gold,
+          t.importNoBalance(
+            widget.owed ? t.setupStartOwedToday : t.setupStartInToday,
+          ),
+          big: true,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 24, top: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 180,
+                height: 34,
+                child: TextField(
+                  key: const ValueKey('import-today'),
+                  controller: _today,
+                  focusNode: _todayFocus,
+                  textAlign: TextAlign.right,
+                  style: onest(13.5, tabular: true),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _import(),
+                  decoration: _fieldDecoration(hint: zero, wrong: _todayWrong),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _todayWrong
+                      ? t.setupCantRead(_today.text.trim())
+                      : t.importNoBalanceHint(zero),
+                  style: onest(12.5, color: _todayWrong ? Mid.coral : Mid.ink3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _preview(Words t) {
     final read = _read;
     final plan = _plan;
@@ -420,8 +685,14 @@ class _ImportDialogState extends State<_ImportDialog> {
     }
     final added = _count(ImportFate.add);
     final matched = _count(ImportFate.match);
-    final already = _count(ImportFate.already);
-    final leftOut = _count(ImportFate.leftOut);
+    // A repeat still left out is already in, not something the person
+    // left out.
+    final repeats = plan.rows.where((p) => p.repeat).length;
+    final repeatsOut = plan.rows
+        .where((p) => p.repeat && p.fate == ImportFate.leftOut)
+        .length;
+    final already = _count(ImportFate.already) + repeatsOut;
+    final leftOut = _count(ImportFate.leftOut) - repeatsOut;
     final noDate = read.skipped
         .where((s) => s.reason == SkipReason.noDate)
         .length;
@@ -540,9 +811,17 @@ class _ImportDialogState extends State<_ImportDialog> {
       );
     }
 
+    final start = _start;
+    if (start != null) {
+      notes
+        ..add(_fromLine(t))
+        ..add(_startNote(t, start));
+    }
     final check = read.check;
     if (check != null) {
-      if (check.ok) {
+      if (check.ok && start != null) {
+        // Said above, with its days.
+      } else if (check.ok) {
         notes.add(
           _note(
             Icons.check_rounded,
@@ -571,7 +850,11 @@ class _ImportDialogState extends State<_ImportDialog> {
           ),
         );
       }
-      // What the account's cleared balance will be, against the bank's.
+    }
+    // What the account's cleared balance will be, against the bank's: the
+    // balance on the file's last row, or the one balance an OFX file gives.
+    var bank = check?.closing ?? read.closing;
+    if (bank != null && start == null) {
       var ours = widget.cleared;
       if (_openingMove case final m?) ours += m.amount - opening!.amount;
       for (final p in plan.rows) {
@@ -581,23 +864,54 @@ class _ImportDialogState extends State<_ImportDialog> {
           ours += p.row.amount;
         }
       }
-      final bank = check.closing;
+      // Banks write what a card owes with either sign; take the one nearer.
+      if (check == null &&
+          widget.owed &&
+          (ours + bank).abs() < (ours - bank).abs()) {
+        bank = -bank;
+      }
+      final day = check == null ? read.closingDay : null;
       notes.add(
         ours == bank
             ? _note(
                 Icons.check_rounded,
                 Mid.green,
-                t.importClearedMatches(_money(_shown(ours))),
+                day == null
+                    ? t.importClearedMatches(_money(_shown(ours)))
+                    : t.importClearedMatchesOn(
+                        _money(_shown(ours)),
+                        sayFullDate(t, day),
+                      ),
               )
             : _note(
                 Icons.info_outline_rounded,
                 Mid.gold,
-                t.importClearedDiffers(
-                  _money(_shown(ours)),
-                  _money(_shown(bank)),
-                  _money((ours - bank).abs()),
-                ),
+                day == null
+                    ? t.importClearedDiffers(
+                        _money(_shown(ours)),
+                        _money(_shown(bank)),
+                        _money((ours - bank).abs()),
+                      )
+                    : t.importClearedDiffersOn(
+                        _money(_shown(ours)),
+                        _money(_shown(bank)),
+                        sayFullDate(t, day),
+                        _money((ours - bank).abs()),
+                      ),
               ),
+      );
+    }
+
+    if (repeats > 0) {
+      notes.add(
+        KeyedSubtree(
+          key: const ValueKey('import-repeats'),
+          child: _note(
+            Icons.info_outline_rounded,
+            Mid.gold,
+            t.importRepeats(repeats),
+          ),
+        ),
       );
     }
 
@@ -732,6 +1046,7 @@ class _PlanLine extends StatelessWidget {
         Mid.green,
       ),
       ImportFate.already => (t.importFateAlready, Mid.ink3),
+      ImportFate.leftOut when p.repeat => (t.importFateRepeat, Mid.ink3),
       ImportFate.leftOut => (t.importFateLeftOut, Mid.ink3),
     };
     return Row(

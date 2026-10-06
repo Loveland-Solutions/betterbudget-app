@@ -2,6 +2,7 @@
 # remote, and the whole premise of the app is that financial data stays local.
 # Keep working samples here for importer development; commit only redacted fixtures.
 tdb-bank-transaction-exports/
+afcu-bank-transaction-exports/
 
 # Generated design canvas (2.6 MB, rebuilt from design/ledger sources; published copy lives online).
 design/ledger/betterbudget-ledger.html

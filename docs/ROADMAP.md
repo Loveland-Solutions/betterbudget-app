@@ -155,5 +155,14 @@ since phones show budget amounts.
 - [ ] TestFlight / Play internal testing, then the stores
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)
-Splits, import rules, search, sorting, cash accounts, better "not cleared" note, duplicate
+Splits, search, sorting, cash accounts, better "not cleared" note, duplicate
 check on Confirm, several overdue bills, backup reminders, app lock.
+
+**A place to see and drop the "Always file" rules** (owner, 2026-10-06: "put it on the
+list of things to do"). The rules themselves are built (ADR 0004 "Import": a payee
+always filed under a category, or as a pay's paycheck). What's missing: a list of them
+per account, a way to drop one, and a way to change the name a rule goes by (it is the
+payee of the row it was made on). Today a rule is changed by picking another category
+on a row of that payee and taking the offer again, and can't be dropped once the
+session's undo is gone. Also still to do there: the offer from a row's Edit, not only
+from its dropdown.

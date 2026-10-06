@@ -10,7 +10,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
 
 - Nothing leaves the user's machine: no network calls, telemetry, sync, update checks,
   or runtime font or asset fetching. Release builds declare no network entitlement.
-- Real bank statements in `tdb-bank-transaction-exports/` never get committed, and no
+- Real bank statements in `tdb-bank-transaction-exports/` and
+  `afcu-bank-transaction-exports/` never get committed, and no
   values from them go into code, tests or docs.
 - Ledger first, polished, then the budget.
 
@@ -54,8 +55,7 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   made-up currency symbols (`CA$` where Canadians write `$`: show the real one, and
   tell two apart only when a ledger holds both), and income categories (there's one
   built-in Income; "not assigned" is where money needing a category shows), and
-  treating their ledger as production data (it isn't yet: don't weigh a change by
-  what it does to old rows), and "Came in" for a period's income (the word is
+  "Came in" for a period's income (the word is
   **Income**; use the plain word people say), and "Everything has cleared" beside a
   zero Uncleared line (don't tell them what they already know), and ⌘K shown as the
   search key (it's ⌘F; ⌘K was copied from other apps), and "Say how much arrives in…"
@@ -75,7 +75,19 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   category has its own period: month or a named pay; a set amount seen by another
   period is prorated by days), and a minus beside "Not assigned" (it stops at zero and a
   red row, **Assigned too much**, holds the amount), defended because "the sum adds
-  up" (arithmetic that's right can still confuse; don't think like a computer).
+  up" (arithmetic that's right can still confuse; don't think like a computer), and
+  "2 rows not categorized" on the Budget page (it belongs on the ledger page: a tab
+  in the register's tab row; say a thing where it's fixed), and the bank's own
+  category brought in as an imported row's memo (not wanted; it's left out), and
+  a tab listing every row ever left without a category (noise: the Not categorized
+  tab holds the current budget period's), and questions written as fragments that
+  lean on work the owner hasn't seen (whole sentences, with what's on screen).
+- **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
+  testing my app by using it. The data that I have is now production data"). Every
+  schema change needs an upgrade that keeps what's in their file, with a test; weigh a
+  change by what it does to rows already there, and say so when one would alter or drop
+  them. Never delete, reseed, erase or hand-edit their database file; try things on
+  demo data or a copy.
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.
@@ -104,7 +116,7 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   converting plain copies), `keys.dart` (recovery key, data key, secure store),
   `encryption.dart` (cipher pragmas, converting a plain file), plus `demo_seed.dart`.
 - `lib/import/`: pure Dart, reading bank files into a grid (`xls.dart` BIFF8,
-  `xlsx.dart`, `csv.dart`, `sheet.dart`) and `mapping.dart` (which column is which,
+  `xlsx.dart`, `csv.dart`, `ofx.dart`, `sheet.dart`) and `mapping.dart` (which column is which,
   guessing, reading rows, the balance check, import keys). The dialog is
   `ui/import_dialog.dart`; writes are the import section of `database.dart`. Tests build
   `.xls` files with `test/xls_fixture.dart`; never commit a real statement.

@@ -7,6 +7,7 @@ library;
 import 'dart:typed_data';
 
 import 'csv.dart';
+import 'ofx.dart';
 import 'xls.dart';
 import 'xlsx.dart';
 
@@ -17,8 +18,22 @@ const maxColumns = 256, maxRows = 200000;
 /// Rows of cells. A cell is a [String], a [double], a [DateTime], a [bool]
 /// or null (empty). Rows can be ragged; a missing cell reads as null.
 class Sheet {
-  const Sheet(this.rows);
+  const Sheet(
+    this.rows, {
+    this.rowIds = const {},
+    this.closing,
+    this.closingDay,
+  });
   final List<List<Object?>> rows;
+
+  /// Row index → the bank's own id for that transaction, when the file
+  /// gives one (OFX does). It never shows as a column.
+  final Map<int, String> rowIds;
+
+  /// The one balance a file states apart from its rows, as a cell, and the
+  /// day it's for (OFX: the bank's balance when the file was made).
+  final Object? closing;
+  final DateTime? closingDay;
 
   int get width => rows.fold(0, (w, r) => r.length > w ? r.length : w);
 
@@ -34,7 +49,7 @@ class Sheet {
 
 /// The kinds of file the import reads. The last one used on an account is
 /// offered first next time.
-enum FileKind { xls, xlsx, csv }
+enum FileKind { xls, xlsx, csv, ofx }
 
 /// Which reader a file needs, from its first bytes, then its name.
 FileKind? fileKindOf(Uint8List bytes, String name) {
@@ -42,6 +57,8 @@ FileKind? fileKindOf(Uint8List bytes, String name) {
   if (bytes.length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
     return FileKind.xlsx;
   }
+  // Before the name: an OFX file is text and may be named anything.
+  if (looksLikeOfx(bytes)) return FileKind.ofx;
   final lower = name.toLowerCase();
   if (lower.endsWith('.csv') ||
       lower.endsWith('.txt') ||
@@ -68,6 +85,7 @@ Sheet readSheet(Uint8List bytes, String name) {
       FileKind.xls => readXls(bytes),
       FileKind.xlsx => readXlsx(bytes),
       FileKind.csv => readCsv(bytes),
+      FileKind.ofx => readOfx(bytes),
       null => throw const UnreadableFileException('unknown kind'),
     };
   } on UnreadableFileException {

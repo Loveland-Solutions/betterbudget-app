@@ -196,8 +196,6 @@ class BudgetPool {
     required this.currency,
     required this.money,
     required this.notAssigned,
-    required this.uncategorizedRows,
-    required this.uncategorizedNet,
   });
   final Currency currency;
 
@@ -206,10 +204,6 @@ class BudgetPool {
 
   /// [money] less what sits in this currency's categories, as of today.
   final int notAssigned;
-
-  /// Posted rows in "Not categorized" in this currency, and their sum.
-  final int uncategorizedRows;
-  final int uncategorizedNet;
 }
 
 class Budget {
@@ -249,11 +243,6 @@ class Budget {
 
   /// What [notAssigned] starts from: cash and bank, less what cards owe.
   int get money => _main.money;
-
-  /// Posted rows in "Not categorized", and what they add up to (negative:
-  /// money out). Both already count in [notAssigned].
-  int get uncategorizedRows => _main.uncategorizedRows;
-  int get uncategorizedNet => _main.uncategorizedNet;
 
   /// This period's spending since the budget began in categories nothing
   /// was assigned to: what the first-month offer names.
@@ -359,8 +348,6 @@ class Budget {
     final spent = <int, int>{}, spentCounted = <int, int>{};
     final spentBy = <int, int>{}, spentAll = <int, int>{};
     final cameIn = <int, Map<Currency, int>>{};
-    final uncategorizedRows = <Currency, int>{};
-    final uncategorizedNet = <Currency, int>{};
     final otherRows = <int, int>{}, otherAmount = <int, int>{};
     final otherCurrency = <int, Currency>{};
     // By category, what each account it doesn't use paid this period;
@@ -418,10 +405,7 @@ class Budget {
             came[x.currency] = (came[x.currency] ?? 0) - x.amount;
           }
         } else if (uncategorized.contains(a.id)) {
-          uncategorizedRows[x.currency] =
-              (uncategorizedRows[x.currency] ?? 0) + 1;
-          uncategorizedNet[x.currency] =
-              (uncategorizedNet[x.currency] ?? 0) - x.amount;
+          // Holds no money: its rows stay in what's not assigned.
         } else if (envelopes.contains(a.id)) {
           final from = countsFrom[a.id];
           final counted = budgetBegun && (from == null || !d.isBefore(from));
@@ -664,8 +648,6 @@ class Budget {
             currency: c,
             money: money,
             notAssigned: money - (held[c] ?? 0),
-            uncategorizedRows: uncategorizedRows[c] ?? 0,
-            uncategorizedNet: uncategorizedNet[c] ?? 0,
           );
         }(),
     ];

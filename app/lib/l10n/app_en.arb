@@ -2679,6 +2679,43 @@
   "@rowsTabScheduled": {
     "description": "Register filter tab: future bills and income not yet confirmed"
   },
+  "ledgerAlwaysFile": "{count, plural, =0{Always file {payee} under {category}} =1{Always file {payee} under {category} · 1 more row waiting} other{Always file {payee} under {category} · {count} more rows waiting}}",
+  "@ledgerAlwaysFile": {
+    "description": "Button in the popup at the bottom after a row's category is picked from the dropdown: remember it for this payee, and move the payee's other rows still in Not categorized. category may be Income.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "payee": {},
+      "category": {}
+    }
+  },
+  "ledgerAlwaysFiled": "{count, plural, =0{{payee} will be filed under {category}} =1{{payee} will be filed under {category} · 1 row moved} other{{payee} will be filed under {category} · {count} rows moved}}",
+  "@ledgerAlwaysFiled": {
+    "description": "Popup at the bottom, and the undo label, after Always file is clicked.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "payee": {},
+      "category": {}
+    }
+  },
+  "rowsIncomeFrom": "Income · {pay}",
+  "@rowsIncomeFrom": {
+    "description": "A row's category dropdown and chip: income that is one pay's paycheck. pay is the name the person gave the pay (Loveland Solutions).",
+    "placeholders": {
+      "pay": {}
+    }
+  },
+  "rowsIncomePaycheck": "Income · paycheck",
+  "@rowsIncomePaycheck": {
+    "description": "A row's category dropdown and chip: income that is the paycheck of the one pay set up, when it has no name."
+  },
+  "rowsTabUncategorized": "Not categorized",
+  "@rowsTabUncategorized": {
+    "description": "Register filter tab, shown only while rows wait in the Not categorized category (imported rows the app couldn’t match to a category): click shows just those rows. A count follows in brackets. Same words as the category’s name."
+  },
   "rowsEdit": "Edit",
   "@rowsEdit": {
     "description": "Button in the action bar under a selected transaction"
@@ -3324,6 +3361,10 @@
     "placeholders": {
       "zero": {}
     }
+  },
+  "setupStartImport": "Or import a file from your bank",
+  "@setupStartImport": {
+    "description": "New account, beside Start account: answer the balance question with the bank's file instead of typing. Opens the Mac's open dialog, then the import window."
   },
   "setupStartAccount": "Start account",
   "@setupStartAccount": {
@@ -4431,7 +4472,11 @@
   "@importTextFiles": {
     "description": "Open dialog: name of the file type group for .csv and .txt."
   },
-  "importCouldntRead": "Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx) and CSV files.",
+  "importOfxFiles": "Bank downloads (OFX, QFX, QBO)",
+  "@importOfxFiles": {
+    "description": "Open dialog: name of the file type group for .ofx, .qfx and .qbo, the download banks label Quicken or Microsoft Money."
+  },
+  "importCouldntRead": "Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.",
   "@importCouldntRead": {
     "description": "Toast when a picked file can't be read.",
     "placeholders": {
@@ -4592,6 +4637,108 @@
       "ours": {},
       "bank": {},
       "diff": {}
+    }
+  },
+  "importClearedMatchesOn": "After this, the cleared balance matches the bank’s on {date}: {amount}.",
+  "@importClearedMatchesOn": {
+    "description": "Import window, an OFX file: the account's cleared balance after importing equals the one balance the file gives. date in words.",
+    "placeholders": {
+      "amount": {},
+      "date": {}
+    }
+  },
+  "importClearedDiffersOn": "After this, the cleared balance is {ours}; the bank’s was {bank} on {date}, {diff} apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.",
+  "@importClearedDiffersOn": {
+    "description": "Import window, an OFX file: the account's cleared balance after importing differs from the one balance the file gives. date in words.",
+    "placeholders": {
+      "ours": {},
+      "bank": {},
+      "date": {},
+      "diff": {}
+    }
+  },
+  "importFateRepeat": "Already in · same day and amount",
+  "@importFateRepeat": {
+    "description": "Import window, preview row tag: a row imported before from the bank's other kind of file has this row's day and amount, so it starts left out. Clicking it brings the row in."
+  },
+  "importRepeats": "{count, plural, =1{1 row has the day and amount of a row already imported from another kind of file, so it’s left out. Click its tag to bring it in.} other{{count} rows have the day and amount of rows already imported from another kind of file, so they’re left out. Click a row’s tag to bring it in.}}",
+  "@importRepeats": {
+    "description": "Import window note: rows that repeat ones imported earlier under another key (the bank's table once, its OFX file the next time).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importStartsEnds": "This file starts at {start} on {from} and ends at {end} on {to}. The account starts from it.",
+  "@importStartsEnds": {
+    "description": "Import window for a new account: the balance before the file's first row and after its last, which the account's opening balance is made from. from/to in words.",
+    "placeholders": {
+      "start": {},
+      "from": {},
+      "end": {},
+      "to": {}
+    }
+  },
+  "importStartsEndsOwed": "This file starts with {start} owed on {from} and ends with {end} owed on {to}. The account starts from it.",
+  "@importStartsEndsOwed": {
+    "description": "Import window for a new credit card or loan: what was owed before the file's first row and after its last. from/to in words.",
+    "placeholders": {
+      "start": {},
+      "from": {},
+      "end": {},
+      "to": {}
+    }
+  },
+  "importStartFrom": "Start from",
+  "@importStartFrom": {
+    "description": "Import window for a new account: label before the date the file's rows come in from."
+  },
+  "importWholeFile": "The whole file",
+  "@importWholeFile": {
+    "description": "Import window for a new account: button beside the Start from date that sets it back to the file's first row."
+  },
+  "importEarlierLeftOut": "{count, plural, =1{1 earlier row in this file is left out} other{{count} earlier rows in this file are left out}}",
+  "@importEarlierLeftOut": {
+    "description": "Import window for a new account, beside the Start from date: rows dated before it don't come in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importStartsOn": "The account starts on {from} at {start}. The file ends at {end} on {to}.",
+  "@importStartsOn": {
+    "description": "Import window for a new account started partway into its file: the balance worked out for the start day, and the file's last balance. from/to in words.",
+    "placeholders": {
+      "from": {},
+      "start": {},
+      "end": {},
+      "to": {}
+    }
+  },
+  "importStartsOnOwed": "The account starts on {from} with {start} owed. The file ends with {end} owed on {to}.",
+  "@importStartsOnOwed": {
+    "description": "Import window for a new credit card or loan started partway into its file. from/to in words.",
+    "placeholders": {
+      "from": {},
+      "start": {},
+      "end": {},
+      "to": {}
+    }
+  },
+  "importNoBalance": "This file doesn’t give a balance. {question}",
+  "@importNoBalance": {
+    "description": "Import window for a new account whose file has no balance in it; question is the new account's own question (What's in this account today? / What do you owe on it today?), a whole sentence.",
+    "placeholders": {
+      "question": {}
+    }
+  },
+  "importNoBalanceHint": "Empty starts the account at {zero} before the file’s first row",
+  "@importNoBalanceHint": {
+    "description": "Import window for a new account, beside the amount field shown when the file has no balance.",
+    "placeholders": {
+      "zero": {}
     }
   },
   "importFateNew": "New",
@@ -5795,27 +5942,6 @@
   "planKeyOver": "Assigned too much",
   "@planKeyOver": {
     "description": "Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short."
-  },
-  "planUncategorizedRows": "{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}",
-  "@planUncategorizedRows": {
-    "description": "Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized that add up to nothing. Click opens them.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "planUncategorizedMoney": "{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}",
-  "@planUncategorizedMoney": {
-    "description": "Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
   },
   "planFilled": "{count, plural, =1{Assigned {amount} to 1 category} other{Assigned {amount} to {count} categories}}",
   "@planFilled": {

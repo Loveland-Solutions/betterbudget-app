@@ -217,6 +217,124 @@ the file's columns once per account, and the app remembers. The screen is in
   balance chain. Two different exports shared all 78 overlapping keys, the first
   evidence that the key is stable across overlapping exports.
 
+## OFX (owner, 2026-10-06)
+
+The owner tried a US credit union's OFX download: the open dialog greyed it out, and
+renamed to `.txt` it was read as CSV and "has no rows with a date in them" (the file is
+one line, every value's tag left unclosed).
+
+- **OFX, QFX and QBO are read** (`app/lib/import/ofx.dart`), the older unclosed-tag form
+  and the XML form, bank and card statements alike. A file is known by its first bytes
+  (`OFXHEADER` or `<OFX>`), before its name, so a renamed one still reads.
+- **It becomes the same grid as any file:** a row of names (Date, Amount, Name, Memo),
+  then a row per `STMTTRN`. The guess, the columns screen, the saved mapping and
+  matching typed rows are unchanged. A row without a name is called by its memo.
+- **The date is the day as written** (`DTPOSTED`'s first eight digits). Banks put midday
+  or midnight GMT after it; turning that to local time could move the day.
+- **Dedup key: the bank's own id**, `a<account>|id|<FITID>`, carried beside the grid
+  (`Sheet.rowIds`), never shown as a column. The owner's bank lists a new row under its
+  raw card text and renames it to the shop a few weeks later, so a key made from the
+  payee would bring the last weeks in twice from the next download.
+- **No bank's balance yet.** OFX gives one balance for the end of the file, not one per
+  row, so the window shows no balance check and no bank's balance to compare the cleared
+  balance to. Working each row's balance back from the last is possible; whether to
+  show a figure the file doesn't hold is the owner's call.
+- **Not handled:** the same transaction brought in once from a CSV and once from an OFX
+  file has two different keys, so it would come in twice (it shows as an earlier import
+  in the same days). Investment statements' buys and sells aren't read.
+- **Checked on the owner's real downloads (2026-10-06):** the `.ofx`, `.qfx` and `.qbo`
+  of one account each read every transaction with its date, amount and a payee, no two
+  sharing a key; the one row left out has an amount of zero.
+
+## A credit union's four downloads (owner, 2026-10-06)
+
+The owner put every download their US credit union (AFCU) offers for one account in
+`afcu-bank-transaction-exports/` (gitignored, real data): a CSV, an `.xls`, a `.qfx` and
+a `.qbo`. All four now read as the same rows: the same count, the same total, the same
+payee, bar the bank cutting a name to 32 letters in its OFX.
+
+- **The table** (CSV and `.xls`, same columns): Account Number, Post Date, Check,
+  Description, Debit, Credit, Status, Balance, Classification. Dates are month first,
+  newest row first, the balance after each row checks out to the cent.
+- **The `.qfx` and `.qbo`** are the same OFX but for one line in the header; each
+  transaction's NAME is the table's Description cut to 32 letters and its MEMO is the
+  table's Classification.
+- **Cents alone (`.37`) are an amount.** The CSV writes interest that way; those rows
+  were left out as "no amount" and the balance check then failed on the rows after
+  each.
+- **Description is the payee.** The guess used to call Description the memo (it's
+  named like one) and then took Classification, the only words left, as the payee:
+  every row would have been paid to "FOOD". A column named Classification or Category
+  is the bank's category, and one named Status, or saying the same on every row
+  ("Posted"), is never the payee.
+- **Names stay over their own columns.** `headerLabels` moved a name to the nearest
+  column with data, for print-layout files with merged cells; in a download with no
+  check written, the empty Check column pushed every name after it one column along
+  (Description over the debits). When every column with data has a name right over it,
+  the names are left where they are; otherwise the nearest-column pass runs as before.
+- **The Mac's open dialog** offers `.ofx`, `.qfx` and `.qbo` by extension: macOS has no
+  type of its own for them, and the type it makes up from each extension is the one it
+  gives the files (checked for all three).
+- **The table has no id for a row**, only a check number on checks. Its key stays
+  date, amount and balance and the OFX key the bank's id, so the two kinds of file
+  can't recognise each other's rows by key ("The owner's calls" below is how they do).
+
+### From the reviews (2026-10-06)
+
+Fixed: an OFX amount is never read with thousands dots (`-1.500` is one and a half); a
+name in `CDATA` is read; a file is OFX only when it opens with the marker (a table that
+mentions `<OFX>` in a cell stays a table); a file holding several accounts' statements
+gives the first one's rows, not all of them mixed; the only words column in a file is
+the payee even when every row says the same; the open dialog's type names QBO.
+
+Left as it is, with the reason:
+
+- **The key stays the bank's id alone.** Adding the amount would guard against a bank
+  reusing an id, but the owner has already imported OFX under this key; a new format
+  would bring those rows in a second time.
+Not built: **rows not yet posted.** The owner's files hold posted rows only; a bank
+that lists pending ones would bring them in cleared, and again when they post.
+
+### The owner's calls (2026-10-06)
+
+- **The bank's own category is left out.** A column named Classification or Category
+  gets no role. An OFX memo is left out when it holds nothing but categories: words
+  only (no figures or punctuation), at least five of them, some more than once, and
+  every row has a name (`_looksLikeCategories`). The owner's bank mixes codes
+  (`FOOD`) with plain names ("Bill Pay") there, so capitals alone don't tell. Fewer
+  rows than five can't be told and keep the memo; once a choice is saved it holds for
+  every later file. The person can still pick the column.
+- **A column choice saved before 0.12 is guessed again once** (`SavedMapping.current`,
+  a number saved with the choice), so the old guesses don't outlive their fixes. This
+  replaces "a saved choice is still used" above.
+- **The OFX balance is shown.** `LEDGERBAL` (never `AVAILBAL`, which counts holds) and
+  its day `DTASOF` ride beside the grid (`Sheet.closing`, `closingDay`), and the window
+  says "After this, the cleared balance matches the bank's on 5 October: $X" or names
+  both and the difference. The balance is part of every OFX bank and card statement,
+  so any bank's file has it; what differs by bank is the day it is for (some give
+  today's balance for an older range, which is why the day is said) and which sign a
+  card's debt carries (the nearer one is taken). On the owner's file it equals the
+  table's last balance.
+- **Repeats from the other kind of file** (`planImport`, `ImportPlanRow.repeat`): a
+  row new by its key, on the day and at the amount of a row imported before that no
+  key in this file claims, starts left out, tagged "Already in · same day and amount";
+  a click makes it New. The files give a day and no time, so two things at one price
+  on one day are told apart by count (one row already in answers for one bank row) and,
+  first, by name (one a prefix of the other, since OFX cuts names at 32 letters). A
+  deleted import counts, as it does by key. A table key's own day is used where a typed
+  row kept its typed day. On the owner's files, CSV then QFX: all 4,517 rows are
+  caught, none new.
+- **A new account started from its file** (ADR 0004 "Import"): `applyImport(start:)`
+  posts the opening balance in the same write and keeps its id on the `ImportRecord`
+  (`openingId`), so undo and redo carry it. The window works the figure out
+  (`_start` in `ui/import_dialog.dart`). On an OFX card file a balance above zero is
+  read as owed.
+- **Not caught:** a typed row matched by an OFX import that kept a different day from
+  the bank's, then the table of the same days (the OFX key holds no day).
+- Working each OFX row's balance back from the closing one gives the table's balance
+  on every row of the owner's file, which would make the two keys the same. Not used:
+  it depends on the file ending today and on the bank's order within a day.
+
 ## Open items
 
 - ~~Check whether TDB's internet banking offers CSV or modern `.xlsx` anywhere.~~ Moot:

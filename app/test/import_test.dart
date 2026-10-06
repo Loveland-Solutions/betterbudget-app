@@ -1,5 +1,6 @@
 // Import: reading bank files, guessing their columns, and writing the rows
 // (ADR 0002). All data here is made up.
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -165,6 +166,195 @@ void main() {
     expect(s.rows.first, [DateTime(2026, 9, 1), 'Кофе', -4200.5]);
   });
 
+  group('ofx reader', () {
+    // The older form as a bank writes it: one line, values never closed.
+    const oneLine =
+        'OFXHEADER:100 DATA:OFXSGML VERSION:102 ENCODING:USASCII '
+        '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>USD<BANKTRANLIST>'
+        '<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260901120000.000[0:GMT]'
+        '<TRNAMT>-12.50<FITID>900001<NAME>Corner Shop<MEMO>FOOD</STMTTRN>'
+        '<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260902120000.000[0:GMT]'
+        '<TRNAMT>1000.00<FITID>900002<NAME>Tom &amp; Sons Pay</STMTTRN>'
+        '<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260903<TRNAMT>-40.00'
+        '<FITID>900003<MEMO>CHECK<MEMO /></STMTTRN>'
+        '</BANKTRANLIST><LEDGERBAL><BALAMT>947.50</LEDGERBAL>'
+        '</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
+
+    test('one line of unclosed tags, whatever the file is called', () {
+      for (final name in ['bank.ofx', 'bank.qfx', 'bank.ofx.txt', 'bank']) {
+        expect(fileKindOf(utf8Bytes(oneLine), name), FileKind.ofx);
+      }
+      final sheet = readSheet(utf8Bytes(oneLine), 'bank.ofx.txt');
+      final m = guessMapping(sheet);
+      expect(m.headerRow, 0);
+      expect(m.roleOf(0), ColumnRole.date);
+      expect(m.roleOf(1), ColumnRole.amount);
+      expect(m.roleOf(2), ColumnRole.payee);
+      expect(m.roleOf(3), ColumnRole.memo);
+      final read = readRows(sheet, m);
+      expect(read.skipped, isEmpty);
+      expect(read.rows.map((r) => r.date), [
+        DateTime(2026, 9, 1),
+        DateTime(2026, 9, 2),
+        DateTime(2026, 9, 3),
+      ]);
+      expect(read.rows.every((r) => !r.hasTime), isTrue);
+      expect(read.rows.map((r) => r.amount), [-1250, 100000, -4000]);
+      // A row without a name is called by its memo.
+      expect(read.rows.map((r) => r.payee), [
+        'Corner Shop',
+        'Tom & Sons Pay',
+        'CHECK',
+      ]);
+      expect(read.rows.map((r) => r.memo), ['FOOD', null, null]);
+      expect(read.check, isNull);
+    });
+
+    test('the XML form, on lines', () {
+      final sheet = readSheet(
+        utf8Bytes(
+          '<?xml version="1.0"?>\n<?OFX OFXHEADER="200" VERSION="211"?>\n'
+          '<OFX>\n<CREDITCARDMSGSRSV1><CCSTMTRS><BANKTRANLIST>\n'
+          '<STMTTRN>\n  <TRNTYPE>DEBIT</TRNTYPE>\n'
+          '  <DTPOSTED>20260915</DTPOSTED>\n  <TRNAMT>-7,25</TRNAMT>\n'
+          '  <FITID>A-1</FITID>\n  <NAME>Kiosk</NAME>\n</STMTTRN>\n'
+          '</BANKTRANLIST></CCSTMTRS></CREDITCARDMSGSRSV1>\n</OFX>\n',
+        ),
+        'card.qfx',
+      );
+      final read = readRows(sheet, guessMapping(sheet));
+      expect(read.rows.single.date, DateTime(2026, 9, 15));
+      expect(read.rows.single.amount, -725);
+      expect(read.rows.single.payee, 'Kiosk');
+      expect(read.rows.single.bankId, 'A-1');
+    });
+
+    test("the bank's id is the key, so a reworded name still matches", () {
+      final first = readSheet(utf8Bytes(oneLine), 'a.ofx');
+      final later = readSheet(
+        utf8Bytes(oneLine.replaceAll('Corner Shop', 'CORNER SHOP #12 KS')),
+        'b.ofx',
+      );
+      final a = importKeys(7, readRows(first, guessMapping(first)).rows);
+      final b = importKeys(7, readRows(later, guessMapping(later)).rows);
+      expect(a, ['a7|id|900001', 'a7|id|900002', 'a7|id|900003']);
+      expect(b, a);
+    });
+
+    test('amounts, a CDATA name, a second account, a table naming OFX', () {
+      const two =
+          'OFXHEADER:100\n<OFX><BANKMSGSRSV1>'
+          '<STMTTRNRS><STMTRS><BANKACCTFROM><ACCTID>1</BANKACCTFROM>'
+          '<BANKTRANLIST><STMTTRN><DTPOSTED>20260901<TRNAMT>-1.500'
+          '<FITID>1<NAME><![CDATA[Shop & Co]]></STMTTRN></BANKTRANLIST>'
+          '</STMTRS></STMTTRNRS>'
+          '<STMTTRNRS><STMTRS><BANKACCTFROM><ACCTID>2</BANKACCTFROM>'
+          '<BANKTRANLIST><STMTTRN><DTPOSTED>20260902<TRNAMT>-9.00'
+          '<FITID>1<NAME>Other account</STMTTRN></BANKTRANLIST>'
+          '</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
+      final sheet = readSheet(utf8Bytes(two), 'two.ofx');
+      final row = readRows(sheet, guessMapping(sheet)).rows.single;
+      expect(row.amount, -150); // not 1,500: OFX has no thousands dots
+      expect(row.payee, 'Shop & Co');
+      expect(
+        fileKindOf(utf8Bytes('Date,Memo\n2026-09-01,"an <OFX> file"\n'), 'a'),
+        isNot(FileKind.ofx),
+      );
+    });
+
+    String statement(
+      List<(String name, String memo)> rows, {
+      String end = '',
+    }) =>
+        'OFXHEADER:100\n<OFX><STMTRS><BANKTRANLIST>'
+        '${[for (final (i, r) in rows.indexed) '<STMTTRN><DTPOSTED>202609${10 + i}<TRNAMT>-${i + 1}.00<FITID>$i${r.$1.isEmpty ? '' : '<NAME>${r.$1}'}${r.$2.isEmpty ? '' : '<MEMO>${r.$2}'}</STMTTRN>'].join()}'
+        '</BANKTRANLIST>$end</STMTRS></OFX>';
+
+    test("a memo that is the bank's own category is left out", () {
+      const shops = ['Kiosk', 'Corner Shop', 'Bus', 'Kiosk', 'Bakery', 'Bus'];
+      const kinds = [
+        'FOOD',
+        'FOOD',
+        'Getting Around',
+        'FOOD',
+        '',
+        'TRAVEL_BUS',
+      ];
+      final sheet = readSheet(
+        utf8Bytes(
+          statement([for (var i = 0; i < 6; i++) (shops[i], kinds[i])]),
+        ),
+        'a.qfx',
+      );
+      final m = guessMapping(sheet);
+      expect(m.roleOf(2), ColumnRole.payee);
+      expect(m.roleOf(3), ColumnRole.ignore);
+      expect(readRows(sheet, m).rows.every((r) => r.memo == null), isTrue);
+
+      // Notes with figures in them, or a row with nothing but its memo:
+      // the memo stays.
+      final notes = readSheet(
+        utf8Bytes(
+          statement([
+            for (var i = 0; i < 6; i++) (shops[i], 'CARD 09/1$i REF 55$i'),
+          ]),
+        ),
+        'b.qfx',
+      );
+      expect(guessMapping(notes).roleOf(3), ColumnRole.memo);
+      final nameless = readSheet(
+        utf8Bytes(
+          statement([
+            for (var i = 0; i < 6; i++) (i == 2 ? '' : shops[i], 'FOOD'),
+          ]),
+        ),
+        'c.qfx',
+      );
+      expect(guessMapping(nameless).roleOf(3), ColumnRole.memo);
+    });
+
+    test("the one balance in the file is the bank's, with its day", () {
+      final sheet = readSheet(
+        utf8Bytes(
+          statement(
+            [('Kiosk', ''), ('Bus', '')],
+            end:
+                '<LEDGERBAL><BALAMT>1,234.50<DTASOF>20260930214808.851[-6]'
+                '</LEDGERBAL><AVAILBAL><BALAMT>900.00<DTASOF>20261001'
+                '</AVAILBAL>',
+          ),
+        ),
+        'a.ofx',
+      );
+      final read = readRows(sheet, guessMapping(sheet));
+      expect(read.check, isNull);
+      // Never the available balance, which counts holds.
+      expect(read.closing, 123450);
+      expect(read.closingDay, DateTime(2026, 9, 30));
+    });
+
+    test('a column choice saved before the guess changed is guessed again', () {
+      final sheet = readSheet(utf8Bytes(oneLine), 'a.ofx');
+      final m = guessMapping(sheet);
+      final now = SavedMapping(
+        shape: fileShape(sheet, m),
+        kind: FileKind.ofx,
+        mapping: m,
+      );
+      expect(SavedMapping.decode(now.encode())!.current, isTrue);
+      final old = (jsonDecode(now.encode()) as Map)..remove('guess');
+      expect(SavedMapping.decode(jsonEncode(old))!.current, isFalse);
+    });
+
+    test('a file with no transactions has no rows, and says so', () {
+      final sheet = readSheet(
+        utf8Bytes('OFXHEADER:100 <OFX><BANKTRANLIST></BANKTRANLIST></OFX>'),
+        'empty.ofx',
+      );
+      expect(guessMapping(sheet).hasDate, isFalse);
+    });
+  });
+
   group('amounts and dates', () {
     test('amount text in either style', () {
       expect(readAmount('1,234.56'), 123456);
@@ -176,6 +366,10 @@ void main() {
       expect(readAmount('4,200'), 420000);
       expect(readAmount('500-'), -50000);
       expect(readAmount('1.500'), 150000); // dots as thousands, like commas
+      expect(readAmount('.37'), 37); // cents alone, as a credit union writes
+      expect(readAmount('-.5'), -50);
+      expect(readAmount('.375'), isNull); // not thousands, not cents
+      expect(readAmount('.'), isNull);
       expect(readAmount('15.000'), 1500000);
       expect(readAmount('1.2345'), null); // fractions of a mönggö
       expect(readAmount('12.50000'), 1250);
@@ -317,6 +511,78 @@ void main() {
       final read = readRows(sheet, m);
       expect(read.rows.map((r) => r.payee), ['Нэр 0', 'Нэр 1', 'Нэр 2']);
       expect(read.check!.ok, isTrue);
+    });
+
+    // A US credit union's table: the description is who was paid, the
+    // classification is the bank's own category, every row says "Posted".
+    const creditUnion =
+        'Account Number,Post Date,Check,Description,Debit,Credit,Status,'
+        'Balance,Classification\n'
+        '"*0042",9/24/2026,,"Corner Shop",12.50,,Posted,1027.87,"FOOD"\n'
+        '"*0042",9/23/2026,,"Interest",,.37,Posted,1040.37,\n'
+        '"*0042",9/22/2026,,"Tom & Sons Pay",,1000.00,Posted,1040.00,"PAY"\n'
+        '"*0042",9/21/2026,,"CARD 09/01 KIOSK 12 KS",60.00,,Posted,40.00,""\n';
+
+    test('a description is the payee; the bank\'s category is left out', () {
+      final sheet = readSheet(utf8Bytes(creditUnion), 'history.csv');
+      final m = guessMapping(sheet);
+      expect(m.headerRow, 0);
+      expect(m.dateOrder, DateOrder.mdy);
+      expect(m.roles, {
+        1: ColumnRole.date,
+        3: ColumnRole.payee,
+        4: ColumnRole.moneyOut,
+        5: ColumnRole.moneyIn,
+        7: ColumnRole.balance,
+      });
+      final read = readRows(sheet, m);
+      expect(read.skipped, isEmpty);
+      expect(read.newestFirst, isTrue);
+      expect(read.rows.map((r) => r.amount), [-6000, 100000, 37, -1250]);
+      expect(read.rows.map((r) => r.payee), [
+        'CARD 09/01 KIOSK 12 KS',
+        'Tom & Sons Pay',
+        'Interest',
+        'Corner Shop',
+      ]);
+      expect(read.rows.every((r) => r.memo == null), isTrue);
+      expect(read.check!.ok, isTrue);
+    });
+
+    test('names a column to the left of their figures still find them', () {
+      final sheet = readSheet(
+        utf8Bytes(
+          'Date,Credit,Debit,Balance,Description,\n'
+          ',2026-09-21,2000.00,,2000.00,Pay\n'
+          ',2026-09-22,,500.00,1500.00,Rent\n'
+          ',2026-09-23,,40.00,1460.00,Kiosk\n',
+        ),
+        'staggered.csv',
+      );
+      final read = readRows(sheet, guessMapping(sheet));
+      expect(read.rows.map((r) => r.amount), [200000, -50000, -4000]);
+    });
+
+    test('the only words in a file are the payee, even all the same', () {
+      final sheet = readSheet(
+        utf8Bytes(
+          '2026-09-21,-500.00,Rent\n2026-09-22,-500.00,Rent\n'
+          '2026-09-23,-500.00,Rent\n',
+        ),
+        'rent.csv',
+      );
+      final read = readRows(sheet, guessMapping(sheet));
+      expect(read.rows.map((r) => r.payee), ['Rent', 'Rent', 'Rent']);
+    });
+
+    test('a status that differs by row is still not the payee', () {
+      final sheet = readSheet(
+        utf8Bytes(creditUnion.replaceFirst('Posted', 'Pending')),
+        'history.csv',
+      );
+      final m = guessMapping(sheet);
+      expect(m.roleOf(3), ColumnRole.payee);
+      expect(m.roleOf(6), ColumnRole.ignore);
     });
 
     test('one role per column; amount and in/out exclude each other', () {
@@ -625,13 +891,137 @@ void main() {
         plan: await plan(first),
         uncategorizedNames: ['Not categorized'],
       );
-      // The same days again in another form: different keys.
-      final second = [row(3, -1000, 'A POS'), row(8, -2000, 'B POS')];
+      // The same days again in another form (different keys), and two rows
+      // the first file didn't have.
+      final second = [
+        row(2, -500, 'C'),
+        row(3, -1000, 'A POS'),
+        row(8, -2000, 'B POS'),
+        row(9, -700, 'D'),
+      ];
       final p = await db.planImport(bank, second, importKeys(bank, second));
-      expect(p.rows.every((x) => x.fate == ImportFate.add), isTrue);
+      expect(p.rows.map((x) => x.fate), [
+        ImportFate.add,
+        ImportFate.leftOut,
+        ImportFate.leftOut,
+        ImportFate.add,
+      ]);
+      expect(p.rows.map((x) => x.repeat), [false, true, true, false]);
       expect(p.importedBefore, 2);
       expect(p.unmatched.single.payee, 'Nomin');
       expect(p.unmatched.single.amount, -1200000);
+    });
+
+    test('a repeat is one imported row for one bank row, deleted or not, and '
+        'can be brought in', () async {
+      final first = [row(3, -1000, 'Coffee'), row(4, -2500, 'Lunch')];
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: await plan(first),
+        uncategorizedNames: ['Not categorized'],
+      );
+      await db.softDelete(r.added.keys.last);
+      // Another kind of file: two coffees that day now, and the lunch the
+      // user deleted.
+      final second = [
+        row(3, -1000, 'COFFEE 1'),
+        row(3, -1000, 'COFFEE 2'),
+        row(4, -2500, 'LUNCH'),
+      ];
+      final p = await plan(second);
+      expect(p.map((x) => x.repeat), [true, false, true]);
+      expect(p[1].fate, ImportFate.add);
+      // Two things at one price on one day, one of them in already: the
+      // one of the same name is the repeat, wherever it sits in the file.
+      final named = await plan([
+        row(3, -1000, 'Tea'),
+        row(3, -1000, 'Coffee Co'),
+      ]);
+      expect(named.map((x) => x.repeat), [false, true]);
+      // The same file as before is known by its keys, never as a repeat.
+      expect(
+        (await plan(first)).map((x) => x.fate),
+        everyElement(ImportFate.already),
+      );
+      final back = p[0].withFate(ImportFate.add);
+      expect(back.repeat, isTrue);
+      final again = await db.applyImport(
+        accountId: bank,
+        plan: [back, p[1], p[2]],
+        uncategorizedNames: ['Not categorized'],
+      );
+      expect(again.added.length, 2);
+    });
+
+    test('a new account started from its file: the opening balance and the '
+        'rows are one write, one undo, one redo', () async {
+      final fresh = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      final rows = [row(3, -1000, 'Kiosk'), row(8, 25000, 'Pay')];
+      final r = await db.applyImport(
+        accountId: fresh,
+        plan: await plan(rows, into: fresh),
+        uncategorizedNames: ['Not categorized'],
+        start: (date: DateTime(2026, 9, 2), amount: 50000),
+      );
+      Future<int> balance() async => (await db.loadLedger()).txns
+          .expand((t) => t.entries)
+          .where((e) => e.accountId == fresh)
+          .fold<int>(0, (s, e) => s + e.amount);
+      expect(r.openingId, isNotNull);
+      expect(await balance(), 74000);
+      final opening = await db.snapshot(r.openingId!);
+      expect(opening.header.date, '2026-09-02');
+      await db.undoImport(r);
+      expect(await balance(), 0);
+      await db.redoImport(r, fresh);
+      expect(await balance(), 74000);
+      // The same file again: nothing new, and no second opening balance.
+      expect(
+        (await plan(rows, into: fresh)).map((p) => p.fate),
+        everyElement(ImportFate.already),
+      );
+    });
+
+    test('a payee the person said always goes somewhere does, whatever the '
+        'bank adds after the name', () async {
+      final dining = await db.createCategory('Dining out');
+      // Filed under Groceries last time; the rule says Dining out.
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 1),
+        today: DateTime(2026, 9, 30),
+        payee: 'Corner Cafe 0901',
+        counterAccountId: groceries,
+        amount: -500,
+      );
+      expect(
+        PayeeRule.of([
+          const PayeeRule('corner', 1),
+          const PayeeRule('corner cafe', 2),
+        ], 'CORNER CAFE 0915')!.categoryId,
+        2,
+      );
+      expect(PayeeRule.of([const PayeeRule('corner cafe', 2)], 'Corner'), null);
+      await db.setPreference(
+        AppDatabase.payeeRulesKey(bank),
+        PayeeRule.encode([PayeeRule(PayeeRule.stem('Corner Cafe'), dining)]),
+      );
+      final rows = [row(15, -700, 'CORNER CAFE 0915'), row(16, -900, 'Bus')];
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: await plan(rows),
+        uncategorizedNames: ['Not categorized'],
+      );
+      final by = {
+        for (final t in (await db.loadLedger()).txns)
+          if (r.added.containsKey(t.id))
+            t.payee: t.entries.firstWhere((e) => e.accountId != bank).accountId,
+      };
+      expect(by['CORNER CAFE 0915'], dining);
+      expect(by['Bus'], isNot(dining));
     });
 
     test('a reconciled row matches but keeps its memo and its lock', () async {
