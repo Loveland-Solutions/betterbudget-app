@@ -1086,7 +1086,9 @@ class _PlanLine extends StatelessWidget {
               shown,
               size: 13.5,
               sign: MoneySign.plusForPositive,
-              color: dim ? Mid.ink3 : (shown > 0 ? Mid.green : Mid.ink),
+              color: dim
+                  ? Mid.ink3
+                  : (shown > 0 ? Mid.green : (shown < 0 ? Mid.coral : Mid.ink)),
             ),
           ),
         ),

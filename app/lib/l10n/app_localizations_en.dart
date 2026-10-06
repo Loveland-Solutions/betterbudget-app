@@ -1811,25 +1811,30 @@ class WordsEn extends Words {
   String get rowsTabScheduled => 'Scheduled';
 
   @override
-  String ledgerAlwaysFile(int count, Object payee, Object category) {
+  String ledgerFiledUnder(Object category) {
+    return 'Filed under $category';
+  }
+
+  @override
+  String ledgerAlwaysFile(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Always file $payee under $category · $count more rows waiting',
-      one: 'Always file $payee under $category · 1 more row waiting',
-      zero: 'Always file $payee under $category',
+      other: 'Always file this payee here · $count more rows now',
+      one: 'Always file this payee here · 1 more row now',
+      zero: 'Always file this payee here',
     );
     return '$_temp0';
   }
 
   @override
-  String ledgerAlwaysFiled(int count, Object payee, Object category) {
+  String ledgerAlwaysFiled(int count, Object category) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$payee will be filed under $category · $count rows moved',
-      one: '$payee will be filed under $category · 1 row moved',
-      zero: '$payee will be filed under $category',
+      other: 'Always filed under $category · $count more rows filed',
+      one: 'Always filed under $category · 1 more row filed',
+      zero: 'Always filed under $category',
     );
     return '$_temp0';
   }

@@ -1152,16 +1152,7 @@ class _PostedRow extends StatelessWidget {
                         onTap: () => onTap(EditField.amount),
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: r.amount > 0
-                              ? Money(
-                                  r.amount,
-                                  color: Mid.green,
-                                  centsColor: Mid.isLight
-                                      ? Mid.green
-                                      : Mid.green.withValues(alpha: 0.6),
-                                  sign: MoneySign.plusForPositive,
-                                )
-                              : Money(r.amount, sign: MoneySign.none),
+                          child: _Amount(r.amount),
                         ),
                       ),
                       const SizedBox(width: Cols.gap),
@@ -1364,20 +1355,7 @@ class _ScheduledRow extends StatelessWidget {
                         width: Cols.amount,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: r.amount > 0
-                              ? Money(
-                                  r.amount,
-                                  color: Mid.green,
-                                  centsColor: Mid.isLight
-                                      ? Mid.green
-                                      : Mid.green.withValues(alpha: 0.6),
-                                  sign: MoneySign.plusForPositive,
-                                )
-                              : Money(
-                                  r.amount,
-                                  color: Mid.ink2,
-                                  sign: MoneySign.none,
-                                ),
+                          child: _Amount(r.amount),
                         ),
                       ),
                       const SizedBox(width: Cols.gap),
@@ -1415,6 +1393,26 @@ class _ScheduledRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A row's amount, told apart at a glance (owner, 2026-10-06: "it's hard
+/// to tell if the values are negative or positive"): money out is red with
+/// a minus in front, money in green with a plus. Nothing is plain but zero.
+class _Amount extends StatelessWidget {
+  const _Amount(this.minor);
+  final int minor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (minor == 0) return Money(minor, sign: MoneySign.none);
+    final color = minor > 0 ? Mid.green : Mid.coral;
+    return Money(
+      minor,
+      color: color,
+      centsColor: Mid.isLight ? color : color.withValues(alpha: 0.6),
+      sign: MoneySign.plusForPositive,
     );
   }
 }

@@ -1728,24 +1728,28 @@ class WordsMn extends Words {
   String get rowsTabScheduled => 'Товлосон';
 
   @override
-  String ledgerAlwaysFile(int count, Object payee, Object category) {
+  String ledgerFiledUnder(Object category) {
+    return 'Ангилал: $category';
+  }
+
+  @override
+  String ledgerAlwaysFile(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          'Үргэлж ингэж ангилах: $payee → $category · өөр $count мөр хүлээж байна',
-      zero: 'Үргэлж ингэж ангилах: $payee → $category',
+      other: 'Үргэлж ингэж ангилах · одоо өөр $count мөр',
+      zero: 'Үргэлж ингэж ангилах',
     );
     return '$_temp0';
   }
 
   @override
-  String ledgerAlwaysFiled(int count, Object payee, Object category) {
+  String ledgerAlwaysFiled(int count, Object category) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Цаашид: $payee → $category · $count мөр шилжлээ',
-      zero: 'Цаашид: $payee → $category',
+      other: 'Цаашид үргэлж: $category · өөр $count мөр ангиллаа',
+      zero: 'Цаашид үргэлж: $category',
     );
     return '$_temp0';
   }

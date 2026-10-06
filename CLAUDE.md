@@ -83,7 +83,10 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   tab holds the current budget period's), and questions written as fragments that
   lean on work the owner hasn't seen (whole sentences, with what's on screen), and
   dollar categories offered in a tugrik account's category list (a row is offered
-  the categories in its own currency).
+  the categories in its own currency), and a popup that was one long line across
+  the window, over the sidebar, saying the payee twice (it's a card in the page's
+  corner: what happened, the payee on its own line, the offer as a button), and
+  money out in plain ink with no sign (it's red with a minus in front).
 - **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
   testing my app by using it. The data that I have is now production data"). Every
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a

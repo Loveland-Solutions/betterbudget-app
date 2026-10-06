@@ -941,7 +941,7 @@ void main() {
       (tester) async {
         final db = await pumpLedger(tester);
         final amount = find
-            .text('₮30,000.00', findRichText: true)
+            .text('−₮30,000.00', findRichText: true)
             .first; // Unitel
         await tester.tap(amount);
         await tester.pump(const Duration(milliseconds: 50));
@@ -966,14 +966,14 @@ void main() {
         await tester.pump();
         await save(tester);
         expect(find.text('Changes saved'), findsOneWidget);
-        expect(find.text('₮35,000.00', findRichText: true), findsWidgets);
+        expect(find.text('−₮35,000.00', findRichText: true), findsWidgets);
 
         await tester.runAsync(() async {
           await tester.tap(find.text('Undo'));
           await Future<void>.delayed(const Duration(milliseconds: 300));
         });
         await tester.pumpAndSettle();
-        expect(find.text('₮30,000.00', findRichText: true), findsWidgets);
+        expect(find.text('−₮30,000.00', findRichText: true), findsWidgets);
         await tidy(tester, db);
       },
     );
@@ -1540,7 +1540,20 @@ void main() {
           matching: find.text('Groceries'),
         ),
       );
-      expect(find.text('Unitel → Groceries'), findsOneWidget);
+      // The popup: what happened, then the row's payee on its own line.
+      expect(find.text('Filed under Groceries'), findsOneWidget);
+      String detail() =>
+          tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data!;
+      expect(detail(), 'Unitel');
+      // A card of one width in the page's corner, clear of the sidebar.
+      final popup = tester.getRect(
+        find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast'),
+      );
+      expect(popup.width, 440);
+      expect(popup.right, 1440 - 40);
+      expect(popup.bottom, 900 - 36);
+      // Gold with dark text in light mode too.
+      expect(Mid.onToast.computeLuminance(), lessThan(0.05));
       Future<String> category() async => (await tester.runAsync(
         () async => (await db.loadLedger())
             .registerFor(1)
@@ -1552,11 +1565,13 @@ void main() {
 
       await chord(tester, LogicalKeyboardKey.keyZ);
       await settle(tester);
-      expect(find.text('Undone · Unitel → Groceries'), findsOneWidget);
+      // An undo still says which row it changed.
+      expect(find.text('Undone · Filed under Groceries'), findsOneWidget);
+      expect(detail(), 'Unitel');
       expect(await category(), 'Phone & internet');
       await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
       await settle(tester);
-      expect(find.text('Redone · Unitel → Groceries'), findsOneWidget);
+      expect(find.text('Redone · Filed under Groceries'), findsOneWidget);
       expect(await category(), 'Groceries');
       await tidy(tester, db);
     });
@@ -1599,13 +1614,10 @@ void main() {
       expect(menu().take(2), ['Income · Loveland Solutions', 'Income']);
       await tapAndWait(tester, find.text('Income · Loveland Solutions'));
       expect(
-        find.text('LoveSol → Income · Loveland Solutions'),
+        find.text('Filed under Income · Loveland Solutions'),
         findsOneWidget,
       );
-      expect(
-        find.text('Always file LoveSol under Income · Loveland Solutions'),
-        findsOneWidget,
-      );
+      expect(find.text('Always file this payee here'), findsOneWidget);
       // The row says whose paycheck it is, and the payday it was is gone.
       expect(find.text('Income · Loveland Solutions'), findsOneWidget);
       final after = (await tester.runAsync(() => db.loadLedger()))!;
@@ -1768,14 +1780,14 @@ void main() {
       await tester.ensureVisible(income);
       await tester.pumpAndSettle();
       await tapAndWait(tester, income);
-      expect(find.text('LoveSol → Income'), findsOneWidget);
+      expect(find.text('Filed under Income'), findsOneWidget);
       expect(
-        find.text('Always file LoveSol under Income · 2 more rows waiting'),
+        find.text('Always file this payee here · 2 more rows now'),
         findsOneWidget,
       );
       await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
       expect(
-        find.text('LoveSol will be filed under Income · 2 rows moved'),
+        find.text('Always filed under Income · 2 more rows filed'),
         findsOneWidget,
       );
       var now = await filed();
@@ -5794,6 +5806,144 @@ void main() {
           .text,
       '',
     );
+    await tidy(tester, db);
+  });
+
+  testWidgets('the popup in light mode: gold with dark text, the payee on '
+      'its own line, the offer a button', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    final db = AppDatabase(NativeDatabase.memory());
+    final appearance = AppearanceController();
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        AppearanceScope(
+          controller: appearance,
+          child: Builder(
+            builder: (_) => MaterialApp(
+              debugShowCheckedModeBanner: false,
+              themeAnimationDuration: Duration.zero,
+              theme: appTheme(),
+              home: LedgerScreen(
+                db: db,
+                clock: () => DateTime(2026, 9, 16, 10),
+              ),
+            ),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // A bank's long payee, with another row of it still waiting.
+      final data = await db.loadLedger();
+      final checking = data.balanceSheetAccounts.first.id;
+      final waiting = await db.createCategory('Not categorized');
+      for (final day in [14, 15]) {
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, day),
+          today: DateTime(2026, 9, 16),
+          payee: 'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
+          counterAccountId: waiting,
+          amount: -20000,
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(Mid.isLight, isTrue);
+    await tester.tap(
+      find.text('IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4').first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Categorize'));
+    await tester.pumpAndSettle();
+    final fees = find.descendant(
+      of: find.byType(MenuItemButton),
+      matching: find.text('Bank fees'),
+    );
+    await tester.ensureVisible(fees);
+    await tester.pumpAndSettle();
+    await tapAndWait(tester, fees);
+    expect(find.text('Filed under Bank fees'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data,
+      'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
+    );
+    expect(
+      find.text('Always file this payee here · 1 more row now'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/popup_offer_light.png'),
+    );
+    await tidy(tester, db);
+  });
+
+  testWidgets('the popup stays while the pointer is on it', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Categorize'));
+    await tester.pumpAndSettle();
+    await tapAndWait(
+      tester,
+      find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Groceries'),
+      ),
+    );
+    final popup = find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast');
+    expect(popup, findsOneWidget);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(popup));
+    await tester.pump();
+    // Well past when it would have gone.
+    await tester.pump(const Duration(seconds: 30));
+    expect(popup, findsOneWidget);
+    // Off it: a few seconds more, then gone.
+    await mouse.moveTo(const Offset(600, 200));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    expect(popup, findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    expect(popup, findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('money out is red with a minus, money in green with a plus', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    Money amountOf(String payee) => tester.widget<Money>(
+      find
+          .descendant(
+            of: find.ancestor(
+              of: find.text(payee),
+              matching: find.byWidgetPredicate(
+                (w) => '${w.runtimeType}' == '_PostedRow',
+              ),
+            ),
+            matching: find.byType(Money),
+          )
+          .first,
+    );
+    final out = amountOf('Unitel');
+    expect(out.minor, lessThan(0));
+    expect(out.color, Mid.coral);
+    expect(out.sign, MoneySign.plusForPositive); // a minus below zero
+    final shown = formatMoney(out.minor);
+    expect(shown, startsWith('−₮'));
+    expect(find.text(shown, findRichText: true), findsWidgets);
+    final income = tester
+        .widgetList<Money>(find.byType(Money))
+        .firstWhere((m) => m.minor > 0 && m.sign == MoneySign.plusForPositive);
+    expect(income.color, Mid.green);
     await tidy(tester, db);
   });
 
