@@ -44,6 +44,14 @@ const uncategorizedNames = {'Not categorized', 'Ангилаагүй'};
 bool isUncategorized(AccountInfo a) =>
     a.type == AccountType.expense && uncategorizedNames.contains(a.name);
 
+/// Whether a row in [currency] filed under [category] is counted there
+/// (rule 28): a spending category is in one currency; Income and "Not
+/// categorized" take any. The ledger's dropdowns offer only these.
+bool categoryTakes(AccountInfo category, Currency currency) =>
+    category.isIncome ||
+    isUncategorized(category) ||
+    category.currency == currency;
+
 /// One spending category in one period.
 class EnvelopeLine {
   const EnvelopeLine({

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../domain/budget.dart' show categoryTakes;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
@@ -79,10 +80,15 @@ class RegisterActions {
 
 /// The dropdown's categories in the order that suits [r] (owner,
 /// 2026-10-06): for money in, Income first; for money out, the spending
-/// categories first.
+/// categories first. Only those in the row's currency (owner, 2026-10-06:
+/// dollar categories don't belong in a tugrik account's list), and the one
+/// the row is filed under now, so its tick still shows.
 List<AccountInfo> categoriesFor(RegisterRow r, List<AccountInfo> all) {
-  final income = all.where((c) => c.isIncome);
-  final spending = all.where((c) => !c.isIncome);
+  final offered = all.where(
+    (c) => c.id == r.categoryId || categoryTakes(c, r.currency),
+  );
+  final income = offered.where((c) => c.isIncome);
+  final spending = offered.where((c) => !c.isIncome);
   return r.amount > 0 ? [...income, ...spending] : [...spending, ...income];
 }
 

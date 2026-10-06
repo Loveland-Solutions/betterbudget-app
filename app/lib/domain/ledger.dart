@@ -82,8 +82,8 @@ class AccountInfo {
     this.currency = Currency.mnt,
   });
 
-  /// What its money is in. Categories have one too, but only an account's
-  /// means anything: a category holds whatever currency is filed under it.
+  /// What its money is in. A spending category has one too (rule 28): its
+  /// amounts are in it, and the ledger's lists offer it to rows in it.
   final Currency currency;
 
   /// What it's for on the Savings steps; null for most accounts.

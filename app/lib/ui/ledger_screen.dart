@@ -2592,8 +2592,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
         delete: () => _deleteAccount(data, account),
         loanPaidFrom: account.isOwed
             ? (
+                // In the card's currency: a payment is counted against no
+                // other (and the one picked before, so its tick shows).
                 categories: data.categories
-                    .where((c) => !c.isIncome && !isUncategorized(c))
+                    .where(
+                      (c) =>
+                          !c.isIncome &&
+                          !isUncategorized(c) &&
+                          (c.currency == account.currency ||
+                              c.id == Budget.loanCategory(data, account.id)),
+                    )
                     .toList(),
                 current: Budget.loanCategory(data, account.id),
                 pick: (c) => _setLoanCategory(account, c),
