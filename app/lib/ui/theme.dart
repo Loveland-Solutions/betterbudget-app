@@ -281,6 +281,12 @@ abstract final class Mid {
   static Color get coral => _p.coral;
   static Color get onAccent => _p.onAccent;
 
+  /// The popup that reports a saved change: the same gold with dark text in
+  /// both modes (ADR 0004 rule 9; light mode's deeper [gold] under white
+  /// text read as a brown warning).
+  static const toast = Color(0xFFE8C15A);
+  static const onToast = Color(0xFF0D1522);
+
   static Color get blueWash => blue.withValues(alpha: isLight ? 0.10 : 0.12);
   static Color get blueEdge => blue.withValues(alpha: 0.35);
   static Color get chip => _p.wash.withValues(alpha: isLight ? 0.06 : 0.08);

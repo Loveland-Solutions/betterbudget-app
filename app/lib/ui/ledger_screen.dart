@@ -145,6 +145,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   var _renameRequest = 0;
   ({
     String message,
+    String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
   })?
@@ -430,14 +431,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     required Future<void> Function() redo,
     bool toast = true,
     String? message,
+    String? detail,
     ({String label, VoidCallback onTap})? more,
   }) {
-    final action = _Undoable(label, undo, redo);
+    final action = _Undoable(label, undo, redo, detail: detail);
     _history.add(action);
     _redo.clear();
     if (toast) {
       _showToast(
         message ?? label,
+        detail: detail,
         more: more,
         undo: () async {
           // Undo runs newest first, so an older toast can't jump the queue:
@@ -472,11 +475,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await a.undo();
     } catch (e) {
-      if (mounted) _showToast(context.t.ledgerCouldntUndo(a.label));
+      if (mounted) {
+        _showToast(context.t.ledgerCouldntUndo(a.label), detail: a.detail);
+      }
       return;
     }
     _redo.add(a);
-    if (mounted) _showToast(context.t.ledgerUndone(a.label));
+    if (mounted) _showToast(context.t.ledgerUndone(a.label), detail: a.detail);
   }
 
   Future<void> _redoLast() async {
@@ -490,11 +495,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await a.redo();
     } catch (e) {
-      if (mounted) _showToast(context.t.ledgerCouldntRedo(a.label));
+      if (mounted) {
+        _showToast(context.t.ledgerCouldntRedo(a.label), detail: a.detail);
+      }
       return;
     }
     _history.add(a);
-    if (mounted) _showToast(context.t.ledgerRedone(a.label));
+    if (mounted) _showToast(context.t.ledgerRedone(a.label), detail: a.detail);
   }
 
   /// Why an entry row couldn't be saved, as a popup; gone once the row is
@@ -513,6 +520,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   void _showToast(
     String message, {
+    String? detail,
     Future<void> Function()? undo,
     ({String label, VoidCallback onTap})? more,
   }) {
@@ -520,6 +528,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     setState(
       () => _toast = (
         message: message,
+        detail: detail,
         more: more == null
             ? null
             : (
@@ -538,9 +547,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
     );
     // An offer takes longer to read than a report.
-    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
+    _toastLeaves(Duration(seconds: more == null ? 6 : 12));
+  }
+
+  void _toastLeaves(Duration after) {
+    _toastTimer?.cancel();
+    _toastTimer = Timer(after, () {
       if (mounted) setState(() => _toast = null);
     });
+  }
+
+  /// The popup stays while the pointer is on it, so it can't go from under
+  /// a click, and a little longer once the pointer leaves.
+  void _toastHovered(bool over) {
+    if (_toast == null) return;
+    if (over) {
+      _toastTimer?.cancel();
+    } else {
+      _toastLeaves(const Duration(seconds: 4));
+    }
   }
 
   /// True while a text field has focus. The focus node's own widget is the
@@ -1725,7 +1750,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A row's category from its inline menu, in whichever account it's in.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
-    final payee = rowPayee(context.t, r);
+    final t = context.t;
+    final payee = rowPayee(t, r);
     final previous = await db.setCategoryMany(
       transactionIds: [r.txnId],
       accountId: r.accountId,
@@ -1733,7 +1759,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     if (previous.isEmpty) return;
     _did(
-      '$payee → ${c.name}',
+      t.ledgerFiledUnder(c.name),
+      detail: payee,
       more: _alwaysOffer(r, c),
       undo: () async => _expect(
         (await db.restoreCategories(previous, r.accountId)).length ==
@@ -1795,7 +1822,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     final label = _payLabel(t, data, pay);
     _did(
-      '${rowPayee(t, r)} → $label',
+      t.ledgerFiledUnder(label),
+      detail: rowPayee(t, r),
       more: _alwaysOffer(r, income, pay: pay, label: label),
       undo: () => db.undoTakeAsPay(taken),
       redo: () => db.redoTakeAsPay(taken),
@@ -1839,7 +1867,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ];
     final t = context.t;
     return (
-      label: t.ledgerAlwaysFile(waiting.length, name, label ?? c.name),
+      label: t.ledgerAlwaysFile(waiting.length),
       onTap: () => _alwaysFile(
         accountId: r.accountId,
         payee: name,
@@ -1907,9 +1935,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _did(
       t.ledgerAlwaysFiled(
         pay == null ? previous.length : paychecks.length,
-        payee,
         label,
       ),
+      detail: payee,
       undo: () async {
         for (final p in paychecks.reversed) {
           await db.undoTakeAsPay(p);
@@ -3408,6 +3436,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   if (_toast != null)
                     _Toast(
                       toast: _toast!,
+                      onHover: _toastHovered,
                       onClose: () => setState(() => _toast = null),
                     ),
                 ],
@@ -3627,8 +3656,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
 /// A class, not a record: a toast checks its action is still the newest by
 /// identity, which records don't have.
 class _Undoable {
-  _Undoable(this.label, this.undo, this.redo);
+  _Undoable(this.label, this.undo, this.redo, {this.detail});
   final String label;
+
+  /// The row it was done to, when [label] doesn't name it: the popup's
+  /// second line, so an undo still says which row changed (rule 9).
+  final String? detail;
   final Future<void> Function() undo;
   final Future<void> Function() redo;
 }
@@ -4940,83 +4973,157 @@ class _PrimaryButton extends StatelessWidget {
   );
 }
 
+/// The popup that reports a saved change: a card of one width in the page's
+/// bottom-right corner, so it never lies over the sidebar and Undo and ×
+/// are always in the same place (owner, 2026-10-06, option A of two). What
+/// happened, then the row it happened to on a line of its own (a bank's
+/// payee is data, not part of the sentence), then the one further thing on
+/// offer as a button.
 class _Toast extends StatelessWidget {
-  const _Toast({required this.toast, required this.onClose});
+  const _Toast({
+    required this.toast,
+    required this.onClose,
+    required this.onHover,
+  });
   final ({
     String message,
+    String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
   })
   toast;
   final VoidCallback onClose;
+  final ValueChanged<bool> onHover;
+
+  static const width = 440.0;
 
   @override
   Widget build(BuildContext context) {
-    // Gold so it gets noticed: a toast reports something that just changed.
+    final ink = Mid.onToast;
+    final light = Mid.isLight;
     return Positioned(
-      bottom: 28,
-      left: 0,
-      right: 0,
-      child: Center(
+      bottom: 36,
+      right: 40,
+      width: width,
+      child: MouseRegion(
+        onEnter: (_) => onHover(true),
+        onExit: (_) => onHover(false),
         child: Material(
           color: Colors.transparent,
           child: Container(
             decoration: BoxDecoration(
-              color: Mid.gold,
+              // Gold so it gets noticed: it reports something that changed.
+              color: Mid.toast,
               borderRadius: BorderRadius.circular(12),
+              border: light ? Border.all(color: Mid.gold) : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 32,
-                  offset: const Offset(0, 12),
+                  color: Colors.black.withValues(alpha: light ? 0.18 : 0.45),
+                  blurRadius: light ? 24 : 32,
+                  offset: Offset(0, light ? 8 : 12),
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 8, 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    toast.message,
-                    style: onest(13.5, weight: 500, color: Mid.onAccent),
-                  ),
-                  const SizedBox(width: 12),
-                  if (toast.undo != null)
-                    TextButton(
-                      onPressed: toast.undo,
-                      child: Text(
-                        context.t.ledgerUndo,
-                        style: onest(
-                          13.5,
-                          weight: 700,
-                          color: Mid.onAccent,
-                        ).copyWith(decoration: TextDecoration.underline),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        // Every line of it: the last clause is often the
+                        // amount, so nothing is cut.
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          toast.message,
+                          key: const ValueKey('toast-message'),
+                          style: onest(14, weight: 600, color: ink),
+                        ),
                       ),
                     ),
-                  if (toast.more case final more?)
-                    TextButton(
+                    const SizedBox(width: 8),
+                    if (toast.undo != null)
+                      TextButton(
+                        onPressed: toast.undo,
+                        style: TextButton.styleFrom(
+                          foregroundColor: ink,
+                          minimumSize: const Size(0, 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          context.t.ledgerUndo,
+                          style: onest(13, weight: 700, color: ink),
+                        ),
+                      ),
+                    IconButton(
+                      onPressed: onClose,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 32,
+                        height: 32,
+                      ),
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: ink.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+                if (toast.detail case final detail?)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8, bottom: 2),
+                    child: Text(
+                      detail,
+                      key: const ValueKey('toast-detail'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: onest(
+                        12.5,
+                        weight: 500,
+                        color: ink.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ),
+                if (toast.more case final more?)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 10,
+                      right: 8,
+                      bottom: 4,
+                    ),
+                    child: OutlinedButton(
                       key: const ValueKey('toast-more'),
                       onPressed: more.onTap,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ink,
+                        side: BorderSide(color: ink.withValues(alpha: 0.55)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        minimumSize: const Size(0, 34),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      // Two lines when it needs them (Mongolian does).
                       child: Text(
                         more.label,
-                        style: onest(
-                          13.5,
-                          weight: 700,
-                          color: Mid.onAccent,
-                        ).copyWith(decoration: TextDecoration.underline),
+                        textAlign: TextAlign.center,
+                        style: onest(13, weight: 600, color: ink),
                       ),
                     ),
-                  IconButton(
-                    onPressed: onClose,
-                    icon: Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: Mid.onAccent.withValues(alpha: 0.6),
-                    ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),

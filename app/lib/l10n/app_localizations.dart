@@ -2549,17 +2549,23 @@ abstract class Words {
   /// **'Scheduled'**
   String get rowsTabScheduled;
 
-  /// Button in the popup at the bottom after a row's category is picked from the dropdown: remember it for this payee, and move the payee's other rows still in Not categorized. category may be Income.
+  /// Popup at the bottom, and the undo label, after a row's category is picked from its dropdown. The row's payee is on the line under it. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{Always file {payee} under {category}} =1{Always file {payee} under {category} · 1 more row waiting} other{Always file {payee} under {category} · {count} more rows waiting}}'**
-  String ledgerAlwaysFile(int count, Object payee, Object category);
+  /// **'Filed under {category}'**
+  String ledgerFiledUnder(Object category);
 
-  /// Popup at the bottom, and the undo label, after Always file is clicked.
+  /// Button in the popup at the bottom after a row's category is picked from the dropdown: remember it for this payee, and file the payee's other rows still in Not categorized now. The payee and the category are on the lines above it, so it names neither. count is those other rows.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{{payee} will be filed under {category}} =1{{payee} will be filed under {category} · 1 row moved} other{{payee} will be filed under {category} · {count} rows moved}}'**
-  String ledgerAlwaysFiled(int count, Object payee, Object category);
+  /// **'{count, plural, =0{Always file this payee here} =1{Always file this payee here · 1 more row now} other{Always file this payee here · {count} more rows now}}'**
+  String ledgerAlwaysFile(int count);
+
+  /// Popup at the bottom, and the undo label, after Always file is clicked. The payee is on the line under it. category may be Income, or Income and a pay's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Always filed under {category}} =1{Always filed under {category} · 1 more row filed} other{Always filed under {category} · {count} more rows filed}}'**
+  String ledgerAlwaysFiled(int count, Object category);
 
   /// A row's category dropdown and chip: income that is one pay's paycheck. pay is the name the person gave the pay (Loveland Solutions).
   ///

@@ -248,8 +248,16 @@ What's known so far:
    months or a year, with the paydays and plan bills after the scheduled ones
    projected that far.
 3. **One signed amount column, not In/Out.** A transaction moves money one way in one
-   account. The two-column layout is a paper-checkbook and bank-statement habit. Money
-   out is plain; money in is green with a `+`.
+   account. The two-column layout is a paper-checkbook and bank-statement habit.
+   **Money out is red with a minus in front; money in is green with a `+`** (owner,
+   2026-10-06: "it's hard to tell if the values are negative or positive. Outflow
+   should be red and have a negative symbol in front of them"). Until then money out
+   was plain ink with no sign, and in a column of mostly outflows a row of money in
+   was the only one marked. The red is `Mid.coral`, the same red a balance below zero
+   has, so red means "below zero" in both columns; zero stays plain. It holds in every
+   register (All accounts, a card, scheduled rows) and in the import's preview. On a
+   card a purchase is money out like anywhere else and a payment is money in; the
+   total and the Owed column stay positive in normal ink (rule 6).
 4. **Every row shows its full date (`YYYY.MM.DD`). No month subheadings or month
    subtotals.** The owner asked for these to be removed; don't reintroduce them.
    **Every other posted row is tinted a faint royal blue** (`Mid.stripe`, blue at 4.5%;
@@ -335,13 +343,16 @@ What's known so far:
    noise, especially while reconciling). The symbol changing is the confirmation.
    Adding stays quiet too, because the row appears. **Toasts are gold with dark
    text** (owner's call) so they get noticed; the dark toast they replaced was easy to
-   miss. **A row that can't be saved says why in the same popup** (owner, 2026-10-03):
+   miss. **The popup is a card in the page's bottom-right corner** (owner, 2026-10-06,
+   "Not loving the way this looks", option A of two; see "The popup is a card" below).
+   **A row that can't be saved says why in the same popup** (owner, 2026-10-03):
    beside Add there was room for "Say how muc…" and no more. It goes away once the row
    is edited. The wording is an instruction in plain office English ("Enter the amount
    arriving in Chase", "Enter the date as 2026.09.16"), never "Say how much…", which
    the owner read as written by a child. The short notes that show while typing
-   ("needs amount", "= ₮150.00", "new category") stay beside Add. Undo is bold and
-   underlined. **One row is open for typing at a time** (owner, 2026-10-03: Edit and a
+   ("needs amount", "= ₮150.00", "new category") stay beside Add. Undo is bold
+   (underlined until 2026-10-06; the offer is now the only bordered thing in the
+   popup, so Undo no longer needs telling apart from it). **One row is open for typing at a time** (owner, 2026-10-03: Edit and a
    new transaction were open together). Add closes an untouched Edit, and Edit closes
    an empty new row; if the open one holds changes it stays and the popup says "Save
    with Enter, or press Esc to discard your changes". **An Edit closes with the mouse
@@ -2023,16 +2034,57 @@ month, or the pay period the Budget page is viewed by); with none in it the tab 
 there. Older ones are still in All, and a search for "Not categorized" finds them.
 *Not built:* choosing another period for the tab.
 
+### The popup is a card (owner, 2026-10-06)
+
+The owner sent the popup after a category was picked, in light mode, and said "Not
+loving the way this looks". It was one line as wide as its words, centered on the
+window: with a bank's 41-letter payee it ran nearly the window's width, lay over Net
+worth in the sidebar and the last row, said the payee and the category twice, and was
+white on brown (light mode's deeper gold), which read as a warning. The design
+committee ran on it; two mockups went to the owner, who picked A.
+
+- **A card 440 wide in the page's bottom-right corner** (40 from the right, 36 from
+  the bottom), on every page. It never reaches the sidebar, and in a register it covers
+  the ends of the last rows' amounts and leaves their category chips free, where the
+  next click goes when working down rows that need a category. One width, so Undo and
+  × are in the same place in every popup.
+- **Three parts, each only when there's something for it.** What happened, with Undo
+  and × at its right; it wraps as far as it needs and is never cut (its last clause is
+  often the amount). Then **the row it happened to, on its own line**, smaller, cut
+  with "…": a bank's payee is data, not part of a sentence, so the sentence above it
+  never contains it ("Filed under Bank fees", not "EB-INTERBANK… → Bank fees"), and
+  Mongolian never has to hang a case ending on a bank's string. An undo keeps the
+  line, so "Undone · Filed under Bank fees" still says which row. Only a row's
+  category and Always file use the line so far; the other popups keep their one
+  sentence. Then **the one further thing on offer, as an outlined button** across the
+  card.
+- **Gold with dark text in both modes** (`Mid.toast`, `Mid.onToast`): light mode had
+  drifted to white on its deeper gold. In light mode the card has an edge in that
+  deeper gold and a lighter shadow.
+- **It stays while the pointer is on it**, and four seconds after the pointer leaves,
+  so it can't go from under a click. Otherwise 6 seconds, 12 with an offer, as before.
+- *Rejected:* **B**, centered on the page at 520 wide with the payee on top, a filled
+  button and a sentence under it (more lines, and it sits over the category chips);
+  keeping the strip and capping its width (still the row of controls); asking it as a
+  question with "Yes, every row" (it promises more than happens: only this account's
+  rows still in Not categorized are filed).
+- *Not built, a new feature to ask about:* the same offer at the foot of a row's
+  category dropdown, so one that was missed can be found again. *Left as they were:*
+  popups that aren't saved changes (why a row can't be saved, "Couldn't…") take the
+  same card.
+
 **"Always file LoveSol under Income"** (owner, 2026-10-06: "you'd need to treat income
 the same as any other category. If I get something from LoveSol, and I choose my
 Loveland Solutions pay check from the ledger category dropdown, then the app should
 offer to remember that for the future."):
 
-- Picking a category from a row's dropdown shows, in the popup at the bottom beside
-  Undo, **Always file LoveSol under Income · 9 more rows waiting**. Clicking it moves
-  that payee's rows still in Not categorized on this account and keeps the rule; the
-  popup then reads "LoveSol will be filed under Income · 9 rows moved". One ⌘Z takes
-  back the moves and the rule. Not offered on a transfer or split, for Not categorized
+- Picking a category from a row's dropdown shows, in the popup at the bottom, a
+  button: **Always file this payee here · 9 more rows now** (reworded 2026-10-06 with
+  the popup's redesign: the payee and the category are on the popup's own lines above
+  it, so the button names neither; it used to read "Always file LoveSol under Income ·
+  9 more rows waiting"). Clicking it files that payee's rows still in Not categorized
+  on this account and keeps the rule; the popup then reads "Always filed under Income ·
+  9 more rows filed" over the payee. One ⌘Z takes back the rows and the rule. Not offered on a transfer or split, for Not categorized
   itself, or when it's already the rule.
 - **A payee fits when its name starts with the one clicked**, whatever the capitals
   (owner: "This is all good" to that), because banks put a date or a number after a
@@ -2052,8 +2104,8 @@ offer to remember that for the future."):
     received; the payday it stands for (the nearest planned one, early or late) stops
     being expected, so the forecast doesn't count it twice; the next payday is
     scheduled. The row's chip then reads "Income · Loveland Solutions". One ⌘Z.
-  - **The offer carries the pay:** "Always file LoveSol under Income · Loveland
-    Solutions" moves that payee's waiting money-in rows as paychecks, oldest first,
+  - **The offer carries the pay:** after "Filed under Income · Loveland Solutions",
+    the button moves that payee's waiting money-in rows as paychecks, oldest first,
     and the next import does the same (`PayeeRule.payId`; `ImportRecord.paid` for the
     import's undo). Money out from the same payee is never a paycheck.
   - **Typing a new row** (owner, 2026-10-06: "Well. Build it."): the Category field
