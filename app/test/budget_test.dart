@@ -388,8 +388,6 @@ void main() {
     );
     final o = of(d, oct);
     expect(o.lines.containsKey(waiting), isFalse);
-    expect(o.uncategorizedRows, 2);
-    expect(o.uncategorizedNet, 247000000);
     expect(o.notAssigned, 540000000 + 247000000 - 90000000);
   });
 

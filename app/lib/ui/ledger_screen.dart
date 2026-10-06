@@ -143,7 +143,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Bumped by Rename in the sidebar's right-click menu: the account opens
   /// with its name ready to edit in the header.
   var _renameRequest = 0;
-  ({String message, VoidCallback? undo})? _toast;
+  ({
+    String message,
+    VoidCallback? undo,
+    ({String label, VoidCallback onTap})? more,
+  })?
+  _toast;
 
   /// Everything undoable done this session, oldest first. ⌘Z / Ctrl+Z undoes
   /// the newest; a toast's Undo works only while its action is the newest.
@@ -325,6 +330,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<String?> _post(EntryDraft d) async {
     final t = context.t;
     int? made;
+    PayTaken? paycheck;
     try {
       late final int id;
       // One write: a crash between them can't leave an empty category.
@@ -355,12 +361,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 amount: amount,
                 memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
               );
+        // A pay picked in Category: the row is its paycheck. One dated
+        // ahead is only scheduled, and stays plain income until it comes.
+        if (d.payId case final pay? when !d.date.isAfter(today)) {
+          paycheck = await db.takeAsPay(
+            transactionId: id,
+            accountId: here,
+            scheduleId: pay,
+            today: today,
+          );
+        }
       });
       _entry.payeeNames = await db.payeeNames();
+      final taken = paycheck;
       final pair = _alsoCategory(
         made,
-        () async => _expect((await db.softDeleteMany([id])).length == 1),
-        () => db.restoreMany([id]),
+        () async {
+          if (taken != null) await db.undoTakeAsPay(taken);
+          _expect((await db.softDeleteMany([id])).length == 1);
+        },
+        () async {
+          await db.restoreMany([id]);
+          if (taken != null) await db.redoTakeAsPay(taken);
+        },
       );
       // A row that won't show under the filter or search in force says where
       // it went, or it looks lost and gets typed again.
@@ -407,6 +430,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     required Future<void> Function() redo,
     bool toast = true,
     String? message,
+    ({String label, VoidCallback onTap})? more,
   }) {
     final action = _Undoable(label, undo, redo);
     _history.add(action);
@@ -414,6 +438,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (toast) {
       _showToast(
         message ?? label,
+        more: more,
         undo: () async {
           // Undo runs newest first, so an older toast can't jump the queue:
           // restoring its state would silently wipe the newer changes.
@@ -486,11 +511,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _entryProblemShown = message;
   }
 
-  void _showToast(String message, {Future<void> Function()? undo}) {
+  void _showToast(
+    String message, {
+    Future<void> Function()? undo,
+    ({String label, VoidCallback onTap})? more,
+  }) {
     _toastTimer?.cancel();
     setState(
       () => _toast = (
         message: message,
+        more: more == null
+            ? null
+            : (
+                label: more.label,
+                onTap: () {
+                  setState(() => _toast = null);
+                  more.onTap();
+                },
+              ),
         undo: undo == null
             ? null
             : () async {
@@ -499,7 +537,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
               },
       ),
     );
-    _toastTimer = Timer(const Duration(seconds: 6), () {
+    // An offer takes longer to read than a report.
+    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
       if (mounted) setState(() => _toast = null);
     });
   }
@@ -1503,6 +1542,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  /// The "Not categorized" category, for the register's tab.
+  int? _uncategorizedId(LedgerData data) =>
+      data.categories.where(isUncategorized).firstOrNull?.id;
+
   Widget _allBody(LedgerData data) {
     final t = context.t;
     final filter = data.accounts[_categoryFilter];
@@ -1593,6 +1636,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       _filter == RegisterFilter.reconciled
                   ? RegisterFilter.all
                   : _filter,
+              uncategorizedId: _uncategorizedId(data),
+              uncategorizedFrom: budgetPeriod(today, data.periodSchedule).start,
+              uncategorizedTo: budgetPeriod(today, data.periodSchedule).end,
               search: _search.text,
               selected: _selected,
               selectedKey: _selectedKey,
@@ -1624,6 +1670,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onCancelEdit: _cancelEdit,
                 onUnreconcile: (r) => _unreconcile(accountOf(r)),
                 onMove: (r, to) => _move(r, accountOf(r), to),
+                pays: _payChoices(data),
+                onSetPay: _setPay,
               ),
             ),
           ),
@@ -1686,6 +1734,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (previous.isEmpty) return;
     _did(
       '$payee → ${c.name}',
+      more: _alwaysOffer(r, c),
       undo: () async => _expect(
         (await db.restoreCategories(previous, r.accountId)).length ==
             previous.length,
@@ -1698,6 +1747,177 @@ class _LedgerScreenState extends State<LedgerScreen> {
             )).length ==
             1,
       ),
+    );
+  }
+
+  /// Each pay as the category dropdown names it.
+  List<({int id, int accountId, String label})> _payChoices(
+    LedgerData data, {
+    int? into,
+  }) {
+    final t = context.t;
+    return [
+      for (final p in data.paySchedules)
+        if (into == null || p.accountId == into)
+          (id: p.id, accountId: p.accountId, label: _payLabel(t, data, p)),
+    ];
+  }
+
+  String _payLabel(Words t, LedgerData data, PaySchedule p) {
+    final title = payTitle(t, data, p);
+    return title == t.ledgerIncome
+        ? t.rowsIncomePaycheck
+        : t.rowsIncomeFrom(title);
+  }
+
+  /// A pay picked from a row's dropdown: the row is that pay's paycheck
+  /// (owner, 2026-10-06). The Income tab counts it as received and the
+  /// payday it stands for stops being expected.
+  Future<void> _setPay(RegisterRow r, int payId) async {
+    final t = context.t;
+    final data = _data;
+    final pay = data?.payScheduleById(payId);
+    final income = data?.income;
+    if (data == null || pay == null || income == null) return;
+    final PayTaken taken;
+    try {
+      taken = await db.takeAsPay(
+        transactionId: r.txnId,
+        accountId: r.accountId,
+        scheduleId: payId,
+        today: today,
+      );
+    } catch (e) {
+      debugPrint('Paycheck failed: $e');
+      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      return;
+    }
+    if (!mounted) return;
+    final label = _payLabel(t, data, pay);
+    _did(
+      '${rowPayee(t, r)} → $label',
+      more: _alwaysOffer(r, income, pay: pay, label: label),
+      undo: () => db.undoTakeAsPay(taken),
+      redo: () => db.redoTakeAsPay(taken),
+    );
+  }
+
+  /// After a row is given a category from the dropdown: the offer to file
+  /// its payee there from now on (owner, 2026-10-06: "the app should offer
+  /// to remember that for the future"; income the same as any category),
+  /// with how many rows of that payee are still waiting. Null when there's
+  /// no payee to go by, the category is the holding one, or it's already so.
+  ({String label, VoidCallback onTap})? _alwaysOffer(
+    RegisterRow r,
+    AccountInfo c, {
+    PaySchedule? pay,
+    String? label,
+  }) {
+    final data = _data;
+    final name = (r.txnPayee ?? '').trim();
+    if (data == null || name.isEmpty || isUncategorized(c)) return null;
+    if (r.kind != RowKind.simple) return null;
+    final key = AppDatabase.payeeRulesKey(r.accountId);
+    final before = data.prefs[key];
+    final rules = PayeeRule.decode(before);
+    final starts = PayeeRule.stem(name);
+    if (rules.any(
+      (x) => x.starts == starts && x.categoryId == c.id && x.payId == pay?.id,
+    )) {
+      return null;
+    }
+    final holding = _uncategorizedId(data);
+    final waiting = [
+      for (final x in data.registerFor(r.accountId).posted)
+        if (x.txnId != r.txnId &&
+            holding != null &&
+            x.categoryId == holding &&
+            // A paycheck is money in.
+            (pay == null || x.amount > 0) &&
+            PayeeRule.stem(x.txnPayee ?? '').startsWith(starts))
+          x.txnId,
+    ];
+    final t = context.t;
+    return (
+      label: t.ledgerAlwaysFile(waiting.length, name, label ?? c.name),
+      onTap: () => _alwaysFile(
+        accountId: r.accountId,
+        payee: name,
+        category: c,
+        pay: pay,
+        label: label ?? c.name,
+        waiting: waiting,
+        rulesBefore: before,
+      ),
+    );
+  }
+
+  /// The offer taken: the rule is kept for the next import, and the rows of
+  /// that payee still waiting move now. One undo.
+  Future<void> _alwaysFile({
+    required int accountId,
+    required String payee,
+    required AccountInfo category,
+    required String label,
+    PaySchedule? pay,
+    required List<int> waiting,
+    required String? rulesBefore,
+  }) async {
+    final t = context.t;
+    final key = AppDatabase.payeeRulesKey(accountId);
+    final starts = PayeeRule.stem(payee);
+    final rules = PayeeRule.encode([
+      ...PayeeRule.decode(rulesBefore).where((x) => x.starts != starts),
+      PayeeRule(starts, category.id, payId: pay?.id),
+    ]);
+    var previous = <int, int>{};
+    var paychecks = <PayTaken>[];
+    Future<void> write() async {
+      await db.setPreference(key, rules);
+      if (pay == null) {
+        previous = waiting.isEmpty
+            ? {}
+            : await db.setCategoryMany(
+                transactionIds: waiting,
+                accountId: accountId,
+                categoryId: category.id,
+              );
+        return;
+      }
+      // Oldest first, so each paycheck takes its own payday's place.
+      paychecks = [
+        for (final id in waiting.reversed)
+          await db.takeAsPay(
+            transactionId: id,
+            accountId: accountId,
+            scheduleId: pay.id,
+            today: today,
+          ),
+      ];
+    }
+
+    try {
+      await write();
+    } catch (e) {
+      debugPrint('Always file failed: $e');
+      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.ledgerAlwaysFiled(
+        pay == null ? previous.length : paychecks.length,
+        payee,
+        label,
+      ),
+      undo: () async {
+        for (final p in paychecks.reversed) {
+          await db.undoTakeAsPay(p);
+        }
+        await db.restoreCategories(previous, accountId);
+        await db.setPreference(key, rulesBefore);
+      },
+      redo: write,
     );
   }
 
@@ -2387,8 +2607,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _startImport(
     LedgerData data,
     AccountInfo account,
-    int cleared,
-  ) async {
+    int cleared, {
+    bool starting = false,
+  }) async {
     final t = context.t;
     if (!_mayLeave()) return;
     _endReconcile();
@@ -2412,12 +2633,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
         'public.tab-separated-values-text',
       ],
     );
+    // No uniform type: macOS has none of its own for these, and the
+    // extension is enough for it to offer them.
+    final ofx = XTypeGroup(
+      label: t.importOfxFiles,
+      extensions: const ['ofx', 'qfx', 'qbo', 'OFX', 'QFX', 'QBO'],
+    );
     final XFile? picked;
     try {
       picked = await openFile(
-        acceptedTypeGroups: saved?.kind == FileKind.csv
-            ? [text, excel]
-            : [excel, text],
+        acceptedTypeGroups: switch (saved?.kind) {
+          FileKind.csv => [text, excel, ofx],
+          FileKind.ofx => [ofx, excel, text],
+          _ => [excel, text, ofx],
+        },
         confirmButtonText: t.ledgerChoose,
       );
     } catch (e) {
@@ -2436,7 +2665,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
           fileKindOf(bytes, picked.name) ??
           (throw const UnreadableFileException('unknown kind'));
       sheet = readSheet(bytes, picked.name);
-      fits = saved != null && saved.proven && mappingFits(sheet, saved);
+      fits =
+          saved != null &&
+          saved.current &&
+          saved.proven &&
+          mappingFits(sheet, saved);
       mapping = fits ? saved.mapping : guessMapping(sheet);
     } catch (e) {
       debugPrint('Import read failed: $e');
@@ -2463,6 +2696,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
           plan: (rows, keys) => db.planImport(account.id, rows, keys),
           cleared: cleared,
           owed: account.isOwed,
+          starting: starting,
+          today: today,
+          periodStart: starting
+              ? budgetPeriod(today, data.periodSchedule).start
+              : null,
         ),
       ),
     );
@@ -2474,6 +2712,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         accountId: account.id,
         plan: pick.plan,
         moveOpening: pick.moveOpening,
+        start: pick.start,
+        today: today,
         uncategorizedNames: {uncategorized, ...uncategorizedNames}.toList(),
       );
     } catch (e) {
@@ -3119,12 +3359,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               '1',
                               context.t.planStartKeep,
                             ),
-                            onShowUncategorized: () {
-                              final c = data.categories
-                                  .where(isUncategorized)
-                                  .firstOrNull;
-                              if (c != null) _openAll(category: c.id);
-                            },
                             onKeysBack: _keysBack,
                             onAskAgain: () => _setNoRegularPay(false),
                             onSave: _saveCategory,
@@ -3247,6 +3481,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   today: today,
                   onStart: (balance, date) =>
                       _startAccount(account, balance, date),
+                  onImport: account.isCash
+                      ? null
+                      : () => _startImport(data, account, 0, starting: true),
                 ),
               ),
             )
@@ -3326,6 +3563,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     ? null
                     : parseEntryDate(_reconcile!.date.text, today) ?? today,
                 filter: _filter,
+                uncategorizedId: _uncategorizedId(data),
+                uncategorizedFrom: budgetPeriod(
+                  today,
+                  data.periodSchedule,
+                ).start,
+                uncategorizedTo: budgetPeriod(today, data.periodSchedule).end,
                 search: _search.text,
                 selected: _selected,
                 selectedKey: _selectedKey,
@@ -3361,6 +3604,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onCancelEdit: _cancelEdit,
                   onUnreconcile: (_) => _unreconcile(account),
                   onMove: (r, to) => _move(r, account, to),
+                  pays: _payChoices(data, into: account.id),
+                  onSetPay: _setPay,
                 ),
               ),
             ),
@@ -4689,7 +4934,12 @@ class _PrimaryButton extends StatelessWidget {
 
 class _Toast extends StatelessWidget {
   const _Toast({required this.toast, required this.onClose});
-  final ({String message, VoidCallback? undo}) toast;
+  final ({
+    String message,
+    VoidCallback? undo,
+    ({String label, VoidCallback onTap})? more,
+  })
+  toast;
   final VoidCallback onClose;
 
   @override
@@ -4729,6 +4979,19 @@ class _Toast extends StatelessWidget {
                       onPressed: toast.undo,
                       child: Text(
                         context.t.ledgerUndo,
+                        style: onest(
+                          13.5,
+                          weight: 700,
+                          color: Mid.onAccent,
+                        ).copyWith(decoration: TextDecoration.underline),
+                      ),
+                    ),
+                  if (toast.more case final more?)
+                    TextButton(
+                      key: const ValueKey('toast-more'),
+                      onPressed: more.onTap,
+                      child: Text(
+                        more.label,
                         style: onest(
                           13.5,
                           weight: 700,

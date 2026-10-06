@@ -21,7 +21,12 @@ class EntryDraft {
     this.newCategory,
     this.account,
     this.otherAmount,
+    this.payId,
   });
+
+  /// The pay whose paycheck this is, when one was picked in Category
+  /// ("Income · Loveland Solutions"). [counter] is then Income.
+  final int? payId;
 
   /// A transfer to or from an account in another currency: what arrived in
   /// it or left it, in its currency, unsigned. Null otherwise.
@@ -206,7 +211,12 @@ class EntryRow extends StatefulWidget {
     this.accountName,
     this.accountChoices,
     this.currency = Currency.mnt,
+    this.pays = const [],
   });
+
+  /// Adding: each pay the new row could be a paycheck of, as Category
+  /// names it. In All accounts, only those paid into the account picked.
+  final List<({int id, int accountId, String label})> pays;
 
   /// The register's account's currency; All accounts uses the picked one's.
   final Currency currency;
@@ -307,6 +317,7 @@ class _EntryRowState extends State<EntryRow> {
   /// Every name the Category field knows, archived categories included: an
   /// old row filed under one keeps it when edited.
   List<({String label, AccountInfo account})> get _counterOptions => [
+    ..._payOptions,
     for (final c in widget.categories) (label: c.name, account: c),
     for (final a in widget.transferTargets)
       // Not a transfer to the account it's coming from.
@@ -354,9 +365,40 @@ class _EntryRowState extends State<EntryRow> {
   String? get _here =>
       _picking ? widget.controller.account?.name : widget.accountName;
 
-  /// What the list offers and a payee prefills: not archived categories.
-  Iterable<({String label, AccountInfo account})> get _listOptions =>
-      _counterOptions.where((o) => !o.account.archived);
+  /// A new row can be a pay's paycheck: each pay by its name, filed under
+  /// Income (owner, 2026-10-06). Not while editing.
+  List<({String label, AccountInfo account})> get _payOptions {
+    if (_editing) return const [];
+    final income = widget.categories.where((c) => c.isIncome).firstOrNull;
+    if (income == null) return const [];
+    return [
+      for (final p in widget.pays)
+        if (!_picking || p.accountId == widget.controller.account?.id)
+          (label: p.label, account: income),
+    ];
+  }
+
+  /// The pay named in Category, if one is.
+  int? get _payPicked {
+    final q = _category.text.trim().toLowerCase();
+    if (_payOptions.every((o) => o.label.toLowerCase() != q)) return null;
+    return widget.pays.where((p) => p.label.toLowerCase() == q).firstOrNull?.id;
+  }
+
+  /// What the list offers: not archived categories. With `+` typed before
+  /// the amount it's money in, and the income choices come first;
+  /// otherwise the spending categories do (owner, 2026-10-06).
+  Iterable<({String label, AccountInfo account})> get _listOptions {
+    final all = _counterOptions.where((o) => !o.account.archived);
+    final income = all.where((o) => o.account.isIncome);
+    final spending = all.where(
+      (o) => !o.account.isIncome && !o.account.isBalanceSheet,
+    );
+    final transfers = all.where((o) => o.account.isBalanceSheet);
+    return _amount.text.trim().startsWith('+')
+        ? [...income, ...spending, ...transfers]
+        : [...spending, ...income, ...transfers];
+  }
 
   /// The "+ New category" line was picked for exactly this text.
   String? _chosenNew;
@@ -609,7 +651,10 @@ class _EntryRowState extends State<EntryRow> {
   Future<bool> _prefillCategory() async {
     if (_category.text.isNotEmpty || _payee.text.trim().isEmpty) return false;
     final id = await widget.controller.suggestCategory(_payee.text.trim());
-    final match = _listOptions.where((o) => o.account.id == id).firstOrNull;
+    // The category itself, never a pay that's filed under it.
+    final match = _listOptions
+        .where((o) => o.account.id == id && o.label == o.account.name)
+        .firstOrNull;
     if (match == null || !mounted) return false;
     setState(() => _category.text = match.label);
     return true;
@@ -720,6 +765,7 @@ class _EntryRowState extends State<EntryRow> {
         memo: _memo.text,
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
         newCategory: counter == null ? _newCategory : null,
+        payId: _payPicked,
         account: _picking ? widget.controller.account : null,
         otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
       ),

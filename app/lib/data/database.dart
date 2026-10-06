@@ -412,6 +412,37 @@ class PayChange {
   final List<int> periodBefore;
 }
 
+/// What [AppDatabase.takeAsPay] did, for undo and redo: the row became a
+/// pay's paycheck, the payday it stands for went, and the next was
+/// scheduled.
+class PayTaken {
+  const PayTaken({
+    required this.transactionId,
+    required this.accountId,
+    required this.scheduleId,
+    required this.payBefore,
+    required this.categoryId,
+    required this.categoryBefore,
+    required this.removed,
+    required this.created,
+  });
+  final int transactionId;
+  final int accountId;
+  final int scheduleId;
+
+  /// The pay the row was tied to before, if any.
+  final int? payBefore;
+  final int categoryId;
+
+  /// The row's category before, by transaction (empty when it was Income).
+  final Map<int, int> categoryBefore;
+
+  /// The scheduled payday the row stands for, taken away, and what was
+  /// scheduled after it.
+  final List<int> removed;
+  final List<int> created;
+}
+
 /// What [AppDatabase.deleteCategory] did: the category, and which entries
 /// moved to [into], so undo can move them back.
 class DeletedCategory {
@@ -464,16 +495,21 @@ class ImportPlanRow {
     required this.key,
     required this.fate,
     this.match,
+    this.repeat = false,
   });
   final ImportRow row;
   final String key;
   final ImportFate fate;
 
+  /// A row imported before under another key (from the bank's other kind
+  /// of file) has this one's day and amount: it starts left out.
+  final bool repeat;
+
   /// Kept when the person turns the match off, so it can be turned back on.
   final TypedMatch? match;
 
   ImportPlanRow withFate(ImportFate f) =>
-      ImportPlanRow(row: row, key: key, fate: f, match: match);
+      ImportPlanRow(row: row, key: key, fate: f, match: match, repeat: repeat);
 }
 
 /// A typed row in the file's dates that no bank row matched.
@@ -587,8 +623,17 @@ class ImportRecord {
     this.madeCategory,
     this.uncategorizedCount = 0,
     this.openingMove,
+    this.openingId,
+    this.paid = const [],
   });
   final Map<int, String> added;
+
+  /// New rows a payee rule made a pay's paychecks ([AppDatabase.takeAsPay]).
+  final List<PayTaken> paid;
+
+  /// The opening balance made with the rows, when a new account was started
+  /// from its bank file.
+  final int? openingId;
 
   /// The opening balance moved before the file's rows, when it was.
   final OpeningMove? openingMove;
@@ -2974,6 +3019,105 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// A row that came in (imported or typed) is [scheduleId]'s paycheck
+  /// (owner, 2026-10-06: "you'd need to be able to assign income to a given
+  /// paycheck"). It's filed under Income and tied to the pay, so the Income
+  /// tab counts it as received; the payday it stands for, if that was still
+  /// waiting, goes, so the forecast doesn't expect it a second time; and
+  /// the next payday is scheduled.
+  Future<PayTaken> takeAsPay({
+    required int transactionId,
+    required int accountId,
+    required int scheduleId,
+    required DateTime today,
+  }) => transaction(() async {
+    final p = await _livePaySchedule(scheduleId);
+    if (p == null) throw StateError('pay gone');
+    final before = await setCategoryMany(
+      transactionIds: [transactionId],
+      accountId: accountId,
+      categoryId: p.categoryId,
+    );
+    final taken = await _takePayday(transactionId, accountId, p, today);
+    return PayTaken(
+      transactionId: transactionId,
+      accountId: accountId,
+      scheduleId: scheduleId,
+      payBefore: taken.payBefore,
+      categoryId: p.categoryId,
+      categoryBefore: before,
+      removed: taken.removed,
+      created: taken.created,
+    );
+  });
+
+  Future<({int? payBefore, List<int> removed, List<int> created})> _takePayday(
+    int transactionId,
+    int accountId,
+    PaySchedule p,
+    DateTime today,
+  ) async {
+    final txn = await (select(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).getSingle();
+    final mine =
+        await (select(entries)..where(
+              (e) =>
+                  e.transactionId.equals(transactionId) &
+                  e.accountId.equals(accountId),
+            ))
+            .getSingleOrNull();
+    await (update(transactions)..where((t) => t.id.equals(transactionId)))
+        .write(TransactionsCompanion(payScheduleId: Value(p.id)));
+    // The payday this paycheck is: early or late, the nearest planned one.
+    final planned = p.plannedFor(
+      parseDateKey(txn.date),
+      paid: mine?.amountMinor,
+    );
+    final removed =
+        await (selectOnly(transactions)
+              ..addColumns([transactions.id])
+              ..where(
+                transactions.payScheduleId.equals(p.id) &
+                    transactions.scheduled.equals(true) &
+                    transactions.deletedAt.isNull() &
+                    transactions.date.equals(dateKey(planned)),
+              ))
+            .map((r) => r.read(transactions.id)!)
+            .get();
+    await _dropPaydays(removed);
+    final created = await ensurePaydays(today, only: p.id);
+    return (payBefore: txn.payScheduleId, removed: removed, created: created);
+  }
+
+  Future<void> undoTakeAsPay(PayTaken r) => transaction(() async {
+    await _untakePayday(r);
+    await restoreCategories(r.categoryBefore, r.accountId);
+  });
+
+  Future<void> redoTakeAsPay(PayTaken r) => transaction(() async {
+    await setCategoryMany(
+      transactionIds: [r.transactionId],
+      accountId: r.accountId,
+      categoryId: r.categoryId,
+    );
+    await _retakePayday(r);
+  });
+
+  Future<void> _untakePayday(PayTaken r) async {
+    await _dropPaydays(r.created);
+    await _bringBackPaydays(r.removed, r.scheduleId);
+    await (update(transactions)..where((t) => t.id.equals(r.transactionId)))
+        .write(TransactionsCompanion(payScheduleId: Value(r.payBefore)));
+  }
+
+  Future<void> _retakePayday(PayTaken r) async {
+    await (update(transactions)..where((t) => t.id.equals(r.transactionId)))
+        .write(TransactionsCompanion(payScheduleId: Value(r.scheduleId)));
+    await _dropPaydays(r.removed);
+    await _bringBackPaydays(r.created, r.scheduleId);
+  }
+
   /// Undo for [dropPaydays]: back, and linked to [scheduleId] again.
   Future<void> bringBackPaydays(List<int> ids, int scheduleId) =>
       transaction(() => _bringBackPaydays(ids, scheduleId));
@@ -3557,9 +3701,13 @@ class AppDatabase extends _$AppDatabase {
   /// The preference a bank file's column mapping is kept under, per account.
   static String importMappingKey(int accountId) => 'import.mapping.$accountId';
 
+  /// The preference an account's payee rules are kept under ([PayeeRule]).
+  static String payeeRulesKey(int accountId) => 'import.rules.$accountId';
+
   /// What each row of a bank file would do: be added, mark a row the user
   /// typed as cleared (the same amount within a few days, on an entry not
-  /// imported before), or be skipped as already in the ledger by its key.
+  /// imported before), be skipped as already in the ledger by its key, or
+  /// start left out as a repeat of a row imported under another key.
   /// Deleted rows count as already in, so a row the user deleted stays
   /// deleted.
   Future<ImportPlan> planImport(
@@ -3607,6 +3755,60 @@ class AppDatabase extends _$AppDatabase {
       ],
       readsFrom: {entries, transactions, payees, accounts},
     ).get();
+    // Rows imported before that no key in this file claims, counted by day
+    // and amount: the bank's table and its OFX file key the same row two
+    // ways, so one brought in from each would be in twice. Deleted ones
+    // count, as they do by key. A table key holds the bank's own day, which
+    // a typed row it matched may not have taken.
+    // The files give a day and no time, so two rows of one day and amount
+    // are told apart by count (one imported row answers for one bank row)
+    // and, where the names agree, by name.
+    final mine = keys.toSet();
+    final others = <(String, int), List<String>>{};
+    final imported = await customSelect(
+      'SELECT e.import_key AS key, e.amount_minor AS amount, t.date AS date, '
+      'p.name AS payee '
+      'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'LEFT JOIN payees p ON p.id = t.payee_id '
+      'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
+      'AND t.date BETWEEN ? AND ?',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(
+          dateKey(from.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(to.add(const Duration(days: matchDaysAfter))),
+        ),
+      ],
+      readsFrom: {entries, transactions, payees},
+    ).get();
+    for (final e in imported) {
+      final key = e.read<String>('key');
+      if (mine.contains(key)) continue;
+      final day =
+          RegExp(r'^a\d+\|(\d{4}-\d{2}-\d{2})').firstMatch(key)?[1] ??
+          e.read<String>('date');
+      (others[(day, e.read<int>('amount'))] ??= []).add(
+        (e.read<String?>('payee') ?? '').trim().toLowerCase(),
+      );
+    }
+    // One bank cuts a name short in one file and not in the other.
+    bool sameName(String a, String b) =>
+        a.isNotEmpty && b.isNotEmpty && (a.startsWith(b) || b.startsWith(a));
+    final repeats = <int>{};
+    for (final byName in [true, false]) {
+      for (var i = 0; i < rows.length; i++) {
+        if (known.contains(keys[i]) || repeats.contains(i)) continue;
+        final left = others[(dateKey(dateOnly(rows[i].date)), rows[i].amount)];
+        if (left == null || left.isEmpty) continue;
+        final name = rows[i].payee.trim().toLowerCase();
+        final at = byName ? left.indexWhere((n) => sameName(n, name)) : 0;
+        if (at < 0) continue;
+        left.removeAt(at);
+        repeats.add(i);
+      }
+    }
     final used = <int>{};
     final plan = <ImportPlanRow>[];
     for (var i = 0; i < rows.length; i++) {
@@ -3616,6 +3818,17 @@ class AppDatabase extends _$AppDatabase {
         continue;
       }
       final bankDay = dateOnly(r.date);
+      if (repeats.contains(i)) {
+        plan.add(
+          ImportPlanRow(
+            row: r,
+            key: keys[i],
+            fate: ImportFate.leftOut,
+            repeat: true,
+          ),
+        );
+        continue;
+      }
       QueryRow? best;
       var bestGap = 1 << 30;
       for (final t in typed) {
@@ -3654,7 +3867,9 @@ class AppDatabase extends _$AppDatabase {
     }
 
     final opening = await _openingOf(accountId);
-    final fresh = plan.where((p) => p.fate != ImportFate.already).toList();
+    final fresh = plan
+        .where((p) => p.fate != ImportFate.already && !p.repeat)
+        .toList();
     if (fresh.isEmpty) return ImportPlan(rows: plan, opening: opening);
     var first = dateOnly(fresh.first.row.date);
     var last = first;
@@ -3750,14 +3965,25 @@ class AppDatabase extends _$AppDatabase {
   /// their payee here, else the holding category found by any of
   /// [uncategorizedNames] or made as the first. Matched rows take the bank's
   /// key, become cleared, and keep the bank's text as a memo if they had
-  /// none. Rows already in or left out are untouched.
+  /// none. Rows already in or left out are untouched. With [start], a new
+  /// account is being answered by its bank file: what it held before the
+  /// file's first row goes in as its opening balance, in the same write.
   Future<ImportRecord> applyImport({
     required int accountId,
     required List<ImportPlanRow> plan,
     required List<String> uncategorizedNames,
     ({DateTime date, int amount})? moveOpening,
+    ({DateTime date, int amount})? start,
+    DateTime? today,
   }) => transaction(() async {
     await _assertLive(accountId);
+    final openingId = start == null || start.amount == 0
+        ? null
+        : await postOpeningBalance(
+            accountId: accountId,
+            date: start.date,
+            balance: start.amount,
+          );
     final categories = {
       for (final a
           in await (select(accounts)..where(
@@ -3791,7 +4017,14 @@ class AppDatabase extends _$AppDatabase {
       return fallback = made = await createCategory(uncategorizedNames.first);
     }
 
+    final rules = PayeeRule.decode(
+      (await (select(preferences)
+                ..where((p) => p.key.equals(payeeRulesKey(accountId))))
+              .getSingleOrNull())
+          ?.value,
+    );
     final remembered = <String, int?>{};
+    final paid = <PayTaken>[];
     final added = <int, String>{};
     final matched = <MatchedImport>[];
     for (final p in plan) {
@@ -3800,9 +4033,13 @@ class AppDatabase extends _$AppDatabase {
           continue;
         case ImportFate.add:
           final payee = p.row.payee;
+          // What the person said always goes for this payee, else what
+          // it was filed under last.
           final last = remembered.containsKey(payee)
               ? remembered[payee]
-              : remembered[payee] = await lastCategoryFor(payee, accountId);
+              : remembered[payee] =
+                    PayeeRule.of(rules, payee)?.categoryId ??
+                    await lastCategoryFor(payee, accountId);
           final category = last != null && categories.contains(last)
               ? last
               : await uncategorized();
@@ -3824,6 +4061,28 @@ class AppDatabase extends _$AppDatabase {
             ],
           );
           added[id] = p.key;
+          // Money in from a payee the person said is a pay's paycheck.
+          final pay = PayeeRule.of(rules, payee)?.payId;
+          if (pay != null && today != null && p.row.amount > 0) {
+            final schedule = await _livePaySchedule(pay);
+            if (schedule != null &&
+                schedule.accountId == accountId &&
+                schedule.categoryId == category) {
+              final taken = await _takePayday(id, accountId, schedule, today);
+              paid.add(
+                PayTaken(
+                  transactionId: id,
+                  accountId: accountId,
+                  scheduleId: pay,
+                  payBefore: null,
+                  categoryId: category,
+                  categoryBefore: const {},
+                  removed: taken.removed,
+                  created: taken.created,
+                ),
+              );
+            }
+          }
         case ImportFate.match:
           final m = p.match!;
           final text = p.row.memo ?? p.row.payee;
@@ -3869,6 +4128,8 @@ class AppDatabase extends _$AppDatabase {
       madeCategory: made,
       uncategorizedCount: holding,
       openingMove: openingMove,
+      openingId: openingId,
+      paid: paid,
     );
     await _keyAdded(accountId, record);
     await _applyMatches(record);
@@ -3917,6 +4178,9 @@ class AppDatabase extends _$AppDatabase {
   /// bank, and go back to uncleared; a category it made goes if nothing else
   /// uses it.
   Future<void> undoImport(ImportRecord r) => transaction(() async {
+    for (final p in r.paid.reversed) {
+      await _untakePayday(p);
+    }
     final ids = r.added.keys.toList();
     final gone = await softDeleteMany(ids);
     if (gone.length != ids.length) throw LockedException(DbProblem.reconciled);
@@ -3950,6 +4214,11 @@ class AppDatabase extends _$AppDatabase {
     if (r.openingMove case final o?) {
       await _setOpening(o.transactionId, o.fromDate, o.fromAmount);
     }
+    if (r.openingId case final o?) {
+      if ((await softDeleteMany([o])).length != 1) {
+        throw LockedException(DbProblem.reconciled);
+      }
+    }
     if (r.madeCategory case final c?) await deleteEmptyAccount(c);
   });
 
@@ -3958,11 +4227,14 @@ class AppDatabase extends _$AppDatabase {
         if (r.madeCategory case final c?) {
           await undeleteAccount(DeletedAccount(c, const []));
         }
-        await restoreMany(r.added.keys);
+        await restoreMany([...r.added.keys, ?r.openingId]);
         await _keyAdded(accountId, r);
         await _applyMatches(r);
         if (r.openingMove case final o?) {
           await _setOpening(o.transactionId, o.toDate, o.toAmount);
+        }
+        for (final p in r.paid) {
+          await _retakePayday(p);
         }
       });
 

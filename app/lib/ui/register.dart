@@ -9,7 +9,16 @@ import 'entry_row.dart';
 import 'language.dart';
 import 'theme.dart';
 
-enum RegisterFilter { all, uncleared, cleared, reconciled, scheduled }
+enum RegisterFilter {
+  all,
+  uncleared,
+  cleared,
+  reconciled,
+  scheduled,
+
+  /// Rows waiting in "Not categorized".
+  uncategorized,
+}
 
 /// Column layout shared by the header, entry row and every register row.
 abstract final class Cols {
@@ -38,7 +47,15 @@ class RegisterActions {
     required this.onCancelEdit,
     required this.onUnreconcile,
     required this.onMove,
+    this.pays = const [],
+    this.onSetPay,
   });
+
+  /// Each pay set up, by the name the dropdown says it under ("Income ·
+  /// Loveland Solutions"), and the account it's paid into. Picking one on
+  /// a row of money in makes the row that pay's paycheck.
+  final List<({int id, int accountId, String label})> pays;
+  final void Function(RegisterRow row, int payId)? onSetPay;
 
   final ValueChanged<RegisterFilter> onFilter;
 
@@ -59,6 +76,31 @@ class RegisterActions {
   /// Moves the row's side to another account (entered in the wrong one).
   final void Function(RegisterRow row, AccountInfo account) onMove;
 }
+
+/// The dropdown's categories in the order that suits [r] (owner,
+/// 2026-10-06): for money in, Income first; for money out, the spending
+/// categories first.
+List<AccountInfo> categoriesFor(RegisterRow r, List<AccountInfo> all) {
+  final income = all.where((c) => c.isIncome);
+  final spending = all.where((c) => !c.isIncome);
+  return r.amount > 0 ? [...income, ...spending] : [...spending, ...income];
+}
+
+/// The pays [r] could be a paycheck of: money in, into the pay's account.
+List<({int id, int accountId, String label})> paysFor(
+  RegisterRow r,
+  RegisterActions actions,
+) => r.amount > 0 && actions.onSetPay != null
+    ? [
+        for (final p in actions.pays)
+          if (p.accountId == r.accountId) p,
+      ]
+    : const [];
+
+/// What a row's category chip says: its pay's name when it's a paycheck.
+String categoryShown(RegisterRow r, RegisterActions actions) =>
+    actions.pays.where((p) => p.id == r.payScheduleId).firstOrNull?.label ??
+    r.categoryLabel;
 
 /// The transaction open for editing, if any.
 typedef RegisterEditing = ({
@@ -95,7 +137,19 @@ class RegisterPanel extends StatelessWidget {
     this.reconcileThrough,
     this.owed = false,
     this.accountName,
+    this.uncategorizedId,
+    this.uncategorizedFrom,
+    this.uncategorizedTo,
   });
+
+  /// The "Not categorized" category, if the ledger has one: its rows get a
+  /// tab of their own while there are any (owner, 2026-10-06: they're said
+  /// here, where they're fixed, not on the Budget page).
+  final int? uncategorizedId;
+
+  /// The budget period today is in: the tab holds the rows waiting within
+  /// it (owner, 2026-10-06). Older ones change nothing the budget shows.
+  final DateTime? uncategorizedFrom, uncategorizedTo;
 
   /// The account shown, so a transfer being entered can say which way it goes.
   final String? accountName;
@@ -169,6 +223,17 @@ class RegisterPanel extends StatelessWidget {
     final uncleared = posted
         .where((r) => r.cleared == Cleared.uncleared)
         .length;
+    bool waiting(RegisterRow r) =>
+        uncategorizedId != null &&
+        r.categoryId == uncategorizedId &&
+        !(uncategorizedFrom?.isAfter(r.date) ?? false) &&
+        !(uncategorizedTo?.isBefore(r.date) ?? false);
+    final uncategorized = posted.where(waiting).length;
+    // The last one categorized: the tab goes, and so does its filter.
+    final filter =
+        this.filter == RegisterFilter.uncategorized && uncategorized == 0
+        ? RegisterFilter.all
+        : this.filter;
     final status = switch (filter) {
       RegisterFilter.uncleared => Cleared.uncleared,
       RegisterFilter.cleared => Cleared.cleared,
@@ -179,7 +244,8 @@ class RegisterPanel extends StatelessWidget {
     final visiblePosted = posted.reversed
         .where(
           (r) => through == null
-              ? status == null || r.cleared == status
+              ? (status == null || r.cleared == status) &&
+                    (filter != RegisterFilter.uncategorized || waiting(r))
               : r.cleared != Cleared.reconciled && !r.date.isAfter(through),
         )
         .where((r) => _matches(t, r))
@@ -312,8 +378,11 @@ class RegisterPanel extends StatelessWidget {
                   bar: bar(r),
                   onTap: (field) => tap(r.txnId, field),
                   onToggleCleared: () => actions.onToggleCleared(r),
-                  categories: categories,
+                  categories: categoriesFor(r, categories),
                   onSetCategory: (c) => actions.onSetCategory(r, c),
+                  pays: paysFor(r, actions),
+                  onSetPay: (id) => actions.onSetPay?.call(r, id),
+                  categoryShown: categoryShown(r, actions),
                   hoveredStatus: hoveredStatus,
                 ),
           ),
@@ -347,6 +416,7 @@ class RegisterPanel extends StatelessWidget {
                             filter: filter,
                             uncleared: uncleared,
                             scheduled: scheduled.length,
+                            uncategorized: uncategorized,
                             onFilter: actions.onFilter,
                           ),
                   ),
@@ -381,6 +451,7 @@ class RegisterPanel extends StatelessWidget {
                     accountChoices: allAccounts == null
                         ? null
                         : transferTargets,
+                    pays: actions.onSetPay == null ? const [] : actions.pays,
                     onCancel: onCloseEntry,
                   )
                 : const SizedBox(width: double.infinity),
@@ -409,12 +480,14 @@ class _Tabs extends StatelessWidget {
     required this.filter,
     required this.uncleared,
     required this.scheduled,
+    required this.uncategorized,
     required this.onFilter,
   });
 
   final RegisterFilter filter;
   final int uncleared;
   final int scheduled;
+  final int uncategorized;
   final ValueChanged<RegisterFilter> onFilter;
 
   @override
@@ -445,6 +518,15 @@ class _Tabs extends StatelessWidget {
           filter == RegisterFilter.scheduled,
           () => onFilter(RegisterFilter.scheduled),
         ),
+        // Only while rows wait there: nothing to say otherwise.
+        if (uncategorized > 0)
+          _Tab(
+            key: const ValueKey('tab-uncategorized'),
+            t.rowsTabUncategorized,
+            uncategorized,
+            filter == RegisterFilter.uncategorized,
+            () => onFilter(RegisterFilter.uncategorized),
+          ),
         // Cleared and reconciled are reached from the header's key; show the
         // tab only while it's the active filter, with a way back out.
         if (statusTab != null)
@@ -466,6 +548,7 @@ class _Tab extends StatelessWidget {
     this.count,
     this.active,
     this.onTap, {
+    super.key,
     this.closable = false,
   });
   final String label;
@@ -539,8 +622,13 @@ class _RowActions extends StatelessWidget {
     );
     final categorize = r.kind == RowKind.simple
         ? CategoryMenu(
-            categories: categories,
+            categories: categoriesFor(r, categories),
             onPicked: (c) => actions.onSetCategory(r, c),
+            leading: [
+              for (final p in paysFor(r, actions))
+                (label: p.label, onTap: () => actions.onSetPay!(r, p.id)),
+            ],
+            current: categoryShown(r, actions),
             builder: (open, toggle) => BarButton(
               label: t.rowsCategorize,
               trailing: Icons.keyboard_arrow_down_rounded,
@@ -789,8 +877,18 @@ class _PostedRow extends StatelessWidget {
     required this.onToggleCleared,
     required this.categories,
     required this.onSetCategory,
+    this.pays = const [],
+    this.onSetPay,
+    this.categoryShown,
     required this.hoveredStatus,
   });
+
+  /// The pays this row could be a paycheck of, first in the dropdown.
+  final List<({int id, int accountId, String label})> pays;
+  final ValueChanged<int>? onSetPay;
+
+  /// The chip's words when they aren't the category's own (a paycheck).
+  final String? categoryShown;
 
   final RegisterRow row;
   final DateTime today;
@@ -1016,10 +1114,17 @@ class _PostedRow extends StatelessWidget {
                           child: r.kind == RowKind.simple
                               ? CategoryMenu(
                                   categories: categories,
-                                  current: r.categoryLabel,
+                                  current: categoryShown ?? r.categoryLabel,
                                   onPicked: onSetCategory,
+                                  leading: [
+                                    for (final p in pays)
+                                      (
+                                        label: p.label,
+                                        onTap: () => onSetPay?.call(p.id),
+                                      ),
+                                  ],
                                   builder: (open, toggle) => _CategoryChip(
-                                    label: r.categoryLabel,
+                                    label: categoryShown ?? r.categoryLabel,
                                     open: open,
                                     onTap: toggle,
                                   ),
@@ -1369,7 +1474,11 @@ class CategoryMenu extends StatelessWidget {
     required this.onPicked,
     required this.builder,
     this.current,
+    this.leading = const [],
   });
+
+  /// Choices that aren't categories, listed first (a pay, by its name).
+  final List<({String label, VoidCallback onTap})> leading;
 
   final List<AccountInfo> categories;
   final ValueChanged<AccountInfo> onPicked;
@@ -1391,6 +1500,21 @@ class CategoryMenu extends StatelessWidget {
       ),
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
+        for (final l in leading)
+          MenuItemButton(
+            onPressed: l.onTap,
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+            ),
+            trailingIcon: l.label == current
+                ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                : null,
+            child: Text(
+              l.label,
+              style: onest(13, color: l.label == current ? Mid.ink : Mid.ink2),
+            ),
+          ),
         for (final c in categories.where((c) => !c.archived))
           MenuItemButton(
             onPressed: () => onPicked(c),

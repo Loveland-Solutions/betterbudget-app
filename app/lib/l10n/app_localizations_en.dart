@@ -1811,6 +1811,41 @@ class WordsEn extends Words {
   String get rowsTabScheduled => 'Scheduled';
 
   @override
+  String ledgerAlwaysFile(int count, Object payee, Object category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Always file $payee under $category · $count more rows waiting',
+      one: 'Always file $payee under $category · 1 more row waiting',
+      zero: 'Always file $payee under $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerAlwaysFiled(int count, Object payee, Object category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$payee will be filed under $category · $count rows moved',
+      one: '$payee will be filed under $category · 1 row moved',
+      zero: '$payee will be filed under $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rowsIncomeFrom(Object pay) {
+    return 'Income · $pay';
+  }
+
+  @override
+  String get rowsIncomePaycheck => 'Income · paycheck';
+
+  @override
+  String get rowsTabUncategorized => 'Not categorized';
+
+  @override
   String get rowsEdit => 'Edit';
 
   @override
@@ -2233,6 +2268,9 @@ class WordsEn extends Words {
   String setupStartBankHint(Object zero) {
     return 'From the bank app, a statement or what you count, not the “available” balance · empty starts at $zero';
   }
+
+  @override
+  String get setupStartImport => 'Or import a file from your bank';
 
   @override
   String get setupStartAccount => 'Start account';
@@ -2978,8 +3016,11 @@ class WordsEn extends Words {
   String get importTextFiles => 'Text files (CSV)';
 
   @override
+  String get importOfxFiles => 'Bank downloads (OFX, QFX, QBO)';
+
+  @override
   String importCouldntRead(Object file) {
-    return 'Couldn’t read $file. BetterBudget reads Excel (.xls, .xlsx) and CSV files.';
+    return 'Couldn’t read $file. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.';
   }
 
   @override
@@ -3098,6 +3139,88 @@ class WordsEn extends Words {
   @override
   String importClearedDiffers(Object ours, Object bank, Object diff) {
     return 'After this, the cleared balance is $ours; the bank’s file ends at $bank, $diff apart. Rows from before this file, or ones not cleared, can make the difference.';
+  }
+
+  @override
+  String importClearedMatchesOn(Object amount, Object date) {
+    return 'After this, the cleared balance matches the bank’s on $date: $amount.';
+  }
+
+  @override
+  String importClearedDiffersOn(
+    Object ours,
+    Object bank,
+    Object date,
+    Object diff,
+  ) {
+    return 'After this, the cleared balance is $ours; the bank’s was $bank on $date, $diff apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.';
+  }
+
+  @override
+  String get importFateRepeat => 'Already in · same day and amount';
+
+  @override
+  String importRepeats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count rows have the day and amount of rows already imported from another kind of file, so they’re left out. Click a row’s tag to bring it in.',
+      one: '1 row has the day and amount of a row already imported from another kind of file, so it’s left out. Click its tag to bring it in.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importStartsEnds(Object start, Object from, Object end, Object to) {
+    return 'This file starts at $start on $from and ends at $end on $to. The account starts from it.';
+  }
+
+  @override
+  String importStartsEndsOwed(
+    Object start,
+    Object from,
+    Object end,
+    Object to,
+  ) {
+    return 'This file starts with $start owed on $from and ends with $end owed on $to. The account starts from it.';
+  }
+
+  @override
+  String get importStartFrom => 'Start from';
+
+  @override
+  String get importWholeFile => 'The whole file';
+
+  @override
+  String importEarlierLeftOut(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count earlier rows in this file are left out',
+      one: '1 earlier row in this file is left out',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importStartsOn(Object from, Object start, Object end, Object to) {
+    return 'The account starts on $from at $start. The file ends at $end on $to.';
+  }
+
+  @override
+  String importStartsOnOwed(Object from, Object start, Object end, Object to) {
+    return 'The account starts on $from with $start owed. The file ends with $end owed on $to.';
+  }
+
+  @override
+  String importNoBalance(Object question) {
+    return 'This file doesn’t give a balance. $question';
+  }
+
+  @override
+  String importNoBalanceHint(Object zero) {
+    return 'Empty starts the account at $zero before the file’s first row';
   }
 
   @override
@@ -3946,28 +4069,6 @@ class WordsEn extends Words {
 
   @override
   String get planKeyOver => 'Assigned too much';
-
-  @override
-  String planUncategorizedRows(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count rows not categorized · show them',
-      one: '1 row not categorized · show them',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String planUncategorizedMoney(int count, String amount) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$amount in $count rows not categorized · show them',
-      one: '$amount in 1 row not categorized · show them',
-    );
-    return '$_temp0';
-  }
 
   @override
   String planFilled(int count, String amount) {

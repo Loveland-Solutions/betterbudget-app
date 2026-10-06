@@ -1728,6 +1728,40 @@ class WordsMn extends Words {
   String get rowsTabScheduled => 'Товлосон';
 
   @override
+  String ledgerAlwaysFile(int count, Object payee, Object category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Үргэлж ингэж ангилах: $payee → $category · өөр $count мөр хүлээж байна',
+      zero: 'Үргэлж ингэж ангилах: $payee → $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerAlwaysFiled(int count, Object payee, Object category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Цаашид: $payee → $category · $count мөр шилжлээ',
+      zero: 'Цаашид: $payee → $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rowsIncomeFrom(Object pay) {
+    return 'Орлого · $pay';
+  }
+
+  @override
+  String get rowsIncomePaycheck => 'Орлого · цалин';
+
+  @override
+  String get rowsTabUncategorized => 'Ангилаагүй';
+
+  @override
   String get rowsEdit => 'Засах';
 
   @override
@@ -2153,6 +2187,9 @@ class WordsMn extends Words {
   String setupStartBankHint(Object zero) {
     return 'Банкны апп, хуулга эсвэл тоолсон бэлэн мөнгөнөөс; “Боломжит үлдэгдэл” биш · хоосон бол $zero-ээс эхэлнэ';
   }
+
+  @override
+  String get setupStartImport => 'Эсвэл банкнаасаа татсан файлаа оруулах';
 
   @override
   String get setupStartAccount => 'Данс эхлүүлэх';
@@ -2893,8 +2930,11 @@ class WordsMn extends Words {
   String get importTextFiles => 'Текст файл (CSV)';
 
   @override
+  String get importOfxFiles => 'Банкны татсан файл (OFX, QFX, QBO)';
+
+  @override
   String importCouldntRead(Object file) {
-    return '$file файлыг уншиж чадсангүй. BetterBudget нь Excel (.xls, .xlsx) болон CSV файл уншдаг.';
+    return '$file файлыг уншиж чадсангүй. BetterBudget нь Excel (.xls, .xlsx), CSV болон OFX файл уншдаг.';
   }
 
   @override
@@ -3001,6 +3041,87 @@ class WordsMn extends Words {
   @override
   String importClearedDiffers(Object ours, Object bank, Object diff) {
     return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна: $diff зөрүүтэй. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+  }
+
+  @override
+  String importClearedMatchesOn(Object amount, Object date) {
+    return 'Үүний дараа баталгаажсан үлдэгдэл банкны үлдэгдэлтэй ($date) таарна: $amount.';
+  }
+
+  @override
+  String importClearedDiffersOn(
+    Object ours,
+    Object bank,
+    Object date,
+    Object diff,
+  ) {
+    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан: $diff зөрүүтэй. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+  }
+
+  @override
+  String get importFateRepeat => 'Аль хэдийн бий · өдөр, дүн ижил';
+
+  @override
+  String importRepeats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count мөрийн өдөр, дүн нь өөр төрлийн файлаас өмнө оруулсан мөрүүдтэй ижил тул орхилоо. Оруулах бол мөрийн тэмдэглэгээг дарна уу.',
+      one: '1 мөрийн өдөр, дүн нь өөр төрлийн файлаас өмнө оруулсан мөртэй ижил тул орхилоо. Оруулах бол тэмдэглэгээг нь дарна уу.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importStartsEnds(Object start, Object from, Object end, Object to) {
+    return 'Энэ файл $start-аар эхэлж ($from), $end-аар дуусна ($to). Данс үүнээс эхэлнэ.';
+  }
+
+  @override
+  String importStartsEndsOwed(
+    Object start,
+    Object from,
+    Object end,
+    Object to,
+  ) {
+    return 'Энэ файл $start өртэй эхэлж ($from), $end өртэй дуусна ($to). Данс үүнээс эхэлнэ.';
+  }
+
+  @override
+  String get importStartFrom => 'Эхлэх өдөр';
+
+  @override
+  String get importWholeFile => 'Файлыг бүхэлд нь';
+
+  @override
+  String importEarlierLeftOut(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Энэ файлын өмнөх $count мөрийг орхино',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importStartsOn(Object from, Object start, Object end, Object to) {
+    return 'Данс $start-аар эхэлнэ ($from). Файл $end-аар дуусна ($to).';
+  }
+
+  @override
+  String importStartsOnOwed(Object from, Object start, Object end, Object to) {
+    return 'Данс $start өртэй эхэлнэ ($from). Файл $end өртэй дуусна ($to).';
+  }
+
+  @override
+  String importNoBalance(Object question) {
+    return 'Энэ файлд үлдэгдэл алга. $question';
+  }
+
+  @override
+  String importNoBalanceHint(Object zero) {
+    return 'Хоосон орхивол данс файлын эхний мөрөөс өмнө $zero-оос эхэлнэ';
   }
 
   @override
@@ -3786,28 +3907,6 @@ class WordsMn extends Words {
 
   @override
   String get planKeyOver => 'Илүү хуваарилсан';
-
-  @override
-  String planUncategorizedRows(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count ангилаагүй мөр · харуулах',
-      one: '1 ангилаагүй мөр · харуулах',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String planUncategorizedMoney(int count, String amount) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count ангилаагүй мөр, $amount · харуулах',
-      one: '1 ангилаагүй мөр, $amount · харуулах',
-    );
-    return '$_temp0';
-  }
 
   @override
   String planFilled(int count, String amount) {

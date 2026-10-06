@@ -3,6 +3,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/forecast.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/import/mapping.dart';
 import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1939,6 +1940,97 @@ void main() {
   });
 
   group('pay', () {
+    test('money that came in is made a pay\'s paycheck: Income, counted for '
+        'that pay, its payday no longer expected; undo, redo; and by a payee '
+        'rule on import', () async {
+      await db.savePaySchedule(
+        accountId: checking,
+        amount: 210000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        name: 'Loveland Solutions',
+        today: today,
+      );
+      final pay = (await db.loadLedger()).paySchedules.single;
+      final waiting = await db.createCategory('Not categorized');
+      // It arrived a day early, and came in through the bank's file.
+      final id = await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 15),
+        today: today,
+        payee: 'LOVESOL PAY 0915',
+        counterAccountId: waiting,
+        amount: 205000000,
+      );
+      Future<List<DateTime>> coming() async => [
+        for (final r in (await db.loadLedger()).registerFor(checking).scheduled)
+          if (r.payScheduleId == pay.id) r.date,
+      ];
+      Future<RegisterRow> row() async => (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == id);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+
+      final taken = await db.takeAsPay(
+        transactionId: id,
+        accountId: checking,
+        scheduleId: pay.id,
+        today: today,
+      );
+      expect((await row()).categoryLabel, 'Income');
+      expect((await row()).payScheduleId, pay.id);
+      // 09.25 has come; the next is 10.23 (10.25 is a Sunday).
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+
+      await db.undoTakeAsPay(taken);
+      expect((await row()).categoryLabel, 'Not categorized');
+      expect((await row()).payScheduleId, isNull);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await db.redoTakeAsPay(taken);
+      expect((await row()).payScheduleId, pay.id);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await db.undoTakeAsPay(taken);
+
+      // "Always file LoveSol under Income · Loveland Solutions": the next
+      // file's paycheck is the pay's without being asked.
+      await db.softDelete(id);
+      await db.setPreference(
+        AppDatabase.payeeRulesKey(checking),
+        PayeeRule.encode([PayeeRule('lovesol', pay.categoryId, payId: pay.id)]),
+      );
+      final rows = [
+        ImportRow(
+          sourceRow: 1,
+          date: DateTime(2026, 9, 14),
+          amount: 206000000,
+          payee: 'LoveSol pay 0914',
+        ),
+        ImportRow(
+          sourceRow: 2,
+          date: DateTime(2026, 9, 14),
+          amount: -4000,
+          payee: 'LoveSol canteen',
+        ),
+      ];
+      final record = await db.applyImport(
+        accountId: checking,
+        plan: (await db.planImport(
+          checking,
+          rows,
+          importKeys(checking, rows),
+        )).rows,
+        uncategorizedNames: ['Not categorized'],
+        today: today,
+      );
+      expect(record.paid, hasLength(1)); // money out is never a paycheck
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await db.undoImport(record);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await db.redoImport(record, checking);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+    });
+
     test('a schedule keeps its next payday scheduled; undo and redo', () async {
       final change = await db.savePaySchedule(
         accountId: checking,

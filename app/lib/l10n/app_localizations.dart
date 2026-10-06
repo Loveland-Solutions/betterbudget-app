@@ -2549,6 +2549,36 @@ abstract class Words {
   /// **'Scheduled'**
   String get rowsTabScheduled;
 
+  /// Button in the popup at the bottom after a row's category is picked from the dropdown: remember it for this payee, and move the payee's other rows still in Not categorized. category may be Income.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Always file {payee} under {category}} =1{Always file {payee} under {category} · 1 more row waiting} other{Always file {payee} under {category} · {count} more rows waiting}}'**
+  String ledgerAlwaysFile(int count, Object payee, Object category);
+
+  /// Popup at the bottom, and the undo label, after Always file is clicked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{{payee} will be filed under {category}} =1{{payee} will be filed under {category} · 1 row moved} other{{payee} will be filed under {category} · {count} rows moved}}'**
+  String ledgerAlwaysFiled(int count, Object payee, Object category);
+
+  /// A row's category dropdown and chip: income that is one pay's paycheck. pay is the name the person gave the pay (Loveland Solutions).
+  ///
+  /// In en, this message translates to:
+  /// **'Income · {pay}'**
+  String rowsIncomeFrom(Object pay);
+
+  /// A row's category dropdown and chip: income that is the paycheck of the one pay set up, when it has no name.
+  ///
+  /// In en, this message translates to:
+  /// **'Income · paycheck'**
+  String get rowsIncomePaycheck;
+
+  /// Register filter tab, shown only while rows wait in the Not categorized category (imported rows the app couldn’t match to a category): click shows just those rows. A count follows in brackets. Same words as the category’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'Not categorized'**
+  String get rowsTabUncategorized;
+
   /// Button in the action bar under a selected transaction
   ///
   /// In en, this message translates to:
@@ -3190,6 +3220,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'From the bank app, a statement or what you count, not the “available” balance · empty starts at {zero}'**
   String setupStartBankHint(Object zero);
+
+  /// New account, beside Start account: answer the balance question with the bank's file instead of typing. Opens the Mac's open dialog, then the import window.
+  ///
+  /// In en, this message translates to:
+  /// **'Or import a file from your bank'**
+  String get setupStartImport;
 
   /// First screen of a new account, main button.
   ///
@@ -4249,10 +4285,16 @@ abstract class Words {
   /// **'Text files (CSV)'**
   String get importTextFiles;
 
+  /// Open dialog: name of the file type group for .ofx, .qfx and .qbo, the download banks label Quicken or Microsoft Money.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank downloads (OFX, QFX, QBO)'**
+  String get importOfxFiles;
+
   /// Toast when a picked file can't be read.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx) and CSV files.'**
+  /// **'Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.'**
   String importCouldntRead(Object file);
 
   /// Toast when a file has nothing that looks like a transaction.
@@ -4416,6 +4458,89 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'After this, the cleared balance is {ours}; the bank’s file ends at {bank}, {diff} apart. Rows from before this file, or ones not cleared, can make the difference.'**
   String importClearedDiffers(Object ours, Object bank, Object diff);
+
+  /// Import window, an OFX file: the account's cleared balance after importing equals the one balance the file gives. date in words.
+  ///
+  /// In en, this message translates to:
+  /// **'After this, the cleared balance matches the bank’s on {date}: {amount}.'**
+  String importClearedMatchesOn(Object amount, Object date);
+
+  /// Import window, an OFX file: the account's cleared balance after importing differs from the one balance the file gives. date in words.
+  ///
+  /// In en, this message translates to:
+  /// **'After this, the cleared balance is {ours}; the bank’s was {bank} on {date}, {diff} apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.'**
+  String importClearedDiffersOn(
+    Object ours,
+    Object bank,
+    Object date,
+    Object diff,
+  );
+
+  /// Import window, preview row tag: a row imported before from the bank's other kind of file has this row's day and amount, so it starts left out. Clicking it brings the row in.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in · same day and amount'**
+  String get importFateRepeat;
+
+  /// Import window note: rows that repeat ones imported earlier under another key (the bank's table once, its OFX file the next time).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row has the day and amount of a row already imported from another kind of file, so it’s left out. Click its tag to bring it in.} other{{count} rows have the day and amount of rows already imported from another kind of file, so they’re left out. Click a row’s tag to bring it in.}}'**
+  String importRepeats(int count);
+
+  /// Import window for a new account: the balance before the file's first row and after its last, which the account's opening balance is made from. from/to in words.
+  ///
+  /// In en, this message translates to:
+  /// **'This file starts at {start} on {from} and ends at {end} on {to}. The account starts from it.'**
+  String importStartsEnds(Object start, Object from, Object end, Object to);
+
+  /// Import window for a new credit card or loan: what was owed before the file's first row and after its last. from/to in words.
+  ///
+  /// In en, this message translates to:
+  /// **'This file starts with {start} owed on {from} and ends with {end} owed on {to}. The account starts from it.'**
+  String importStartsEndsOwed(Object start, Object from, Object end, Object to);
+
+  /// Import window for a new account: label before the date the file's rows come in from.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from'**
+  String get importStartFrom;
+
+  /// Import window for a new account: button beside the Start from date that sets it back to the file's first row.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole file'**
+  String get importWholeFile;
+
+  /// Import window for a new account, beside the Start from date: rows dated before it don't come in.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 earlier row in this file is left out} other{{count} earlier rows in this file are left out}}'**
+  String importEarlierLeftOut(int count);
+
+  /// Import window for a new account started partway into its file: the balance worked out for the start day, and the file's last balance. from/to in words.
+  ///
+  /// In en, this message translates to:
+  /// **'The account starts on {from} at {start}. The file ends at {end} on {to}.'**
+  String importStartsOn(Object from, Object start, Object end, Object to);
+
+  /// Import window for a new credit card or loan started partway into its file. from/to in words.
+  ///
+  /// In en, this message translates to:
+  /// **'The account starts on {from} with {start} owed. The file ends with {end} owed on {to}.'**
+  String importStartsOnOwed(Object from, Object start, Object end, Object to);
+
+  /// Import window for a new account whose file has no balance in it; question is the new account's own question (What's in this account today? / What do you owe on it today?), a whole sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'This file doesn’t give a balance. {question}'**
+  String importNoBalance(Object question);
+
+  /// Import window for a new account, beside the amount field shown when the file has no balance.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty starts the account at {zero} before the file’s first row'**
+  String importNoBalanceHint(Object zero);
 
   /// Import window, preview row tag: this row will be added.
   ///
@@ -5681,18 +5806,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Assigned too much'**
   String get planKeyOver;
-
-  /// Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized that add up to nothing. Click opens them.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 row not categorized · show them} other{{count} rows not categorized · show them}}'**
-  String planUncategorizedRows(int count);
-
-  /// Budget page, the key card, gold link on the Cash & bank row: imported rows waiting in Not categorized, with what they add up to (money out negative, money in with a plus). Click opens them.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{{amount} in 1 row not categorized · show them} other{{amount} in {count} rows not categorized · show them}}'**
-  String planUncategorizedMoney(int count, String amount);
 
   /// Toast and undo history label after Assign what's planned
   ///

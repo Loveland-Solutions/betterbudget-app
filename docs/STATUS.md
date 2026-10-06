@@ -12,6 +12,42 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
+**PR #42, branch `uncategorized-on-ledger` (2026-10-06, version 0.12.0, no schema change): import reads OFX, a new account can start from its bank file, and income is assigned to a paycheck.**
+The owner's US credit union download (`.ofx`; `.qfx` and `.qbo` are the same thing) was
+greyed out in the open dialog and, renamed `.txt`, "has no rows with a date in them".
+It now opens on its rows like any bank file: Date, Amount, Name, Memo, the bank's own id
+as the key so a later overlapping download brings nothing twice (ADR 0002 "OFX").
+**All four of AFCU's downloads read the same** (CSV, `.xls`, `.qfx`, `.qbo`; ADR 0002
+"A credit union's four downloads"): cents written `.37` are an amount (the CSV lost 91
+rows and failed its balance check), Description is the payee (it
+was the memo, and every row was paid to "FOOD"), and an empty named column
+no longer shifts the names after it. **The owner's three calls, built** (ADR 0002 "The
+owner's calls", ADR 0004 "Import"): the bank's own category is left out; an OFX file's
+one balance shows with its day against the cleared balance; rows already imported from
+the bank's other kind of file are caught by day and amount ("Already in · same day and
+amount", a click brings one in). A column choice saved before 0.12 is guessed again
+once. Rows the owner already imported keep the memo they came in with.
+**A new account can be answered by its bank file** (owner's pick, A of three; ADR 0004
+"Import"): "Or import a file from your bank" beside Start account; the window says where
+the file starts and ends, and Import makes the opening balance (the day before the
+first row) and the rows in one undo; a file with no balance asks for today's in the
+window. A **Start from** date, first set to the current budget period, leaves the
+earlier rows out and takes the file's balance for that day; "The whole file" brings them
+back.
+**The Not categorized tab holds only the current budget period's rows** (owner's call).
+**"Always file LoveSol under Income"** is offered in the popup after a category is
+picked from a row's dropdown; it moves that payee's waiting rows and the next import
+follows it, names matched by how they start (ADR 0004 "Import"). **Each pay is in a
+row's category dropdown by its name** ("Income · Loveland Solutions"), first on money
+in; picking it makes the row that pay's paycheck (`takeAsPay`: Income, counted as
+received, its payday no longer expected, the next scheduled), and the Always-file offer
+carries the pay to the next import. **A new row can be typed under a pay's name too**
+(the Category field lists the pays; with `+` before the amount the income choices lead,
+otherwise the spending categories); one dated ahead is only scheduled and stays plain
+income.
+Both review passes done on the readers, their fixes in (ADR 0002 "From the reviews");
+they were not run again on the owner's three calls or on the new-account import.
+
 **PR #41 merged (2026-10-06, version 0.11.1, no schema change): "Not assigned"
 on the Budget page never shows a minus.** With more assigned than there is it reads
 $0.00, and a coral row under it, **"Assigned too much"**, holds the amount (in the
@@ -123,11 +159,11 @@ Visual direction and the register's UX rules are settled in
 | Undo | ⌘Z / Ctrl+Z undoes the session's actions newest first (add, edit, categorize, clear, delete, confirm, reconcile, undo reconcile); ⌘⇧Z / Ctrl+Y redoes. In a text field both act on typing. Toasts only for saved changes, deletes, confirms and reconciles, each with its own Undo; clearing a row is quiet |
 | Reconcile | Reconcile button in the header: statement date, bank balance (starts empty, cursor in it), cleared here, off by with which way and a hint naming a row that matches the difference; the register narrows to unreconciled rows through that date; and its last column becomes Cleared balance. Lock is enabled only at zero and locks those cleared rows; otherwise "Add ₮X adjustment and lock" posts a Reconcile adjustment against Balance adjustments (equity). Credit accounts take what you owe as a positive number. The newest reconcile can be taken back later from any row it locked ("Undo this reconcile"); reconciles unwind newest first |
 | Currencies | **Every ISO currency a person can hold, 155 of them** (2026-10-02, [currencies.md](currencies.md), ADR 0004 "Every currency"), built into the app; the database stores each account's code. Each has its own decimals (yen none, a Kuwaiti dinar three) and a symbol, the one its people write (`$` for a Canadian dollar too); two that share a symbol are told apart only while a ledger holds both (`CA$`). A bundled 3 KB font draws 13 signs the app's fonts lacked. Add account picks from a searchable Currency dropdown (symbol, name, code). Each account is in one currency, chosen when it's made (ADR 0004 "Tugrik and dollars"); its amounts show in its symbol everywhere. Net worth and category totals show each currency on its own line. A transfer between currencies takes both amounts (the rate is shown, not stored) through a hidden exchange account. Savings counts the main currency. Schema unchanged (the columns existed) |
-| Import | **Import…** beside Reconcile in the account header (ADR 0002 "Any bank's file", ADR 0004 "Import"): TDB's `.xls` (both exports), `.xlsx` or CSV. The window shows the file's own columns with a choice over each, the app's guess filled in, and the rows below it as New, Matches (a typed row, which becomes cleared) or Already in. It checks the bank's running balance (a coral warning with both amounts if it doesn't add up, and you can still import) and shows the cleared balance after the import against the bank's. Columns are remembered per account; a file of the same layout opens on the rows. Rows come in cleared, with the payee's last income or spending category or "Not categorized". Click a row's tag to add a match as its own row or leave a row out; overlap with earlier imports and typed rows the file lacks are named. One ⌘Z undoes it all. 270 tests. Not yet: rules, own-account transfers matched between two accounts, scheduled bills matched |
+| Import | **Import…** beside Reconcile in the account header (ADR 0002 "Any bank's file", ADR 0004 "Import"): TDB's `.xls` (both exports), `.xlsx`, CSV, or a bank's OFX download (`.ofx`, `.qfx`, `.qbo`; no balance check, the file has one balance only). The window shows the file's own columns with a choice over each, the app's guess filled in, and the rows below it as New, Matches (a typed row, which becomes cleared) or Already in. It checks the bank's running balance (a coral warning with both amounts if it doesn't add up, and you can still import) and shows the cleared balance after the import against the bank's. Columns are remembered per account; a file of the same layout opens on the rows. Rows come in cleared, with the payee's last income or spending category or "Not categorized". Click a row's tag to add a match as its own row or leave a row out; overlap with earlier imports and typed rows the file lacks are named. One ⌘Z undoes it all. 270 tests. Not yet: rules, own-account transfers matched between two accounts, scheduled bills matched |
 | Appearance | Settings → Appearance: Same as this Mac, Light or Dark, and **Colors**: Blue eclipse (the default), BetterBudget's own or any of Figma's 100 color combinations in its seven groups (ADR 0004 "Color schemes"). Each scheme is made into a light and a dark palette that passes contrast checks; money's green, coral and gold never change. Kept per computer, ⌘Z undoes. The sidebar shows a dark-mode logo (white and light royal, gold body), the same in every scheme |
 | Language | Settings → Language: Same as this Mac, English or Монгол (per computer, ⌘Z undoes). Every word is in `app/lib/l10n/`; the Mongolian is a draft awaiting a native speaker's check ([review sheet](mongolian-review.csv), [glossary](l10n-glossary.md)). Dates in sentences read "9-р сарын 30"; rows keep 09.30 |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works, unadvertised), ⌘Z undo, ⌘⇧Z redo (Ctrl+Y on Windows), Esc clear (Ctrl on Windows) |
-| Tests | 417 (2026-10-06): what a credit card owes left out of the money to assign, paying one counted as its category's spending, buying on one raising Not assigned until it's paid; the v18 upgrade (the old Cash & bank group becomes Bank, no account made cash behind the user's back); a cash account offered neither Reconcile nor Import. Some 40 goldens redrawn (the sidebar gained a group, the Budget page's first row was renamed). 381 (2026-10-03, later): the search key after a click away, an entry problem in the popup and gone on edit, one row open at a time, an Edit closed by Cancel or a click away; the goldens redrawn for ⌘F in the search box. 378 (2026-10-03): one Income (the v12 upgrade, Income can't be deleted, renamed, archived or budgeted, the forecast's payday with pay set up and without, pay taking over only the same pay, a merge into Income, the Budget page's Income line and pay note); the goldens that show Salary or the Budget page redrawn. 374 (2026-10-02, later): a category's Edit (the two-item menu, double-click, Esc, one undo for several changes, the dropdowns) and every currency (decimals, symbols, two with one symbol, the list); five goldens redrawn or new. 372 earlier: a category's currency and accounts (two pools, rows in the other currency, unchecked accounts, the v12 upgrade, two goldens). 355 (2026-10-01): plans (each kind's maths, a category that doesn't carry over, a bill's parts across repeats, late and early payment, two bills in one pay period, weekly pay to a far date, the v11 upgrade, the Budget page with three goldens). 331 earlier the same day: an account page at the smallest window and on a smaller screen (two goldens). 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
+| Tests | 439 (2026-10-06, later): the OFX reader, a credit union's table, repeats from the bank's other kind of file, a new account started from its file with a Start from date, the Not categorized tab's period, "Always file", a row made a pay's paycheck from the dropdown, by a rule on import and typed new. 418 (2026-10-06): the register's Not categorized tab (there only while rows wait in it; the Budget page no longer says them; 0.11.2); what a credit card owes left out of the money to assign, paying one counted as its category's spending, buying on one raising Not assigned until it's paid; the v18 upgrade (the old Cash & bank group becomes Bank, no account made cash behind the user's back); a cash account offered neither Reconcile nor Import. Some 40 goldens redrawn (the sidebar gained a group, the Budget page's first row was renamed). 381 (2026-10-03, later): the search key after a click away, an entry problem in the popup and gone on edit, one row open at a time, an Edit closed by Cancel or a click away; the goldens redrawn for ⌘F in the search box. 378 (2026-10-03): one Income (the v12 upgrade, Income can't be deleted, renamed, archived or budgeted, the forecast's payday with pay set up and without, pay taking over only the same pay, a merge into Income, the Budget page's Income line and pay note); the goldens that show Salary or the Budget page redrawn. 374 (2026-10-02, later): a category's Edit (the two-item menu, double-click, Esc, one undo for several changes, the dropdowns) and every currency (decimals, symbols, two with one symbol, the list); five goldens redrawn or new. 372 earlier: a category's currency and accounts (two pools, rows in the other currency, unchecked accounts, the v12 upgrade, two goldens). 355 (2026-10-01): plans (each kind's maths, a category that doesn't carry over, a bill's parts across repeats, late and early payment, two bills in one pay period, weekly pay to a far date, the v11 upgrade, the Budget page with three goldens). 331 earlier the same day: an account page at the smallest window and on a smaller screen (two goldens). 328 (2026-09-30): color schemes (every scheme's contrast in both modes, money hues kept off buttons, the dark logo on every sidebar, the appearance file, picking and ⌘Z). 322 earlier: the budget (envelopes, carrying minus, cards, refunds, loans paid from a category, Not categorized, the saved start and currency, amounts anywhere in a period, moving to the next period, merges, the v10 upgrade, typing, Tab, ⌘Z, the arrows mid-typing). 288 earlier the same day: import (the `.xls`, `.xlsx` and CSV readers on made-up files, column guessing, the balance check, keys, plan, write, undo and redo, the window), currencies (per-currency sums, transfers between currencies, their edits and undo, the dollar account on screen) and upgrades (v8, a relabeled ledger, a newer one refused). 174 on 2026-09-24, including a new ledger (keep categories, undo, no demo afterwards). Earlier list: rows growing smoothly, reduced motion; payday warning, late money in dated today; late money in, still owed on a short confirm; confirming with a changed amount and date, notes on old rows; restore (damaged files refused, cancel, undo), retention, a failing daily copy; moving between accounts (undo, redo, refusals), card reconcile signs, register speed on 20,000 rows, backups (daily, kept, cut short, saved elsewhere), undo and redo for every action, Windows and Mac keys, switching account mid-reconcile, the transfer sentence; and money parsing, ledger/DB invariants, editing, forecast, reconcile, taking reconciles back, transfer locks, UI lock state matching what the database refuses, statement dates refused out of order, upgrading v1 and v2 files with data (and their backups), screen flows including real key presses, undo and redo, a stale toast Undo refused, sidebar sections and their animation, the date calendar, early confirm, the Add row, row actions, forecast dots and bill list, reconcile with its finding aids and adjustment, credit cards shown as owed, editing a reconciled row, forecast money in, 14 golden screenshots |
 
 Seeded on first launch with **synthetic** demo data dated relative to today: TDB
 Checking, Khan Savings, Cash wallet, Golomt Visa, 14 expense categories, Salary, and 4
@@ -139,8 +175,9 @@ scheduled items.
   macOS and iOS are verified. Print for the recovery key isn't wired (Save and Copy are).
 - Creating or editing **splits**: split lines are display-only. A split's date, payee and
   memo can be edited.
-- **Import rules** (payee → category), matching scheduled bills and own-account
-  transfers on import; **recurring** schedules (scheduled
+- **A list of the "Always file" rules**, with a way to drop or rename one (the rules
+  themselves are built; [ROADMAP](ROADMAP.md) "Still on the list"), matching scheduled
+  bills and own-account transfers on import; **recurring** schedules (scheduled
   items are one-off), payees merge, rules, tags, attachments.
 - CSV export, app lock.
 - **Phone apps**
@@ -310,7 +347,7 @@ often starts as the view's period; a cut share rounds to ₮100; a stopped pay r
 passes; `goldens/budget_two_earners.png` new, Settings and pay setup goldens redrawn).
 The top pane, built in PR #39 (version 0.10.0): `keyCard()` in `_BudgetPageState.build`
 (`you-have`, `assigned-sum`, `not-assigned` keys, `-USD` for a second currency;
-`uncategorized-line`, `assign-planned`, `assign-planned-over`, `assigned-over`,
+`assign-planned`, `assign-planned-over`, `assigned-over`,
 `cards-owe`), `_ViewChoice` now wraps the period title, `_StartOffer` a strip,
 `addNew()` for ⌘N. Budget goldens redrawn. Before that, the owner's two calls, built in
 PR #38 (version 0.9.0): the catch-up share says what the
@@ -570,7 +607,8 @@ start using it"):
   rules 19 and 24). Code review done, fixes in. 232 tests pass.
 - [x] **The owner erased the test data** (2026-09-30, Settings → Erase everything and
   start over). It was called real money from here; on 2026-10-03 the owner said the
-  app isn't in production yet (see "Local setup notes").
+  app wasn't in production yet; **on 2026-10-06 they began using it for real** (see
+  "Local setup notes").
 - [x] **Color and a light mode** (PR #20, owner tested 2026-09-29: Light remembered
   across relaunch, "Same as this Mac" opening dark and following the Mac live to
   light). Dark is Steppe night, light is Steppe, both with a gray denim sidebar;
@@ -790,11 +828,11 @@ been used for typing but a register undo there hasn't been tried.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/betterbudget.sqlite`
-  (plus `-wal`, `-shm`). **The owner isn't using the app in production yet** (owner,
-  2026-10-03: "I'm not using this in production. Stop worrying about the data"), so a
-  schema change isn't weighed against what's in this file and old rows' details needn't
-  be kept. Upgrades are still written and tested so the file opens. Don't delete,
-  reseed or erase it without asking; tests use demo data.
+  (plus `-wal`, `-shm`). **This file is production data** (owner, 2026-10-06: "I'm going to be
+  testing my app by using it. The data that I have is now production data"; from
+  2026-10-03 until then it was not). A schema change is weighed against what's in this
+  file: its upgrade keeps every row and is tested. Never delete, reseed, erase or
+  hand-edit it; tests use demo data, and anything tried by hand goes on a copy.
 - **Version:** bump `version:` in `app/pubspec.yaml` in each feature or fix PR (ADR
   0006); the build number comes from git on its own.
 - **Rebuild and relaunch:** `pkill -f "BetterBudget.app/Contents/MacOS"; flutter build
@@ -803,8 +841,9 @@ been used for typing but a register undo there hasn't been tried.
   id>` works once the terminal has screen-recording permission; get the window id from
   `CGWindowListCopyWindowInfo` for owner `BetterBudget`. Golden PNGs in
   `app/test/goldens/` are the quicker check.
-- `tdb-bank-transaction-exports/` holds **real, unredacted** TDB statements. It is
-  gitignored and must stay that way. Committed fixtures must be redacted: real headers,
+- `tdb-bank-transaction-exports/` holds **real, unredacted** TDB statements, and
+  `afcu-bank-transaction-exports/` the owner's credit union's (CSV, `.xls`, `.qfx`,
+  `.qbo`). Both are gitignored and must stay that way. Committed fixtures must be redacted: real headers,
   real date format, real Cyrillic payee strings, scrubbed account numbers, synthetic
   amounts.
 - Reading legacy `.xls` during analysis needs `xlrd` in a throwaway venv.

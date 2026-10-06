@@ -8,6 +8,7 @@ import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/brand.dart';
 import 'package:betterbudget/ui/fit_window.dart';
@@ -653,6 +654,72 @@ void main() {
       matchesGoldenFile('goldens/ledger_key_hover.png'),
     );
     await mouse.removePointer();
+    await tidy(tester, db);
+  });
+
+  testWidgets('rows in Not categorized get a tab while there are any', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    const tab = ValueKey('tab-uncategorized');
+    expect(find.byKey(tab), findsNothing);
+
+    late int checking, txn;
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      checking = ledger.balanceSheetAccounts.first.id;
+      final waiting = await db.createCategory('Not categorized');
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 15),
+        today: DateTime(2026, 9, 16),
+        payee: 'POS 4417',
+        counterAccountId: waiting,
+        amount: -1250000,
+      );
+      // One from before this budget period (September): not the tab's.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 8, 20),
+        today: DateTime(2026, 9, 16),
+        payee: 'POS 0820',
+        counterAccountId: waiting,
+        amount: -30000,
+      );
+      txn = (await db.loadLedger()).txns
+          .firstWhere((t) => t.payee == 'POS 4417')
+          .id;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byKey(tab), matching: find.text('(1)')),
+      findsOneWidget,
+    );
+
+    // The tab shows just those rows.
+    await tester.tap(find.byKey(tab));
+    await tester.pumpAndSettle();
+    expect(find.text('POS 4417'), findsOneWidget);
+    expect(find.text('POS 0820'), findsNothing);
+    expect(find.text('Sakura Coffee'), findsNothing);
+
+    // The last one categorized: the tab goes and every row is back.
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      await db.setCategory(
+        transactionId: txn,
+        accountId: checking,
+        categoryId: ledger.categories
+            .firstWhere((c) => c.name == 'Dining out')
+            .id,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.byKey(tab), findsNothing);
+    expect(find.text('POS 4417'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsWidgets);
     await tidy(tester, db);
   });
 
@@ -1491,6 +1558,270 @@ void main() {
       await settle(tester);
       expect(find.text('Redone · Unitel → Groceries'), findsOneWidget);
       expect(await category(), 'Groceries');
+      await tidy(tester, db);
+    });
+
+    testWidgets('money in lists each pay and Income first; picking a pay makes '
+        'the row its paycheck; money out lists spending first', (tester) async {
+      final db = await pumpLedger(tester);
+      late int checking, txn;
+      await tester.runAsync(() async {
+        checking = (await db.loadLedger()).balanceSheetAccounts.first.id;
+        await db.savePaySchedule(
+          accountId: checking,
+          amount: 210000000,
+          rule: PayRule.monthly,
+          day1: 25,
+          name: 'Loveland Solutions',
+          today: DateTime(2026, 9, 16),
+        );
+        final waiting = await db.createCategory('Not categorized');
+        txn = await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 15),
+          today: DateTime(2026, 9, 16),
+          payee: 'LoveSol',
+          counterAccountId: waiting,
+          amount: 205000000,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      List<String> menu() => tester
+          .widgetList<MenuItemButton>(find.byType(MenuItemButton))
+          .map((b) => (b.child! as Text).data!)
+          .toList();
+
+      await tester.tap(find.text('LoveSol'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      expect(menu().take(2), ['Income · Loveland Solutions', 'Income']);
+      await tapAndWait(tester, find.text('Income · Loveland Solutions'));
+      expect(
+        find.text('LoveSol → Income · Loveland Solutions'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Always file LoveSol under Income · Loveland Solutions'),
+        findsOneWidget,
+      );
+      // The row says whose paycheck it is, and the payday it was is gone.
+      expect(find.text('Income · Loveland Solutions'), findsOneWidget);
+      final after = (await tester.runAsync(() => db.loadLedger()))!;
+      expect(
+        after
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.txnId == txn)
+            .payScheduleId,
+        after.paySchedules.single.id,
+      );
+      expect(
+        after
+            .registerFor(checking)
+            .scheduled
+            .where((r) => r.payScheduleId != null)
+            .map((r) => r.date),
+        [DateTime(2026, 10, 23)],
+      );
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      final undone = (await tester.runAsync(() => db.loadLedger()))!;
+      expect(
+        undone
+            .registerFor(checking)
+            .scheduled
+            .where((r) => r.payScheduleId != null)
+            .map((r) => r.date),
+        [DateTime(2026, 9, 25)],
+      );
+
+      // Money out: the spending categories come first, Income last, and
+      // no pay is offered.
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      expect(menu().first, isNot(contains('Income')));
+      expect(menu().last, 'Income');
+      expect(menu(), isNot(contains('Income · Loveland Solutions')));
+      await tidy(tester, db);
+    });
+
+    testWidgets('a new row typed under a pay\'s name is its paycheck; ⌘Z', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      late int checking;
+      await tester.runAsync(() async {
+        checking = (await db.loadLedger()).balanceSheetAccounts.first.id;
+        await db.savePaySchedule(
+          accountId: checking,
+          amount: 210000000,
+          rule: PayRule.monthly,
+          day1: 25,
+          name: 'Loveland Solutions',
+          today: DateTime(2026, 9, 16),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      Future<List<DateTime>> coming() async => [
+        for (final r in (await tester.runAsync(
+          () => db.loadLedger(),
+        ))!.registerFor(checking).scheduled)
+          if (r.payScheduleId != null) r.date,
+      ];
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'LoveSol',
+      );
+      // With + before the amount it's money in: the pay and Income lead.
+      await tester.enterText(
+        find.widgetWithText(TextField, '₮0.00'),
+        '+2050000',
+      );
+      await tester.tap(find.widgetWithText(TextField, 'Category'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Category'), 'inc');
+      await tester.pumpAndSettle();
+      expect(find.text('Income · Loveland Solutions'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Income · Loveland Solutions',
+      );
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      final data = (await tester.runAsync(() => db.loadLedger()))!;
+      final row = data
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.payee == 'LoveSol');
+      expect(row.categoryLabel, 'Income');
+      expect(row.amount, 205000000);
+      expect(row.payScheduleId, data.paySchedules.single.id);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('LoveSol'), findsNothing);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a category picked from the dropdown offers to always file '
+        'that payee there: waiting rows move, the next import follows, ⌘Z', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      late int checking, waiting;
+      await tester.runAsync(() async {
+        checking = (await db.loadLedger()).balanceSheetAccounts.first.id;
+        waiting = await db.createCategory('Not categorized');
+        for (final (day, payee) in [
+          (14, 'LoveSol'),
+          (10, 'LOVESOL PAY 0910'),
+          (5, 'LoveSol pay 0905'),
+          (12, 'Someone else'),
+        ]) {
+          await db.postSimple(
+            accountId: checking,
+            date: DateTime(2026, 9, day),
+            today: DateTime(2026, 9, 16),
+            payee: payee,
+            counterAccountId: waiting,
+            amount: 100000,
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      Future<Map<String, String>> filed() async => (await tester.runAsync(
+        () async => {
+          for (final r in (await db.loadLedger()).registerFor(checking).posted)
+            r.payee: r.categoryLabel,
+        },
+      ))!;
+
+      await tester.tap(find.text('LoveSol'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final income = find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Income'),
+      );
+      await tester.ensureVisible(income);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, income);
+      expect(find.text('LoveSol → Income'), findsOneWidget);
+      expect(
+        find.text('Always file LoveSol under Income · 2 more rows waiting'),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      expect(
+        find.text('LoveSol will be filed under Income · 2 rows moved'),
+        findsOneWidget,
+      );
+      var now = await filed();
+      expect(now['LOVESOL PAY 0910'], 'Income');
+      expect(now['LoveSol pay 0905'], 'Income');
+      expect(now['Someone else'], 'Not categorized');
+
+      // The next file's row from that payer comes in as Income.
+      await tester.runAsync(() async {
+        final rows = [
+          ImportRow(
+            sourceRow: 1,
+            date: DateTime(2026, 9, 15),
+            amount: 123400,
+            payee: 'LOVESOL PAY 0915',
+          ),
+        ];
+        await db.applyImport(
+          accountId: checking,
+          plan: (await db.planImport(
+            checking,
+            rows,
+            importKeys(checking, rows),
+          )).rows,
+          uncategorizedNames: ['Not categorized'],
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect((await filed())['LOVESOL PAY 0915'], 'Income');
+
+      // ⌘Z: the rows wait again and the payee is no longer remembered.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      now = await filed();
+      expect(now['LOVESOL PAY 0910'], 'Not categorized');
+      expect(now['LoveSol'], 'Income');
+      expect(
+        (await tester.runAsync(
+          () async =>
+              (await db.loadLedger()).prefs[AppDatabase.payeeRulesKey(
+                checking,
+              )],
+        )),
+        isNull,
+      );
       await tidy(tester, db);
     });
 
@@ -5034,6 +5365,280 @@ void main() {
     expect(find.textContaining('3 new rows'), findsOneWidget);
     await run(find.byKey(const ValueKey('import-cancel')));
     expect(find.byType(Dialog), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('import: an OFX download, one line long and named .txt, opens '
+      'on its rows; the same file again brings nothing new', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-ofx'),
+    ))!;
+    // Made-up rows, written the way a bank does: no line breaks at all.
+    final file = '${dir.path}/History.ofx.txt';
+    await tester.runAsync(
+      () => File(file).writeAsString(
+        'OFXHEADER:100 DATA:OFXSGML VERSION:102 <OFX><BANKMSGSRSV1>'
+        '<STMTTRNRS><STMTRS><BANKTRANLIST>'
+        '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE>'
+        '<DTPOSTED>20260914120000.000[0:GMT]</DTPOSTED>'
+        '<TRNAMT>-12500.00</TRNAMT><FITID>70001</FITID>'
+        '<NAME>Test Corner Shop</NAME><MEMO>FOOD</MEMO></STMTTRN>'
+        '<STMTTRN><TRNTYPE>CREDIT</TRNTYPE>'
+        '<DTPOSTED>20260915120000.000[0:GMT]</DTPOSTED>'
+        '<TRNAMT>250000.00</TRNAMT><FITID>70002</FITID>'
+        '<NAME>Test Refund</NAME></STMTTRN>'
+        '</BANKTRANLIST><LEDGERBAL><BALAMT>123.00</BALAMT>'
+        '<DTASOF>20260915120000.000[0:GMT]</DTASOF></LEDGERBAL>'
+        '</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>',
+      ),
+    );
+    // The same two rows as the bank's table would have them.
+    final table = '${dir.path}/History.csv';
+    await tester.runAsync(
+      () => File(table).writeAsString(
+        'Date,Description,Amount\n'
+        '2026-09-14,Test Corner Shop on Main Street,-12500.00\n'
+        '2026-09-15,Test Refund,250000.00\n',
+      ),
+    );
+    final db = await pumpLedger(tester);
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('Import into TDB Checking'), findsOneWidget);
+    expect(find.textContaining('2 new rows'), findsOneWidget);
+    // The file's one balance, with its day, against the cleared balance.
+    expect(find.textContaining('the bank’s was ₮123.00 on '), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-repeats')), findsNothing);
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('Imported 2 rows'), findsOneWidget);
+    expect(find.text('Test Corner Shop'), findsOneWidget);
+    final txns = (await tester.runAsync(
+      () async => (await db.loadLedger()).txns
+          .where((t) => (t.payee ?? '').startsWith('Test '))
+          .toList(),
+    ))!;
+    expect(txns.map((t) => t.date).toSet(), {
+      DateTime(2026, 9, 14),
+      DateTime(2026, 9, 15),
+    });
+
+    // The bank's ids say both rows are already in.
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('0 new rows · 2 already in the ledger'), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-repeats')), findsNothing);
+    await run(find.byKey(const ValueKey('import-cancel')));
+    expect(find.byType(Dialog), findsNothing);
+
+    // The table has no ids, but the days and amounts say the same.
+    dialogs.openPath = table;
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('0 new rows · 2 already in the ledger'), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-repeats')), findsOneWidget);
+    expect(find.text('Already in · same day and amount'), findsNWidgets(2));
+    // One of them is wanted after all.
+    await tester.tap(find.text('Already in · same day and amount').first);
+    await tester.pumpAndSettle();
+    expect(find.text('1 new row · 1 already in the ledger'), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-cancel')));
+    expect(find.byType(Dialog), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a new account answered by its bank file: the balance before '
+      'the first row, the rows, one ⌘Z; a file with no balance asks', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-start'),
+    ))!;
+    // Made-up rows. A table with a balance on each row, newest first.
+    final table = '${dir.path}/History.csv';
+    final plain = '${dir.path}/Plain.csv';
+    final ofx = '${dir.path}/History.qfx';
+    // One that reaches back before this month (the test's today is 09.16).
+    final long = '${dir.path}/Long.csv';
+    await tester.runAsync(() async {
+      await File(long).writeAsString(
+        'Post Date,Description,Debit,Credit,Balance\n'
+        '9/10/2026,Test Kiosk,40.00,,2160.00\n'
+        '9/5/2026,Test Rent,500.00,,2200.00\n'
+        '8/25/2026,Test Pay,,1000.00,2700.00\n'
+        '8/20/2026,Test Bus,300.00,,1700.00\n',
+      );
+      await File(table).writeAsString(
+        'Post Date,Description,Debit,Credit,Balance\n'
+        '9/24/2026,Test Kiosk,40.00,,1460.00\n'
+        '9/23/2026,Test Rent,500.00,,1500.00\n'
+        '9/22/2026,Test Pay,,1000.00,2000.00\n',
+      );
+      await File(plain).writeAsString(
+        'Date,Description,Amount\n'
+        '2026-09-22,Test Pay,1000.00\n'
+        '2026-09-23,Test Rent,-500.00\n',
+      );
+      await File(ofx).writeAsString(
+        'OFXHEADER:100\n<OFX><STMTRS><BANKTRANLIST>'
+        '<STMTTRN><DTPOSTED>20260922<TRNAMT>1000.00<FITID>1'
+        '<NAME>Test Pay</STMTTRN>'
+        '<STMTTRN><DTPOSTED>20260923<TRNAMT>-500.00<FITID>2'
+        '<NAME>Test Rent</STMTTRN></BANKTRANLIST>'
+        '<LEDGERBAL><BALAMT>1500.00<DTASOF>20260923</LEDGERBAL>'
+        '</STMTRS></OFX>',
+      );
+    });
+    final db = await pumpLedger(tester);
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> undo() async {
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+    }
+
+    Future<int> held(String name) async => (await tester.runAsync(() async {
+      final data = await db.loadLedger();
+      final id = data.accounts.values.firstWhere((a) => a.name == name).id;
+      return data.txns
+          .expand((t) => t.entries)
+          .where((e) => e.accountId == id)
+          .fold<int>(0, (s, e) => s + e.amount);
+    }))!;
+
+    await tester.tap(find.byKey(const ValueKey('add-account')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-account-name')),
+      'Union',
+    );
+    await tapAndWait(tester, find.byKey(const ValueKey('new-account-create')));
+    expect(find.text('Or import a file from your bank'), findsOneWidget);
+
+    // The table says what the account held before its first row.
+    dialogs.openPath = table;
+    await run(find.byKey(const ValueKey('start-import')));
+    expect(find.text('Import into Union'), findsOneWidget);
+    expect(
+      find.textContaining('This file starts at ₮1,000.00 on '),
+      findsOneWidget,
+    );
+    expect(find.textContaining('and ends at ₮1,460.00 on '), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-today')), findsNothing);
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('Imported 3 rows'), findsOneWidget);
+    expect(await held('Union'), 146000);
+    expect(find.byKey(const ValueKey('account-start')), findsNothing);
+    expect(find.text('Opening balance'), findsWidgets);
+
+    // One ⌘Z takes the rows and the balance, and the question is back.
+    await undo();
+    expect(await held('Union'), 0);
+    expect(find.byKey(const ValueKey('account-start')), findsOneWidget);
+
+    // A file that reaches back before this month starts from the month:
+    // the earlier rows stay out and the balance is the one for that day.
+    dialogs.openPath = long;
+    await run(find.byKey(const ValueKey('start-import')));
+    expect(find.textContaining('2 new rows'), findsOneWidget);
+    expect(
+      find.text('2 earlier rows in this file are left out'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(' at ₮2,700.00. The file ends at ₮2,160.00 on '),
+      findsOneWidget,
+    );
+    expect(find.text('Test Bus'), findsNothing);
+    // The whole file, with one click.
+    await run(find.byKey(const ValueKey('import-whole-file')));
+    expect(find.textContaining('4 new rows'), findsOneWidget);
+    expect(
+      find.textContaining('This file starts at ₮2,000.00 on '),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('import-earlier')), findsNothing);
+    // And back to a day typed in.
+    await tester.enterText(
+      find.byKey(const ValueKey('import-from')),
+      '2026.09.01',
+    );
+    await run(find.byKey(const ValueKey('import-from')));
+    expect(find.textContaining('2 new rows'), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('Imported 2 rows'), findsOneWidget);
+    expect(await held('Union'), 216000);
+    await undo();
+    expect(await held('Union'), 0);
+
+    // An OFX file's one balance, worked back through its rows.
+    dialogs.openPath = ofx;
+    await run(find.byKey(const ValueKey('start-import')));
+    expect(
+      find.textContaining('This file starts at ₮1,000.00 on '),
+      findsOneWidget,
+    );
+    expect(find.textContaining('and ends at ₮1,500.00 on '), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-cancel')));
+
+    // A file with no balance asks for today's, and works back from it.
+    dialogs.openPath = plain;
+    await run(find.byKey(const ValueKey('start-import')));
+    expect(
+      find.text(
+        'This file doesn’t give a balance. What’s in this account today?',
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byKey(const ValueKey('import-today')), '2100');
+    await tester.pumpAndSettle();
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('Imported 2 rows'), findsOneWidget);
+    expect(await held('Union'), 210000);
     await tidy(tester, db);
   });
 

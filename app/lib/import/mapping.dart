@@ -143,8 +143,14 @@ class SavedMapping {
     required this.kind,
     required this.mapping,
     this.proven = true,
+    this.current = true,
   });
   final String shape;
+
+  /// How the app guesses columns has changed since some choices were
+  /// saved; an older one is guessed again once instead of being reused.
+  static const _guess = 2;
+  final bool current;
 
   /// The bank's balance added up (or there was none) when it was saved.
   /// Only then does the next file skip the columns.
@@ -157,6 +163,7 @@ class SavedMapping {
     'kind': kind.name,
     'mapping': mapping.toJson(),
     'proven': proven,
+    'guess': _guess,
   });
 
   static SavedMapping? decode(String? s) {
@@ -172,9 +179,63 @@ class SavedMapping {
         kind: k,
         mapping: m,
         proven: j['proven'] != false,
+        current: j['guess'] == _guess,
       );
     } on FormatException {
       return null;
+    }
+  }
+}
+
+/// "Always file this payee under that category" (owner, 2026-10-06), kept
+/// per account. A payee fits when it starts with [starts], whatever the
+/// capitals: banks put a date or a number after the name.
+class PayeeRule {
+  const PayeeRule(this.starts, this.categoryId, {this.payId});
+  final String starts;
+  final int categoryId;
+
+  /// The pay whose paycheck money in from this payee is, when it's pay.
+  final int? payId;
+
+  static String stem(String payee) => payee.trim().toLowerCase();
+
+  /// The rule [payee] falls under: the longest beginning that fits.
+  static PayeeRule? of(List<PayeeRule> rules, String payee) {
+    final p = stem(payee);
+    PayeeRule? best;
+    for (final r in rules) {
+      if (r.starts.isEmpty || !p.startsWith(r.starts)) continue;
+      if (best == null || r.starts.length > best.starts.length) best = r;
+    }
+    return best;
+  }
+
+  static String encode(List<PayeeRule> rules) => jsonEncode([
+    for (final r in rules)
+      {
+        'starts': r.starts,
+        'category': r.categoryId,
+        if (r.payId != null) 'pay': r.payId,
+      },
+  ]);
+
+  static List<PayeeRule> decode(String? s) {
+    if (s == null) return const [];
+    try {
+      final j = jsonDecode(s);
+      if (j is! List) return const [];
+      return [
+        for (final e in j)
+          if (e is Map && e['starts'] is String && e['category'] is int)
+            PayeeRule(
+              e['starts'] as String,
+              e['category'] as int,
+              payId: e['pay'] is int ? e['pay'] as int : null,
+            ),
+      ];
+    } on FormatException {
+      return const [];
     }
   }
 }
@@ -281,7 +342,7 @@ int? readAmount(Object? cell, [int decimals = 2]) {
   } else if (lastComma >= 0 && s.length - lastComma - 1 != 3) {
     whole = s.substring(0, lastComma); // 12,5 or 12,50: a decimal comma
     frac = s.substring(lastComma + 1);
-  } else if (lastDot >= 0 && s.length - lastDot - 1 == 3 && decimals != 3) {
+  } else if (lastDot > 0 && s.length - lastDot - 1 == 3 && decimals != 3) {
     whole = s; // 1.500 or 1.234.567: dots as thousands, as commas are
   } else if (lastDot >= 0) {
     whole = s.substring(0, lastDot);
@@ -290,9 +351,11 @@ int? readAmount(Object? cell, [int decimals = 2]) {
     whole = s;
   }
   whole = whole.replaceAll(RegExp(r'[.,\x27’]'), '');
-  if (!RegExp(r'^\d+$').hasMatch(whole) || !RegExp(r'^\d*$').hasMatch(frac)) {
+  if (!RegExp(r'^\d*$').hasMatch(whole) || !RegExp(r'^\d*$').hasMatch(frac)) {
     return null;
   }
+  // Cents alone, as some banks write them: ".37".
+  if (whole.isEmpty && frac.isEmpty) return null;
   // Beyond this it's a reference number, not money.
   if (whole.length > 15) return null;
   if (frac.length > decimals) {
@@ -301,7 +364,7 @@ int? readAmount(Object? cell, [int decimals = 2]) {
     frac = frac.substring(0, decimals);
   }
   final v =
-      int.parse(whole) * scale +
+      (whole.isEmpty ? 0 : int.parse(whole)) * scale +
       (decimals == 0 ? 0 : int.parse(frac.padRight(decimals, '0')));
   return negative ? -v : v;
 }
@@ -318,6 +381,7 @@ class ImportRow {
     this.memo,
     this.balance,
     this.hasTime = false,
+    this.bankId,
   });
 
   /// Row index in the sheet (0-based), so the screen can point at it.
@@ -335,6 +399,9 @@ class ImportRow {
   /// The bank's own running balance after this row, when mapped.
   final int? balance;
 
+  /// The bank's own id for this transaction, when the file gives one.
+  final String? bankId;
+
   ImportRow withBalance(int? b) => ImportRow(
     sourceRow: sourceRow,
     date: date,
@@ -343,6 +410,7 @@ class ImportRow {
     payee: payee,
     memo: memo,
     balance: b,
+    bankId: bankId,
   );
 }
 
@@ -386,6 +454,8 @@ class ReadResult {
     required this.skipped,
     this.check,
     this.newestFirst = false,
+    this.closing,
+    this.closingDay,
   });
 
   /// Oldest first, whatever order the file had.
@@ -395,6 +465,11 @@ class ReadResult {
 
   /// The file listed newest first (the rows above are turned around).
   final bool newestFirst;
+
+  /// The one balance the file states apart from its rows, and its day,
+  /// when it has no balance on each row (OFX).
+  final int? closing;
+  final DateTime? closingDay;
 }
 
 String _text(Object? c) => switch (c) {
@@ -483,6 +558,7 @@ ReadResult readRows(Sheet sheet, ImportMapping m, {int decimals = 2}) {
             ? description
             : null,
         balance: readAmount(balanceCell, decimals),
+        bankId: sheet.rowIds[r],
       ),
     );
   }
@@ -515,6 +591,8 @@ ReadResult readRows(Sheet sheet, ImportMapping m, {int decimals = 2}) {
     skipped: skipped,
     check: check,
     newestFirst: newestFirst,
+    closing: check == null ? readAmount(sheet.closing, decimals) : null,
+    closingDay: check == null ? sheet.closingDay : null,
   );
 }
 
@@ -555,8 +633,8 @@ BalanceCheck? checkBalances(List<ImportRow> rows) {
 
 /// A key per row that's the same every time the same transaction comes in
 /// from the bank, so a second import of an overlapping file skips it (ADR
-/// 0002). Rows that would share a key within one file get #2, #3, in file
-/// order.
+/// 0002). The bank's own id is the key when the file gives one. Rows that
+/// would share a key within one file get #2, #3, in file order.
 List<String> importKeys(int accountId, List<ImportRow> rows) {
   final seen = <String, int>{};
   return [
@@ -565,7 +643,9 @@ List<String> importKeys(int accountId, List<ImportRow> rows) {
         final when = r.hasTime
             ? r.date.toIso8601String()
             : r.date.toIso8601String().substring(0, 10);
-        final base = r.balance != null
+        final base = r.bankId != null
+            ? 'a$accountId|id|${r.bankId}'
+            : r.balance != null
             ? 'a$accountId|$when|${r.amount}|${r.balance}'
             : 'a$accountId|$when|${r.amount}|${r.payee}|${r.memo ?? ''}';
         final n = (seen[base] ?? 0) + 1;
@@ -641,6 +721,14 @@ Map<int, String> headerLabels(Sheet sheet, int? headerRow, List<int> dataRows) {
   final cols = dataColumns(sheet, dataRows);
   final out = <int, String>{};
   final row = sheet.rows[headerRow];
+  // When every column with data has a name right over it, the names are
+  // where they belong: a named column that happens to be empty in this file
+  // (no checks written this month) mustn't push the names after it along.
+  final inPlace = {
+    for (final c in cols)
+      if (c < row.length && _text(row[c]).isNotEmpty) c: _text(row[c]),
+  };
+  if (inPlace.length == cols.length) return inPlace;
   for (var c = 0; c < row.length; c++) {
     final name = _text(row[c]);
     if (name.isEmpty) continue;
@@ -691,6 +779,12 @@ const _headerWords = <ColumnRole, List<String>>{
     'narrative',
   ],
 };
+
+/// Names over a column holding the bank's own category for each row.
+const _bankCategoryWords = ['classification', 'category', 'ангилал'];
+
+/// Names over a column saying whether each row has posted.
+const _statusWords = ['status', 'төлөв'];
 
 ColumnRole? _roleFromHeader(String h) {
   final t = h.trim().toLowerCase();
@@ -769,10 +863,19 @@ ImportMapping guessMapping(Sheet sheet) {
   }
 
   final roles = <int, ColumnRole>{dateCol: ColumnRole.date};
+  // Columns named as the bank's own category for a row, or as its status:
+  // neither is who was paid, nor a note.
+  final bankCategory = <int>[];
+  final status = <int>{};
 
   // Named columns first.
   if (headerRow != null) {
     final labels = headerLabels(sheet, headerRow, dataRows);
+    for (final e in labels.entries) {
+      final t = e.value.trim().toLowerCase();
+      if (_bankCategoryWords.contains(t)) bankCategory.add(e.key);
+      if (_statusWords.contains(t)) status.add(e.key);
+    }
     for (final e in labels.entries) {
       if (e.key == dateCol) continue;
       final role = _roleFromHeader(e.value);
@@ -861,10 +964,25 @@ ImportMapping guessMapping(Sheet sheet) {
   // and not codes, the payee.
   final textCols = <(int, double)>[
     for (var c = 0; c < width; c++)
-      if (!roles.containsKey(c) && !numeric.contains(c))
+      if (!roles.containsKey(c) &&
+          !numeric.contains(c) &&
+          !bankCategory.contains(c) &&
+          !status.contains(c))
         if (_wordsLength(sheet, dataRows, c) case final len? when len > 0)
           (c, len),
   ]..sort((a, b) => b.$2.compareTo(a.$2));
+  // A column saying the same on every row ("Posted") gives way to any
+  // other words; alone, it's still all the file says about a row.
+  final varied = textCols
+      .where((e) => !_sameOnEveryRow(sheet, dataRows, e.$1))
+      .toList();
+  if (varied.isNotEmpty ||
+      roles.containsValue(ColumnRole.memo) ||
+      roles.containsValue(ColumnRole.payee)) {
+    textCols
+      ..clear()
+      ..addAll(varied);
+  }
   // A column that often starts with an account number is the counterparty.
   if (!roles.containsValue(ColumnRole.payee)) {
     final counterparty = textCols
@@ -889,6 +1007,22 @@ ImportMapping guessMapping(Sheet sheet) {
         .firstOrNull
         ?.key;
     if (memo != null) roles[memo] = ColumnRole.payee;
+  }
+  // The bank's own category isn't a note (owner, 2026-10-06): a memo
+  // column that holds one is left out, unless it's all some row has.
+  final memoCol = roles.entries
+      .where((e) => e.value == ColumnRole.memo)
+      .firstOrNull
+      ?.key;
+  final namedCol = roles.entries
+      .where((e) => e.value == ColumnRole.payee)
+      .firstOrNull
+      ?.key;
+  if (memoCol != null &&
+      namedCol != null &&
+      dataRows.every((r) => sheet.cell(r, namedCol) != null) &&
+      _looksLikeCategories(sheet, dataRows, memoCol)) {
+    roles.remove(memoCol);
   }
 
   return ImportMapping(roles: roles, headerRow: headerRow, dateOrder: order);
@@ -959,6 +1093,33 @@ bool _hasBothSigns(Sheet sheet, List<int> rows, int col) {
     }
   }
   return null;
+}
+
+/// A column of the bank's own categories: nothing but words ("FOOD",
+/// "Bill Pay"), no figures or punctuation, and some of them more than
+/// once. Too few rows to tell reads as not.
+bool _looksLikeCategories(Sheet sheet, List<int> rows, int col) {
+  final seen = <String>{};
+  var filled = 0;
+  for (final r in rows) {
+    final v = sheet.cell(r, col);
+    if (v == null) continue;
+    if (v is! String) return false;
+    if (!RegExp(r'^[\p{L}_ &/-]+$', unicode: true).hasMatch(v.trim())) {
+      return false;
+    }
+    filled++;
+    seen.add(v.trim());
+  }
+  return filled >= 5 && seen.length < filled;
+}
+
+/// A column that says the same thing on every row ("Posted") tells nothing
+/// about any one of them.
+bool _sameOnEveryRow(Sheet sheet, List<int> rows, int col) {
+  if (rows.length < 3) return false;
+  final first = _text(sheet.cell(rows.first, col));
+  return rows.every((r) => _text(sheet.cell(r, col)) == first);
 }
 
 double? _wordsLength(Sheet sheet, List<int> rows, int col) {

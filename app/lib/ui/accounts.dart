@@ -214,14 +214,11 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                       ),
                       Padding(
                         padding: const EdgeInsets.only(left: 100, bottom: 12),
-                        child: Text(
-                          switch ((_type, _cash)) {
-                            (AccountType.liability, _) => t.setupKindOwedHint,
-                            (_, true) => t.setupKindCashHint,
-                            _ => t.setupKindBankHint,
-                          },
-                          style: onest(12.5, color: Mid.ink3),
-                        ),
+                        child: Text(switch ((_type, _cash)) {
+                          (AccountType.liability, _) => t.setupKindOwedHint,
+                          (_, true) => t.setupKindCashHint,
+                          _ => t.setupKindBankHint,
+                        }, style: onest(12.5, color: Mid.ink3)),
                       ),
                       _FormLine(
                         label: t.setupCurrency,
@@ -327,9 +324,14 @@ class _AccountStart extends StatefulWidget {
     required this.account,
     required this.today,
     required this.onStart,
+    this.onImport,
   });
   final AccountInfo account;
   final DateTime today;
+
+  /// The bank's file can answer the question instead (owner, 2026-10-06).
+  /// Null for cash: there's no file.
+  final VoidCallback? onImport;
 
   /// [balance] as typed (what's owed, positive, on a card), or null if empty.
   final void Function(int? balance, DateTime date) onStart;
@@ -474,6 +476,14 @@ class _AccountStartState extends State<_AccountStart> {
                       tooltip: 'Enter',
                       onTap: _start,
                     ),
+                    if (widget.onImport case final import?) ...[
+                      const SizedBox(width: 12),
+                      BarButton(
+                        key: const ValueKey('start-import'),
+                        label: t.setupStartImport,
+                        onTap: import,
+                      ),
+                    ],
                   ],
                 ),
               ),

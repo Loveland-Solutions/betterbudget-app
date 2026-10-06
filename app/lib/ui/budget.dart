@@ -34,7 +34,6 @@ class _BudgetPage extends StatefulWidget {
     required this.onKeysBack,
     required this.onStartLater,
     required this.onKeepStart,
-    required this.onShowUncategorized,
     required this.onAssignPlanned,
   });
 
@@ -56,8 +55,6 @@ class _BudgetPage extends StatefulWidget {
   final void Function(BudgetSpan period, BudgetSpan next) onStartLater;
   final VoidCallback onKeepStart;
 
-  /// The "Not categorized" line was clicked: its rows.
-  final VoidCallback onShowUncategorized;
   final LedgerData data;
   final DateTime today;
 
@@ -443,28 +440,6 @@ class _BudgetPageState extends State<_BudgetPage> {
           ],
         ),
       );
-      // Notes on "You have": rows waiting in Not categorized (money in
-      // accounts, already counted), and cards owing more than there is.
-      final haveNotes = <Widget>[
-        for (final p in pools) ...[
-          if (p.uncategorizedRows > 0)
-            Hoverable(
-              key: ValueKey('uncategorized-line${tagOf(p.currency)}'),
-              onTap: widget.onShowUncategorized,
-              builder: (hover) => Text(
-                p.uncategorizedNet == 0
-                    ? t.planUncategorizedRows(p.uncategorizedRows)
-                    : t.planUncategorizedMoney(
-                        p.uncategorizedRows,
-                        p.uncategorizedNet > 0
-                            ? '+${money(p.uncategorizedNet, p.currency)}'
-                            : money(p.uncategorizedNet, p.currency),
-                      ),
-                style: onest(13, color: hover ? Mid.blue : Mid.gold),
-              ),
-            ),
-        ],
-      ];
       // Notes on "Assigned": one click for everything planned, and what
       // that would overdraw, said before it's done.
       final assignedNotes = <Widget>[];
@@ -521,7 +496,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                 // Cash and bank only, so it can't go below zero and has no
                 // coral state: what's owed is the Savings page's business.
                 figure('you-have${tagOf(p.currency)}', p.money, p.currency),
-            ], haveNotes),
+            ], const []),
             row(label(t.planKeyAssigned), [
               for (final p in pools)
                 figure(
