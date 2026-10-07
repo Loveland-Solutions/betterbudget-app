@@ -86,6 +86,23 @@ void main() {
     await settle(tester);
   }
 
+  /// A click whose write and the ledger's answer are both waited for.
+  Future<void> press(WidgetTester tester, String key) async {
+    // The write runs in real time, or the next read waits behind it.
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    await settle(tester);
+    await settle(tester);
+  }
+
+  /// From the Accounts step on to Pay.
+  Future<void> toPay(WidgetTester tester) async {
+    await press(tester, 'setup-continue');
+  }
+
   Future<void> undo(WidgetTester tester) async {
     await tester.runAsync(() async {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -257,7 +274,7 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('setup-no-cash')), findsOneWidget);
     // Going on is still there.
-    expect(find.byKey(const ValueKey('setup-done')), findsOneWidget);
+    expect(find.byKey(const ValueKey('setup-continue')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('setup-add-cash-now')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('setup-name')), 'Wallet');
@@ -269,7 +286,7 @@ void main() {
   });
 
   testWidgets('a line still being typed is kept: another Type keeps its '
-      'words, and Open my ledger adds it', (tester) async {
+      'words, and Continue adds it', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());
     await open(tester, db);
     await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
@@ -288,16 +305,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Golomt Visa'), findsOneWidget);
     expect(find.text('You owe'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('setup-done')));
-    await settle(tester);
+    await toPay(tester);
     final data = await ledger(tester, db);
     final visa = data.openAccounts.singleWhere((a) => a.name == 'Golomt Visa');
     expect(data.balanceOf(visa.id), -64020000);
-    expect(data.prefs[SetupKeys.done], '1');
+    expect(find.text('Your pay'), findsOneWidget);
     await tidy(tester, db);
   });
 
-  testWidgets('Open my ledger stays when the line’s amount can’t be read', (
+  testWidgets('Continue stays when the line’s amount can’t be read', (
     tester,
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
@@ -306,10 +322,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('setup-add-cash')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('setup-amount')), 'some');
-    await tester.tap(find.byKey(const ValueKey('setup-done')));
-    await settle(tester);
+    await toPay(tester);
     expect(find.text('Can’t read “some” as an amount'), findsOneWidget);
-    expect((await ledger(tester, db)).prefs[SetupKeys.done], isNull);
+    expect(find.text('Your accounts'), findsOneWidget);
+    expect(find.text('Your pay'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -323,14 +339,229 @@ void main() {
     await open(tester, db);
     expect(find.text('Your accounts'), findsOneWidget);
     expect(find.text('TDB Checking'), findsNWidgets(2));
+    await toPay(tester);
+    // Quit on the Pay step: that is the step it opens on.
+    await open(tester, db);
+    expect(find.text('Your pay'), findsOneWidget);
+    expect(find.text('Your accounts'), findsNothing);
+    await press(tester, 'pay-none');
     await tester.tap(find.byKey(const ValueKey('setup-done')));
     await settle(tester);
-    expect(find.text('Your accounts'), findsNothing);
+    expect(find.text('Your pay'), findsNothing);
     expect(find.text('Budget'), findsOneWidget);
     expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
     await open(tester, db);
     expect(find.text('Your accounts'), findsNothing);
     expect(find.text('Budget'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Continue goes on to Your pay, the form on the page, and Save '
+      'pay lists it', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    // One name alone has nowhere to go: Pay is there, and can't be clicked.
+    await press(tester, 'setup-step-pay');
+    expect(find.text('Your accounts'), findsOneWidget);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await add(tester, 'setup-add-cash', 'Wallet', '80,000');
+    await toPay(tester);
+    expect(find.text('Your pay'), findsOneWidget);
+    // The page has the heading; the form doesn't say it again.
+    expect(find.text('Add your pay'), findsNothing);
+    // The bank, not the wallet, and take-home pay is asked for.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('pay-account')),
+        matching: find.text('TDB Checking'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('pay-arrives')), findsOneWidget);
+    // Two answers and nothing else: no Cancel, no Open my ledger.
+    expect(find.byKey(const ValueKey('pay-none')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pay-cancel')), findsNothing);
+    expect(find.byKey(const ValueKey('setup-done')), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-amount')),
+      '2,100,000',
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/setup_pay.png'),
+    );
+    await press(tester, 'pay-save');
+    var data = await ledger(tester, db);
+    expect(data.paySchedules.single.amount, 210000000);
+    expect(data.paySchedules.single.accountId, data.openAccounts.first.id);
+    // The pay on the page is the confirmation: no popup.
+    expect(find.text('Undo'), findsNothing);
+    expect(find.byKey(const ValueKey('pay-save')), findsNothing);
+    expect(find.byKey(const ValueKey('setup-pays')), findsOneWidget);
+    expect(
+      find.text(
+        '₮2,100,000 · monthly on the 25th · into TDB Checking · '
+        'next 10.23',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/setup_pay_saved.png'),
+    );
+    // ⌘Z takes the pay back, and the form is open again.
+    await undo(tester);
+    await settle(tester);
+    data = await ledger(tester, db);
+    expect(data.paySchedules, isEmpty);
+    expect(find.byKey(const ValueKey('pay-save')), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a saved pay is edited on the page, another is added, and '
+      'Cancel closes the form', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-amount')),
+      '2,100,000',
+    );
+    await press(tester, 'pay-save');
+    final id = (await ledger(tester, db)).paySchedules.single.id;
+    await press(tester, 'setup-edit-pay-$id');
+    // What's typed would be dropped: Open my ledger waits for the form.
+    expect(find.byKey(const ValueKey('setup-done')), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-amount')),
+      '2,300,000',
+    );
+    await press(tester, 'pay-save');
+    expect((await ledger(tester, db)).paySchedules.single.amount, 230000000);
+    // A second earner's pay. Esc closes the form, as Cancel does.
+    await press(tester, 'setup-add-other-pay');
+    expect(find.byKey(const ValueKey('pay-save')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pay-save')), findsNothing);
+    await press(tester, 'setup-add-other-pay');
+    expect(find.byKey(const ValueKey('pay-none')), findsNothing);
+    await press(tester, 'pay-cancel');
+    expect(find.byKey(const ValueKey('pay-save')), findsNothing);
+    expect((await ledger(tester, db)).paySchedules, hasLength(1));
+    await tester.tap(find.byKey(const ValueKey('setup-done')));
+    await settle(tester);
+    expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
+    await tidy(tester, db);
+  });
+
+  testWidgets('"I don’t have regular pay" is an answer, and can be changed', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await press(tester, 'pay-none');
+    expect((await ledger(tester, db)).prefs['pay.none'], '1');
+    expect(find.text('No regular pay'), findsOneWidget);
+    expect(find.text('Undo'), findsNothing);
+    expect(find.byKey(const ValueKey('setup-done')), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/setup_pay_none.png'),
+    );
+    await press(tester, 'setup-add-pay');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
+    await press(tester, 'pay-save');
+    final data = await ledger(tester, db);
+    expect(data.paySchedules, hasLength(1));
+    expect(data.prefs['pay.none'], isNull);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Back and the step names only move: nothing is taken away', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await press(tester, 'setup-back');
+    expect(find.text('Your accounts'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNWidgets(2));
+    expect((await ledger(tester, db)).prefs[SetupKeys.step], 'accounts');
+    await press(tester, 'setup-step-pay');
+    expect(find.text('Your pay'), findsOneWidget);
+    await press(tester, 'setup-step-accounts');
+    expect(find.text('Your accounts'), findsOneWidget);
+    // The account undone from the Pay step: back to where one is added.
+    await press(tester, 'setup-step-pay');
+    // The amount has the keys on arriving, and there ⌘Z acts on typing.
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('pay-amount')))
+          .focusNode!
+          .hasFocus,
+      isTrue,
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await undo(tester);
+    await settle(tester);
+    expect(find.text('Your accounts'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNothing);
+    // And adding one doesn't jump on to Pay.
+    await add(tester, 'setup-add-bank', 'Khan', '500,000');
+    await settle(tester);
+    expect(find.text('Your accounts'), findsOneWidget);
+    expect((await ledger(tester, db)).prefs[SetupKeys.step], 'accounts');
+    await tidy(tester, db);
+  });
+
+  testWidgets('a pay whose account was removed is listed with nothing to '
+      'click that does nothing', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await add(tester, 'setup-add-owed', 'Golomt Visa', '640,200');
+    await toPay(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-amount')),
+      '2,100,000',
+    );
+    await press(tester, 'pay-save');
+    await press(tester, 'setup-back');
+    final data = await ledger(tester, db);
+    final bank = data.openAccounts.firstWhere((a) => !a.isOwed).id;
+    await press(tester, 'setup-remove-$bank');
+    await press(tester, 'setup-step-pay');
+    expect(
+      find.byKey(const ValueKey('setup-pay-needs-account')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('setup-pays')), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
+    expect(find.byKey(const ValueKey('setup-add-other-pay')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('with only a credit card, Pay says where pay goes and the '
+      'ledger still opens', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-owed', 'Golomt Visa', '640,200');
+    await toPay(tester);
+    expect(
+      find.byKey(const ValueKey('setup-pay-needs-account')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('pay-save')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('setup-done')));
+    await settle(tester);
+    expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
     await tidy(tester, db);
   });
 

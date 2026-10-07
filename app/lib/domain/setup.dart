@@ -10,6 +10,12 @@ abstract final class SetupKeys {
   /// Set when setup is left for the ledger. It never opens again after.
   static const done = 'setup.done';
 
+  /// The step setup is on, so a quit comes back to it: [stepPay], or unset
+  /// for the accounts.
+  static const step = 'setup.step';
+  static const stepAccounts = 'accounts';
+  static const stepPay = 'pay';
+
   /// The answer to "How do you pay for everyday things?".
   static const everyday = 'setup.everyday';
   static const everydayBank = 'bank';

@@ -6555,6 +6555,48 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Setup finished'**
   String get setupFinished;
+
+  /// Setup: the first step’s name in the row of step names across the top.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get setupStepAccounts;
+
+  /// Setup: the second step’s name in the row of step names across the top. Pay as in a paycheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get setupStepPay;
+
+  /// Setup: the button that goes on to the next step.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get setupContinue;
+
+  /// Setup: the button that goes to the step before. Nothing is undone by it.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get setupBack;
+
+  /// Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here.
+  ///
+  /// In en, this message translates to:
+  /// **'The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.'**
+  String get setupPayArrives;
+
+  /// Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.'**
+  String get setupPayNeedsAccount;
+
+  /// Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it.
+  ///
+  /// In en, this message translates to:
+  /// **'No regular pay'**
+  String get setupNoRegularPayLine;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

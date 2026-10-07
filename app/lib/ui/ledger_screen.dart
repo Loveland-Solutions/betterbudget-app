@@ -106,6 +106,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The Budget page, for a key that reaches the screen while it has a
   /// category open in Edit.
   final _budgetKey = GlobalKey<_BudgetPageState>();
+  final _setupKey = GlobalKey<_SetupPageState>();
   int? _accountId;
 
   /// The clicked row; its actions show in a bar under it.
@@ -670,6 +671,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         !_typing &&
         event.logicalKey == LogicalKeyboardKey.escape &&
         (_budgetKey.currentState?.closeEdit() ?? false)) {
+      return KeyEventResult.handled;
+    }
+    // Esc closes setup's pay form, wherever the last click was.
+    if (!_typing &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        (_setupKey.currentState?.closePayForm() ?? false)) {
       return KeyEventResult.handled;
     }
     // Row keys act on the register; elsewhere its selection is out of sight.
@@ -1372,7 +1379,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (data == null) return;
     final income = data.income;
     final into = data.openAccounts.where((a) => !a.isOwed).toList();
-    if (income == null || into.isEmpty) {
+    // Income may not be there yet: a new ledger makes it with the first pay.
+    if (into.isEmpty) {
       _showToast(t.ledgerAddBankAccountFirst);
       return;
     }
@@ -1381,30 +1389,51 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final result = await showDialog<PaySetupResult>(
       context: context,
       builder: (_) => _PaySetupDialog(
-        accounts: into,
-        category: income,
-        account:
-            byId(into, existing?.accountId ?? account?.id ?? _accountId) ??
-            into.first,
-        today: today,
-        existing: existing,
-        history: (a, payee) =>
-            db.payHistory(a, scheduleId: existing?.id, payee: payee),
-        data: data,
-        perPay: [
-          if (existing != null)
-            for (final c in data.categories)
-              if (data.plans[c.id]?.payScheduleId == existing.id) c,
-        ],
-        offerNoPay:
-            data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
+        form: (onResult, onCancel) => _PayForm(
+          accounts: into,
+          category: income,
+          account:
+              byId(into, existing?.accountId ?? account?.id ?? _accountId) ??
+              into.first,
+          today: today,
+          existing: existing,
+          history: (a, payee) =>
+              db.payHistory(a, scheduleId: existing?.id, payee: payee),
+          data: data,
+          perPay: _perPay(data, existing),
+          offerNoPay:
+              data.paySchedules.isEmpty && data.prefs[noRegularPayKey] == null,
+          onResult: onResult,
+          onCancel: onCancel,
+        ),
       ),
     );
     if (result == null || !mounted) return;
+    await _applyPay(result, existing: existing);
+  }
+
+  /// Categories whose plan is per [existing]; stopping it asks where they go.
+  static List<AccountInfo> _perPay(LedgerData data, PaySchedule? existing) => [
+    if (existing != null)
+      for (final c in data.categories)
+        if (data.plans[c.id]?.payScheduleId == existing.id) c,
+  ];
+
+  /// What the pay form answered, written with its undo. Setup passes
+  /// [toast] false: there the pay appearing on the page is the confirmation.
+  /// False when the write failed, which a toast has said.
+  Future<bool> _applyPay(
+    PaySetupResult result, {
+    PaySchedule? existing,
+    bool toast = true,
+  }) async {
+    final t = context.t;
+    final data = _data;
+    if (data == null) return false;
     late PayChange change;
     switch (result) {
       case PayNone():
-        await _setNoRegularPay(true);
+        await _setNoRegularPay(true, toast: toast);
       case PayStop(:final movePlans, :final moveTo):
         // The categories per this pay go where the dialog said: another
         // pay's periods, or the month; one undo with the stop.
@@ -1428,7 +1457,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             );
           }
         }, what: 'pay')) {
-          return;
+          return false;
         }
         final movedTo = moved.isEmpty
             ? null
@@ -1439,6 +1468,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               );
         _did(
           t.ledgerPayStopped,
+          toast: toast,
           message: movedTo == null
               ? t.ledgerPayStoppedToast
               : t.ledgerPayStoppedMoved(moved.length, movedTo),
@@ -1478,7 +1508,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
           what: 'pay',
         )) {
-          return;
+          return false;
         }
         // Pay added after "I don't have regular pay": the saying no longer
         // holds, so stopping this pay later asks again. Undone together.
@@ -1490,6 +1520,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             .firstOrNull;
         _did(
           t.ledgerPaySaved,
+          toast: toast,
           message: [
             payday == null
                 ? t.ledgerPaySaved
@@ -1512,11 +1543,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
           },
         );
     }
+    return true;
   }
 
   /// "I don't have regular pay" (from the pay setup), or asking again
   /// (Settings). Only the asking changes: "Add your pay" stays in Settings.
-  Future<void> _setNoRegularPay(bool none) async {
+  Future<void> _setNoRegularPay(bool none, {bool toast = true}) async {
     final t = context.t;
     final old = _data?.prefs[noRegularPayKey];
     final value = none ? '1' : null;
@@ -1529,6 +1561,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     _did(
       none ? t.ledgerNoRegularPay : t.ledgerAskingForPayAgain,
+      toast: toast,
       message: none ? t.ledgerNoRegularPayToast : t.ledgerAskForPayAgainToast,
       undo: () => db.setPreference(noRegularPayKey, old),
       redo: () => db.setPreference(noRegularPayKey, value),
@@ -3541,6 +3574,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   v,
                                   context.t.setupEverydayQ,
                                 ),
+                                key: _setupKey,
+                                onStep: (step) async {
+                                  try {
+                                    await db.setPreference(
+                                      SetupKeys.step,
+                                      step,
+                                    );
+                                  } catch (e) {
+                                    debugPrint('Keeping the step failed: $e');
+                                  }
+                                },
+                                onPay: (result, existing) => _applyPay(
+                                  result,
+                                  existing: existing,
+                                  toast: false,
+                                ),
+                                payHistory: (a, payee, existing) =>
+                                    db.payHistory(
+                                      a,
+                                      scheduleId: existing?.id,
+                                      payee: payee,
+                                    ),
                                 onDone: _finishSetup,
                               )
                             : switch (_section) {

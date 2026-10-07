@@ -4404,4 +4404,27 @@ class WordsMn extends Words {
 
   @override
   String get setupFinished => 'Тохиргоо дууслаа';
+
+  @override
+  String get setupStepAccounts => 'Дансууд';
+
+  @override
+  String get setupStepPay => 'Цалин';
+
+  @override
+  String get setupContinue => 'Үргэлжлүүлэх';
+
+  @override
+  String get setupBack => 'Буцах';
+
+  @override
+  String get setupPayArrives =>
+      'Дансанд орж ирдэг дүн буюу гар дээр авдаг цалин; татвар, НДШ суутгахаас өмнөх цалин биш. Банк дараа нь татдаг зээлийн төлбөр бол тусдаа төлбөр.';
+
+  @override
+  String get setupPayNeedsAccount =>
+      'Цалин банкны данс эсвэл бэлэн мөнгөний дансанд орно. Цалингаа тохируулахын тулд «Дансууд» алхамд нэгийг нэмээрэй.';
+
+  @override
+  String get setupNoRegularPayLine => 'Тогтмол цалингүй';
 }

@@ -6692,5 +6692,33 @@
   "setupFinished": "Setup finished",
   "@setupFinished": {
     "description": "Undo label after setup is left with Open my ledger."
+  },
+  "setupStepAccounts": "Accounts",
+  "@setupStepAccounts": {
+    "description": "Setup: the first step’s name in the row of step names across the top."
+  },
+  "setupStepPay": "Pay",
+  "@setupStepPay": {
+    "description": "Setup: the second step’s name in the row of step names across the top. Pay as in a paycheck."
+  },
+  "setupContinue": "Continue",
+  "@setupContinue": {
+    "description": "Setup: the button that goes on to the next step."
+  },
+  "setupBack": "Back",
+  "@setupBack": {
+    "description": "Setup: the button that goes to the step before. Nothing is undone by it."
+  },
+  "setupPayArrives": "The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.",
+  "@setupPayArrives": {
+    "description": "Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here."
+  },
+  "setupPayNeedsAccount": "Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.",
+  "@setupPayNeedsAccount": {
+    "description": "Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type."
+  },
+  "setupNoRegularPayLine": "No regular pay",
+  "@setupNoRegularPayLine": {
+    "description": "Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it."
   }
 }

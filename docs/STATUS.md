@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.14.0 · schema v18 · 471 tests pass
+**Last updated: 2026-10-07** · version 0.15.0 · schema v18 · 477 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,23 +10,25 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #47 (version 0.14.0).** The owner is using the app on real money and sending
+**After PR #48 (version 0.15.0).** The owner is using the app on real money and sending
 what they hit; expect more of that first. Then, in order:
 
 1. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
-   [committee/onboarding/](committee/onboarding/)). Its first screen, "Your accounts",
-   is built. **Next is the Pay screen**: the "Your pay" form that exists, on the page
-   as the second step, with the step names appearing across the top. After it, each
-   its own PR: Bills (with "is there a set payment each month?" for an account that
-   owes), Everyday, Saved, Assign, Tomorrow, then Import and the which-period
-   question. Two questions asked with the mockups are unanswered; bring each up when
+   [committee/onboarding/](committee/onboarding/)). "Your accounts" and "Your pay"
+   are built, with the step names across the top. **Next is the Bills step** (with "is
+   there a set payment each month?" for an account that owes; a loan payment the bank
+   takes after payday is collected here, and until it is, nothing in setup takes it
+   out of the forecast). When it is built, the Pay step's filled button becomes
+   Continue. After it, each its own PR: Everyday, Saved, Assign, Tomorrow, then Import
+   and the which-period question. Two questions asked with the mockups are unanswered; bring each up when
    its step is built: whether a budget that starts next month assigns today's money
    now or waits, and which accounts the "what is this saved money for?" step asks
    about. The owner can't see setup in their own app (their ledger has an account):
    show each step by its screenshots in `app/test/goldens/setup_*.png`, and report it
-   starting from what they last saw.
+   starting from what they last saw (the Pay step's three screenshots, sent with
+   PR #48).
 2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
 
@@ -36,45 +38,52 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #47. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #48. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
 Asked and not answered. Don't re-ask; bring one up when its screen comes up again.
 
-1. **"Always file" in the category dropdown** (2026-10-07). The offer also at the foot
+1. **Three from the Pay step's budget review** (2026-10-07). Payday today: with pay
+   "On the 7th" set up on 10.07, the form says "Next payday 2026.10.07" though the
+   balance just typed may already hold that pay, so it would be counted twice; should
+   a payday on the balances' date be taken as already in? An irregular earner picks
+   "It varies" and is then made to give a day: should When have "No set day", doing
+   what "I don't have regular pay" does? And Name is the form's first field though it
+   does nothing until there is a second pay: show it only from "Add other pay" on?
+2. **"Always file" in the category dropdown** (2026-10-07). The offer also at the foot
    of a row's category dropdown, reading "Always filed here · Stop" once the rule
    exists. Today the popup's 12 seconds are the only chance. Recommended yes; it would
    also be the first way to drop a rule.
-2. **The row's date and amount on the popup's second line** (2026-10-07): "09.15 ·
+3. **The row's date and amount on the popup's second line** (2026-10-07): "09.15 ·
    −₮200 · IB-INTERBANK…", since a bank repeats payees, and the same two-line form for
    the other row popups. Recommended yes.
-3. **Is a test payee invented?** (2026-10-07) "IB-INTERBANK TRANSFER CHARGE 1.2.3,
+4. **Is a test payee invented?** (2026-10-07) "IB-INTERBANK TRANSFER CHARGE 1.2.3,
    1.2.4" in `ledger_screen_test.dart` has the shape of a real statement line. If it
    came from a statement it has to go.
-4. **Should the forecast take out what's budgeted?** (2026-10-05) Set to Next 6 months,
+5. **Should the forecast take out what's budgeted?** (2026-10-05) Set to Next 6 months,
    TDB Checking shows pay coming in and rent and water going out and nothing else, so
    the line climbs about ₮800,000 a month richer than the household will be. Should it
    also take out what's budgeted for groceries, transport and the rest?
-5. **Which account a new bill starts in** (2026-10-05). A new Rent category due on the
+6. **Which account a new bill starts in** (2026-10-05). A new Rent category due on the
    20th says Paid from "All accounts" when there are two or more, so the rent is in no
    account's forecast until one is left checked alone. Should it start with the account
    the rent rows were paid from?
-6. **A bill that arrives by import** (2026-10-04). A Paid-from bill that comes in
+7. **A bill that arrives by import** (2026-10-04). A Paid-from bill that comes in
    through a bank file leaves its scheduled row behind. Matching the import to the
    scheduled row would fix it; that is new work.
-7. **Two notes beside Add** (2026-10-03): "needs amount" is still in the old voice, and
+8. **Two notes beside Add** (2026-10-03): "needs amount" is still in the old voice, and
    the gold "new category · money in counts as a refund to it…" note gets cut off.
-8. **Money in that is still Not categorized** (2026-10-03): should the Budget page's
+9. **Money in that is still Not categorized** (2026-10-03): should the Budget page's
    Income figure name it? Imported pay lands there.
-9. **Currencies in the ledger file** (2026-10-02). The owner asked "You're putting the
+10. **Currencies in the ledger file** (2026-10-02). The owner asked "You're putting the
    currencies in the database, right?" They are built into the app; the file stores
    each account's code. Asked twice what the file should hold; a table would be a
    schema change.
-10. **What "dedicated" means** (2026-10-02). Emergency fund limited to Khan Savings,
+11. **What "dedicated" means** (2026-10-02). Emergency fund limited to Khan Savings,
     holding ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 the fund's too, or
     free to assign, as built?
-11. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+12. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -110,7 +119,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
 | Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, "Open my ledger". It is where it was left after a quit, and never returns once done. A ledger that already had accounts never sees it |
+| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
 
 Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).
@@ -124,7 +133,7 @@ open the archive).
 
 ## Not built yet
 
-- **Setup after the accounts:** pay, bills, everyday amounts, saved money, assigning,
+- **Setup after pay:** bills, everyday amounts, saved money, assigning,
   "from tomorrow", import. Settings can't be reached until setup ends.
 - **Splits** can't be created or edited (`splitNotEditable`).
 - **A list of the "Always file" rules**, with a way to drop or rename one.
@@ -162,6 +171,12 @@ open the archive).
   instalment); an account in the list can be removed but not edited; the bank hint
   says not the "available" balance while the page says to type what the bank app
   shows, and which figure Khan and TDB put forward hasn't been checked.
+- **From the reviews of setup's Pay step, not fixed:** removing an account leaves its
+  pay live with no paydays (in setup the pay is listed without Edit; the app's own
+  account Delete has the same gap); two unnamed pays into one account are both titled
+  "Income into TDB Checking"; the saved line says "monthly on the 25th · next 10.23"
+  without saying a weekend moved it; opening the pay form makes the Income category,
+  a write with no undo; `press` in `setup_test.dart` waits a real 300 ms.
 - **The forecast still speaks to one person** ("Until your 10.15 paycheck") though a
   ledger can hold two earners' pay.
 - **"Nothing has been budgeted…"** in the forecast shows whenever no bills are

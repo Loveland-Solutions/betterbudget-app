@@ -4572,4 +4572,27 @@ class WordsEn extends Words {
 
   @override
   String get setupFinished => 'Setup finished';
+
+  @override
+  String get setupStepAccounts => 'Accounts';
+
+  @override
+  String get setupStepPay => 'Pay';
+
+  @override
+  String get setupContinue => 'Continue';
+
+  @override
+  String get setupBack => 'Back';
+
+  @override
+  String get setupPayArrives =>
+      'The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.';
+
+  @override
+  String get setupPayNeedsAccount =>
+      'Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.';
+
+  @override
+  String get setupNoRegularPayLine => 'No regular pay';
 }
