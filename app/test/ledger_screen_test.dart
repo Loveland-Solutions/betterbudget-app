@@ -6083,6 +6083,38 @@ void main() {
       await tidy(tester, db);
     });
 
+    // A Mac draws buttons smaller than the tests' own platform does, and
+    // Undo sat higher than the sentence beside it (owner's screenshot,
+    // 2026-10-07).
+    testWidgets(
+      'on a Mac, Undo is level with the sentence and the offer keeps its '
+      'height',
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await file(tester);
+        final said = tester.getCenter(
+          find.byKey(const ValueKey('toast-message')),
+        );
+        final undo = tester.getCenter(
+          find.descendant(of: popup, matching: find.text('Undo')),
+        );
+        final close = tester.getCenter(
+          find.descendant(
+            of: popup,
+            matching: find.byIcon(Icons.close_rounded),
+          ),
+        );
+        expect(undo.dy, moreOrLessEquals(said.dy, epsilon: 1));
+        expect(close.dy, moreOrLessEquals(said.dy, epsilon: 1));
+        expect(
+          tester.getSize(find.byKey(const ValueKey('toast-more'))).height,
+          greaterThanOrEqualTo(34),
+        );
+        await tidy(tester, db);
+      },
+    );
+
     testWidgets('a row with no payee has no line for one', (tester) async {
       final db = await pumpLedger(tester);
       await tester.runAsync(() async {

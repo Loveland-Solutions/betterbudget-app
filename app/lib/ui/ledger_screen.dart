@@ -5124,6 +5124,9 @@ class _Toast extends StatelessWidget {
                             onPressed: toast.undo,
                             style: TextButton.styleFrom(
                               foregroundColor: ink,
+                              // A Mac draws buttons 8 shorter, which left
+                              // Undo above the sentence it sits beside.
+                              visualDensity: VisualDensity.standard,
                               minimumSize: const Size(0, 32),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -5180,6 +5183,7 @@ class _Toast extends StatelessWidget {
                           onPressed: more.onTap,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ink,
+                            visualDensity: VisualDensity.standard,
                             side: BorderSide(
                               color: ink.withValues(alpha: 0.55),
                             ),

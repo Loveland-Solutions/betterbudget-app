@@ -2087,6 +2087,13 @@ committee ran on it; two mockups went to the owner, who picked A.
   the same reason **a new category says nothing in a popup**: its Edit opens under
   its row, which is the confirmation (as a new account says nothing).
 - **A row with no payee has no second line** (it was drawn empty).
+- **Undo is level with the sentence on a Mac** (owner's screenshot, 2026-10-07). A
+  Mac draws buttons 8 shorter than the tests' platform does (Flutter's compact
+  density on desktop), so in the real app Undo sat 4 above the sentence beside it and
+  the offer button was 26 high, not 34, while every golden showed them right. The
+  card's two buttons now keep the standard size on every platform, and a test run as
+  a Mac checks it. **The same gap may be elsewhere:** goldens are drawn at standard
+  density, so they can't show a button the Mac shrinks.
 - *Rejected:* **B**, centered on the page at 520 wide with the payee on top, a filled
   button and a sentence under it (more lines, and it sits over the category chips);
   keeping the strip and capping its width (still the row of controls); asking it as a
