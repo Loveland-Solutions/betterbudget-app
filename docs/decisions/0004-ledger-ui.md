@@ -263,6 +263,23 @@ What's known so far:
    the row. On a
    card a purchase is money out like anywhere else and a payment is money in; the
    total and the Owed column stay positive in normal ink (rule 6).
+   **A credit card's own page signs its rows the same way** (owner, 2026-10-07, option
+   A of three, asked because the budget review found a minus beside an Owed that goes
+   up). On Golomt Visa, "Owed ₮640,200": a ₮50,000 purchase is red `−₮50,000` and Owed
+   rises to ₮690,200; a ₮350,000 payment is green `+₮350,000` and Owed falls. A card
+   purchase reads as a checking purchase does beside it in All accounts, and a row
+   never changes sign between its own page and All accounts. *Accepted with it:* the
+   Amount column is the one place on a card's page that isn't written as what's owed
+   (rule 6 covers the total, the Owed column and the sidebar), so the header's
+   Uncleared line counts that same purchase as ₮50,000 more owed; and red is on a
+   card's page again, as the sign of money out, not as a warning. *Rejected:* **B**,
+   signs that follow Owed (green `+₮50,000` for a purchase, red `−₮350,000` for a
+   payment: every row adds up to Owed, but spending turns green, paying a card down
+   turns red, and a row changes sign between pages); **C**, signs that follow Owed
+   with colors by meaning (red `+₮50,000`, green `−₮350,000`: it adds up, but a red
+   plus breaks "red has a minus"). *Not decided:* an opening balance still takes its
+   sign like any row (green plus on Cash wallet, red minus on the Visa); plain ink
+   with no sign was suggested and not picked up.
 4. **Every row shows its full date (`YYYY.MM.DD`). No month subheadings or month
    subtotals.** The owner asked for these to be removed; don't reintroduce them.
    **Every other posted row is tinted a faint royal blue** (`Mid.stripe`, blue at 4.5%;
@@ -296,7 +313,9 @@ What's known so far:
    header more room. **Its hint shows ⌘F** (owner, 2026-10-03), the Mac's own key
    for finding in a list; ⌘K, copied from other apps' command palettes, still works
    but isn't shown.
-   **On a credit card every amount is what's owed, positive**, as the bank shows it
+   **On a credit card every amount is what's owed, positive** (the header, the Owed
+   column and the sidebar; a row's own Amount is signed as money out or in since
+   2026-10-07, rule 3), as the bank shows it
    (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
    normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
    owed". Coral on a card read as an emergency, which teaches people to ignore coral
