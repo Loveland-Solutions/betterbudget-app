@@ -188,6 +188,12 @@ cd app && flutter analyze && flutter test
   `test/ledger_screen_test.dart`). The fake clock never completes real SQLite work.
 - Goldens load Onest and Manrope explicitly. Border and fade animations need an extra
   `pump()` before capture.
+- Goldens are drawn as the tests' platform draws, and a Mac draws buttons 8 shorter
+  (Flutter's compact density on desktop). A button laid out beside text can look right
+  in every golden and sit wrong in the real app: give it
+  `visualDensity: VisualDensity.standard`, or check it in a test run with
+  `variant: TargetPlatformVariant.only(TargetPlatform.macOS)`. The same variant, with a
+  mouse tap, is needed to test a click away from a text field.
 - Any font change: confirm the font has ₮ (U+20AE), Ө and Ү. Currency signs neither
   Onest nor Manrope has come from `BetterBudgetSymbols.ttf` (`tool/gen_symbol_font.py`);
   `tool/gen_currencies.py` stops if a currency's symbol can't be drawn.

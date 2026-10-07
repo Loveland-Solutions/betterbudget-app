@@ -12,7 +12,7 @@ The owner is refining the ledger by using it and giving feedback; **the budget c
 after the ledger is dialed in.** **Goal now (owner, 2026-09-24): an alpha the owner can
 start using with real money**; see "Next step".
 
-**Branch `popup-review-fixes` (2026-10-07, version 0.13.1, no schema change; committed here, no PR yet): what the reviews of PR #44 found.** The code review, the budget app review, a words pass and a behavior pass were run again on 0.13.0 (their first run was lost when it merged). Fixed, all in ADR 0004 "The popup is a card" and rule 3:
+**PR #45, branch `popup-review-fixes` (merged 2026-10-07, version 0.13.1, no schema change): what the reviews of PR #44 found, and four fixes from the owner using it.** The code review, the budget app review, a words pass and a behavior pass were run again on 0.13.0 (their first run was lost when it merged). Fixed, all in ADR 0004 "The popup is a card" and rule 3:
 - **The popup and the pointer** (`_toastPointerAt`, `_toastMayLeave`, `_toastClicked`, `_closeToast` in `ledger_screen.dart`): a pointer that only crossed an offer no longer cuts its 12 seconds to 4; a popup that takes the place of one the pointer is on (⌘Z, its Undo, its offer) stays under the pointer; one that appears under a pointer left in the corner leaves in its own time.
 - A click on the card isn't a click away from a row open for typing (`TextFieldTapRegion`). Opening a row's Edit or a category's Edit puts the card away, since it lay over Cancel and Save (`onEditOpens` on the Budget page); a new category shows no "added" popup. A row with no payee has no empty second line.
 - **A credit card's import preview showed the opposite of its register** (a purchase green with a plus, then red with a minus once in); it now shows what the register will.
@@ -137,7 +137,7 @@ answer means beside it, "What's left at month's end" shows under No always, and 
 Income tab reads "₮2,100,000 received of ₮4,200,000 expected this period" (the owner's
 words). **Open (Next step):** two questions, in plain examples.
 
-**Git state:** `main` has everything through PR #39 (2026-10-05, version 0.10.0: the
+**Git state:** `main` has everything through PR #45 (2026-10-07, version 0.13.1; PRs #40 to #45 are described above, newest first). Before them: PR #39 (2026-10-05, version 0.10.0: the
 Budget page's top pane as the key), PR #38 (2026-10-05, version 0.9.0: the
 owner's calls on two earners), PR #37 (2026-10-05, version 0.8.0, schema
 v17: two earners, see above), PR #36 (2026-10-05, version 0.7.0, schema
@@ -318,6 +318,40 @@ Roughly in the order they will block something.
     rows show at 1440×900. Collapsing it on scroll was offered; the owner hasn't asked for it.
 
 ## Next step
+
+**2026-10-07, after PR #45 (version 0.13.1).** The owner is using the app on real money
+and sending what they hit; expect more of that first. In order:
+
+1. **Two questions asked on 2026-10-07 and not answered** (don't re-ask; bring them up
+   when the popup or the category dropdown comes up again):
+   - The "Always file this payee here" offer also at the foot of a row's category
+     dropdown, shown once the row has a category, reading "Always filed here · Stop"
+     when the rule exists. Today the popup's 12 seconds are the only chance, and
+     picking the same category again does nothing. Recommended yes; it would also be
+     the first way to drop a rule (ROADMAP "Still on the list").
+   - The row's date and amount on the popup's second line ("09.15 · −₮200 ·
+     IB-INTERBANK…"), since a bank repeats payees, and the same two-line form for the
+     other row popups ("Moved to Khan Savings" over the row). Recommended yes.
+2. **The onboarding wizard's mockups** (below, 2026-10-06). The four committee reports
+   were never saved, so the committee runs again.
+3. **A place to see and drop the "Always file" rules** (ROADMAP "Still on the list").
+
+**To check when the owner next opens it** (seen in their screenshot, 2026-10-07, not
+looked into): a category with ₮116,000 due every year on 2026.10.01, a date already
+past, said "nothing more to set aside" and "Shows in TDB MNT's forecast on 10.01",
+where it should look ahead to October 2027 at about ₮9,700 a month. The category was
+mid-change from dollars to tugrik at that moment, so it may read right once saved.
+
+**Loose ends from the reviews, none fixed,** are listed under PR #45 at the top ("Found
+by those reviews and left"). The one most likely to matter: goldens are drawn at
+standard density and a Mac draws buttons 8 shorter, so other buttons may sit wrong in
+the real app while their goldens look right (only the popup's were looked at).
+
+**The owner's ledger** now holds one tugrik account; the dollar accounts and their
+categories were deleted on 2026-10-07. A wordless screenshot from the owner after
+being told something couldn't be checked in the real app is the result being shown,
+not a complaint (owner, 2026-10-07: "I was just showing you the results you asked
+for").
 
 **2026-10-06, branch `budget-debt-and-cash` (version 0.11.0, schema v18): debt off the
 Budget page, Cash as a Type.** Started as a question about onboarding, became a rework of
