@@ -100,6 +100,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | lock / locked | түгжих / түгжээтэй | |
 | move to (another account) | өөр данс руу | not шилжүүлэг, which is a transfer |
 | categorize | ангилах | |
+| filed under {category} | {category} гэж ангиллаа | the popup after a category is picked; «гэж» takes any name without a case ending |
 | off by / matches | зөрүү / таарч байна | reconcile |
 | runs out | мөнгө дуусна | |
 | below zero | хасахад орсон | |

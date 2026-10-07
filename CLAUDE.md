@@ -86,7 +86,11 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   the categories in its own currency), and a popup that was one long line across
   the window, over the sidebar, saying the payee twice (it's a card in the page's
   corner: what happened, the payee on its own line, the offer as a button), and
-  money out in plain ink with no sign (it's red with a minus in front).
+  money out in plain ink with no sign (it's red with a minus in front), and a
+  currency choice, and a new category made in dollars, with only a tugrik account
+  left (a thing is offered only while there's something for it), and "All accounts"
+  on a category with one account (it's named), and being made to pick where a
+  category's deleted rows go (don't ask about what they can't see).
 - **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
   testing my app by using it. The data that I have is now production data"). Every
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a
@@ -184,6 +188,12 @@ cd app && flutter analyze && flutter test
   `test/ledger_screen_test.dart`). The fake clock never completes real SQLite work.
 - Goldens load Onest and Manrope explicitly. Border and fade animations need an extra
   `pump()` before capture.
+- Goldens are drawn as the tests' platform draws, and a Mac draws buttons 8 shorter
+  (Flutter's compact density on desktop). A button laid out beside text can look right
+  in every golden and sit wrong in the real app: give it
+  `visualDensity: VisualDensity.standard`, or check it in a test run with
+  `variant: TargetPlatformVariant.only(TargetPlatform.macOS)`. The same variant, with a
+  mouse tap, is needed to test a click away from a text field.
 - Any font change: confirm the font has ₮ (U+20AE), Ө and Ү. Currency signs neither
   Onest nor Manrope has come from `BetterBudgetSymbols.ttf` (`tool/gen_symbol_font.py`);
   `tool/gen_currencies.py` stops if a currency's symbol can't be drawn.

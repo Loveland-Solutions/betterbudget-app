@@ -1782,7 +1782,7 @@ void main() {
       await tapAndWait(tester, income);
       expect(find.text('Filed under Income'), findsOneWidget);
       expect(
-        find.text('Always file this payee here · 2 more rows now'),
+        find.text('Always file this payee here, and 2 more rows now'),
         findsOneWidget,
       );
       await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
@@ -3914,9 +3914,17 @@ void main() {
           find.byKey(ValueKey('category-editor-$insurance')),
           findsOneWidget,
         );
-        // The accounts are a dropdown of checkboxes: it says "All
-        // accounts" to begin with, and stays open while they're picked.
-        expect(find.text('All accounts'), findsOneWidget);
+        // The accounts are a dropdown of checkboxes: with one dollar
+        // account it names it ("All accounts" is for more than one), and
+        // stays open while they're picked.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('money-accounts')),
+            matching: find.text('AFCU Checking'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('All accounts'), findsNothing);
         await tester.ensureVisible(
           find.byKey(const ValueKey('money-accounts')),
         );
@@ -4083,9 +4091,10 @@ void main() {
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
-      expect(find.text('Coffee added'), findsOneWidget);
       // The new category opens in Edit under its row, so what it's for is
-      // asked at once; the add box closes.
+      // asked at once; the add box closes. No popup: it would lie over the
+      // Edit's Cancel and Save.
+      expect(find.text('Coffee added'), findsNothing);
       expect(find.byKey(const ValueKey('new-category-name')), findsNothing);
       expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
       expect(find.byKey(const ValueKey('plan-amount')), findsOneWidget);
@@ -4193,6 +4202,44 @@ void main() {
         findsNothing,
       );
       expect(find.text('Coffee & tea'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('deleting a category whose rows are all deleted asks nothing', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      // As after deleting the account its rows were in.
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final dining = data.categories
+            .firstWhere((c) => c.name == 'Dining out')
+            .id;
+        await db.softDeleteMany([
+          for (final a in data.openAccounts)
+            for (final r in [
+              ...data.registerFor(a.id).posted,
+              ...data.registerFor(a.id).scheduled,
+            ])
+              if (r.categoryId == dining) r.txnId,
+        ]);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await openBudget(tester);
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Dining out'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('category-delete')));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Dining out?'), findsNothing);
+      expect(find.byKey(const ValueKey('delete-category-into')), findsNothing);
+      expect(find.textContaining('Dining out deleted'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Dining out'), findsOneWidget);
       await tidy(tester, db);
     });
 
@@ -4443,6 +4490,79 @@ void main() {
         ledger!.categories.map((c) => c.name),
         isNot(anyOf(contains('Gro'), contains('Golomt Visa'))),
       );
+      await tidy(tester, db);
+    });
+
+    testWidgets('a new category is in a currency there is an account in, '
+        'and its Edit offers no other', (tester) async {
+      final db = await pumpLedger(tester);
+      // The budget began in dollars; the dollar accounts are gone since,
+      // and one dollar category is left from then.
+      await tester.runAsync(() async {
+        await db.setPreference(BudgetKeys.currency, 'USD');
+        await db.createCategory('Old dollars', currency: Currency.usd);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-category')));
+      await tester.pumpAndSettle();
+      // One currency of accounts: nothing to choose.
+      expect(find.byKey(const ValueKey('new-category-currency')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('new-category-name')),
+        'Post box',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('money-currency')), findsNothing);
+      final made = (await tester.runAsync(
+        () async => (await db.loadLedger()).categories.firstWhere(
+          (c) => c.name == 'Post box',
+        ),
+      ))!;
+      expect(made.currency, Currency.mnt);
+      await tidy(tester, db);
+    });
+
+    testWidgets('Paid from names the account when there is only one', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        await db.createAccount(
+          name: 'AFCU Checking',
+          type: AccountType.asset,
+          currency: Currency.usd,
+        );
+        await db.createCategory('Car insurance', currency: Currency.usd);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      String paidFrom() => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('money-accounts')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      // One dollar account: it's named.
+      await editCategory(tester, 'Car insurance');
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      expect(paidFrom(), 'AFCU Checking');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      // Several tugrik accounts: all of them.
+      await editCategory(tester, 'Groceries');
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      expect(paidFrom(), 'All accounts');
       await tidy(tester, db);
     });
   });
@@ -5873,7 +5993,7 @@ void main() {
       'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
     );
     expect(
-      find.text('Always file this payee here · 1 more row now'),
+      find.text('Always file this payee here, and 1 more row now'),
       findsOneWidget,
     );
     await expectLater(
@@ -5913,6 +6033,345 @@ void main() {
     expect(popup, findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
     expect(popup, findsNothing);
+    await tidy(tester, db);
+  });
+
+  group('the popup and the pointer', () {
+    final popup = find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast');
+
+    Future<void> file(WidgetTester tester) async {
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Groceries'),
+        ),
+      );
+    }
+
+    Future<TestGesture> pointer(WidgetTester tester, Offset at) async {
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: at);
+      addTearDown(mouse.removePointer);
+      return mouse;
+    }
+
+    testWidgets('crossing an offer on the way elsewhere keeps its time', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      expect(find.byKey(const ValueKey('toast-more')), findsOneWidget);
+      final mouse = await pointer(tester, Offset.zero);
+      await mouse.moveTo(tester.getCenter(popup));
+      await tester.pump();
+      await mouse.moveTo(const Offset(600, 200));
+      await tester.pump();
+      // Five of its twelve seconds: it used to be gone by now.
+      await tester.pump(const Duration(seconds: 5));
+      expect(popup, findsOneWidget);
+      await tester.pump(const Duration(seconds: 8));
+      expect(popup, findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('one that takes the place of a popup the pointer is on '
+        'stays under it', (tester) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      final mouse = await pointer(tester, Offset.zero);
+      await mouse.moveTo(tester.getCenter(popup));
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settle(tester);
+      expect(find.text('Undone · Filed under Groceries'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 30));
+      expect(popup, findsOneWidget);
+      // Off it, it leaves as any popup does.
+      await mouse.moveTo(const Offset(600, 200));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
+      expect(popup, findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('after its offer is clicked, the popup that answers stays '
+        'under the pointer', (tester) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      final at = tester.getCenter(find.byKey(const ValueKey('toast-more')));
+      final mouse = await pointer(tester, Offset.zero);
+      await mouse.moveTo(at);
+      await tester.pump();
+      await mouse.down(at);
+      await mouse.up();
+      await tester.pump();
+      await settle(tester);
+      await settle(tester);
+      expect(
+        find.textContaining('Always filed under Groceries'),
+        findsOneWidget,
+      );
+      expect(tester.getRect(popup).contains(at), isTrue);
+      await tester.pump(const Duration(seconds: 30));
+      expect(popup, findsOneWidget);
+      // Taken back, the popup doesn't go on saying rows were filed.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settle(tester);
+      expect(
+        find.text('Undone · Always filed under Groceries'),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('one that appears under a pointer left in the corner leaves '
+        'in its own time', (tester) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      final where = tester.getCenter(popup);
+      await tester.tap(
+        find.descendant(of: popup, matching: find.byIcon(Icons.close_rounded)),
+      );
+      await tester.pump();
+      expect(popup, findsNothing);
+      await pointer(tester, where);
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settle(tester);
+      expect(popup, findsOneWidget);
+      await tester.pump(const Duration(seconds: 7));
+      expect(popup, findsNothing);
+      await tidy(tester, db);
+    });
+
+    // On a Mac a click outside a text field takes the cursor out of it.
+    testWidgets(
+      'a click on the popup is not a click away from a new row',
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await file(tester);
+        await openEntry(tester);
+        expect(
+          find.widgetWithText(TextField, 'New transaction — payee'),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.descendant(
+            of: popup,
+            matching: find.byIcon(Icons.close_rounded),
+          ),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pumpAndSettle();
+        expect(popup, findsNothing);
+        expect(
+          find.widgetWithText(TextField, 'New transaction — payee'),
+          findsOneWidget,
+        );
+        await tidy(tester, db);
+      },
+    );
+
+    testWidgets('opening a row to edit puts the popup away', (tester) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      expect(popup, findsOneWidget);
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(popup, findsNothing);
+      // ⌘Z still takes back what it said, once the Edit is closed.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settle(tester);
+      expect(find.text('Undone · Filed under Groceries'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    // A Mac draws buttons smaller than the tests' own platform does, and
+    // Undo sat higher than the sentence beside it (owner's screenshot,
+    // 2026-10-07).
+    testWidgets(
+      'on a Mac, Undo is level with the sentence and the offer keeps its '
+      'height',
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+      (tester) async {
+        final db = await pumpLedger(tester);
+        await file(tester);
+        final said = tester.getCenter(
+          find.byKey(const ValueKey('toast-message')),
+        );
+        final undo = tester.getCenter(
+          find.descendant(of: popup, matching: find.text('Undo')),
+        );
+        final close = tester.getCenter(
+          find.descendant(
+            of: popup,
+            matching: find.byIcon(Icons.close_rounded),
+          ),
+        );
+        expect(undo.dy, moreOrLessEquals(said.dy, epsilon: 1));
+        expect(close.dy, moreOrLessEquals(said.dy, epsilon: 1));
+        expect(
+          tester.getSize(find.byKey(const ValueKey('toast-more'))).height,
+          greaterThanOrEqualTo(34),
+        );
+        await tidy(tester, db);
+      },
+    );
+
+    testWidgets('a row with no payee has no line for one', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        await db.postSimple(
+          accountId: data.balanceSheetAccounts.first.id,
+          date: DateTime(2026, 9, 16),
+          today: DateTime(2026, 9, 16),
+          payee: '',
+          counterAccountId: await db.createCategory('Odds'),
+          amount: -12345,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('−₮123.45', findRichText: true).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Groceries'),
+        ),
+      );
+      expect(find.text('Filed under Groceries'), findsOneWidget);
+      expect(find.byKey(const ValueKey('toast-detail')), findsNothing);
+      await tidy(tester, db);
+    });
+  });
+
+  testWidgets('import into a credit card: the preview shows each row as the '
+      'register will', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-card'),
+    ))!;
+    // Made-up rows: an OFX download has a purchase below zero.
+    final file = '${dir.path}/Card.ofx';
+    await tester.runAsync(
+      () => File(file).writeAsString(
+        'OFXHEADER:100 DATA:OFXSGML VERSION:102 <OFX><CREDITCARDMSGSRSV1>'
+        '<CCSTMTTRNRS><CCSTMTRS><BANKTRANLIST>'
+        '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE>'
+        '<DTPOSTED>20260914120000.000[0:GMT]</DTPOSTED>'
+        '<TRNAMT>-12500.00</TRNAMT><FITID>80001</FITID>'
+        '<NAME>Test Corner Shop</NAME></STMTTRN>'
+        '<STMTTRN><TRNTYPE>CREDIT</TRNTYPE>'
+        '<DTPOSTED>20260915120000.000[0:GMT]</DTPOSTED>'
+        '<TRNAMT>250000.00</TRNAMT><FITID>80002</FITID>'
+        '<NAME>Test Card Payment</NAME></STMTTRN>'
+        '</BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>',
+      ),
+    );
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Golomt Visa'));
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    Money previewOf(String payee) => tester.widget<Money>(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text(payee, findRichText: true),
+          matching: find.byWidgetPredicate(
+            (w) => '${w.runtimeType}' == '_PlanLine',
+          ),
+        ),
+        matching: find.byType(Money),
+      ),
+    );
+    Money rowOf(String payee) => tester.widget<Money>(
+      find
+          .descendant(
+            of: find.ancestor(
+              of: find.text(payee),
+              matching: find.byWidgetPredicate(
+                (w) => '${w.runtimeType}' == '_PostedRow',
+              ),
+            ),
+            matching: find.byType(Money),
+          )
+          .first,
+    );
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(find.text('Import into Golomt Visa'), findsOneWidget);
+    final bought = previewOf('Test Corner Shop');
+    final paid = previewOf('Test Card Payment');
+    // A purchase is money out here as anywhere: red, with a minus.
+    expect(bought.minor, -1250000);
+    expect(bought.color, Mid.coral);
+    expect(paid.minor, 25000000);
+    expect(paid.color, Mid.green);
+
+    await run(find.byKey(const ValueKey('import-do')));
+    expect(find.textContaining('Imported 2 rows'), findsOneWidget);
+    expect(rowOf('Test Corner Shop').minor, bought.minor);
+    expect(rowOf('Test Corner Shop').color, bought.color);
+    expect(rowOf('Test Card Payment').minor, paid.minor);
+    expect(rowOf('Test Card Payment').color, paid.color);
+    await tidy(tester, db);
+  });
+
+  testWidgets('search finds an amount typed with the minus its row shows', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    final search = find.widgetWithText(TextField, 'Search payee, memo, amount');
+    expect(find.text('Unitel'), findsOneWidget);
+    expect(find.text('Sakura Coffee'), findsWidgets);
+    // As the row reads, and as a person types it.
+    for (final typed in ['−30,000', '-30000', '+30000']) {
+      await tester.enterText(search, typed);
+      await tester.pumpAndSettle();
+      expect(find.text('Unitel'), findsOneWidget, reason: typed);
+      expect(find.text('Sakura Coffee'), findsNothing, reason: typed);
+    }
     await tidy(tester, db);
   });
 

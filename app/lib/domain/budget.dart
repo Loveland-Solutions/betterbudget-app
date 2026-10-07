@@ -274,12 +274,25 @@ class Budget {
   static bool isLongLoan(AccountInfo a) =>
       a.role == AccountRole.mortgage || a.role == AccountRole.studentLoan;
 
-  /// The currency the budget counts in.
-  static Currency currencyOf(LedgerData data) =>
-      switch (data.prefs[BudgetKeys.currency]) {
-        final String code => Currency.fromCode(code),
-        null => mainCurrency(data),
-      };
+  /// The currency the budget counts in: the one it began in, for as long
+  /// as an account or a category is in it. Once the last of those is gone
+  /// (every dollar account deleted), it's the currency the accounts are in,
+  /// so the Budget page doesn't lead with a currency nothing is in.
+  static Currency currencyOf(LedgerData data) {
+    final code = data.prefs[BudgetKeys.currency];
+    if (code != null) {
+      final began = Currency.fromCode(code);
+      final inUse = data.accounts.values.any(
+        (a) =>
+            !a.deleted &&
+            a.currency == began &&
+            (a.isBalanceSheet ||
+                (a.isCategory && !a.isIncome && !isUncategorized(a))),
+      );
+      if (inUse) return began;
+    }
+    return mainCurrency(data);
+  }
 
   /// The spending category a long loan's payments come out of, if any.
   static int? loanCategory(LedgerData data, int loanId) =>

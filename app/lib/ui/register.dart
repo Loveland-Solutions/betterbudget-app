@@ -208,7 +208,10 @@ class RegisterPanel extends StatelessWidget {
   bool _matches(Words t, RegisterRow r) {
     final q = search.trim().toLowerCase();
     if (q.isEmpty) return true;
-    final digits = q.replaceAll(RegExp(r'[,\s₮$]'), '');
+    // The sign a row shows is typed as often as not: "-30000" finds it.
+    final digits = q
+        .replaceAll(RegExp(r'[,\s₮$]'), '')
+        .replaceFirst(RegExp(r'^[-−+]'), '');
     return rowPayee(t, r).toLowerCase().contains(q) ||
         r.memo.toLowerCase().contains(q) ||
         (_accountOf(r)?.toLowerCase().contains(q) ?? false) ||

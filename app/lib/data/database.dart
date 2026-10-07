@@ -3293,19 +3293,33 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  /// Rows filed under a category, deleted ones included.
+  /// Rows filed under a category that still exist. A deleted row (its own
+  /// delete, or its account's) isn't one: nobody can see it, so nobody can
+  /// say where it should go.
   Future<int> categoryEntryCount(int categoryId) async {
     final n = entries.id.count();
-    return (selectOnly(entries)
+    return (selectOnly(entries).join([
+            innerJoin(
+              transactions,
+              transactions.id.equalsExp(entries.transactionId),
+            ),
+          ])
           ..addColumns([n])
-          ..where(entries.accountId.equals(categoryId)))
+          ..where(
+            entries.accountId.equals(categoryId) &
+                transactions.deletedAt.isNull(),
+          ))
         .map((r) => r.read(n)!)
         .getSingle();
   }
 
   /// Deletes a category. With [into], every row in it moves there first (a
-  /// merge), deleted rows included so undoing their delete finds a live
-  /// category. Without, it must have no rows at all, deleted ones included.
+  /// merge), deleted rows included. Without, it must have no rows that
+  /// still exist; deleted rows stay filed under it (owner, 2026-10-07: with
+  /// the dollar account deleted, deleting its categories asked where rows
+  /// that weren't there should go). Undo runs newest first, so a deleted
+  /// row can only come back after this delete has been undone, and finds
+  /// its category there.
   Future<DeletedCategory> deleteCategory(int categoryId, {int? into}) =>
       transaction(() async {
         await _assertOwnCategory(categoryId);

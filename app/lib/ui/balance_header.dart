@@ -1488,7 +1488,8 @@ class _BillCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    // As the register shows it: money out plain, in with +.
+                    // Money out plain, in with +. The register's red minus
+                    // isn't used here: coral in the forecast says it runs out.
                     '${l.row.amount > 0 ? '+' : ''}${moneyIn(context, l.row.amount.abs())}',
                     style: onest(
                       13.5,

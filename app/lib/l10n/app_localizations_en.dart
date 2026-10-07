@@ -1820,8 +1820,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Always file this payee here · $count more rows now',
-      one: 'Always file this payee here · 1 more row now',
+      other: 'Always file this payee here, and $count more rows now',
+      one: 'Always file this payee here, and 1 more row now',
       zero: 'Always file this payee here',
     );
     return '$_temp0';

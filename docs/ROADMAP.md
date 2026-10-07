@@ -165,4 +165,6 @@ per account, a way to drop one, and a way to change the name a rule goes by (it 
 payee of the row it was made on). Today a rule is changed by picking another category
 on a row of that payee and taking the offer again, and can't be dropped once the
 session's undo is gone. Also still to do there: the offer from a row's Edit, not only
-from its dropdown.
+from its dropdown. Asked 2026-10-07, not answered: the offer at the foot of a row's
+category dropdown, reading "Always filed here · Stop" once the rule exists (STATUS
+"Next step").

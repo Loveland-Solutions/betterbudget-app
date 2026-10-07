@@ -255,9 +255,31 @@ What's known so far:
    was plain ink with no sign, and in a column of mostly outflows a row of money in
    was the only one marked. The red is `Mid.coral`, the same red a balance below zero
    has, so red means "below zero" in both columns; zero stays plain. It holds in every
-   register (All accounts, a card, scheduled rows) and in the import's preview. On a
+   register (All accounts, a card, scheduled rows) and in the import's preview. (On a
+   credit card the preview still showed the opposite of its register until 0.13.1: a
+   purchase green with a plus, then red with a minus once imported. The budget review
+   of 2026-10-07 caught it; the preview is where someone checks money in and money out
+   are the right way round.) The search box takes the sign as typed: "-30000" finds
+   the row. On a
    card a purchase is money out like anywhere else and a payment is money in; the
    total and the Owed column stay positive in normal ink (rule 6).
+   **A credit card's own page signs its rows the same way** (owner, 2026-10-07, option
+   A of three, asked because the budget review found a minus beside an Owed that goes
+   up). On Golomt Visa, "Owed ₮640,200": a ₮50,000 purchase is red `−₮50,000` and Owed
+   rises to ₮690,200; a ₮350,000 payment is green `+₮350,000` and Owed falls. A card
+   purchase reads as a checking purchase does beside it in All accounts, and a row
+   never changes sign between its own page and All accounts. *Accepted with it:* the
+   Amount column is the one place on a card's page that isn't written as what's owed
+   (rule 6 covers the total, the Owed column and the sidebar), so the header's
+   Uncleared line counts that same purchase as ₮50,000 more owed; and red is on a
+   card's page again, as the sign of money out, not as a warning. *Rejected:* **B**,
+   signs that follow Owed (green `+₮50,000` for a purchase, red `−₮350,000` for a
+   payment: every row adds up to Owed, but spending turns green, paying a card down
+   turns red, and a row changes sign between pages); **C**, signs that follow Owed
+   with colors by meaning (red `+₮50,000`, green `−₮350,000`: it adds up, but a red
+   plus breaks "red has a minus"). *Not decided:* an opening balance still takes its
+   sign like any row (green plus on Cash wallet, red minus on the Visa); plain ink
+   with no sign was suggested and not picked up.
 4. **Every row shows its full date (`YYYY.MM.DD`). No month subheadings or month
    subtotals.** The owner asked for these to be removed; don't reintroduce them.
    **Every other posted row is tinted a faint royal blue** (`Mid.stripe`, blue at 4.5%;
@@ -291,7 +313,9 @@ What's known so far:
    header more room. **Its hint shows ⌘F** (owner, 2026-10-03), the Mac's own key
    for finding in a list; ⌘K, copied from other apps' command palettes, still works
    but isn't shown.
-   **On a credit card every amount is what's owed, positive**, as the bank shows it
+   **On a credit card every amount is what's owed, positive** (the header, the Owed
+   column and the sidebar; a row's own Amount is signed as money out or in since
+   2026-10-07, rule 3), as the bank shows it
    (owner's call, from the budget-app review): the total reads "Owed ₮640,200" in
    normal ink, the register's last column is "Owed", and the sidebar says "₮640,200
    owed". Coral on a card read as an emergency, which teaches people to ignore coral
@@ -2034,6 +2058,43 @@ month, or the pay period the Budget page is viewed by); with none in it the tab 
 there. Older ones are still in All, and a search for "Not categorized" finds them.
 *Not built:* choosing another period for the tab.
 
+### One currency left, one account left (owner, 2026-10-07)
+
+The owner deleted every account but one, in tugrik, added a category, and its Edit
+still offered a Currency dropdown of tugrik and dollars; **Paid from** read "All
+accounts" with one account to choose from ("I don't even know if this is worth
+changing").
+
+- **A new category is made in a currency there is an account in.** It used to start
+  in the currency the budget began in (`budget.currency`, kept so that adding a
+  dollar account can't change what amounts mean), which here was dollars with no
+  dollar account left: the category came out in dollars, with no choice shown, and
+  that is why its Edit offered both. Now it starts in the budget's currency only
+  while an account is in it, else in the currency the accounts are in.
+- **The budget is in the currency it began in only while something is in it**
+  (`Budget.currencyOf`): an account, archived ones included, or a spending category.
+  Once the last is gone, it is the currency the accounts are in, so the Budget page
+  doesn't lead with a column for a currency nothing is in.
+- **A category that really is in a currency with no account left keeps the dropdown**
+  in its Edit: it is the one way to bring it over, and changing a category's currency
+  drops its plan and says what it loses first (rule 28). It isn't changed on its own.
+- **Paid from names the account when there is only one** in the category's currency
+  ("TDB Checking"); "All accounts" is for two or more, and "No accounts" when the
+  currency has none.
+- **Deleting a category asks where its rows go only when it has rows that still
+  exist** (owner, same day: clearing out the dollar categories, each Delete said "Only
+  deleted rows are filed under it. They move to:" and wouldn't go on until a category
+  was picked, for rows that went with the dollar account). A row that was deleted,
+  on its own or with its account, isn't counted: nobody can see it, so nobody can say
+  where it belongs. The category is deleted at once, with the usual popup and Undo,
+  and the deleted rows stay filed under it. They can only come back by undoing their
+  own delete, which the session's undo reaches after it has undone the category's
+  (newest first), so they find it there. *Before:* the database refused to delete a
+  category with any row at all, deleted ones included, so that an old delete undone
+  later would find a live category; that made a required choice out of something the
+  owner couldn't see. A merge (Delete with rows, or a rename onto another name) still
+  moves deleted rows along.
+
 ### The popup is a card (owner, 2026-10-06)
 
 The owner sent the popup after a category was picked, in light mode, and said "Not
@@ -2044,10 +2105,11 @@ white on brown (light mode's deeper gold), which read as a warning. The design
 committee ran on it; two mockups went to the owner, who picked A.
 
 - **A card 440 wide in the page's bottom-right corner** (40 from the right, 36 from
-  the bottom), on every page. It never reaches the sidebar, and in a register it covers
-  the ends of the last rows' amounts and leaves their category chips free, where the
-  next click goes when working down rows that need a category. One width, so Undo and
-  × are in the same place in every popup.
+  the bottom), on every page. It never reaches the sidebar. In a register it covers
+  the last rows' amounts and balances and the right 75 px or so of their Category
+  column (a long chip such as "Not categorized" runs a little under it; the code
+  review of 2026-10-07 corrected the claim here that the chips were left free). One
+  width, so Undo and × are in the same place in every popup.
 - **Three parts, each only when there's something for it.** What happened, with Undo
   and × at its right; it wraps as far as it needs and is never cut (its last clause is
   often the amount). Then **the row it happened to, on its own line**, smaller, cut
@@ -2061,8 +2123,33 @@ committee ran on it; two mockups went to the owner, who picked A.
 - **Gold with dark text in both modes** (`Mid.toast`, `Mid.onToast`): light mode had
   drifted to white on its deeper gold. In light mode the card has an edge in that
   deeper gold and a lighter shadow.
-- **It stays while the pointer is on it**, and four seconds after the pointer leaves,
-  so it can't go from under a click. Otherwise 6 seconds, 12 with an offer, as before.
+- **It stays while the pointer is on it**, so it can't go from under a click.
+  Otherwise 6 seconds, 12 with an offer, as before. From the reviews (2026-10-07),
+  which found three ways the first build broke that promise:
+  - Once the pointer leaves, it stays the longer of what's left of its own time and
+    four seconds. (Leaving used to restart it at four, so an offer the pointer merely
+    crossed on its way elsewhere went after 5 seconds instead of 12.)
+  - A popup that takes the place of one the pointer is on (⌘Z, the card's own Undo,
+    its offer button) stays under the pointer too. (It used to run its 6 seconds and
+    go, and the click meant for its Undo landed on the row beneath.)
+  - Only a pointer that moved or clicked on the card holds it. One that appears under
+    a pointer left resting in that corner leaves in its own time. (It used to stay for
+    good, over the last rows' amounts.)
+- **A click on the card isn't a click away** from a row open for typing: × or the
+  offer leaves an empty Add row open and a half-typed one its cursor.
+- **Opening an Edit puts the card away** (a row's, or a category's on the Budget
+  page): in the corner it lay over the Edit's Cancel and Save, and a pointer going
+  for Save landed on the card and held it there. ⌘Z still undoes what it said. For
+  the same reason **a new category says nothing in a popup**: its Edit opens under
+  its row, which is the confirmation (as a new account says nothing).
+- **A row with no payee has no second line** (it was drawn empty).
+- **Undo is level with the sentence on a Mac** (owner's screenshot, 2026-10-07). A
+  Mac draws buttons 8 shorter than the tests' platform does (Flutter's compact
+  density on desktop), so in the real app Undo sat 4 above the sentence beside it and
+  the offer button was 26 high, not 34, while every golden showed them right. The
+  card's two buttons now keep the standard size on every platform, and a test run as
+  a Mac checks it. **The same gap may be elsewhere:** goldens are drawn at standard
+  density, so they can't show a button the Mac shrinks.
 - *Rejected:* **B**, centered on the page at 520 wide with the payee on top, a filled
   button and a sentence under it (more lines, and it sits over the category chips);
   keeping the strip and capping its width (still the row of controls); asking it as a
@@ -2079,10 +2166,13 @@ Loveland Solutions pay check from the ledger category dropdown, then the app sho
 offer to remember that for the future."):
 
 - Picking a category from a row's dropdown shows, in the popup at the bottom, a
-  button: **Always file this payee here · 9 more rows now** (reworded 2026-10-06 with
-  the popup's redesign: the payee and the category are on the popup's own lines above
-  it, so the button names neither; it used to read "Always file LoveSol under Income ·
-  9 more rows waiting"). Clicking it files that payee's rows still in Not categorized
+  button: **Always file this payee here, and 9 more rows now** (reworded 2026-10-06
+  with the popup's redesign: the payee and the category are on the popup's own lines
+  above it, so the button names neither; it used to read "Always file LoveSol under
+  Income · 9 more rows waiting". One sentence since the words pass of 2026-10-07:
+  after a dot, "9 more rows now" had no verb and read as a count, where "and" carries
+  "file" over to the rows). Taken back, the popup reads "Undone · Always filed under
+  Income" and no longer says rows were filed. Clicking it files that payee's rows still in Not categorized
   on this account and keeps the rule; the popup then reads "Always filed under Income ·
   9 more rows filed" over the payee. One ⌘Z takes back the rows and the rule. Not offered on a transfer or split, for Not categorized
   itself, or when it's already the rule.
