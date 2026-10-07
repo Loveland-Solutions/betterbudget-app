@@ -4205,6 +4205,44 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('deleting a category whose rows are all deleted asks nothing', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      // As after deleting the account its rows were in.
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final dining = data.categories
+            .firstWhere((c) => c.name == 'Dining out')
+            .id;
+        await db.softDeleteMany([
+          for (final a in data.openAccounts)
+            for (final r in [
+              ...data.registerFor(a.id).posted,
+              ...data.registerFor(a.id).scheduled,
+            ])
+              if (r.categoryId == dining) r.txnId,
+        ]);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await openBudget(tester);
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Dining out'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('category-delete')));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Dining out?'), findsNothing);
+      expect(find.byKey(const ValueKey('delete-category-into')), findsNothing);
+      expect(find.textContaining('Dining out deleted'), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Dining out'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
     testWidgets('deleting a category with rows moves them first; undo', (
       tester,
     ) async {

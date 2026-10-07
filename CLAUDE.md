@@ -89,7 +89,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   money out in plain ink with no sign (it's red with a minus in front), and a
   currency choice, and a new category made in dollars, with only a tugrik account
   left (a thing is offered only while there's something for it), and "All accounts"
-  on a category with one account (it's named).
+  on a category with one account (it's named), and being made to pick where a
+  category's deleted rows go (don't ask about what they can't see).
 - **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
   testing my app by using it. The data that I have is now production data"). Every
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a

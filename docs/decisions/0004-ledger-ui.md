@@ -2081,6 +2081,19 @@ changing").
 - **Paid from names the account when there is only one** in the category's currency
   ("TDB Checking"); "All accounts" is for two or more, and "No accounts" when the
   currency has none.
+- **Deleting a category asks where its rows go only when it has rows that still
+  exist** (owner, same day: clearing out the dollar categories, each Delete said "Only
+  deleted rows are filed under it. They move to:" and wouldn't go on until a category
+  was picked, for rows that went with the dollar account). A row that was deleted,
+  on its own or with its account, isn't counted: nobody can see it, so nobody can say
+  where it belongs. The category is deleted at once, with the usual popup and Undo,
+  and the deleted rows stay filed under it. They can only come back by undoing their
+  own delete, which the session's undo reaches after it has undone the category's
+  (newest first), so they find it there. *Before:* the database refused to delete a
+  category with any row at all, deleted ones included, so that an old delete undone
+  later would find a live category; that made a required choice out of something the
+  owner couldn't see. A merge (Delete with rows, or a rename onto another name) still
+  moves deleted rows along.
 
 ### The popup is a card (owner, 2026-10-06)
 

@@ -1863,6 +1863,49 @@ void main() {
   });
 
   group('categories', () {
+    test('a category whose only rows are deleted is deleted without asking '
+        'where they go; one with a row still there is not', () async {
+      final dining = await categoryId('Dining out');
+      final before = await db.loadLedger();
+      final rows = before
+          .registerFor(checking)
+          .posted
+          .where((r) => r.categoryId == dining)
+          .toList();
+      expect(rows, isNotEmpty);
+      expect(await db.categoryEntryCount(dining), rows.length);
+      // A row still there: it has to go somewhere.
+      await expectLater(
+        db.deleteCategory(dining),
+        throwsA(isA<LockedException>()),
+      );
+      // Every row deleted, as when its account is: nothing to move.
+      await db.softDeleteMany(rows.map((r) => r.txnId));
+      expect(await db.categoryEntryCount(dining), 0);
+      final done = await db.deleteCategory(dining);
+      expect(done.entryIds, isEmpty);
+      var data = await db.loadLedger();
+      expect(data.categories.map((c) => c.id), isNot(contains(dining)));
+
+      // Undo runs newest first: the category back, then its rows, in it.
+      await db.undeleteCategory(done);
+      await db.restoreMany(rows.map((r) => r.txnId));
+      data = await db.loadLedger();
+      expect(data.categories.map((c) => c.id), contains(dining));
+      expect(
+        data
+            .registerFor(checking)
+            .posted
+            .where((r) => r.categoryId == dining)
+            .map((r) => r.txnId),
+        unorderedEquals(rows.map((r) => r.txnId)),
+      );
+      expect(
+        data.summaryFor(checking).working,
+        before.summaryFor(checking).working,
+      );
+    });
+
     test(
       'delete moves every row, deleted ones too; undo moves them back',
       () async {
