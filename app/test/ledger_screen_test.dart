@@ -83,7 +83,11 @@ void main() {
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
           builder: (context, child) => FitWindow(child: child!),
-          home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+          home: LedgerScreen(
+            demo: true,
+            db: db,
+            clock: () => DateTime(2026, 9, 16, 10),
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -2031,6 +2035,7 @@ void main() {
           MaterialApp(
             theme: appTheme(),
             home: LedgerScreen(
+              demo: true,
               db: db,
               backups: backups,
               clock: () => DateTime(2026, 9, 16, 10),
@@ -2082,7 +2087,11 @@ void main() {
           MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: appTheme(),
-            home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              clock: () => DateTime(2026, 9, 16, 10),
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -2208,7 +2217,11 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
-          home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+          home: LedgerScreen(
+            demo: true,
+            db: db,
+            clock: () => DateTime(2026, 9, 16, 10),
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -2411,7 +2424,11 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
-          home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 12, 10)),
+          home: LedgerScreen(
+            demo: true,
+            db: db,
+            clock: () => DateTime(2026, 10, 12, 10),
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -2567,7 +2584,11 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
-          home: LedgerScreen(db: db, clock: () => DateTime(2026, 10, 10, 9)),
+          home: LedgerScreen(
+            demo: true,
+            db: db,
+            clock: () => DateTime(2026, 10, 10, 9),
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -5172,6 +5193,7 @@ void main() {
                 themeAnimationDuration: Duration.zero,
                 theme: appTheme(),
                 home: LedgerScreen(
+                  demo: true,
                   db: db,
                   clock: () => DateTime(2026, 9, 16, 10),
                 ),
@@ -5301,6 +5323,7 @@ void main() {
                 themeAnimationDuration: Duration.zero,
                 theme: appTheme(),
                 home: LedgerScreen(
+                  demo: true,
                   db: db,
                   clock: () => DateTime(2026, 9, 16, 10),
                 ),
@@ -5948,6 +5971,7 @@ void main() {
               themeAnimationDuration: Duration.zero,
               theme: appTheme(),
               home: LedgerScreen(
+                demo: true,
                 db: db,
                 clock: () => DateTime(2026, 9, 16, 10),
               ),
@@ -6601,7 +6625,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: appTheme(),
-          home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 30, 10)),
+          home: LedgerScreen(
+            demo: true,
+            db: db,
+            clock: () => DateTime(2026, 9, 30, 10),
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));

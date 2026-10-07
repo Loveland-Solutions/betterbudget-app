@@ -18,6 +18,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/readiness.dart';
+import '../domain/setup.dart';
 import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'balance_header.dart';
@@ -37,6 +38,7 @@ part 'budget.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'savings.dart';
+part 'setup.dart';
 
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
@@ -59,9 +61,14 @@ class LedgerScreen extends StatefulWidget {
     this.onRecoveryKeyChecked,
     this.startupNotice,
     this.offerRestore = false,
+    this.demo = false,
   });
 
   final AppDatabase db;
+
+  /// Fills an empty ledger with the made-up demo data. The app never does:
+  /// a new ledger opens on setup (ADR 0004). Most tests do.
+  final bool demo;
 
   /// The app's backups, whose daily copy runs from main. Tests may leave it
   /// out; one is made for "Back up to…" and "Restore from…".
@@ -208,7 +215,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     FocusManager.instance.addListener(_keepKeys);
     // Each pay schedule's next payday is scheduled before the first look.
     _ledger = Stream.fromFuture(
-      seedDemoIfEmpty(db, today)
+      (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
           .then((_) => db.ensurePaydays(today))
           .then((_) => db.ensurePlanBills(today)),
     ).asyncExpand((_) => db.watchLedger());
@@ -667,6 +674,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     // Row keys act on the register; elsewhere its selection is out of sight.
     if (_section != AppSection.ledger ||
+        // Setup is over the register: its rows are out of sight.
+        (_data != null && inSetup(_data!)) ||
         _typing ||
         keys.isMetaPressed ||
         keys.isControlPressed ||
@@ -773,6 +782,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   void _newEntry() {
+    // Setup has no register to add a row to.
+    if (_data case final d? when inSetup(d)) return;
     // On the Budget page, ⌘N adds a category (or pay on the Income tab),
     // not a ledger row somewhere else (interaction review, 2026-10-05).
     if (_section == AppSection.budget) {
@@ -2010,6 +2021,131 @@ class _LedgerScreenState extends State<LedgerScreen> {
       },
       redo: write,
     );
+  }
+
+  // ---------- setup ----------
+
+  /// The write that marks setup as begun is on its way.
+  bool _beginningSetup = false;
+
+  /// Setup is on screen and nothing says so yet: the day its balances are
+  /// as of is kept, which also keeps setup open once an account exists, and
+  /// the ledger is the person's own from here.
+  void _beginSetup(LedgerData data) {
+    if (_beginningSetup || data.prefs[SetupKeys.date] != null) return;
+    _beginningSetup = true;
+    () async {
+      try {
+        await db.transaction(() async {
+          await db.setPreference(AppDatabase.startedKey, dateKey(today));
+          await db.setPreference(SetupKeys.date, dateKey(today));
+        });
+      } catch (e) {
+        debugPrint('Starting setup failed: $e');
+      } finally {
+        _beginningSetup = false;
+      }
+    }();
+  }
+
+  /// An account and what's in it on setup's one date: one write, one undo.
+  Future<void> _setupAddAccount(
+    String name,
+    AccountType type,
+    bool cash,
+    Currency currency,
+    int? typed,
+  ) async {
+    final data = _data;
+    if (data == null) return;
+    final date = setupDate(data, today);
+    late int id;
+    int? balance;
+    try {
+      await db.transaction(() async {
+        id = await db.createAccount(
+          name: name,
+          type: type,
+          currency: currency,
+          cash: cash,
+        );
+        if (typed != null && typed != 0) {
+          // What's owed is typed positive, as the bank shows it.
+          balance = await db.postOpeningBalance(
+            accountId: id,
+            date: date,
+            balance: type == AccountType.liability ? -typed : typed,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Add account failed: $e');
+      if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
+      return;
+    }
+    if (!mounted) return;
+    final txn = balance;
+    // The row appearing is the confirmation.
+    _did(
+      context.t.ledgerAdded(name),
+      undo: () => db.transaction(() async {
+        if (txn != null) {
+          _expect((await db.softDeleteMany([txn])).length == 1);
+        }
+        _expect(await db.deleteEmptyAccount(id));
+      }),
+      redo: () => db.undeleteAccount(DeletedAccount(id, [?txn])),
+      toast: false,
+    );
+  }
+
+  Future<void> _setupRemoveAccount(AccountInfo account) async {
+    final t = context.t;
+    late DeletedAccount done;
+    if (!await _accountWrite(
+      () async => done = await db.deleteAccount(account.id),
+    )) {
+      return;
+    }
+    _did(
+      t.ledgerDeleted(account.name),
+      undo: () => db.undeleteAccount(done),
+      redo: () async => done = await db.deleteAccount(account.id),
+    );
+  }
+
+  /// The one date changed: every balance typed so far moves to it.
+  Future<void> _setupSetDate(DateTime date) async {
+    final old = _data?.prefs[SetupKeys.date];
+    final key = dateKey(date);
+    if (old == key) return;
+    final t = context.t;
+    late Map<int, String> was;
+    Future<void> write() => db.transaction(() async {
+      was = await db.redateOpeningBalances(date);
+      await db.setPreference(SetupKeys.date, key);
+    });
+    if (!await _accountWrite(write)) return;
+    _did(
+      t.setupDateChanged,
+      undo: () => db.transaction(() async {
+        await db.setTransactionDates(was);
+        await db.setPreference(SetupKeys.date, old);
+      }),
+      redo: write,
+      toast: false,
+    );
+  }
+
+  /// Setup is left for the ledger, and doesn't open again.
+  Future<void> _finishSetup() async {
+    await _setPref(SetupKeys.done, '1', context.t.setupFinished);
+    if (!mounted) return;
+    setState(() {
+      _section = AppSection.ledger;
+      _all = false;
+      _newAccount = false;
+    });
   }
 
   // ---------- accounts ----------
@@ -3342,6 +3478,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 _data = loaded.withIncomeNamed(incomeWord);
               }
               final data = _data!;
+              final setup = inSetup(data);
+              if (setup) _beginSetup(data);
               final accounts = data.openAccounts;
               final current = data.accounts[_accountId];
               // Archived or deleted since: the first open one takes over.
@@ -3377,7 +3515,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             _selected = null;
                           });
                         },
-                        selected: _newAccount || _all ? null : account?.id,
+                        setup: setup,
+                        selected: setup || _newAccount || _all
+                            ? null
+                            : account?.id,
                         backupHealth: _backups.health,
                         now: widget.clock,
                         onSelect: _openAccount,
@@ -3388,105 +3529,133 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         actionsFor: (a) => _actionsFor(data, a),
                       ),
                       Expanded(
-                        child: switch (_section) {
-                          AppSection.ledger
-                              when _newAccount || account == null =>
-                            _NewAccountPage(
-                              onCreate: _createAccount,
-                              // The one most accounts are in, not whichever
-                              // is on screen: ₮ for a first account.
-                              currency: mainCurrency(data),
-                              onCancel: account == null
-                                  ? null
-                                  : () => setState(() => _newAccount = false),
-                            ),
-                          AppSection.ledger when _all => _allBody(data),
-                          AppSection.ledger => CurrencyScope(
-                            currency: account!.currency,
-                            child: _body(data, account),
-                          ),
-                          AppSection.settings => _SettingsPage(
-                            health: _backups.health,
-                            now: widget.clock,
-                            onBackUp: _backUpTo,
-                            onRestore: _restoreFrom,
-                            onNewLedger: _startNewLedger,
-                            version: _version,
-                            encrypted: widget.encrypted,
-                            recoveryKeySaved: _keySaved,
-                            onCheckRecoveryKey: widget.checkRecoveryKey == null
-                                ? null
-                                : _checkRecoveryKey,
-                            appearance: switch (AppearanceScope.maybeOf(
-                              context,
-                            )) {
-                              null => null,
-                              final c => _AppearanceSettings(
-                                value: c.value,
-                                onChanged: (a) => _setAppearance(c, a),
-                                scheme: c.scheme,
-                                onScheme: (x) => _setScheme(c, x),
-                              ),
-                            },
-                            language: switch (LanguageScope.maybeOf(context)) {
-                              null => null,
-                              final c => _LanguageSettings(
-                                value: c.value,
-                                onChanged: (l) => _setLanguage(c, l),
-                              ),
-                            },
-                            archived: data.archivedAccounts.isEmpty
-                                ? null
-                                : _ArchivedAccounts(
-                                    data: data,
-                                    onUnarchive: (a) => _setArchived(a, false),
+                        child: setup
+                            ? _SetupPage(
+                                data: data,
+                                today: today,
+                                onDate: _setupSetDate,
+                                onAdd: _setupAddAccount,
+                                onRemove: _setupRemoveAccount,
+                                onEveryday: (v) => _setPref(
+                                  SetupKeys.everyday,
+                                  v,
+                                  context.t.setupEverydayQ,
+                                ),
+                                onDone: _finishSetup,
+                              )
+                            : switch (_section) {
+                                AppSection.ledger
+                                    when _newAccount || account == null =>
+                                  _NewAccountPage(
+                                    onCreate: _createAccount,
+                                    // The one most accounts are in, not whichever
+                                    // is on screen: ₮ for a first account.
+                                    currency: mainCurrency(data),
+                                    onCancel: account == null
+                                        ? null
+                                        : () => setState(
+                                            () => _newAccount = false,
+                                          ),
                                   ),
-                          ),
-                          AppSection.budget => _BudgetPage(
-                            key: _budgetKey,
-                            data: data,
-                            today: today,
-                            onShowRows: (c, period) =>
-                                _openAll(category: c.id, period: period),
-                            onShowAllRows: (c) => _openAll(category: c.id),
-                            onSetAmount: _setBudgetAmount,
-                            onBudgetBy: _budgetBy,
-                            onStartLater: _startBudgetLater,
-                            onAssignPlanned: _assignPlanned,
-                            onKeepStart: () => _setPref(
-                              BudgetKeys.keptStart,
-                              '1',
-                              context.t.planStartKeep,
-                            ),
-                            onKeysBack: _keysBack,
-                            onAskAgain: () => _setNoRegularPay(false),
-                            onSave: _saveCategory,
-                            onArchive: (c) => _archiveCategory(c, true),
-                            onDelete: (c) => _deleteCategory(data, c),
-                            onPay: (p) => _openPaySetup(existing: p),
-                            onCreate: _createCategory,
-                            onEditOpens: _closeToast,
-                            onUnarchive: (c) => _archiveCategory(c, false),
-                          ),
-                          AppSection.savings => _SavingsPage(
-                            data: data,
-                            today: dateOnly(widget.clock()),
-                            actions: _SavingsActions(
-                              setRole: _setRole,
-                              setPref: (key, value, label, {toast = false}) =>
-                                  _setPref(key, value, label, toast: toast),
-                              setAside: (step, aside, label) => _setPref(
-                                ReadyKeys.setAside,
-                                Readiness.of(
-                                  _data ?? data,
-                                  widget.clock(),
-                                ).setAsideWith(step, aside),
-                                label,
-                                toast: true,
-                              ),
-                            ),
-                          ),
-                        },
+                                AppSection.ledger when _all => _allBody(data),
+                                AppSection.ledger => CurrencyScope(
+                                  currency: account!.currency,
+                                  child: _body(data, account),
+                                ),
+                                AppSection.settings => _SettingsPage(
+                                  health: _backups.health,
+                                  now: widget.clock,
+                                  onBackUp: _backUpTo,
+                                  onRestore: _restoreFrom,
+                                  onNewLedger: _startNewLedger,
+                                  version: _version,
+                                  encrypted: widget.encrypted,
+                                  recoveryKeySaved: _keySaved,
+                                  onCheckRecoveryKey:
+                                      widget.checkRecoveryKey == null
+                                      ? null
+                                      : _checkRecoveryKey,
+                                  appearance: switch (AppearanceScope.maybeOf(
+                                    context,
+                                  )) {
+                                    null => null,
+                                    final c => _AppearanceSettings(
+                                      value: c.value,
+                                      onChanged: (a) => _setAppearance(c, a),
+                                      scheme: c.scheme,
+                                      onScheme: (x) => _setScheme(c, x),
+                                    ),
+                                  },
+                                  language: switch (LanguageScope.maybeOf(
+                                    context,
+                                  )) {
+                                    null => null,
+                                    final c => _LanguageSettings(
+                                      value: c.value,
+                                      onChanged: (l) => _setLanguage(c, l),
+                                    ),
+                                  },
+                                  archived: data.archivedAccounts.isEmpty
+                                      ? null
+                                      : _ArchivedAccounts(
+                                          data: data,
+                                          onUnarchive: (a) =>
+                                              _setArchived(a, false),
+                                        ),
+                                ),
+                                AppSection.budget => _BudgetPage(
+                                  key: _budgetKey,
+                                  data: data,
+                                  today: today,
+                                  onShowRows: (c, period) =>
+                                      _openAll(category: c.id, period: period),
+                                  onShowAllRows: (c) =>
+                                      _openAll(category: c.id),
+                                  onSetAmount: _setBudgetAmount,
+                                  onBudgetBy: _budgetBy,
+                                  onStartLater: _startBudgetLater,
+                                  onAssignPlanned: _assignPlanned,
+                                  onKeepStart: () => _setPref(
+                                    BudgetKeys.keptStart,
+                                    '1',
+                                    context.t.planStartKeep,
+                                  ),
+                                  onKeysBack: _keysBack,
+                                  onAskAgain: () => _setNoRegularPay(false),
+                                  onSave: _saveCategory,
+                                  onArchive: (c) => _archiveCategory(c, true),
+                                  onDelete: (c) => _deleteCategory(data, c),
+                                  onPay: (p) => _openPaySetup(existing: p),
+                                  onCreate: _createCategory,
+                                  onEditOpens: _closeToast,
+                                  onUnarchive: (c) =>
+                                      _archiveCategory(c, false),
+                                ),
+                                AppSection.savings => _SavingsPage(
+                                  data: data,
+                                  today: dateOnly(widget.clock()),
+                                  actions: _SavingsActions(
+                                    setRole: _setRole,
+                                    setPref:
+                                        (key, value, label, {toast = false}) =>
+                                            _setPref(
+                                              key,
+                                              value,
+                                              label,
+                                              toast: toast,
+                                            ),
+                                    setAside: (step, aside, label) => _setPref(
+                                      ReadyKeys.setAside,
+                                      Readiness.of(
+                                        _data ?? data,
+                                        widget.clock(),
+                                      ).setAsideWith(step, aside),
+                                      label,
+                                      toast: true,
+                                    ),
+                                  ),
+                                ),
+                              },
                       ),
                     ],
                   ),
@@ -3747,7 +3916,12 @@ class _Sidebar extends StatelessWidget {
     required this.allActive,
     required this.onAll,
     required this.runsOut,
+    this.setup = false,
   });
+
+  /// Setup is on the page: the accounts and what they come to, and nothing
+  /// to go to, since there is nothing behind the sections yet.
+  final bool setup;
   final bool allActive;
   final VoidCallback onAll;
 
@@ -3833,25 +4007,27 @@ class _Sidebar extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          header(
-                            AppSection.ledger,
-                            Icons.format_list_bulleted_rounded,
-                            t.ledgerSectionLedger,
-                          ),
+                          if (!setup)
+                            header(
+                              AppSection.ledger,
+                              Icons.format_list_bulleted_rounded,
+                              t.ledgerSectionLedger,
+                            ),
                           _Spill(
-                            open: section == AppSection.ledger,
+                            open: setup || section == AppSection.ledger,
                             children: [
                               const SizedBox(height: 10),
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 26,
-                                  bottom: 12,
+                              if (!setup)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 26,
+                                    bottom: 12,
+                                  ),
+                                  child: _AllAccountsTile(
+                                    active: allActive,
+                                    onTap: onAll,
+                                  ),
                                 ),
-                                child: _AllAccountsTile(
-                                  active: allActive,
-                                  onTap: onAll,
-                                ),
-                              ),
                               for (final g in groups.entries) ...[
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(
@@ -3868,98 +4044,110 @@ class _Sidebar extends StatelessWidget {
                                 for (final a in g.value)
                                   Padding(
                                     padding: const EdgeInsets.only(left: 26),
-                                    child: _AccountTile(
-                                      account: a,
-                                      runsOut: runsOut[a.id],
-                                      balance: data.balanceOf(a.id),
-                                      active: a.id == selected,
-                                      onTap: () => onSelect(a.id),
-                                      actions: actionsFor(a),
+                                    // In setup the list on the page is
+                                    // where an account is changed; here
+                                    // it only shows what's been added.
+                                    child: IgnorePointer(
+                                      ignoring: setup,
+                                      child: _AccountTile(
+                                        account: a,
+                                        runsOut: runsOut[a.id],
+                                        balance: data.balanceOf(a.id),
+                                        active: a.id == selected,
+                                        onTap: () => onSelect(a.id),
+                                        actions: actionsFor(a),
+                                      ),
                                     ),
                                   ),
                                 const SizedBox(height: 14),
                               ],
-                              _AddAccountTile(
-                                active: addingAccount,
-                                onTap: onAddAccount,
-                              ),
+                              if (!setup)
+                                _AddAccountTile(
+                                  active: addingAccount,
+                                  onTap: onAddAccount,
+                                ),
                               const SizedBox(height: 10),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          header(
-                            AppSection.budget,
-                            Icons.pie_chart_outline_rounded,
-                            t.ledgerSectionBudget,
-                          ),
-                          const SizedBox(height: 2),
-                          header(
-                            AppSection.savings,
-                            Icons.savings_outlined,
-                            t.ledgerSectionSavings,
-                          ),
+                          if (!setup) ...[
+                            const SizedBox(height: 2),
+                            header(
+                              AppSection.budget,
+                              Icons.pie_chart_outline_rounded,
+                              t.ledgerSectionBudget,
+                            ),
+                            const SizedBox(height: 2),
+                            header(
+                              AppSection.savings,
+                              Icons.savings_outlined,
+                              t.ledgerSectionSavings,
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                   // Settings, above Net worth, laid out like a section header so its
                   // icon and label line up with theirs.
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    // Full width, like the section headers, so hover fills the row.
-                    child: ValueListenableBuilder(
-                      valueListenable: backupHealth,
-                      builder: (context, health, _) => _SettingsGear(
-                        active: section == AppSection.settings,
-                        alert: health.alarmingAt(now()),
-                        onTap: () => onSection(AppSection.settings),
+                  if (!setup)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      // Full width, like the section headers, so hover fills the row.
+                      child: ValueListenableBuilder(
+                        valueListenable: backupHealth,
+                        builder: (context, health, _) => _SettingsGear(
+                          active: section == AppSection.settings,
+                          alert: health.alarmingAt(now()),
+                          onTap: () => onSection(AppSection.settings),
+                        ),
                       ),
                     ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-                    decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: Mid.sideRule)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.ledgerNetWorth,
-                          style: onest(12, color: Mid.sideInk3),
-                        ),
-                        const SizedBox(height: 4),
-                        for (final e in net.entries)
+                  // In setup with no account yet, ₮0.00 would be noise.
+                  if (!setup || data.balanceSheetAccounts.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                      decoration: BoxDecoration(
+                        border: Border(top: BorderSide(color: Mid.sideRule)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            formatMoney(e.value, currency: e.key),
-                            key: ValueKey('net-worth-${e.key.code}'),
-                            style: onest(
-                              net.length > 1 ? 16 : 18,
-                              weight: 500,
-                              color: Mid.sideInk,
-                              tabular: true,
-                            ),
+                            t.ledgerNetWorth,
+                            style: onest(12, color: Mid.sideInk3),
                           ),
-                        if (archived.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              t.ledgerInclArchived(
-                                archived.entries
-                                    .map((e) => _money(e.value, e.key))
-                                    .join(' · '),
-                              ),
-                              key: const ValueKey('net-worth-archived'),
+                          const SizedBox(height: 4),
+                          for (final e in net.entries)
+                            Text(
+                              formatMoney(e.value, currency: e.key),
+                              key: ValueKey('net-worth-${e.key.code}'),
                               style: onest(
-                                11.5,
-                                color: Mid.sideInk3,
+                                net.length > 1 ? 16 : 18,
+                                weight: 500,
+                                color: Mid.sideInk,
                                 tabular: true,
                               ),
                             ),
-                          ),
-                      ],
+                          if (archived.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                t.ledgerInclArchived(
+                                  archived.entries
+                                      .map((e) => _money(e.value, e.key))
+                                      .join(' · '),
+                                ),
+                                key: const ValueKey('net-worth-archived'),
+                                style: onest(
+                                  11.5,
+                                  color: Mid.sideInk3,
+                                  tabular: true,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

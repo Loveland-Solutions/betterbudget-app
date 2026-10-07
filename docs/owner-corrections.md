@@ -72,4 +72,5 @@ ink with no sign (it's red with a minus in front), and a currency choice, and a 
 category made in dollars, with only a tugrik account left (a thing is offered only while
 there's something for it), and "All accounts" on a category with one account (it's
 named), and being made to pick where a category's deleted rows go (don't ask about what
-they can't see).
+they can't see), and a setup that asked for every account they keep money in or owe
+money on (they add only the accounts they want to track).

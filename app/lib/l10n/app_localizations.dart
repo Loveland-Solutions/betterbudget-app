@@ -6459,6 +6459,102 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{replaced the income you scheduled by hand} other{replaced {count} incomes you scheduled by hand}}'**
   String ledgerPayReplaced(int count);
+
+  /// Setup, first screen: the page heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Your accounts'**
+  String get setupYourAccounts;
+
+  /// Setup, under the heading. Not every account: only the ones they want to follow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the accounts you want to track.'**
+  String get setupAddTracked;
+
+  /// Setup, under the heading: said once, before any balance is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'BetterBudget never connects to your bank. You type in what your bank app shows.'**
+  String get setupNeverConnects;
+
+  /// Setup: label beside the one date every balance typed there is as of.
+  ///
+  /// In en, this message translates to:
+  /// **'Balances as of'**
+  String get setupBalancesAsOf;
+
+  /// Undo label after setup's one balance date is changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Balances date changed'**
+  String get setupDateChanged;
+
+  /// Setup, under the amount owed on a credit card or loan being added.
+  ///
+  /// In en, this message translates to:
+  /// **'A charge from today that the bank hasn’t shown yet isn’t in this figure.'**
+  String get setupOwedTodayHint;
+
+  /// Setup, under the accounts: a question with three answers. Also its undo label.
+  ///
+  /// In en, this message translates to:
+  /// **'How do you pay for everyday things?'**
+  String get setupEverydayQ;
+
+  /// Setup: first answer to how everyday things are paid for.
+  ///
+  /// In en, this message translates to:
+  /// **'From the bank (card, QR or transfer)'**
+  String get setupEverydayBank;
+
+  /// Setup: third answer to how everyday things are paid for, after From the bank and Cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Both'**
+  String get setupEverydayBoth;
+
+  /// Setup: shown when they pay with cash and have added no Cash account. A warning, never a block.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no Cash account. Money you take out of an ATM will read as spent the day you take it out, and the cash in your wallet won’t be counted.'**
+  String get setupNoCashWarning;
+
+  /// Setup: button beside the no-Cash-account warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a Cash account'**
+  String get setupAddCashAccount;
+
+  /// Setup: the button that leaves setup for the ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Open my ledger'**
+  String get setupOpenLedger;
+
+  /// Setup: tooltip on the × beside an account in the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}'**
+  String setupRemoveAccount(String name);
+
+  /// Setup: second answer to how everyday things are paid for. In Mongolian it answers “with what”, so it isn’t the account Type’s word.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get setupEverydayCash;
+
+  /// Setup, under the Balance of a Cash account being added. zero is ₮0 in the account’s currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Count what’s in your wallet now · empty starts at {zero}'**
+  String setupStartCashHint(String zero);
+
+  /// Undo label after setup is left with Open my ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup finished'**
+  String get setupFinished;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

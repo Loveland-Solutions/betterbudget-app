@@ -292,6 +292,7 @@ void main() {
               localeListResolutionCallback: (preferred, _) =>
                   resolveLocale(preferred),
               home: LedgerScreen(
+                demo: true,
                 db: db,
                 clock: () => DateTime(2026, 9, 16, 10),
               ),

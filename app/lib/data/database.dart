@@ -3453,6 +3453,51 @@ class AppDatabase extends _$AppDatabase {
     ),
   );
 
+  /// Setup's one date: every opening balance moves to [date], except one
+  /// that's reconciled, which stays where its statement has it. Returns the
+  /// date each moved one had, by transaction id, for [setTransactionDates]
+  /// to put back.
+  Future<Map<int, String>> redateOpeningBalances(DateTime date) =>
+      transaction(() async {
+        final to = dateKey(dateOnly(date));
+        final rows = await customSelect(
+          'SELECT DISTINCT t.id, t.date FROM transactions t '
+          'JOIN entries e ON e.transaction_id = t.id '
+          'JOIN accounts a ON a.id = e.account_id '
+          'WHERE t.deleted_at IS NULL AND a.name = ?1 '
+          "AND a.type = 'equity' AND t.date != ?2",
+          variables: [
+            Variable.withString(openingBalancesName),
+            Variable.withString(to),
+          ],
+          readsFrom: {transactions, entries, accounts},
+        ).get();
+        final all = {
+          for (final r in rows) r.read<int>('id'): r.read<String>('date'),
+        };
+        final locked = await _reconciledAmong(all.keys);
+        final was = {
+          for (final e in all.entries)
+            if (!locked.contains(e.key)) e.key: e.value,
+        };
+        await setTransactionDates({for (final id in was.keys) id: to});
+        return was;
+      });
+
+  /// Undo and redo for [redateOpeningBalances]: each transaction's date, as
+  /// a date key. Refuses all of them if one has been reconciled since.
+  Future<void> setTransactionDates(Map<int, String> dates) =>
+      transaction(() async {
+        if ((await _reconciledAmong(dates.keys)).isNotEmpty) {
+          throw LockedException(DbProblem.reconciled);
+        }
+        for (final e in dates.entries) {
+          await (update(transactions)..where((t) => t.id.equals(e.key))).write(
+            TransactionsCompanion(date: Value(e.value), updatedAt: Value(_now)),
+          );
+        }
+      });
+
   Future<void> addReconciliation(
     int accountId,
     DateTime statementDate,

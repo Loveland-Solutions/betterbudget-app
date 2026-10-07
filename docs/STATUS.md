@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.13.1 · schema v18 · 458 tests pass
+**Last updated: 2026-10-07** · version 0.14.0 · schema v18 · 471 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -14,11 +14,19 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 what they hit; expect more of that first. Then, in order:
 
 1. **The onboarding wizard's mockups.** The design is settled in ADR 0004 ("Onboarding:
-   the first half hour"). The four design committee reports were never saved, so the
-   committee runs again, and its reports are folded into two or three mockups. Two
-   findings from the lost reports worth acting on regardless: a first-time reader
-   thinks **assigning moves their money** ("I would open my TDB app to check whether my
-   balance changed"), and there is no designed screen for a ledger with no accounts.
+   the first half hour"). The design committee's four reports are in
+   [committee/onboarding/](committee/onboarding/), and three mockups drawn from them
+   (A, setup inside the app's own window, recommended; B, one Set up page; C, one
+   question at a time) are at <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>.
+   **The owner picked A** (2026-10-07). Built so far, on branch `onboarding-mockups`
+   (not merged): no demo at first launch, and the Accounts step. **Next: the steps
+   after it, each its own slice, in this order:** Pay (the form that exists, on the
+   page), Bills (with "is there a set payment each month?" for an account that owes),
+   Everyday, Saved, Assign, Tomorrow, then Import and the which-period question. The
+   step names across the top come with the second step. Two questions asked with the
+   mockups are unanswered; bring each up when its step is built: whether a budget that
+   starts next month assigns today's money now or waits, and which accounts the "what
+   is this saved money for?" step asks about.
 2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
 
@@ -102,7 +110,8 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
 | Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Demo data | An empty database is seeded with made-up data: TDB Checking, Khan Savings, Cash wallet, Golomt Visa |
+| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, "Open my ledger". It is where it was left after a quit, and never returns once done. A ledger that already had accounts never sees it |
+| Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
 
 Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).
 
@@ -115,6 +124,8 @@ open the archive).
 
 ## Not built yet
 
+- **Setup after the accounts:** pay, bills, everyday amounts, saved money, assigning,
+  "from tomorrow", import. Settings can't be reached until setup ends.
 - **Splits** can't be created or edited (`splitNotEditable`).
 - **A list of the "Always file" rules**, with a way to drop or rename one.
 - **A scheduled row typed by hand doesn't repeat.** Repeating bills come only from a
@@ -144,6 +155,13 @@ open the archive).
   the offer silently replaces an earlier rule for the payee; reconcile's "Add ₮X
   adjustment" doesn't say which way; a transfer shown once in All accounts reads as
   red spending.
+- **From the reviews of setup's Accounts step, not fixed:** reopened on a later day,
+  "Balances as of" still shows the day setup began and nothing says the earlier
+  figures are from then; the "You owe" hints fit a credit card and not a salary loan,
+  лизинг or Storepay (the remaining balance, not payments × months or the next
+  instalment); an account in the list can be removed but not edited; the bank hint
+  says not the "available" balance while the page says to type what the bank app
+  shows, and which figure Khan and TDB put forward hasn't been checked.
 - **The forecast still speaks to one person** ("Until your 10.15 paycheck") though a
   ledger can hold two earners' pay.
 - **"Nothing has been budgeted…"** in the forecast shows whenever no bills are

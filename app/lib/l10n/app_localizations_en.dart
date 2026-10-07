@@ -4517,4 +4517,59 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String get setupYourAccounts => 'Your accounts';
+
+  @override
+  String get setupAddTracked => 'Add the accounts you want to track.';
+
+  @override
+  String get setupNeverConnects =>
+      'BetterBudget never connects to your bank. You type in what your bank app shows.';
+
+  @override
+  String get setupBalancesAsOf => 'Balances as of';
+
+  @override
+  String get setupDateChanged => 'Balances date changed';
+
+  @override
+  String get setupOwedTodayHint =>
+      'A charge from today that the bank hasn’t shown yet isn’t in this figure.';
+
+  @override
+  String get setupEverydayQ => 'How do you pay for everyday things?';
+
+  @override
+  String get setupEverydayBank => 'From the bank (card, QR or transfer)';
+
+  @override
+  String get setupEverydayBoth => 'Both';
+
+  @override
+  String get setupNoCashWarning =>
+      'You have no Cash account. Money you take out of an ATM will read as spent the day you take it out, and the cash in your wallet won’t be counted.';
+
+  @override
+  String get setupAddCashAccount => 'Add a Cash account';
+
+  @override
+  String get setupOpenLedger => 'Open my ledger';
+
+  @override
+  String setupRemoveAccount(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String get setupEverydayCash => 'Cash';
+
+  @override
+  String setupStartCashHint(String zero) {
+    return 'Count what’s in your wallet now · empty starts at $zero';
+  }
+
+  @override
+  String get setupFinished => 'Setup finished';
 }
