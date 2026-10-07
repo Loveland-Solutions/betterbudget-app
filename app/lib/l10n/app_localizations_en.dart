@@ -4784,4 +4784,7 @@ class WordsEn extends Words {
   String phoneInCredit(String amount) {
     return '$amount in credit';
   }
+
+  @override
+  String get phoneBills => 'Bills';
 }

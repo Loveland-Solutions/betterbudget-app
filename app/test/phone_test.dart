@@ -364,7 +364,9 @@ void main() {
     );
   });
 
-  testWidgets('a bill’s due date is under its name', (tester) async {
+  testWidgets('money waiting for a bill is listed apart, under Bills', (
+    tester,
+  ) async {
     await _pump(
       tester,
       snapshot: PhoneSnapshot(
@@ -374,19 +376,51 @@ void main() {
           PhoneAccount(id: 'a', name: 'TDB Checking', balanceMinor: 0),
         ],
         categories: [
+          // First in the ledger's order, and still shown after the money
+          // that is free to spend.
           PhoneCategory(
-            id: 'h',
-            name: 'Housing',
+            id: 'r',
+            name: 'Rent',
             leftMinor: 180000000,
             due: DateTime(2026, 10, 20),
           ),
-          const PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 100),
+          const PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
         ],
       ),
     );
     // A budget that runs by pay periods says when this one ends.
     expect(find.text('Left until 10.14'), findsOneWidget);
     expect(find.text('Due 10.20'), findsOneWidget);
+    final groceries = tester.getTopLeft(find.text('Groceries')).dy;
+    final heading = tester.getTopLeft(find.text('Bills')).dy;
+    final rent = tester.getTopLeft(find.text('Rent')).dy;
+    expect(groceries, lessThan(heading));
+    expect(heading, lessThan(rent));
+    // Its amount is drawn quieter than money to spend.
+    final spend = tester.widget<Text>(find.text('₮148,000.00')).style!.color;
+    final bill = tester.widget<Text>(find.text('₮1,800,000.00')).style!.color;
+    expect(bill, isNot(spend));
+
+    // It can still be paid from here.
+    await tester.tap(find.text('Rent'));
+    await tester.pumpAndSettle();
+    expect(find.text('₮1,800,000.00 left now'), findsOneWidget);
+  });
+
+  testWidgets('with no bills there is no Bills heading', (tester) async {
+    await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: const [
+          PhoneAccount(id: 'a', name: 'TDB Checking', balanceMinor: 0),
+        ],
+        categories: const [
+          PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+        ],
+      ),
+    );
+    expect(find.byKey(const ValueKey('bills-heading')), findsNothing);
   });
 
   testWidgets('with no account to pay from, Save says so', (tester) async {
