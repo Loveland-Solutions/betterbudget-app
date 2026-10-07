@@ -167,4 +167,53 @@ on a row of that payee and taking the offer again, and can't be dropped once the
 session's undo is gone. Also still to do there: the offer from a row's Edit, not only
 from its dropdown. Asked 2026-10-07, not answered: the offer at the foot of a row's
 category dropdown, reading "Always filed here · Stop" once the rule exists (STATUS
-"Next step").
+"Waiting on the owner").
+
+Moved from STATUS on 2026-10-07, as written there. Each must follow
+[ADR 0004](decisions/0004-ledger-ui.md); design each before building it and show it to
+the owner.
+
+### Search
+
+**Today:** one box that does a plain substring match on payee, memo, category and amount
+digits, in the current account only.
+
+**To build:**
+- **Search in All accounts** (the view exists, rule 23): the search box and filter chips there should search every account.
+- **Amount search that understands money:** `8000` matches ₮8,000.00, not every amount
+  containing those digits; ranges like `>100000` or `50000-120000`.
+- **Dates:** a single day (`2026.09.14`), a month (`2026.09`) or a range.
+- **Cyrillic-aware matching:** case-insensitive, and a Latin query should find the
+  Cyrillic payee and vice versa ("nomin" finds "Номин"). Real bank data will contain both
+  spellings (§F).
+- **Structured filters** (category, status, amount range, date range) that combine with
+  the text, plus **saved filters** for searches people repeat (§G).
+- **Results show a total** for what matched. "How much did I spend at E-Mart since
+  July?" is usually the reason for searching.
+
+**Questions to settle:** one smart box with a syntax, or a box plus filter chips? What
+does the header's forecast show while results span several accounts?
+
+### Cash accounts (owner, 2026-09-17: "not yet")
+
+From budget-app finding F: cash entries saved as cleared, and "Count" instead of
+Reconcile, with the difference posted to a category the user picks. **The account Type
+now exists** (2026-10-06, schema v18): Cash is one of the three on Add account, it has
+its own sidebar group, and a cash account is offered neither Reconcile nor Import.
+**Still not built:** the Count flow itself. Until then the difference is typed as an
+ordinary row.
+
+### Sorting
+
+**Today:** newest first, fixed.
+
+**To build:**
+- Click a column header to sort by **date, payee, category or amount**; click again to
+  reverse. The active column shows its direction.
+- The sort is remembered for each account.
+- It works together with search, filters and multi-select (Shift-click ranges follow the
+  visible order, which the code already does).
+
+**Questions to settle:** a running balance only makes sense in date order, so what does
+the Balance column show when sorted by amount or payee? Hide it, dim it, or keep each
+row's date-order balance? Where do scheduled rows go when not sorted by date?

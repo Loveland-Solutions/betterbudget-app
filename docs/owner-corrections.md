@@ -1,0 +1,75 @@
+# What the owner has corrected
+
+Read this before any work on a screen or its words. Each item is something that was
+built, or proposed, and that the owner sent back; what they wanted is in the brackets.
+The reasoning and the date of each are in [ADR 0004](decisions/0004-ledger-ui.md).
+When the owner corrects something new, write it into ADR 0004 and add it to the end of
+this list. Moved here word for word from CLAUDE.md on 2026-10-07.
+
+no In/Out columns, no month subheadings, symbols that look like checkboxes, entry that
+only works left to right, no savings suggestions yet, shortcuts that swallowed typing,
+no way to edit a transaction, "not posted" wording for uncleared (banks show pending), a
+dash symbol that read as a minus sign, a separate big balance above the header sum,
+"latest cleared" date (noise), a reconciled amount (only the date matters), a sidebar
+layout (option A chosen), Delete removing reconciled rows, a chevron on sidebar sections
+(it promised a toggle), an always-visible blank entry row, a "+ for money in" hint,
+multi-select (not wanted yet), a toast on every cleared-symbol click (toasts are for
+saved changes; ⌘Z undoes anything), and an income name under the forecast's end date
+(both ends show plain dates), a bank balance prefilled with the cleared total,
+reconciled rows whose payee couldn't be fixed, a row hover as faint as the row stripe, a
+separate cash-account counting flow (not wanted yet; on the roadmap), "a different
+amount each day" for split pay (it's each paycheck), a dark theme built from one color
+in lighter and darker shades (surfaces should differ), "tögrög" in English (spell it
+"tugrik"), and sidebar balances rounded to whole units (show the cents), a toast when an
+account is made, "settled" (the app's word is cleared), "Put in how much comes" for pay,
+and a forecast a new user couldn't read (unlabeled chart, "Never below today's",
+"Pay"/"Next pay", a hint and link that read as AI-speak), and search at the top of the
+page (it belongs in the register's tab row), "Put in" for budget amounts (the word is
+**Assigned**), and questions worded in the app's internals instead of a plain example,
+and a logo recolored by the scheme, a light band behind it, and a white glow around it
+(the sidebar shows a dark-mode logo), and a Budget page that stopped two-thirds of the
+way across the window (pages fill it), and a window that shrank until an account page
+ran out of room (it stops at 1360 × 760), and credit cards left out of a category's list
+of accounts (a card is an account; if they plan to pay with it, let them), and too many
+menus on a budget category (its menu is Edit and Delete, a double-click opens Edit, and
+everything about it is in Edit), and an Edit that Esc or a second double-click didn't
+close, and a button for each currency (a Currency dropdown: every currency is to be
+supported), and a category's accounts laid out as a list in the panel (a dropdown of
+checkboxes), and a currency's code at the start of some rows and the end of others
+(always at the end), and made-up currency symbols (`CA$` where Canadians write `$`: show
+the real one, and tell two apart only when a ledger holds both), and income categories
+(there's one built-in Income; "not assigned" is where money needing a category shows),
+and "Came in" for a period's income (the word is **Income**; use the plain word people
+say), and "Everything has cleared" beside a zero Uncleared line (don't tell them what
+they already know), and ⌘K shown as the search key (it's ⌘F; ⌘K was copied from other
+apps), and "Say how much arrives in…" squeezed beside Add (why a row can't be saved goes
+in the popup at the bottom, worded like "Enter an amount", not like a child talking),
+and an Edit only Esc could close (everything must work with just the mouse: a Cancel
+button, and a click away), and "Kind" for an account's type (the word is **Type**), and
+five plan types of which two came to the same number (two now, behind one question: "Is
+there a due date?"), and "Any time" as an answer to when money is spent (a non-answer:
+"it's going to be spent some time"), and a category's Edit laid out as a row of fields
+("all the features shoved on a page": it's designed as one thing, the name as heading, a
+short labelled form, the row drawn as it will read), and a wizard for making a category
+(the one question is the panel's first line), and two account dropdowns in a category's
+Edit (one row, **Paid from**), and a new category left closed after Add (its Edit
+opens), and "Every…" for the repeat you set up yourself (the word is **Custom…**), and
+Budget by as a setting (it's a view on the Budget page, and each category has its own
+period: month or a named pay; a set amount seen by another period is prorated by days),
+and a minus beside "Not assigned" (it stops at zero and a red row, **Assigned too
+much**, holds the amount), defended because "the sum adds up" (arithmetic that's right
+can still confuse; don't think like a computer), and "2 rows not categorized" on the
+Budget page (it belongs on the ledger page: a tab in the register's tab row; say a thing
+where it's fixed), and the bank's own category brought in as an imported row's memo (not
+wanted; it's left out), and a tab listing every row ever left without a category (noise:
+the Not categorized tab holds the current budget period's), and questions written as
+fragments that lean on work the owner hasn't seen (whole sentences, with what's on
+screen), and dollar categories offered in a tugrik account's category list (a row is
+offered the categories in its own currency), and a popup that was one long line across
+the window, over the sidebar, saying the payee twice (it's a card in the page's corner:
+what happened, the payee on its own line, the offer as a button), and money out in plain
+ink with no sign (it's red with a minus in front), and a currency choice, and a new
+category made in dollars, with only a tugrik account left (a thing is offered only while
+there's something for it), and "All accounts" on a category with one account (it's
+named), and being made to pick where a category's deleted rows go (don't ask about what
+they can't see).

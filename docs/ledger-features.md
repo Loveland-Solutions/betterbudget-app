@@ -70,7 +70,7 @@ This is where "polished and professional" gets tested.
 - Checkbook-register layout: dense rows, tabular figures (critical at 7 digits), running
   balance column.
 - Sort by any column; filter bar always present. **On the roadmap**, see
-  [STATUS.md](STATUS.md#2-sorting).
+  [ROADMAP.md](ROADMAP.md#sorting).
 - Inline editing — click the cell, change it, move on. No modal for a typo.
 - Multi-select with bulk edit (recategorise 40 rows at once) and bulk delete.
 - ~~Group/collapse by month with subtotals.~~ Dropped at the owner's request: every row
@@ -106,7 +106,7 @@ when its own statement arrives ([ADR 0003](decisions/0003-double-entry-schema.md
 ## G. Search
 
 **On the roadmap.** Scope and open design questions are in
-[STATUS.md](STATUS.md#1-search).
+[ROADMAP.md](ROADMAP.md#search).
 
 - Instant full-text across payee, memo, amount and notes. Cyrillic-aware.
 - Structured filters: date range, amount range, account, category, cleared status, tag,
