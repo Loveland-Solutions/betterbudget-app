@@ -193,39 +193,54 @@ class _BudgetPageState extends State<_BudgetPage> {
     // The panel's top row: the two tabs, and over the categories their
     // column heads. A gold dot on Income says pay wants attention (not set
     // up, or an estimate to update).
-    Widget tabs() => Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
-      child: Row(
-        children: [
-          _PageTab(
-            key: const ValueKey('budget-tab-spending'),
-            label: t.planSpending,
-            active: _tab == _BudgetTab.spending,
-            onTap: () => setState(() => _tab = _BudgetTab.spending),
-          ),
-          _PageTab(
-            key: const ValueKey('budget-tab-income'),
-            label: t.planIncomeTab,
-            active: _tab == _BudgetTab.income,
-            dot: _payNote(t, data).nudge,
-            // The Spending list stays mounted under Income, so an Edit
-            // open there keeps what was typed (code review, 2026-10-05).
-            onTap: () => setState(() => _tab = _BudgetTab.income),
-          ),
-          const Spacer(),
-          if (_tab == _BudgetTab.spending) ...[
-            for (final h in [t.planAssigned, t.planSpent, t.planLeft])
-              SizedBox(
-                width: _amountWidth,
-                child: Text(
-                  h,
-                  textAlign: TextAlign.right,
-                  style: onest(12.5, color: Mid.ink3),
+    Widget tabs() => CustomPaint(
+      foregroundPainter: _tab == _BudgetTab.spending
+          ? _ColumnLines(Mid.ink3)
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
+        child: Row(
+          children: [
+            _PageTab(
+              key: const ValueKey('budget-tab-spending'),
+              label: t.planSpending,
+              active: _tab == _BudgetTab.spending,
+              onTap: () => setState(() => _tab = _BudgetTab.spending),
+            ),
+            _PageTab(
+              key: const ValueKey('budget-tab-income'),
+              label: t.planIncomeTab,
+              active: _tab == _BudgetTab.income,
+              dot: _payNote(t, data).nudge,
+              // The Spending list stays mounted under Income, so an Edit
+              // open there keeps what was typed (code review, 2026-10-05).
+              onTap: () => setState(() => _tab = _BudgetTab.income),
+            ),
+            const Spacer(),
+            if (_tab == _BudgetTab.spending) ...[
+              // Each word is centred in its column as the dotted lines draw
+              // it (owner, 2026-10-07): between two lines, and for Left
+              // between its line and where the amounts end.
+              for (final (h, from) in [
+                (t.planAssigned, _ColumnLines._gap),
+                (t.planSpent, _ColumnLines._gap),
+                (t.planLeft, _ColumnLines._gap / 2),
+              ])
+                SizedBox(
+                  width: _amountWidth,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: from * 2),
+                    child: Text(
+                      h,
+                      textAlign: TextAlign.center,
+                      style: onest(12.5, color: Mid.ink3),
+                    ),
+                  ),
                 ),
-              ),
-            const SizedBox(width: 40),
+              const SizedBox(width: 40),
+            ],
           ],
-        ],
+        ),
       ),
     );
 
@@ -798,6 +813,35 @@ class _BudgetPageState extends State<_BudgetPage> {
 }
 
 const double _amountWidth = 136;
+
+/// Two dotted lines down the list, between Assigned and Spent and between
+/// Spent and Left (owner, 2026-10-07). Each row and the headings draw their
+/// own piece, so the lines stop at an open Edit.
+class _ColumnLines extends CustomPainter {
+  const _ColumnLines(this.color);
+  final Color color;
+
+  /// From a row's right edge to the right edge of Left: the row's padding,
+  /// the ⋯ button and the gap before it.
+  static const double _afterLeft = 52;
+
+  /// Right of where a column's amounts end, so a line doesn't touch them.
+  static const double _gap = 10;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dot = Paint()..color = color.withValues(alpha: 0.6);
+    for (final columns in const [1, 2]) {
+      final x = size.width - _afterLeft - columns * _amountWidth + _gap;
+      for (var y = 1.0; y < size.height; y += 4) {
+        canvas.drawRect(Rect.fromLTWH(x, y, 1, 2), dot);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ColumnLines old) => old.color != color;
+}
 
 enum _BudgetTab { spending, income }
 
@@ -1424,153 +1468,162 @@ class _CategoryRowState extends State<_CategoryRow> {
           behavior: HitTestBehavior.opaque,
           onTap: _tap,
           onSecondaryTapDown: (d) => _menu.open(position: d.localPosition),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 40),
-            padding: EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical:
-                  widget.fromBefore == null &&
-                      widget.planNote == null &&
-                      widget.flags.isEmpty
-                  ? 0
-                  : 5,
-            ),
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                _hover || _menu.isOpen ? Mid.rowHover : Colors.transparent,
-                widget.striped ? Mid.stripe : Colors.transparent,
+          child: CustomPaint(
+            foregroundPainter: widget.line == null
+                ? null
+                : _ColumnLines(Mid.ink3),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical:
+                    widget.fromBefore == null &&
+                        widget.planNote == null &&
+                        widget.flags.isEmpty
+                    ? 0
+                    : 5,
               ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(c.name, style: onest(13.5)),
-                      if (widget.planNote case final note?)
-                        _PlanNoteLine(
-                          id: c.id,
-                          note: note,
-                          assign: widget.assignPlanned,
-                          onAssign: widget.onAssignPlanned,
-                          onPlan: widget.onPlan,
-                        ),
-                      for (final (i, f) in widget.flags.indexed)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 1),
-                          child: Hoverable(
-                            key: ValueKey('line-flag-${c.id}-$i'),
-                            onTap: f.onTap,
-                            builder: (hover) => Text(
-                              f.text,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: onest(12, color: f.color, tabular: true)
-                                  .copyWith(
-                                    decoration: hover
-                                        ? TextDecoration.underline
-                                        : null,
-                                    decorationColor: f.color,
-                                  ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  _hover || _menu.isOpen ? Mid.rowHover : Colors.transparent,
+                  widget.striped ? Mid.stripe : Colors.transparent,
                 ),
-                if (widget.line case final line?) ...[
-                  SizedBox(
-                    width: _amountWidth,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: _AssignField(
-                        key: ValueKey('assigned-${c.id}'),
-                        amount: line.assigned,
-                        currency: widget.currency,
-                        editing: widget.editing,
-                        onEdit: widget.onEdit,
-                        onDone: widget.onAssign,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: _amountWidth,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Tooltip(
-                        message: t.planShowTheseRows,
-                        waitDuration: const Duration(milliseconds: 500),
-                        child: Hoverable(
-                          key: ValueKey('spent-${c.id}'),
-                          onTap: widget.onShowRows,
-                          // Spending reads as what was spent, no sign; more
-                          // back than spent shows as a plus.
-                          builder: (hover) => Money(
-                            line.spent.abs(),
-                            sign: line.spent < 0
-                                ? MoneySign.plusForPositive
-                                : MoneySign.none,
-                            size: 13.5,
-                            currency: widget.currency,
-                            color: hover
-                                ? Mid.blue
-                                : (line.spent == 0 ? Mid.ink3 : Mid.ink2),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: _amountWidth,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Money(
-                          line.left,
-                          key: ValueKey('left-${c.id}'),
-                          size: 13.5,
-                          weight: 600,
-                          currency: widget.currency,
-                          color: line.left < 0
-                              ? Mid.coral
-                              : (line.left == 0 ? Mid.ink3 : Mid.ink),
-                        ),
-                        if (widget.fromBefore case final before?)
-                          Text(
-                            before,
-                            key: ValueKey('from-before-${c.id}'),
-                            // Wrapped, it stays against the right edge
-                            // instead of running into Spent.
-                            textAlign: TextAlign.end,
-                            style: onest(11.5, color: Mid.ink3, tabular: true),
+                        Text(c.name, style: onest(13.5)),
+                        if (widget.planNote case final note?)
+                          _PlanNoteLine(
+                            id: c.id,
+                            note: note,
+                            assign: widget.assignPlanned,
+                            onAssign: widget.onAssignPlanned,
+                            onPlan: widget.onPlan,
+                          ),
+                        for (final (i, f) in widget.flags.indexed)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: Hoverable(
+                              key: ValueKey('line-flag-${c.id}-$i'),
+                              onTap: f.onTap,
+                              builder: (hover) => Text(
+                                f.text,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: onest(12, color: f.color, tabular: true)
+                                    .copyWith(
+                                      decoration: hover
+                                          ? TextDecoration.underline
+                                          : null,
+                                      decorationColor: f.color,
+                                    ),
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ),
-                ],
-                const SizedBox(width: 12),
-                Hoverable(
-                  key: ValueKey('category-menu-${c.id}'),
-                  onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
-                  builder: (hover) => Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: hover ? Mid.raised : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
+                  if (widget.line case final line?) ...[
+                    SizedBox(
+                      width: _amountWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _AssignField(
+                          key: ValueKey('assigned-${c.id}'),
+                          amount: line.assigned,
+                          currency: widget.currency,
+                          editing: widget.editing,
+                          onEdit: widget.onEdit,
+                          onDone: widget.onAssign,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.more_horiz_rounded,
-                      size: 18,
-                      color: hover || _hover ? Mid.ink2 : Mid.ink3,
+                    SizedBox(
+                      width: _amountWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Tooltip(
+                          message: t.planShowTheseRows,
+                          waitDuration: const Duration(milliseconds: 500),
+                          child: Hoverable(
+                            key: ValueKey('spent-${c.id}'),
+                            onTap: widget.onShowRows,
+                            // Spending reads as what was spent, no sign; more
+                            // back than spent shows as a plus.
+                            builder: (hover) => Money(
+                              line.spent.abs(),
+                              sign: line.spent < 0
+                                  ? MoneySign.plusForPositive
+                                  : MoneySign.none,
+                              size: 13.5,
+                              currency: widget.currency,
+                              color: hover
+                                  ? Mid.blue
+                                  : (line.spent == 0 ? Mid.ink3 : Mid.ink2),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: _amountWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Money(
+                            line.left,
+                            key: ValueKey('left-${c.id}'),
+                            size: 13.5,
+                            weight: 600,
+                            currency: widget.currency,
+                            color: line.left < 0
+                                ? Mid.coral
+                                : (line.left == 0 ? Mid.ink3 : Mid.ink),
+                          ),
+                          if (widget.fromBefore case final before?)
+                            Text(
+                              before,
+                              key: ValueKey('from-before-${c.id}'),
+                              // Wrapped, it stays against the right edge
+                              // instead of running into Spent.
+                              textAlign: TextAlign.end,
+                              style: onest(
+                                11.5,
+                                color: Mid.ink3,
+                                tabular: true,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 12),
+                  Hoverable(
+                    key: ValueKey('category-menu-${c.id}'),
+                    onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
+                    builder: (hover) => Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: hover ? Mid.raised : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.more_horiz_rounded,
+                        size: 18,
+                        color: hover || _hover ? Mid.ink2 : Mid.ink3,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

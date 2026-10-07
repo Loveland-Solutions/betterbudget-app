@@ -1047,6 +1047,20 @@ What's known so far:
       2026-10-01: "It only takes up 2/3's of the page"), like an account's
       register, with every other row tinted so the eye can follow a name
       across to its amounts. Rejected: a column capped at 820 px.
+    - **Two dotted lines part the three columns** (owner, 2026-10-07: "It's
+      hard to differentiate between the Assigned, Spent, and Left columns",
+      then, shown three rebuilt rows, "I don't really like any of those.
+      Can't you just put two vertical dotted lines between the columns?").
+      One runs between Assigned and Spent and one between Spent and Left,
+      from the headings down every row, stopping at an open Edit. The
+      three headings are centred in their columns (owner, the same day:
+      "Assigned, Spent, Left should be centered"); the amounts stay
+      against the right so their digits line up. Nothing else about the
+      row changed. Rejected: Assigned in a filled box with
+      Spent underlined and Left larger (A); Assigned moved beside the name
+      (B); two-line rows with the words on the row and no headings (C);
+      and, with them, leaving a zero amount empty. The committee's mockups:
+      <https://claude.ai/artifact/TdSp3spEoNhwLg6NxACkvb>.
     - **Left for later** (from the reviews): "same as last period" for one
       category or all (every payday otherwise means typing each again); a
       line summing what's overspent ("₮X over in 3 categories comes out of

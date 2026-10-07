@@ -73,4 +73,6 @@ category made in dollars, with only a tugrik account left (a thing is offered on
 there's something for it), and "All accounts" on a category with one account (it's
 named), and being made to pick where a category's deleted rows go (don't ask about what
 they can't see), and a setup that asked for every account they keep money in or owe
-money on (they add only the accounts they want to track).
+money on (they add only the accounts they want to track), and three rebuilt budget rows offered
+when the Assigned, Spent and Left columns were hard to tell apart (two vertical dotted
+lines between the columns: take the small fix they'd reach for before redesigning).
