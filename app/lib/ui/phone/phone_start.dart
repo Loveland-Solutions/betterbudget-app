@@ -1,0 +1,329 @@
+// The phone app's first minute (ADR 0005): the recovery key, once; the folder
+// the ledger was moved to, once; then the ledger read from that folder, and
+// read again whenever the app comes back to the front.
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+
+import '../../data/keys.dart';
+import '../../data/ledger_file.dart';
+import '../../data/phone_ledger.dart';
+import '../../domain/phone.dart';
+import '../data_words.dart';
+import '../language.dart';
+import '../theme.dart';
+import 'phone_app.dart';
+
+/// Reads what the phone shows from the ledger's bytes; swapped in tests.
+typedef ReadPhoneLedger = Future<PhoneSnapshot> Function(
+  Uint8List bytes,
+  Uint8List dataKey, {
+  required Directory dir,
+  required DateTime today,
+  required DateTime madeAt,
+});
+
+enum _Step { loading, key, folder, noLedger, wrongKey, cantRead, ready }
+
+class PhoneStart extends StatefulWidget {
+  const PhoneStart({
+    super.key,
+    required this.keys,
+    required this.dir,
+    this.folder = const PhoneFolder(),
+    this.read = readPhoneLedger,
+    this.now = DateTime.now,
+  });
+
+  final KeyStore keys;
+
+  /// Where the phone keeps its private copy of the ledger.
+  final Directory dir;
+  final PhoneFolder folder;
+  final ReadPhoneLedger read;
+  final DateTime Function() now;
+
+  @override
+  State<PhoneStart> createState() => _PhoneStartState();
+}
+
+class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
+  _Step _step = _Step.loading;
+  PhoneStore? _store;
+
+  /// The key as typed, until it has opened the ledger: only a key that fits
+  /// is kept (a key that didn't would be asked about on every launch).
+  Uint8List? _typedKey;
+  final _keyText = TextEditingController();
+  String? _keyError;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _keyText.dispose();
+    super.dispose();
+  }
+
+  /// Back at the front: the folder may hold a newer ledger by now.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _step == _Step.ready) _load();
+  }
+
+  void _go(_Step step) {
+    if (mounted) setState(() => _step = step);
+  }
+
+  /// One read at a time: a pull down while the app is coming back to the
+  /// front would have two reads writing the same private copy.
+  Future<void>? _reading;
+
+  Future<void> _load() =>
+      _reading ??= _read().whenComplete(() => _reading = null);
+
+  Future<void> _read() async {
+    final Uint8List? key;
+    try {
+      key = _typedKey ?? await widget.keys.readDataKey();
+    } on NoSecureStoreException {
+      return _go(_Step.key);
+    }
+    if (key == null) return _go(_Step.key);
+    final String? folder;
+    try {
+      folder = await widget.folder.kept();
+    } catch (e) {
+      debugPrint('Asking for the kept folder failed: $e');
+      return _go(_Step.folder);
+    }
+    if (folder == null) return _go(_Step.folder);
+    try {
+      final found = await widget.folder.read(folder, ledgerFileName);
+      if (found == null) return _go(_Step.noLedger);
+      final now = widget.now();
+      final snapshot = await widget.read(
+        found.bytes,
+        key,
+        dir: Directory('${widget.dir.path}/phone'),
+        today: now,
+        madeAt: found.changed ?? now,
+      );
+      if (_typedKey != null) {
+        await widget.keys.writeDataKey(key);
+        _typedKey = null;
+      }
+      if (!mounted) return;
+      setState(() {
+        final store = _store;
+        if (store == null) {
+          _store = PhoneStore(snapshot);
+        } else {
+          store.snapshot = snapshot;
+        }
+        _step = _Step.ready;
+      });
+    } on WrongKeyException {
+      if (_typedKey == null) {
+        // The key kept here has opened this ledger before, so it is the
+        // file that is wrong: half-arrived, or another ledger in the folder.
+        if (_step != _Step.ready) _go(_Step.cantRead);
+        return;
+      }
+      _typedKey = null;
+      _go(_Step.wrongKey);
+    } catch (e) {
+      debugPrint('Reading the ledger from the folder failed: $e');
+      // A read that fails once the figures are up leaves them up: they say
+      // how old they are.
+      if (_step != _Step.ready) _go(_Step.cantRead);
+    }
+  }
+
+  void _useKey() {
+    final problem = RecoveryKey.check(_keyText.text);
+    final key = problem == null ? RecoveryKey.parse(_keyText.text) : null;
+    if (key == null) {
+      setState(
+        () => _keyError = problem == null
+            ? context.t.startKeyChecksum
+            : keyProblem(context.t, problem),
+      );
+      return;
+    }
+    _typedKey = deriveDataKey(key);
+    _keyText.clear();
+    setState(() {
+      _keyError = null;
+      _step = _Step.loading;
+    });
+    _load();
+  }
+
+  Future<void> _pickFolder() async {
+    final String? picked;
+    try {
+      final before = await widget.folder.kept();
+      picked = await widget.folder.pick();
+      if (picked != null && before != null && before != picked) {
+        await widget.folder.forget(before);
+      }
+    } catch (e) {
+      debugPrint('Picking a folder failed: $e');
+      return;
+    }
+    if (picked == null) return;
+    _go(_Step.loading);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return switch (_step) {
+      _Step.loading => Scaffold(backgroundColor: Mid.ground),
+      _Step.ready => PhoneHome(
+        store: _store!,
+        now: widget.now,
+        onRefresh: _load,
+      ),
+      _Step.key => _Ask(
+        title: t.phoneKeyTitle,
+        body: t.phoneKeyBody,
+        field: TextField(
+          key: const ValueKey('phone-key'),
+          controller: _keyText,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          // The keyboard isn't to learn the key or offer it back.
+          keyboardType: TextInputType.visiblePassword,
+          enableIMEPersonalizedLearning: false,
+          textCapitalization: TextCapitalization.characters,
+          style: onest(16, letterSpacing: 0.5),
+          cursorColor: Mid.blue,
+          decoration: InputDecoration(
+            hintText: 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ0',
+            hintStyle: onest(16, color: Mid.ink3, letterSpacing: 0.5),
+            errorText: _keyError,
+            errorMaxLines: 3,
+            errorStyle: onest(14, color: Mid.coral),
+          ),
+          onSubmitted: (_) => _useKey(),
+        ),
+        action: t.startContinue,
+        onAction: _useKey,
+      ),
+      _Step.folder => _Ask(
+        title: t.phoneFolderTitle,
+        body: t.phoneFolderBody,
+        action: t.phoneFolderChoose,
+        onAction: _pickFolder,
+      ),
+      _Step.noLedger => _Ask(
+        title: t.phoneNoLedger,
+        body: t.phoneNoLedgerBody(ledgerFileName),
+        action: t.phoneTryAgain,
+        onAction: () {
+          _go(_Step.loading);
+          _load();
+        },
+        other: t.phoneChooseAnother,
+        onOther: _pickFolder,
+      ),
+      _Step.wrongKey => _Ask(
+        title: t.phoneKeyDoesntOpen,
+        action: t.phoneEnterKeyAgain,
+        onAction: () => _go(_Step.key),
+        other: t.phoneChooseAnother,
+        onOther: _pickFolder,
+      ),
+      _Step.cantRead => _Ask(
+        title: t.phoneCantRead,
+        body: t.phoneCantReadBody,
+        action: t.phoneTryAgain,
+        onAction: () {
+          _go(_Step.loading);
+          _load();
+        },
+        other: t.phoneChooseAnother,
+        onOther: _pickFolder,
+      ),
+    };
+  }
+}
+
+/// One question on a screen: what is asked, why, an optional box, a button,
+/// and sometimes a second way out under it.
+class _Ask extends StatelessWidget {
+  const _Ask({
+    required this.title,
+    this.body,
+    this.field,
+    required this.action,
+    required this.onAction,
+    this.other,
+    this.onOther,
+  });
+  final String title;
+  final String? body;
+  final Widget? field;
+  final String action;
+  final VoidCallback onAction;
+  final String? other;
+  final VoidCallback? onOther;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Mid.ground,
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: onest(24, weight: 600, height: 1.25)),
+            if (body != null) ...[
+              const SizedBox(height: 12),
+              Text(body!, style: onest(16, color: Mid.ink2, height: 1.4)),
+            ],
+            if (field != null) ...[const SizedBox(height: 24), field!],
+            const SizedBox(height: 28),
+            FilledButton(
+              onPressed: onAction,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                backgroundColor: Mid.blue,
+                foregroundColor: Mid.onAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: onest(17, weight: 600),
+              ),
+              child: Text(action),
+            ),
+            if (other != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onOther,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(16),
+                ),
+                child: Text(other!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}

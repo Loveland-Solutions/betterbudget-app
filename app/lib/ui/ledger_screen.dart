@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show File;
+import 'dart:ui' show AppExitResponse;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/backup.dart';
+import '../data/cloud_folder.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../data/encryption.dart';
@@ -62,6 +64,7 @@ class LedgerScreen extends StatefulWidget {
     this.startupNotice,
     this.offerRestore = false,
     this.demo = false,
+    this.folderAccess = const FolderAccess(),
   });
 
   final AppDatabase db;
@@ -94,6 +97,9 @@ class LedgerScreen extends StatefulWidget {
   /// A key was just typed on a computer with no ledger: offer to open a
   /// backup before anything else.
   final bool offerRestore;
+
+  /// How a picked folder is remembered between launches; faked in tests.
+  final FolderAccess folderAccess;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -201,6 +207,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
   AppDatabase get db => widget.db;
   late final Backups _backups = widget.backups ?? Backups(db);
 
+  /// The ledger kept in a folder the user picked (ADR 0005).
+  late final CloudFolder _cloud = CloudFolder(
+    _backups,
+    access: widget.folderAccess,
+  );
+  bool _ledgerSeen = false;
+  AppLifecycleListener? _exit;
+
   /// The latest ledger, for comparing a backup with what's here now.
   LedgerData? _data;
 
@@ -215,11 +229,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     super.initState();
     FocusManager.instance.addListener(_keepKeys);
     // Each pay schedule's next payday is scheduled before the first look.
-    _ledger = Stream.fromFuture(
-      (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
-          .then((_) => db.ensurePaydays(today))
-          .then((_) => db.ensurePlanBills(today)),
-    ).asyncExpand((_) => db.watchLedger());
+    _ledger =
+        Stream.fromFuture(
+          (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
+              .then((_) => db.ensurePaydays(today))
+              .then((_) => db.ensurePlanBills(today)),
+        ).asyncExpand((_) => db.watchLedger()).map((data) {
+          // The first look isn't a change; [CloudFolder.load] copies at launch.
+          if (_ledgerSeen) _cloud.ledgerChanged(widget.clock);
+          _ledgerSeen = true;
+          return data;
+        });
+    unawaited(_cloud.load(widget.clock()));
+    // A change made in the last few seconds is written before the app goes.
+    _exit = AppLifecycleListener(
+      onExitRequested: () async {
+        await _cloud.flush().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {},
+        );
+        return AppExitResponse.exit;
+      },
+    );
     _entry = EntryRowController(
       onSubmit: _post,
       suggestCategory: (payee) =>
@@ -303,6 +334,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
     _reconcile?.dispose();
+    _exit?.dispose();
+    _cloud.dispose();
     super.dispose();
   }
 
@@ -3225,7 +3258,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final FileSaveLocation? location;
     try {
       location = await getSaveLocation(
-        suggestedName: 'BetterBudget ${fullDate(now)}.sqlite',
+        suggestedName: 'BetterBudget ${fullDate(now)}.${Backups.extension}',
         confirmButtonText: t.ledgerBackUpButton,
       );
     } catch (e) {
@@ -3243,6 +3276,60 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final name = location.path.split(RegExp(r'[/\\]')).last;
     _showToast(t.ledgerBackedUp(name));
+  }
+
+  /// A folder as it's named on screen: its last two parts, which for a Drive
+  /// folder reads "My Drive/BetterBudget".
+  static String _folderName(String path) {
+    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
+    return parts.skip(parts.length > 2 ? parts.length - 2 : 0).join('/');
+  }
+
+  /// Keeps the whole ledger in a folder the user picks, as an encrypted copy
+  /// written again after each change: a folder Google Drive, OneDrive, Box or
+  /// Dropbox keeps on this computer (ADR 0005).
+  Future<void> _keepInFolder() async {
+    final t = context.t;
+    final String? picked;
+    try {
+      picked = await getDirectoryPath(
+        confirmButtonText: t.ledgerFolderPickButton,
+      );
+    } catch (e) {
+      debugPrint('Folder dialog failed: $e');
+      _showToast(t.ledgerCouldntOpenSaveDialog);
+      return;
+    }
+    if (picked == null) return;
+    final before = _cloud.value.path;
+    try {
+      await _cloud.keepIn(picked, widget.clock());
+    } catch (e) {
+      debugPrint('Keeping the ledger in a folder failed: $e');
+      _showToast(t.ledgerFolderCouldnt);
+      return;
+    }
+    final to = picked;
+    _did(
+      t.ledgerFolderKept(_folderName(to)),
+      undo: () => before == null
+          ? _cloud.stop()
+          : _cloud.keepIn(before, widget.clock()),
+      redo: () => _cloud.keepIn(to, widget.clock()),
+    );
+  }
+
+  /// Stops writing the copy. The one in the folder is left where it is.
+  Future<void> _stopFolder() async {
+    final before = _cloud.value.path;
+    if (before == null) return;
+    await _cloud.stop();
+    if (!mounted) return;
+    _did(
+      context.t.ledgerFolderStopped(_folderName(before)),
+      undo: () => _cloud.keepIn(before, widget.clock()),
+      redo: _cloud.stop,
+    );
   }
 
   /// Puts back a backup: the daily copies (the picker opens on their folder)
@@ -3269,7 +3356,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         acceptedTypeGroups: [
           XTypeGroup(
             label: t.ledgerBackupFileType,
-            extensions: const ['sqlite'],
+            // A daily copy or a "Back up to…" file, or the ledger as it is
+            // stored in a folder ([CloudFolder.fileName]).
+            extensions: const ['sqlite', Backups.extension],
           ),
         ],
         initialDirectory: (await _backups.folder())?.path,
@@ -3553,6 +3642,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             ? null
                             : account?.id,
                         backupHealth: _backups.health,
+                        folder: _cloud,
                         now: widget.clock,
                         onSelect: _openAccount,
                         allActive: _all && !_newAccount,
@@ -3622,6 +3712,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   now: widget.clock,
                                   onBackUp: _backUpTo,
                                   onRestore: _restoreFrom,
+                                  folder: _cloud,
+                                  folderName: _folderName,
+                                  onKeepInFolder: _keepInFolder,
+                                  onStopFolder: _stopFolder,
                                   onNewLedger: _startNewLedger,
                                   version: _version,
                                   encrypted: widget.encrypted,
@@ -3964,6 +4058,7 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.backupHealth,
+    required this.folder,
     required this.now,
     required this.addingAccount,
     required this.onAddAccount,
@@ -3989,6 +4084,10 @@ class _Sidebar extends StatelessWidget {
   final bool addingAccount;
   final VoidCallback onAddAccount;
   final ValueListenable<BackupHealth> backupHealth;
+
+  /// The folder the ledger was moved to: failing to write it lights the
+  /// gear too.
+  final ValueListenable<CloudFolderState> folder;
   final DateTime Function() now;
   final AppSection section;
   final ValueChanged<AppSection> onSection;
@@ -4148,11 +4247,15 @@ class _Sidebar extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       // Full width, like the section headers, so hover fills the row.
-                      child: ValueListenableBuilder(
-                        valueListenable: backupHealth,
-                        builder: (context, health, _) => _SettingsGear(
+                      child: ListenableBuilder(
+                        listenable: Listenable.merge([backupHealth, folder]),
+                        builder: (context, _) => _SettingsGear(
                           active: section == AppSection.settings,
-                          alert: health.alarmingAt(now()),
+                          alert: folder.value.failing
+                              ? context.t.ledgerFolderAlert
+                              : backupHealth.value.alarmingAt(now())
+                              ? context.t.ledgerDailyCopyFailing
+                              : null,
                           onTap: () => onSection(AppSection.settings),
                         ),
                       ),
@@ -4222,13 +4325,16 @@ class _SettingsGear extends StatelessWidget {
     required this.onTap,
   });
   final bool active;
-  final bool alert;
+
+  /// What needs attention in Settings, said as the dot's tooltip; null for
+  /// no dot.
+  final String? alert;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Tooltip(
     // Only worth a tooltip when the dot needs explaining.
-    message: alert ? context.t.ledgerDailyCopyFailing : '',
+    message: alert ?? '',
     child: Hoverable(
       key: const ValueKey('settings'),
       onTap: onTap,
@@ -4249,7 +4355,7 @@ class _SettingsGear extends StatelessWidget {
                   size: 16,
                   color: active ? Mid.sun : Mid.sideInk3,
                 ),
-                if (alert)
+                if (alert != null)
                   Positioned(
                     top: -2,
                     right: -3,
@@ -4288,6 +4394,10 @@ class _SettingsPage extends StatelessWidget {
     required this.now,
     required this.onBackUp,
     required this.onRestore,
+    required this.folder,
+    required this.folderName,
+    required this.onKeepInFolder,
+    required this.onStopFolder,
     required this.onNewLedger,
     required this.recoveryKeySaved,
     this.version,
@@ -4311,6 +4421,12 @@ class _SettingsPage extends StatelessWidget {
   final DateTime Function() now;
   final VoidCallback onBackUp;
   final VoidCallback onRestore;
+
+  /// The folder the whole ledger is kept in, if one was picked.
+  final ValueListenable<CloudFolderState> folder;
+  final String Function(String path) folderName;
+  final VoidCallback onKeepInFolder;
+  final VoidCallback onStopFolder;
   final VoidCallback onNewLedger;
 
   /// Whether the recovery key was saved or copied when it was shown (ADR
@@ -4386,9 +4502,12 @@ class _SettingsPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Mid.rule),
                   ),
-                  child: ValueListenableBuilder(
-                    valueListenable: health,
-                    builder: (context, h, _) {
+                  child: ListenableBuilder(
+                    listenable: Listenable.merge([health, folder]),
+                    builder: (context, _) {
+                      final h = health.value;
+                      final kept = folder.value;
+                      final keptIn = kept.path;
                       final failing = h.alarmingAt(now());
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4426,8 +4545,46 @@ class _SettingsPage extends StatelessWidget {
                               style: onest(13.5, color: Mid.ink2),
                             ),
                           ),
+                          // Always said, moved or not: where the ledger is now.
+                          if (keptIn == null)
+                            line(
+                              t.ledgerFolderLabel,
+                              Text(
+                                t.ledgerFolderHere,
+                                key: const ValueKey('stored-in'),
+                                style: onest(13.5, color: Mid.ink),
+                              ),
+                            )
+                          else
+                            line(
+                              t.ledgerFolderLabel,
+                              Tooltip(
+                                message: keptIn,
+                                child: Text(
+                                  kept.failing
+                                      ? (kept.copiedAt == null
+                                            ? t.ledgerFolderFailingNone(
+                                                folderName(keptIn),
+                                              )
+                                            : t.ledgerFolderFailing(
+                                                folderName(keptIn),
+                                                when(kept.copiedAt!),
+                                              ))
+                                      : t.ledgerFolderCopied(
+                                          folderName(keptIn),
+                                          when(kept.copiedAt ?? now()),
+                                        ),
+                                  key: const ValueKey('stored-in'),
+                                  style: onest(
+                                    13.5,
+                                    color: kept.failing ? Mid.coral : Mid.ink,
+                                  ),
+                                ),
+                              ),
+                            ),
                           const SizedBox(height: 8),
-                          Row(
+                          Wrap(
+                            runSpacing: 8,
                             children: [
                               BarButton(
                                 key: const ValueKey('back-up'),
@@ -4449,6 +4606,25 @@ class _SettingsPage extends StatelessWidget {
                                 ),
                                 onTap: onRestore,
                               ),
+                              BarButton(
+                                key: const ValueKey('keep-in-folder'),
+                                label: keptIn == null
+                                    ? t.ledgerFolderChoose
+                                    : t.ledgerFolderChange,
+                                leading: Icon(
+                                  Icons.folder_open_rounded,
+                                  size: 14,
+                                  color: Mid.ink3,
+                                ),
+                                onTap: onKeepInFolder,
+                              ),
+                              // Offered only while there is a folder to stop.
+                              if (keptIn != null)
+                                BarButton(
+                                  key: const ValueKey('stop-folder'),
+                                  label: t.ledgerFolderStop,
+                                  onTap: onStopFolder,
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -4456,6 +4632,13 @@ class _SettingsPage extends StatelessWidget {
                             t.ledgerBackupsNote,
                             style: onest(13, color: Mid.ink3),
                           ),
+                          if (keptIn == null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              t.ledgerFolderNote,
+                              style: onest(13, color: Mid.ink3),
+                            ),
+                          ],
                         ],
                       );
                     },

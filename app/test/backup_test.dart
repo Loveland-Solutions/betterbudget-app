@@ -34,13 +34,36 @@ void main() {
     }
   }
 
+  test('a daily copy from before the new name still counts', () async {
+    // Made by a build that named them .sqlite: today's is not made twice,
+    // and old ones are cleared away with the rest.
+    final backups = Backups(db, keep: 2);
+    final folder = (await backups.folder())!;
+    await folder.create(recursive: true);
+    final old = File('${folder.path}/betterbudget-20260916-070000.sqlite');
+    await db.copyTo(old.path);
+    expect(await backups.automaticIfDue(today), isNull);
+    expect((await backups.automatic()).single.path, old.path);
+
+    for (var d = 1; d <= 2; d++) {
+      final made = await backups.automaticIfDue(today.add(Duration(days: d)));
+      expect(made!.path, endsWith('.betterbudget'));
+    }
+    // The newest two, and the first of the month, which is the old one.
+    expect((await backups.automatic()).map((f) => f.path.split('/').last), [
+      'betterbudget-20260918-093000.betterbudget',
+      'betterbudget-20260917-093000.betterbudget',
+      'betterbudget-20260916-070000.sqlite',
+    ]);
+  });
+
   test('one automatic copy a day, the newest kept', () async {
     final backups = Backups(db, keep: 3);
     final first = await backups.automaticIfDue(today);
     expect(first, isNotNull);
     expect(
       first!.path,
-      endsWith('Backups/betterbudget-20260916-093000.sqlite'),
+      endsWith('Backups/betterbudget-20260916-093000.betterbudget'),
     );
     expect(await transactionsIn(first), (await db.loadLedger()).txns.length);
 
@@ -59,10 +82,10 @@ void main() {
     final kept = await backups.automatic();
     // The newest 3, and the first of the month.
     expect(kept.map((f) => f.path.split('/').last), [
-      'betterbudget-20260920-093000.sqlite',
-      'betterbudget-20260919-093000.sqlite',
-      'betterbudget-20260918-093000.sqlite',
-      'betterbudget-20260916-093000.sqlite',
+      'betterbudget-20260920-093000.betterbudget',
+      'betterbudget-20260919-093000.betterbudget',
+      'betterbudget-20260918-093000.betterbudget',
+      'betterbudget-20260916-093000.betterbudget',
     ]);
   });
 
@@ -83,7 +106,7 @@ void main() {
         .writeAsStringSync('half a copy');
     expect(await backups.automaticIfDue(today), isNotNull);
     expect(folder.listSync().map((f) => f.path.split('/').last), [
-      'betterbudget-20260916-093000.sqlite',
+      'betterbudget-20260916-093000.betterbudget',
     ]);
   });
 
@@ -270,8 +293,8 @@ void main() {
             ..sort();
       // The same second twice: the second name moves on a second.
       expect(saves, [
-        'before-restore-20260916-093000.sqlite',
-        'before-restore-20260916-093001.sqlite',
+        'before-restore-20260916-093000.betterbudget',
+        'before-restore-20260916-093001.betterbudget',
       ]);
     });
 

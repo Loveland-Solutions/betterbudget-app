@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.15.1 · schema v18 · 477 tests pass
+**Last updated: 2026-10-07** · version 0.16.0 · schema v18 · 511 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -44,6 +44,14 @@ not a complaint.
 
 Asked and not answered. Don't re-ask; bring one up when its screen comes up again.
 
+0. **Three from the reviews of the folder and the phone** (2026-10-07). An old or
+   second computer writes its own ledger over the one in the folder at launch, and
+   moving into a folder that already holds a ledger replaces it, with no warning:
+   should it warn first, with the dates and the number of transactions on each side?
+   On the phone, Housing shows ₮1,800,000.00 left with "Due 10.20" under it, in the
+   same ink as Groceries: is the due date enough, or should a bill's money read
+   differently? And the amount pad starts with the last payee chosen (Nomin), so
+   amount then Save records Nomin when they were at E-Mart: start with none chosen?
 1. **Three from the Pay step's budget review** (2026-10-07). Payday today: with pay
    "On the 7th" set up on 10.07, the form says "Next payday 2026.10.07" though the
    balance just typed may already hold that pay, so it would be counted twice; should
@@ -96,7 +104,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v18, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`betterbudget.before-v18-from-v17-<time>.sqlite`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
+| Storage | Drift/SQLite at schema v18, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v19-from-v18-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
 | Sidebar | Sections Ledger, Budget, Savings. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
 | Register | One signed amount column (money in green with a plus, money out in the coral red with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
@@ -114,7 +122,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first) |
+| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup; a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
 | Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
@@ -141,15 +149,33 @@ open the archive).
   category's dated plan.
 - Matching scheduled bills and own-account transfers on import.
 - CSV export, app lock, printing the recovery key.
-- **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)), a Windows build.
-- **Encryption has been run only on macOS and iOS** (recorded 2026-09-29); Windows,
-  Linux and Android are unverified.
+- **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)): on Android the app
+  asks once for the recovery key and for the folder the ledger was moved to, then
+  shows what is left in each category and each account's balance, read from
+  `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
+  or the list is pulled down (ADR 0004 "Phone screens", option B). Not built: entries
+  kept after the app closes, written to the folder and taken in by the Mac; money in
+  and transfers; other phones' entries; the iPhone's folder access and icon. The first
+  read from the owner's real Drive folder on the Pixel hasn't been watched yet.
+- **A Windows build.**
+- **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
+  Android** (2026-10-07, a debug build on a Pixel 10a, Android 17: the key was stored
+  and the ledger file made is not plain SQLite; reopening it after the app is closed
+  wasn't checked). Windows and Linux are unverified.
 - **CI.** Nothing runs tests on pull requests.
 - More in [ROADMAP.md](ROADMAP.md): search that understands amounts and dates, sorting,
   counting a cash account, moving money between categories.
 
 ## Known bugs and loose ends
 
+- **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
+  under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
+  build would make) is ignored without a word; a write already under way when "Move
+  it back to this computer" is pressed still lands in the folder; Paid from on the
+  phone starts from the ledger's last row for that category, which may be the other
+  person's card; the Backups note still says to use a USB stick once the ledger is in
+  a folder. Untested: the phone's figures for a budget run by pay periods, and the
+  phone meeting a ledger from a newer version.
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the
@@ -228,7 +254,7 @@ session loses the statement balance.
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **Rebuild and relaunch:** `pkill -f "BetterBudget.app/Contents/MacOS"; flutter build
   macos --debug && open build/macos/Build/Products/Debug/BetterBudget.app` (from `app/`).
-- **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/betterbudget.sqlite`
+- **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/Ledger.betterbudget`
   (plus `-wal`, `-shm`). **This file is production data.** Never delete, reseed, erase or
   hand-edit it; tests use demo data, and anything tried by hand goes on a copy.
 - **Screenshots of the running app:** `screencapture -l<window id>` works once the

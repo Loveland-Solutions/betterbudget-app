@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'database.dart';
 import 'encryption.dart';
 import 'keys.dart';
+import 'ledger_file.dart';
 
 /// How the daily copies are going, for the sidebar.
 @immutable
@@ -138,7 +139,16 @@ class Backups {
   final health = ValueNotifier(const BackupHealth());
 
   static const _prefix = 'betterbudget-';
-  static final _name = RegExp(r'^betterbudget-(\d{8})-(\d{6})\.sqlite$');
+
+  /// A daily copy's name. They end in [extension] since 2026-10-07; the ones
+  /// made before that keep their `.sqlite` name and are listed, counted and
+  /// cleared away the same as the rest (`ledger_file.dart`).
+  static final _name = RegExp(
+    r'^betterbudget-(\d{8})-(\d{6})\.(?:sqlite|betterbudget)$',
+  );
+
+  /// What every copy made here ends in.
+  static const extension = ledgerExtension;
   static final _stamp = RegExp(r'(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})');
 
   /// Kept from each restore: what was replaced, and what replaced it.
@@ -236,7 +246,7 @@ class Backups {
     }
     // Written under a temporary name and renamed once complete, so a copy
     // cut short never passes for today's backup.
-    final file = File('${dir.path}/$_prefix${fileStamp(now)}.sqlite');
+    final file = File('${dir.path}/$_prefix${fileStamp(now)}.$extension');
     final temp = File('${file.path}.tmp');
     try {
       await db.copyTo(temp.path);
@@ -254,7 +264,7 @@ class Backups {
       await f.delete();
     }
     for (final kind in ['before-restore-', 'restored-', 'before-new-ledger-']) {
-      final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.sqlite\$');
+      final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.(?:sqlite|betterbudget)\$');
       for (final old in (await _files(pattern)).skip(_restoreKeep)) {
         await old.delete();
       }
@@ -271,8 +281,14 @@ class Backups {
   Future<void> saveTo(String destination, DateTime now) async {
     final dir = await folder();
     if (dir == null) throw StateError('No database file to back up');
+    // Never onto the file the app is working in: that would replace the
+    // open ledger under itself.
+    final live = await db.filePath();
+    if (live != null && _sameFile(live, destination)) {
+      throw StateError('That is the ledger itself');
+    }
     await dir.create(recursive: true);
-    final temp = File('${dir.path}/export-${fileStamp(now)}.sqlite.tmp');
+    final temp = File('${dir.path}/export-${fileStamp(now)}.$extension.tmp');
     if (temp.existsSync()) await temp.delete();
     try {
       await db.copyTo(temp.path);
@@ -301,7 +317,7 @@ class Backups {
       throw RestoreException(RestoreProblem.nothingToRestoreInto);
     }
     await dir.create(recursive: true);
-    final file = File('${dir.path}/incoming-${fileStamp(now)}.sqlite');
+    final file = File('${dir.path}/incoming-${fileStamp(now)}.$extension');
     try {
       await File(path).copy(file.path);
       final looksPlain = await isPlainSqliteFile(file);
@@ -415,6 +431,8 @@ class Backups {
     var converted = 0;
     final failed = <File>[];
     for (final f in dir.listSync(recursive: true).whereType<File>()) {
+      // Only a copy from before encryption can be plain, and those were all
+      // named `.sqlite`.
       if (!f.path.endsWith('.sqlite') || f.path == live) continue;
       if (!await isPlainSqliteFile(f)) continue;
       try {
@@ -435,8 +453,8 @@ class Backups {
   }
 
   /// Replaces the ledger with [c]. What was there is saved first as
-  /// `before-restore-….sqlite`, and the restored copy is kept as
-  /// `restored-….sqlite`, so the restore can be undone and redone. That
+  /// `before-restore-….betterbudget`, and the restored copy is kept as
+  /// `restored-….betterbudget`, so the restore can be undone and redone. That
   /// snapshot is taken from this connection *after* the replace, not by
   /// renaming [c.file] — [c.file] may be plain (a pre-encryption backup),
   /// and [replaceWith] (undo/redo) assumes every `restored-…`/
@@ -453,7 +471,7 @@ class Backups {
     return (before: before, restored: restored);
   }
 
-  /// Saves what's here as `before-new-ledger-….sqlite` before a new ledger
+  /// Saves what's here as `before-new-ledger-….betterbudget` before a new ledger
   /// replaces it, for undo and for Restore from… later.
   Future<File> saveBeforeNewLedger(DateTime now) async {
     final dir = await folder();
@@ -479,11 +497,26 @@ class Backups {
     );
   }
 
-  /// `<prefix><stamp>.sqlite`, a second later if that name is taken.
+  static bool _sameFile(String a, String b) {
+    String real(String p) {
+      final f = File(p);
+      try {
+        return f.existsSync()
+            ? f.resolveSymbolicLinksSync()
+            : '${f.parent.resolveSymbolicLinksSync()}/${_basename(p)}';
+      } on FileSystemException {
+        return p;
+      }
+    }
+
+    return real(a) == real(b);
+  }
+
+  /// `<prefix><stamp>.betterbudget`, a second later if that name is taken.
   static File _unused(Directory dir, String prefix, DateTime now) {
     var at = now;
     while (true) {
-      final f = File('${dir.path}/$prefix${fileStamp(at)}.sqlite');
+      final f = File('${dir.path}/$prefix${fileStamp(at)}.$extension');
       if (!f.existsSync()) return f;
       at = at.add(const Duration(seconds: 1));
     }
@@ -492,7 +525,7 @@ class Backups {
   /// The working copy, plus anything opening it left beside it (an upgrade
   /// backup, a journal).
   Future<void> _deleteIncoming(Directory dir, File file) async {
-    final base = _basename(file.path).replaceFirst('.sqlite', '');
+    final base = withoutLedgerExtension(_basename(file.path));
     for (final f in dir.listSync().whereType<File>()) {
       if (_basename(f.path).startsWith(base)) await f.delete();
     }

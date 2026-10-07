@@ -4595,4 +4595,196 @@ class WordsEn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'No regular pay';
+
+  @override
+  String phoneLeftIn(String month) {
+    return 'Left in $month';
+  }
+
+  @override
+  String phoneFromMacToday(String time) {
+    return 'From your Mac today $time';
+  }
+
+  @override
+  String phoneFromMacOn(String date, String time) {
+    return 'From your Mac $date $time';
+  }
+
+  @override
+  String phoneAddTo(String category) {
+    return 'Add to $category';
+  }
+
+  @override
+  String phoneWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count of your entries are waiting for the Mac',
+      one: '1 of your entries is waiting for the Mac',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneWaitingTitle => 'Waiting for the Mac';
+
+  @override
+  String phoneOwed(String amount) {
+    return 'Owed $amount';
+  }
+
+  @override
+  String phoneLeftNow(String left) {
+    return '$left left now';
+  }
+
+  @override
+  String phoneLeftAfter(String left, String after) {
+    return '$left left now · $after after this';
+  }
+
+  @override
+  String get phoneOtherPayee => 'Other…';
+
+  @override
+  String get phoneEnterAmount => 'Enter an amount';
+
+  @override
+  String get phoneEnterPayee => 'Enter a payee';
+
+  @override
+  String get phoneDeleteDigit => 'Delete the last digit';
+
+  @override
+  String get ledgerFolderLabel => 'Stored in';
+
+  @override
+  String get ledgerFolderChoose => 'Move my ledger to a folder…';
+
+  @override
+  String get ledgerFolderPickButton => 'Move It Here';
+
+  @override
+  String get ledgerFolderNote =>
+      'Move it to a folder that Google Drive, OneDrive, Box or Dropbox keeps on this computer, and your ledger is stored there, encrypted, and saved again after each change.';
+
+  @override
+  String ledgerFolderCopied(String folder, String when) {
+    return '$folder · $when';
+  }
+
+  @override
+  String ledgerFolderFailing(String folder, String when) {
+    return '$folder · couldn’t copy · the last one is from $when';
+  }
+
+  @override
+  String ledgerFolderFailingNone(String folder) {
+    return '$folder · couldn’t copy';
+  }
+
+  @override
+  String get ledgerFolderChange => 'Move to another folder…';
+
+  @override
+  String get ledgerFolderStop => 'Move it back to this computer';
+
+  @override
+  String ledgerFolderKept(String folder) {
+    return 'Your ledger was moved to $folder';
+  }
+
+  @override
+  String ledgerFolderStopped(String folder) {
+    return 'Your ledger is back on this computer · the file in $folder stays there';
+  }
+
+  @override
+  String get ledgerFolderCouldnt => 'Couldn’t move it to that folder';
+
+  @override
+  String get ledgerFolderHere => 'This computer';
+
+  @override
+  String get phoneKeyTitle => 'Enter your recovery key';
+
+  @override
+  String get phoneKeyBody =>
+      'The 25 characters you were shown when your ledger was set up on your computer. This phone needs them once, to read your ledger.';
+
+  @override
+  String get phoneFolderTitle => 'Where is your ledger?';
+
+  @override
+  String get phoneFolderBody =>
+      'Choose the folder your ledger was moved to on your computer. In Settings there, the line “Stored in” names it.';
+
+  @override
+  String get phoneFolderChoose => 'Choose the folder';
+
+  @override
+  String get phoneNoLedger => 'There is no ledger in that folder';
+
+  @override
+  String phoneNoLedgerBody(String file) {
+    return 'The folder should hold a file named $file. It can take a minute to arrive after your computer saves it.';
+  }
+
+  @override
+  String get phoneKeyDoesntOpen =>
+      'That recovery key doesn’t open the ledger in this folder';
+
+  @override
+  String get phoneEnterKeyAgain => 'Enter the key again';
+
+  @override
+  String get phoneCantRead => 'The ledger in this folder couldn’t be read';
+
+  @override
+  String get phoneCantReadBody =>
+      'It may have been saved by a newer BetterBudget than the one on this phone.';
+
+  @override
+  String get phoneTryAgain => 'Try again';
+
+  @override
+  String get phoneChooseAnother => 'Choose another folder';
+
+  @override
+  String get ledgerFolderAlert => 'Your ledger couldn’t be saved to its folder';
+
+  @override
+  String phoneLeftUntil(String date) {
+    return 'Left until $date';
+  }
+
+  @override
+  String phoneDue(String date) {
+    return 'Due $date';
+  }
+
+  @override
+  String phoneOverNow(String over) {
+    return 'Overspent by $over';
+  }
+
+  @override
+  String phoneOverAfter(String left, String over) {
+    return '$left left now · overspent by $over after this';
+  }
+
+  @override
+  String phoneOverBoth(String over, String after) {
+    return 'Overspent by $over · by $after after this';
+  }
+
+  @override
+  String get phoneChooseAccount => 'Choose an account';
+
+  @override
+  String phoneInCredit(String amount) {
+    return '$amount in credit';
+  }
 }
