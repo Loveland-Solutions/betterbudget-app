@@ -136,16 +136,33 @@ void main() {
       expect(RecoveryKey.parse('ABCDE-FGHJK'), isNull);
     });
 
-    test('catches every single mistyped character, anywhere', () {
+    test('a single mistyped character is caught, or makes another key', () {
+      // The check character catches a typo at once, except the few that
+      // happen to fit the first build's rule (which [parse] also takes, for
+      // keys shown then). Those read as some other key, which opens nothing:
+      // a key is only ever kept after it has opened the ledger.
       final key = RecoveryKey.generate(random: Random(3));
       final body = key.display.replaceAll('-', '');
+      final real = deriveDataKey(key);
+      var caught = 0, slipped = 0;
       for (var i = 0; i < body.length; i++) {
         for (final c in RecoveryKey.alphabet.split('')) {
           if (c == body[i]) continue;
-          final typo = body.replaceRange(i, i + 1, c);
-          expect(RecoveryKey.parse(typo), isNull, reason: 'position $i: $c');
+          final typo = RecoveryKey.parse(body.replaceRange(i, i + 1, c));
+          if (typo == null) {
+            caught++;
+          } else {
+            slipped++;
+            expect(
+              sameKey(deriveDataKey(typo), real),
+              isFalse,
+              reason: 'position $i: $c',
+            );
+          }
         }
       }
+      // About one in 34 fits the other rule by chance.
+      expect(slipped, lessThan(caught ~/ 20));
     });
 
     test('says what is wrong with a typed key', () {
@@ -174,6 +191,29 @@ void main() {
       expect(sameKey(a, Uint8List.fromList(a)), isTrue);
       expect(sameKey(a, deriveDataKey(RecoveryKey.generate())), isFalse);
       expect(sameKey(a, a.sublist(0, 31)), isFalse);
+    });
+
+    test('takes a key whose last character follows the first build’s rule', () {
+      // Shown by the build of the night of 2026-09-28: the check character
+      // weighed each place by its position. The owner's key is one of these.
+      final r = Random(11);
+      final body = [
+        for (var i = 0; i < 24; i++)
+          RecoveryKey.alphabet[r.nextInt(RecoveryKey.alphabet.length)],
+      ].join();
+      var sum = 0;
+      for (var i = 0; i < body.length; i++) {
+        sum = (sum + RecoveryKey.alphabet.indexOf(body[i]) * (i + 1)) % 34;
+      }
+      final typed = body + RecoveryKey.alphabet[sum];
+      final key = RecoveryKey.parse(typed);
+      expect(key, isNotNull);
+      expect(RecoveryKey.check(typed), isNull);
+      // All 25 characters, as shown then, make the data key.
+      expect(key!.display.replaceAll('-', ''), typed);
+      // A plain typo in it is still caught.
+      final wrong = (typed[0] == 'A' ? 'B' : 'A') + typed.substring(1);
+      expect(RecoveryKey.parse(wrong), isNull);
     });
 
     test('rejects a bad checksum', () {
