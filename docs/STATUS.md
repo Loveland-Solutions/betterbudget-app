@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.16.1 · schema v18 · 522 tests pass
+**Last updated: 2026-10-07** · version 0.16.2 · schema v18 · 523 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #51 (version 0.16.1).** The owner's ledger is stored in their Google Drive
+**After PR #52 (version 0.16.2).** The owner's ledger is stored in their Google Drive
 folder, and the Android app reads it there. Then, in order:
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
@@ -134,7 +134,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
-| Security | A recovery key shown at setup; a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
+| Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
 | Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |

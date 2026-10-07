@@ -52,7 +52,9 @@ class RecoveryKey {
     if (cleaned.length != _totalLength) return null;
     final body = cleaned.substring(0, _totalLength - 1);
     final check = cleaned.substring(_totalLength - 1);
-    if (_checkChar(body) != check) return null;
+    if (_checkChar(body) != check && _firstCheckChar(body) != check) {
+      return null;
+    }
     return RecoveryKey._(cleaned);
   }
 
@@ -88,6 +90,21 @@ class RecoveryKey {
   /// Weights coprime to the alphabet's 34, so changing any one character
   /// always changes the check character (B for 8, S for 5).
   static const _weights = [1, 3, 5, 7, 9, 11, 13, 15, 19, 21, 23, 25, 27];
+
+  /// The check character as the first encryption build worked it out, until
+  /// 11:50 on 2026-09-29. A key shown before then ends in this one, and it
+  /// is still the key to its ledger (the data key comes from all 25
+  /// characters, whichever rule made the last), so [parse] takes either.
+  /// The owner's own key is one of these: for eight days the app called it
+  /// mistyped, and only the Keychain's copy of the data key opened the
+  /// ledger.
+  static String _firstCheckChar(String body) {
+    var sum = 0;
+    for (var i = 0; i < body.length; i++) {
+      sum = (sum + alphabet.indexOf(body[i]) * (i + 1)) % alphabet.length;
+    }
+    return alphabet[sum];
+  }
 
   static String _checkChar(String body) {
     var sum = 0;

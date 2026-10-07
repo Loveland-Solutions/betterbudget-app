@@ -182,6 +182,16 @@ restores, and the result is encrypted.
 
 ### Rejected
 
+- **A key shown before that change is still taken** (2026-10-07). The weights were
+  changed at 11:50 on 2026-09-29, after the owner's ledger had been given its key the
+  night before, and from then on the app called that key mistyped: only the Keychain's
+  copy of the data key opened the ledger, and the recovery key could not have brought
+  it back on a new computer. It was found when the phone asked for the key. `parse`
+  now takes a check character by either rule (the data key comes from all 25
+  characters either way). The cost: about one single-character typo in 34 passes the
+  shape check as some other key, which opens nothing, since a key is kept only after
+  it has opened the ledger. **A change to how a key is read needs a test with a key
+  made before the change.**
 - **Key only in the device's secure store.** Backups in a cloud folder become unreadable
   the day the computer dies, and an Android phone can't read a Mac's Keychain.
 - **A passphrase typed at every launch.** Forget it and every copy is lost, and typing it
