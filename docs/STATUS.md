@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #48 (version 0.15.0).** The owner is using the app on real money and sending
+**After PR #49 (version 0.15.1).** The owner is using the app on real money and sending
 what they hit; expect more of that first. Then, in order:
 
 1. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
@@ -38,7 +38,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #48. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #49. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
