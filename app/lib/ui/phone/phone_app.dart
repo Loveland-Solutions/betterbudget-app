@@ -370,7 +370,9 @@ class SpendScreen extends StatefulWidget {
 
 class _SpendScreenState extends State<SpendScreen> {
   String _typed = '';
-  late String? _payee = widget.category.recentPayees.firstOrNull;
+
+  /// Nothing until it is typed: a payee filled in ahead is saved by mistake.
+  String? _payee;
   late PhoneAccount? _account = _startAccount();
   late DateTime _date = _day(widget.now());
 
@@ -428,10 +430,14 @@ class _SpendScreenState extends State<SpendScreen> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _otherPayee() async {
+  Future<void> _typePayee() async {
+    final snapshot = widget.store.snapshot;
     final typed = await showDialog<String>(
       context: context,
-      builder: (context) => const _PayeeDialog(),
+      builder: (context) => _PayeeDialog(
+        start: _payee ?? '',
+        matching: (typed) => snapshot.payeesMatching(typed, widget.category),
+      ),
     );
     if (typed != null && typed.trim().isNotEmpty && mounted) {
       setState(() {
@@ -496,11 +502,6 @@ class _SpendScreenState extends State<SpendScreen> {
     final category = widget.category;
     final left = leftNow(category, widget.store.waiting);
     final amount = typedAmountMinor(_typed, _currency);
-    final payees = [
-      ...category.recentPayees.take(3),
-      if (_payee != null && !category.recentPayees.take(3).contains(_payee))
-        _payee!,
-    ];
     final today = _day(widget.now());
     return Scaffold(
       backgroundColor: Mid.ground,
@@ -555,33 +556,19 @@ class _SpendScreenState extends State<SpendScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final p in payees)
-                    _Chip(
-                      label: p,
-                      chosen: p == _payee,
-                      onTap: () => setState(() {
-                        _payee = p;
-                        _missing = null;
-                      }),
-                    ),
-                  _Chip(
-                    label: t.phoneOtherPayee,
-                    chosen: false,
-                    onTap: _otherPayee,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
               Material(
                 color: Mid.card,
                 borderRadius: BorderRadius.circular(14),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
+                    _FieldRow(
+                      key: const ValueKey('payee-row'),
+                      label: t.rowsColumnPayee,
+                      value: _payee ?? '',
+                      onTap: _typePayee,
+                    ),
+                    Divider(height: 1, thickness: 1, color: Mid.rule),
                     _FieldRow(
                       label: t.planLabelPaidFrom,
                       value: _account?.name ?? '',
@@ -629,42 +616,9 @@ class _SpendScreenState extends State<SpendScreen> {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.chosen, required this.onTap});
-  final String label;
-  final bool chosen;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: chosen ? Mid.blue : Mid.raised,
-    borderRadius: BorderRadius.circular(22),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Center(
-            widthFactor: 1,
-            child: Text(
-              label,
-              style: onest(
-                15,
-                weight: chosen ? 600 : 400,
-                color: chosen ? Mid.onAccent : Mid.ink,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 class _FieldRow extends StatelessWidget {
   const _FieldRow({
+    super.key,
     required this.label,
     required this.value,
     required this.onTap,
@@ -757,15 +711,19 @@ class _AmountPad extends StatelessWidget {
   }
 }
 
+/// The payee, typed on the phone's own keyboard. As it is typed, payees
+/// from the ledger's history that fit are offered under it; a tap takes one.
 class _PayeeDialog extends StatefulWidget {
-  const _PayeeDialog();
+  const _PayeeDialog({required this.start, required this.matching});
+  final String start;
+  final List<String> Function(String typed) matching;
 
   @override
   State<_PayeeDialog> createState() => _PayeeDialogState();
 }
 
 class _PayeeDialogState extends State<_PayeeDialog> {
-  final _text = TextEditingController();
+  late final _text = TextEditingController(text: widget.start);
 
   @override
   void dispose() {
@@ -776,15 +734,45 @@ class _PayeeDialogState extends State<_PayeeDialog> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final offered = widget.matching(_text.text);
     return AlertDialog(
       backgroundColor: Mid.panel,
       title: Text(t.rowsColumnPayee, style: onest(18, weight: 600)),
-      content: TextField(
-        controller: _text,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        style: onest(17),
-        onSubmitted: (value) => Navigator.of(context).pop(value),
+      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey('payee-field'),
+              controller: _text,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              style: onest(17),
+              cursorColor: Mid.blue,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (value) => Navigator.of(context).pop(value),
+            ),
+            for (final p in offered)
+              InkWell(
+                onTap: () => Navigator.of(context).pop(p),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      p,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: onest(16, color: Mid.ink),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

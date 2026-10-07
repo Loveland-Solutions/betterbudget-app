@@ -41,6 +41,17 @@ Future<PhoneStore> _pump(WidgetTester tester, {PhoneSnapshot? snapshot}) async {
   return store;
 }
 
+/// Types a payee on the amount screen: [pick] taps one the history offers,
+/// otherwise what was typed is kept.
+Future<void> _payee(WidgetTester tester, String typed, {String? pick}) async {
+  await tester.tap(find.byKey(const ValueKey('payee-row')));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const ValueKey('payee-field')), typed);
+  await tester.pump();
+  await tester.tap(pick == null ? find.text('Save').last : find.text(pick));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _type(WidgetTester tester, String keys) async {
   for (final k in keys.split('')) {
     await tester.tap(find.byKey(ValueKey('pad-$k')));
@@ -218,6 +229,37 @@ void main() {
     );
 
     await tester.tap(find.text('Save'));
+    await tester.pump();
+    // No payee is filled in ahead, and none is offered until one is typed.
+    expect(find.text('Enter a payee'), findsOneWidget);
+    expect(find.text('Nomin'), findsNothing);
+    expect(store.waiting, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('payee-row')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nomin'), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('payee-field')), 'n');
+    await tester.pump();
+    // This category's own payee that begins with it comes first; one that
+    // only holds the letter comes after.
+    final offered = tester
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Text),
+          ),
+        )
+        .map((w) => w.data)
+        .toList();
+    expect(
+      offered.indexOf('Nomin'),
+      lessThan(offered.indexOf('Modern Nomads')),
+    );
+    expect(offered, isNot(contains('E-Mart')));
+    await tester.tap(find.text('Nomin'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nomin'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     final entry = store.waiting.single;
     expect(entry.amountMinor, -1250000);
@@ -249,11 +291,8 @@ void main() {
       expect(find.text('Enter a payee'), findsOneWidget);
       expect(store.waiting, isEmpty);
 
-      await tester.tap(find.text('Other…'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'Shoppy');
-      await tester.tap(find.text('Save').last);
-      await tester.pumpAndSettle();
+      // A payee the ledger has never seen is typed in full.
+      await _payee(tester, 'Shoppy');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(store.waiting.single.payee, 'Shoppy');
@@ -278,6 +317,7 @@ void main() {
     await tester.tap(find.text('Transport'));
     await tester.pumpAndSettle();
     await _type(tester, '8000');
+    await _payee(tester, 'ub', pick: 'UB Cab');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.text('₮53,500.00'), findsOneWidget);
@@ -371,6 +411,7 @@ void main() {
     await tester.tap(find.text('Travel'));
     await tester.pumpAndSettle();
     await _type(tester, '20');
+    await _payee(tester, 'Delta');
     await tester.tap(find.text('Save'));
     await tester.pump();
     expect(find.text('Choose an account'), findsOneWidget);
@@ -391,11 +432,13 @@ void main() {
     await tester.tap(find.text('Groceries'));
     await tester.pumpAndSettle();
     await _type(tester, '12500');
+    await _payee(tester, 'no', pick: 'Nomin');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Eating out'));
     await tester.pumpAndSettle();
     await _type(tester, '30000');
+    await _payee(tester, 'Rosewood');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -697,6 +740,7 @@ void main() {
       await tester.tap(find.text('Transport'));
       await tester.pumpAndSettle();
       await _type(tester, '8000');
+      await _payee(tester, 'ub', pick: 'UB Cab');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(find.text('₮53,500.00'), findsOneWidget);

@@ -83,4 +83,6 @@ that appeared only after a folder was picked (it always says where the ledger is
 now: "This computer", or the folder), and "Keep my ledger in a folder…" (the word is
 **move**), and the ledger in the folder named with `.sqlite` (its own extension:
 `Ledger.betterbudget`), and a new extension given to some of the app's
-files and not others (all of them or none: every ledger file ends in `.betterbudget`).
+files and not others (all of them or none: every ledger file ends in `.betterbudget`), and a payee already chosen on the phone's amount
+screen, with more as buttons under it (no payee filled in and none laid out; the
+ledger's payees are offered only as one is typed).

@@ -11,6 +11,17 @@ import 'ui/phone/phone_app.dart';
 /// made-up amounts.
 PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
   madeAt: madeAt,
+  payees: const [
+    'Nomin',
+    'E-Mart',
+    'Good Price',
+    'UB Cab',
+    'Petrovis',
+    'Modern Nomads',
+    'Rosewood',
+    'Unitel',
+    'Zaisan Residence',
+  ],
   accounts: const [
     PhoneAccount(id: 'tdb', name: 'TDB Checking', balanceMinor: 243180000),
     PhoneAccount(id: 'cash', name: 'Cash wallet', balanceMinor: 8600000),

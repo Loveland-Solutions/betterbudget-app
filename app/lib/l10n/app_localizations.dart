@@ -6652,12 +6652,6 @@ abstract class Words {
   /// **'{left} left now · {after} after this'**
   String phoneLeftAfter(String left, String after);
 
-  /// Phone app: the last of the payee buttons on the amount screen; it opens a box to type a payee that isn’t among the recent ones.
-  ///
-  /// In en, this message translates to:
-  /// **'Other…'**
-  String get phoneOtherPayee;
-
   /// Phone app: shown above Save when Save was tapped with no amount typed.
   ///
   /// In en, this message translates to:

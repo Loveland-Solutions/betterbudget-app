@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.16.0 · schema v18 · 511 tests pass
+**Last updated: 2026-10-07** · version 0.16.0 · schema v18 · 521 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,10 +10,28 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #49 (version 0.15.1).** The owner is using the app on real money and sending
-what they hit; expect more of that first. Then, in order:
+**After PR #50 (version 0.16.0).** The owner's ledger is stored in their Google Drive
+folder, and the Android app reads it there. Then, in order:
 
-1. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
+1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
+   want to be able to support multiple machines on the same ledger. Let's figure that
+   out in a new conversation"). **Start that conversation with this**, before building
+   anything else on the folder. Where it stands: each computer keeps its own working
+   file and writes the whole of it over `Ledger.betterbudget` in the folder, at launch
+   and after each change, without looking at what is there, so a second or
+   out-of-date computer silently replaces the newer ledger. Nothing reads the folder's
+   file back in except Restore from…. [ADR 0005](decisions/0005-mobile-companion.md)
+   was written for one computer plus phones ("one writer per file") and rejected a
+   full two-way merge as too much for phones; that has to be looked at again for
+   computers. Until it is designed, only one computer should have the ledger moved to
+   the folder. Bring two or three ways with sketches, as for any feature.
+2. **The phone's entries reach the Mac.** Today an entry saved on the phone is held
+   in memory and gone when the app closes. To build: the phone keeps its entries,
+   writes them to its own file in the folder, and the Mac takes them in as uncleared
+   rows with one undo (ADR 0005). Then money in and transfers on the phone, the other
+   phone's entries, and the iPhone build (its folder access and icon). How entries
+   travel depends on what item 1 decides.
+3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
    [committee/onboarding/](committee/onboarding/)). "Your accounts" and "Your pay"
@@ -29,8 +47,9 @@ what they hit; expect more of that first. Then, in order:
    show each step by its screenshots in `app/test/goldens/setup_*.png`, and report it
    starting from what they last saw (the Pay step's three screenshots, sent with
    PR #48).
-2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
+4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
+
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
 [CLAUDE.md](../CLAUDE.md)). It holds one tugrik account; the dollar accounts and their
@@ -44,14 +63,11 @@ not a complaint.
 
 Asked and not answered. Don't re-ask; bring one up when its screen comes up again.
 
-0. **Three from the reviews of the folder and the phone** (2026-10-07). An old or
-   second computer writes its own ledger over the one in the folder at launch, and
-   moving into a folder that already holds a ledger replaces it, with no warning:
-   should it warn first, with the dates and the number of transactions on each side?
-   On the phone, Housing shows ₮1,800,000.00 left with "Due 10.20" under it, in the
-   same ink as Groceries: is the due date enough, or should a bill's money read
-   differently? And the amount pad starts with the last payee chosen (Nomin), so
-   amount then Save records Nomin when they were at E-Mart: start with none chosen?
+0. **A bill's money on the phone** (2026-10-07; asked once in words the owner couldn't
+   follow, so ask it from the screen). Housing holds ₮1,800,000.00 and that is the
+   rent, due on the 20th. The phone lists it between Groceries and Transport with
+   "Due 10.20" under the name and the amount in the same ink as theirs. Should money
+   that is waiting for a bill look different from money that is free to spend?
 1. **Three from the Pay step's budget review** (2026-10-07). Payday today: with pay
    "On the 7th" set up on 10.07, the form says "Next payday 2026.10.07" though the
    balance just typed may already hold that pay, so it would be counted twice; should
@@ -171,7 +187,8 @@ open the archive).
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
-  it back to this computer" is pressed still lands in the folder; Paid from on the
+  it back to this computer" is pressed still lands in the folder; an old or second
+  computer replaces the folder's ledger without a warning (Next step 1); Paid from on the
   phone starts from the ledger's last row for that category, which may be the other
   person's card; the Backups note still says to use a USB stick once the ledger is in
   a folder. Untested: the phone's figures for a budget run by pay periods, and the

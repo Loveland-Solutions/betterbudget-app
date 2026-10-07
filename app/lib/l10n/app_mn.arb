@@ -1084,7 +1084,6 @@
   "phoneOwed": "Өр {amount}",
   "phoneLeftNow": "Одоо {left} үлдсэн",
   "phoneLeftAfter": "Одоо {left} үлдсэн · үүний дараа {after}",
-  "phoneOtherPayee": "Бусад…",
   "phoneEnterAmount": "Дүн оруулна уу",
   "phoneEnterPayee": "Харилцагч оруулна уу",
   "phoneDeleteDigit": "Сүүлийн цифрийг устгах",

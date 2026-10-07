@@ -102,6 +102,17 @@ the copy with the key, and works out what each category holds with the same code
 the Mac's Budget page. It reads again when the app comes back to the front and when
 the list is pulled down; a read that fails leaves the figures up, with their time.
 
+### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
+
+"I definitely want to be able to support multiple machines on the same ledger. Let's
+figure that out in a new conversation." Said when told that a second or out-of-date
+computer writes its own ledger over the one in the folder. This record assumed one
+computer and some phones: the computer is the folder file's only writer, and the full
+two-way merge under Rejected was turned down as too much for a phone that records
+purchases. Two computers that both edit the ledger change that, so the choice has to be
+made again for them. Nothing is decided; [STATUS](../STATUS.md) "Next step" says where
+the code stands.
+
 ### What a phone can and can't do
 
 | Can | Can't |

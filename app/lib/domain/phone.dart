@@ -33,7 +33,8 @@ class PhoneCategory {
   /// one its rows were last paid from. Null: the first account in its currency.
   final String? paidFromId;
 
-  /// Payees of this category's latest rows, newest first, each once.
+  /// Payees of this category's rows, newest first, each once: offered
+  /// first as a payee is typed.
   final List<String> recentPayees;
 }
 
@@ -63,7 +64,32 @@ class PhoneSnapshot {
     required this.categories,
     required this.accounts,
     this.periodEnd,
+    this.payees = const [],
   });
+
+  /// Every payee in the ledger, newest first, each once.
+  final List<String> payees;
+
+  /// Payees from the ledger's history that fit what has been [typed] for an
+  /// entry in [category]: none until something is typed (owner, 2026-10-07:
+  /// no payee filled in, no row of ready-made ones), then this category's
+  /// own before the rest, and names that begin with it before names that
+  /// only hold it.
+  List<String> payeesMatching(String typed, PhoneCategory category) {
+    final want = typed.trim().toLowerCase();
+    if (want.isEmpty) return const [];
+    final begins = <String>[], holds = <String>[];
+    for (final p in [...category.recentPayees, ...payees]) {
+      final name = p.toLowerCase();
+      if (begins.contains(p) || holds.contains(p)) continue;
+      if (name.startsWith(want)) {
+        begins.add(p);
+      } else if (name.contains(want)) {
+        holds.add(p);
+      }
+    }
+    return [...begins, ...holds].take(5).toList();
+  }
 
   /// The last day of the budget period the figures are for, when the budget
   /// runs by pay periods; null when it runs by calendar months.
@@ -190,13 +216,19 @@ PhoneSnapshot snapshotOf(
         return day != 0 ? day : b.id.compareTo(a.id);
       });
   final payees = <int, List<String>>{};
+  final everyPayee = <String>[];
   final paidFrom = <int, int>{};
   for (final t in rows) {
+    final payee = t.payee?.trim() ?? '';
+    if (payee.isNotEmpty &&
+        everyPayee.length < 500 &&
+        !everyPayee.contains(payee)) {
+      everyPayee.add(payee);
+    }
     for (final e in t.entries) {
       if (!budget.lines.containsKey(e.accountId)) continue;
-      final payee = t.payee?.trim() ?? '';
       final seen = payees.putIfAbsent(e.accountId, () => []);
-      if (payee.isNotEmpty && seen.length < 5 && !seen.contains(payee)) {
+      if (payee.isNotEmpty && seen.length < 50 && !seen.contains(payee)) {
         seen.add(payee);
       }
       for (final other in t.entries) {
@@ -216,6 +248,7 @@ PhoneSnapshot snapshotOf(
   return PhoneSnapshot(
     madeAt: madeAt,
     periodEnd: by == null ? null : period.end,
+    payees: everyPayee,
     categories: [
       for (final c in sorted([
         for (final id in budget.lines.keys) data.accounts[id]!,

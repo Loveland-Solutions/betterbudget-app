@@ -4477,9 +4477,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get phoneOtherPayee => 'Бусад…';
-
-  @override
   String get phoneEnterAmount => 'Дүн оруулна уу';
 
   @override

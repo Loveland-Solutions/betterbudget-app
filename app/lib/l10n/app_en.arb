@@ -6803,10 +6803,6 @@
       }
     }
   },
-  "phoneOtherPayee": "Other…",
-  "@phoneOtherPayee": {
-    "description": "Phone app: the last of the payee buttons on the amount screen; it opens a box to type a payee that isn’t among the recent ones."
-  },
   "phoneEnterAmount": "Enter an amount",
   "@phoneEnterAmount": {
     "description": "Phone app: shown above Save when Save was tapped with no amount typed."

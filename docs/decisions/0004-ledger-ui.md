@@ -2583,9 +2583,21 @@ first leaning to A.
   08:10"). An overspent category's amount is red with a minus.
 - **Each row has a +.** Tapping the row opens the amount pad with that category already
   chosen: the amount in red with a minus, "₮148,000.00 left now · ₮135,500.00 after
-  this" under it, the category's recent payees as buttons with "Other…" for a new one,
-  then Paid from and Date (Today), the pad's own number keys, and Save. Cancel is at
-  the top right.
+  this" under it, then Payee, Paid from and Date (Today), the pad's own number keys,
+  and Save. Cancel is at the top right.
+- **No payee is filled in, and none are laid out to pick from** (owner, 2026-10-07,
+  after using it: "It should not have any payee, and I don't like the prefilled
+  options there, either. Maybe autofill based on history"). The first build chose the
+  category's last payee and showed three more as buttons, so amount then Save could
+  record the wrong shop. Payee is an empty row; tapping it opens a box on the phone's
+  keyboard, and as a name is typed the ledger's own payees that fit are offered under
+  it, this category's first.
+- **An overspent category is said in words** under the amount: "Overspent by
+  ₮18,400.00 · by ₮30,900.00 after this", not a minus beside "left".
+- **A category saving for a bill has "Due 10.20" under its name.** Whether its money
+  should look different from money free to spend is asked and not answered.
+- **The heading follows the Mac's Budget page**: "Left in October" by months, "Left
+  until 10.14" by pay periods.
 - **Save with something missing says it above Save** ("Enter an amount", "Enter a
   payee") and saves nothing.
 - **Entries the Mac hasn't taken in** are counted in what is left at once. While there

@@ -4646,9 +4646,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get phoneOtherPayee => 'Other…';
-
-  @override
   String get phoneEnterAmount => 'Enter an amount';
 
   @override
