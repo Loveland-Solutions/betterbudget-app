@@ -33,7 +33,7 @@ Never open or list: `test/goldens/`, `test/failures/` (PNGs), `.dart_tool/`, `bu
    - dialogs: `_ImportDialog`, `_PaySetupDialog`, `_RestoreDialog`, `_NewLedgerDialog`
 
 **`part of ledger_screen.dart`:** `ui/accounts.dart`, `ui/budget.dart`,
-`ui/import_dialog.dart`, `ui/pay_setup.dart`, `ui/savings.dart`. Their classes are
+`ui/import_dialog.dart`, `ui/pay_setup.dart`, `ui/savings.dart`, `ui/setup.dart`. Their classes are
 private, their imports go in `ledger_screen.dart`, and they are tested only by pumping
 `LedgerScreen`.
 
@@ -59,11 +59,12 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Words | `l10n/app_en.arb`, `l10n/app_mn.arb` | `language.dart` (`context.t`, `sayDate`), `data_words.dart` | `language_test.dart` |
 | Look | none | `theme.dart` (`Palette`, `Mid`, `onest`), `schemes.dart`, `appearance.dart`, `brand.dart`, `fit_window.dart` | `schemes_test.dart`, `ledger_screen_test.dart` ("appearance") |
 | Undo, redo, toasts, keys | none | `ledger_screen.dart` (`_did`, `_undo`, `_redoLast`, `_onKey`, `_Toast`) | `ledger_screen_test.dart` ("undo and redo, action by action") |
-| Demo data | `data/demo_seed.dart` (`seedDemoIfEmpty`, called by `LedgerScreen`) | none | most tests seed with it |
+| Setup (first run) | `domain/setup.dart` (`SetupKeys`, `inSetup`); `database.dart` (`redateOpeningBalances`) | `setup.dart` (`_SetupPage`); "setup" in `ledger_screen.dart`; `_Sidebar(setup:)` | `setup_test.dart` |
+| Demo data | `data/demo_seed.dart` (`seedDemoIfEmpty`, called by `LedgerScreen` only with `demo: true`) | none | most tests seed with it |
 
 `database.dart` is 4,300 lines marked off by `// ---------- name ----------` comments;
 search for the marker. Keys for the `Preferences` table are defined in the domain
-(`BudgetKeys`, `ReadyKeys`, `ForecastSpan.prefKey`, `noRegularPayKey`).
+(`BudgetKeys`, `ReadyKeys`, `SetupKeys`, `ForecastSpan.prefKey`, `noRegularPayKey`).
 
 ## Gotchas
 
@@ -89,8 +90,8 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
 - **Widget tests.** Database work goes inside `tester.runAsync`; reuse `pumpLedger`,
   `settle` and `tidy` from the top of `ledger_screen_test.dart`. Open and save dialogs
   are faked by `_FakeDialogs` there.
-- **Goldens** come from `ledger_screen_test.dart` (64), `language_test.dart` (4,
-  Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
+- **Goldens** come from `ledger_screen_test.dart` (64), `setup_test.dart` (3),
+  `language_test.dart` (4, Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.
 - **A Mac draws buttons 8 shorter** (Flutter's compact density on desktop), and goldens

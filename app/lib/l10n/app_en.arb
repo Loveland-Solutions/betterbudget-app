@@ -6618,5 +6618,79 @@
         "type": "int"
       }
     }
+  },
+  "setupYourAccounts": "Your accounts",
+  "@setupYourAccounts": {
+    "description": "Setup, first screen: the page heading."
+  },
+  "setupAddTracked": "Add the accounts you want to track.",
+  "@setupAddTracked": {
+    "description": "Setup, under the heading. Not every account: only the ones they want to follow."
+  },
+  "setupNeverConnects": "BetterBudget never connects to your bank. You type in what your bank app shows.",
+  "@setupNeverConnects": {
+    "description": "Setup, under the heading: said once, before any balance is typed."
+  },
+  "setupBalancesAsOf": "Balances as of",
+  "@setupBalancesAsOf": {
+    "description": "Setup: label beside the one date every balance typed there is as of."
+  },
+  "setupDateChanged": "Balances date changed",
+  "@setupDateChanged": {
+    "description": "Undo label after setup's one balance date is changed."
+  },
+  "setupOwedTodayHint": "A charge from today that the bank hasn’t shown yet isn’t in this figure.",
+  "@setupOwedTodayHint": {
+    "description": "Setup, under the amount owed on a credit card or loan being added."
+  },
+  "setupEverydayQ": "How do you pay for everyday things?",
+  "@setupEverydayQ": {
+    "description": "Setup, under the accounts: a question with three answers. Also its undo label."
+  },
+  "setupEverydayBank": "From the bank (card, QR or transfer)",
+  "@setupEverydayBank": {
+    "description": "Setup: first answer to how everyday things are paid for."
+  },
+  "setupEverydayBoth": "Both",
+  "@setupEverydayBoth": {
+    "description": "Setup: third answer to how everyday things are paid for, after From the bank and Cash."
+  },
+  "setupNoCashWarning": "You have no Cash account. Money you take out of an ATM will read as spent the day you take it out, and the cash in your wallet won’t be counted.",
+  "@setupNoCashWarning": {
+    "description": "Setup: shown when they pay with cash and have added no Cash account. A warning, never a block."
+  },
+  "setupAddCashAccount": "Add a Cash account",
+  "@setupAddCashAccount": {
+    "description": "Setup: button beside the no-Cash-account warning."
+  },
+  "setupOpenLedger": "Open my ledger",
+  "@setupOpenLedger": {
+    "description": "Setup: the button that leaves setup for the ledger."
+  },
+  "setupRemoveAccount": "Remove {name}",
+  "@setupRemoveAccount": {
+    "description": "Setup: tooltip on the × beside an account in the list.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "setupEverydayCash": "Cash",
+  "@setupEverydayCash": {
+    "description": "Setup: second answer to how everyday things are paid for. In Mongolian it answers “with what”, so it isn’t the account Type’s word."
+  },
+  "setupStartCashHint": "Count what’s in your wallet now · empty starts at {zero}",
+  "@setupStartCashHint": {
+    "description": "Setup, under the Balance of a Cash account being added. zero is ₮0 in the account’s currency.",
+    "placeholders": {
+      "zero": {
+        "type": "String"
+      }
+    }
+  },
+  "setupFinished": "Setup finished",
+  "@setupFinished": {
+    "description": "Undo label after setup is left with Open my ledger."
   }
 }

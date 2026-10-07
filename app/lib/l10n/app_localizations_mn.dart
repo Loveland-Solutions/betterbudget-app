@@ -2133,17 +2133,17 @@ class WordsMn extends Words {
 
   @override
   String get setupKindCashHint =>
-      'Таны гарт байгаа бэлэн мөнгө: түнэ, гэрт байгаа хайрцаг. Тулгах хуулга байхгүй тул өөрсдөө үнэн байлгах хэрэгтэй — зарцуулсанаа бүртгээрэй.';
+      'Таны гарт байгаа бэлэн мөнгө: түрийвч, гэрт байгаа хайрцаг. Тулгах хуулга байхгүй тул өөрсдөө үнэн байлгах хэрэгтэй — зарцуулснаа бүртгээрэй.';
 
   @override
-  String get setupKindOwed => 'Зээлийн карт эсвэл зээл';
+  String get setupKindOwed => 'Кредит карт эсвэл зээл';
 
   @override
   String get setupKindOwedHint =>
       'Кредит карт, зээл эсвэл Storepay: таны өрийг банк шиг эерэг дүнгээр харуулна.';
 
   @override
-  String get setupKindBankHint => 'Харилцах данс, хадгаламж эсвэл бэлэн мөнгө.';
+  String get setupKindBankHint => 'Банкны харилцах эсвэл хадгаламжийн данс.';
 
   @override
   String get setupCancel => 'Болих';
@@ -4349,4 +4349,59 @@ class WordsMn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String get setupYourAccounts => 'Таны дансууд';
+
+  @override
+  String get setupAddTracked => 'Хөтлөхийг хүсэж байгаа дансуудаа нэмээрэй.';
+
+  @override
+  String get setupNeverConnects =>
+      'BetterBudget таны банктай хэзээ ч холбогдохгүй. Банкны апп дээр харагдаж байгаа дүнг та өөрөө оруулна.';
+
+  @override
+  String get setupBalancesAsOf => 'Үлдэгдлийн огноо';
+
+  @override
+  String get setupDateChanged => 'Үлдэгдлийн огноо өөрчлөгдлөө';
+
+  @override
+  String get setupOwedTodayHint =>
+      'Өнөөдөр хийсэн, банк хараахан харуулаагүй гүйлгээ энэ дүнд ороогүй.';
+
+  @override
+  String get setupEverydayQ => 'Өдөр тутмын зардлаа юугаар төлдөг вэ?';
+
+  @override
+  String get setupEverydayBank => 'Картаар, QR-аар эсвэл шилжүүлгээр';
+
+  @override
+  String get setupEverydayBoth => 'Аль алинаар нь';
+
+  @override
+  String get setupNoCashWarning =>
+      'Танд бэлэн мөнгөний данс алга. АТМ-аас авсан мөнгө авсан өдрөө зарцуулсан мэт харагдаж, түрийвчин дэх бэлэн мөнгө тоологдохгүй.';
+
+  @override
+  String get setupAddCashAccount => 'Бэлэн мөнгөний данс нэмэх';
+
+  @override
+  String get setupOpenLedger => 'Дэвтрээ нээх';
+
+  @override
+  String setupRemoveAccount(String name) {
+    return 'Хасах: $name';
+  }
+
+  @override
+  String get setupEverydayCash => 'Бэлнээр';
+
+  @override
+  String setupStartCashHint(String zero) {
+    return 'Түрийвчиндээ одоо байгаа мөнгөө тоолоорой · хоосон бол $zero-оос эхэлнэ';
+  }
+
+  @override
+  String get setupFinished => 'Тохиргоо дууслаа';
 }

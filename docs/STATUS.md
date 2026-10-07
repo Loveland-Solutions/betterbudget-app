@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.13.1 · schema v18 · 458 tests pass
+**Last updated: 2026-10-07** · version 0.14.0 · schema v18 · 471 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,23 +10,25 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #45 (version 0.13.1).** The owner is using the app on real money and sending
+**After PR #47 (version 0.14.0).** The owner is using the app on real money and sending
 what they hit; expect more of that first. Then, in order:
 
-1. **The onboarding wizard's mockups.** The design is settled in ADR 0004 ("Onboarding:
-   the first half hour"). The four design committee reports were never saved, so the
-   committee runs again, and its reports are folded into two or three mockups. Two
-   findings from the lost reports worth acting on regardless: a first-time reader
-   thinks **assigning moves their money** ("I would open my TDB app to check whether my
-   balance changed"), and there is no designed screen for a ledger with no accounts.
+1. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
+   ADR 0004, "Onboarding: the first half hour"; the mockups are at
+   <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
+   [committee/onboarding/](committee/onboarding/)). Its first screen, "Your accounts",
+   is built. **Next is the Pay screen**: the "Your pay" form that exists, on the page
+   as the second step, with the step names appearing across the top. After it, each
+   its own PR: Bills (with "is there a set payment each month?" for an account that
+   owes), Everyday, Saved, Assign, Tomorrow, then Import and the which-period
+   question. Two questions asked with the mockups are unanswered; bring each up when
+   its step is built: whether a budget that starts next month assigns today's money
+   now or waits, and which accounts the "what is this saved money for?" step asks
+   about. The owner can't see setup in their own app (their ledger has an account):
+   show each step by its screenshots in `app/test/goldens/setup_*.png`, and report it
+   starting from what they last saw.
 2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
-
-**To check when the owner next opens it** (seen in their screenshot, 2026-10-07, not
-looked into): a category with ₮116,000 due every year on 2026.10.01, a date already
-past, said "nothing more to set aside" and "Shows in TDB MNT's forecast on 10.01",
-where it should look ahead to October 2027 at about ₮9,700 a month. The category was
-mid-change from dollars to tugrik at that moment, so it may read right once saved.
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
 [CLAUDE.md](../CLAUDE.md)). It holds one tugrik account; the dollar accounts and their
@@ -34,7 +36,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #45. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #47. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
@@ -108,7 +110,8 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
 | Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Demo data | An empty database is seeded with made-up data: TDB Checking, Khan Savings, Cash wallet, Golomt Visa |
+| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, "Open my ledger". It is where it was left after a quit, and never returns once done. A ledger that already had accounts never sees it |
+| Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
 
 Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).
 
@@ -121,6 +124,8 @@ open the archive).
 
 ## Not built yet
 
+- **Setup after the accounts:** pay, bills, everyday amounts, saved money, assigning,
+  "from tomorrow", import. Settings can't be reached until setup ends.
 - **Splits** can't be created or edited (`splitNotEditable`).
 - **A list of the "Always file" rules**, with a way to drop or rename one.
 - **A scheduled row typed by hand doesn't repeat.** Repeating bills come only from a
@@ -150,6 +155,13 @@ open the archive).
   the offer silently replaces an earlier rule for the payee; reconcile's "Add ₮X
   adjustment" doesn't say which way; a transfer shown once in All accounts reads as
   red spending.
+- **From the reviews of setup's Accounts step, not fixed:** reopened on a later day,
+  "Balances as of" still shows the day setup began and nothing says the earlier
+  figures are from then; the "You owe" hints fit a credit card and not a salary loan,
+  лизинг or Storepay (the remaining balance, not payments × months or the next
+  instalment); an account in the list can be removed but not edited; the bank hint
+  says not the "available" balance while the page says to type what the bank app
+  shows, and which figure Khan and TDB put forward hasn't been checked.
 - **The forecast still speaks to one person** ("Until your 10.15 paycheck") though a
   ledger can hold two earners' pay.
 - **"Nothing has been budgeted…"** in the forecast shows whenever no bills are

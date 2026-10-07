@@ -2411,6 +2411,12 @@ The decisions:
      is marked here too, not left on the Savings page. One cash question: "How do you pay
      for everyday things? Card and bank · Cash · Both", because the drift from unrecorded
      cash never corrects itself.
+     **Corrected (owner, 2026-10-07: "we only want them to add bank accounts they
+     want to track").** The step doesn't ask for every account. Its line is "Add the
+     accounts you want to track", and the memory list is gone: the mockup had drawn it
+     as nine add buttons under "Add every account you keep money in or owe money on",
+     which pressed for completeness. The add buttons are the app's three Types.
+     Cash & bank is then the money in the accounts they chose to track.
   3. **Import, optional and skipped by default** — and **before the first assignment**,
      because rows imported into a budgeted period push envelopes under with no warning.
      Placed earlier, the first-period offer catches them. It buys payee autocomplete and
@@ -2456,9 +2462,57 @@ The decisions:
   abandoned gets the demo seeded underneath it at the next launch
   (`seedDemoIfEmpty` skips only a ledger where `startedOwnLedger()` is true).
 
-Still to build for the sequence: one date across a set of opening balances, an
-add-another-account step, the loan question at Add account, writing `began` deliberately,
-a designed empty-ledger screen, and the mid-period line. Presentation is a separate pass.
+Still to build for the sequence: the loan question, writing `began` deliberately, the
+mid-period line, and every step after the accounts.
+
+**Presentation: setup inside the app's own window** (owner, 2026-10-07, "Let's do A",
+from three mockups drawn out of the design committee's reports in
+[committee/onboarding/](../committee/onboarding/)). The sidebar is the real one, empty
+at first, and fills under Bank / Cash / Credit as accounts are added; the page holds one
+step; the steps are named in words across the top once there is more than one. The
+balances on the left stand still while categories are assigned on the right, which is
+the answer to the first-time reader who thought assigning moved money at the bank.
+*Rejected:* one "Set up" page of lines that open in place (the order — import before
+assigning, saved money before assigning — is the accounting, and a list only suggests
+it), and one large question per screen with the accounts in a side panel.
+
+**The accounts step, built first (0.14.0):**
+
+- **A new, empty ledger opens on setup, and the app no longer seeds the demo.**
+  `LedgerScreen.demo` is false in the app and true in most tests.
+- **Setup shows** while `setup.done` is unset and either `setup.date` is set or the
+  ledger has never had an account, deleted ones counted (`inSetup`,
+  `domain/setup.dart`). A ledger that had accounts before setup existed has neither key
+  and never sees it, even with its last account deleted (the code review caught the
+  first version opening setup there). Three keys in the existing
+  `Preferences` table; no schema change.
+- **One line per account**: name, currency, and Balance or You owe, opened by one of
+  three buttons (Bank account, Cash, Credit card or loan) that set its Type. The
+  account and its balance are one write and one ⌘Z. × removes one, with Undo on the
+  popup.
+- **"Balances as of"** is one date above the list. Changing it moves every opening
+  balance already typed (`redateOpeningBalances`), and ⌘Z moves them back.
+  A reconciled opening balance stays where its statement has it.
+- **The foot total** is "Cash & bank" (named as the Budget page names it) and what's
+  owed, one line for each currency.
+- **A line still being typed is kept.** Another Type's button keeps its name and
+  amount, and "Open my ledger" adds it first; if its amount can't be read, that is said
+  and setup stays. A name left empty is the Type's word, which is what the field shows
+  in grey.
+- **"How do you pay for everyday things?"** is asked only while there is no Cash
+  account, since that is the only time the answer changes anything. From the bank
+  (card, QR or transfer) · Cash · Both. "Card and bank" was the committee's wording; bare "card" is a word the
+  owner rejected. With Cash or Both and no Cash account, a gold line says what will go
+  wrong (money from an ATM reads as spent the day it's taken out, and the wallet isn't
+  counted) and offers "Add a Cash account"; nothing is refused.
+- **"BetterBudget never connects to your bank."** Said once, under the heading: the
+  first-time reader expected a bank login, and nothing said otherwise.
+- **Decided along the owner's rules rather than asked:** an account that owes money is
+  not asked how it gets paid here. The answer once decided whether the balance came off
+  "You have"; since 2026-10-05 nothing owed does. Whether there is a set payment each
+  month is asked on the Bills step, where it becomes a bill. The step names across the
+  top wait for the second step: one name alone is an element with nothing to do.
+  Settings can't be reached during setup, so the language is the Mac's until it ends.
 
 
 ## Credits
