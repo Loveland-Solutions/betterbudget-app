@@ -2514,6 +2514,47 @@ it), and one large question per screen with the accounts in a side panel.
   top wait for the second step: one name alone is an element with nothing to do.
   Settings can't be reached during setup, so the language is the Mac's until it ends.
 
+**The Pay step, built second (0.15.0):**
+
+- **The step names are across the top**, in words: Accounts › Pay. The one on the page
+  is underlined; the other is a click. Pay is grey until there is an account, since
+  until then there is nothing for it. Only steps that are built are named.
+- **Steps only move.** Continue, Back and a step's name write nothing but which step
+  setup is on (`setup.step`), so a quit comes back to it. Continue and the Pay name add
+  an account line still being typed first, as "Open my ledger" used to.
+- **"Your pay" is the pay form that exists, on the page** instead of in a dialog
+  (`_PayForm`; `_PaySetupDialog` now only wraps it). The page has the heading, so the
+  form doesn't repeat it. Same fields, same words, same writes and the same ⌘Z.
+- **One new line, under the amount, in setup only:** "The amount that lands in the
+  account, not your salary before tax. A loan payment the bank takes afterwards is a
+  bill." The first-time reader would have typed the salary. The committee's wording,
+  "after tax and any loan taken from your salary", was dropped on the budget review: a
+  loan the bank takes the day after pay lands would be taken off here and again as a
+  bill. Not shown when pay goes into a Cash account, and not added to the dialog the
+  owner already uses.
+- **Two answers and no bare Continue:** "Save pay" and "I don't have regular pay".
+  While neither is given the form is open, with no Cancel (nothing to go back to) and
+  no "Open my ledger". Back still leaves.
+- **Once answered, the answer is what the page shows**: each pay on a line worded as
+  the Income tab words it ("₮2,100,000 · monthly on the 25th · into TDB Checking · next
+  10.23") with Edit, and "Add other pay" for a second earner; or the one line "No
+  regular pay" with "Add your pay". No popup: the line appearing is the confirmation.
+  "Open my ledger" is at the foot, and isn't there while the form is open, since
+  what's typed in it would be dropped.
+- **Pay starts in the first bank account**, not a wallet listed above it.
+- **The amount has the keys on arriving**, so a number can be typed at once (the
+  form's own autofocus doesn't take on a page, where the register holds the keys).
+  Esc closes an Edit or "Add other pay" wherever the last click was, as Cancel does.
+- **A pay whose account was since removed** is still listed, without Edit, under the
+  line saying pay needs an account. Removing an account doesn't stop its pay, in setup
+  or in the app: not decided.
+- **With only an account that owes**, the page says pay goes into a bank account or
+  Cash and to add one on Accounts; the ledger still opens.
+- **Decided along the owner's rules rather than asked:** the filled button on the Pay
+  step is still "Open my ledger" because Pay is the last step built; it becomes
+  Continue when Bills is. The filled buttons in setup no longer show a ⌘N tooltip (⌘N
+  does nothing there).
+
 
 ## Credits
 
