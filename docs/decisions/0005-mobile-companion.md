@@ -52,6 +52,67 @@ No file ever has two writers, so there is nothing to merge and device clocks don
 - **The Mac takes in all inboxes** and lists the imported IDs in its next snapshot. Each
   phone then removes those items from its own inbox.
 
+### All of the data lives in the cloud folder (owner, 2026-10-07)
+
+"The idea behind the app is that all of the data goes in Google Drive/OneDrive/Box/
+Dropbox." Said when the Mac's file for the phones was described as a small summary
+(categories, what's left, balances) with the ledger staying on the Mac. That was wrong:
+**the "ledger snapshot" above is the whole ledger**, a complete encrypted copy the Mac
+keeps current in the folder, so the folder is where the data is kept, versioned and
+copied off-site, and a new computer needs only the folder and the recovery key. The
+phones read what they show from that same copy. The file the Mac works in stays outside
+the folder, as decided above, only so the sync app never uploads a half-written
+database. Any folder a sync app keeps on the disk will do; the app knows nothing about
+which service it is.
+
+**Built on the Mac, 2026-10-07:** Settings → Backups → "Move my ledger to a folder…".
+The ledger there is one file, `Ledger.betterbudget`, replaced each time (the sync
+service keeps the versions), written at launch and 5 seconds after the last change.
+Settings always says where the ledger is: "Stored in · This computer" until it is moved,
+then "Stored in · My Drive/BetterBudget · Today 10:00", red with "couldn’t copy" when
+the folder can't be written. "Move it back to this computer" leaves the file in the
+folder where it is. Which folder is this computer's own setting, in a small file beside
+the ledger, not in the ledger.
+
+Three corrections from the owner the same day, after using the first build:
+- **It says where the ledger is stored now**, before a folder is picked as well as
+  after. The first build showed the line only once a folder was chosen.
+- **The word is "move", not "keep"**: "Move my ledger to a folder…", "Move It Here",
+  "Your ledger was moved to My Drive/BetterBudget".
+- **Not `.sqlite`.** "I don't love the fact that we're just keeping the .sqlite file
+  extension." The file is `Ledger.betterbudget`; a `BetterBudget ledger.sqlite` left in
+  the folder by the first build is removed once the new file is written.
+- **All of them or none** ("If we can't change them all, let's not change any of
+  them"), then: all. Every file the app writes a ledger into ends in `.betterbudget`:
+  the file it works in (`Ledger.betterbudget`, renamed from `betterbudget.sqlite` at
+  the next launch by `ledgerFileIn`, with its `-wal`; nothing in it is read or
+  written), the daily copies, "Back up to…" files, and the copies made around a
+  restore, a new ledger, a set-aside and an upgrade. Copies already made keep their
+  `.sqlite` names and are listed, restored and cleared away as before. Offered and
+  not taken: changing only the files a person sees and leaving the working file.
+
+Not built: opening the ledger from the folder on a second computer (today that is
+Restore from…, which takes a `.betterbudget` file), and anything that reads the phones'
+files.
+
+**Built on Android, 2026-10-07:** the phone asks once for the recovery key (kept only
+after it has opened the ledger) and once for the folder, through Android's own folder
+picker. It copies `Ledger.betterbudget` out of the folder into its own storage, opens
+the copy with the key, and works out what each category holds with the same code as
+the Mac's Budget page. It reads again when the app comes back to the front and when
+the list is pulled down; a read that fails leaves the figures up, with their time.
+
+### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
+
+"I definitely want to be able to support multiple machines on the same ledger. Let's
+figure that out in a new conversation." Said when told that a second or out-of-date
+computer writes its own ledger over the one in the folder. This record assumed one
+computer and some phones: the computer is the folder file's only writer, and the full
+two-way merge under Rejected was turned down as too much for a phone that records
+purchases. Two computers that both edit the ledger change that, so the choice has to be
+made again for them. Nothing is decided; [STATUS](../STATUS.md) "Next step" says where
+the code stands.
+
 ### What a phone can and can't do
 
 | Can | Can't |
@@ -98,6 +159,13 @@ catches mistakes, as it does for any uncleared row.
 - **Before choosing a service, test** how a shared folder shows up in Files (iOS) and the
   system picker (Android) for Google Drive and for OneDrive, on the owner's and Jen's
   actual phones.
+  - **Android with Google Drive, tested 2026-10-07** (Pixel 10a, Android 17, a
+    throwaway screen in `app/lib/spike/`): Drive is offered in the system folder
+    picker; an account's top level can't be chosen, a folder under My Drive can. The
+    permission survived the app being closed. A file the phone wrote was on the Mac 5
+    seconds later; a change made on the Mac was not yet on the phone after 17 seconds
+    and was there after 60. **Not tested yet:** with no signal, a folder shared from
+    another account, OneDrive, and all of iOS.
 - Store setup: Apple $99/year, Google Play $25 once plus a 14-day closed test with about
   12 testers for new personal accounts. Both stores need a privacy policy URL. Both
   privacy forms can declare no data collected.

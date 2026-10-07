@@ -70,8 +70,9 @@ be quietly undone.
 - **App icon (owner, 2026-09-29):** the bee on a white macOS tile, **tilted 45°** so it
   flies up and to the right, drawn 27% larger than upright with room kept to the edge.
   Rejected: the bee upright (smaller), and the largest tilt that fits (stinger and
-  wing crowd the edge). Made by `design/icon/app_icon.swift`; the phone apps still
-  have Flutter's icon.
+  wing crowd the edge). Made by `design/icon/app_icon.swift`. Android has the same
+  tilted bee on white since 2026-10-07 (`app/tool/gen_android_icons.sh`), and its name
+  under the icon is "BetterBudget"; the iPhone app still has Flutter's icon.
 - **Logo in the app (owner, 2026-09-29):** the top left of the sidebar shows the
   logo's wordmark alone (was a gold diamond and "BetterBudget" in Onest):
   `lib/ui/brand.dart`, cropped SVG in `app/assets/brand/`. On the dark ground its navy
@@ -2569,6 +2570,56 @@ it), and one large question per screen with the accounts in a side panel.
   Continue when Bills is. The filled buttons in setup no longer show a ⌘N tooltip (⌘N
   does nothing there).
 
+
+### Phone screens: Budget is home (owner, 2026-10-07)
+
+The phone app ([ADR 0005](0005-mobile-companion.md)) records a transaction and shows
+what is left in a category. Three ways to arrange that were drawn
+(<https://claude.ai/artifact/9Eogm6wChncxhKgRbdmPAc>) and the owner chose **B**, after
+first leaning to A.
+
+- **The app opens on "Left in October"**: every spending category with what is left in
+  it, and under the heading when the figures came from the Mac ("From your Mac today
+  08:10"). An overspent category's amount is red with a minus.
+- **Each row has a +.** Tapping the row opens the amount pad with that category already
+  chosen: the amount in red with a minus, "₮148,000.00 left now · ₮135,500.00 after
+  this" under it, then Payee, Paid from and Date (Today), the pad's own number keys,
+  and Save. Cancel is at the top right.
+- **No payee is filled in, and none are laid out to pick from** (owner, 2026-10-07,
+  after using it: "It should not have any payee, and I don't like the prefilled
+  options there, either. Maybe autofill based on history"). The first build chose the
+  category's last payee and showed three more as buttons, so amount then Save could
+  record the wrong shop. Payee is an empty row; tapping it opens a box on the phone's
+  keyboard, and as a name is typed the ledger's own payees that fit are offered under
+  it, this category's first.
+- **An overspent category is said in words** under the amount: "Overspent by
+  ₮18,400.00 · by ₮30,900.00 after this", not a minus beside "left".
+- **A category saving for a bill has "Due 10.20" under its name.** Whether its money
+  should look different from money free to spend is asked and not answered.
+- **The heading follows the Mac's Budget page**: "Left in October" by months, "Left
+  until 10.14" by pay periods.
+- **Save with something missing says it above Save** ("Enter an amount", "Enter a
+  payee") and saves nothing.
+- **Entries the Mac hasn't taken in** are counted in what is left at once. While there
+  are any, a line under the list says "3 of your entries are waiting for the Mac";
+  it opens the list, where each can be deleted.
+- **Accounts** is a link at the top right: each balance, a card or loan as "Owed ₮X".
+- **The full amount, cents included, while there is room** (owner: "Show the full
+  tugrik amount if there is room"). Where a long name and a large amount don't both
+  fit a row, the cents go and the name stays whole.
+
+Rejected: **A**, two tabs with Add first (the amount pad, then Payee, Category, Paid
+from and Date as four rows): the category is the slowest thing to choose on a phone
+and "can I afford this?" is asked before anything is typed. **C**, a form that starts
+with the payee on the phone's own keyboard, its Budget tab sorted into Overspent, Money
+left and Nothing left.
+
+Not built yet: money in and transfers from the phone (drawn as a button, "Add money in
+or a transfer", under the list), fixing a waiting entry instead of deleting it, other
+phones' entries, and the figures coming from the Mac at all: the screens run on
+invented figures (`app/lib/phone_preview.dart`) until the Mac writes its snapshot.
+"Left in October" names the calendar month though a category can run by a pay period;
+that heading has to be settled when real figures arrive.
 
 ## Credits
 

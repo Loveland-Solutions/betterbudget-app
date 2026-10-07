@@ -4427,4 +4427,192 @@ class WordsMn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'Тогтмол цалингүй';
+
+  @override
+  String phoneLeftIn(String month) {
+    return 'Үлдсэн · $month';
+  }
+
+  @override
+  String phoneFromMacToday(String time) {
+    return 'Mac-аас өнөөдөр $time';
+  }
+
+  @override
+  String phoneFromMacOn(String date, String time) {
+    return 'Mac-аас $date $time';
+  }
+
+  @override
+  String phoneAddTo(String category) {
+    return '$category ангилалд нэмэх';
+  }
+
+  @override
+  String phoneWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Таны $count гүйлгээ Mac-ийг хүлээж байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneWaitingTitle => 'Mac-ийг хүлээж байна';
+
+  @override
+  String phoneOwed(String amount) {
+    return 'Өр $amount';
+  }
+
+  @override
+  String phoneLeftNow(String left) {
+    return 'Одоо $left үлдсэн';
+  }
+
+  @override
+  String phoneLeftAfter(String left, String after) {
+    return 'Одоо $left үлдсэн · үүний дараа $after';
+  }
+
+  @override
+  String get phoneEnterAmount => 'Дүн оруулна уу';
+
+  @override
+  String get phoneEnterPayee => 'Харилцагч оруулна уу';
+
+  @override
+  String get phoneDeleteDigit => 'Сүүлийн цифрийг устгах';
+
+  @override
+  String get ledgerFolderLabel => 'Хадгалагдаж буй газар';
+
+  @override
+  String get ledgerFolderChoose => 'Дэвтрээ хавтас руу зөөх…';
+
+  @override
+  String get ledgerFolderPickButton => 'Энд зөөх';
+
+  @override
+  String get ledgerFolderNote =>
+      'Google Drive, OneDrive, Box эсвэл Dropbox-ын энэ компьютер дээрх хавтас руу зөөвөл дэвтэр тань тэнд шифрлэгдэн хадгалагдаж, өөрчлөлт бүрийн дараа дахин хадгалагдана.';
+
+  @override
+  String ledgerFolderCopied(String folder, String when) {
+    return '$folder · $when';
+  }
+
+  @override
+  String ledgerFolderFailing(String folder, String when) {
+    return '$folder · хуулж чадсангүй · сүүлийнх нь $when';
+  }
+
+  @override
+  String ledgerFolderFailingNone(String folder) {
+    return '$folder · хуулж чадсангүй';
+  }
+
+  @override
+  String get ledgerFolderChange => 'Өөр хавтас руу зөөх…';
+
+  @override
+  String get ledgerFolderStop => 'Энэ компьютер руу буцааж зөөх';
+
+  @override
+  String ledgerFolderKept(String folder) {
+    return 'Дэвтэр тань $folder хавтас руу зөөгдлөө';
+  }
+
+  @override
+  String ledgerFolderStopped(String folder) {
+    return 'Дэвтэр тань энэ компьютерт буцаж ирлээ · $folder доторх файл тэндээ үлдэнэ';
+  }
+
+  @override
+  String get ledgerFolderCouldnt => 'Тэр хавтас руу зөөж чадсангүй';
+
+  @override
+  String get ledgerFolderHere => 'Энэ компьютер';
+
+  @override
+  String get phoneKeyTitle => 'Сэргээх түлхүүрээ оруулна уу';
+
+  @override
+  String get phoneKeyBody =>
+      'Дэвтрээ компьютер дээрээ үүсгэх үед танд харуулсан 25 тэмдэгт. Энэ утас дэвтрийг тань уншихын тулд нэг удаа хэрэгтэй.';
+
+  @override
+  String get phoneFolderTitle => 'Таны дэвтэр хаана байна вэ?';
+
+  @override
+  String get phoneFolderBody =>
+      'Компьютер дээрээ дэвтрээ зөөсөн хавтсыг сонгоно уу. Тэндхийн Тохиргооны «Хадгалагдаж буй газар» мөрөнд нэр нь бий.';
+
+  @override
+  String get phoneFolderChoose => 'Хавтас сонгох';
+
+  @override
+  String get phoneNoLedger => 'Тэр хавтаст дэвтэр алга';
+
+  @override
+  String phoneNoLedgerBody(String file) {
+    return 'Хавтаст $file нэртэй файл байх ёстой. Компьютер тань хадгалснаас хойш ирэхэд нэг минут орчим болж магадгүй.';
+  }
+
+  @override
+  String get phoneKeyDoesntOpen =>
+      'Тэр сэргээх түлхүүр энэ хавтас дахь дэвтрийг нээхгүй байна';
+
+  @override
+  String get phoneEnterKeyAgain => 'Түлхүүрийг дахин оруулах';
+
+  @override
+  String get phoneCantRead => 'Энэ хавтас дахь дэвтрийг уншиж чадсангүй';
+
+  @override
+  String get phoneCantReadBody =>
+      'Үүнийг энэ утсан дээрхээс шинэ BetterBudget хадгалсан байж магадгүй.';
+
+  @override
+  String get phoneTryAgain => 'Дахин оролдох';
+
+  @override
+  String get phoneChooseAnother => 'Өөр хавтас сонгох';
+
+  @override
+  String get ledgerFolderAlert => 'Дэвтрийг тань хавтсанд нь хадгалж чадсангүй';
+
+  @override
+  String phoneLeftUntil(String date) {
+    return '$date хүртэл үлдсэн';
+  }
+
+  @override
+  String phoneDue(String date) {
+    return 'Төлөх өдөр $date';
+  }
+
+  @override
+  String phoneOverNow(String over) {
+    return '$over-өөр хэтэрсэн';
+  }
+
+  @override
+  String phoneOverAfter(String left, String over) {
+    return 'Одоо $left үлдсэн · үүний дараа $over-өөр хэтэрнэ';
+  }
+
+  @override
+  String phoneOverBoth(String over, String after) {
+    return '$over-өөр хэтэрсэн · үүний дараа $after-өөр';
+  }
+
+  @override
+  String get phoneChooseAccount => 'Данс сонгоно уу';
+
+  @override
+  String phoneInCredit(String amount) {
+    return '$amount илүү төлсөн';
+  }
 }

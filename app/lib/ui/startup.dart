@@ -11,6 +11,7 @@ import '../data/backup.dart';
 import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
+import '../data/ledger_file.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
 import 'data_words.dart';
 import 'fit_window.dart';
@@ -73,7 +74,7 @@ class BetterBudgetStartup extends StatefulWidget {
 
   final KeyStore store;
 
-  /// `betterbudget.sqlite`, which may not exist yet.
+  /// `Ledger.betterbudget`, which may not exist yet.
   final File ledgerFile;
 
   /// Opens the ledger with the key, encrypting it first if it's plain, and
@@ -172,7 +173,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   }
 
   String get _setAsideName =>
-      'betterbudget.set-aside-${fileStamp(widget.clock())}.sqlite';
+      'Ledger.set-aside-${fileStamp(widget.clock())}.$ledgerExtension';
 
   Future<void> _setAside() async {
     final aside = '${_file.parent.path}/$_setAsideName';

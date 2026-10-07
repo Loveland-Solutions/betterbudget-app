@@ -8,8 +8,11 @@ import 'package:path_provider/path_provider.dart';
 import 'data/backup.dart';
 import 'data/database.dart';
 import 'data/keys.dart';
+import 'data/ledger_file.dart';
 import 'ui/appearance.dart';
 import 'ui/language.dart';
+import 'ui/phone/phone_app.dart';
+import 'ui/phone/phone_start.dart';
 import 'ui/startup.dart';
 
 Future<void> main() async {
@@ -19,6 +22,15 @@ Future<void> main() async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   final dir = await getApplicationSupportDirectory();
+  // A phone records and checks (ADR 0005); it never holds the ledger itself.
+  if (Platform.isAndroid || Platform.isIOS) {
+    runApp(
+      PhoneFrame(
+        child: PhoneStart(keys: KeyStore(), dir: dir),
+      ),
+    );
+    return;
+  }
   // Light, dark or the system's, chosen in Settings; known before the ledger
   // opens so the recovery-key screens match too.
   final appearance = await AppearanceController.load(
@@ -26,6 +38,8 @@ Future<void> main() async {
   );
   // English, Mongolian or the system's; the same small-file arrangement.
   final language = await LanguageController.load(File('${dir.path}/language'));
+  // Before anything opens it: a ledger under its earlier name gets the new one.
+  final ledgerFile = await ledgerFileIn(dir);
   runApp(
     AppearanceScope(
       controller: appearance,
@@ -33,7 +47,7 @@ Future<void> main() async {
         controller: language,
         child: BetterBudgetStartup(
           store: KeyStore(),
-          ledgerFile: File('${dir.path}/betterbudget.sqlite'),
+          ledgerFile: ledgerFile,
           open: (dataKey) async {
             final db = await AppDatabase.openEncrypted(dataKey);
             final backups = Backups(db, dataKey: dataKey);

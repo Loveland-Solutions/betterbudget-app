@@ -6597,6 +6597,282 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No regular pay'**
   String get setupNoRegularPayLine;
+
+  /// Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Left in {month}'**
+  String phoneLeftIn(String month);
+
+  /// Phone app, under the heading: when the figures were last copied from the Mac, if that was today. {time} reads 08:10.
+  ///
+  /// In en, this message translates to:
+  /// **'From your Mac today {time}'**
+  String phoneFromMacToday(String time);
+
+  /// Phone app, under the heading: when the figures were last copied from the Mac, on an earlier day. {date} reads 2026.10.06, {time} 21:40.
+  ///
+  /// In en, this message translates to:
+  /// **'From your Mac {date} {time}'**
+  String phoneFromMacOn(String date, String time);
+
+  /// Phone app: what a screen reader says for the + on a category’s row, which opens the amount pad for that category.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to {category}'**
+  String phoneAddTo(String category);
+
+  /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 of your entries is waiting for the Mac} other{{count} of your entries are waiting for the Mac}}'**
+  String phoneWaiting(int count);
+
+  /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the Mac'**
+  String get phoneWaitingTitle;
+
+  /// Phone app, Accounts list: a credit card’s or loan’s balance.
+  ///
+  /// In en, this message translates to:
+  /// **'Owed {amount}'**
+  String phoneOwed(String amount);
+
+  /// Phone app, under the amount being typed for a category, before any digit is typed: what is left in that category.
+  ///
+  /// In en, this message translates to:
+  /// **'{left} left now'**
+  String phoneLeftNow(String left);
+
+  /// Phone app, under the amount being typed for a category: what is left in it now, and what will be left once this entry is saved.
+  ///
+  /// In en, this message translates to:
+  /// **'{left} left now · {after} after this'**
+  String phoneLeftAfter(String left, String after);
+
+  /// Phone app: shown above Save when Save was tapped with no amount typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount'**
+  String get phoneEnterAmount;
+
+  /// Phone app: shown above Save when Save was tapped with no payee chosen or typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a payee'**
+  String get phoneEnterPayee;
+
+  /// Phone app: what a screen reader says for the amount pad’s delete key.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the last digit'**
+  String get phoneDeleteDigit;
+
+  /// Settings, Backups: label of the line that says where the ledger is stored now: on this computer, or in the folder it was moved to (a Google Drive, OneDrive, Box or Dropbox folder).
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in'**
+  String get ledgerFolderLabel;
+
+  /// Settings, Backups: the button that opens a folder picker. The ledger is then stored in that folder, saved there again after every change. The owner’s word is “move”, not “keep”.
+  ///
+  /// In en, this message translates to:
+  /// **'Move my ledger to a folder…'**
+  String get ledgerFolderChoose;
+
+  /// The confirm button of the system folder picker opened by “Move my ledger to a folder…”.
+  ///
+  /// In en, this message translates to:
+  /// **'Move It Here'**
+  String get ledgerFolderPickButton;
+
+  /// Settings, Backups: under the buttons, only while the ledger is stored on this computer. Says what “Move my ledger to a folder…” does.
+  ///
+  /// In en, this message translates to:
+  /// **'Move it to a folder that Google Drive, OneDrive, Box or Dropbox keeps on this computer, and your ledger is stored there, encrypted, and saved again after each change.'**
+  String get ledgerFolderNote;
+
+  /// Settings, Backups, the “Stored in” line: the folder and when the copy there was last written, as the Daily copy line above it does. {when} reads “Today 14:32”.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · {when}'**
+  String ledgerFolderCopied(String folder, String when);
+
+  /// Settings, Backups, the “Stored in” line, in red: the last try at writing the copy failed (the folder is gone, full or offline).
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · couldn’t copy · the last one is from {when}'**
+  String ledgerFolderFailing(String folder, String when);
+
+  /// Settings, Backups, the “Stored in” line, in red: writing the copy failed and none was ever written.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · couldn’t copy'**
+  String ledgerFolderFailingNone(String folder);
+
+  /// Settings, Backups: picks another folder to store the ledger in.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to another folder…'**
+  String get ledgerFolderChange;
+
+  /// Settings, Backups: stops storing the ledger in the folder. The file already there is not deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Move it back to this computer'**
+  String get ledgerFolderStop;
+
+  /// Toast after a folder was chosen and the ledger written there.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger was moved to {folder}'**
+  String ledgerFolderKept(String folder);
+
+  /// Toast after “Move it back to this computer”.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is back on this computer · the file in {folder} stays there'**
+  String ledgerFolderStopped(String folder);
+
+  /// Toast when the ledger couldn’t be written into a newly chosen folder; it stays where it was.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t move it to that folder'**
+  String get ledgerFolderCouldnt;
+
+  /// Settings, Backups, the “Stored in” line while the ledger has not been moved to a folder.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer'**
+  String get ledgerFolderHere;
+
+  /// Phone app, first launch: heading above the box for the recovery key.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your recovery key'**
+  String get phoneKeyTitle;
+
+  /// Phone app, first launch: under the heading, says what the recovery key is and why the phone asks.
+  ///
+  /// In en, this message translates to:
+  /// **'The 25 characters you were shown when your ledger was set up on your computer. This phone needs them once, to read your ledger.'**
+  String get phoneKeyBody;
+
+  /// Phone app, first launch: heading of the step that picks the cloud folder the ledger was moved to.
+  ///
+  /// In en, this message translates to:
+  /// **'Where is your ledger?'**
+  String get phoneFolderTitle;
+
+  /// Phone app, first launch: under “Where is your ledger?”. “Stored in” is ledgerFolderLabel on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the folder your ledger was moved to on your computer. In Settings there, the line “Stored in” names it.'**
+  String get phoneFolderBody;
+
+  /// Phone app: button that opens the phone’s folder picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the folder'**
+  String get phoneFolderChoose;
+
+  /// Phone app: heading when the picked folder has no ledger file.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no ledger in that folder'**
+  String get phoneNoLedger;
+
+  /// Phone app: under “There is no ledger in that folder”. {file} is Ledger.betterbudget.
+  ///
+  /// In en, this message translates to:
+  /// **'The folder should hold a file named {file}. It can take a minute to arrive after your computer saves it.'**
+  String phoneNoLedgerBody(String file);
+
+  /// Phone app: heading when the typed recovery key is a valid key but not this ledger’s.
+  ///
+  /// In en, this message translates to:
+  /// **'That recovery key doesn’t open the ledger in this folder'**
+  String get phoneKeyDoesntOpen;
+
+  /// Phone app: button under “That recovery key doesn’t open the ledger in this folder”.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the key again'**
+  String get phoneEnterKeyAgain;
+
+  /// Phone app: heading when the ledger file was found and the key fits, but it can’t be read (saved by a newer version of the app, or damaged).
+  ///
+  /// In en, this message translates to:
+  /// **'The ledger in this folder couldn’t be read'**
+  String get phoneCantRead;
+
+  /// Phone app: under “The ledger in this folder couldn’t be read”.
+  ///
+  /// In en, this message translates to:
+  /// **'It may have been saved by a newer BetterBudget than the one on this phone.'**
+  String get phoneCantReadBody;
+
+  /// Phone app: reads the folder again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get phoneTryAgain;
+
+  /// Phone app: opens the folder picker again.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another folder'**
+  String get phoneChooseAnother;
+
+  /// Tooltip on the Settings gear’s red dot when the folder the ledger was moved to can’t be written.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger couldn’t be saved to its folder'**
+  String get ledgerFolderAlert;
+
+  /// Phone app, the first screen’s heading when the budget runs by pay periods, not months. {date} is the period’s last day, like 10.14.
+  ///
+  /// In en, this message translates to:
+  /// **'Left until {date}'**
+  String phoneLeftUntil(String date);
+
+  /// Phone app, under a category’s name when it is saving for a bill: the day the bill is due, like 10.20.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {date}'**
+  String phoneDue(String date);
+
+  /// Phone app, under the amount pad before a digit is typed, for a category that is already overspent.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent by {over}'**
+  String phoneOverNow(String over);
+
+  /// Phone app, under the amount being typed: the category has money now, and this entry would overspend it.
+  ///
+  /// In en, this message translates to:
+  /// **'{left} left now · overspent by {over} after this'**
+  String phoneOverAfter(String left, String over);
+
+  /// Phone app, under the amount being typed, for a category already overspent: by how much now, and after this entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent by {over} · by {after} after this'**
+  String phoneOverBoth(String over, String after);
+
+  /// Phone app: shown above Save when no account is chosen under Paid from.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account'**
+  String get phoneChooseAccount;
+
+  /// Phone app, Accounts list: a card or loan that has been paid more than was owed.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} in credit'**
+  String phoneInCredit(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

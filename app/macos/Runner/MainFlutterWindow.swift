@@ -50,6 +50,58 @@ class MainFlutterWindow: NSWindow {
       result(nil)
     }
 
+    // The folder the ledger is kept in (Settings → Backups). The sandbox
+    // forgets a folder the user picked when the app quits, so the app keeps a
+    // security-scoped bookmark for it and opens that at the next launch.
+    let folder = FlutterMethodChannel(
+      name: "betterbudget/folder",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    folder.setMethodCallHandler { call, result in
+      let args = call.arguments as? [String: Any]
+      switch call.method {
+      case "remember":
+        guard let path = args?["path"] as? String else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        do {
+          let data = try URL(fileURLWithPath: path, isDirectory: true).bookmarkData(
+            options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+          result(data.base64EncodedString())
+        } catch {
+          result(FlutterError(code: "bookmark", message: error.localizedDescription, details: nil))
+        }
+      case "open":
+        guard let token = args?["token"] as? String,
+          let data = Data(base64Encoded: token)
+        else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        var stale = false
+        guard
+          let url = try? URL(
+            resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil,
+            bookmarkDataIsStale: &stale),
+          url.startAccessingSecurityScopedResource()
+        else {
+          result(nil)
+          return
+        }
+        // A stale bookmark still opened the folder; a fresh one is kept so
+        // it goes on opening.
+        var renewed: String? = nil
+        if stale {
+          renewed = try? url.bookmarkData(
+            options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil
+          ).base64EncodedString()
+        }
+        result(["path": url.path, "token": renewed as Any])
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()

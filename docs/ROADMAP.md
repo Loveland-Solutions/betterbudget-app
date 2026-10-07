@@ -149,8 +149,13 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
 Designed in [ADR 0005](decisions/0005-mobile-companion.md): record transactions and see
 what's left in each budget, synced through a cloud folder the user picks. Comes after C,
 since phones show budget amounts.
-- [ ] Sync format (Mac snapshot, one inbox per phone)
-- [ ] Entry screen and budget-left screen
+- [x] The ledger stored in a cloud folder, written by the Mac (2026-10-07,
+      `Ledger.betterbudget`)
+- [ ] **More than one computer on the same ledger** (owner, 2026-10-07; to be designed
+      in its own conversation, see STATUS "Next step")
+- [ ] One file of entries per phone, taken in by the Mac
+- [x] Entry screen and budget-left screen, on Android, reading the folder (2026-10-07)
+- [ ] The iPhone build: folder access, icon
 - [ ] Encryption on Android verified
 - [ ] TestFlight / Play internal testing, then the stores
 

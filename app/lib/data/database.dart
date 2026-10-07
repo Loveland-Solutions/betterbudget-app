@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -11,6 +9,7 @@ import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../import/mapping.dart';
 import 'encryption.dart';
+import 'ledger_file.dart';
 
 part 'database.g.dart';
 
@@ -691,8 +690,10 @@ class AppDatabase extends _$AppDatabase {
         executor ??
             driftDatabase(
               name: 'betterbudget',
-              native: const DriftNativeOptions(
-                databaseDirectory: getApplicationSupportDirectory,
+              native: DriftNativeOptions(
+                databasePath: () async =>
+                    (await ledgerFileIn(await getApplicationSupportDirectory()))
+                        .path,
               ),
             ),
       );
@@ -704,13 +705,13 @@ class AppDatabase extends _$AppDatabase {
   /// the constructor above instead.
   static Future<AppDatabase> openEncrypted(Uint8List dataKey) async {
     final dir = await getApplicationSupportDirectory();
-    final file = File('${dir.path}/betterbudget.sqlite');
+    final file = await ledgerFileIn(dir);
     await prepareLedgerFile(file, dataKey);
     return AppDatabase(
       driftDatabase(
         name: 'betterbudget',
         native: DriftNativeOptions(
-          databaseDirectory: getApplicationSupportDirectory,
+          databasePath: () async => file.path,
           setup: (db) => applyCipherKey(db, dataKey),
         ),
       ),
@@ -956,17 +957,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Copies the database next to itself before a schema upgrade, e.g.
-  /// `betterbudget.before-v3-from-v2-20260917-153000.sqlite`. In-memory
+  /// `Ledger.before-v3-from-v2-20260917-153000.betterbudget`. In-memory
   /// databases (tests) have no file and are skipped. VACUUM INTO can't run
   /// inside a transaction, so this comes first.
   Future<void> _backupBeforeUpgrade(int from) async {
     final path = await filePath();
     if (path == null) return;
-    final base = path.endsWith('.sqlite')
-        ? path.substring(0, path.length - '.sqlite'.length)
-        : path;
+    final base = withoutLedgerExtension(path);
     await copyTo(
-      '$base.before-v$schemaVersion-from-v$from-${fileStamp(DateTime.now())}.sqlite',
+      '$base.before-v$schemaVersion-from-v$from-${fileStamp(DateTime.now())}.$ledgerExtension',
     );
   }
 
