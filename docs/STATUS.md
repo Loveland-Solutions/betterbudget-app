@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #45 (version 0.13.1).** The owner is using the app on real money and sending
+**After PR #46 (version 0.13.1).** The owner is using the app on real money and sending
 what they hit; expect more of that first. Then, in order:
 
 1. **The onboarding wizard's mockups.** The design is settled in ADR 0004 ("Onboarding:
@@ -22,19 +22,13 @@ what they hit; expect more of that first. Then, in order:
 2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
 
-**To check when the owner next opens it** (seen in their screenshot, 2026-10-07, not
-looked into): a category with ₮116,000 due every year on 2026.10.01, a date already
-past, said "nothing more to set aside" and "Shows in TDB MNT's forecast on 10.01",
-where it should look ahead to October 2027 at about ₮9,700 a month. The category was
-mid-change from dollars to tugrik at that moment, so it may read right once saved.
-
 **The owner's ledger is production data** (since 2026-10-06; rules in
 [CLAUDE.md](../CLAUDE.md)). It holds one tugrik account; the dollar accounts and their
 categories were deleted on 2026-10-07. A wordless screenshot from the owner, after
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #45. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #46. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
