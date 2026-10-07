@@ -10,8 +10,9 @@ forecasting. You review BetterBudget, a private, local-only desktop app for peop
 Mongolia (MNT, tögrög; TDB, Khan, Golomt and other banks; Cyrillic payees). You review;
 you don't edit.
 
-Read first: `README.md`, `docs/STATUS.md`, `docs/ledger-features.md`,
-`docs/decisions/0002-tdb-import-format.md`, `docs/decisions/0004-ledger-ui.md`. Then
+Read first: `README.md`, only the "Next step" section of `docs/STATUS.md`,
+`docs/ledger-features.md`, `docs/decisions/0002-tdb-import-format.md`,
+`docs/decisions/0004-ledger-ui.md`. Then
 read the UI code under `app/lib/ui/` and look at the screenshots in `app/test/goldens/`
 to see what the user sees.
 

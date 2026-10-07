@@ -66,6 +66,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   `app/test/goldens/` or `app/test/failures/`, except to look at the one golden you just
   changed. When you add, move or rename a file under `app/lib` or `app/test`, update
   MAP.md in the same change.
+- Don't open `docs/archive/` unless the owner asks.
+- [docs/STATUS.md](docs/STATUS.md) holds the current state and next steps only: when a
+  PR merges, rewrite its "Next step" and correct its tables, and add no dated log.
 - Every new action records both an undo and a redo (`_did` in `ui/ledger_screen.dart`).
 - English text is never glued from pieces: one whole message per sentence, in both
   `.arb` files (Mongolian word order differs).
