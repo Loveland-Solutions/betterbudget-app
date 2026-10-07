@@ -3914,9 +3914,17 @@ void main() {
           find.byKey(ValueKey('category-editor-$insurance')),
           findsOneWidget,
         );
-        // The accounts are a dropdown of checkboxes: it says "All
-        // accounts" to begin with, and stays open while they're picked.
-        expect(find.text('All accounts'), findsOneWidget);
+        // The accounts are a dropdown of checkboxes: with one dollar
+        // account it names it ("All accounts" is for more than one), and
+        // stays open while they're picked.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('money-accounts')),
+            matching: find.text('AFCU Checking'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('All accounts'), findsNothing);
         await tester.ensureVisible(
           find.byKey(const ValueKey('money-accounts')),
         );
@@ -4444,6 +4452,79 @@ void main() {
         ledger!.categories.map((c) => c.name),
         isNot(anyOf(contains('Gro'), contains('Golomt Visa'))),
       );
+      await tidy(tester, db);
+    });
+
+    testWidgets('a new category is in a currency there is an account in, '
+        'and its Edit offers no other', (tester) async {
+      final db = await pumpLedger(tester);
+      // The budget began in dollars; the dollar accounts are gone since,
+      // and one dollar category is left from then.
+      await tester.runAsync(() async {
+        await db.setPreference(BudgetKeys.currency, 'USD');
+        await db.createCategory('Old dollars', currency: Currency.usd);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-category')));
+      await tester.pumpAndSettle();
+      // One currency of accounts: nothing to choose.
+      expect(find.byKey(const ValueKey('new-category-currency')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('new-category-name')),
+        'Post box',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('money-currency')), findsNothing);
+      final made = (await tester.runAsync(
+        () async => (await db.loadLedger()).categories.firstWhere(
+          (c) => c.name == 'Post box',
+        ),
+      ))!;
+      expect(made.currency, Currency.mnt);
+      await tidy(tester, db);
+    });
+
+    testWidgets('Paid from names the account when there is only one', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        await db.createAccount(
+          name: 'AFCU Checking',
+          type: AccountType.asset,
+          currency: Currency.usd,
+        );
+        await db.createCategory('Car insurance', currency: Currency.usd);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      String paidFrom() => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('money-accounts')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      // One dollar account: it's named.
+      await editCategory(tester, 'Car insurance');
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      expect(paidFrom(), 'AFCU Checking');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      // Several tugrik accounts: all of them.
+      await editCategory(tester, 'Groceries');
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      expect(paidFrom(), 'All accounts');
       await tidy(tester, db);
     });
   });

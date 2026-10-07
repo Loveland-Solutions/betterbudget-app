@@ -710,7 +710,15 @@ class _BudgetPageState extends State<_BudgetPage> {
                               widget.onEditOpens();
                             },
                             currencies: currencies,
-                            currency: budget.currency,
+                            // In a currency there's an account in: the
+                            // budget's own, unless its accounts are gone
+                            // (owner, 2026-10-07: a new category came out
+                            // in dollars with only a tugrik account left).
+                            currency:
+                                currencies.isEmpty ||
+                                    currencies.contains(budget.currency)
+                                ? budget.currency
+                                : currencies.first,
                             onCancel: () => setState(() => _adding = false),
                           ),
                         for (final (i, c) in spending.indexed)
@@ -3982,7 +3990,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             widthFactor: 1,
             child: BarButton(
               key: const ValueKey('money-accounts'),
-              label: used.length == accounts.length
+              // "All accounts" only when there's more than one: with
+              // one it's named (owner, 2026-10-07).
+              label: used.length == accounts.length && accounts.length > 1
                   ? t.planAccountsAll
                   : switch (used.length) {
                       0 => t.planAccountsNone,

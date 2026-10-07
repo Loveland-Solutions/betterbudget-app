@@ -2058,6 +2058,30 @@ month, or the pay period the Budget page is viewed by); with none in it the tab 
 there. Older ones are still in All, and a search for "Not categorized" finds them.
 *Not built:* choosing another period for the tab.
 
+### One currency left, one account left (owner, 2026-10-07)
+
+The owner deleted every account but one, in tugrik, added a category, and its Edit
+still offered a Currency dropdown of tugrik and dollars; **Paid from** read "All
+accounts" with one account to choose from ("I don't even know if this is worth
+changing").
+
+- **A new category is made in a currency there is an account in.** It used to start
+  in the currency the budget began in (`budget.currency`, kept so that adding a
+  dollar account can't change what amounts mean), which here was dollars with no
+  dollar account left: the category came out in dollars, with no choice shown, and
+  that is why its Edit offered both. Now it starts in the budget's currency only
+  while an account is in it, else in the currency the accounts are in.
+- **The budget is in the currency it began in only while something is in it**
+  (`Budget.currencyOf`): an account, archived ones included, or a spending category.
+  Once the last is gone, it is the currency the accounts are in, so the Budget page
+  doesn't lead with a column for a currency nothing is in.
+- **A category that really is in a currency with no account left keeps the dropdown**
+  in its Edit: it is the one way to bring it over, and changing a category's currency
+  drops its plan and says what it loses first (rule 28). It isn't changed on its own.
+- **Paid from names the account when there is only one** in the category's currency
+  ("TDB Checking"); "All accounts" is for two or more, and "No accounts" when the
+  currency has none.
+
 ### The popup is a card (owner, 2026-10-06)
 
 The owner sent the popup after a category was picked, in light mode, and said "Not

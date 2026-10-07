@@ -427,6 +427,42 @@ void main() {
     expect(Budget.currencyOf(d), Currency.mnt);
   });
 
+  test('once nothing is in the currency the budget began in, it is in the '
+      'currency the accounts are in', () {
+    LedgerData ledger({
+      bool dollarAccount = false,
+      bool dollarCategory = false,
+    }) => LedgerData(
+      accounts: [
+        AccountInfo(id: 1, name: 'A', type: AccountType.asset),
+        if (dollarAccount)
+          AccountInfo(
+            id: 2,
+            name: 'D',
+            type: AccountType.asset,
+            currency: Currency.usd,
+            archived: true,
+          ),
+        AccountInfo(id: food, name: 'Groceries', type: AccountType.expense),
+        if (dollarCategory)
+          AccountInfo(
+            id: 9,
+            name: 'Car insurance',
+            type: AccountType.expense,
+            currency: Currency.usd,
+          ),
+      ],
+      txns: const [],
+      prefs: {BudgetKeys.currency: 'USD'},
+    );
+    // Every dollar account deleted, no dollar category: tugrik.
+    expect(Budget.currencyOf(ledger()), Currency.mnt);
+    // An archived dollar account still exists, and a dollar category still
+    // holds dollars: the budget stays in dollars.
+    expect(Budget.currencyOf(ledger(dollarAccount: true)), Currency.usd);
+    expect(Budget.currencyOf(ledger(dollarCategory: true)), Currency.usd);
+  });
+
   group('plans', () {
     final sep = (start: DateTime(2026, 9, 1), end: DateTime(2026, 9, 30));
     final dec = (start: DateTime(2026, 12, 1), end: DateTime(2026, 12, 31));
