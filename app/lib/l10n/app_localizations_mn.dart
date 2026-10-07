@@ -4615,4 +4615,7 @@ class WordsMn extends Words {
   String phoneInCredit(String amount) {
     return '$amount илүү төлсөн';
   }
+
+  @override
+  String get phoneBills => 'Төлбөрүүд';
 }

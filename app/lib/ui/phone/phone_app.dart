@@ -102,9 +102,17 @@ class _FromMac extends StatelessWidget {
 /// An amount with its cents while the line has room for them (owner,
 /// 2026-10-07: "show the full tugrik amount if there is room").
 class _RoomMoney extends StatelessWidget {
-  const _RoomMoney(this.minor, this.currency, {required this.room});
+  const _RoomMoney(
+    this.minor,
+    this.currency, {
+    required this.room,
+    this.spokenFor = false,
+  });
   final int minor;
   final Currency currency;
+
+  /// Money waiting for a bill: drawn quieter than money free to spend.
+  final bool spokenFor;
 
   /// The width this amount may take.
   final double room;
@@ -139,7 +147,11 @@ class _RoomMoney extends StatelessWidget {
         size,
         weight: 600,
         tabular: true,
-        color: minor < 0 ? Mid.coral : Mid.ink,
+        color: minor < 0
+            ? Mid.coral
+            : spokenFor
+            ? Mid.ink3
+            : Mid.ink,
       ),
     );
   }
@@ -168,6 +180,16 @@ class PhoneHome extends StatelessWidget {
       final today = now();
       final made = snapshot.madeAt;
       final waiting = store.waiting.length;
+      // Money to spend first; then, under their own heading, the categories
+      // whose money is waiting for a bill (owner, 2026-10-07: rent's money
+      // read as money to spend). Null stands for the heading.
+      final listed = <PhoneCategory?>[
+        for (final c in snapshot.categories)
+          if (c.due == null) c,
+        if (snapshot.categories.any((c) => c.due != null)) null,
+        for (final c in snapshot.categories)
+          if (c.due != null) c,
+      ];
       return Scaffold(
         backgroundColor: Mid.ground,
         body: SafeArea(
@@ -221,10 +243,20 @@ class PhoneHome extends StatelessWidget {
                     backgroundColor: Mid.raised,
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: snapshot.categories.length,
+                      itemCount: listed.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
-                        final category = snapshot.categories[i];
+                        final category = listed[i];
+                        if (category == null) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+                            child: Text(
+                              t.phoneBills,
+                              key: const ValueKey('bills-heading'),
+                              style: onest(14, weight: 600, color: Mid.ink2),
+                            ),
+                          );
+                        }
                         return _CategoryRow(
                           category: category,
                           left: leftNow(category, store.waiting),
@@ -327,7 +359,12 @@ class _CategoryRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  _RoomMoney(left, category.currency, room: room),
+                  _RoomMoney(
+                    left,
+                    category.currency,
+                    room: room,
+                    spokenFor: category.due != null,
+                  ),
                   const SizedBox(width: 12),
                   Semantics(
                     label: context.t.phoneAddTo(category.name),

@@ -2594,8 +2594,16 @@ first leaning to A.
   it, this category's first.
 - **An overspent category is said in words** under the amount: "Overspent by
   ₮18,400.00 · by ₮30,900.00 after this", not a minus beside "left".
-- **A category saving for a bill has "Due 10.20" under its name.** Whether its money
-  should look different from money free to spend is asked and not answered.
+- **Money waiting for a bill is listed apart** (owner, 2026-10-07: "Let's make it
+  look less confusing"). A category saving for a bill not yet paid (Rent, due on the
+  20th) comes after the categories with money to spend, under a small heading,
+  **Bills**, with "Due 10.20" under its name and its amount in quieter ink. Its + still
+  opens the amount pad, to pay it. With no such category there is no heading. The
+  first build listed it among the rest in the same ink, where ₮1,800,000.00 read as
+  money to spend.
+- **Examples use the names a person would** (same day: "Why would rent be in my
+  housing budget?? It would be in my rent budget category"). The question about this
+  was asked with the demo ledger's category, Housing; the rent category is Rent.
 - **The heading follows the Mac's Budget page**: "Left in October" by months, "Left
   until 10.14" by pay periods.
 - **Save with something missing says it above Save** ("Enter an amount", "Enter a

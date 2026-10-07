@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.16.0 · schema v18 · 521 tests pass
+**Last updated: 2026-10-07** · version 0.16.1 · schema v18 · 522 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #50 (version 0.16.0).** The owner's ledger is stored in their Google Drive
+**After PR #51 (version 0.16.1).** The owner's ledger is stored in their Google Drive
 folder, and the Android app reads it there. Then, in order:
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
@@ -63,11 +63,6 @@ not a complaint.
 
 Asked and not answered. Don't re-ask; bring one up when its screen comes up again.
 
-0. **A bill's money on the phone** (2026-10-07; asked once in words the owner couldn't
-   follow, so ask it from the screen). Housing holds ₮1,800,000.00 and that is the
-   rent, due on the 20th. The phone lists it between Groceries and Transport with
-   "Due 10.20" under the name and the amount in the same ink as theirs. Should money
-   that is waiting for a bill look different from money that is free to spend?
 1. **Three from the Pay step's budget review** (2026-10-07). Payday today: with pay
    "On the 7th" set up on 10.07, the form says "Next payday 2026.10.07" though the
    balance just typed may already hold that pay, so it would be counted twice; should
@@ -167,7 +162,8 @@ open the archive).
 - CSV export, app lock, printing the recovery key.
 - **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)): on Android the app
   asks once for the recovery key and for the folder the ledger was moved to, then
-  shows what is left in each category and each account's balance, read from
+  shows what is left in each category (those waiting for a bill apart, under Bills)
+  and each account's balance, read from
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
   or the list is pulled down (ADR 0004 "Phone screens", option B). Not built: entries
   kept after the app closes, written to the folder and taken in by the Mac; money in

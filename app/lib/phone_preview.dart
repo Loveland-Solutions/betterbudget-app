@@ -32,8 +32,8 @@ PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
       owes: true,
     ),
   ],
-  categories: const [
-    PhoneCategory(
+  categories: [
+    const PhoneCategory(
       id: 'groceries',
       name: 'Groceries',
       leftMinor: 14800000,
@@ -62,11 +62,12 @@ PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
       recentPayees: ['Unitel'],
     ),
     PhoneCategory(
-      id: 'housing',
-      name: 'Housing',
+      id: 'rent',
+      name: 'Rent',
       leftMinor: 180000000,
       paidFromId: 'tdb',
-      recentPayees: ['Zaisan Residence'],
+      recentPayees: const ['Zaisan Residence'],
+      due: DateTime(madeAt.year, madeAt.month, 20),
     ),
     PhoneCategory(
       id: 'utilities',

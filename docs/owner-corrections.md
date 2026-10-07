@@ -85,4 +85,7 @@ now: "This computer", or the folder), and "Keep my ledger in a folder…" (the w
 `Ledger.betterbudget`), and a new extension given to some of the app's
 files and not others (all of them or none: every ledger file ends in `.betterbudget`), and a payee already chosen on the phone's amount
 screen, with more as buttons under it (no payee filled in and none laid out; the
-ledger's payees are offered only as one is typed).
+ledger's payees are offered only as one is typed), and rent's money listed on the phone among the money to
+spend, in the same ink (categories waiting for a bill go under their own heading,
+**Bills**, quieter), asked about with a category called Housing (rent is in a Rent
+category: an example uses the names a person would).

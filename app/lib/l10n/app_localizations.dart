@@ -6873,6 +6873,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} in credit'**
   String phoneInCredit(String amount);
+
+  /// Phone app, the first screen: heading over the categories whose money is waiting for a bill (rent, with “Due 10.20” under its name), listed after the categories with money to spend.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills'**
+  String get phoneBills;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

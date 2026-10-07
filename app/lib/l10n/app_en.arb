@@ -7022,5 +7022,9 @@
         "type": "String"
       }
     }
+  },
+  "phoneBills": "Bills",
+  "@phoneBills": {
+    "description": "Phone app, the first screen: heading over the categories whose money is waiting for a bill (rent, with “Due 10.20” under its name), listed after the categories with money to spend."
   }
 }

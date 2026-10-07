@@ -1120,5 +1120,6 @@
   "phoneOverAfter": "Одоо {left} үлдсэн · үүний дараа {over}-өөр хэтэрнэ",
   "phoneOverBoth": "{over}-өөр хэтэрсэн · үүний дараа {after}-өөр",
   "phoneChooseAccount": "Данс сонгоно уу",
-  "phoneInCredit": "{amount} илүү төлсөн"
+  "phoneInCredit": "{amount} илүү төлсөн",
+  "phoneBills": "Төлбөрүүд"
 }
