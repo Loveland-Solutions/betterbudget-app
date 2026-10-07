@@ -987,7 +987,6 @@ class _ImportDialogState extends State<_ImportDialog> {
             itemExtent: 30,
             itemBuilder: (context, i) => _PlanLine(
               plan.rows[i],
-              owed: widget.owed,
               onTap: () => _cycle(i),
               key: ValueKey('import-row-$i'),
             ),
@@ -1020,9 +1019,8 @@ class _ImportDialogState extends State<_ImportDialog> {
 
 /// One row of the preview: date, payee and memo, amount, and what happens.
 class _PlanLine extends StatelessWidget {
-  const _PlanLine(this.p, {super.key, required this.owed, required this.onTap});
+  const _PlanLine(this.p, {super.key, required this.onTap});
   final ImportPlanRow p;
-  final bool owed;
   final VoidCallback onTap;
 
   @override
@@ -1031,7 +1029,9 @@ class _PlanLine extends StatelessWidget {
     final r = p.row;
     final dim = p.fate == ImportFate.already || p.fate == ImportFate.leftOut;
     final ink = dim ? Mid.ink3 : Mid.ink;
-    final shown = owed ? -r.amount : r.amount;
+    // As the register will show it, on a credit card too: a purchase is
+    // red with a minus, a payment green with a plus (ADR 0004 rule 3).
+    final shown = r.amount;
     final (tag, tagColor) = switch (p.fate) {
       ImportFate.add => (t.importFateNew, Mid.blue),
       ImportFate.match => (

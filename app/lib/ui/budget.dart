@@ -35,7 +35,12 @@ class _BudgetPage extends StatefulWidget {
     required this.onStartLater,
     required this.onKeepStart,
     required this.onAssignPlanned,
+    required this.onEditOpens,
   });
+
+  /// A category's Edit opened: the popup in the page's corner would lie
+  /// over its Cancel and Save, so it goes (⌘Z still undoes what it said).
+  final VoidCallback onEditOpens;
 
   /// Edit was saved: the category as it should be now.
   final void Function(AccountInfo, _CategoryEdit) onSave;
@@ -258,6 +263,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         _openAtPlan = atPlan;
         if (id != null) _editing = null;
       });
+      if (id != null) widget.onEditOpens();
       if (id == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) widget.onKeysBack();
@@ -694,12 +700,15 @@ class _BudgetPageState extends State<_BudgetPage> {
                             // so what it's for is asked at once (owner's
                             // request, 2026-10-05); Esc or Cancel closes the box.
                             onCreate: widget.onCreate,
-                            onCreated: (id) => setState(() {
-                              _adding = false;
-                              _editing = null;
-                              _open = id;
-                              _openAtPlan = true;
-                            }),
+                            onCreated: (id) {
+                              setState(() {
+                                _adding = false;
+                                _editing = null;
+                                _open = id;
+                                _openAtPlan = true;
+                              });
+                              widget.onEditOpens();
+                            },
                             currencies: currencies,
                             currency: budget.currency,
                             onCancel: () => setState(() => _adding = false),

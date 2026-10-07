@@ -1729,7 +1729,7 @@ class WordsMn extends Words {
 
   @override
   String ledgerFiledUnder(Object category) {
-    return 'Ангилал: $category';
+    return '$category гэж ангиллаа';
   }
 
   @override
@@ -1737,8 +1737,9 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Үргэлж ингэж ангилах · одоо өөр $count мөр',
-      zero: 'Үргэлж ингэж ангилах',
+      other:
+          'Энэ харилцагчийг үргэлж ингэж ангилах · өөр $count мөрийг одоо ангилна',
+      zero: 'Энэ харилцагчийг үргэлж ингэж ангилах',
     );
     return '$_temp0';
   }
@@ -1748,8 +1749,8 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Цаашид үргэлж: $category · өөр $count мөр ангиллаа',
-      zero: 'Цаашид үргэлж: $category',
+      other: 'Цаашид үргэлж $category гэж ангилна · өөр $count мөр ангиллаа',
+      zero: 'Цаашид үргэлж $category гэж ангилна',
     );
     return '$_temp0';
   }

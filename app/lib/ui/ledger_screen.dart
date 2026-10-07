@@ -175,6 +175,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Last row click, to recognise a double-click without delaying single ones.
   ({int id, DateTime at})? _lastTap;
   Timer? _toastTimer;
+
+  /// The popup's own time is up; it leaves once the pointer is off it.
+  bool _toastDue = false;
+
+  /// Where the pointer last moved or clicked on the popup; null once off it.
+  Offset? _toastPointer;
+
+  /// The little longer the popup stays once the pointer leaves it.
+  Timer? _toastGrace;
+  final _toastKey = GlobalKey();
   String? _entryProblemShown;
 
   /// Rows of the current account, by transaction id, from the latest build.
@@ -283,6 +293,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
+    _toastGrace?.cancel();
     _reconcile?.dispose();
     super.dispose();
   }
@@ -512,8 +523,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(message);
     } else if (_entryProblemShown != null &&
         _toast?.message == _entryProblemShown) {
-      _toastTimer?.cancel();
-      setState(() => _toast = null);
+      _closeToast();
     }
     _entryProblemShown = message;
   }
@@ -525,47 +535,95 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ({String label, VoidCallback onTap})? more,
   }) {
     _toastTimer?.cancel();
+    _toastGrace?.cancel();
+    _toastGrace = null;
+    _toastDue = false;
     setState(
       () => _toast = (
         message: message,
-        detail: detail,
+        // A row with no payee has no line of its own.
+        detail: detail == null || detail.trim().isEmpty ? null : detail,
         more: more == null
             ? null
             : (
                 label: more.label,
                 onTap: () {
-                  setState(() => _toast = null);
+                  _toastClicked();
                   more.onTap();
                 },
               ),
         undo: undo == null
             ? null
             : () async {
-                setState(() => _toast = null);
+                _toastClicked();
                 await undo();
               },
       ),
     );
     // An offer takes longer to read than a report.
-    _toastLeaves(Duration(seconds: more == null ? 6 : 12));
+    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
+      _toastDue = true;
+      _toastMayLeave();
+    });
+    // It took the place of a popup the pointer was on (its Undo or its
+    // offer was clicked, or ⌘Z pressed): it stays if the pointer is on it
+    // too, so the next click can't land on the row beneath.
+    if (_toastPointer case final at?) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _toastPointer != at) return;
+        final box = _toastKey.currentContext?.findRenderObject();
+        if (box is! RenderBox || !box.size.contains(box.globalToLocal(at))) {
+          _toastPointerAt(null);
+        }
+      });
+    }
   }
 
-  void _toastLeaves(Duration after) {
+  /// The popup leaves when its time is up, the pointer is off it and has
+  /// been for a little while.
+  void _toastMayLeave() {
+    if (!mounted || _toast == null) return;
+    if (_toastDue && _toastPointer == null && _toastGrace == null) {
+      _closeToast();
+    }
+  }
+
+  void _closeToast() {
     _toastTimer?.cancel();
-    _toastTimer = Timer(after, () {
-      if (mounted) setState(() => _toast = null);
+    _toastGrace?.cancel();
+    _toastGrace = null;
+    _toastPointer = null;
+    _toastDue = false;
+    if (_toast != null) setState(() => _toast = null);
+  }
+
+  /// A button on the popup was clicked: it goes, and the popup that
+  /// reports the click is held to the pointer as this one was.
+  void _toastClicked() {
+    final at = _toastPointer;
+    _closeToast();
+    _toastPointer = at;
+    // Only for the popup that follows at once.
+    _toastGrace = Timer(const Duration(seconds: 2), () {
+      _toastGrace = null;
+      if (_toast == null) _toastPointer = null;
     });
   }
 
   /// The popup stays while the pointer is on it, so it can't go from under
-  /// a click, and a little longer once the pointer leaves.
-  void _toastHovered(bool over) {
+  /// a click, and at least four seconds once the pointer leaves. Only a
+  /// pointer that moved or clicked there holds it: one appearing under a
+  /// pointer left in that corner leaves in its own time.
+  void _toastPointerAt(Offset? at) {
     if (_toast == null) return;
-    if (over) {
-      _toastTimer?.cancel();
-    } else {
-      _toastLeaves(const Duration(seconds: 4));
-    }
+    _toastPointer = at;
+    _toastGrace?.cancel();
+    _toastGrace = at != null
+        ? null
+        : Timer(const Duration(seconds: 4), () {
+            _toastGrace = null;
+            _toastMayLeave();
+          });
   }
 
   /// True while a text field has focus. The focus node's own widget is the
@@ -885,6 +943,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           )
           ..payeeNames = _entry.payeeNames
           ..onProblem = _entryProblem;
+    // The popup in the corner would lie over the Cancel and Save of a row
+    // near the bottom; ⌘Z still undoes what it said.
+    _closeToast();
     setState(() {
       _editing = (
         txnId: id,
@@ -1933,7 +1994,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (!mounted) return;
     _did(
-      t.ledgerAlwaysFiled(
+      // The undo's popup doesn't say rows were filed: they're back.
+      t.ledgerAlwaysFiled(0, label),
+      message: t.ledgerAlwaysFiled(
         pay == null ? previous.length : paychecks.length,
         label,
       ),
@@ -3402,6 +3465,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             onDelete: (c) => _deleteCategory(data, c),
                             onPay: (p) => _openPaySetup(existing: p),
                             onCreate: _createCategory,
+                            onEditOpens: _closeToast,
                             onUnarchive: (c) => _archiveCategory(c, false),
                           ),
                           AppSection.savings => _SavingsPage(
@@ -3435,9 +3499,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     ),
                   if (_toast != null)
                     _Toast(
+                      key: _toastKey,
                       toast: _toast!,
-                      onHover: _toastHovered,
-                      onClose: () => setState(() => _toast = null),
+                      onPointer: _toastPointerAt,
+                      onClose: _closeToast,
                     ),
                 ],
               );
@@ -4981,9 +5046,10 @@ class _PrimaryButton extends StatelessWidget {
 /// offer as a button.
 class _Toast extends StatelessWidget {
   const _Toast({
+    super.key,
     required this.toast,
     required this.onClose,
-    required this.onHover,
+    required this.onPointer,
   });
   final ({
     String message,
@@ -4993,7 +5059,9 @@ class _Toast extends StatelessWidget {
   })
   toast;
   final VoidCallback onClose;
-  final ValueChanged<bool> onHover;
+
+  /// Where the pointer moved or clicked on the card; null when it left.
+  final ValueChanged<Offset?> onPointer;
 
   static const width = 440.0;
 
@@ -5005,125 +5073,137 @@ class _Toast extends StatelessWidget {
       bottom: 36,
       right: 40,
       width: width,
-      child: MouseRegion(
-        onEnter: (_) => onHover(true),
-        onExit: (_) => onHover(false),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              // Gold so it gets noticed: it reports something that changed.
-              color: Mid.toast,
-              borderRadius: BorderRadius.circular(12),
-              border: light ? Border.all(color: Mid.gold) : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: light ? 0.18 : 0.45),
-                  blurRadius: light ? 24 : 32,
-                  offset: Offset(0, light ? 8 : 12),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        // Every line of it: the last clause is often the
-                        // amount, so nothing is cut.
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(
-                          toast.message,
-                          key: const ValueKey('toast-message'),
-                          style: onest(14, weight: 600, color: ink),
-                        ),
+      // A click on it isn't a click away from a row open for typing.
+      child: TextFieldTapRegion(
+        child: MouseRegion(
+          onHover: (e) => onPointer(e.position),
+          onExit: (_) => onPointer(null),
+          child: Listener(
+            onPointerDown: (e) => onPointer(e.position),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                decoration: BoxDecoration(
+                  // Gold so it gets noticed: it reports something that changed.
+                  color: Mid.toast,
+                  borderRadius: BorderRadius.circular(12),
+                  border: light ? Border.all(color: Mid.gold) : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: light ? 0.18 : 0.45,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (toast.undo != null)
-                      TextButton(
-                        onPressed: toast.undo,
-                        style: TextButton.styleFrom(
-                          foregroundColor: ink,
-                          minimumSize: const Size(0, 32),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          context.t.ledgerUndo,
-                          style: onest(13, weight: 700, color: ink),
-                        ),
-                      ),
-                    IconButton(
-                      onPressed: onClose,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 32,
-                        height: 32,
-                      ),
-                      padding: EdgeInsets.zero,
-                      style: IconButton.styleFrom(
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      icon: Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: ink.withValues(alpha: 0.6),
-                      ),
+                      blurRadius: light ? 24 : 32,
+                      offset: Offset(0, light ? 8 : 12),
                     ),
                   ],
                 ),
-                if (toast.detail case final detail?)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8, bottom: 2),
-                    child: Text(
-                      detail,
-                      key: const ValueKey('toast-detail'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: onest(
-                        12.5,
-                        weight: 500,
-                        color: ink.withValues(alpha: 0.72),
-                      ),
-                    ),
-                  ),
-                if (toast.more case final more?)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: 10,
-                      right: 8,
-                      bottom: 4,
-                    ),
-                    child: OutlinedButton(
-                      key: const ValueKey('toast-more'),
-                      onPressed: more.onTap,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ink,
-                        side: BorderSide(color: ink.withValues(alpha: 0.55)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            // Every line of it: the last clause is often the
+                            // amount, so nothing is cut.
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Text(
+                              toast.message,
+                              key: const ValueKey('toast-message'),
+                              style: onest(14, weight: 600, color: ink),
+                            ),
+                          ),
                         ),
-                        minimumSize: const Size(0, 34),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                        const SizedBox(width: 8),
+                        if (toast.undo != null)
+                          TextButton(
+                            onPressed: toast.undo,
+                            style: TextButton.styleFrom(
+                              foregroundColor: ink,
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              context.t.ledgerUndo,
+                              style: onest(13, weight: 700, color: ink),
+                            ),
+                          ),
+                        IconButton(
+                          onPressed: onClose,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 32,
+                            height: 32,
+                          ),
+                          padding: EdgeInsets.zero,
+                          style: IconButton.styleFrom(
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: ink.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (toast.detail case final detail?)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8, bottom: 2),
+                        child: Text(
+                          detail,
+                          key: const ValueKey('toast-detail'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: onest(
+                            12.5,
+                            weight: 500,
+                            color: ink.withValues(alpha: 0.72),
+                          ),
                         ),
                       ),
-                      // Two lines when it needs them (Mongolian does).
-                      child: Text(
-                        more.label,
-                        textAlign: TextAlign.center,
-                        style: onest(13, weight: 600, color: ink),
+                    if (toast.more case final more?)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: 10,
+                          right: 8,
+                          bottom: 4,
+                        ),
+                        child: OutlinedButton(
+                          key: const ValueKey('toast-more'),
+                          onPressed: more.onTap,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ink,
+                            side: BorderSide(
+                              color: ink.withValues(alpha: 0.55),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            minimumSize: const Size(0, 34),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          // Two lines when it needs them (Mongolian does).
+                          child: Text(
+                            more.label,
+                            textAlign: TextAlign.center,
+                            style: onest(13, weight: 600, color: ink),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

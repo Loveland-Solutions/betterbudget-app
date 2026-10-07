@@ -255,7 +255,12 @@ What's known so far:
    was plain ink with no sign, and in a column of mostly outflows a row of money in
    was the only one marked. The red is `Mid.coral`, the same red a balance below zero
    has, so red means "below zero" in both columns; zero stays plain. It holds in every
-   register (All accounts, a card, scheduled rows) and in the import's preview. On a
+   register (All accounts, a card, scheduled rows) and in the import's preview. (On a
+   credit card the preview still showed the opposite of its register until 0.13.1: a
+   purchase green with a plus, then red with a minus once imported. The budget review
+   of 2026-10-07 caught it; the preview is where someone checks money in and money out
+   are the right way round.) The search box takes the sign as typed: "-30000" finds
+   the row. On a
    card a purchase is money out like anywhere else and a payment is money in; the
    total and the Owed column stay positive in normal ink (rule 6).
 4. **Every row shows its full date (`YYYY.MM.DD`). No month subheadings or month
@@ -2044,10 +2049,11 @@ white on brown (light mode's deeper gold), which read as a warning. The design
 committee ran on it; two mockups went to the owner, who picked A.
 
 - **A card 440 wide in the page's bottom-right corner** (40 from the right, 36 from
-  the bottom), on every page. It never reaches the sidebar, and in a register it covers
-  the ends of the last rows' amounts and leaves their category chips free, where the
-  next click goes when working down rows that need a category. One width, so Undo and
-  × are in the same place in every popup.
+  the bottom), on every page. It never reaches the sidebar. In a register it covers
+  the last rows' amounts and balances and the right 75 px or so of their Category
+  column (a long chip such as "Not categorized" runs a little under it; the code
+  review of 2026-10-07 corrected the claim here that the chips were left free). One
+  width, so Undo and × are in the same place in every popup.
 - **Three parts, each only when there's something for it.** What happened, with Undo
   and × at its right; it wraps as far as it needs and is never cut (its last clause is
   often the amount). Then **the row it happened to, on its own line**, smaller, cut
@@ -2061,8 +2067,26 @@ committee ran on it; two mockups went to the owner, who picked A.
 - **Gold with dark text in both modes** (`Mid.toast`, `Mid.onToast`): light mode had
   drifted to white on its deeper gold. In light mode the card has an edge in that
   deeper gold and a lighter shadow.
-- **It stays while the pointer is on it**, and four seconds after the pointer leaves,
-  so it can't go from under a click. Otherwise 6 seconds, 12 with an offer, as before.
+- **It stays while the pointer is on it**, so it can't go from under a click.
+  Otherwise 6 seconds, 12 with an offer, as before. From the reviews (2026-10-07),
+  which found three ways the first build broke that promise:
+  - Once the pointer leaves, it stays the longer of what's left of its own time and
+    four seconds. (Leaving used to restart it at four, so an offer the pointer merely
+    crossed on its way elsewhere went after 5 seconds instead of 12.)
+  - A popup that takes the place of one the pointer is on (⌘Z, the card's own Undo,
+    its offer button) stays under the pointer too. (It used to run its 6 seconds and
+    go, and the click meant for its Undo landed on the row beneath.)
+  - Only a pointer that moved or clicked on the card holds it. One that appears under
+    a pointer left resting in that corner leaves in its own time. (It used to stay for
+    good, over the last rows' amounts.)
+- **A click on the card isn't a click away** from a row open for typing: × or the
+  offer leaves an empty Add row open and a half-typed one its cursor.
+- **Opening an Edit puts the card away** (a row's, or a category's on the Budget
+  page): in the corner it lay over the Edit's Cancel and Save, and a pointer going
+  for Save landed on the card and held it there. ⌘Z still undoes what it said. For
+  the same reason **a new category says nothing in a popup**: its Edit opens under
+  its row, which is the confirmation (as a new account says nothing).
+- **A row with no payee has no second line** (it was drawn empty).
 - *Rejected:* **B**, centered on the page at 520 wide with the payee on top, a filled
   button and a sentence under it (more lines, and it sits over the category chips);
   keeping the strip and capping its width (still the row of controls); asking it as a
@@ -2079,10 +2103,13 @@ Loveland Solutions pay check from the ledger category dropdown, then the app sho
 offer to remember that for the future."):
 
 - Picking a category from a row's dropdown shows, in the popup at the bottom, a
-  button: **Always file this payee here · 9 more rows now** (reworded 2026-10-06 with
-  the popup's redesign: the payee and the category are on the popup's own lines above
-  it, so the button names neither; it used to read "Always file LoveSol under Income ·
-  9 more rows waiting"). Clicking it files that payee's rows still in Not categorized
+  button: **Always file this payee here, and 9 more rows now** (reworded 2026-10-06
+  with the popup's redesign: the payee and the category are on the popup's own lines
+  above it, so the button names neither; it used to read "Always file LoveSol under
+  Income · 9 more rows waiting". One sentence since the words pass of 2026-10-07:
+  after a dot, "9 more rows now" had no verb and read as a count, where "and" carries
+  "file" over to the rows). Taken back, the popup reads "Undone · Always filed under
+  Income" and no longer says rows were filed. Clicking it files that payee's rows still in Not categorized
   on this account and keeps the rule; the popup then reads "Always filed under Income ·
   9 more rows filed" over the payee. One ⌘Z takes back the rows and the rule. Not offered on a transfer or split, for Not categorized
   itself, or when it's already the rule.

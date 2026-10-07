@@ -182,7 +182,7 @@
   },
   "ledgerCouldntUndo": "Couldn’t undo “{action}” · it changed since",
   "@ledgerCouldntUndo": {
-    "description": "Toast when undo fails because the data changed. action is the undo label, e.g. \"Coffee added\".",
+    "description": "Popup when undo fails because the data changed. action is the undo label, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
       "action": {
         "type": "String"
@@ -191,7 +191,7 @@
   },
   "ledgerCouldntRedo": "Couldn’t redo “{action}” · it changed since",
   "@ledgerCouldntRedo": {
-    "description": "Toast when redo fails because the data changed. action is the undo label.",
+    "description": "Popup when redo fails because the data changed. action is the undo label, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
       "action": {
         "type": "String"
@@ -200,7 +200,7 @@
   },
   "ledgerUndone": "Undone · {action}",
   "@ledgerUndone": {
-    "description": "Toast after ⌘Z. action is what was undone, e.g. \"Coffee added\".",
+    "description": "Popup after ⌘Z. action is what was undone, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
       "action": {
         "type": "String"
@@ -209,7 +209,7 @@
   },
   "ledgerRedone": "Redone · {action}",
   "@ledgerRedone": {
-    "description": "Toast after ⌘⇧Z. action is what was redone.",
+    "description": "Popup after ⌘⇧Z. action is what was redone, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
       "action": {
         "type": "String"
@@ -218,7 +218,7 @@
   },
   "ledgerUndo": "Undo",
   "@ledgerUndo": {
-    "description": "Button on the toast at the bottom of the window."
+    "description": "Button at the top right of the popup card, in the page's bottom-right corner."
   },
   "ledgerSaveOrDiscard": "Save with Enter, or press Esc to discard your changes",
   "@ledgerSaveOrDiscard": {
@@ -2686,9 +2686,9 @@
       "category": {}
     }
   },
-  "ledgerAlwaysFile": "{count, plural, =0{Always file this payee here} =1{Always file this payee here · 1 more row now} other{Always file this payee here · {count} more rows now}}",
+  "ledgerAlwaysFile": "{count, plural, =0{Always file this payee here} =1{Always file this payee here, and 1 more row now} other{Always file this payee here, and {count} more rows now}}",
   "@ledgerAlwaysFile": {
-    "description": "Button in the popup at the bottom after a row's category is picked from the dropdown: remember it for this payee, and file the payee's other rows still in Not categorized now. The payee and the category are on the lines above it, so it names neither. count is those other rows.",
+    "description": "Button in the popup card after a row's category is picked from the dropdown: remember it for this payee, and file the payee's other rows still in Not categorized now. One sentence, so \"file\" carries over to the rows. The payee and the category are on the lines above it, so it names neither. count is those other rows.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -2697,7 +2697,7 @@
   },
   "ledgerAlwaysFiled": "{count, plural, =0{Always filed under {category}} =1{Always filed under {category} · 1 more row filed} other{Always filed under {category} · {count} more rows filed}}",
   "@ledgerAlwaysFiled": {
-    "description": "Popup at the bottom, and the undo label, after Always file is clicked. The payee is on the line under it. category may be Income, or Income and a pay's name.",
+    "description": "Popup card after Always file is clicked; with count 0 it is also the undo label (\"Undone · Always filed under Income\": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.",
     "placeholders": {
       "count": {
         "type": "int"
