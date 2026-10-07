@@ -10,23 +10,23 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #46 (version 0.13.1).** The owner is using the app on real money and sending
+**After PR #47 (version 0.14.0).** The owner is using the app on real money and sending
 what they hit; expect more of that first. Then, in order:
 
-1. **The onboarding wizard's mockups.** The design is settled in ADR 0004 ("Onboarding:
-   the first half hour"). The design committee's four reports are in
-   [committee/onboarding/](committee/onboarding/), and three mockups drawn from them
-   (A, setup inside the app's own window, recommended; B, one Set up page; C, one
-   question at a time) are at <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>.
-   **The owner picked A** (2026-10-07). Built so far, on branch `onboarding-mockups`
-   (not merged): no demo at first launch, and the Accounts step. **Next: the steps
-   after it, each its own slice, in this order:** Pay (the form that exists, on the
-   page), Bills (with "is there a set payment each month?" for an account that owes),
-   Everyday, Saved, Assign, Tomorrow, then Import and the which-period question. The
-   step names across the top come with the second step. Two questions asked with the
-   mockups are unanswered; bring each up when its step is built: whether a budget that
-   starts next month assigns today's money now or waits, and which accounts the "what
-   is this saved money for?" step asks about.
+1. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
+   ADR 0004, "Onboarding: the first half hour"; the mockups are at
+   <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
+   [committee/onboarding/](committee/onboarding/)). Its first screen, "Your accounts",
+   is built. **Next is the Pay screen**: the "Your pay" form that exists, on the page
+   as the second step, with the step names appearing across the top. After it, each
+   its own PR: Bills (with "is there a set payment each month?" for an account that
+   owes), Everyday, Saved, Assign, Tomorrow, then Import and the which-period
+   question. Two questions asked with the mockups are unanswered; bring each up when
+   its step is built: whether a budget that starts next month assigns today's money
+   now or waits, and which accounts the "what is this saved money for?" step asks
+   about. The owner can't see setup in their own app (their ledger has an account):
+   show each step by its screenshots in `app/test/goldens/setup_*.png`, and report it
+   starting from what they last saw.
 2. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
 
@@ -36,7 +36,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #46. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #47. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
