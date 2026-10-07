@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.15.0 · schema v18 · 477 tests pass
+**Last updated: 2026-10-07** · version 0.15.1 · schema v18 · 477 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -108,7 +108,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Header | Cleared + uncleared = working, the working balance as the large number; "Last reconciled on"; Reconcile and Import… buttons; a credit account reads Owed |
 | Forecast | Its span is a dropdown: the pay period, 30, 60 or 90 days, 6 months, a year. It says the lowest point, or "Runs out" or "Below zero now". "N bills · amount through date" opens the list. Late money in is "not counted". Paydays and plan bills are projected past the scheduled ones |
 | Reconcile | Statement date and balance; "Add … adjustment and lock" when they differ; "Undo this reconcile" from a locked row. The database refuses changes to locked rows |
-| Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own |
+| Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
 | Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
