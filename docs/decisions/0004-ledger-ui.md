@@ -2615,11 +2615,16 @@ payees, bills, overspent words, cents and the Accounts link still holds.
   and an account chosen by hand is kept while it is in the category's currency.
 - **After Save the form empties, and a toast says what the entry did to its category**
   (owner, 2026-10-08: "There should be some type of a toast notification showing how
-  the transaction impacted the given category"). A card above Save, with Undo, until
-  the next key: "Saved · Nomin −₮12,500.00", and under it "Groceries · ₮135,500.00
-  left", or "Eating out · overspent by ₮48,400.00" in red, or "Coffee · nothing
-  assigned yet". It is part of the page: a popup at the foot covered the switch to
-  Budget. The first build said only what was saved.
+  the transaction impacted the given category"). It reads "Saved · Nomin −₮12,500.00",
+  and under it "Groceries · ₮135,500.00 left", or "Eating out · overspent by
+  ₮48,400.00" in red, or "Coffee · nothing assigned yet", with Undo.
+- **It is a real toast** (owner, same day: "It's not really toast. I would like it if
+  it appeared and disappeared like a regular toast notification"). It slides in over
+  the top of Ledger, where the emptied form shows nothing, and goes after 6 seconds or
+  at the next key or choice, so its Undo can't write over an entry begun since. Two
+  builds were sent back: a line above Save that said only what was saved, then a card
+  set into the page above Save that stayed until the next key. Not at the foot: there
+  it covers Save and the switch to Budget.
 - **A payee is always needed** (owner, same day, asked whether Save could go ahead
   without one for a taxi or a market stall: "What? No. There should always be a payee.
   They would write 'Taxi' or 'Market Stall'").

@@ -344,6 +344,11 @@ void main() {
       find.text('1 of your entries is waiting for your computer'),
       findsOneWidget,
     );
+    // The toast goes by itself.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('saved-toast')), findsNothing);
+    expect(find.text('Undo'), findsNothing);
     await _toBudget(tester);
     expect(find.text('₮135,500.00'), findsOneWidget);
   });

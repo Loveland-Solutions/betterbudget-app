@@ -3,6 +3,7 @@
 // from a list that can also make one; Budget, what is left in each category,
 // is the other screen. Entries and new categories wait in [PhoneStore] until
 // the Mac takes them in.
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -658,9 +659,9 @@ class _EntryState extends State<_EntryScreen> {
       _category?.currency ?? _account?.currency ?? Currency.mnt;
 
   /// What was just saved ("Saved · Nomin −₮12,500.00") and how to take it
-  /// back, said above Save until the next key or choice. On the page, not
-  /// in a popup: a popup at the foot covers the way to Budget.
+  /// back: the toast, up until its time runs out or the next key or choice.
   String? _saved;
+  Timer? _toastTimer;
   VoidCallback? _undo;
 
   /// The card's second line: what the entry left in its category
@@ -681,6 +682,7 @@ class _EntryState extends State<_EntryScreen> {
 
   @override
   void dispose() {
+    _toastTimer?.cancel();
     _draft.removeListener(_said);
     _store.removeListener(_said);
     super.dispose();
@@ -772,6 +774,20 @@ class _EntryState extends State<_EntryScreen> {
             ..date = date;
         });
       };
+    });
+    // Like any toast it goes by itself.
+    _toastTimer?.cancel();
+    _toastTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) _hideToast();
+    });
+  }
+
+  void _hideToast() {
+    _toastTimer?.cancel();
+    if (_saved == null) return;
+    setState(() {
+      _saved = null;
+      _undo = null;
     });
   }
 
@@ -888,206 +904,258 @@ class _EntryState extends State<_EntryScreen> {
           _draft.date == null;
       // On a tall phone the pad and Save sit at the foot; on a short one
       // the whole entry scrolls instead of running off the screen.
-      return LayoutBuilder(
-        builder: (context, box) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: box.maxHeight),
-            child: IntrinsicHeight(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Offered only while there is something to clear.
-                    SizedBox(
-                      height: 44,
-                      child: nothing
-                          ? null
-                          : Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => _change(_draft.clear),
-                                style: TextButton.styleFrom(
-                                  minimumSize: const Size(44, 44),
-                                  foregroundColor: Mid.blue,
-                                  textStyle: onest(16),
-                                ),
-                                child: Text(t.phoneClear),
-                              ),
-                            ),
-                    ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        '−${typedAmountShown(_draft.typed, _currency)}',
-                        maxLines: 1,
-                        style: onest(
-                          52,
-                          weight: 600,
-                          letterSpacing: -1,
-                          color: _draft.typed.isEmpty ? Mid.ink3 : Mid.coral,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Its place is kept while no category is chosen, so the rows
-                    // under it don't move when one is.
-                    SizedBox(
-                      height: 22,
-                      child: category == null
-                          ? null
-                          : Text(
-                              _leftLine(t, category, left, amount),
-                              key: const ValueKey('left-line'),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: onest(
-                                15,
-                                color: over ? Mid.coral : Mid.ink2,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: 12),
-                    Material(
-                      color: Mid.card,
-                      borderRadius: BorderRadius.circular(14),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          _FieldRow(
-                            key: const ValueKey('category-row'),
-                            label: t.rowsColumnCategory,
-                            value: category?.name ?? '',
-                            onTap: _pickCategory,
-                          ),
-                          Divider(height: 1, thickness: 1, color: Mid.rule),
-                          _FieldRow(
-                            key: const ValueKey('payee-row'),
-                            label: t.rowsColumnPayee,
-                            value: _draft.payee ?? '',
-                            onTap: _typePayee,
-                          ),
-                          Divider(height: 1, thickness: 1, color: Mid.rule),
-                          _FieldRow(
-                            key: const ValueKey('account-row'),
-                            label: t.planLabelPaidFrom,
-                            value: _account?.name ?? '',
-                            onTap: _pickAccount,
-                          ),
-                          Divider(height: 1, thickness: 1, color: Mid.rule),
-                          _FieldRow(
-                            label: t.rowsColumnDate,
-                            value: date == null ? t.today : fullDate(date),
-                            onTap: _pickDate,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Spacer(),
-                    _AmountPad(currency: _currency, onKey: _press),
-                    const SizedBox(height: 10),
-                    if (_missing != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          _missing!,
-                          textAlign: TextAlign.center,
-                          style: onest(15, color: Mid.gold),
-                        ),
-                      ),
-                    // A toast that is part of the page (owner, 2026-10-08): what went
-                    // in and what it did to the category, until the next key.
-                    if (_saved != null)
-                      Container(
-                        key: const ValueKey('saved-toast'),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-                        decoration: BoxDecoration(
-                          color: Mid.raised,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _saved!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: onest(15, weight: 500),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _savedLeft ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: onest(
-                                      14,
-                                      color: _savedOver ? Mid.coral : Mid.ink2,
+      return Stack(
+        children: [
+          LayoutBuilder(
+            builder: (context, box) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: box.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Offered only while there is something to clear.
+                        SizedBox(
+                          height: 44,
+                          child: nothing
+                              ? null
+                              : Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () => _change(_draft.clear),
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(44, 44),
+                                      foregroundColor: Mid.blue,
+                                      textStyle: onest(16),
                                     ),
+                                    child: Text(t.phoneClear),
                                   ),
-                                ],
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _undo,
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(44, 44),
-                                foregroundColor: Mid.blue,
-                                textStyle: onest(15),
-                              ),
-                              child: Text(t.ledgerUndo),
-                            ),
-                          ],
+                                ),
                         ),
-                      ),
-                    FilledButton(
-                      onPressed: _save,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
-                        backgroundColor: Mid.blue,
-                        foregroundColor: Mid.onAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        textStyle: onest(17, weight: 600),
-                      ),
-                      child: Text(t.rowsSave),
-                    ),
-                    // Offered only while there is something waiting.
-                    if (_store.waiting.isNotEmpty || _store.made.isNotEmpty)
-                      TextButton(
-                        key: const ValueKey('waiting-link'),
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => _WaitingScreen(store: _store),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '−${typedAmountShown(_draft.typed, _currency)}',
+                            maxLines: 1,
+                            style: onest(
+                              52,
+                              weight: 600,
+                              letterSpacing: -1,
+                              color: _draft.typed.isEmpty
+                                  ? Mid.ink3
+                                  : Mid.coral,
+                            ),
                           ),
                         ),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(44, 44),
-                          foregroundColor: Mid.ink2,
-                          textStyle: onest(14)
-                              .copyWith(decoration: TextDecoration.underline),
+                        const SizedBox(height: 6),
+                        // Its place is kept while no category is chosen, so the rows
+                        // under it don't move when one is.
+                        SizedBox(
+                          height: 22,
+                          child: category == null
+                              ? null
+                              : Text(
+                                  _leftLine(t, category, left, amount),
+                                  key: const ValueKey('left-line'),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: onest(
+                                    15,
+                                    color: over ? Mid.coral : Mid.ink2,
+                                  ),
+                                ),
                         ),
-                        child: Text(
-                          _waitingLine(t),
-                          textAlign: TextAlign.center,
+                        const SizedBox(height: 12),
+                        Material(
+                          color: Mid.card,
+                          borderRadius: BorderRadius.circular(14),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              _FieldRow(
+                                key: const ValueKey('category-row'),
+                                label: t.rowsColumnCategory,
+                                value: category?.name ?? '',
+                                onTap: _pickCategory,
+                              ),
+                              Divider(height: 1, thickness: 1, color: Mid.rule),
+                              _FieldRow(
+                                key: const ValueKey('payee-row'),
+                                label: t.rowsColumnPayee,
+                                value: _draft.payee ?? '',
+                                onTap: _typePayee,
+                              ),
+                              Divider(height: 1, thickness: 1, color: Mid.rule),
+                              _FieldRow(
+                                key: const ValueKey('account-row'),
+                                label: t.planLabelPaidFrom,
+                                value: _account?.name ?? '',
+                                onTap: _pickAccount,
+                              ),
+                              Divider(height: 1, thickness: 1, color: Mid.rule),
+                              _FieldRow(
+                                label: t.rowsColumnDate,
+                                value: date == null ? t.today : fullDate(date),
+                                onTap: _pickDate,
+                              ),
+                            ],
+                          ),
                         ),
-                      )
-                    else
-                      const SizedBox(height: 8),
-                  ],
+                        const SizedBox(height: 12),
+                        const Spacer(),
+                        _AmountPad(currency: _currency, onKey: _press),
+                        const SizedBox(height: 10),
+                        if (_missing != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              _missing!,
+                              textAlign: TextAlign.center,
+                              style: onest(15, color: Mid.gold),
+                            ),
+                          ),
+                        FilledButton(
+                          onPressed: _save,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            backgroundColor: Mid.blue,
+                            foregroundColor: Mid.onAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            textStyle: onest(17, weight: 600),
+                          ),
+                          child: Text(t.rowsSave),
+                        ),
+                        // Offered only while there is something waiting.
+                        if (_store.waiting.isNotEmpty || _store.made.isNotEmpty)
+                          TextButton(
+                            key: const ValueKey('waiting-link'),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => _WaitingScreen(store: _store),
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(44, 44),
+                              foregroundColor: Mid.ink2,
+                              textStyle: onest(
+                                14,
+                              ).copyWith(decoration: TextDecoration.underline),
+                            ),
+                            child: Text(
+                              _waitingLine(t),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        else
+                          const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          // A toast (owner, 2026-10-08: "appeared and disappeared like a
+          // regular toast notification"): what went in and what it did to
+          // its category. At the top, where the emptied form has nothing; a
+          // toast at the foot covered Save and the way to Budget.
+          Positioned(
+            top: 8,
+            left: 20,
+            right: 20,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween(
+                    begin: const Offset(0, -0.4),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: _saved == null
+                  ? const SizedBox.shrink()
+                  : _SavedToast(
+                      saved: _saved!,
+                      left: _savedLeft ?? '',
+                      over: _savedOver,
+                      onUndo: _undo,
+                    ),
+            ),
+          ),
+        ],
       );
     },
+  );
+}
+
+/// What Save just put in, "Saved · Nomin −₮12,500.00", and what that left in
+/// its category, with Undo.
+class _SavedToast extends StatelessWidget {
+  const _SavedToast({
+    required this.saved,
+    required this.left,
+    required this.over,
+    required this.onUndo,
+  });
+  final String saved;
+  final String left;
+
+  /// The category is overspent now: its line is red.
+  final bool over;
+  final VoidCallback? onUndo;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    key: const ValueKey('saved-toast'),
+    color: Mid.raised,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: Mid.rule),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  saved,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(15, weight: 500),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  left,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(14, color: over ? Mid.coral : Mid.ink2),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onUndo,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: Mid.blue,
+              textStyle: onest(15),
+            ),
+            child: Text(context.t.ledgerUndo),
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -1389,7 +1457,7 @@ class _AmountPad extends StatelessWidget {
   }
 
   Widget _key(BuildContext context, String key) {
-    if (key.isEmpty) return const SizedBox(height: 48);
+    if (key.isEmpty) return const SizedBox(height: 52);
     return Material(
       color: Mid.panel,
       borderRadius: BorderRadius.circular(12),
@@ -1398,7 +1466,7 @@ class _AmountPad extends StatelessWidget {
         key: ValueKey('pad-$key'),
         onTap: () => onKey(key),
         child: SizedBox(
-          height: 48,
+          height: 52,
           child: Center(
             child: key == '<'
                 ? Icon(

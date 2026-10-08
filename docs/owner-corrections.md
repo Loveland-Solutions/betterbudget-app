@@ -95,4 +95,5 @@ list or typed, and the list can make a new one; Budget is the other screen), and
 Save could go ahead with no payee (there is always a payee: they'd write "Taxi"), and
 "the Mac" on the phone (it's **your computer**), and a line after Save that said only
 what was saved (a toast that says what the entry did to its category: "Groceries ·
-₮135,500.00 left").
+₮135,500.00 left"), and that toast built as a card set into the page (a toast
+appears over the page and goes away by itself).
