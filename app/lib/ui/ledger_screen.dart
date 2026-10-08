@@ -391,6 +391,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
           FilledButton(
             key: const ValueKey('offer-restore-open'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Mid.fill,
+              foregroundColor: Mid.onFill,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(t.ledgerOpenABackup),
           ),
@@ -4229,15 +4233,19 @@ class _Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // The dark-mode logo: the sidebar is dark in every scheme.
-          const Padding(
-            key: ValueKey('logo'),
-            padding: EdgeInsets.fromLTRB(24, 30, 24, 6),
-            child: Row(
-              children: [
-                Bee(height: 40),
-                SizedBox(width: 10),
-                Wordmark(height: 22),
-              ],
+          // On its own layer: the mark is some 1,100 drawing steps, and
+          // nothing about it changes while the page repaints.
+          const RepaintBoundary(
+            child: Padding(
+              key: ValueKey('logo'),
+              padding: EdgeInsets.fromLTRB(24, 30, 24, 6),
+              child: Row(
+                children: [
+                  Mark(height: 40),
+                  SizedBox(width: 10),
+                  Wordmark(height: 22),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -5534,20 +5542,20 @@ class _PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
     child: Material(
-      color: Mid.blue,
+      color: Mid.fill,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
-        hoverColor: Mid.onAccent.withValues(alpha: 0.12),
+        hoverColor: Mid.onFill.withValues(alpha: 0.12),
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: Mid.onAccent),
+              Icon(icon, size: 16, color: Mid.onFill),
               const SizedBox(width: 8),
-              Text(label, style: onest(13, weight: 600, color: Mid.onAccent)),
+              Text(label, style: onest(13, weight: 600, color: Mid.onFill)),
             ],
           ),
         ),

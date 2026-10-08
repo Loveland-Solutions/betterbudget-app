@@ -473,7 +473,7 @@ void main() {
           )
           .first,
     );
-    expect((box.decoration as BoxDecoration).color, Mid.gold);
+    expect((box.decoration as BoxDecoration).color, Mid.toast);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/confirm_early.png'),
@@ -5412,6 +5412,70 @@ void main() {
       expect(appearance.scheme, stormy);
       await tidy(tester, db);
       debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets("the app's own colors are the logo's: a navy sidebar, green "
+        'buttons, and blue for the row you choose', (tester) async {
+      tester.view.physicalSize = const Size(1440, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final db = AppDatabase(NativeDatabase.memory());
+      final appearance = AppearanceController(
+        initial: Appearance.light,
+        scheme: betterBudgetScheme,
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          AppearanceScope(
+            controller: appearance,
+            child: Builder(
+              builder: (_) => MaterialApp(
+                debugShowCheckedModeBanner: false,
+                themeAnimationDuration: Duration.zero,
+                theme: appTheme(),
+                home: LedgerScreen(
+                  demo: true,
+                  db: db,
+                  clock: () => DateTime(2026, 9, 16, 10),
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect(Mid.palette, same(Palette.light));
+      // The Add button is the logo's green (owner, 2026-10-08), which is not
+      // the color of what you click, nor of money in.
+      Color? add() => tester
+          .widget<Material>(
+            find
+                .ancestor(of: find.text('Add'), matching: find.byType(Material))
+                .first,
+          )
+          .color;
+      expect(add(), Palette.light.fill);
+      expect(Palette.light.fill, isNot(Palette.light.blue));
+      expect(Palette.light.fill, isNot(Palette.light.green));
+      // A row you choose is tinted blue: a spending row never turns the green
+      // of pay.
+      await tester.tapAt(const Offset(700, 716));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/ledger_own_light.png'),
+      );
+
+      await tester.runAsync(() => appearance.set(Appearance.dark));
+      await tester.pumpAndSettle();
+      expect(Mid.palette, same(Palette.dark));
+      expect(add(), Palette.dark.fill);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/ledger_own_dark.png'),
+      );
+      await tidy(tester, db);
     });
   });
 

@@ -231,6 +231,10 @@ class _RecoveryKeySetupScreenState extends State<RecoveryKeySetupScreen> {
                     alignment: Alignment.centerRight,
                     child: FilledButton(
                       key: const ValueKey('recovery-key-continue'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Mid.fill,
+                        foregroundColor: Mid.onFill,
+                      ),
                       onPressed: _busy ? null : _continue,
                       child: Text(t.startContinue),
                     ),
@@ -404,6 +408,10 @@ class _RecoveryKeyEntryScreenState extends State<RecoveryKeyEntryScreen> {
                     const SizedBox(width: 12),
                     FilledButton(
                       key: const ValueKey('recovery-key-submit'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Mid.fill,
+                        foregroundColor: Mid.onFill,
+                      ),
                       onPressed: _busy ? null : _submit,
                       child: Text(t.startContinue),
                     ),
@@ -611,6 +619,10 @@ class _KeyDialogState extends State<_KeyDialog> {
                 ),
                 FilledButton(
                   key: const ValueKey('key-dialog-submit'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Mid.fill,
+                    foregroundColor: Mid.onFill,
+                  ),
                   onPressed: _busy ? null : _submit,
                   child: Text(widget.action),
                 ),

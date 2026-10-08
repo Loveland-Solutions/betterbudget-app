@@ -37,6 +37,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
     code goes at the end, with its real symbol.
   - Questions to the owner are whole sentences with a plain example from the screen,
     not the app's internals.
+  - The owner's logo sets the app's colors, and each of its colors does a job on
+    screen. A rule that would leave one out is a trade to draw for them, not to
+    settle.
 - **The owner's ledger is production data** (owner, 2026-10-06: "I'm going to be
   testing my app by using it. The data that I have is now production data"). Every
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a

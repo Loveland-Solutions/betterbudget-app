@@ -1155,8 +1155,8 @@ class _EntryState extends State<_EntryScreen> {
                           onPressed: _save,
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(52),
-                            backgroundColor: Mid.blue,
-                            foregroundColor: Mid.onAccent,
+                            backgroundColor: Mid.fill,
+                            foregroundColor: Mid.onFill,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),

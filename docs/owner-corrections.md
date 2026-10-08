@@ -98,4 +98,8 @@ what was saved (a toast that says what the entry did to its category: "Groceries
 ₮135,500.00 left"), and that toast built as a card set into the page (a toast
 appears over the page and goes away by itself), and an account already
 filled in under the phone's Paid from, then a question about which account to fill in
-(don't autofill: the row is empty until they choose).
+(don't autofill: the row is empty until they choose), and color options for a navy and
+green logo that came out navy and blue, because green had been kept for money in alone
+("Why no green in the color scheme?": the logo's colors are at work in the app, so the
+main buttons are its green; a rule that takes a brand color out is a trade to show,
+not to settle for them).

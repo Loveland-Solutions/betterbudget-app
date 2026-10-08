@@ -12,3 +12,8 @@ design/ledger/betterbudget-ledger.html
 BetterBudget recovery key*.txt
 
 .DS_Store
+
+# The owner's working art: only the five vectors the app's pictures are made from
+# are kept (assets/logo/prepared/prepare.py reads them).
+assets/logo/Images/*
+!assets/logo/Images/*_Light_Mode.svg

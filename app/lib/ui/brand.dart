@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-// The sidebar is dark in every scheme and mode, so it shows the dark-mode
-// logo (owner, 2026-09-30): "Better" near-white #F2F5FA where the logo is
-// navy, "Budget" a lighter royal #6FA3FF (the royal's hue), light antennae,
-// and the body's gold and black as drawn. The files are the logo's own with
-// those colors swapped (`assets/logo/* (dark).svg`), the same in every scheme.
+// The sidebar is dark in every scheme and mode, so it shows the logo drawn
+// for dark backgrounds (owner, 2026-09-30): the first B and "Better"
+// near-white F7F9FC where the logo is navy, the second B and "Budget" the
+// lighter green 5FC9A3, the coins as drawn. The same in every scheme. Both
+// files are made from the owner's vectors by `assets/logo/prepared/prepare.py`.
 
 /// "BetterBudget" as drawn in the logo, top left of the sidebar.
 class Wordmark extends StatelessWidget {
@@ -19,14 +19,14 @@ class Wordmark extends StatelessWidget {
   );
 }
 
-/// The logo's bee, left of the wordmark.
-class Bee extends StatelessWidget {
-  const Bee({super.key, this.height = 40});
+/// The logo's two B's and coins, left of the wordmark.
+class Mark extends StatelessWidget {
+  const Mark({super.key, this.height = 40});
   final double height;
 
   @override
   Widget build(BuildContext context) => SvgPicture(
-    const SvgAssetLoader('assets/brand/bee-dark.svg'),
+    const SvgAssetLoader('assets/brand/mark-dark.svg'),
     height: height,
   );
 }

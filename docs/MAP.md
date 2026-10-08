@@ -78,6 +78,11 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `flutter gen-l10n` or any build. `domain/currencies.dart` and
   `l10n/currency_names.dart` by `tool/gen_currencies.py`; `BetterBudgetSymbols.ttf` by
   `tool/gen_symbol_font.py` ([currencies.md](currencies.md)).
+- **Logo and pictures.** `assets/brand/mark-dark.svg` and the two wordmarks are written
+  by `assets/logo/prepared/prepare.py` (repo root) from the owner's vectors in
+  `assets/logo/Images/`; change those and run it again, don't edit the copies. The
+  Mac icon is drawn by `design/icon/app_icon.swift`, Android's by
+  `tool/gen_android_icons.sh`.
 - **Words.** New text goes in both `.arb` files with the same key and placeholders, or
   `language_test.dart` fails. Terms and tone: [l10n-glossary.md](l10n-glossary.md).
 - **Schema.** A table change needs a new `schemaVersion`, a step in `onUpgrade` (which
@@ -96,7 +101,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (64), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (66), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.
