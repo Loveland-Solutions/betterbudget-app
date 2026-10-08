@@ -96,4 +96,6 @@ Save could go ahead with no payee (there is always a payee: they'd write "Taxi")
 "the Mac" on the phone (it's **your computer**), and a line after Save that said only
 what was saved (a toast that says what the entry did to its category: "Groceries ·
 ₮135,500.00 left"), and that toast built as a card set into the page (a toast
-appears over the page and goes away by itself).
+appears over the page and goes away by itself), and an account already
+filled in under the phone's Paid from, then a question about which account to fill in
+(don't autofill: the row is empty until they choose).

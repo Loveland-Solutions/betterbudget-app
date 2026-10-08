@@ -244,7 +244,7 @@ class _Draft extends ChangeNotifier {
   String? payee;
   String? categoryId;
 
-  /// The account chosen by hand; null while Paid from follows the category.
+  /// The account chosen under Paid from; null until one is.
   String? accountId;
 
   /// Null is today.
@@ -267,8 +267,8 @@ class _Draft extends ChangeNotifier {
         : typed.substring(0, min(typed.length, point + 1 + decimals));
   });
 
-  /// Ready for the next entry. An account chosen by hand was for that one
-  /// entry: kept, a cash taxi would put every later entry on Cash.
+  /// Ready for the next entry, Paid from included: kept, a cash taxi would
+  /// put every later entry on Cash.
   void clear() => change(() {
     typed = '';
     payee = null;
@@ -682,25 +682,26 @@ class _EntryState extends State<_EntryScreen> {
         : _store.snapshot.accountsFor(category);
   }
 
-  /// The account chosen by hand while it fits the category's currency;
-  /// else the category's own, else the one this phone last paid from.
+  /// The account the person chose, while it fits the category's currency.
+  /// Never filled in for them (owner, 2026-10-08: "Don't autofill. I don't
+  /// want to set people up for bad data entry in the name of convenience"):
+  /// a guessed card is saved by mistake, as a guessed payee was. Only when
+  /// there is one account it could be is there nothing to choose.
   PhoneAccount? get _account {
     final accounts = _accounts;
-    PhoneAccount? called(String? id) {
-      for (final a in accounts) {
-        if (a.id == id) return a;
-      }
-      return null;
+    for (final a in accounts) {
+      if (a.id == _draft.accountId) return a;
     }
-
-    return called(_draft.accountId) ??
-        called(_category?.paidFromId) ??
-        called(_store.waiting.lastOrNull?.accountId) ??
-        accounts.firstOrNull;
+    return accounts.length == 1 ? accounts.single : null;
   }
 
+  /// The currency the amount is typed in: the category's, else the chosen
+  /// account's, else the ledger's first account's.
   Currency get _currency =>
-      _category?.currency ?? _account?.currency ?? Currency.mnt;
+      _category?.currency ??
+      _account?.currency ??
+      _store.snapshot.accounts.firstOrNull?.currency ??
+      Currency.mnt;
 
   /// What was just saved ("Saved · Nomin −₮12,500.00") and how to take it
   /// back: the toast, up until its time runs out or the next key or choice.
@@ -842,7 +843,7 @@ class _EntryState extends State<_EntryScreen> {
         builder: (_) => _CategoryPage(
           store: _store,
           // A category made here is in the currency being paid in.
-          currency: _account?.currency ?? Currency.mnt,
+          currency: _currency,
         ),
       ),
     );

@@ -76,15 +76,25 @@ Future<void> _category(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
 }
 
-/// A whole entry: category, amount, payee, Save.
+/// Picks [name] under Paid from on the entry screen.
+Future<void> _account(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const ValueKey('account-row')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+}
+
+/// A whole entry: category, amount, payee, Paid from, Save.
 Future<void> _spend(
   WidgetTester tester,
   String category,
   String amount,
   String payee, {
   String? pick,
+  String from = 'TDB Checking',
 }) async {
   await _category(tester, category);
+  await _account(tester, from);
   await _type(tester, amount);
   await _payee(tester, payee, pick: pick);
   await tester.tap(find.text('Save'));
@@ -232,9 +242,10 @@ void main() {
     expect(find.text('−₮0'), findsOneWidget);
     expect(find.text('Category'), findsOneWidget);
     expect(find.text('Payee'), findsOneWidget);
-    // Paid from and Date have their defaults; no category, so nothing is
-    // said about what is left.
-    expect(find.text('TDB Checking'), findsOneWidget);
+    // Paid from is theirs to choose, like Payee: nothing is filled in.
+    expect(find.text('Paid from'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNothing);
+    // Date says Today; no category, so nothing is said about what is left.
     expect(find.text('Today'), findsOneWidget);
     expect(find.byKey(const ValueKey('left-line')), findsNothing);
     // Nothing is typed or waiting, so neither is offered.
@@ -342,6 +353,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nomin'), findsOneWidget);
 
+    // Nor is an account: Groceries' own in the ledger isn't put in for them.
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Choose an account'), findsOneWidget);
+    expect(store.waiting, isEmpty);
+    await _account(tester, 'TDB Checking');
+
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     final entry = store.waiting.single;
@@ -391,8 +409,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Eating out'), findsOneWidget);
     expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
-    // Paid from follows the category until an account is chosen by hand.
-    expect(find.text('Golomt Visa'), findsOneWidget);
+    // Its account in the ledger is the Visa; Paid from is still theirs.
+    expect(find.text('Golomt Visa'), findsNothing);
   });
 
   testWidgets(
@@ -427,6 +445,7 @@ void main() {
       await _type(tester, '4500');
       expect(find.text('Nothing assigned yet'), findsOneWidget);
       await _payee(tester, 'Tom N Toms');
+      await _account(tester, 'Cash wallet');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(store.waiting.single.categoryId, made.id);
@@ -515,7 +534,7 @@ void main() {
       find.text('₮61,500.00 left now · ₮61,000.00 after this'),
       findsOneWidget,
     );
-    expect(find.text('Cash wallet'), findsOneWidget);
+    expect(find.text('Cash wallet'), findsNothing);
   });
 
   testWidgets('an account chosen by hand stays when a category is chosen', (
@@ -553,6 +572,10 @@ void main() {
 
       // A payee the ledger has never seen is typed in full.
       await _payee(tester, 'Shoppy');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Choose an account'), findsOneWidget);
+      await _account(tester, 'Cash wallet');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(store.waiting.single.payee, 'Shoppy');
@@ -678,6 +701,30 @@ void main() {
     expect(find.text('₮1,800,000.00 left now'), findsOneWidget);
   });
 
+  testWidgets('with one account there is nothing to choose: it is shown', (
+    tester,
+  ) async {
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: const [
+          PhoneAccount(id: 'a', name: 'TDB Checking', balanceMinor: 0),
+        ],
+        categories: const [
+          PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+        ],
+      ),
+    );
+    expect(find.text('TDB Checking'), findsOneWidget);
+    await _category(tester, 'Groceries');
+    await _type(tester, '500');
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.accountId, 'a');
+  });
+
   testWidgets('with no bills there is no Bills heading', (tester) async {
     await _pump(
       tester,
@@ -733,7 +780,13 @@ void main() {
     );
     // ₮12,500 of groceries on TDB Checking, ₮30,000 of eating out on the Visa.
     await _spend(tester, 'Groceries', '12500', 'no', pick: 'Nomin');
-    await _spend(tester, 'Eating out', '30000', 'Rosewood');
+    await _spend(
+      tester,
+      'Eating out',
+      '30000',
+      'Rosewood',
+      from: 'Golomt Visa',
+    );
     // Already overspent, and more so now: the card says by how much.
     expect(find.text('Eating out · overspent by ₮48,400.00'), findsOneWidget);
 
@@ -803,6 +856,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await _category(tester, 'Groceries');
     await _payee(tester, 'no', pick: 'Nomin');
+    await _account(tester, 'TDB Checking');
     await tester.ensureVisible(find.text('Save'));
     await tester.pumpAndSettle();
     await _type(tester, '12500');

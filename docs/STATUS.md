@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 541 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 542 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -107,12 +107,7 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     free to assign, as built?
 12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
     the list show its balance, so they can tell whether that card will go through?
-13. **Which account the phone's Paid from row shows first** (2026-10-08, asked once in
-    words the owner couldn't follow, then again plainly). When Jen chooses Groceries
-    on her phone, the Paid from row shows the account the Groceries category is paid
-    from in the ledger, which may be Tom's card, and she has to change it each time.
-    Should it show the account Jen's own phone last paid from instead?
-14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+13. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -198,9 +193,7 @@ open the archive).
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
   it back to this computer" is pressed still lands in the folder; an old or second
-  computer replaces the folder's ledger without a warning (Next step 1); Paid from on the
-  phone starts from the ledger's last row for that category, which may be the other
-  person's card; the Backups note still says to use a USB stick once the ledger is in
+  computer replaces the folder's ledger without a warning (Next step 1); the Backups note still says to use a USB stick once the ledger is in
   a folder. Untested: the phone's figures for a budget run by pay periods, and the
   phone meeting a ledger from a newer version.
 - **From the reviews of the phone's Ledger screen (2026-10-08), not fixed:** the "left

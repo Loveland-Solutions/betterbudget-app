@@ -2611,8 +2611,14 @@ payees, bills, overspent words, cents and the Accounts link still holds.
   spend, above Bills. It asks the name; a name already taken is said under the box.
 - **A category row on Budget has no +.** Tapping it goes to Ledger with that category
   chosen and whatever was typed kept.
-- **Paid from** starts as the first account, follows the chosen category's own account,
-  and an account chosen by hand is kept while it is in the category's currency.
+- **Paid from is never filled in for them** (owner, 2026-10-08: "Don't autofill. I
+  don't want to set people up for bad data entry in the name of convenience"). The row
+  is empty until an account is chosen, and Save says "Choose an account". The first
+  build showed the first account, then the chosen category's own account in the
+  ledger; the owner was asked which of two guesses to show and wanted neither. It is
+  empty again after each Save. Only a ledger with one account it could be shows that
+  account: there is nothing to choose. The accounts offered are those in the
+  category's currency.
 - **After Save the form empties, and a toast says what the entry did to its category**
   (owner, 2026-10-08: "There should be some type of a toast notification showing how
   the transaction impacted the given category"). It reads "Saved · Nomin −₮12,500.00",
