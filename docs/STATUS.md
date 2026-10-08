@@ -10,9 +10,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #53 (version 0.17.0).** The owner's ledger is stored in their Google Drive
-folder. The Android app opens on Ledger, records spending there, and what it records
-reaches the computer's ledger through the folder. Then, in order:
+**After PR #54 (version 0.18.0).** The owner's ledger is stored in their Google Drive
+folder. The Android app opens on Ledger, records money out and money in there, and
+what it records reaches the computer's ledger through the folder. Then, in order
+(the owner was asked on 2026-10-08 whether transfers on the phone come before item 1;
+"Waiting on the owner" 16):
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
    want to be able to support multiple machines on the same ledger. Let's figure that
@@ -31,8 +33,10 @@ reaches the computer's ledger through the folder. Then, in order:
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
    phone's waiting line go within a minute, or only the two-minute fetch does. Money
    in is built: the +/− button beside the amount, with Income offered in the Category
-   list (ADR 0004 "Phone screens: Ledger first"). Then: transfers on the phone, the
-   other phone's entries, and the iPhone build (its folder access and icon). With two computers on one ledger each takes the same
+   list (ADR 0004 "Phone screens: Ledger first"); the button was tapped on the
+   owner's Pixel, but no real refund or income has been saved there and watched
+   arriving. Then: transfers on the phone, the other phone's entries, and the iPhone
+   build (its folder access and icon). With two computers on one ledger each takes the same
    entries in, which item 1 has to settle.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
@@ -60,7 +64,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #53. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #54. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
@@ -114,6 +118,15 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     wanted to see it work before choosing, and now has.
 14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
+15. **Pay saved on the phone** (2026-10-08). Pay arrives and +₮2,500,000 is saved
+    under Income on the phone; the payday set up on the computer is still in the
+    forecast as money to come, so the pay is counted twice, and Confirm on it adds a
+    second row. Should a phone entry under Income take the place of the next
+    scheduled payday? Recommended yes: a button for it on the popup that says "1
+    transaction from your phone".
+16. **Transfers on the phone next?** (2026-10-08) ₮100,000 taken out of an ATM is
+    neither a refund nor income, and the phone has only wrong places for it. Should
+    transfers on the phone be built ahead of the two-computers work (Next step 1)?
 
 ## Phase
 
@@ -183,8 +196,7 @@ open the archive).
   saved is kept on the phone, written to the folder in the phone's own file, and taken
   in by the computer as uncleared rows with one undo. Not built: renaming a category
   made on the phone; fixing a waiting entry; transfers; other phones'
-  entries; the iPhone's folder access and icon. The first
-  read from the owner's real Drive folder on the Pixel hasn't been watched yet.
+  entries; the iPhone's folder access and icon.
 - **A Windows build.**
 - **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
   Android** (2026-10-07, a debug build on a Pixel 10a, Android 17: the key was stored
