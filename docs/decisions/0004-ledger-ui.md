@@ -2582,10 +2582,12 @@ payees, bills, overspent words, cents and the Accounts link still holds.
 - **Two screens, Ledger and Budget, with the switch along the bottom.** The app opens
   on Ledger. What is being typed stays through a look at Budget. The phone's Back on
   Budget goes to Ledger.
-- **Ledger is the entry**: the amount in red with a minus, then Category, Payee, Paid
-  from and Date (Today), the pad's own number keys, and Save. Anything can be filled in
-  first; Save names the first thing missing above it ("Enter an amount", "Choose a
-  category", "Enter a payee", "Choose an account"). **Clear** is at the top right only
+- **Ledger is the entry**: the amount in red with a minus, then Payee, Category, Paid
+  from and Date (Today), the pad's own number keys, and Save. **Payee is above
+  Category** (owner, 2026-10-08: "I want the payee to be above the Category"; the
+  first build had Category first). Anything can be filled in first; Save names the
+  first thing missing above it, in the screen's order ("Enter an amount", "Enter a
+  payee", "Choose a category", "Choose an account"). **Clear** is at the top right only
   once something is typed or chosen.
 - **Nothing is said about what is left until a category is chosen**; then the line
   under the amount reads as before. Its place is kept, so the rows don't move.

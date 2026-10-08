@@ -644,7 +644,7 @@ class _CategoryRow extends StatelessWidget {
 }
 
 /// Ledger, where the app opens: everything a transaction needs. The amount
-/// on the pad, then Category, Payee, Paid from, Date and Save, in any order.
+/// on the pad, then Payee, Category, Paid from, Date and Save, in any order.
 class _EntryScreen extends StatefulWidget {
   const _EntryScreen({
     required this.store,
@@ -759,10 +759,10 @@ class _EntryState extends State<_EntryScreen> {
     final amount = typedAmountMinor(_draft.typed, _currency);
     final missing = amount == 0
         ? t.phoneEnterAmount
-        : category == null
-        ? t.phoneChooseCategory
         : payee == null
         ? t.phoneEnterPayee
+        : category == null
+        ? t.phoneChooseCategory
         : account == null
         ? t.phoneChooseAccount
         : null;
@@ -1023,17 +1023,17 @@ class _EntryState extends State<_EntryScreen> {
                           child: Column(
                             children: [
                               _FieldRow(
-                                key: const ValueKey('category-row'),
-                                label: t.rowsColumnCategory,
-                                value: category?.name ?? '',
-                                onTap: _pickCategory,
-                              ),
-                              Divider(height: 1, thickness: 1, color: Mid.rule),
-                              _FieldRow(
                                 key: const ValueKey('payee-row'),
                                 label: t.rowsColumnPayee,
                                 value: _draft.payee ?? '',
                                 onTap: _typePayee,
+                              ),
+                              Divider(height: 1, thickness: 1, color: Mid.rule),
+                              _FieldRow(
+                                key: const ValueKey('category-row'),
+                                label: t.rowsColumnCategory,
+                                value: category?.name ?? '',
+                                onTap: _pickCategory,
                               ),
                               Divider(height: 1, thickness: 1, color: Mid.rule),
                               _FieldRow(

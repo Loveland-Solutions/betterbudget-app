@@ -240,8 +240,11 @@ void main() {
   testWidgets('opens on Ledger with nothing chosen', (tester) async {
     await _pump(tester);
     expect(find.text('−₮0'), findsOneWidget);
-    expect(find.text('Category'), findsOneWidget);
-    expect(find.text('Payee'), findsOneWidget);
+    // Payee is above Category (owner, 2026-10-08).
+    expect(
+      tester.getTopLeft(find.text('Payee')).dy,
+      lessThan(tester.getTopLeft(find.text('Category')).dy),
+    );
     // Paid from is theirs to choose, like Payee: nothing is filled in.
     expect(find.text('Paid from'), findsOneWidget);
     expect(find.text('TDB Checking'), findsNothing);
@@ -560,18 +563,19 @@ void main() {
 
       await _type(tester, '5');
       expect(find.text('Enter an amount'), findsNothing);
-      await tester.tap(find.text('Save'));
-      await tester.pump();
-      expect(find.text('Choose a category'), findsOneWidget);
-
-      await _category(tester, 'Clothing');
+      // Named in the order they are on the screen: payee, then category.
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Enter a payee'), findsOneWidget);
-      expect(store.waiting, isEmpty);
 
       // A payee the ledger has never seen is typed in full.
       await _payee(tester, 'Shoppy');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Choose a category'), findsOneWidget);
+      expect(store.waiting, isEmpty);
+
+      await _category(tester, 'Clothing');
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Choose an account'), findsOneWidget);
