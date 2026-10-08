@@ -6945,6 +6945,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{category} · nothing assigned yet'**
   String phoneSavedNothingAssigned(String category);
+
+  /// Popup on the computer when entries typed on a phone have been added to the ledger as uncleared rows; Undo takes them all out again.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from your phone} other{{count} transactions from your phone}}'**
+  String ledgerFromPhone(int count);
+
+  /// Popup on the computer when a category made on a phone has been added, with no entries in it yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new category from your phone} other{{count} new categories from your phone}}'**
+  String ledgerCategoryFromPhone(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

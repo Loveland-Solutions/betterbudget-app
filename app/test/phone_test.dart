@@ -8,6 +8,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
+import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/money.dart';
@@ -135,6 +136,20 @@ class _FakeFolder extends PhoneFolder {
 
   @override
   Future<void> forget(String folder) async => forgotten.add(folder);
+
+  /// The files this phone has written to the folder, by name.
+  final written = <String, Uint8List>{};
+
+  @override
+  Future<void> write(String folder, String name, Uint8List bytes) async =>
+      written[name] = bytes;
+}
+
+/// A place for one test's phone to keep its files.
+Directory _phoneDir() {
+  final dir = Directory.systemTemp.createTempSync('bb-phone');
+  addTearDown(() => dir.deleteSync(recursive: true));
+  return dir;
 }
 
 void main() {
@@ -928,12 +943,177 @@ void main() {
     );
   });
 
+  group('entries reach the computer', () {
+    final today = DateTime(2026, 9, 16, 9, 30);
+
+    PhoneEntry entry(String id, String category, String account, int amount) =>
+        PhoneEntry(
+          id: id,
+          categoryId: category,
+          accountId: account,
+          payee: 'Nomin',
+          amountMinor: amount,
+          date: DateTime(2026, 9, 15),
+          madeAt: today,
+        );
+
+    test('a phone’s file opens with the ledger’s key and no other', () {
+      final dir = _phoneDir();
+      final key = deriveDataKey(RecoveryKey.generate());
+      final file = File('${dir.path}/${phoneInboxName('ab12')}');
+      writePhoneInbox(
+        file,
+        key,
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('e1', '7', '3', -1250000)],
+          categories: const [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'Coffee',
+              leftMinor: 0,
+              madeHere: true,
+            ),
+          ],
+        ),
+      );
+      expect(isPhoneInboxName('Phone ab12.betterbudget-phone'), isTrue);
+      expect(isPhoneInboxName(ledgerFileName), isFalse);
+      // Nothing about the money is in the clear.
+      expect(
+        String.fromCharCodes(file.readAsBytesSync()),
+        isNot(contains('Nomin')),
+      );
+      final back = readPhoneInbox(file, key);
+      expect(back.device, 'ab12');
+      expect(back.entries.single.amountMinor, -1250000);
+      expect(back.entries.single.date, DateTime(2026, 9, 15));
+      expect(back.categories.single.name, 'Coffee');
+      expect(back.categories.single.madeHere, isTrue);
+      expect(
+        () => readPhoneInbox(file, deriveDataKey(RecoveryKey.generate())),
+        throwsA(anything),
+      );
+    });
+
+    test('the computer takes each entry in once, with one undo, and the '
+        'phone lets go of them', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final groceries = id('Groceries'), checking = id('TDB Checking');
+      final before = data.balanceOf(checking);
+      final rows = data.txns.length;
+      final inbox = PhoneInbox(
+        device: 'ab12',
+        entries: [
+          entry('e1', '$groceries', '$checking', -1250000),
+          entry('e2', 'new-1', '$checking', -450000),
+          // Its account was deleted on the computer: left with the phone.
+          entry('e3', '$groceries', '99999', -100),
+        ],
+        categories: const [
+          PhoneCategory(
+            id: 'new-1',
+            name: 'Coffee',
+            leftMinor: 0,
+            madeHere: true,
+          ),
+          // Already a category, whatever its capitals: no second one.
+          PhoneCategory(
+            id: 'new-2',
+            name: ' groceries',
+            leftMinor: 0,
+            madeHere: true,
+          ),
+        ],
+      );
+      final take = (await db.takePhoneEntries([inbox], today: today))!;
+      expect(take.transactionIds, hasLength(2));
+      expect(take.categoryIds, hasLength(1));
+      data = await db.loadLedger();
+      expect(data.txns.length, rows + 2);
+      expect(data.balanceOf(checking), before - 1700000);
+      expect(data.accounts[take.categoryIds.single]!.name, 'Coffee');
+
+      // The same file again brings nothing: nothing comes in twice.
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      expect((await db.loadLedger()).txns.length, rows + 2);
+
+      // The ledger says what is in, and the phone drops it.
+      final snapshot = snapshotOf(data, today: today, madeAt: today);
+      expect(snapshot.taken['ab12']!.entries, {'e1', 'e2'});
+      expect(snapshot.taken['ab12']!.categories, {
+        'new-1': '${take.categoryIds.single}',
+        'new-2': '$groceries',
+      });
+      final store = PhoneStore(
+        snapshot,
+        device: 'ab12',
+        waiting: [...inbox.entries, entry('e4', 'new-1', '$checking', -200)],
+        made: inbox.categories,
+      );
+      expect(store.waiting.map((e) => e.id), ['e3', 'e4']);
+      expect(store.made, isEmpty);
+      // One typed since, in the category the ledger now has, follows it.
+      expect(store.waiting.last.categoryId, '${take.categoryIds.single}');
+
+      // One undo takes the lot out, and they don't come back by themselves.
+      await db.undoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.txns.length, rows);
+      expect(data.balanceOf(checking), before);
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      await db.redoPhoneTake(take);
+      expect((await db.loadLedger()).balanceOf(checking), before - 1700000);
+
+      // Once the phone's file no longer holds them, they are forgotten.
+      await db.takePhoneEntries([
+        const PhoneInbox(device: 'ab12'),
+      ], today: today);
+      final after = snapshotOf(
+        await db.loadLedger(),
+        today: today,
+        madeAt: today,
+      );
+      expect(after.taken['ab12']!.entries, isEmpty);
+    });
+
+    test('the computer finds each phone’s file in the folder', () async {
+      final dir = _phoneDir();
+      for (final device in ['ab12', 'cd34']) {
+        writePhoneInbox(
+          File('${dir.path}/${phoneInboxName(device)}'),
+          null,
+          PhoneInbox(
+            device: device,
+            entries: [entry('e-$device', '1', '2', -5)],
+          ),
+        );
+      }
+      // Not a phone's file, and one that is still arriving.
+      File('${dir.path}/$ledgerFileName').writeAsBytesSync([1, 2, 3]);
+      File('${dir.path}/${phoneInboxName('half')}').writeAsBytesSync([1, 2]);
+      final found = await readPhoneInboxes(
+        dir,
+        null,
+        scratch: Directory('${dir.path}/scratch'),
+      );
+      expect(found.map((i) => i.device).toSet(), {'ab12', 'cd34'});
+    });
+  });
+
   group('first launch', () {
     Future<({_FakeKeys keys, _FakeFolder folder, List<Uint8List> read})> start(
       WidgetTester tester, {
       _FakeKeys? keys,
       _FakeFolder? folder,
       Uint8List? opens,
+      Directory? dir,
+      Map<String, PhoneTaken> Function()? taken,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -946,7 +1126,7 @@ void main() {
           child: PhoneStart(
             keys: k,
             folder: f,
-            dir: Directory.systemTemp,
+            dir: dir ?? _phoneDir(),
             now: () => _now,
             read:
                 (
@@ -960,7 +1140,16 @@ void main() {
                   if (opens != null && !_same(key, opens)) {
                     throw WrongKeyException();
                   }
-                  return previewSnapshot(madeAt);
+                  final snapshot = previewSnapshot(madeAt);
+                  return taken == null
+                      ? snapshot
+                      : PhoneSnapshot(
+                          madeAt: snapshot.madeAt,
+                          categories: snapshot.categories,
+                          accounts: snapshot.accounts,
+                          payees: snapshot.payees,
+                          taken: taken(),
+                        );
                 },
           ),
         ),
@@ -1069,7 +1258,7 @@ void main() {
           child: PhoneStart(
             keys: keys,
             folder: folder,
-            dir: Directory.systemTemp,
+            dir: _phoneDir(),
             now: () => _now,
             read:
                 (
@@ -1095,6 +1284,50 @@ void main() {
       expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(find.textContaining('doesn’t open'), findsNothing);
       expect(_same(keys.kept!, right), isTrue);
+    });
+
+    testWidgets('an entry is written to the folder, is still there after '
+        'the app is closed, and goes once the computer has it', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final dir = _phoneDir();
+      var taken = <String, PhoneTaken>{};
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      // Nothing to say yet, so no file.
+      expect(folder.written, isEmpty);
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      final name = folder.written.keys.single;
+      expect(isPhoneInboxName(name), isTrue);
+      final file = File('${dir.path}/check')
+        ..writeAsBytesSync(folder.written[name]!);
+      final sent = readPhoneInbox(file, keys.kept);
+      expect(sent.entries.single.payee, 'UB Cab');
+      expect(sent.entries.single.amountMinor, -800000);
+
+      // Closed and opened again.
+      await tester.pumpWidget(const SizedBox());
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        taken: () => taken,
+      );
+      expect(
+        find.text('1 of your entries is waiting for your computer'),
+        findsOneWidget,
+      );
+
+      // The computer's next ledger says it is in.
+      taken = {
+        sent.device: PhoneTaken(entries: {sent.entries.single.id}),
+      };
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
+      file.writeAsBytesSync(folder.written[name]!);
+      expect(readPhoneInbox(file, keys.kept).entries, isEmpty);
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (

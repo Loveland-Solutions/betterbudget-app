@@ -4673,4 +4673,24 @@ class WordsMn extends Words {
   String phoneSavedNothingAssigned(String category) {
     return '$category · одоогоор мөнгө хуваарилаагүй';
   }
+
+  @override
+  String ledgerFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Утаснаас $count гүйлгээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCategoryFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Утаснаас $count шинэ ангилал',
+    );
+    return '$_temp0';
+  }
 }

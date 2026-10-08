@@ -16,8 +16,51 @@ import '../theme.dart';
 /// The snapshot and this phone's waiting entries. Where they are kept and how
 /// they reach the Mac is the store's business; the screens only read and add.
 class PhoneStore extends ChangeNotifier {
-  PhoneStore(this._snapshot, {List<PhoneEntry> waiting = const []})
-    : _waiting = [...waiting];
+  PhoneStore(
+    this._snapshot, {
+    this.device = 'preview',
+    List<PhoneEntry> waiting = const [],
+    List<PhoneCategory> made = const [],
+  }) : _waiting = [...waiting] {
+    _made.addAll(made);
+    _dropTaken();
+  }
+
+  /// This phone's name for itself in the folder.
+  final String device;
+
+  /// What this phone has for the computer.
+  PhoneInbox get inbox => PhoneInbox(
+    device: device,
+    entries: List.unmodifiable(_waiting),
+    categories: List.unmodifiable(_made),
+  );
+
+  /// Lets go of what the computer's ledger says it has taken in. An entry
+  /// still waiting in a category that is now the ledger's follows it there.
+  void _dropTaken() {
+    final taken = _snapshot.taken[device];
+    if (taken == null) return;
+    _waiting.removeWhere((e) => taken.entries.contains(e.id));
+    for (final c in [..._made]) {
+      final real = taken.categories[c.id];
+      if (real == null) continue;
+      for (var i = 0; i < _waiting.length; i++) {
+        final e = _waiting[i];
+        if (e.categoryId != c.id) continue;
+        _waiting[i] = PhoneEntry(
+          id: e.id,
+          categoryId: real,
+          accountId: e.accountId,
+          payee: e.payee,
+          amountMinor: e.amountMinor,
+          date: e.date,
+          madeAt: e.madeAt,
+        );
+      }
+      _made.remove(c);
+    }
+  }
 
   PhoneSnapshot _snapshot;
   final List<PhoneEntry> _waiting;
@@ -59,6 +102,7 @@ class PhoneStore extends ChangeNotifier {
 
   set snapshot(PhoneSnapshot value) {
     _snapshot = value;
+    _dropTaken();
     notifyListeners();
   }
 

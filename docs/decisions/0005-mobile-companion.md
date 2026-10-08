@@ -102,6 +102,36 @@ the copy with the key, and works out what each category holds with the same code
 the Mac's Budget page. It reads again when the app comes back to the front and when
 the list is pulled down; a read that fails leaves the figures up, with their time.
 
+**Built, 2026-10-08: the phone's entries reach the computer** (owner, with the
+phone saying an entry was waiting for the computer and the computer open: "I want to
+see it work… that message isn't going away"). Until then an entry lived in the phone's
+memory and nothing took it in.
+
+- **The phone keeps what it has waiting** in its own storage, and writes the same
+  file to the folder as `Phone <name>.betterbudget-phone`, where the name is four
+  random bytes the phone gave itself. It holds the phone's entries and the categories
+  it made, as a small database encrypted with the ledger's key, the way the ledger is.
+  It is written again after each change; a write that fails is tried at the next read.
+- **The computer looks in the folder** when the ledger is stored in one: at launch,
+  when it comes back to the front, and every 15 seconds. Each entry not yet in the
+  ledger becomes an uncleared row; a category the phone made is made unless one is
+  already called that, whatever its capitals. A popup says "1 transaction from your
+  phone", and one undo takes the lot out. Nothing is asked.
+- **What is in is written in the ledger itself** (the preference `phone.taken`: for
+  each phone, the ids of its entries that are in, and which ledger category each
+  category it made became), in the same transaction as the rows, so nothing comes in
+  twice. The phone reads that from the ledger's next copy and drops those entries;
+  the computer forgets an id once the phone's file no longer holds it. Undone rows
+  stay marked as in, so they don't come back by themselves.
+- **The phone reads the folder again every 30 seconds** while it is open, as well as
+  when it comes to the front, so the waiting line goes without the app being left.
+- An entry whose account or category was deleted on the computer is left with the
+  phone.
+
+No table was added: the ledger's schema is unchanged. Not built: other phones'
+entries shown on a phone, money in and transfers, and the iPhone's folder access. With
+two computers on one ledger each would take the same entries in (the next section).
+
 ### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
 
 "I definitely want to be able to support multiple machines on the same ledger. Let's

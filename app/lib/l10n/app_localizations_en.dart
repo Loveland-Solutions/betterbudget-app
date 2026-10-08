@@ -4856,4 +4856,26 @@ class WordsEn extends Words {
   String phoneSavedNothingAssigned(String category) {
     return '$category · nothing assigned yet';
   }
+
+  @override
+  String ledgerFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions from your phone',
+      one: '1 transaction from your phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCategoryFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new categories from your phone',
+      one: '1 new category from your phone',
+    );
+    return '$_temp0';
+  }
 }

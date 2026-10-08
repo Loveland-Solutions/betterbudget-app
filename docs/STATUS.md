@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 532 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 536 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -25,13 +25,15 @@ folder, and the Android app reads it there. Then, in order:
    full two-way merge as too much for phones; that has to be looked at again for
    computers. Until it is designed, only one computer should have the ledger moved to
    the folder. Bring two or three ways with sketches, as for any feature.
-2. **The phone's entries reach the Mac.** Today an entry saved on the phone is held
-   in memory and gone when the app closes. To build: the phone keeps its entries,
-   writes them to its own file in the folder, and the Mac takes them in as uncleared
-   rows with one undo (ADR 0005). Then money in and transfers on the phone, the other
-   phone's entries, and the iPhone build (its folder access and icon). A category made
-   on the phone travels the same way (ADR 0005, "A new category from the phone"). How
-   entries travel depends on what item 1 decides.
+2. **The rest of the phone.** Its entries and new categories now reach the computer
+   (ADR 0005, "Built, 2026-10-08"). **Not yet watched end to end on the owner's Pixel
+   and Drive folder**: the first real entry should show `Phone <name>.betterbudget-phone`
+   in the folder, then "1 transaction from your phone" on the computer, then the
+   phone's waiting line going. If the file never appears, the Android write to Drive
+   is the first thing to look at (`MainActivity.kt`, "write"). Then: money in and
+   transfers on the phone, the other phone's entries, and the iPhone build (its
+   folder access and icon). With two computers on one ledger each takes the same
+   entries in, which item 1 has to settle.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
@@ -170,11 +172,11 @@ open the archive).
   is left in each category (those waiting for a bill apart, under Bills), makes a new
   category too, and links to each account's balance. The figures are read from
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
-  or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). Not
-  built: entries and new categories kept after the app closes, written to the folder
-  and taken in by the Mac; renaming a category made on the phone; fixing a waiting
-  entry; money in and transfers; other phones' entries; the iPhone's folder access
-  and icon. The first
+  or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). What is
+  saved is kept on the phone, written to the folder in the phone's own file, and taken
+  in by the computer as uncleared rows with one undo. Not built: renaming a category
+  made on the phone; fixing a waiting entry; money in and transfers; other phones'
+  entries; the iPhone's folder access and icon. The first
   read from the owner's real Drive folder on the Pixel hasn't been watched yet.
 - **A Windows build.**
 - **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
@@ -203,6 +205,9 @@ open the archive).
   category has gone from the ledger shows no category and its amount in tugrik; a
   category made on the phone and one of the same name arriving from the Mac are both
   listed; on a 360 × 640 phone Save is reached by scrolling.
+- **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
+  (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
+  random key.
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the

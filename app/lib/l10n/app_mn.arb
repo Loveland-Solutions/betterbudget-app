@@ -1131,5 +1131,7 @@
   "phoneClear": "Цэвэрлэх",
   "phoneSavedLeft": "{category} · {left} үлдсэн",
   "phoneSavedOver": "{category} · {over} хэтэрсэн",
-  "phoneSavedNothingAssigned": "{category} · одоогоор мөнгө хуваарилаагүй"
+  "phoneSavedNothingAssigned": "{category} · одоогоор мөнгө хуваарилаагүй",
+  "ledgerFromPhone": "{count, plural, other{Утаснаас {count} гүйлгээ}}",
+  "ledgerCategoryFromPhone": "{count, plural, other{Утаснаас {count} шинэ ангилал}}"
 }

@@ -3,6 +3,8 @@
 // line that says where it is.
 import 'dart:io';
 
+import 'package:betterbudget/data/phone_inbox.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
 import 'package:betterbudget/data/database.dart';
@@ -375,6 +377,31 @@ void main() {
         );
         expect(copy().existsSync(), isTrue);
 
+        // A phone writes an entry to the folder while the ledger is away.
+        await tester.runAsync(() async {
+          final data = await db.loadLedger();
+          int id(String name) =>
+              data.accounts.values.singleWhere((a) => a.name == name).id;
+          writePhoneInbox(
+            File('${drive.path}/${phoneInboxName('ab12')}'),
+            null,
+            PhoneInbox(
+              device: 'ab12',
+              entries: [
+                PhoneEntry(
+                  id: 'e1',
+                  categoryId: '${id('Groceries')}',
+                  accountId: '${id('TDB Checking')}',
+                  payee: 'From the phone',
+                  amountMinor: -1250000,
+                  date: today,
+                  madeAt: today,
+                ),
+              ],
+            ),
+          );
+        });
+
         // Ctrl+Z (⌘Z on a Mac) brings the folder back.
         await tester.runAsync(() async {
           await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -385,6 +412,13 @@ void main() {
         await tester.pump();
         expect(find.text('This computer'), findsNothing);
         expect(find.textContaining('My Drive/BetterBudget · '), findsOneWidget);
+        // With the ledger in the folder again, the phone's entry comes in.
+        await tester.runAsync(() async {
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, hasLength(1));
+        });
 
         // Leave nothing running: the screen's copy timer goes with it.
         await tester.runAsync(() async {
