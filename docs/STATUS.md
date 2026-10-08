@@ -10,8 +10,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #52 (version 0.16.2).** The owner's ledger is stored in their Google Drive
-folder, and the Android app reads it there. Then, in order:
+**After PR #53 (version 0.17.0).** The owner's ledger is stored in their Google Drive
+folder. The Android app opens on Ledger, records spending there, and what it records
+reaches the computer's ledger through the folder. Then, in order:
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
    want to be able to support multiple machines on the same ledger. Let's figure that
@@ -58,7 +59,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #49. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #53. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
@@ -105,7 +106,12 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     free to assign, as built?
 12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
     the list show its balance, so they can tell whether that card will go through?
-13. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+13. **The phone's waiting line** (2026-10-08). "1 of your entries is waiting for your
+    computer" made the owner ask what it was waiting for the computer to do. Two
+    wordings were offered, "1 entry isn't in your ledger yet" (recommended) and "1
+    entry will be added when BetterBudget is next open on your computer"; the owner
+    wanted to see it work before choosing, and now has.
+14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -139,7 +145,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
-| Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,135 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
