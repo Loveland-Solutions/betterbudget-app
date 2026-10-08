@@ -120,9 +120,13 @@ memory and nothing took it in.
 - **What is in is written in the ledger itself** (the preference `phone.taken`: for
   each phone, the ids of its entries that are in, and which ledger category each
   category it made became), in the same transaction as the rows, so nothing comes in
-  twice. The phone reads that from the ledger's next copy and drops those entries;
-  the computer forgets an id once the phone's file no longer holds it. Undone rows
-  stay marked as in, so they don't come back by themselves.
+  twice. The phone reads that from the ledger's next copy and drops those entries.
+  The computer never forgets an id: Drive can hold two files of one name, or an older
+  conflict copy, and a forgotten entry in one of those would come in again (the first
+  build forgot an id once the phone's file no longer held it). Undone rows stay
+  marked as in, so they don't come back by themselves; a category the undo removed
+  is made again only when a later entry needs it. Nothing is taken in during a
+  restore, a reconcile or setup.
 - **The phone reads the folder again every 30 seconds** while it is open, as well as
   when it comes to the front, so the waiting line goes without the app being left.
 - An entry whose account or category was deleted on the computer is left with the

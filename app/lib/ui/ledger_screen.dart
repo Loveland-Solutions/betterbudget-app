@@ -239,6 +239,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _takePhones() async {
     final path = _cloud.value.path;
     if (path == null || _takingPhones) return;
+    // Not into the middle of a restore, a reconcile or setup: the next
+    // look brings them.
+    if (_restoring || _reconcile != null) return;
+    if (_data case final d? when inSetup(d)) return;
     _takingPhones = true;
     try {
       final inboxes = await readPhoneInboxes(

@@ -158,6 +158,8 @@ class PhoneOutbox {
         return readPhoneInbox(_file, key);
       } catch (e) {
         debugPrint('The phone’s waiting entries couldn’t be read: $e');
+        // Set aside, not written over: what was waiting may be got back.
+        _file.renameSync('${_file.path}.unreadable');
       }
     }
     final random = Random.secure();

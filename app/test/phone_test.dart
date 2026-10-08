@@ -1070,16 +1070,78 @@ void main() {
       await db.redoPhoneTake(take);
       expect((await db.loadLedger()).balanceOf(checking), before - 1700000);
 
-      // Once the phone's file no longer holds them, they are forgotten.
+      // The phone's file no longer holds them; they are still known, so
+      // an older copy of the file turning up brings nothing in.
       await db.takePhoneEntries([
         const PhoneInbox(device: 'ab12'),
       ], today: today);
-      final after = snapshotOf(
-        await db.loadLedger(),
-        today: today,
-        madeAt: today,
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      expect((await db.loadLedger()).txns.length, rows + 2);
+    });
+
+    test(
+      'two copies of one phone’s file, and two phones, each entry once',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, today);
+        final data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        final g = '${id('Groceries')}', c = '${id('TDB Checking')}';
+        final rows = data.txns.length;
+        // Drive holds a newer and an older file from the same phone.
+        final files = [
+          PhoneInbox(
+            device: 'ab12',
+            entries: [entry('a', g, c, -100), entry('b', g, c, -200)],
+          ),
+          PhoneInbox(device: 'ab12', entries: [entry('a', g, c, -100)]),
+          PhoneInbox(device: 'cd34', entries: [entry('a', g, c, -300)]),
+          // A category id that names an account isn't spending: left out.
+          PhoneInbox(device: 'ef56', entries: [entry('x', c, c, -400)]),
+        ];
+        final take = (await db.takePhoneEntries(files, today: today))!;
+        expect(take.transactionIds, hasLength(3));
+        for (var look = 0; look < 3; look++) {
+          expect(await db.takePhoneEntries(files, today: today), isNull);
+        }
+        expect((await db.loadLedger()).txns.length, rows + 3);
+      },
+    );
+
+    test('a category the take made and undo removed is made again for a '
+        'later entry', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      final c =
+          '${data.accounts.values.singleWhere((a) => a.name == 'TDB Checking').id}';
+      const coffee = PhoneCategory(
+        id: 'new-1',
+        name: 'Coffee',
+        leftMinor: 0,
+        madeHere: true,
       );
-      expect(after.taken['ab12']!.entries, isEmpty);
+      final first = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', c, -100)],
+          categories: const [coffee],
+        ),
+      ], today: today))!;
+      await db.undoPhoneTake(first);
+      final second = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', c, -100), entry('b', 'new-1', c, -200)],
+          categories: const [coffee],
+        ),
+      ], today: today))!;
+      // Only the later entry comes in, in a Coffee that is live again.
+      expect(second.transactionIds, hasLength(1));
+      expect(second.categoryIds, hasLength(1));
     });
 
     test('the computer finds each phone’s file in the folder', () async {

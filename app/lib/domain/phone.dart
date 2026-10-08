@@ -165,9 +165,9 @@ class PhoneInbox {
 /// The preference the computer keeps what it has taken from the phones in.
 const phoneTakenKey = 'phone.taken';
 
-/// What the computer has taken in from one phone. Only what is still in the
-/// phone's file is remembered: once the phone has dropped an entry it can't
-/// arrive again.
+/// What the computer has taken in from one phone, kept for good: an older
+/// copy of the phone's file turning up in the folder must not bring an
+/// entry in a second time.
 class PhoneTaken {
   const PhoneTaken({this.entries = const {}, this.categories = const {}});
 

@@ -3773,8 +3773,10 @@ class AppDatabase extends _$AppDatabase {
   /// same transaction, so nothing comes in twice; the phones read it from
   /// the ledger and drop what is in. Null when there was nothing new.
   ///
-  /// An entry whose account or category has since been deleted here is
-  /// left with the phone.
+  /// An entry is never forgotten once taken: a second or older copy of a
+  /// phone's file (Drive keeps two files of one name, and conflict copies)
+  /// would bring it in again. An entry whose account or category has been
+  /// deleted here is left with the phone.
   Future<PhoneTake?> takePhoneEntries(
     List<PhoneInbox> inboxes, {
     required DateTime today,
@@ -3786,7 +3788,14 @@ class AppDatabase extends _$AppDatabase {
     final live = await (select(
       accounts,
     )..where((a) => a.deletedAt.isNull())).get();
-    final liveIds = {for (final a in live) a.id};
+    final spending = {
+      for (final a in live)
+        if (a.type == AccountType.expense) a.id,
+    };
+    final paidFrom = {
+      for (final a in live)
+        if (_reconcilable.contains(a.type)) a.id,
+    };
     final byName = {
       for (final a in live)
         if (a.type == AccountType.expense) a.name.trim().toLowerCase(): a.id,
@@ -3794,31 +3803,41 @@ class AppDatabase extends _$AppDatabase {
     final added = <int>[], made = <int>[];
     for (final inbox in inboxes) {
       final was = taken[inbox.device] ?? const PhoneTaken();
-      final categories = <String, String>{};
-      for (final c in inbox.categories) {
-        var real = was.categories[c.id];
-        if (real == null) {
-          final name = c.name.trim().toLowerCase();
-          var id = byName[name];
-          if (id == null) {
-            id = await createCategory(c.name, currency: c.currency);
-            made.add(id);
-            liveIds.add(id);
-            byName[name] = id;
-          }
-          real = '$id';
+      final categories = {...was.categories};
+      // The ledger's category for one a phone made: the one already called
+      // that, whatever its capitals, or a new one.
+      Future<int> categoryFor(PhoneCategory c) async {
+        final name = c.name.trim().toLowerCase();
+        var id = byName[name];
+        if (id == null) {
+          id = await createCategory(c.name, currency: c.currency);
+          made.add(id);
+          spending.add(id);
+          byName[name] = id;
         }
-        categories[c.id] = real;
+        categories[c.id] = '$id';
+        return id;
       }
-      final entries = <String>{};
+
+      final theirs = {for (final c in inbox.categories) c.id: c};
+      for (final c in inbox.categories) {
+        if (!categories.containsKey(c.id)) await categoryFor(c);
+      }
+      final entries = {...was.entries};
       for (final e in inbox.entries) {
-        if (was.entries.contains(e.id)) {
-          entries.add(e.id);
+        if (entries.contains(e.id)) continue;
+        var category = int.tryParse(categories[e.categoryId] ?? e.categoryId);
+        // One made for an earlier take and deleted since (its undo) is made
+        // again only when a later entry needs it, so the undo stays undone.
+        if (!spending.contains(category) && theirs[e.categoryId] != null) {
+          category = await categoryFor(theirs[e.categoryId]!);
+        }
+        final account = int.tryParse(e.accountId);
+        // Only spending, from a real account: anything else in the file
+        // (a deleted category, an id that names an account) stays out.
+        if (!spending.contains(category) || !paidFrom.contains(account)) {
           continue;
         }
-        final category = int.tryParse(categories[e.categoryId] ?? e.categoryId);
-        final account = int.tryParse(e.accountId);
-        if (!liveIds.contains(category) || !liveIds.contains(account)) continue;
         added.add(
           await postSimple(
             accountId: account!,

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 536 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 538 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -205,6 +205,14 @@ open the archive).
   category has gone from the ledger shows no category and its amount in tugrik; a
   category made on the phone and one of the same name arriving from the Mac are both
   listed; on a 360 × 640 phone Save is reached by scrolling.
+- **From the review of the phone's entries reaching the computer (2026-10-08), not
+  fixed:** an entry arriving clears the redo stack and replaces a popup on screen; an
+  entry dated ahead on the phone comes in as a scheduled row though the phone already
+  counted it; a phone category is matched by name alone, so a dollar entry can land
+  in a tugrik category of that name; the list of entries already in (`phone.taken`)
+  only grows, about 130 KB a year for two phones; the phone copies the whole ledger
+  out of Drive every 30 seconds while open, on mobile data too. The budget review
+  hasn't been run on this part.
 - **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
   (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
   random key.

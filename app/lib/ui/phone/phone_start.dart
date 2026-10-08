@@ -200,9 +200,18 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     // A phone that has never had anything to say writes no file.
     if (_sent == null && saying.isEmpty && !outbox.exists) return;
     _sent = saying;
+    // Kept on the phone at once: only the folder waits its turn, and a
+    // folder that hangs with no signal can't cost an entry.
+    final Uint8List bytes;
+    try {
+      bytes = outbox.save(inbox);
+    } catch (e) {
+      debugPrint('Keeping this phone’s entries failed: $e');
+      _sent = null;
+      return;
+    }
     _keeping = _keeping.then((_) async {
       try {
-        final bytes = outbox.save(inbox);
         await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
       } catch (e) {
         debugPrint('Writing this phone’s entries to the folder failed: $e');
