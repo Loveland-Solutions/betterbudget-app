@@ -4603,12 +4603,12 @@ class WordsEn extends Words {
 
   @override
   String phoneFromMacToday(String time) {
-    return 'From your Mac today $time';
+    return 'From your computer today $time';
   }
 
   @override
   String phoneFromMacOn(String date, String time) {
-    return 'From your Mac $date $time';
+    return 'From your computer $date $time';
   }
 
   @override
@@ -4616,14 +4616,14 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count of your entries are waiting for the Mac',
-      one: '1 of your entries is waiting for the Mac',
+      other: '$count of your entries are waiting for your computer',
+      one: '1 of your entries is waiting for your computer',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Waiting for the Mac';
+  String get phoneWaitingTitle => 'Waiting for your computer';
 
   @override
   String phoneOwed(String amount) {
@@ -4805,8 +4805,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new categories are waiting for the Mac',
-      one: '1 new category is waiting for the Mac',
+      other: '$count new categories are waiting for your computer',
+      one: '1 new category is waiting for your computer',
     );
     return '$_temp0';
   }
@@ -4825,7 +4825,7 @@ class WordsEn extends Words {
       other: '$categories new categories',
       one: '1 new category',
     );
-    return '$_temp0 and $_temp1 are waiting for the Mac';
+    return '$_temp0 and $_temp1 are waiting for your computer';
   }
 
   @override
@@ -4841,4 +4841,19 @@ class WordsEn extends Words {
 
   @override
   String get phoneClear => 'Clear';
+
+  @override
+  String phoneSavedLeft(String category, String left) {
+    return '$category · $left left';
+  }
+
+  @override
+  String phoneSavedOver(String category, String over) {
+    return '$category · overspent by $over';
+  }
+
+  @override
+  String phoneSavedNothingAssigned(String category) {
+    return '$category · nothing assigned yet';
+  }
 }

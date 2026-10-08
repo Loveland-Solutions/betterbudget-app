@@ -4435,12 +4435,12 @@ class WordsMn extends Words {
 
   @override
   String phoneFromMacToday(String time) {
-    return 'Mac-аас өнөөдөр $time';
+    return 'Компьютероос өнөөдөр $time';
   }
 
   @override
   String phoneFromMacOn(String date, String time) {
-    return 'Mac-аас $date $time';
+    return 'Компьютероос $date $time';
   }
 
   @override
@@ -4448,13 +4448,13 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Таны $count гүйлгээ Mac-ийг хүлээж байна',
+      other: 'Таны $count гүйлгээ компьютерийг хүлээж байна',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Mac-ийг хүлээж байна';
+  String get phoneWaitingTitle => 'Компьютерийг хүлээж байна';
 
   @override
   String phoneOwed(String amount) {
@@ -4636,14 +4636,14 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count шинэ ангилал Mac-ийг хүлээж байна',
+      other: '$count шинэ ангилал компьютерийг хүлээж байна',
     );
     return '$_temp0';
   }
 
   @override
   String phoneWaitingBoth(int entries, int categories) {
-    return 'Таны $entries гүйлгээ, $categories шинэ ангилал Mac-ийг хүлээж байна';
+    return 'Таны $entries гүйлгээ, $categories шинэ ангилал компьютерийг хүлээж байна';
   }
 
   @override
@@ -4658,4 +4658,19 @@ class WordsMn extends Words {
 
   @override
   String get phoneClear => 'Цэвэрлэх';
+
+  @override
+  String phoneSavedLeft(String category, String left) {
+    return '$category · $left үлдсэн';
+  }
+
+  @override
+  String phoneSavedOver(String category, String over) {
+    return '$category · $over хэтэрсэн';
+  }
+
+  @override
+  String phoneSavedNothingAssigned(String category) {
+    return '$category · одоогоор мөнгө хуваарилаагүй';
+  }
 }

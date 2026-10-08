@@ -663,6 +663,11 @@ class _EntryState extends State<_EntryScreen> {
   String? _saved;
   VoidCallback? _undo;
 
+  /// The card's second line: what the entry left in its category
+  /// ("Groceries · ₮135,500.00 left"), red once that is overspent.
+  String? _savedLeft;
+  var _savedOver = false;
+
   /// Save's own changes to the draft and the store, which don't take the
   /// line it is about to say away.
   var _saving = false;
@@ -742,11 +747,20 @@ class _EntryState extends State<_EntryScreen> {
     _draft.clear();
     _saving = false;
     // The form is empty again, so this line is what says it went in.
+    // What the entry did to its category, the reason the phone is opened.
+    final left = leftNow(category, _store.waiting);
+    final had = formatMoney(left.abs(), currency: category.currency);
     setState(() {
       _saved = t.phoneSaved(
         payee,
         formatMoney(-amount, currency: category.currency),
       );
+      _savedLeft = category.madeHere
+          ? t.phoneSavedNothingAssigned(category.name)
+          : left < 0
+          ? t.phoneSavedOver(category.name, had)
+          : t.phoneSavedLeft(category.name, had);
+      _savedOver = left < 0 && !category.madeHere;
       _undo = () {
         _store.remove(entry.id);
         _change(() {
@@ -970,6 +984,7 @@ class _EntryState extends State<_EntryScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
                     const Spacer(),
                     _AmountPad(currency: _currency, onKey: _press),
                     const SizedBox(height: 10),
@@ -982,28 +997,53 @@ class _EntryState extends State<_EntryScreen> {
                           style: onest(15, color: Mid.gold),
                         ),
                       ),
+                    // A toast that is part of the page (owner, 2026-10-08): what went
+                    // in and what it did to the category, until the next key.
                     if (_saved != null)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _saved!,
-                              key: const ValueKey('saved-line'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: onest(15, color: Mid.ink2),
+                      Container(
+                        key: const ValueKey('saved-toast'),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+                        decoration: BoxDecoration(
+                          color: Mid.raised,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _saved!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: onest(15, weight: 500),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _savedLeft ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: onest(
+                                      14,
+                                      color: _savedOver ? Mid.coral : Mid.ink2,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          TextButton(
-                            onPressed: _undo,
-                            style: TextButton.styleFrom(
-                              minimumSize: const Size(44, 44),
-                              foregroundColor: Mid.blue,
-                              textStyle: onest(15),
+                            TextButton(
+                              onPressed: _undo,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 44),
+                                foregroundColor: Mid.blue,
+                                textStyle: onest(15),
+                              ),
+                              child: Text(t.ledgerUndo),
                             ),
-                            child: Text(t.ledgerUndo),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     FilledButton(
                       onPressed: _save,
@@ -1349,7 +1389,7 @@ class _AmountPad extends StatelessWidget {
   }
 
   Widget _key(BuildContext context, String key) {
-    if (key.isEmpty) return const SizedBox(height: 52);
+    if (key.isEmpty) return const SizedBox(height: 48);
     return Material(
       color: Mid.panel,
       borderRadius: BorderRadius.circular(12),
@@ -1358,7 +1398,7 @@ class _AmountPad extends StatelessWidget {
         key: ValueKey('pad-$key'),
         onTap: () => onKey(key),
         child: SizedBox(
-          height: 52,
+          height: 48,
           child: Center(
             child: key == '<'
                 ? Icon(

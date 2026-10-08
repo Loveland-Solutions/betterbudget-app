@@ -6607,25 +6607,25 @@ abstract class Words {
   /// Phone app, under the heading: when the figures were last copied from the Mac, if that was today. {time} reads 08:10.
   ///
   /// In en, this message translates to:
-  /// **'From your Mac today {time}'**
+  /// **'From your computer today {time}'**
   String phoneFromMacToday(String time);
 
   /// Phone app, under the heading: when the figures were last copied from the Mac, on an earlier day. {date} reads 2026.10.06, {time} 21:40.
   ///
   /// In en, this message translates to:
-  /// **'From your Mac {date} {time}'**
+  /// **'From your computer {date} {time}'**
   String phoneFromMacOn(String date, String time);
 
   /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 of your entries is waiting for the Mac} other{{count} of your entries are waiting for the Mac}}'**
+  /// **'{count, plural, =1{1 of your entries is waiting for your computer} other{{count} of your entries are waiting for your computer}}'**
   String phoneWaiting(int count);
 
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for the Mac'**
+  /// **'Waiting for your computer'**
   String get phoneWaitingTitle;
 
   /// Phone app, Accounts list: a credit card’s or loan’s balance.
@@ -6907,13 +6907,13 @@ abstract class Words {
   /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new category is waiting for the Mac} other{{count} new categories are waiting for the Mac}}'**
+  /// **'{count, plural, =1{1 new category is waiting for your computer} other{{count} new categories are waiting for your computer}}'**
   String phoneWaitingCategories(int count);
 
   /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
   ///
   /// In en, this message translates to:
-  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for the Mac'**
+  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for your computer'**
   String phoneWaitingBoth(int entries, int categories);
 
   /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.
@@ -6927,6 +6927,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Clear'**
   String get phoneClear;
+
+  /// Phone app, second line of the card shown after an entry is saved: what the entry left in its category. Reads “Groceries · ₮135,500.00 left”.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · {left} left'**
+  String phoneSavedLeft(String category, String left);
+
+  /// Phone app, second line of the card shown after an entry is saved, when its category is now overspent. Reads “Eating out · overspent by ₮30,900.00”.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · overspent by {over}'**
+  String phoneSavedOver(String category, String over);
+
+  /// Phone app, second line of the card shown after an entry is saved in a category made on this phone, which has no money assigned until that is done on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · nothing assigned yet'**
+  String phoneSavedNothingAssigned(String category);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -2604,7 +2604,7 @@ payees, bills, overspent words, cents and the Accounts link still holds.
   under the amount and under its name on Budget, not "Overspent by", which would blame
   them for a category made a moment ago. What is spent in it shows red on Budget. It is
   in the currency of the account being paid from, and waits for the Mac as entries do:
-  "1 of your entries and 1 new category are waiting for the Mac". The waiting list
+  "1 of your entries and 1 new category are waiting for your computer". The waiting list
   shows it with Delete, which first says what goes with it: "Delete Coffee and the 1
   entry in it (₮4,500.00)?".
 - **Budget has "+ New category" too**, where the new row lands: after the money to
@@ -2613,15 +2613,25 @@ payees, bills, overspent words, cents and the Accounts link still holds.
   chosen and whatever was typed kept.
 - **Paid from** starts as the first account, follows the chosen category's own account,
   and an account chosen by hand is kept while it is in the category's currency.
-- **After Save the form empties**, and a line above Save says what went in, "Saved ·
-  Nomin −₮12,500.00", with Undo, until the next key. On the page and not a popup: a
-  popup at the foot covered the switch to Budget.
+- **After Save the form empties, and a toast says what the entry did to its category**
+  (owner, 2026-10-08: "There should be some type of a toast notification showing how
+  the transaction impacted the given category"). A card above Save, with Undo, until
+  the next key: "Saved · Nomin −₮12,500.00", and under it "Groceries · ₮135,500.00
+  left", or "Eating out · overspent by ₮48,400.00" in red, or "Coffee · nothing
+  assigned yet". It is part of the page: a popup at the foot covered the switch to
+  Budget. The first build said only what was saved.
+- **A payee is always needed** (owner, same day, asked whether Save could go ahead
+  without one for a taxi or a market stall: "What? No. There should always be a payee.
+  They would write 'Taxi' or 'Market Stall'").
+- **The phone says "your computer", not "the Mac"** (owner, same day: "Your computer
+  would obviously be better, or 'a computer' considering they may be sharing with a
+  partner"): "From your computer today 08:10", "waiting for your computer". "Your" was
+  taken because the phone's setup screens already say it.
 
 Asked of four reviewers first (layout, flow, words, a first-time reader). Where they
 disagreed: the pad stays (the first digit lands with no tap; the layout review wanted
 the phone's keyboard), and the category box isn't focused on open. Rejected: a + on
-each row; a dialog for the new category's name in the list; "your computer" for "the
-Mac" (the words review's suggestion, left for the owner).
+each row; a dialog for the new category's name in the list.
 
 Not built: renaming a category made on the phone, fixing a waiting entry, and all of
 what reaches the Mac.

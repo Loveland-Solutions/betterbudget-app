@@ -103,11 +103,8 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 11. **What "dedicated" means** (2026-10-02). Emergency fund limited to Khan Savings,
     holding ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 the fund's too, or
     free to assign, as built?
-12. **Four from the phone's Ledger screen** (2026-10-08). May Save go ahead with no
-    payee (a taxi, a market stall), as the Mac allows? Should the phone say "your
-    computer" where it says "the Mac" ("From your Mac today 08:10")? Should the Paid
-    from list show each account's balance? Should the line after Save also say what
-    is left ("Saved · Nomin −₮12,500.00 · Groceries ₮135,500.00 left")?
+12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
+    the list show its balance, so they can tell whether that card will go through?
 13. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 

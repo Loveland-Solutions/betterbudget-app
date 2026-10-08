@@ -3262,7 +3262,7 @@
   },
   "setupName": "Name",
   "@setupName": {
-    "description": "New account page, label beside the name field."
+    "description": "Pay setup, label beside the name field (first line): what the user calls this pay, to tell two earners' apart. Short."
   },
   "setupKind": "Type",
   "@setupKind": {
@@ -3276,7 +3276,7 @@
   "@setupKindCash": {
     "description": "New account page, a kind of account: cash in hand, a wallet or a tin. Short button."
   },
-  "setupKindCashHint": "Cash you hold: a wallet, a tin at home. There\u2019s no statement to check it against, so it\u2019s yours to keep true \u2014 type what you spend.",
+  "setupKindCashHint": "Cash you hold: a wallet, a tin at home. There’s no statement to check it against, so it’s yours to keep true — type what you spend.",
   "@setupKindCashHint": {
     "description": "New account page, note under the kinds when Cash is picked."
   },
@@ -3658,10 +3658,6 @@
   "setupEmployerHint": "Employer (optional)",
   "@setupEmployerHint": {
     "description": "Pay setup, hint in the empty employer field."
-  },
-  "setupName": "Name",
-  "@setupName": {
-    "description": "Pay setup, label beside the name field (first line): what the user calls this pay, to tell two earners' apart. Short."
   },
   "setupNameHint": "Jenny, or Jeff’s job (optional)",
   "@setupNameHint": {
@@ -5914,7 +5910,7 @@
       }
     }
   },
-  "planFillOver": "That\u2019s {amount} more than you have",
+  "planFillOver": "That’s {amount} more than you have",
   "@planFillOver": {
     "description": "Budget page, the key card, beside \"Assign what's planned\" on the Assigned row: what it would take beyond the money free. Coral; said before it's done.",
     "placeholders": {
@@ -6730,7 +6726,7 @@
       }
     }
   },
-  "phoneFromMacToday": "From your Mac today {time}",
+  "phoneFromMacToday": "From your computer today {time}",
   "@phoneFromMacToday": {
     "description": "Phone app, under the heading: when the figures were last copied from the Mac, if that was today. {time} reads 08:10.",
     "placeholders": {
@@ -6739,7 +6735,7 @@
       }
     }
   },
-  "phoneFromMacOn": "From your Mac {date} {time}",
+  "phoneFromMacOn": "From your computer {date} {time}",
   "@phoneFromMacOn": {
     "description": "Phone app, under the heading: when the figures were last copied from the Mac, on an earlier day. {date} reads 2026.10.06, {time} 21:40.",
     "placeholders": {
@@ -6751,7 +6747,7 @@
       }
     }
   },
-  "phoneWaiting": "{count, plural, =1{1 of your entries is waiting for the Mac} other{{count} of your entries are waiting for the Mac}}",
+  "phoneWaiting": "{count, plural, =1{1 of your entries is waiting for your computer} other{{count} of your entries are waiting for your computer}}",
   "@phoneWaiting": {
     "description": "Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.",
     "placeholders": {
@@ -6760,7 +6756,7 @@
       }
     }
   },
-  "phoneWaitingTitle": "Waiting for the Mac",
+  "phoneWaitingTitle": "Waiting for your computer",
   "@phoneWaitingTitle": {
     "description": "Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet."
   },
@@ -7046,7 +7042,7 @@
       }
     }
   },
-  "phoneWaitingCategories": "{count, plural, =1{1 new category is waiting for the Mac} other{{count} new categories are waiting for the Mac}}",
+  "phoneWaitingCategories": "{count, plural, =1{1 new category is waiting for your computer} other{{count} new categories are waiting for your computer}}",
   "@phoneWaitingCategories": {
     "description": "Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.",
     "placeholders": {
@@ -7055,7 +7051,7 @@
       }
     }
   },
-  "phoneWaitingBoth": "{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for the Mac",
+  "phoneWaitingBoth": "{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for your computer",
   "@phoneWaitingBoth": {
     "description": "Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.",
     "placeholders": {
@@ -7085,5 +7081,38 @@
   "phoneClear": "Clear",
   "@phoneClear": {
     "description": "Phone app, top right of the entry screen once anything is typed or chosen: empties the entry being typed."
+  },
+  "phoneSavedLeft": "{category} · {left} left",
+  "@phoneSavedLeft": {
+    "description": "Phone app, second line of the card shown after an entry is saved: what the entry left in its category. Reads “Groceries · ₮135,500.00 left”.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSavedOver": "{category} · overspent by {over}",
+  "@phoneSavedOver": {
+    "description": "Phone app, second line of the card shown after an entry is saved, when its category is now overspent. Reads “Eating out · overspent by ₮30,900.00”.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSavedNothingAssigned": "{category} · nothing assigned yet",
+  "@phoneSavedNothingAssigned": {
+    "description": "Phone app, second line of the card shown after an entry is saved in a category made on this phone, which has no money assigned until that is done on the computer.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
   }
 }
