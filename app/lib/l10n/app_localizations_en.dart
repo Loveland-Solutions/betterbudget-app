@@ -4883,4 +4883,19 @@ class WordsEn extends Words {
   String ledgerEditCategory(String name) {
     return 'Edit $name';
   }
+
+  @override
+  String phoneOverThenLeft(String over, String after) {
+    return 'Overspent by $over · $after left after this';
+  }
+
+  @override
+  String get phoneToMoneyIn => 'Change to money in';
+
+  @override
+  String get phoneIncomeNeedsMoneyIn =>
+      'To record income, tap +/− beside the amount first.';
+
+  @override
+  String get phoneToMoneyOut => 'Change to money out';
 }

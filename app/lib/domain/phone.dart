@@ -8,6 +8,12 @@ import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
 
+/// What a phone files money in under when it is the app's one Income (rule
+/// 30) and not a refund. A word, not the ledger's id for it: the ledger
+/// makes its Income the first time it is wanted, so there may be none to
+/// read yet.
+const phoneIncomeId = 'income';
+
 /// A spending category as the Mac last reported it.
 class PhoneCategory {
   const PhoneCategory({
@@ -32,6 +38,10 @@ class PhoneCategory {
 
   final String id;
   final String name;
+
+  /// The app's Income, offered for money in: it holds no budget, so nothing
+  /// is left in it or overspent.
+  bool get isIncome => id == phoneIncomeId;
 
   /// What was left when the snapshot was made; below zero when overspent.
   final int leftMinor;
@@ -140,7 +150,8 @@ class PhoneEntry {
   final String accountId;
   final String payee;
 
-  /// Money out is negative, as in the ledger.
+  /// Money out is negative, as in the ledger; money in (a refund to its
+  /// category, or income) is positive.
   final int amountMinor;
   final DateTime date;
   final DateTime madeAt;
@@ -209,7 +220,7 @@ class PhoneTaken {
 }
 
 /// What is left in [category] once the [waiting] entries are counted: the
-/// snapshot's figure doesn't know about them yet.
+/// snapshot's figure doesn't know about them yet. A refund puts money back.
 int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
   var left = category.leftMinor;
   for (final e in waiting) {

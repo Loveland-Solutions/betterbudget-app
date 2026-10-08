@@ -2640,6 +2640,35 @@ payees, bills, overspent words, cents and the Accounts link still holds.
   would obviously be better, or 'a computer' considering they may be sharing with a
   partner"): "From your computer today 08:10", "waiting for your computer". "Your" was
   taken because the phone's setup screens already say it.
+- **Money in is a +/− button beside the amount** (owner, 2026-10-08: "What if I go to
+  walmart and return some things. Wouldn't I want to create a positive entry in my
+  phone ledger? I don't think it lets you do that right now"). A small round button to
+  the left of the amount turns −₮12,500 in red into +₮12,500 in green, and back. With
+  money in, Paid from reads **Paid into**, and the line under the amount goes up:
+  "₮148,000.00 left now · ₮160,500.00 after this", or for an overspent category
+  "Overspent by ₮18,400.00 · ₮81,600.00 left after this". The toast reads "Saved ·
+  Walmart +₮12,500.00" over "Groceries · ₮160,500.00 left". Money in filed in a
+  spending category is a refund to it, as on the computer. The next entry is money out
+  again, Clear takes money in back, and the waiting list shows it green with its plus.
+  Three ways were sketched and the owner took this one over the one recommended.
+  Rejected: a two-part switch at the top left, Money out | Money in (recommended, for
+  saying it in words); a fifth row, Refund, with an on/off switch (refunds only, and it
+  pushes Save further down a small phone).
+- **With money in, the Category list offers Income first** (owner, same day, asked
+  whether ₮50,000 someone pays them in cash should be recordable, or refunds only:
+  "Offer Income too"). It is the app's one Income, with no figure beside it. Nothing is
+  said under the amount, since Income holds no budget, and the toast is its one line.
+  Money out never offers it, and an entry turned back to money out with Income chosen
+  has its Category emptied. Neither the list nor Budget's "+ New category" makes a
+  category called Income, in either language. Income's name typed in the list while
+  the entry is money out isn't a blank page: under the box it says "To record income,
+  tap +/− beside the amount first." Income has no currency of its own: the amount is
+  in the currency of the account it is paid into.
+- **An account the chosen category can't use is let go** (from the code review of
+  money in). Paid from set to a dollar account, then a tugrik category chosen: the row
+  is empty again, and stays empty when the category changes later. The first build
+  only hid the account, and choosing Income brought it back unasked, which is the
+  autofill the owner turned down.
 
 Asked of four reviewers first (layout, flow, words, a first-time reader). Where they
 disagreed: the pad stays (the first digit lands with no tap; the layout review wanted
@@ -2700,8 +2729,9 @@ and "can I afford this?" is asked before anything is typed. **C**, a form that s
 with the payee on the phone's own keyboard, its Budget tab sorted into Overspent, Money
 left and Nothing left.
 
-Not built yet: money in and transfers from the phone (drawn as a button, "Add money in
-or a transfer", under the list), fixing a waiting entry instead of deleting it, other
+Not built yet: transfers from the phone (money in and transfers were drawn as a button,
+"Add money in or a transfer", under the list; money in became the +/− button of
+"Ledger first" above), fixing a waiting entry instead of deleting it, other
 phones' entries, and the figures coming from the Mac at all: the screens run on
 invented figures (`app/lib/phone_preview.dart`) until the Mac writes its snapshot.
 "Left in October" names the calendar month though a category can run by a pay period;

@@ -8,6 +8,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../domain/ledger.dart' show isIncomeName;
 import '../../domain/money.dart';
 import '../../domain/phone.dart';
 import '../language.dart';
@@ -156,6 +157,11 @@ String _clock(DateTime d) =>
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
+/// An entry's amount as the ledger shows it: money in with a plus, money
+/// out with a minus.
+String _signed(int minor, Currency currency) =>
+    '${minor > 0 ? '+' : ''}${formatMoney(minor, currency: currency)}';
+
 /// When the figures came from the computer. Gold once they aren't today's:
 /// older figures look the same as fresh ones otherwise.
 class _FromMac extends StatelessWidget {
@@ -240,6 +246,10 @@ class _RoomMoney extends StatelessWidget {
 class _Draft extends ChangeNotifier {
   String typed = '';
 
+  /// Money coming in, a refund or income, chosen with the +/− beside the
+  /// amount. Money out until then.
+  bool moneyIn = false;
+
   /// Nothing until it is typed: a payee filled in ahead is saved by mistake.
   String? payee;
   String? categoryId;
@@ -255,22 +265,44 @@ class _Draft extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Files the entry in [category]. Cents its currency can't hold are cut
-  /// from what is typed: read in the new currency they'd be another amount.
-  void choose(PhoneCategory category) => change(() {
-    categoryId = category.id;
+  /// Files the entry in [category]. An account among [accounts] that isn't
+  /// in its currency can't be used with it: the row is empty again, not
+  /// kept out of sight to come back when the category changes.
+  void choose(PhoneCategory category, List<PhoneAccount> accounts) =>
+      change(() {
+        categoryId = category.id;
+        if (!category.isIncome &&
+            !accounts.any(
+              (a) => a.id == accountId && a.currency == category.currency,
+            )) {
+          accountId = null;
+        }
+        fit(category.currency);
+      });
+
+  /// Cents [currency] can't hold are cut from what is typed: read in the
+  /// new currency they'd be another amount.
+  void fit(Currency currency) {
     final point = typed.indexOf('.');
     if (point < 0) return;
-    final decimals = category.currency.decimals;
+    final decimals = currency.decimals;
     typed = decimals == 0
         ? typed.substring(0, point)
         : typed.substring(0, min(typed.length, point + 1 + decimals));
+  }
+
+  /// Money out to money in, and back. Income is only for money in, so it
+  /// isn't left chosen on money out.
+  void flipSign() => change(() {
+    moneyIn = !moneyIn;
+    if (!moneyIn && categoryId == phoneIncomeId) categoryId = null;
   });
 
   /// Ready for the next entry, Paid from included: kept, a cash taxi would
   /// put every later entry on Cash.
   void clear() => change(() {
     typed = '';
+    moneyIn = false;
     payee = null;
     categoryId = null;
     accountId = null;
@@ -364,7 +396,7 @@ class _PhoneHomeState extends State<PhoneHome> {
                       // A category here starts an entry in it; what is
                       // already typed stays.
                       onCategory: (category) {
-                        _draft.choose(category);
+                        _draft.choose(category, widget.store.snapshot.accounts);
                         setState(() => _budget = false);
                       },
                     ),
@@ -625,13 +657,16 @@ class _CategoryRow extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _RoomMoney(
-                      left,
-                      category.currency,
-                      room: room,
-                      spokenFor: category.due != null,
-                    ),
+                    // Income holds no budget: there is no figure for it.
+                    if (!category.isIncome) ...[
+                      const SizedBox(width: 12),
+                      _RoomMoney(
+                        left,
+                        category.currency,
+                        room: room,
+                        spokenFor: category.due != null,
+                      ),
+                    ],
                   ],
                 );
               },
@@ -669,15 +704,32 @@ class _EntryState extends State<_EntryScreen> {
   _Draft get _draft => widget.draft;
 
   PhoneCategory? get _category {
+    if (_draft.categoryId == phoneIncomeId) return _income;
     for (final c in _store.categories) {
       if (c.id == _draft.categoryId) return c;
     }
     return null;
   }
 
+  /// The app's one Income, for money in that isn't a refund. It has no
+  /// currency of its own: its rows are in the currency of the account the
+  /// money came into.
+  PhoneCategory get _income {
+    final accounts = _store.snapshot.accounts;
+    final into =
+        accounts.where((a) => a.id == _draft.accountId).firstOrNull ??
+        accounts.firstOrNull;
+    return PhoneCategory(
+      id: phoneIncomeId,
+      name: context.t.ledgerIncome,
+      leftMinor: 0,
+      currency: into?.currency ?? Currency.mnt,
+    );
+  }
+
   List<PhoneAccount> get _accounts {
     final category = _category;
-    return category == null
+    return category == null || category.isIncome
         ? _store.snapshot.accounts
         : _store.snapshot.accountsFor(category);
   }
@@ -777,6 +829,8 @@ class _EntryState extends State<_EntryScreen> {
     final random = Random.secure();
     final typed = _draft.typed;
     final date = _draft.date;
+    final moneyIn = _draft.moneyIn;
+    final signed = moneyIn ? amount : -amount;
     final entry = PhoneEntry(
       id: [
         for (var i = 0; i < 16; i++)
@@ -785,7 +839,7 @@ class _EntryState extends State<_EntryScreen> {
       categoryId: category!.id,
       accountId: account!.id,
       payee: payee!,
-      amountMinor: -amount,
+      amountMinor: signed,
       date: date ?? _day(widget.now()),
       madeAt: widget.now(),
     );
@@ -798,21 +852,22 @@ class _EntryState extends State<_EntryScreen> {
     final left = leftNow(category, _store.waiting);
     final had = formatMoney(left.abs(), currency: category.currency);
     setState(() {
-      _saved = t.phoneSaved(
-        payee,
-        formatMoney(-amount, currency: category.currency),
-      );
-      _savedLeft = category.madeHere
+      _saved = t.phoneSaved(payee, _signed(signed, category.currency));
+      // Income holds no budget: there is nothing left in it to say.
+      _savedLeft = category.isIncome
+          ? null
+          : category.madeHere
           ? t.phoneSavedNothingAssigned(category.name)
           : left < 0
           ? t.phoneSavedOver(category.name, had)
           : t.phoneSavedLeft(category.name, had);
-      _savedOver = left < 0 && !category.madeHere;
+      _savedOver = left < 0 && !category.madeHere && !category.isIncome;
       _undo = () {
         _store.remove(entry.id);
         _change(() {
           _draft
             ..typed = typed
+            ..moneyIn = moneyIn
             ..payee = payee
             ..categoryId = category.id
             ..accountId = account.id
@@ -844,10 +899,14 @@ class _EntryState extends State<_EntryScreen> {
           store: _store,
           // A category made here is in the currency being paid in.
           currency: _currency,
+          // Money in that isn't a refund is income; money out never is.
+          income: _draft.moneyIn ? _income : null,
         ),
       ),
     );
-    if (picked != null && mounted) _draft.choose(picked);
+    if (picked != null && mounted) {
+      _draft.choose(picked, _store.snapshot.accounts);
+    }
   }
 
   Future<void> _typePayee() async {
@@ -888,7 +947,11 @@ class _EntryState extends State<_EntryScreen> {
       ),
     );
     if (picked != null && mounted) {
-      _change(() => _draft.accountId = picked.id);
+      // With no category, or Income, the amount is in the account's currency.
+      _change(() {
+        _draft.accountId = picked.id;
+        _draft.fit(_currency);
+      });
     }
   }
 
@@ -907,17 +970,21 @@ class _EntryState extends State<_EntryScreen> {
     }
   }
 
-  /// What the category holds now and after this entry. An overspent amount
-  /// is said in words: a minus beside "left" reads as a sum to do.
-  String _leftLine(Words t, PhoneCategory category, int left, int amount) {
+  /// What the category holds now and [after] this entry: less for money
+  /// out, more for a refund. An overspent amount is said in words: a minus
+  /// beside "left" reads as a sum to do.
+  String _leftLine(Words t, PhoneCategory category, int left, int after) {
     // Made a moment ago on this phone: "overspent" would blame them for it.
     if (category.madeHere) return t.phoneNothingAssigned;
     String say(int minor) => formatMoney(minor.abs(), currency: _currency);
-    final after = left - amount;
-    if (amount == 0) {
+    if (after == left) {
       return left < 0 ? t.phoneOverNow(say(left)) : t.phoneLeftNow(say(left));
     }
-    if (left < 0) return t.phoneOverBoth(say(left), say(after));
+    if (left < 0) {
+      return after < 0
+          ? t.phoneOverBoth(say(left), say(after))
+          : t.phoneOverThenLeft(say(left), say(after));
+    }
     return after < 0
         ? t.phoneOverAfter(say(left), say(after))
         : t.phoneLeftAfter(say(left), say(after));
@@ -939,12 +1006,15 @@ class _EntryState extends State<_EntryScreen> {
       final category = _category;
       final left = category == null ? 0 : leftNow(category, _store.waiting);
       final amount = typedAmountMinor(_draft.typed, _currency);
+      final moneyIn = _draft.moneyIn;
+      final after = moneyIn ? left + amount : left - amount;
       final date = _draft.date;
-      final over = category != null && !category.madeHere && left - amount < 0;
+      final over = category != null && !category.madeHere && after < 0;
       // A category that has gone (deleted from the waiting list) isn't
       // something left to clear.
       final nothing =
           _draft.typed.isEmpty &&
+          !moneyIn &&
           _draft.payee == null &&
           category == null &&
           _draft.accountId == null &&
@@ -981,30 +1051,45 @@ class _EntryState extends State<_EntryScreen> {
                                   ),
                                 ),
                         ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '−${typedAmountShown(_draft.typed, _currency)}',
-                            maxLines: 1,
-                            style: onest(
-                              52,
-                              weight: 600,
-                              letterSpacing: -1,
-                              color: _draft.typed.isEmpty
-                                  ? Mid.ink3
-                                  : Mid.coral,
+                        Row(
+                          children: [
+                            _SignButton(
+                              moneyIn: moneyIn,
+                              onTap: _draft.flipSign,
                             ),
-                          ),
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '${moneyIn ? '+' : '−'}${typedAmountShown(_draft.typed, _currency)}',
+                                  maxLines: 1,
+                                  style: onest(
+                                    52,
+                                    weight: 600,
+                                    letterSpacing: -1,
+                                    color: _draft.typed.isEmpty
+                                        ? Mid.ink3
+                                        : moneyIn
+                                        ? Mid.green
+                                        : Mid.coral,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // As wide as the button, so the amount stays in
+                            // the middle of the screen.
+                            const SizedBox(width: _SignButton.size),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         // Its place is kept while no category is chosen, so the rows
                         // under it don't move when one is.
                         SizedBox(
                           height: 22,
-                          child: category == null
+                          child: category == null || category.isIncome
                               ? null
                               : Text(
-                                  _leftLine(t, category, left, amount),
+                                  _leftLine(t, category, left, after),
                                   key: const ValueKey('left-line'),
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
@@ -1038,7 +1123,9 @@ class _EntryState extends State<_EntryScreen> {
                               Divider(height: 1, thickness: 1, color: Mid.rule),
                               _FieldRow(
                                 key: const ValueKey('account-row'),
-                                label: t.planLabelPaidFrom,
+                                label: moneyIn
+                                    ? t.setupPaidInto
+                                    : t.planLabelPaidFrom,
                                 value: _account?.name ?? '',
                                 onTap: _pickAccount,
                               ),
@@ -1131,7 +1218,7 @@ class _EntryState extends State<_EntryScreen> {
                   ? const SizedBox.shrink()
                   : _SavedToast(
                       saved: _saved!,
-                      left: _savedLeft ?? '',
+                      left: _savedLeft,
                       over: _savedOver,
                       onUndo: _undo,
                     ),
@@ -1140,6 +1227,45 @@ class _EntryState extends State<_EntryScreen> {
         ],
       );
     },
+  );
+}
+
+/// Turns the entry from money out to money in and back (owner, 2026-10-08:
+/// returning things to a shop is a positive entry). Beside the amount, whose
+/// sign and color say which it is.
+class _SignButton extends StatelessWidget {
+  const _SignButton({required this.moneyIn, required this.onTap});
+  final bool moneyIn;
+  final VoidCallback onTap;
+
+  static const double size = 44;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    child: Material(
+      color: Mid.panel,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey('sign'),
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Text(
+              '+/−',
+              // Read out as what a tap will do, not as two signs.
+              semanticsLabel: moneyIn
+                  ? context.t.phoneToMoneyOut
+                  : context.t.phoneToMoneyIn,
+              style: onest(17, weight: 600),
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -1153,7 +1279,9 @@ class _SavedToast extends StatelessWidget {
     required this.onUndo,
   });
   final String saved;
-  final String left;
+
+  /// Null for income, which has nothing left in it to say.
+  final String? left;
 
   /// The category is overspent now: its line is red.
   final bool over;
@@ -1181,13 +1309,15 @@ class _SavedToast extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: onest(15, weight: 500),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  left,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: onest(14, color: over ? Mid.coral : Mid.ink2),
-                ),
+                if (left != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    left!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(14, color: over ? Mid.coral : Mid.ink2),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1210,8 +1340,16 @@ class _SavedToast extends StatelessWidget {
 /// it, a box at the top that narrows the list as a name is typed, and
 /// "+ New category" at the foot (owner, 2026-10-08).
 class _CategoryPage extends StatefulWidget {
-  const _CategoryPage({required this.store, required this.currency});
+  const _CategoryPage({
+    required this.store,
+    required this.currency,
+    this.income,
+  });
   final PhoneStore store;
+
+  /// The app's Income, the list's first line while the entry is money in;
+  /// null for money out, which is never income.
+  final PhoneCategory? income;
 
   /// The currency a category made here is in.
   final Currency currency;
@@ -1242,10 +1380,19 @@ class _CategoryPageState extends State<_CategoryPage> {
     final t = context.t;
     final store = widget.store;
     final all = store.categories;
+    final income = widget.income;
     final typed = _typed;
     final listed = typed.isEmpty
-        ? _spendThenBills(all)
-        : categoriesMatching(all, typed);
+        ? [?income, ..._spendThenBills(all)]
+        : [
+            // Income by its name in the other language too: "Орлого" typed
+            // on an English screen is still Income.
+            if (income != null &&
+                isIncomeName(typed) &&
+                categoryNamed([income], typed) == null)
+              income,
+            ...categoriesMatching([?income, ...all], typed),
+          ];
     return Scaffold(
       backgroundColor: Mid.ground,
       body: SafeArea(
@@ -1301,13 +1448,26 @@ class _CategoryPageState extends State<_CategoryPage> {
                 // Done takes the first that fits. With none it does nothing:
                 // a misspelt name isn't to make a category unasked.
                 onSubmitted: (_) {
-                  final first = categoryNamed(all, typed) ?? listed.firstOrNull;
+                  final first =
+                      categoryNamed([?income, ...all], typed) ??
+                      listed.firstOrNull;
                   if (typed.isNotEmpty && first != null) {
                     Navigator.of(context).pop(first);
                   }
                 },
               ),
               const SizedBox(height: 12),
+              // Income typed while the entry is money out: the list has no
+              // such line, so it says how to get one.
+              if (income == null && isIncomeName(typed))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+                  child: Text(
+                    t.phoneIncomeNeedsMoneyIn,
+                    key: const ValueKey('income-needs-money-in'),
+                    style: onest(15, color: Mid.gold),
+                  ),
+                ),
               Expanded(
                 child: ListView.separated(
                   keyboardDismissBehavior:
@@ -1327,8 +1487,10 @@ class _CategoryPageState extends State<_CategoryPage> {
                 ),
               ),
               // Always in the same place, above the keyboard. A name that
-              // is already a category is in the list, not offered again.
-              if (typed.isEmpty || categoryNamed(all, typed) == null)
+              // is already a category is in the list, not offered again;
+              // nor is Income's, which is the app's own.
+              if (typed.isEmpty ||
+                  (categoryNamed(all, typed) == null && !isIncomeName(typed)))
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
@@ -1383,8 +1545,9 @@ class _NewCategoryDialogState extends State<_NewCategoryDialog> {
     final name = _text.text.trim();
     if (name.isEmpty) return;
     final already = categoryNamed(widget.store.categories, name);
-    if (already != null) {
-      setState(() => _taken = already.name);
+    // Income is the app's own category, whichever language names it.
+    if (already != null || isIncomeName(name)) {
+      setState(() => _taken = already?.name ?? context.t.ledgerIncome);
       return;
     }
     Navigator.of(context).pop(name);
@@ -1704,7 +1867,8 @@ class _WaitingScreen extends StatelessWidget {
         if (e.categoryId == c.id) e,
     ];
     if (inIt.isNotEmpty) {
-      final total = inIt.fold<int>(0, (sum, e) => sum + e.amountMinor.abs());
+      // What was spent in it, less what came back.
+      final total = inIt.fold<int>(0, (sum, e) => sum + e.amountMinor).abs();
       final sure = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1793,6 +1957,7 @@ class _WaitingScreen extends StatelessWidget {
     builder: (context, _) {
       final t = context.t;
       final names = {for (final c in store.categories) c.id: c};
+      final accounts = {for (final a in store.snapshot.accounts) a.id: a};
       final made = store.made;
       final entries = store.waiting.reversed.toList();
       return Scaffold(
@@ -1820,13 +1985,20 @@ class _WaitingScreen extends StatelessWidget {
             }
             final e = entries[i - made.length];
             final category = names[e.categoryId];
+            final filed = e.categoryId == phoneIncomeId
+                ? t.ledgerIncome
+                : category?.name ?? '';
             return _row(
               title: e.payee,
-              under: '${category?.name ?? ''} · ${fullDate(e.date)}',
+              under: '$filed · ${fullDate(e.date)}',
               amount: Text(
-                formatMoney(
+                _signed(
                   e.amountMinor,
-                  currency: category?.currency ?? Currency.mnt,
+                  // An entry is in its account's currency; Income has none
+                  // of its own.
+                  accounts[e.accountId]?.currency ??
+                      category?.currency ??
+                      Currency.mnt,
                 ),
                 style: onest(
                   16,

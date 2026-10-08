@@ -3485,7 +3485,7 @@ abstract class Words {
   /// **'Your pay'**
   String get setupYourPay;
 
-  /// Pay setup, label beside the account pay goes into. Short.
+  /// Pay setup, label beside the account pay goes into. Also the phone app’s Ledger, in place of Paid from, when the entry is money in: the account a refund or income went into. Short.
   ///
   /// In en, this message translates to:
   /// **'Paid into'**
@@ -6963,6 +6963,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Edit {name}'**
   String ledgerEditCategory(String name);
+
+  /// Phone app, under the amount being typed when the entry is money in (a refund) to a category that is overspent: by how much now, and what the refund will leave in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent by {over} · {after} left after this'**
+  String phoneOverThenLeft(String over, String after);
+
+  /// Phone app, Ledger: what a screen reader says for the +/− button beside the amount while the entry is money out. Tapping it makes the entry money in (a refund, or income).
+  ///
+  /// In en, this message translates to:
+  /// **'Change to money in'**
+  String get phoneToMoneyIn;
+
+  /// Phone app, the Category list, under the box: shown when Income's name is typed while the entry is money out. Income is offered only for money in, which the +/− button beside the amount on Ledger chooses.
+  ///
+  /// In en, this message translates to:
+  /// **'To record income, tap +/− beside the amount first.'**
+  String get phoneIncomeNeedsMoneyIn;
+
+  /// Phone app, Ledger: what a screen reader says for the +/− button beside the amount while the entry is money in. Tapping it makes the entry money out again.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to money out'**
+  String get phoneToMoneyOut;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
