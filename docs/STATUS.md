@@ -26,11 +26,9 @@ folder, and the Android app reads it there. Then, in order:
    computers. Until it is designed, only one computer should have the ledger moved to
    the folder. Bring two or three ways with sketches, as for any feature.
 2. **The rest of the phone.** Its entries and new categories now reach the computer
-   (ADR 0005, "Built, 2026-10-08"). **Not yet watched end to end on the owner's Pixel
-   and Drive folder**: the first real entry should show `Phone <name>.betterbudget-phone`
-   in the folder, then "1 transaction from your phone" on the computer, then the
-   phone's waiting line going. If the file never appears, the Android write to Drive
-   is the first thing to look at (`MainActivity.kt`, "write"). Then: money in and
+   (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
+   on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
+   phone's waiting line go within a minute, or only the two-minute fetch does. Then: money in and
    transfers on the phone, the other phone's entries, and the iPhone build (its
    folder access and icon). With two computers on one ledger each takes the same
    entries in, which item 1 has to settle.

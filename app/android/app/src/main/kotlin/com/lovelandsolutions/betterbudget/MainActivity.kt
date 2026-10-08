@@ -42,7 +42,22 @@ class MainActivity : FlutterActivity() {
             }
             // When the file was last changed, without fetching it.
             "changed" -> background(result) {
-                find(Uri.parse(call.argument("folder")!!), call.argument("name")!!)?.second
+                val folder = Uri.parse(call.argument<String>("folder")!!)
+                // Drive answers from a listing it keeps, which can be minutes
+                // old: ask it to look again first.
+                try {
+                    contentResolver.refresh(
+                        DocumentsContract.buildChildDocumentsUriUsingTree(
+                            folder,
+                            DocumentsContract.getTreeDocumentId(folder),
+                        ),
+                        null,
+                        null,
+                    )
+                } catch (e: Exception) {
+                    // A provider that can't refresh still answers below.
+                }
+                find(folder, call.argument("name")!!)?.second
             }
             "write" -> background(result) {
                 write(

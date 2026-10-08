@@ -111,6 +111,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
 
   /// When the ledger last read was changed in the folder.
   DateTime? _ledgerChanged;
+  var _quietLooks = 0;
 
   /// [onlyIfNewer] is the look taken by itself while the app is open: it
   /// asks the folder when the ledger was changed and fetches it only when
@@ -133,7 +134,10 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
     if (folder == null) return _go(_Step.folder);
     try {
-      if (onlyIfNewer) {
+      // Every fourth look fetches whatever the folder says: on the owner's
+      // Pixel, Drive went on giving the old time for minutes after the
+      // computer had written a newer ledger (2026-10-08).
+      if (onlyIfNewer && ++_quietLooks % 4 != 0) {
         final at = await widget.folder.changed(folder, ledgerFileName);
         if (at != null && at == _ledgerChanged) {
           // Still a chance to send what an earlier write couldn't.

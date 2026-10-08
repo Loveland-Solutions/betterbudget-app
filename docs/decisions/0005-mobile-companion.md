@@ -131,7 +131,11 @@ memory and nothing took it in.
   ledger was last changed, and fetches it only when that has moved, so the waiting
   line goes without the app being left and without a copy of the whole ledger over
   mobile data each time. With nothing waiting it doesn't ask. Coming to the front
-  always reads.
+  always reads. **Drive on the phone answers from a listing it keeps**: on the first
+  real run (the owner's Pixel, 2026-10-08) it went on giving the old time for five
+  minutes after the computer had written the newer ledger, so the waiting line
+  stayed. The phone now asks Drive to refresh the listing before it asks the time,
+  and every fourth look (two minutes) fetches the ledger whatever the time says.
 - **A phone entry is spending, never a scheduled row.** The phone's date stops at
   today, and an entry dated after the computer's today (a clock ahead) still comes in
   as an ordinary uncleared row.
@@ -150,6 +154,10 @@ memory and nothing took it in.
   again.
 - An entry whose account or category was deleted on the computer is left with the
   phone.
+
+**Seen working end to end on 2026-10-08** with the owner's Pixel, Mac and Drive
+folder: saved on the phone at 12:23, the phone's file on the Mac at 12:24, in the
+ledger at 12:25.
 
 No table was added: the ledger's schema is unchanged. Not built: other phones'
 entries shown on a phone, money in and transfers, and the iPhone's folder access. With

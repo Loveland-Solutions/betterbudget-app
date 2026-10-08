@@ -1531,6 +1531,15 @@ void main() {
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
       expect(s.read, hasLength(2));
+
+      // A folder that goes on giving the old time is fetched anyway on
+      // every fourth look.
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(2));
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(3));
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (
