@@ -1912,7 +1912,7 @@ class _AddButtonState extends State<_AddButton> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: ready
-                  ? (_hover ? Color.lerp(Mid.blue, Mid.ink, 0.15)! : Mid.blue)
+                  ? (_hover ? Color.lerp(Mid.fill, Mid.ink, 0.15)! : Mid.fill)
                   : widget.quiet
                   ? (_hover ? Mid.chip : Colors.transparent)
                   : (_hover ? Mid.raised : Mid.chip),
@@ -1923,7 +1923,7 @@ class _AddButtonState extends State<_AddButton> {
               style: onest(
                 13,
                 weight: 500,
-                color: ready ? Mid.onAccent : Mid.ink2,
+                color: ready ? Mid.onFill : Mid.ink2,
               ),
             ),
           ),

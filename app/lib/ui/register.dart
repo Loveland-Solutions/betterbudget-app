@@ -575,13 +575,20 @@ class _Tab extends StatelessWidget {
         height: 28,
         padding: EdgeInsets.only(left: 12, right: closable ? 8 : 12),
         decoration: BoxDecoration(
-          color: active ? Mid.raised : (hover ? Mid.hover : Colors.transparent),
+          // The tab you're on is tinted like the row you've chosen.
+          color: active
+              ? Mid.blueWash
+              : (hover ? Mid.hover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: onest(13, color: active ? Mid.ink : Mid.ink3)),
+            Text(
+              label,
+              // Color only: a heavier word would nudge the tabs beside it.
+              style: onest(13, color: active ? Mid.blue : Mid.ink3),
+            ),
             if (count != null && count! > 0) ...[
               const SizedBox(width: 4),
               Text(

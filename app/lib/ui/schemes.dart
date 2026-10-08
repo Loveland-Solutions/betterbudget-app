@@ -32,13 +32,14 @@ class Scheme {
   final List<Color> colors;
 }
 
-/// The app's own colors: the gray denim sidebar, steppe sky blue, sun
-/// yellow and felt cream (ADR 0004). Its palettes are drawn by hand.
+/// The app's own colors, the logo's: its navy, its green, its coins' gold,
+/// and the pale page (ADR 0004 "The logo's colors"). Its palettes are drawn
+/// by hand.
 const betterBudgetScheme = Scheme('betterbudget', null, [
-  Color(0xFF243550),
-  Color(0xFF6FA8F0),
-  Color(0xFFF5C518),
-  Color(0xFFF6F1E7),
+  Color(0xFF13305A),
+  Color(0xFF4DB594),
+  Color(0xFFFEBD35),
+  Color(0xFFEEF2F7),
 ]);
 
 /// Blue eclipse: what the app shows until someone picks (owner,

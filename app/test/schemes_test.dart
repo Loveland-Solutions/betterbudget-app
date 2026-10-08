@@ -31,7 +31,7 @@ void main() {
     expect(schemeById(null), defaultScheme);
   });
 
-  test("the app's own scheme is the hand-drawn Steppe pair", () {
+  test("the app's own scheme is the hand-drawn pair in the logo's colors", () {
     expect(Palette.of(betterBudgetScheme, Brightness.dark), same(Palette.dark));
     expect(
       Palette.of(betterBudgetScheme, Brightness.light),
@@ -56,11 +56,9 @@ void main() {
             greaterThanOrEqualTo(7),
             reason: why,
           );
-          // The app's own light ink3 on felt cream is 4.2 (hand-picked,
-          // 2026-09-29); every made palette reaches 4.5.
           expect(
             contrast(p.ink3, surface),
-            greaterThanOrEqualTo(identical(p, Palette.light) ? 4.2 : 4.5),
+            greaterThanOrEqualTo(4.5),
             reason: why,
           );
           expect(
@@ -82,6 +80,14 @@ void main() {
           greaterThanOrEqualTo(4.5),
           reason: why,
         );
+        // The main filled buttons: the logo's green under navy letters in
+        // the app's own colors, what you click in every other scheme.
+        expect(
+          contrast(p.onFill, p.fill),
+          greaterThanOrEqualTo(4.5),
+          reason: why,
+        );
+        if (s != betterBudgetScheme) expect(p.fill, p.blue, reason: why);
         // Surfaces are told apart in dark mode.
         if (b == Brightness.dark) {
           expect(p.ground, isNot(p.card), reason: why);
@@ -128,24 +134,27 @@ void main() {
   }
 
   test('the dark-mode logo reads on every sidebar', () {
-    // Every color the two files draw with, except the body's black stripes
-    // (the gold between them shows the body's shape).
+    // The letters: the first B and "Better", the second B and "Budget".
+    final letters = {const Color(0xFFF7F9FC), const Color(0xFF5FC9A3)};
+    // Under the coins, and darker than any sidebar on purpose.
+    const shadow = Color(0xFF0A1A38);
     final colors = <Color>{};
-    for (final f in ['bee-dark', 'wordmark-dark']) {
+    for (final f in ['mark-dark', 'wordmark-dark']) {
       final svg = File('assets/brand/$f.svg').readAsStringSync();
       for (final m in RegExp(r'fill:#([0-9a-fA-F]{6})').allMatches(svg)) {
         colors.add(Color(int.parse('FF${m[1]}', radix: 16)));
       }
     }
-    colors.remove(const Color(0xFF000000));
-    expect(colors, isNot(contains(const Color(0xFF031A42))));
-    expect(colors, contains(const Color(0xFF6FA3FF)));
+    expect(colors, containsAll(letters));
+    // The day logo's navy would vanish on the sidebar.
+    expect(colors, isNot(contains(const Color(0xFF13305A))));
+    colors.remove(shadow);
     for (final s in schemes) {
       for (final b in Brightness.values) {
         final side = Palette.of(s, b).side;
         for (final c in colors) {
-          // Gold is the body, a shape: 3:1. The rest is lettering: 4.5.
-          final need = c == const Color(0xFFC9A96B) ? 3.0 : 4.5;
+          // The coins are shapes: 3:1. The rest is lettering: 4.5.
+          final need = letters.contains(c) ? 4.5 : 3.0;
           expect(
             contrast(c, side),
             greaterThanOrEqualTo(need),

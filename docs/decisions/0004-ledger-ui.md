@@ -140,6 +140,89 @@ be quietly undone.
   make it default"): shown until someone picks, and for a file from before schemes.
   BetterBudget's Steppe pair stays first in the picker.
 
+### The logo's colors (owner, 2026-10-08; built 2026-10-09 for the owner to see)
+
+The owner: "The app is dark and drab, the coloring in the logo doesn't look right, and
+neither does the icon," then drew a new logo (a navy B over a green B with a stack of
+gold coins) and four Savings pictures, and said "I'm going to change the theme, logo,
+and some assets to what's here." A committee (colour expert, layout, interaction,
+words, a first-time reader) worked the colors out; five options were drawn on the real
+screens at https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S.
+
+- **The app's own colors ("BetterBudget" in Settings → Appearance) are the logo's.**
+  Tokens in `app/lib/ui/theme.dart` (`Palette.light`, `Palette.dark`):
+
+  | Token | Day | Night | Role |
+  | --- | --- | --- | --- |
+  | ground | `#EEF2F7` | `#0D1522` | page and title bar |
+  | panel, card | `#FFFFFF` | `#141D2D`, `#1A2436` | register, balance header |
+  | raised | `#E4E9F1` | `#222E44` | hover, menus |
+  | ink / ink2 / ink3 | `#14213A` / `#434F68` / `#5C6780` | `#ECEFF4` / `#AAB3C2` / `#96A0B3` | text |
+  | side | `#13305A` | `#15335F` | sidebar: the logo's navy, a little lighter at night so its edge shows |
+  | blue | `#1B5BA8` | `#6FA8F0` | what you click: links, the chosen row and tab, the forecast line (the navy's own hue, lifted) |
+  | fill / onFill | `#4DB594` / `#0F2045` | `#5FC9A3` / `#0F2045` | the main filled buttons: the logo's green, navy letters |
+  | green | `#0E7560` | `#7EDDBB` | money in |
+  | coral | `#9E3320` | `#EE807B` | money out, below zero, errors |
+  | gold | `#866100` | `#F2BD4B` | reconciled, scheduled |
+  | sun, toast | `#FEBD35` | `#FEBD35` | sidebar marks and the saved popup: the coins' gold, navy text |
+
+- **Green buttons (owner, 2026-10-08: "Why no green in the color scheme?").** The
+  committee had kept green for money in alone, and the first three options came out
+  navy and blue under a navy and green logo. Option 4 was built: Add, Save, Continue
+  and the other main filled buttons are the logo's green with navy letters
+  (`Palette.fill`, `onFill`). The row and tab you've chosen, links and the forecast
+  line stay blue, so clicking a grocery row never tints it the color of pay. Money in
+  is a deeper green than the button by day. At night the two are close mints, and only
+  the button's shape and navy letters tell them apart (its label is "+ Add", so the
+  plus doesn't): the budget review's weakest spot, with a deeper night button
+  suggested. In every other color scheme the filled
+  buttons keep the scheme's own click color (a scheme's green can't be told from money
+  in). **This undoes "Add buttons are blue … Rejected: green (it means money in)"
+  (2026-09-29)** for the app's own colors: the logo had no green then.
+- **Also undone, each by this change:** the gray denim sidebar (2026-09-29) is the
+  logo's navy; the felt-cream page (2026-09-29) is a cool white, because cream is the
+  coins' hue and dulled the green beside it; sun yellow `#F5C518` and the toast's
+  `#E8C15A` are both the coins' gold; "Budget" in the wordmark is green, not blue.
+  Blue eclipse is still what a new install shows (2026-09-30): the owner was asked
+  whether the new colors should take its place and had not answered when this was
+  built. The owner's own Mac was set to BetterBudget, so it shows the new colors.
+- **Money's colors moved for people who can't tell red from green** (expert,
+  computed): the night pair before (`#5CCB8E`, `#F08A8A`) came out as one color to a
+  deuteranope; the new night pair stays apart. By day the two differ in hue and
+  hardly in lightness, so the plus and the minus still do real work. Coral stays warm
+  ("so a shortfall doesn't read as a stop sign") and goes deeper.
+- **The tab you're on is tinted like the row you've chosen** (`blueWash`, the label
+  in blue), in the register's and the Budget page's tab rows; before, it was a gray
+  chip.
+- **Rejected:** blue for every button (options 1 and 3: no green anywhere but the
+  logo); the logo's navy for Add and Save (option 2: the button is the sidebar's color,
+  so only its shape says "click", and at night it must be another color anyway); green
+  for everything you click (option 5: a chosen spending row turns the color of pay);
+  the logo's navy as the night page (one color in shades: Midnight again); a pale
+  sidebar; a green-white page (the page would carry money in's hue).
+- **Asked with the canvas and not answered when this was built:** whether a scheduled
+  row stops being gold (gray dashes and a blue Confirm, keeping gold for reconciled
+  rows and the saved popup: with coins in the logo a first-time reader took gold on a
+  row to mean "money I have"); whether the new colors replace Blue eclipse as the
+  default, with the phone following its own day and night setting.
+- **Logo.** The sidebar shows the logo drawn for dark backgrounds, as before
+  (2026-09-30): the first B and "Better" near-white `#F7F9FC`, the second B and
+  "Budget" the lighter green `#5FC9A3`, the coins as drawn; 40 px beside the 22 px
+  word. The owner kept the existing "BetterBudget" word, recolored. The bee is gone.
+- **Art.** The owner converted the logo and the four Savings pictures to vectors
+  (`assets/logo/Images/*_Light_Mode.svg`). `assets/logo/prepared/prepare.py` makes the
+  app's files from them: cropped, one navy and one green, a night copy of each, and
+  what the app shows written into `app/assets/brand/`. The owner took "3-6 MONTHS" and
+  the "$" out of pictures 3 and 4 themselves, so the "$" came off the Safety net coin
+  and "DEBT" off the ball as well (words in a picture can't be translated, and "$"
+  says dollars in a tugrik ledger). The Savings pictures are prepared and not yet on
+  the Savings page: two of its six steps (health coverage; the mortgage and student
+  loans) have no picture.
+- **App icon.** The logo upright on a white tile, on the Mac
+  (`design/icon/app_icon.swift`) and Android (`app/tool/gen_android_icons.sh`). This
+  replaces the bee tilted 45° (2026-09-29). The iPhone and Windows builds still have
+  Flutter's icon.
+
 ### Color: how the dark and light modes were reached (owner, 2026-09-29)
 
 The owner: Midnight is "a bit too dark. We need some color." Sketched on one canvas,

@@ -399,8 +399,8 @@ class _Ask extends StatelessWidget {
               onPressed: onAction,
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
-                backgroundColor: Mid.blue,
-                foregroundColor: Mid.onAccent,
+                backgroundColor: Mid.fill,
+                foregroundColor: Mid.onFill,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

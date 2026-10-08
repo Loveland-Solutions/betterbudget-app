@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.18.0 · schema v18 · 550 tests pass
+**Last updated: 2026-10-09** · version 0.19.0 · schema v18 · 551 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,11 +10,14 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #54 (version 0.18.0).** The owner's ledger is stored in their Google Drive
-folder. The Android app opens on Ledger, records money out and money in there, and
-what it records reaches the computer's ledger through the folder. Then, in order
-(the owner was asked on 2026-10-08 whether transfers on the phone come before item 1;
-"Waiting on the owner" 16):
+**After PR #55 (version 0.19.0).** The app wears the owner's new logo and its colors:
+a navy sidebar, green main buttons, the coins' gold for the sidebar's marks and the
+saved popup, and the logo on a white tile as the icon (ADR 0004 "The logo's colors";
+the five options drawn are at <https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S>).
+The owner's ledger is stored in their Google Drive folder; the Android app records
+money out and money in, and what it records reaches the computer's ledger through the
+folder. Then, in order (the owner was asked on 2026-10-08 whether transfers on the
+phone come before item 1; "Waiting on the owner" 16):
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
    want to be able to support multiple machines on the same ledger. Let's figure that
@@ -56,6 +59,13 @@ what it records reaches the computer's ledger through the folder. Then, in order
    PR #48).
 4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
+5. **The rest of the new look**, when the owner asks for it. The four Savings pictures
+   the owner drew are made ready (`assets/logo/prepared/savings-*.svg`, day and night)
+   and not on the Savings page: where they sit is a design question, and two of the six
+   steps have no picture ("Waiting on the owner" 19). The phone still always shows dark
+   Blue eclipse, and the Pixel still has the old build and the bee icon: its new icon is
+   drawn in the project and arrives with the next install. The iPhone and Windows builds
+   still have Flutter's icon.
 
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
@@ -64,7 +74,10 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #54. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #55. Branch, commit, PR, merge. The logo and
+the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
+vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
+copies) is on the owner's Mac only, not in git.
 
 ## Waiting on the owner
 
@@ -127,6 +140,18 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 16. **Transfers on the phone next?** (2026-10-08) ₮100,000 taken out of an ATM is
     neither a refund nor income, and the phone has only wrong places for it. Should
     transfers on the phone be built ahead of the two-computers work (Next step 1)?
+17. **Gold on a bill that hasn't happened yet** (2026-10-08). Rent scheduled for 09.20
+    is outlined in gold with a gold "Confirm". With gold coins in the logo, a first-time
+    reader took gold on a row to mean "money I have". Should that row go quiet gray with
+    a blue Confirm, keeping gold for reconciled rows and the saved popup? Both are drawn
+    on the canvas (row "A separate question"). Recommended yes.
+18. **What a new install shows** (2026-10-08). Blue eclipse has been the starting colors
+    since 2026-09-30. Should the new colors show first, with Blue eclipse still in the
+    list, and the phone show them too and follow its own day and night setting?
+    Recommended yes.
+19. **Two Savings steps have no picture** (2026-10-08): Health coverage, and Paying off
+    the mortgage and student loans. Will the owner draw two more, or do those steps go
+    without? The pictures wait on this.
 
 ## Phase
 
@@ -158,7 +183,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
-| Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
+| Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default. The app's own, “BetterBudget”, is the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green, red and gold are the same in every scheme |
 | Language | Same as this Mac, English or Монгол; 1,135 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
@@ -208,6 +233,18 @@ open the archive).
 
 ## Known bugs and loose ends
 
+- **From the reviews of the new look (2026-10-09), not fixed:** the gold popup that
+  says a change was saved also carries failures ("Couldn't save: …", "Couldn't
+  undo…"), which now read as success: each should start "Not saved"; by day gold and
+  red are close for someone red-green colorblind, so a scheduled row's date, amount
+  and Confirm come out one olive ("Waiting on the owner" 17 would remove it, and the
+  calendar's gold future days should follow it); at night the green Add and money in
+  are close mints (a deeper night button, `#4DB594`, was suggested), and the phone's
+  amount screen needs that look before it follows day and night; an amount's dimmed
+  cents are under 4.5 at night (2.8 to 4.6), and by day money out's `.00` is full red
+  where Balance's is quiet; on a hovered row or menu item by day, white on the gold
+  button is 4.2 and the gray currency code 4.0; eight old bee files are still in
+  `assets/logo/`.
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move

@@ -6,9 +6,10 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'schemes.dart';
 
-/// One set of colors for the whole app. The app's own are Steppe night
-/// (dark) and Steppe (light), with the same gray denim sidebar (owner,
-/// 2026-09-29; ADR 0004); [Palette.of] makes a pair from any [Scheme].
+/// One set of colors for the whole app. The app's own are the logo's: its
+/// navy for the sidebar, its green for the filled buttons, its coins' gold
+/// for the sidebar's marks (owner, 2026-10-08; ADR 0004 "The logo's
+/// colors"); [Palette.of] makes a pair from any [Scheme].
 class Palette {
   const Palette({
     required this.brightness,
@@ -25,6 +26,8 @@ class Palette {
     required this.green,
     required this.coral,
     required this.onAccent,
+    required this.fill,
+    required this.onFill,
     required this.wash,
     required this.side,
     required this.sideInk,
@@ -38,8 +41,15 @@ class Palette {
   final Color ground, panel, card, raised, rule, ink, ink2, ink3;
   final Color blue, gold, green, coral;
 
-  /// Text and icons on a filled blue, gold or green button or toast.
+  /// Text and icons on a filled blue, gold or coral button, and on a chosen
+  /// day.
   final Color onAccent;
+
+  /// The filled buttons that do the page's main thing (Add, Save, Continue),
+  /// and their text. The logo's green with navy letters in the app's own
+  /// colors (owner, 2026-10-08); [blue] and [onAccent] in every other scheme,
+  /// where a green can't be told from money in.
+  final Color fill, onFill;
 
   /// The base of the faint chip, hover and row tints: light on dark, dark on
   /// light.
@@ -51,8 +61,8 @@ class Palette {
   /// The sidebar's marks (open section, chosen account's edge).
   final Color sun;
 
-  /// Steppe night: a blue-black page, steppe sky blue for what you click,
-  /// gold for reconciled or scheduled.
+  /// Night: a blue-black page beside the navy sidebar, the navy lit to a sky
+  /// blue for what you click, the logo's green on the filled buttons.
   static const dark = Palette(
     brightness: Brightness.dark,
     ground: Color(0xFF0D1522),
@@ -62,55 +72,69 @@ class Palette {
     rule: Color(0x1AECEFF4),
     ink: Color(0xFFECEFF4),
     ink2: Color(0xFFAAB3C2),
-    ink3: Color(0xFF8D97AA),
+    ink3: Color(0xFF96A0B3),
     blue: Color(0xFF6FA8F0),
-    gold: Color(0xFFE8C15A),
-    green: Color(0xFF5CCB8E),
-    coral: Color(0xFFF08A8A),
+    gold: Color(0xFFF2BD4B),
+    // A mint and a soft red that stay apart for someone red-green
+    // colorblind (the pair before, 5CCB8E and F08A8A, came out as one color).
+    green: Color(0xFF7EDDBB),
+    coral: Color(0xFFEE807B),
     onAccent: Color(0xFF0D1522),
+    fill: Color(0xFF5FC9A3),
+    onFill: _tile,
     wash: Color(0xFFECEFF4),
-    side: _denim,
+    // A little lighter than by day, so its edge shows against the page.
+    side: Color(0xFF15335F),
     sideInk: _sideInk,
     sideInk2: _sideInk2,
     sideInk3: _sideInk3,
     sideBlue: _sideBlue,
-    sun: _sun,
+    sun: _coin,
   );
 
-  /// Steppe: a warm felt-cream page under white cards, steppe blue for what
-  /// you click, a deeper gold and green that read on white.
+  /// Day: white cards on a cool pale page, the logo's navy for the sidebar
+  /// and the same hue, lifted, for what you click. Money in is a deeper
+  /// green than the logo's, which is too faint for figures on white.
   static const light = Palette(
     brightness: Brightness.light,
-    ground: _felt,
+    ground: Color(0xFFEEF2F7),
     panel: Color(0xFFFFFFFF),
     card: Color(0xFFFFFFFF),
-    raised: Color(0xFFEEE8DC),
-    rule: Color(0x1F1A2230),
-    ink: Color(0xFF1A2230),
-    ink2: Color(0xFF4E5666),
-    ink3: Color(0xFF6C7382),
+    raised: Color(0xFFE4E9F1),
+    rule: Color(0x1F14213A),
+    ink: Color(0xFF14213A),
+    ink2: Color(0xFF434F68),
+    ink3: Color(0xFF5C6780),
     blue: Color(0xFF1B5BA8),
-    gold: Color(0xFF8A6414),
-    green: Color(0xFF2E7D4F),
-    // Toward orange, so a shortfall doesn't read as a stop sign.
-    coral: Color(0xFFB8442A),
+    gold: Color(0xFF866100),
+    green: Color(0xFF0E7560),
+    // Warm, so a shortfall doesn't read as a stop sign, and deep enough to
+    // stay apart from money in and from gold.
+    coral: Color(0xFF9E3320),
     onAccent: Color(0xFFFFFFFF),
-    wash: Color(0xFF1A2230),
-    side: _denim,
+    fill: Color(0xFF4DB594),
+    onFill: _tile,
+    wash: Color(0xFF14213A),
+    side: _navy,
     sideInk: _sideInk,
     sideInk2: _sideInk2,
     sideInk3: _sideInk3,
     sideBlue: _sideBlue,
-    sun: _sun,
+    sun: _coin,
   );
 
-  static const _denim = Color(0xFF243550);
-  static const _sideInk = Color(0xFFECEFF4);
-  static const _sideInk2 = Color(0xFFC6CFDD);
-  static const _sideInk3 = Color(0xFF98A4B8);
+  /// The logo's navy, and the darker navy of its night tile.
+  static const _navy = Color(0xFF13305A);
+  static const _tile = Color(0xFF0F2045);
+  static const _coin = Color(0xFFFEBD35);
+  static const _sideInk = Color(0xFFF2F5FA);
+  static const _sideInk2 = Color(0xFFC9D3E4);
+  static const _sideInk3 = Color(0xFFA9B6CC);
+
+  /// What a scheme falls back to when it has no color of its own for what
+  /// you click or for the sidebar's marks.
   static const _sideBlue = Color(0xFF6FA8F0);
   static const _sun = Color(0xFFF5C518);
-  static const _felt = Color(0xFFF6F1E7);
 
   static final _made = <(String, Brightness), Palette>{};
 
@@ -139,7 +163,7 @@ class Palette {
       ..sort((a, b) => _chroma(b).compareTo(_chroma(a)));
     // What you click never takes a money color's hue (red, gold, green), so a
     // scheme can't make a button look like a shortfall or money in; nor a
-    // gray, which would read as text. With none left, the steppe sky blue.
+    // gray, which would read as text. With none left, a sky blue.
     final raw = byChroma.firstWhere(
       (c) => _chroma(c) >= 0.12 && !_moneyHue(c, gold: true),
       orElse: () => _sideBlue,
@@ -149,8 +173,8 @@ class Palette {
     final accent = picked
         .withSaturation(math.max(picked.saturation, 0.4))
         .toColor();
-    // The sidebar's marks may be gold (the app's own is sun yellow), never
-    // red or green.
+    // The sidebar's marks may be gold (the app's own is the coins' gold),
+    // never red or green.
     final mark = byChroma.firstWhere(
       (c) => c != raw && _chroma(c) >= 0.12 && !_moneyHue(c, gold: false),
       orElse: () => _sun,
@@ -199,6 +223,8 @@ class Palette {
       green: fixed.green,
       coral: fixed.coral,
       onAccent: onAccent,
+      fill: blue,
+      onFill: onAccent,
       wash: inkBase,
       side: side,
       sideInk: tone(sideHsl, 0.18, 0.85),
@@ -280,12 +306,14 @@ abstract final class Mid {
   static Color get green => _p.green;
   static Color get coral => _p.coral;
   static Color get onAccent => _p.onAccent;
+  static Color get fill => _p.fill;
+  static Color get onFill => _p.onFill;
 
-  /// The popup that reports a saved change: the same gold with dark text in
+  /// The popup that reports a saved change: the coins' gold with navy text in
   /// both modes (ADR 0004 rule 9; light mode's deeper [gold] under white
   /// text read as a brown warning).
-  static const toast = Color(0xFFE8C15A);
-  static const onToast = Color(0xFF0D1522);
+  static const toast = Palette._coin;
+  static const onToast = Palette._tile;
 
   static Color get blueWash => blue.withValues(alpha: isLight ? 0.10 : 0.12);
   static Color get blueEdge => blue.withValues(alpha: 0.35);
@@ -307,13 +335,13 @@ abstract final class Mid {
   static Color get sideInk2 => _p.sideInk2;
   static Color get sideInk3 => _p.sideInk3;
   static Color get sideBlue => _p.sideBlue;
-  static const sideCoral = Color(0xFFF08A8A);
+  static const sideCoral = Color(0xFFF7A19B);
   static const sideRule = Color(0x17FFFFFF);
   static const sideHover = Color(0x0DFFFFFF);
   static const sideSel = Color(0x1AFFFFFF);
 
-  /// The sidebar's marks (open section, chosen account's edge): sun yellow
-  /// in the app's own colors.
+  /// The sidebar's marks (open section, chosen account's edge): the coins'
+  /// gold in the app's own colors.
   static Color get sun => _p.sun;
 }
 
