@@ -897,7 +897,9 @@ class _EntryState extends State<_EntryScreen> {
       context: context,
       initialDate: _draft.date ?? today,
       firstDate: DateTime(today.year - 1, today.month, today.day),
-      lastDate: DateTime(today.year + 1, today.month, today.day),
+      // The phone records what was bought; what is still to come is the
+      // computer's (a bill's due date, a scheduled row).
+      lastDate: today,
     );
     if (picked != null && mounted) {
       _change(() => _draft.date = picked == today ? null : picked);

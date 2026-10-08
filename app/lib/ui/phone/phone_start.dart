@@ -105,10 +105,18 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// front would have two reads writing the same private copy.
   Future<void>? _reading;
 
-  Future<void> _load() =>
-      _reading ??= _read().whenComplete(() => _reading = null);
+  Future<void> _load({bool onlyIfNewer = false}) =>
+      _reading ??= _read(onlyIfNewer: onlyIfNewer)
+          .whenComplete(() => _reading = null);
 
-  Future<void> _read() async {
+  /// When the ledger last read was changed in the folder.
+  DateTime? _ledgerChanged;
+
+  /// [onlyIfNewer] is the look taken by itself while the app is open: it
+  /// asks the folder when the ledger was changed and fetches it only when
+  /// that has moved, so waiting for the computer doesn't cost a copy of
+  /// the whole ledger over mobile data every half minute.
+  Future<void> _read({bool onlyIfNewer = false}) async {
     final Uint8List? key;
     try {
       key = _typedKey ?? await widget.keys.readDataKey();
@@ -125,6 +133,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
     if (folder == null) return _go(_Step.folder);
     try {
+      if (onlyIfNewer) {
+        final at = await widget.folder.changed(folder, ledgerFileName);
+        if (at != null && at == _ledgerChanged) {
+          // Still a chance to send what an earlier write couldn't.
+          _keep();
+          return;
+        }
+      }
       final found = await widget.folder.read(folder, ledgerFileName);
       if (found == null) {
         // Not there on a later read (the folder is still arriving): what is
@@ -145,6 +161,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         _typedKey = null;
       }
       if (!mounted) return;
+      _ledgerChanged = found.changed;
       _folder = folder;
       final store = _store;
       if (store == null) {
@@ -160,8 +177,13 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           waiting: kept.entries,
           made: kept.categories,
         )..addListener(_keep);
+        // Only while something is waiting: that is all there is to wait
+        // for. Coming back to the front always reads.
         _again ??= Timer.periodic(widget.every, (_) {
-          if (_step == _Step.ready) _load();
+          final store = _store;
+          if (_step != _Step.ready || store == null) return;
+          if (store.waiting.isEmpty && store.made.isEmpty) return;
+          _load(onlyIfNewer: true);
         });
       } else {
         store.snapshot = snapshot;

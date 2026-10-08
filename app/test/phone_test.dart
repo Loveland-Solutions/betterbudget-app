@@ -114,7 +114,7 @@ class _FakeFolder extends PhoneFolder {
   String? picked;
   String? willPick = 'drive:BetterBudget';
   Uint8List? ledger = Uint8List.fromList([1, 2, 3]);
-  DateTime? changed = DateTime(2026, 10, 7, 13, 30);
+  DateTime? changedAt = DateTime(2026, 10, 7, 13, 30);
   final forgotten = <String>[];
   final asked = <String>[];
 
@@ -131,11 +131,15 @@ class _FakeFolder extends PhoneFolder {
   ) async {
     asked.add(name);
     final bytes = ledger;
-    return bytes == null ? null : (bytes: bytes, changed: changed);
+    return bytes == null ? null : (bytes: bytes, changed: changedAt);
   }
 
   @override
   Future<void> forget(String folder) async => forgotten.add(folder);
+
+  @override
+  Future<DateTime?> changed(String folder, String name) async =>
+      ledger == null ? null : changedAt;
 
   /// The files this phone has written to the folder, by name.
   final written = <String, Uint8List>{};
@@ -1144,6 +1148,67 @@ void main() {
       expect(second.categoryIds, hasLength(1));
     });
 
+    test('an entry dated after the computer’s today is still spending, not '
+        'a scheduled row', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [
+            PhoneEntry(
+              id: 'late',
+              categoryId: '${id('Groceries')}',
+              accountId: '${id('TDB Checking')}',
+              payee: 'Nomin',
+              amountMinor: -500000,
+              // The phone's clock is a day ahead.
+              date: DateTime(2026, 9, 17),
+              madeAt: DateTime(2026, 9, 17, 0, 5),
+            ),
+          ],
+        ),
+      ], today: today))!;
+      final row = (await db.loadLedger()).txns.singleWhere(
+        (t) => t.id == take.transactionIds.single,
+      );
+      expect(row.scheduled, isFalse);
+    });
+
+    test('an entry filed in an archived category brings it back', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final groceries = id('Groceries');
+      await db.setArchived(groceries, true);
+      // The phone can't see it, so it makes "Groceries" again.
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', '${id('TDB Checking')}', -100)],
+          categories: const [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'groceries',
+              leftMinor: 0,
+              madeHere: true,
+            ),
+          ],
+        ),
+      ], today: today))!;
+      expect(take.categoryIds, isEmpty);
+      expect((await db.loadLedger()).accounts[groceries]!.archived, isFalse);
+      await db.undoPhoneTake(take);
+      expect((await db.loadLedger()).accounts[groceries]!.archived, isTrue);
+    });
+
     test('the computer finds each phone’s file in the folder', () async {
       final dir = _phoneDir();
       for (final device in ['ab12', 'cd34']) {
@@ -1390,6 +1455,28 @@ void main() {
       expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
       file.writeAsBytesSync(folder.written[name]!);
       expect(readPhoneInbox(file, keys.kept).entries, isEmpty);
+    });
+
+    testWidgets('while an entry waits the folder is asked every half minute, '
+        'and the ledger fetched only when it has changed', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final s = await start(tester, keys: keys, folder: folder);
+      // Nothing waiting: nothing to look for.
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(1));
+
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      // Asked, and the same ledger is still there: not fetched again.
+      expect(s.read, hasLength(1));
+
+      folder.changedAt = DateTime(2026, 10, 7, 14, 6);
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(2));
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (

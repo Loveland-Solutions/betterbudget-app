@@ -412,7 +412,36 @@ void main() {
         await tester.pump();
         expect(find.text('This computer'), findsNothing);
         expect(find.textContaining('My Drive/BetterBudget · '), findsOneWidget);
-        // With the ledger in the folder again, the phone's entry comes in.
+        // With the ledger in the folder again, the phone's entry comes in:
+        // not over the popup that is up, but at the next look once it has
+        // gone (here, the app coming back to the front).
+        await tester.runAsync(() async {
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, isEmpty);
+        });
+        await tester.runAsync(() async {
+          // The popup's own six seconds, on the real clock it was made on.
+          await Future<void>.delayed(const Duration(milliseconds: 6500));
+        });
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.runAsync(() async {
+          for (final state in [
+            AppLifecycleState.inactive,
+            AppLifecycleState.hidden,
+            AppLifecycleState.paused,
+            AppLifecycleState.hidden,
+            AppLifecycleState.inactive,
+            AppLifecycleState.resumed,
+          ]) {
+            tester.binding.handleAppLifecycleStateChanged(state);
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        await tester.pump();
+        expect(find.text('1 transaction from your phone'), findsOneWidget);
         await tester.runAsync(() async {
           final rows = (await db.loadLedger()).txns.where(
             (t) => t.payee == 'From the phone',

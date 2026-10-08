@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 538 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 541 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -107,7 +107,13 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     free to assign, as built?
 12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
     the list show its balance, so they can tell whether that card will go through?
-13. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+13. **Three from the budget review of the phone's entries** (2026-10-08). When a
+    category made on the phone arrives with nothing assigned, should its popup offer
+    to open the category's Edit? Should each phone start Paid from with the account
+    it last used itself, ahead of the category's own account (Jen's entry starts on
+    Tom's card when the category says so)? Should ⌘Z leave an arrived batch alone, so
+    only its own popup's Undo takes it out?
+14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -205,14 +211,16 @@ open the archive).
   category has gone from the ledger shows no category and its amount in tugrik; a
   category made on the phone and one of the same name arriving from the Mac are both
   listed; on a 360 × 640 phone Save is reached by scrolling.
-- **From the review of the phone's entries reaching the computer (2026-10-08), not
-  fixed:** an entry arriving clears the redo stack and replaces a popup on screen; an
-  entry dated ahead on the phone comes in as a scheduled row though the phone already
-  counted it; a phone category is matched by name alone, so a dollar entry can land
-  in a tugrik category of that name; the list of entries already in (`phone.taken`)
-  only grows, about 130 KB a year for two phones; the phone copies the whole ledger
-  out of Drive every 30 seconds while open, on mobile data too. The budget review
-  hasn't been run on this part.
+- **From the reviews of the phone's entries reaching the computer (2026-10-08), not
+  fixed:** a purchase imported from the bank before its phone entry arrives is in
+  twice (the other order is matched by import); ⌘Z pressed just as a batch arrives
+  takes the batch out, and the phone has already let go of it; an entry whose account
+  or category was deleted on the computer waits on the phone for good with no reason
+  given; after a week away, 40 arrivals are one count in a popup with no way to see
+  which rows they were; an entry dated in an earlier budget period or before the last
+  reconcile changes that period without a word; a phone category is matched by name
+  alone, so a dollar entry can land in a tugrik category of that name; the list of
+  entries already in (`phone.taken`) only grows, about 130 KB a year for two phones.
 - **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
   (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
   random key.

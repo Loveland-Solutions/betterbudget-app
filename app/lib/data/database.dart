@@ -469,11 +469,18 @@ class DeletedAccount {
 
 /// What one look at the phones' files brought in, for its undo.
 class PhoneTake {
-  const PhoneTake(this.transactionIds, this.categoryIds);
+  const PhoneTake(
+    this.transactionIds,
+    this.categoryIds, [
+    this.unarchivedIds = const [],
+  ]);
   final List<int> transactionIds;
 
   /// The categories it had to make.
   final List<int> categoryIds;
+
+  /// The archived categories it brought back to file an entry in.
+  final List<int> unarchivedIds;
 }
 
 /// What a row of a bank file does on import. The person can turn a match
@@ -3800,7 +3807,11 @@ class AppDatabase extends _$AppDatabase {
       for (final a in live)
         if (a.type == AccountType.expense) a.name.trim().toLowerCase(): a.id,
     };
-    final added = <int>[], made = <int>[];
+    final archived = {
+      for (final a in live)
+        if (a.archivedAt != null) a.id,
+    };
+    final added = <int>[], made = <int>[], unarchived = <int>[];
     for (final inbox in inboxes) {
       final was = taken[inbox.device] ?? const PhoneTaken();
       final categories = {...was.categories};
@@ -3838,11 +3849,19 @@ class AppDatabase extends _$AppDatabase {
         if (!spending.contains(category) || !paidFrom.contains(account)) {
           continue;
         }
+        // The phone can't see an archived category: spending filed in one
+        // would be out of sight on the Budget page, so it comes back.
+        if (archived.remove(category)) {
+          await setArchived(category!, false);
+          unarchived.add(category);
+        }
         added.add(
           await postSimple(
             accountId: account!,
             date: e.date,
-            today: today,
+            // Something bought, never something scheduled: a phone whose
+            // clock is ahead of this computer's still records spending.
+            today: e.date.isAfter(today) ? e.date : today,
             payee: e.payee,
             counterAccountId: category!,
             amount: e.amountMinor,
@@ -3857,7 +3876,9 @@ class AppDatabase extends _$AppDatabase {
     }
     final after = PhoneTaken.encode(taken);
     if (after != row?.value) await setPreference(phoneTakenKey, after);
-    return added.isEmpty && made.isEmpty ? null : PhoneTake(added, made);
+    return added.isEmpty && made.isEmpty
+        ? null
+        : PhoneTake(added, made, unarchived);
   });
 
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.
@@ -3867,11 +3888,17 @@ class AppDatabase extends _$AppDatabase {
     for (final c in t.categoryIds) {
       await deleteEmptyAccount(c);
     }
+    for (final c in t.unarchivedIds) {
+      await setArchived(c, true);
+    }
   });
 
   Future<void> redoPhoneTake(PhoneTake t) => transaction(() async {
     for (final c in t.categoryIds) {
       await undeleteAccount(DeletedAccount(c, const []));
+    }
+    for (final c in t.unarchivedIds) {
+      await setArchived(c, false);
     }
     await restoreMany(t.transactionIds);
   });

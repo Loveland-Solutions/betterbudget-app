@@ -127,8 +127,19 @@ memory and nothing took it in.
   marked as in, so they don't come back by themselves; a category the undo removed
   is made again only when a later entry needs it. Nothing is taken in during a
   restore, a reconcile or setup.
-- **The phone reads the folder again every 30 seconds** while it is open, as well as
-  when it comes to the front, so the waiting line goes without the app being left.
+- **While something is waiting, the phone asks the folder every 30 seconds** when the
+  ledger was last changed, and fetches it only when that has moved, so the waiting
+  line goes without the app being left and without a copy of the whole ledger over
+  mobile data each time. With nothing waiting it doesn't ask. Coming to the front
+  always reads.
+- **A phone entry is spending, never a scheduled row.** The phone's date stops at
+  today, and an entry dated after the computer's today (a clock ahead) still comes in
+  as an ordinary uncleared row.
+- **An arrival doesn't disturb what the person is doing**: it waits for a popup on
+  screen to go, and it leaves redo as it was.
+- **An entry filed in an archived category brings the category back** (the phone
+  can't see archived ones, so it would have made the name again); undo archives it
+  again.
 - An entry whose account or category was deleted on the computer is left with the
   phone.
 

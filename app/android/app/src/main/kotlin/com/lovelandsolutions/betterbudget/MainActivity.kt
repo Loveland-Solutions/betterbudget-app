@@ -40,6 +40,10 @@ class MainActivity : FlutterActivity() {
             "read" -> background(result) {
                 read(Uri.parse(call.argument("folder")!!), call.argument("name")!!)
             }
+            // When the file was last changed, without fetching it.
+            "changed" -> background(result) {
+                find(Uri.parse(call.argument("folder")!!), call.argument("name")!!)?.second
+            }
             "write" -> background(result) {
                 write(
                     Uri.parse(call.argument("folder")!!),

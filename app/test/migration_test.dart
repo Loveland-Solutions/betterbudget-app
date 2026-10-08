@@ -142,9 +142,7 @@ void main() {
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
     final after = await db.loadLedger();
-    final assets = after.openAccounts.where(
-      (a) => a.type == AccountType.asset,
-    );
+    final assets = after.openAccounts.where((a) => a.type == AccountType.asset);
     expect(assets, isNotEmpty);
     // Every one becomes a bank account, and none is made cash behind their
     // back: the user says which of their accounts is a wallet.

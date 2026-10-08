@@ -243,6 +243,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // look brings them.
     if (_restoring || _reconcile != null) return;
     if (_data case final d? when inSetup(d)) return;
+    // Nor over a popup still on screen, whose Undo would be lost.
+    if (_toast != null) return;
     _takingPhones = true;
     try {
       final inboxes = await readPhoneInboxes(
@@ -260,6 +262,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             : t.ledgerFromPhone(take.transactionIds.length),
         undo: () => db.undoPhoneTake(take),
         redo: () => db.redoPhoneTake(take),
+        keepRedo: true,
       );
     } catch (e) {
       debugPrint('Taking in the phones’ entries failed: $e');
@@ -542,10 +545,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? message,
     String? detail,
     ({String label, VoidCallback onTap})? more,
+    bool keepRedo = false,
   }) {
     final action = _Undoable(label, undo, redo, detail: detail);
     _history.add(action);
-    _redo.clear();
+    // Something the person did ends what could be redone; something that
+    // arrived by itself (a phone's entries) doesn't take that from them.
+    if (!keepRedo) _redo.clear();
     if (toast) {
       _showToast(
         message ?? label,

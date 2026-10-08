@@ -44,6 +44,16 @@ class PhoneFolder {
     );
   }
 
+  /// When the file [name] in [folder] was last changed, without fetching
+  /// it; null when there is no such file or the folder doesn't say.
+  Future<DateTime?> changed(String folder, String name) async {
+    final at = await _channel.invokeMethod<int>('changed', {
+      'folder': folder,
+      'name': name,
+    });
+    return at == null ? null : DateTime.fromMillisecondsSinceEpoch(at);
+  }
+
   /// Writes [bytes] as the file [name] in [folder], over one already there:
   /// this phone's own entries, for the computer.
   Future<void> write(String folder, String name, Uint8List bytes) =>
