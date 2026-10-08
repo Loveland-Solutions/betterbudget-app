@@ -3649,7 +3649,7 @@
   },
   "setupPaidInto": "Paid into",
   "@setupPaidInto": {
-    "description": "Pay setup, label beside the account pay goes into. Short."
+    "description": "Pay setup, label beside the account pay goes into. Also the phone app’s Ledger, in place of Paid from, when the entry is money in: the account a refund or income went into. Short."
   },
   "setupFrom": "From",
   "@setupFrom": {
@@ -7141,5 +7141,29 @@
         "type": "String"
       }
     }
+  },
+  "phoneOverThenLeft": "Overspent by {over} · {after} left after this",
+  "@phoneOverThenLeft": {
+    "description": "Phone app, under the amount being typed when the entry is money in (a refund) to a category that is overspent: by how much now, and what the refund will leave in it.",
+    "placeholders": {
+      "over": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneToMoneyIn": "Change to money in",
+  "@phoneToMoneyIn": {
+    "description": "Phone app, Ledger: what a screen reader says for the +/− button beside the amount while the entry is money out. Tapping it makes the entry money in (a refund, or income)."
+  },
+  "phoneIncomeNeedsMoneyIn": "To record income, tap +/− beside the amount first.",
+  "@phoneIncomeNeedsMoneyIn": {
+    "description": "Phone app, the Category list, under the box: shown when Income's name is typed while the entry is money out. Income is offered only for money in, which the +/− button beside the amount on Ledger chooses."
+  },
+  "phoneToMoneyOut": "Change to money out",
+  "@phoneToMoneyOut": {
+    "description": "Phone app, Ledger: what a screen reader says for the +/− button beside the amount while the entry is money in. Tapping it makes the entry money out again."
   }
 }

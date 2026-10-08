@@ -136,9 +136,19 @@ memory and nothing took it in.
   minutes after the computer had written the newer ledger, so the waiting line
   stayed. The phone now asks Drive to refresh the listing before it asks the time,
   and every fourth look (two minutes) fetches the ledger whatever the time says.
-- **A phone entry is spending, never a scheduled row.** The phone's date stops at
-  today, and an entry dated after the computer's today (a clock ahead) still comes in
-  as an ordinary uncleared row.
+- **A phone entry is something that happened, never a scheduled row.** The phone's
+  date stops at today, and an entry dated after the computer's today (a clock ahead)
+  still comes in as an ordinary uncleared row.
+- **Money in from the phone** (owner, 2026-10-08, about returning things to a shop;
+  the screen is ADR 0004 "Phone screens: Ledger first"). An entry's amount was always
+  signed in the phone's file, so the file is unchanged: a positive amount in a spending
+  category is a refund to it. Income is filed under the word `income`, not an id: the
+  ledger makes its Income the first time it is wanted, so there may be none for the
+  phone to read. The computer posts such an entry against its own Income, making it if
+  need be, and only when the amount is money in and the account is a real one. A
+  computer on a version before 0.18.0 leaves an income entry with the phone. A
+  category a phone on an earlier version made under Income's name becomes the
+  ledger's Income too, not a second, spending category of that name.
 - **An arrival doesn't disturb what the person is doing**: it waits for a popup on
   screen to go, and it leaves redo as it was.
 - **⌘Z doesn't take an arrived batch out; its own popup's Undo does** (owner,
@@ -160,7 +170,7 @@ folder: saved on the phone at 12:23, the phone's file on the Mac at 12:24, in th
 ledger at 12:25.
 
 No table was added: the ledger's schema is unchanged. Not built: other phones'
-entries shown on a phone, money in and transfers, and the iPhone's folder access. With
+entries shown on a phone, transfers, and the iPhone's folder access. With
 two computers on one ledger each would take the same entries in (the next section).
 
 ### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
@@ -178,7 +188,7 @@ the code stands.
 
 | Can | Can't |
 |---|---|
-| Add a transaction: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
+| Add a transaction, money out or money in: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
 | Fix or delete its own entries until the Mac takes them in | Fix another phone's entries |
 | See what's left in each budget, and account balances | Reconcile |
 | Make a new category, by name (owner, 2026-10-08) | Change budgets, accounts, other categories or settings |

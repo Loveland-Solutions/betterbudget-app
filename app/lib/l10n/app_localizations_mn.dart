@@ -4698,4 +4698,19 @@ class WordsMn extends Words {
   String ledgerEditCategory(String name) {
     return 'Засах: $name';
   }
+
+  @override
+  String phoneOverThenLeft(String over, String after) {
+    return '$over-өөр хэтэрсэн · үүний дараа $after үлдэнэ';
+  }
+
+  @override
+  String get phoneToMoneyIn => 'Орлого болгох';
+
+  @override
+  String get phoneIncomeNeedsMoneyIn =>
+      'Орлого бүртгэхийн тулд эхлээд дүнгийн хажуугийн +/− товчийг дарна уу.';
+
+  @override
+  String get phoneToMoneyOut => 'Зарлага болгох';
 }

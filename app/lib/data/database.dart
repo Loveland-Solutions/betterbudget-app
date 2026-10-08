@@ -3778,9 +3778,11 @@ class AppDatabase extends _$AppDatabase {
   /// Takes in what the phones have written to the folder: each entry not
   /// yet in the ledger becomes an uncleared row, and a category a phone
   /// made is made here unless one is already called that, whatever its
-  /// capitals. What was taken is remembered under [phoneTakenKey], in the
-  /// same transaction, so nothing comes in twice; the phones read it from
-  /// the ledger and drop what is in. Null when there was nothing new.
+  /// capitals. Money in is a refund to its category, or income when the
+  /// phone filed it under [phoneIncomeId]. What was taken is remembered
+  /// under [phoneTakenKey], in the same transaction, so nothing comes in
+  /// twice; the phones read it from the ledger and drop what is in. Null
+  /// when there was nothing new.
   ///
   /// An entry is never forgotten once taken: a second or older copy of a
   /// phone's file (Drive keeps two files of one name, and conflict copies)
@@ -3823,7 +3825,13 @@ class AppDatabase extends _$AppDatabase {
       Future<int> categoryFor(PhoneCategory c) async {
         final name = c.name.trim().toLowerCase();
         var id = byName[name];
-        if (id == null) {
+        if (id == null && isIncomeName(c.name)) {
+          // Income's name is the app's own, as it is in the entry row: an
+          // older phone that made one gets the ledger's Income, not a
+          // second, spending one.
+          id = await incomeCategory();
+          spending.add(id);
+        } else if (id == null) {
           id = await createCategory(c.name, currency: c.currency);
           made.add(id);
           madeNames.add(c.name.trim());
@@ -3848,11 +3856,17 @@ class AppDatabase extends _$AppDatabase {
           category = await categoryFor(theirs[e.categoryId]!);
         }
         final account = int.tryParse(e.accountId);
-        // Only spending, from a real account: anything else in the file
-        // (a deleted category, an id that names an account) stays out.
-        if (!spending.contains(category) || !paidFrom.contains(account)) {
+        // Money in under Income, which the phone names by a word: this
+        // ledger may not have made its Income yet.
+        final toIncome = e.categoryId == phoneIncomeId && e.amountMinor > 0;
+        // Only spending, a refund or income, in a real account: anything
+        // else in the file (a deleted category, an id that names an
+        // account) stays out.
+        if (!(toIncome || spending.contains(category)) ||
+            !paidFrom.contains(account)) {
           continue;
         }
+        if (toIncome) category = await incomeCategory();
         // The phone can't see an archived category: spending filed in one
         // would be out of sight on the Budget page, so it comes back.
         if (archived.remove(category)) {

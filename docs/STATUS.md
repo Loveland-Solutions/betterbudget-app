@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 542 tests pass
+**Last updated: 2026-10-08** · version 0.18.0 · schema v18 · 550 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -29,9 +29,10 @@ reaches the computer's ledger through the folder. Then, in order:
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
-   phone's waiting line go within a minute, or only the two-minute fetch does. Then: money in and
-   transfers on the phone, the other phone's entries, and the iPhone build (its
-   folder access and icon). With two computers on one ledger each takes the same
+   phone's waiting line go within a minute, or only the two-minute fetch does. Money
+   in is built: the +/− button beside the amount, with Income offered in the Category
+   list (ADR 0004 "Phone screens: Ledger first"). Then: transfers on the phone, the
+   other phone's entries, and the iPhone build (its folder access and icon). With two computers on one ledger each takes the same
    entries in, which item 1 has to settle.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
@@ -171,15 +172,17 @@ open the archive).
 - CSV export, app lock, printing the recovery key.
 - **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)): on Android the app
   asks once for the recovery key and for the folder the ledger was moved to, then
-  opens on Ledger: amount, Category (picked from a list or typed, and the list can
-  make a new one), Payee, Paid from, Date, Save. Budget, the other screen, shows what
+  opens on Ledger: amount, Payee, Category (picked from a list or typed, and the list
+  can make a new one), Paid from, Date, Save. A +/− button beside the amount makes the
+  entry money in: a refund to its category, or income, with Income the first line of
+  the Category list. Budget, the other screen, shows what
   is left in each category (those waiting for a bill apart, under Bills), makes a new
   category too, and links to each account's balance. The figures are read from
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
   or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). What is
   saved is kept on the phone, written to the folder in the phone's own file, and taken
   in by the computer as uncleared rows with one undo. Not built: renaming a category
-  made on the phone; fixing a waiting entry; money in and transfers; other phones'
+  made on the phone; fixing a waiting entry; transfers; other phones'
   entries; the iPhone's folder access and icon. The first
   read from the owner's real Drive folder on the Pixel hasn't been watched yet.
 - **A Windows build.**
@@ -216,9 +219,22 @@ open the archive).
   reconcile changes that period without a word; a phone category is matched by name
   alone, so a dollar entry can land in a tugrik category of that name; the list of
   entries already in (`phone.taken`) only grows, about 130 KB a year for two phones.
+- **From the reviews of money in on the phone (2026-10-08), not fixed:** pay saved
+  under Income isn't tied to its scheduled payday, so the forecast counts both and
+  Confirm adds it again; with no transfers, cash from an ATM or a card payment has
+  only wrong homes; a refund the bank posts over 10 days later, or for another
+  amount, comes in twice on import; a refund dated in an earlier period raises this
+  period's "left" on the phone, though the computer may put it in Not assigned; the
+  Income toast doesn't say the money is in no category; a category made while the
+  entry is money in is a spending one holding a refund; the account list offers a
+  mortgage or student loan, which the computer's budget leaves out; the +/− button is
+  half under the toast while it shows; the +/− button's spoken label in Mongolian
+  ("Орлого болгох") uses Income's own word.
 - **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
   (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
-  random key.
+  random key. **`budget_test.dart` "plans paid weekly, a date years ahead is still
+  quick" failed once** the same day with the Mac busy (it times itself against 200
+  ms) and passed three times alone.
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the

@@ -11,11 +11,13 @@ import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/domain/budget.dart';
+import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_start.dart';
+import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -634,6 +636,286 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('₮2,431,800.00'), findsOneWidget);
     expect(find.text('Owed ₮312,000.00'), findsOneWidget);
+  });
+
+  testWidgets('+/− makes a return money in, and Save puts it back in its '
+      'category', (tester) async {
+    final store = await _pump(tester);
+    Color? amountColor(String text) =>
+        tester.widget<Text>(find.text(text)).style?.color;
+
+    // Money out until the button beside the amount is tapped.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    expect(find.text('+₮0'), findsOneWidget);
+    expect(find.text('Paid into'), findsOneWidget);
+    expect(find.text('Paid from'), findsNothing);
+    // And back.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Paid from'), findsOneWidget);
+    expect(find.text('Clear'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    // Clear takes money in back too.
+    expect(find.text('Clear'), findsOneWidget);
+    await _category(tester, 'Groceries');
+    await _type(tester, '12500');
+    expect(amountColor('+₮12,500'), Mid.green);
+    // A refund puts money back in the category.
+    expect(
+      find.text('₮148,000.00 left now · ₮160,500.00 after this'),
+      findsOneWidget,
+    );
+    await _payee(tester, 'Walmart');
+    await _account(tester, 'TDB Checking');
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_money_in.png'),
+    );
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.amountMinor, 1250000);
+    expect(entry.categoryId, 'groceries');
+    expect(entry.accountId, 'tdb');
+    expect(find.text('Saved · Walmart +₮12,500.00'), findsOneWidget);
+    expect(find.text('Groceries · ₮160,500.00 left'), findsOneWidget);
+    // The next entry is money out again: a refund isn't carried over.
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Paid from'), findsOneWidget);
+
+    // Undo brings it back as money in.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.waiting, isEmpty);
+    expect(find.text('+₮12,500'), findsOneWidget);
+    expect(find.text('Paid into'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    // The account has it, and the waiting list shows it as money in.
+    expect(balanceNow(store.snapshot.accounts.first, store.waiting), 244430000);
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(amountColor('+₮12,500.00'), Mid.green);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await _toBudget(tester);
+    expect(find.text('₮160,500.00'), findsOneWidget);
+  });
+
+  testWidgets('a refund to an overspent category says what it leaves', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, 'Eating out');
+    await _type(tester, '10000');
+    expect(
+      find.text('Overspent by ₮18,400.00 · by ₮8,400.00 after this'),
+      findsOneWidget,
+    );
+    await _type(tester, '0');
+    final line = tester.widget<Text>(find.byKey(const ValueKey('left-line')));
+    expect(line.data, 'Overspent by ₮18,400.00 · ₮81,600.00 left after this');
+    // No longer overspent once this is in, so not in red.
+    expect(line.style?.color, Mid.ink2);
+  });
+
+  testWidgets('Income is offered for money in and never for money out', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    // Money out: Income isn't in the list, and its name can't be made
+    // into a category of their own.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(find.text('Income'), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('category-field')),
+      'income',
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('new-category')), findsNothing);
+    // Not a blank page: it says how income is recorded.
+    expect(
+      find.text('To record income, tap +/− beside the amount first.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Money in: Income is the list's first line, with no figure beside it.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('Income')).dy,
+      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+    );
+    // Its name in the other language finds it too.
+    await tester.enterText(
+      find.byKey(const ValueKey('category-field')),
+      'орлого',
+    );
+    await tester.pump();
+    expect(find.text('Income'), findsOneWidget);
+    expect(find.byKey(const ValueKey('new-category')), findsNothing);
+    await tester.tap(find.text('Income'));
+    await tester.pumpAndSettle();
+    await _type(tester, '50000');
+    // Income holds no budget: nothing is said about what is left.
+    expect(find.byKey(const ValueKey('left-line')), findsNothing);
+    await _payee(tester, 'Bat');
+    await _account(tester, 'Cash wallet');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.categoryId, phoneIncomeId);
+    expect(entry.accountId, 'cash');
+    expect(entry.amountMinor, 5000000);
+    expect(find.text('Saved · Bat +₮50,000.00'), findsOneWidget);
+    expect(find.textContaining('Income ·'), findsNothing);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Income · 2026.10.07'), findsOneWidget);
+    expect(find.text('+₮50,000.00'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Chosen, then the entry is turned back to money out: Income goes.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, 'Income');
+    expect(find.text('Income'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    expect(find.text('Income'), findsNothing);
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Enter an amount'), findsOneWidget);
+
+    // Nor does Budget make a category called that.
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Income',
+    );
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+    expect(find.text('Income is already a category'), findsOneWidget);
+    expect(store.made, isEmpty);
+  });
+
+  testWidgets('an account a category rules out is let go, and Income takes '
+      'the currency of the account it is paid into', (tester) async {
+    final dollars = Currency.fromCode('USD');
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: [
+          const PhoneAccount(id: 'khan', name: 'Khan', balanceMinor: 0),
+          const PhoneAccount(id: 'golomt', name: 'Golomt', balanceMinor: 0),
+          PhoneAccount(
+            id: 'usd',
+            name: 'Dollar',
+            balanceMinor: 0,
+            currency: dollars,
+          ),
+        ],
+        categories: const [
+          PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+        ],
+      ),
+    );
+    await _account(tester, 'Dollar');
+    await _type(tester, '500');
+    expect(find.text(r'−$500'), findsOneWidget);
+    // Groceries is in tugrik: the dollar account can't pay for it, so
+    // Paid from is empty again.
+    await _category(tester, 'Groceries');
+    expect(find.text('−₮500'), findsOneWidget);
+    expect(find.text('Dollar'), findsNothing);
+    // And it doesn't come back by itself once Income would allow it.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, 'Income');
+    expect(find.text('+₮500'), findsOneWidget);
+    expect(find.text('Dollar'), findsNothing);
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Enter a payee'), findsOneWidget);
+
+    // Chosen by hand, the income is in that account's currency.
+    await _account(tester, 'Dollar');
+    expect(find.text(r'+$500'), findsOneWidget);
+    await _payee(tester, 'Bat');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.categoryId, phoneIncomeId);
+    expect(entry.accountId, 'usd');
+    expect(entry.amountMinor, 50000);
+    expect(find.text(r'Saved · Bat +$500.00'), findsOneWidget);
+
+    // Undo brings an income entry back whole.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.waiting, isEmpty);
+    expect(find.text(r'+$500'), findsOneWidget);
+    expect(find.text('Income'), findsOneWidget);
+    expect(find.text('Dollar'), findsOneWidget);
+    expect(find.text('Paid into'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text(r'+$500.00'), findsOneWidget);
+  });
+
+  testWidgets('deleting a category made here says what was spent in it, '
+      'less what came back', (tester) async {
+    final store = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('category-field')),
+      'Coffee',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('new-category')));
+    await tester.pumpAndSettle();
+    await _account(tester, 'Cash wallet');
+    await _type(tester, '4500');
+    await _payee(tester, 'Tom N Toms');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    // ₮1,500 of it comes back.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, 'Coffee');
+    await _account(tester, 'Cash wallet');
+    await _type(tester, '1500');
+    await _payee(tester, 'Tom N Toms');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting, hasLength(2));
+
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Delete Coffee and the 2 entries in it (₮3,000.00)?'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('an overspent category is said in words, not with a minus', (
@@ -1265,6 +1547,142 @@ void main() {
       expect((await db.loadLedger()).accounts[groceries]!.archived, isFalse);
       await db.undoPhoneTake(take);
       expect((await db.loadLedger()).accounts[groceries]!.archived, isTrue);
+    });
+
+    test(
+      'money in arrives as a refund to its category, or as income',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, today);
+        var data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        Budget budget() => Budget.of(
+          data,
+          start: DateTime(2026, 9),
+          end: DateTime(2026, 9, 30),
+          today: today,
+        );
+        final groceries = id('Groceries'), checking = id('TDB Checking');
+        // A budget, so Groceries has something left to put money back in.
+        await db.setBudgetAmount(
+          groceries,
+          DateTime(2026, 9),
+          DateTime(2026, 9, 30),
+          50000000,
+        );
+        data = await db.loadLedger();
+        final balance = data.balanceOf(checking);
+        final left = budget().lines[groceries]!.left;
+        expect(left, isNot(0));
+        final spent = budget().lines[groceries]!.spent;
+        final take = (await db.takePhoneEntries([
+          PhoneInbox(
+            device: 'ab12',
+            entries: [
+              entry('refund', '$groceries', '$checking', 1250000),
+              entry('pay', phoneIncomeId, '$checking', 5000000),
+              // Money out is never income on a phone: left with it.
+              entry('odd', phoneIncomeId, '$checking', -100),
+            ],
+          ),
+        ], today: today))!;
+        expect(take.transactionIds, hasLength(2));
+        data = await db.loadLedger();
+        expect(data.balanceOf(checking), balance + 6250000);
+        // The refund is back in Groceries, as spending that didn't happen.
+        expect(budget().lines[groceries]!.left, left + 1250000);
+        expect(budget().lines[groceries]!.spent, spent - 1250000);
+        // The other is under the ledger's own Income.
+        final pay = data.txns.singleWhere(
+          (t) => t.entries.any(
+            (e) => e.accountId == data.income!.id && e.amount == -5000000,
+          ),
+        );
+        expect(take.transactionIds, contains(pay.id));
+        final snapshot = snapshotOf(data, today: today, madeAt: today);
+        expect(snapshot.taken['ab12']!.entries, {'refund', 'pay'});
+
+        await db.undoPhoneTake(take);
+        data = await db.loadLedger();
+        expect(data.balanceOf(checking), balance);
+        expect(budget().lines[groceries]!.left, left);
+      },
+    );
+
+    test(
+      'income from a phone makes Income in a ledger that has none',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final wallet = await db.addAccount(
+          name: 'Wallet',
+          type: AccountType.asset,
+        );
+        expect((await db.loadLedger()).income, isNull);
+        // An entry for an account that has gone doesn't make it.
+        expect(
+          await db.takePhoneEntries([
+            PhoneInbox(
+              device: 'ab12',
+              entries: [entry('lost', phoneIncomeId, '99999', 5000000)],
+            ),
+          ], today: today),
+          isNull,
+        );
+        expect((await db.loadLedger()).income, isNull);
+
+        await db.takePhoneEntries([
+          PhoneInbox(
+            device: 'ab12',
+            entries: [entry('pay', phoneIncomeId, '$wallet', 5000000)],
+          ),
+        ], today: today);
+        final data = await db.loadLedger();
+        expect(data.income, isNotNull);
+        expect(data.balanceOf(wallet), 5000000);
+        expect(data.balanceOf(data.income!.id), -5000000);
+      },
+    );
+
+    test('a category an older phone made called Income is the ledger’s own '
+        'Income, not a second one', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      final checking = data.accounts.values
+          .singleWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final categories = data.accounts.values.where((a) => a.isCategory).length;
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('pay', 'new-1', '$checking', 5000000)],
+          categories: const [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'income',
+              leftMinor: 0,
+              madeHere: true,
+            ),
+          ],
+        ),
+      ], today: today))!;
+      data = await db.loadLedger();
+      // No category was made, so the take's undo has none to remove.
+      expect(take.categoryIds, isEmpty);
+      expect(
+        data.accounts.values.where((a) => a.isCategory).length,
+        categories,
+      );
+      final row = data.txns.singleWhere(
+        (t) => t.id == take.transactionIds.single,
+      );
+      expect(row.entries.map((e) => e.accountId), contains(data.income!.id));
+      await db.undoPhoneTake(take);
+      expect((await db.loadLedger()).income, isNotNull);
     });
 
     test('the computer finds each phone’s file in the folder', () async {

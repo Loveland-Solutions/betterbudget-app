@@ -1134,5 +1134,9 @@
   "phoneSavedNothingAssigned": "{category} · одоогоор мөнгө хуваарилаагүй",
   "ledgerFromPhone": "{count, plural, other{Утаснаас {count} гүйлгээ}}",
   "ledgerCategoryFromPhone": "{count, plural, other{Утаснаас {count} шинэ ангилал}}",
-  "ledgerEditCategory": "Засах: {name}"
+  "ledgerEditCategory": "Засах: {name}",
+  "phoneOverThenLeft": "{over}-өөр хэтэрсэн · үүний дараа {after} үлдэнэ",
+  "phoneToMoneyIn": "Орлого болгох",
+  "phoneToMoneyOut": "Зарлага болгох",
+  "phoneIncomeNeedsMoneyIn": "Орлого бүртгэхийн тулд эхлээд дүнгийн хажуугийн +/− товчийг дарна уу."
 }
