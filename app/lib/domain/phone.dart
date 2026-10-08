@@ -1,6 +1,8 @@
 // What a phone holds (ADR 0005): the Mac's snapshot of budgets and balances, and
 // the entries made on phones that the Mac hasn't taken in yet. Pure Dart; the
 // files these travel in aren't decided here.
+import 'dart:convert';
+
 import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
@@ -16,7 +18,13 @@ class PhoneCategory {
     this.paidFromId,
     this.recentPayees = const [],
     this.due,
+    this.madeHere = false,
   });
+
+  /// Made on this phone and not in the ledger yet (owner, 2026-10-08: "in a
+  /// pinch, if they're out of the house, they should be able to create a new
+  /// category"). Nothing is assigned to it until that is done on the computer.
+  final bool madeHere;
 
   /// The day the bill this category is saving for is due, when it has one
   /// and it isn't paid yet: its money is spoken for.
@@ -65,21 +73,26 @@ class PhoneSnapshot {
     required this.accounts,
     this.periodEnd,
     this.payees = const [],
+    this.taken = const {},
   });
+
+  /// What the computer has taken in from each phone, by the phone's name
+  /// for itself: a phone drops these from what it has waiting.
+  final Map<String, PhoneTaken> taken;
 
   /// Every payee in the ledger, newest first, each once.
   final List<String> payees;
 
   /// Payees from the ledger's history that fit what has been [typed] for an
-  /// entry in [category]: none until something is typed (owner, 2026-10-07:
+  /// entry in [category] (null while none is chosen): none until something is typed (owner, 2026-10-07:
   /// no payee filled in, no row of ready-made ones), then this category's
   /// own before the rest, and names that begin with it before names that
   /// only hold it.
-  List<String> payeesMatching(String typed, PhoneCategory category) {
+  List<String> payeesMatching(String typed, PhoneCategory? category) {
     final want = typed.trim().toLowerCase();
     if (want.isEmpty) return const [];
     final begins = <String>[], holds = <String>[];
-    for (final p in [...category.recentPayees, ...payees]) {
+    for (final p in [...?category?.recentPayees, ...payees]) {
       final name = p.toLowerCase();
       if (begins.contains(p) || holds.contains(p)) continue;
       if (name.startsWith(want)) {
@@ -133,6 +146,68 @@ class PhoneEntry {
   final DateTime madeAt;
 }
 
+/// What one phone has written to the folder for the computer: its entries
+/// and the categories it made, until the computer's ledger says they are in.
+class PhoneInbox {
+  const PhoneInbox({
+    required this.device,
+    this.entries = const [],
+    this.categories = const [],
+  });
+
+  /// Random, made once on the phone: it names the phone's file and its
+  /// part of [PhoneTaken].
+  final String device;
+  final List<PhoneEntry> entries;
+  final List<PhoneCategory> categories;
+}
+
+/// The preference the computer keeps what it has taken from the phones in.
+const phoneTakenKey = 'phone.taken';
+
+/// What the computer has taken in from one phone, kept for good: an older
+/// copy of the phone's file turning up in the folder must not bring an
+/// entry in a second time.
+class PhoneTaken {
+  const PhoneTaken({this.entries = const {}, this.categories = const {}});
+
+  /// The ids of the entries that are in the ledger.
+  final Set<String> entries;
+
+  /// The id a phone gave a category it made, to the id the ledger gave it.
+  final Map<String, String> categories;
+
+  static Map<String, PhoneTaken> decode(String? json) {
+    if (json == null) return {};
+    try {
+      return {
+        for (final MapEntry(:key, :value) in (jsonDecode(json) as Map).entries)
+          '$key': PhoneTaken(
+            entries: {for (final id in value['entries'] as List) '$id'},
+            categories: {
+              for (final MapEntry(:key, :value)
+                  in (value['categories'] as Map).entries)
+                '$key': '$value',
+            },
+          ),
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static String encode(Map<String, PhoneTaken> taken) => jsonEncode({
+    for (final device in taken.keys.toList()..sort())
+      device: {
+        'entries': taken[device]!.entries.toList()..sort(),
+        'categories': {
+          for (final id in taken[device]!.categories.keys.toList()..sort())
+            id: taken[device]!.categories[id],
+        },
+      },
+  });
+}
+
 /// What is left in [category] once the [waiting] entries are counted: the
 /// snapshot's figure doesn't know about them yet.
 int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
@@ -141,6 +216,37 @@ int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
     if (e.categoryId == category.id) left += e.amountMinor;
   }
   return left;
+}
+
+/// The [categories] that fit what has been [typed] in the category list: all
+/// of them, in their own order, until something is typed; then names that
+/// begin with it before names that only hold it.
+List<PhoneCategory> categoriesMatching(
+  Iterable<PhoneCategory> categories,
+  String typed,
+) {
+  final want = typed.trim().toLowerCase();
+  if (want.isEmpty) return categories.toList();
+  final begins = <PhoneCategory>[], holds = <PhoneCategory>[];
+  for (final c in categories) {
+    final name = c.name.toLowerCase();
+    if (name.startsWith(want)) {
+      begins.add(c);
+    } else if (name.contains(want)) {
+      holds.add(c);
+    }
+  }
+  return [...begins, ...holds];
+}
+
+/// The category already called [name], whatever its capitals: a second one
+/// by the same name is never made.
+PhoneCategory? categoryNamed(Iterable<PhoneCategory> categories, String name) {
+  final want = name.trim().toLowerCase();
+  for (final c in categories) {
+    if (c.name.trim().toLowerCase() == want) return c;
+  }
+  return null;
 }
 
 /// The amount pad's text after [key] is pressed: a digit, `.` or `<` for
@@ -247,6 +353,7 @@ PhoneSnapshot snapshotOf(
 
   return PhoneSnapshot(
     madeAt: madeAt,
+    taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,
     payees: everyPayee,
     categories: [

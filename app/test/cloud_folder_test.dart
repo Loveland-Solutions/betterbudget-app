@@ -3,6 +3,8 @@
 // line that says where it is.
 import 'dart:io';
 
+import 'package:betterbudget/data/phone_inbox.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
 import 'package:betterbudget/data/database.dart';
@@ -375,6 +377,31 @@ void main() {
         );
         expect(copy().existsSync(), isTrue);
 
+        // A phone writes an entry to the folder while the ledger is away.
+        await tester.runAsync(() async {
+          final data = await db.loadLedger();
+          int id(String name) =>
+              data.accounts.values.singleWhere((a) => a.name == name).id;
+          writePhoneInbox(
+            File('${drive.path}/${phoneInboxName('ab12')}'),
+            null,
+            PhoneInbox(
+              device: 'ab12',
+              entries: [
+                PhoneEntry(
+                  id: 'e1',
+                  categoryId: '${id('Groceries')}',
+                  accountId: '${id('TDB Checking')}',
+                  payee: 'From the phone',
+                  amountMinor: -1250000,
+                  date: today,
+                  madeAt: today,
+                ),
+              ],
+            ),
+          );
+        });
+
         // Ctrl+Z (⌘Z on a Mac) brings the folder back.
         await tester.runAsync(() async {
           await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -385,6 +412,56 @@ void main() {
         await tester.pump();
         expect(find.text('This computer'), findsNothing);
         expect(find.textContaining('My Drive/BetterBudget · '), findsOneWidget);
+        // With the ledger in the folder again, the phone's entry comes in:
+        // not over the popup that is up, but at the next look once it has
+        // gone (here, the app coming back to the front).
+        await tester.runAsync(() async {
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, isEmpty);
+        });
+        await tester.runAsync(() async {
+          // The popup's own six seconds, on the real clock it was made on.
+          await Future<void>.delayed(const Duration(milliseconds: 6500));
+        });
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.runAsync(() async {
+          for (final state in [
+            AppLifecycleState.inactive,
+            AppLifecycleState.hidden,
+            AppLifecycleState.paused,
+            AppLifecycleState.hidden,
+            AppLifecycleState.inactive,
+            AppLifecycleState.resumed,
+          ]) {
+            tester.binding.handleAppLifecycleStateChanged(state);
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        await tester.pump();
+        expect(find.text('1 transaction from your phone'), findsOneWidget);
+        await tester.runAsync(() async {
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, hasLength(1));
+        });
+
+        // ⌘Z doesn't reach it: that is for what the person did themselves
+        // (here it takes the folder away again). The popup's own Undo does.
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, hasLength(1));
+        });
+        await tester.pump();
 
         // Leave nothing running: the screen's copy timer goes with it.
         await tester.runAsync(() async {

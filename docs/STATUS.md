@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.16.2 · schema v18 · 523 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 542 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,8 +10,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #52 (version 0.16.2).** The owner's ledger is stored in their Google Drive
-folder, and the Android app reads it there. Then, in order:
+**After PR #53 (version 0.17.0).** The owner's ledger is stored in their Google Drive
+folder. The Android app opens on Ledger, records spending there, and what it records
+reaches the computer's ledger through the folder. Then, in order:
 
 1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
    want to be able to support multiple machines on the same ledger. Let's figure that
@@ -25,12 +26,13 @@ folder, and the Android app reads it there. Then, in order:
    full two-way merge as too much for phones; that has to be looked at again for
    computers. Until it is designed, only one computer should have the ledger moved to
    the folder. Bring two or three ways with sketches, as for any feature.
-2. **The phone's entries reach the Mac.** Today an entry saved on the phone is held
-   in memory and gone when the app closes. To build: the phone keeps its entries,
-   writes them to its own file in the folder, and the Mac takes them in as uncleared
-   rows with one undo (ADR 0005). Then money in and transfers on the phone, the other
-   phone's entries, and the iPhone build (its folder access and icon). How entries
-   travel depends on what item 1 decides.
+2. **The rest of the phone.** Its entries and new categories now reach the computer
+   (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
+   on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
+   phone's waiting line go within a minute, or only the two-minute fetch does. Then: money in and
+   transfers on the phone, the other phone's entries, and the iPhone build (its
+   folder access and icon). With two computers on one ledger each takes the same
+   entries in, which item 1 has to settle.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
@@ -57,7 +59,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #49. Branch, commit, PR, merge.
+**Git:** `main` has everything through PR #53. Branch, commit, PR, merge.
 
 ## Waiting on the owner
 
@@ -102,7 +104,14 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 11. **What "dedicated" means** (2026-10-02). Emergency fund limited to Khan Savings,
     holding ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 the fund's too, or
     free to assign, as built?
-12. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
+    the list show its balance, so they can tell whether that card will go through?
+13. **The phone's waiting line** (2026-10-08). "1 of your entries is waiting for your
+    computer" made the owner ask what it was waiting for the computer to do. Two
+    wordings were offered, "1 entry isn't in your ledger yet" (recommended) and "1
+    entry will be added when BetterBudget is next open on your computer"; the owner
+    wanted to see it work before choosing, and now has.
+14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -136,7 +145,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default |
-| Language | Same as this Mac, English or Монгол; 1,051 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,135 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
@@ -162,12 +171,16 @@ open the archive).
 - CSV export, app lock, printing the recovery key.
 - **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)): on Android the app
   asks once for the recovery key and for the folder the ledger was moved to, then
-  shows what is left in each category (those waiting for a bill apart, under Bills)
-  and each account's balance, read from
+  opens on Ledger: amount, Category (picked from a list or typed, and the list can
+  make a new one), Payee, Paid from, Date, Save. Budget, the other screen, shows what
+  is left in each category (those waiting for a bill apart, under Bills), makes a new
+  category too, and links to each account's balance. The figures are read from
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
-  or the list is pulled down (ADR 0004 "Phone screens", option B). Not built: entries
-  kept after the app closes, written to the folder and taken in by the Mac; money in
-  and transfers; other phones' entries; the iPhone's folder access and icon. The first
+  or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). What is
+  saved is kept on the phone, written to the folder in the phone's own file, and taken
+  in by the computer as uncleared rows with one undo. Not built: renaming a category
+  made on the phone; fixing a waiting entry; money in and transfers; other phones'
+  entries; the iPhone's folder access and icon. The first
   read from the owner's real Drive folder on the Pixel hasn't been watched yet.
 - **A Windows build.**
 - **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
@@ -184,11 +197,28 @@ open the archive).
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
   it back to this computer" is pressed still lands in the folder; an old or second
-  computer replaces the folder's ledger without a warning (Next step 1); Paid from on the
-  phone starts from the ledger's last row for that category, which may be the other
-  person's card; the Backups note still says to use a USB stick once the ledger is in
+  computer replaces the folder's ledger without a warning (Next step 1); the Backups note still says to use a USB stick once the ledger is in
   a folder. Untested: the phone's figures for a budget run by pay periods, and the
   phone meeting a ledger from a newer version.
+- **From the reviews of the phone's Ledger screen (2026-10-08), not fixed:** the "left
+  now" line on Ledger doesn't say how old the figures are (Budget does) and counts
+  only this phone's entries, whatever their date; Rent chosen on Ledger reads "left
+  now" in ordinary ink, though Budget lists it apart as a bill; a waiting entry whose
+  category has gone from the ledger shows no category and its amount in tugrik; a
+  category made on the phone and one of the same name arriving from the Mac are both
+  listed; on a 360 × 640 phone Save is reached by scrolling.
+- **From the reviews of the phone's entries reaching the computer (2026-10-08), not
+  fixed:** a purchase imported from the bank before its phone entry arrives is in
+  twice (the other order is matched by import); an entry whose account
+  or category was deleted on the computer waits on the phone for good with no reason
+  given; after a week away, 40 arrivals are one count in a popup with no way to see
+  which rows they were; an entry dated in an earlier budget period or before the last
+  reconcile changes that period without a word; a phone category is matched by name
+  alone, so a dollar entry can land in a tugrik category of that name; the list of
+  entries already in (`phone.taken`) only grows, about 130 KB a year for two phones.
+- **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
+  (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
+  random key.
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the

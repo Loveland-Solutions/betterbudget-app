@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:file_selector/file_selector.dart';
@@ -14,6 +14,7 @@ import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
+import '../data/phone_inbox.dart';
 import '../domain/budget.dart';
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
@@ -215,6 +216,93 @@ class _LedgerScreenState extends State<LedgerScreen> {
   bool _ledgerSeen = false;
   AppLifecycleListener? _exit;
 
+  /// Looks in the folder for what the phones have written, while the
+  /// ledger is stored in one.
+  Timer? _phones;
+  bool _takingPhones = false;
+
+  void _watchPhones() {
+    if (_cloud.value.path == null) {
+      _phones?.cancel();
+      _phones = null;
+    } else if (_phones == null) {
+      _phones = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _takePhones(),
+      );
+      unawaited(_takePhones());
+    }
+  }
+
+  /// The Budget page with [id]'s Edit open under its row.
+  void _editCategory(int id) {
+    setState(() => _section = AppSection.budget);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _budgetKey.currentState?.openEdit(id),
+    );
+  }
+
+  /// Adds the phones' entries to the ledger as uncleared rows (ADR 0005):
+  /// straight in, with one undo for the lot.
+  Future<void> _takePhones() async {
+    final path = _cloud.value.path;
+    if (path == null || _takingPhones) return;
+    // Not into the middle of a restore, a reconcile or setup: the next
+    // look brings them.
+    if (_restoring || _reconcile != null) return;
+    if (_data case final d? when inSetup(d)) return;
+    // Nor over a popup still on screen, whose Undo would be lost.
+    if (_toast != null) return;
+    _takingPhones = true;
+    try {
+      final inboxes = await readPhoneInboxes(
+        Directory(path),
+        _backups.dataKey,
+        scratch: Directory('${Directory.systemTemp.path}/betterbudget-phones'),
+      );
+      if (inboxes.isEmpty) return;
+      final take = await db.takePhoneEntries(inboxes, today: today);
+      if (take == null || !mounted) return;
+      final t = context.t;
+      final label = take.transactionIds.isEmpty
+          ? t.ledgerCategoryFromPhone(take.categoryIds.length)
+          : t.ledgerFromPhone(take.transactionIds.length);
+      // Not in ⌘Z's history (owner, 2026-10-08): ⌘Z pressed for something
+      // just typed would take out rows the phone has already let go of.
+      // Only this popup's Undo does, and ⌘⇧Z brings them back.
+      final action = _Undoable(
+        label,
+        () => db.undoPhoneTake(take),
+        () => db.redoPhoneTake(take),
+      );
+      _showToast(
+        label,
+        // One new category, with nothing assigned yet: its Edit is where
+        // that is done.
+        more: take.categoryIds.length == 1
+            ? (
+                label: t.ledgerEditCategory(take.categoryNames.single),
+                onTap: () => _editCategory(take.categoryIds.single),
+              )
+            : null,
+        undo: () async {
+          try {
+            await action.undo();
+          } catch (e) {
+            if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
+            return;
+          }
+          _redo.add(action);
+          if (mounted) _showToast(context.t.ledgerUndone(label));
+        },
+      );
+    } catch (e) {
+      debugPrint('Taking in the phones’ entries failed: $e');
+    } finally {
+      _takingPhones = false;
+    }
+  }
+
   /// The latest ledger, for comparing a backup with what's here now.
   LedgerData? _data;
 
@@ -240,9 +328,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
           _ledgerSeen = true;
           return data;
         });
+    _cloud.addListener(_watchPhones);
     unawaited(_cloud.load(widget.clock()));
     // A change made in the last few seconds is written before the app goes.
     _exit = AppLifecycleListener(
+      // Back at the front: a phone may have written since.
+      onResume: _takePhones,
       onExitRequested: () async {
         await _cloud.flush().timeout(
           const Duration(seconds: 5),
@@ -335,6 +426,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _toastGrace?.cancel();
     _reconcile?.dispose();
     _exit?.dispose();
+    _phones?.cancel();
     _cloud.dispose();
     super.dispose();
   }

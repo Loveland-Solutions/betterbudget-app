@@ -110,6 +110,17 @@ class _BudgetPageState extends State<_BudgetPage> {
   BudgetSpan get _current =>
       budgetPeriod(widget.today, widget.data.periodSchedule);
 
+  /// Opens [id]'s Edit under its row, in the period today is in: asked for
+  /// from the popup that says a phone made the category.
+  void openEdit(int id) => setState(() {
+    _tab = _BudgetTab.spending;
+    _period = null;
+    _adding = false;
+    _editing = null;
+    _openAtPlan = false;
+    _open = id;
+  });
+
   /// ⌘N: the add box for a category, or Add pay on the Income tab.
   void addNew() {
     if (_tab == _BudgetTab.income) {

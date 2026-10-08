@@ -4435,17 +4435,12 @@ class WordsMn extends Words {
 
   @override
   String phoneFromMacToday(String time) {
-    return 'Mac-аас өнөөдөр $time';
+    return 'Компьютероос өнөөдөр $time';
   }
 
   @override
   String phoneFromMacOn(String date, String time) {
-    return 'Mac-аас $date $time';
-  }
-
-  @override
-  String phoneAddTo(String category) {
-    return '$category ангилалд нэмэх';
+    return 'Компьютероос $date $time';
   }
 
   @override
@@ -4453,13 +4448,13 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Таны $count гүйлгээ Mac-ийг хүлээж байна',
+      other: 'Таны $count гүйлгээ компьютерийг хүлээж байна',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Mac-ийг хүлээж байна';
+  String get phoneWaitingTitle => 'Компьютерийг хүлээж байна';
 
   @override
   String phoneOwed(String amount) {
@@ -4618,4 +4613,89 @@ class WordsMn extends Words {
 
   @override
   String get phoneBills => 'Төлбөрүүд';
+
+  @override
+  String get phoneNewCategory => '+ Шинэ ангилал';
+
+  @override
+  String get phoneNewCategoryTitle => 'Шинэ ангилал';
+
+  @override
+  String get phoneChooseCategory => 'Ангилал сонгоно уу';
+
+  @override
+  String get phoneNothingAssigned => 'Одоогоор мөнгө хуваарилаагүй';
+
+  @override
+  String phoneSaved(String payee, String amount) {
+    return 'Хадгаллаа · $payee $amount';
+  }
+
+  @override
+  String phoneWaitingCategories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count шинэ ангилал компьютерийг хүлээж байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingBoth(int entries, int categories) {
+    return 'Таны $entries гүйлгээ, $categories шинэ ангилал компьютерийг хүлээж байна';
+  }
+
+  @override
+  String phoneDeleteCategory(int count, String name, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name ангилал болон доторх $count гүйлгээг ($amount) устгах уу?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneClear => 'Цэвэрлэх';
+
+  @override
+  String phoneSavedLeft(String category, String left) {
+    return '$category · $left үлдсэн';
+  }
+
+  @override
+  String phoneSavedOver(String category, String over) {
+    return '$category · $over хэтэрсэн';
+  }
+
+  @override
+  String phoneSavedNothingAssigned(String category) {
+    return '$category · одоогоор мөнгө хуваарилаагүй';
+  }
+
+  @override
+  String ledgerFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Утаснаас $count гүйлгээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCategoryFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Утаснаас $count шинэ ангилал',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerEditCategory(String name) {
+    return 'Засах: $name';
+  }
 }

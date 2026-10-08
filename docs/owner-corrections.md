@@ -88,4 +88,14 @@ screen, with more as buttons under it (no payee filled in and none laid out; the
 ledger's payees are offered only as one is typed), and rent's money listed on the phone among the money to
 spend, in the same ink (categories waiting for a bill go under their own heading,
 **Bills**, quieter), asked about with a category called Housing (rent is in a Rent
-category: an example uses the names a person would).
+category: an example uses the names a person would), and a + on every
+category row of the phone's first screen, which opened on the budget (it opens on
+**Ledger**, everything a transaction needs on one screen; the category is picked from a
+list or typed, and the list can make a new one; Budget is the other screen), and being asked whether
+Save could go ahead with no payee (there is always a payee: they'd write "Taxi"), and
+"the Mac" on the phone (it's **your computer**), and a line after Save that said only
+what was saved (a toast that says what the entry did to its category: "Groceries ·
+₮135,500.00 left"), and that toast built as a card set into the page (a toast
+appears over the page and goes away by itself), and an account already
+filled in under the phone's Paid from, then a question about which account to fill in
+(don't autofill: the row is empty until they choose).

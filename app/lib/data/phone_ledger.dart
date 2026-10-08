@@ -1,6 +1,7 @@
 // The phone's side of the cloud folder (ADR 0005): finding the folder the
 // ledger was moved to, and reading the ledger in it. The phone never writes to
-// that file; it takes a private copy and opens the copy.
+// that file; it takes a private copy and opens the copy. What the phone does
+// write there is its own file (`phone_inbox.dart`).
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -42,6 +43,25 @@ class PhoneFolder {
       changed: at == null ? null : DateTime.fromMillisecondsSinceEpoch(at),
     );
   }
+
+  /// When the file [name] in [folder] was last changed, without fetching
+  /// it; null when there is no such file or the folder doesn't say.
+  Future<DateTime?> changed(String folder, String name) async {
+    final at = await _channel.invokeMethod<int>('changed', {
+      'folder': folder,
+      'name': name,
+    });
+    return at == null ? null : DateTime.fromMillisecondsSinceEpoch(at);
+  }
+
+  /// Writes [bytes] as the file [name] in [folder], over one already there:
+  /// this phone's own entries, for the computer.
+  Future<void> write(String folder, String name, Uint8List bytes) =>
+      _channel.invokeMethod<void>('write', {
+        'folder': folder,
+        'name': name,
+        'bytes': bytes,
+      });
 
   /// Gives the folder up, before another is picked.
   Future<void> forget(String folder) =>

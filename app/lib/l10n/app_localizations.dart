@@ -6607,31 +6607,25 @@ abstract class Words {
   /// Phone app, under the heading: when the figures were last copied from the Mac, if that was today. {time} reads 08:10.
   ///
   /// In en, this message translates to:
-  /// **'From your Mac today {time}'**
+  /// **'From your computer today {time}'**
   String phoneFromMacToday(String time);
 
   /// Phone app, under the heading: when the figures were last copied from the Mac, on an earlier day. {date} reads 2026.10.06, {time} 21:40.
   ///
   /// In en, this message translates to:
-  /// **'From your Mac {date} {time}'**
+  /// **'From your computer {date} {time}'**
   String phoneFromMacOn(String date, String time);
-
-  /// Phone app: what a screen reader says for the + on a category’s row, which opens the amount pad for that category.
-  ///
-  /// In en, this message translates to:
-  /// **'Add to {category}'**
-  String phoneAddTo(String category);
 
   /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 of your entries is waiting for the Mac} other{{count} of your entries are waiting for the Mac}}'**
+  /// **'{count, plural, =1{1 of your entries is waiting for your computer} other{{count} of your entries are waiting for your computer}}'**
   String phoneWaiting(int count);
 
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for the Mac'**
+  /// **'Waiting for your computer'**
   String get phoneWaitingTitle;
 
   /// Phone app, Accounts list: a credit card’s or loan’s balance.
@@ -6879,6 +6873,96 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Bills'**
   String get phoneBills;
+
+  /// Phone app: the row that makes a new category, in the category list with nothing typed and at the end of the Budget screen’s list. Same words as the computer’s entry row.
+  ///
+  /// In en, this message translates to:
+  /// **'+ New category'**
+  String get phoneNewCategory;
+
+  /// Phone app: heading of the box that asks for a new category’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get phoneNewCategoryTitle;
+
+  /// Phone app: shown above Save when Save was tapped with no category chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category'**
+  String get phoneChooseCategory;
+
+  /// Phone app: under the amount being typed, and under the category’s name on the Budget screen, for a category just made on the phone. Money is assigned to it on the computer; “Assigned” is the Budget page’s word.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing assigned yet'**
+  String get phoneNothingAssigned;
+
+  /// Phone app: the line shown after an entry is saved, with Undo beside it. {amount} reads −₮12,500.00.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved · {payee} {amount}'**
+  String phoneSaved(String payee, String amount);
+
+  /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new category is waiting for your computer} other{{count} new categories are waiting for your computer}}'**
+  String phoneWaitingCategories(int count);
+
+  /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for your computer'**
+  String phoneWaitingBoth(int entries, int categories);
+
+  /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Delete {name} and the 1 entry in it ({amount})?} other{Delete {name} and the {count} entries in it ({amount})?}}'**
+  String phoneDeleteCategory(int count, String name, String amount);
+
+  /// Phone app, top right of the entry screen once anything is typed or chosen: empties the entry being typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get phoneClear;
+
+  /// Phone app, second line of the card shown after an entry is saved: what the entry left in its category. Reads “Groceries · ₮135,500.00 left”.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · {left} left'**
+  String phoneSavedLeft(String category, String left);
+
+  /// Phone app, second line of the card shown after an entry is saved, when its category is now overspent. Reads “Eating out · overspent by ₮30,900.00”.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · overspent by {over}'**
+  String phoneSavedOver(String category, String over);
+
+  /// Phone app, second line of the card shown after an entry is saved in a category made on this phone, which has no money assigned until that is done on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · nothing assigned yet'**
+  String phoneSavedNothingAssigned(String category);
+
+  /// Popup on the computer when entries typed on a phone have been added to the ledger as uncleared rows; Undo takes them all out again.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from your phone} other{{count} transactions from your phone}}'**
+  String ledgerFromPhone(int count);
+
+  /// Popup on the computer when a category made on a phone has been added, with no entries in it yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new category from your phone} other{{count} new categories from your phone}}'**
+  String ledgerCategoryFromPhone(int count);
+
+  /// Button on the popup that says a phone made a new category: opens that category’s Edit on the Budget page, where money is assigned to it. {name} is the category, like Coffee.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {name}'**
+  String ledgerEditCategory(String name);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

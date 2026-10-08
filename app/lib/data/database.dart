@@ -7,6 +7,7 @@ import '../domain/budget.dart' show Budget;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../domain/phone.dart';
 import '../import/mapping.dart';
 import 'encryption.dart';
 import 'ledger_file.dart';
@@ -464,6 +465,24 @@ class DeletedAccount {
   const DeletedAccount(this.accountId, this.transactionIds);
   final int accountId;
   final List<int> transactionIds;
+}
+
+/// What one look at the phones' files brought in, for its undo.
+class PhoneTake {
+  const PhoneTake(
+    this.transactionIds,
+    this.categoryIds, [
+    this.unarchivedIds = const [],
+    this.categoryNames = const [],
+  ]);
+  final List<int> transactionIds;
+
+  /// The categories it had to make, and what each is called.
+  final List<int> categoryIds;
+  final List<String> categoryNames;
+
+  /// The archived categories it brought back to file an entry in.
+  final List<int> unarchivedIds;
 }
 
 /// What a row of a bank file does on import. The person can turn a match
@@ -3753,6 +3772,140 @@ class AppDatabase extends _$AppDatabase {
       'WHERE cleared = $rec AND reconciliation_id IS NULL',
     );
   }
+
+  // ---------- phones (ADR 0005) ----------
+
+  /// Takes in what the phones have written to the folder: each entry not
+  /// yet in the ledger becomes an uncleared row, and a category a phone
+  /// made is made here unless one is already called that, whatever its
+  /// capitals. What was taken is remembered under [phoneTakenKey], in the
+  /// same transaction, so nothing comes in twice; the phones read it from
+  /// the ledger and drop what is in. Null when there was nothing new.
+  ///
+  /// An entry is never forgotten once taken: a second or older copy of a
+  /// phone's file (Drive keeps two files of one name, and conflict copies)
+  /// would bring it in again. An entry whose account or category has been
+  /// deleted here is left with the phone.
+  Future<PhoneTake?> takePhoneEntries(
+    List<PhoneInbox> inboxes, {
+    required DateTime today,
+  }) => transaction(() async {
+    final row = await (select(
+      preferences,
+    )..where((p) => p.key.equals(phoneTakenKey))).getSingleOrNull();
+    final taken = PhoneTaken.decode(row?.value);
+    final live = await (select(
+      accounts,
+    )..where((a) => a.deletedAt.isNull())).get();
+    final spending = {
+      for (final a in live)
+        if (a.type == AccountType.expense) a.id,
+    };
+    final paidFrom = {
+      for (final a in live)
+        if (_reconcilable.contains(a.type)) a.id,
+    };
+    final byName = {
+      for (final a in live)
+        if (a.type == AccountType.expense) a.name.trim().toLowerCase(): a.id,
+    };
+    final archived = {
+      for (final a in live)
+        if (a.archivedAt != null) a.id,
+    };
+    final added = <int>[], made = <int>[], unarchived = <int>[];
+    final madeNames = <String>[];
+    for (final inbox in inboxes) {
+      final was = taken[inbox.device] ?? const PhoneTaken();
+      final categories = {...was.categories};
+      // The ledger's category for one a phone made: the one already called
+      // that, whatever its capitals, or a new one.
+      Future<int> categoryFor(PhoneCategory c) async {
+        final name = c.name.trim().toLowerCase();
+        var id = byName[name];
+        if (id == null) {
+          id = await createCategory(c.name, currency: c.currency);
+          made.add(id);
+          madeNames.add(c.name.trim());
+          spending.add(id);
+          byName[name] = id;
+        }
+        categories[c.id] = '$id';
+        return id;
+      }
+
+      final theirs = {for (final c in inbox.categories) c.id: c};
+      for (final c in inbox.categories) {
+        if (!categories.containsKey(c.id)) await categoryFor(c);
+      }
+      final entries = {...was.entries};
+      for (final e in inbox.entries) {
+        if (entries.contains(e.id)) continue;
+        var category = int.tryParse(categories[e.categoryId] ?? e.categoryId);
+        // One made for an earlier take and deleted since (its undo) is made
+        // again only when a later entry needs it, so the undo stays undone.
+        if (!spending.contains(category) && theirs[e.categoryId] != null) {
+          category = await categoryFor(theirs[e.categoryId]!);
+        }
+        final account = int.tryParse(e.accountId);
+        // Only spending, from a real account: anything else in the file
+        // (a deleted category, an id that names an account) stays out.
+        if (!spending.contains(category) || !paidFrom.contains(account)) {
+          continue;
+        }
+        // The phone can't see an archived category: spending filed in one
+        // would be out of sight on the Budget page, so it comes back.
+        if (archived.remove(category)) {
+          await setArchived(category!, false);
+          unarchived.add(category);
+        }
+        added.add(
+          await postSimple(
+            accountId: account!,
+            date: e.date,
+            // Something bought, never something scheduled: a phone whose
+            // clock is ahead of this computer's still records spending.
+            today: e.date.isAfter(today) ? e.date : today,
+            payee: e.payee,
+            counterAccountId: category!,
+            amount: e.amountMinor,
+          ),
+        );
+        entries.add(e.id);
+      }
+      taken[inbox.device] = PhoneTaken(
+        entries: entries,
+        categories: categories,
+      );
+    }
+    final after = PhoneTaken.encode(taken);
+    if (after != row?.value) await setPreference(phoneTakenKey, after);
+    return added.isEmpty && made.isEmpty
+        ? null
+        : PhoneTake(added, made, unarchived, madeNames);
+  });
+
+  /// Undo for [takePhoneEntries]: its rows go, and the categories it made.
+  /// They stay marked as taken, so the next look doesn't bring them back.
+  Future<void> undoPhoneTake(PhoneTake t) => transaction(() async {
+    await softDeleteMany(t.transactionIds);
+    for (final c in t.categoryIds) {
+      await deleteEmptyAccount(c);
+    }
+    for (final c in t.unarchivedIds) {
+      await setArchived(c, true);
+    }
+  });
+
+  Future<void> redoPhoneTake(PhoneTake t) => transaction(() async {
+    for (final c in t.categoryIds) {
+      await undeleteAccount(DeletedAccount(c, const []));
+    }
+    for (final c in t.unarchivedIds) {
+      await setArchived(c, false);
+    }
+    await restoreMany(t.transactionIds);
+  });
 
   // ---------- import (ADR 0002) ----------
 

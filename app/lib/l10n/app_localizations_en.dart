@@ -4603,17 +4603,12 @@ class WordsEn extends Words {
 
   @override
   String phoneFromMacToday(String time) {
-    return 'From your Mac today $time';
+    return 'From your computer today $time';
   }
 
   @override
   String phoneFromMacOn(String date, String time) {
-    return 'From your Mac $date $time';
-  }
-
-  @override
-  String phoneAddTo(String category) {
-    return 'Add to $category';
+    return 'From your computer $date $time';
   }
 
   @override
@@ -4621,14 +4616,14 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count of your entries are waiting for the Mac',
-      one: '1 of your entries is waiting for the Mac',
+      other: '$count of your entries are waiting for your computer',
+      one: '1 of your entries is waiting for your computer',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Waiting for the Mac';
+  String get phoneWaitingTitle => 'Waiting for your computer';
 
   @override
   String phoneOwed(String amount) {
@@ -4787,4 +4782,105 @@ class WordsEn extends Words {
 
   @override
   String get phoneBills => 'Bills';
+
+  @override
+  String get phoneNewCategory => '+ New category';
+
+  @override
+  String get phoneNewCategoryTitle => 'New category';
+
+  @override
+  String get phoneChooseCategory => 'Choose a category';
+
+  @override
+  String get phoneNothingAssigned => 'Nothing assigned yet';
+
+  @override
+  String phoneSaved(String payee, String amount) {
+    return 'Saved · $payee $amount';
+  }
+
+  @override
+  String phoneWaitingCategories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new categories are waiting for your computer',
+      one: '1 new category is waiting for your computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingBoth(int entries, int categories) {
+    String _temp0 = intl.Intl.pluralLogic(
+      entries,
+      locale: localeName,
+      other: '$entries of your entries',
+      one: '1 of your entries',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      categories,
+      locale: localeName,
+      other: '$categories new categories',
+      one: '1 new category',
+    );
+    return '$_temp0 and $_temp1 are waiting for your computer';
+  }
+
+  @override
+  String phoneDeleteCategory(int count, String name, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $name and the $count entries in it ($amount)?',
+      one: 'Delete $name and the 1 entry in it ($amount)?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneClear => 'Clear';
+
+  @override
+  String phoneSavedLeft(String category, String left) {
+    return '$category · $left left';
+  }
+
+  @override
+  String phoneSavedOver(String category, String over) {
+    return '$category · overspent by $over';
+  }
+
+  @override
+  String phoneSavedNothingAssigned(String category) {
+    return '$category · nothing assigned yet';
+  }
+
+  @override
+  String ledgerFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions from your phone',
+      one: '1 transaction from your phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCategoryFromPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new categories from your phone',
+      one: '1 new category from your phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerEditCategory(String name) {
+    return 'Edit $name';
+  }
 }

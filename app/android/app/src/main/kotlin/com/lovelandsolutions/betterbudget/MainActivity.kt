@@ -40,6 +40,33 @@ class MainActivity : FlutterActivity() {
             "read" -> background(result) {
                 read(Uri.parse(call.argument("folder")!!), call.argument("name")!!)
             }
+            // When the file was last changed, without fetching it.
+            "changed" -> background(result) {
+                val folder = Uri.parse(call.argument<String>("folder")!!)
+                // Drive answers from a listing it keeps, which can be minutes
+                // old: ask it to look again first.
+                try {
+                    contentResolver.refresh(
+                        DocumentsContract.buildChildDocumentsUriUsingTree(
+                            folder,
+                            DocumentsContract.getTreeDocumentId(folder),
+                        ),
+                        null,
+                        null,
+                    )
+                } catch (e: Exception) {
+                    // A provider that can't refresh still answers below.
+                }
+                find(folder, call.argument("name")!!)?.second
+            }
+            "write" -> background(result) {
+                write(
+                    Uri.parse(call.argument("folder")!!),
+                    call.argument("name")!!,
+                    call.argument<ByteArray>("bytes")!!,
+                )
+                null
+            }
             "forget" -> {
                 val uri = Uri.parse(call.argument<String>("folder")!!)
                 val held = contentResolver.persistedUriPermissions.firstOrNull { it.uri == uri }
@@ -90,6 +117,40 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun read(folder: Uri, name: String): Map<String, Any?>? {
+        val (found, changed) = find(folder, name) ?: return null
+        val doc = DocumentsContract.buildDocumentUriUsingTree(folder, found)
+        val bytes = contentResolver.openInputStream(doc)!!.use { it.readBytes() }
+        return mapOf("bytes" to bytes, "changed" to changed)
+    }
+
+    // The phone's own entries, for the computer: written over the file of
+    // that name, or as a new file the first time.
+    private fun write(folder: Uri, name: String, bytes: ByteArray) {
+        val found = find(folder, name)?.first
+        val doc = if (found != null) {
+            DocumentsContract.buildDocumentUriUsingTree(folder, found)
+        } else {
+            DocumentsContract.createDocument(
+                contentResolver,
+                DocumentsContract.buildDocumentUriUsingTree(
+                    folder,
+                    DocumentsContract.getTreeDocumentId(folder),
+                ),
+                "application/octet-stream",
+                name,
+            ) ?: throw IllegalStateException("The folder didn't take a new file")
+        }
+        // "wt" cuts the old file short first; a provider without it gets "w".
+        val out = try {
+            contentResolver.openOutputStream(doc, "wt")
+        } catch (e: Exception) {
+            contentResolver.openOutputStream(doc, "w")
+        }
+        out!!.use { it.write(bytes) }
+    }
+
+    // The newest file called [name] in the folder, and when it was changed.
+    private fun find(folder: Uri, name: String): Pair<String, Long?>? {
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(
             folder,
             DocumentsContract.getTreeDocumentId(folder),
@@ -117,8 +178,6 @@ class MainActivity : FlutterActivity() {
             }
         }
         val found = id ?: return null
-        val doc = DocumentsContract.buildDocumentUriUsingTree(folder, found)
-        val bytes = contentResolver.openInputStream(doc)!!.use { it.readBytes() }
-        return mapOf("bytes" to bytes, "changed" to changed)
+        return Pair(found, changed)
     }
 }

@@ -102,6 +102,67 @@ the copy with the key, and works out what each category holds with the same code
 the Mac's Budget page. It reads again when the app comes back to the front and when
 the list is pulled down; a read that fails leaves the figures up, with their time.
 
+**Built, 2026-10-08: the phone's entries reach the computer** (owner, with the
+phone saying an entry was waiting for the computer and the computer open: "I want to
+see it work… that message isn't going away"). Until then an entry lived in the phone's
+memory and nothing took it in.
+
+- **The phone keeps what it has waiting** in its own storage, and writes the same
+  file to the folder as `Phone <name>.betterbudget-phone`, where the name is four
+  random bytes the phone gave itself. It holds the phone's entries and the categories
+  it made, as a small database encrypted with the ledger's key, the way the ledger is.
+  It is written again after each change; a write that fails is tried at the next read.
+- **The computer looks in the folder** when the ledger is stored in one: at launch,
+  when it comes back to the front, and every 15 seconds. Each entry not yet in the
+  ledger becomes an uncleared row; a category the phone made is made unless one is
+  already called that, whatever its capitals. A popup says "1 transaction from your
+  phone", and one undo takes the lot out. Nothing is asked.
+- **What is in is written in the ledger itself** (the preference `phone.taken`: for
+  each phone, the ids of its entries that are in, and which ledger category each
+  category it made became), in the same transaction as the rows, so nothing comes in
+  twice. The phone reads that from the ledger's next copy and drops those entries.
+  The computer never forgets an id: Drive can hold two files of one name, or an older
+  conflict copy, and a forgotten entry in one of those would come in again (the first
+  build forgot an id once the phone's file no longer held it). Undone rows stay
+  marked as in, so they don't come back by themselves; a category the undo removed
+  is made again only when a later entry needs it. Nothing is taken in during a
+  restore, a reconcile or setup.
+- **While something is waiting, the phone asks the folder every 30 seconds** when the
+  ledger was last changed, and fetches it only when that has moved, so the waiting
+  line goes without the app being left and without a copy of the whole ledger over
+  mobile data each time. With nothing waiting it doesn't ask. Coming to the front
+  always reads. **Drive on the phone answers from a listing it keeps**: on the first
+  real run (the owner's Pixel, 2026-10-08) it went on giving the old time for five
+  minutes after the computer had written the newer ledger, so the waiting line
+  stayed. The phone now asks Drive to refresh the listing before it asks the time,
+  and every fourth look (two minutes) fetches the ledger whatever the time says.
+- **A phone entry is spending, never a scheduled row.** The phone's date stops at
+  today, and an entry dated after the computer's today (a clock ahead) still comes in
+  as an ordinary uncleared row.
+- **An arrival doesn't disturb what the person is doing**: it waits for a popup on
+  screen to go, and it leaves redo as it was.
+- **⌘Z doesn't take an arrived batch out; its own popup's Undo does** (owner,
+  2026-10-08, asked whether ⌘Z pressed for something just typed should be able to
+  remove rows the phone has already let go of: "Yes" to leaving them alone). This
+  changes "one ⌘Z that undoes the whole batch" below. After the popup's Undo, ⌘⇧Z
+  brings the batch back.
+- **A new category's popup offers its Edit** (owner, same day): when one category
+  came with the batch, the popup has a button, "Edit Coffee", that opens the Budget
+  page with that category's Edit open, where money is assigned to it.
+- **An entry filed in an archived category brings the category back** (the phone
+  can't see archived ones, so it would have made the name again); undo archives it
+  again.
+- An entry whose account or category was deleted on the computer is left with the
+  phone.
+
+**Seen working end to end on 2026-10-08** with the owner's Pixel, Mac and Drive
+folder: saved on the phone at 12:23, the phone's file on the Mac at 12:24, in the
+ledger at 12:25.
+
+No table was added: the ledger's schema is unchanged. Not built: other phones'
+entries shown on a phone, money in and transfers, and the iPhone's folder access. With
+two computers on one ledger each would take the same entries in (the next section).
+
 ### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
 
 "I definitely want to be able to support multiple machines on the same ledger. Let's
@@ -120,9 +181,17 @@ the code stands.
 | Add a transaction: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
 | Fix or delete its own entries until the Mac takes them in | Fix another phone's entries |
 | See what's left in each budget, and account balances | Reconcile |
-| | Change budgets, accounts, categories or settings |
+| Make a new category, by name (owner, 2026-10-08) | Change budgets, accounts, other categories or settings |
 
 Mistakes in older transactions are fixed on the Mac.
+
+**A new category from the phone** (owner, 2026-10-08: "In a pinch, if they're out of
+the house, they should be able to create a new category. I know this deviates from
+what I said earlier"). It is an inbox item like an entry: a random ID, a name and a
+currency, with nothing assigned until that is done on the Mac. The phone's entries can
+be filed in it at once. When the Mac takes it in, a category already called that
+(whatever its capitals, archived ones included, which the phone can't see) is used
+instead of making a second.
 
 ### Numbers on the phone
 
@@ -153,7 +222,8 @@ catches mistakes, as it does for any uncleared row.
 ## Consequences
 
 - The database schema doesn't need random IDs. Only inbox items do.
-- The phone UI is two screens (entry, budgets), not a phone-sized register.
+- The phone UI is two screens (entry, budgets), not a phone-sized register. Since
+  2026-10-08 it opens on the entry (ADR 0004 "Phone screens: Ledger first").
 - Budget views on the phone depend on the budget existing on the Mac first ("ledger
   first, then the budget").
 - **Before choosing a service, test** how a shared folder shows up in Files (iOS) and the

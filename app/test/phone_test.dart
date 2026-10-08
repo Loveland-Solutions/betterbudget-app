@@ -1,5 +1,6 @@
-// The phone screens (ADR 0005; ADR 0004 "Phone screens"): what is left in each
-// category, and the amount pad a category's + opens. Drawn on a 390 × 844 phone.
+// The phone screens (ADR 0005; ADR 0004 "Phone screens"): Ledger, where a
+// transaction is typed and its category picked or made, and Budget, what is
+// left in each category. Drawn on a 390 × 844 phone.
 import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
@@ -7,6 +8,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
+import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/money.dart';
@@ -29,8 +31,12 @@ Future<void> _loadFont(String family, String path) async {
 
 final _now = DateTime(2026, 10, 7, 14, 5);
 
-Future<PhoneStore> _pump(WidgetTester tester, {PhoneSnapshot? snapshot}) async {
-  tester.view.physicalSize = const Size(390, 844);
+Future<PhoneStore> _pump(
+  WidgetTester tester, {
+  PhoneSnapshot? snapshot,
+  Size size = const Size(390, 844),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final store = PhoneStore(
@@ -49,6 +55,49 @@ Future<void> _payee(WidgetTester tester, String typed, {String? pick}) async {
   await tester.enterText(find.byKey(const ValueKey('payee-field')), typed);
   await tester.pump();
   await tester.tap(pick == null ? find.text('Save').last : find.text(pick));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _toBudget(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('to-budget')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _toLedger(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('to-ledger')));
+  await tester.pumpAndSettle();
+}
+
+/// Picks [name] from the category list on the entry screen.
+Future<void> _category(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const ValueKey('category-row')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+}
+
+/// Picks [name] under Paid from on the entry screen.
+Future<void> _account(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const ValueKey('account-row')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+}
+
+/// A whole entry: category, amount, payee, Paid from, Save.
+Future<void> _spend(
+  WidgetTester tester,
+  String category,
+  String amount,
+  String payee, {
+  String? pick,
+  String from = 'TDB Checking',
+}) async {
+  await _category(tester, category);
+  await _account(tester, from);
+  await _type(tester, amount);
+  await _payee(tester, payee, pick: pick);
+  await tester.tap(find.text('Save'));
   await tester.pumpAndSettle();
 }
 
@@ -75,7 +124,7 @@ class _FakeFolder extends PhoneFolder {
   String? picked;
   String? willPick = 'drive:BetterBudget';
   Uint8List? ledger = Uint8List.fromList([1, 2, 3]);
-  DateTime? changed = DateTime(2026, 10, 7, 13, 30);
+  DateTime? changedAt = DateTime(2026, 10, 7, 13, 30);
   final forgotten = <String>[];
   final asked = <String>[];
 
@@ -92,11 +141,29 @@ class _FakeFolder extends PhoneFolder {
   ) async {
     asked.add(name);
     final bytes = ledger;
-    return bytes == null ? null : (bytes: bytes, changed: changed);
+    return bytes == null ? null : (bytes: bytes, changed: changedAt);
   }
 
   @override
   Future<void> forget(String folder) async => forgotten.add(folder);
+
+  @override
+  Future<DateTime?> changed(String folder, String name) async =>
+      ledger == null ? null : changedAt;
+
+  /// The files this phone has written to the folder, by name.
+  final written = <String, Uint8List>{};
+
+  @override
+  Future<void> write(String folder, String name, Uint8List bytes) async =>
+      written[name] = bytes;
+}
+
+/// A place for one test's phone to keep its files.
+Directory _phoneDir() {
+  final dir = Directory.systemTemp.createTempSync('bb-phone');
+  addTearDown(() => dir.deleteSync(recursive: true));
+  return dir;
 }
 
 void main() {
@@ -170,19 +237,39 @@ void main() {
     expect(leftNow(groceries, waiting), 13550000);
   });
 
-  testWidgets('opens on what is left, with the cents where there is room', (
+  testWidgets('opens on Ledger with nothing chosen', (tester) async {
+    await _pump(tester);
+    expect(find.text('−₮0'), findsOneWidget);
+    // Payee is above Category (owner, 2026-10-08).
+    expect(
+      tester.getTopLeft(find.text('Payee')).dy,
+      lessThan(tester.getTopLeft(find.text('Category')).dy),
+    );
+    // Paid from is theirs to choose, like Payee: nothing is filled in.
+    expect(find.text('Paid from'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNothing);
+    // Date says Today; no category, so nothing is said about what is left.
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.byKey(const ValueKey('left-line')), findsNothing);
+    // Nothing is typed or waiting, so neither is offered.
+    expect(find.text('Clear'), findsNothing);
+    expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
+  });
+
+  testWidgets('Budget lists what is left, with the cents where there is room', (
     tester,
   ) async {
     await _pump(tester);
+    await _toBudget(tester);
     expect(find.text('Left in October'), findsOneWidget);
-    expect(find.text('From your Mac today 08:10'), findsOneWidget);
+    expect(find.text('From your computer today 08:10'), findsOneWidget);
     expect(find.text('₮148,000.00'), findsOneWidget);
     expect(find.text('−₮18,400.00'), findsOneWidget);
-    // Nothing is waiting, so nothing is said about waiting.
-    expect(find.textContaining('waiting for the Mac'), findsNothing);
+    // No + on the rows (owner, 2026-10-08).
+    expect(find.byIcon(Icons.add), findsNothing);
     await expectLater(
       find.byType(PhoneApp),
-      matchesGoldenFile('goldens/phone_left.png'),
+      matchesGoldenFile('goldens/phone_budget.png'),
     );
   });
 
@@ -200,19 +287,29 @@ void main() {
           PhoneCategory(
             id: 'c',
             name: 'Apartment renovation',
-            leftMinor: 1234567800,
+            leftMinor: 123456789000,
           ),
         ],
       ),
     );
-    expect(find.text('₮12,345,678'), findsOneWidget);
-    expect(find.text('From your Mac 2026.10.06 21:40'), findsOneWidget);
+    await _toBudget(tester);
+    expect(find.text('₮1,234,567,890'), findsOneWidget);
+    expect(find.text('From your computer 2026.10.06 21:40'), findsOneWidget);
   });
 
-  testWidgets('a category’s + opens the pad, and Save takes it from Left', (
-    tester,
-  ) async {
+  testWidgets('a category is picked from the list, and Save takes it from '
+      'what is left', (tester) async {
     final store = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    // Every category with what is left in it, the bills apart.
+    expect(find.text('₮148,000.00'), findsOneWidget);
+    expect(find.text('Bills'), findsOneWidget);
+    expect(find.text('+ New category'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_category.png'),
+    );
     await tester.tap(find.text('Groceries'));
     await tester.pumpAndSettle();
     expect(find.text('₮148,000.00 left now'), findsOneWidget);
@@ -225,7 +322,7 @@ void main() {
     );
     await expectLater(
       find.byType(PhoneApp),
-      matchesGoldenFile('goldens/phone_spend.png'),
+      matchesGoldenFile('goldens/phone_ledger.png'),
     );
 
     await tester.tap(find.text('Save'));
@@ -259,70 +356,269 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nomin'), findsOneWidget);
 
+    // Nor is an account: Groceries' own in the ledger isn't put in for them.
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Choose an account'), findsOneWidget);
+    expect(store.waiting, isEmpty);
+    await _account(tester, 'TDB Checking');
+
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     final entry = store.waiting.single;
     expect(entry.amountMinor, -1250000);
     expect(entry.payee, 'Nomin');
+    expect(entry.categoryId, 'groceries');
     expect(entry.accountId, 'tdb');
     expect(entry.date, DateTime(2026, 10, 7));
-    expect(find.text('₮135,500.00'), findsOneWidget);
+    // It says what went in, and the form is ready for the next one.
+    expect(find.text('Saved · Nomin −₮12,500.00'), findsOneWidget);
+    expect(find.text('Groceries · ₮135,500.00 left'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_saved.png'),
+    );
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Groceries'), findsNothing);
     expect(
-      find.text('1 of your entries is waiting for the Mac'),
+      find.text('1 of your entries is waiting for your computer'),
       findsOneWidget,
     );
+    // The toast goes by itself.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('saved-toast')), findsNothing);
+    expect(find.text('Undo'), findsNothing);
+    await _toBudget(tester);
+    expect(find.text('₮135,500.00'), findsOneWidget);
+  });
+
+  testWidgets('typing narrows the list, and Done takes the first that fits', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('category-field')), 'e');
+    await tester.pump();
+    // Begins with it, before the names that only hold it.
+    expect(
+      tester.getTopLeft(find.text('Eating out')).dy,
+      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+    );
+    expect(find.text('Transport'), findsNothing);
+    expect(find.text('+ New category “e”'), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('Eating out'), findsOneWidget);
+    expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
+    // Its account in the ledger is the Visa; Paid from is still theirs.
+    expect(find.text('Golomt Visa'), findsNothing);
+  });
+
+  testWidgets(
+    'a name that isn’t a category makes one, waiting for your computer',
+    (tester) async {
+      final store = await _pump(tester);
+      await tester.tap(find.byKey(const ValueKey('category-row')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('category-field')),
+        'Cof',
+      );
+      await tester.pump();
+      expect(find.text('Groceries'), findsNothing);
+      // Done makes nothing: only the row does.
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(store.made, isEmpty);
+      await tester.tap(find.text('+ New category “Cof”'));
+      await tester.pumpAndSettle();
+      final made = store.made.single;
+      expect(made.name, 'Cof');
+      expect(made.currency, Currency.mnt);
+      // Back on the entry with it chosen; it isn't called overspent.
+      expect(find.text('Cof'), findsOneWidget);
+      expect(find.text('Nothing assigned yet'), findsOneWidget);
+      expect(
+        find.text('1 new category is waiting for your computer'),
+        findsOneWidget,
+      );
+
+      await _type(tester, '4500');
+      expect(find.text('Nothing assigned yet'), findsOneWidget);
+      await _payee(tester, 'Tom N Toms');
+      await _account(tester, 'Cash wallet');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(store.waiting.single.categoryId, made.id);
+      expect(find.text('Cof · nothing assigned yet'), findsOneWidget);
+      expect(
+        find.text(
+          '1 of your entries and 1 new category are waiting for your computer',
+        ),
+        findsOneWidget,
+      );
+
+      // A name that is already a category is listed, not offered again.
+      await tester.tap(find.byKey(const ValueKey('category-row')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('category-field')),
+        'cof',
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('new-category')), findsNothing);
+      expect(find.text('Cof'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      await _toBudget(tester);
+      expect(find.text('Cof'), findsOneWidget);
+      expect(find.text('Nothing assigned yet'), findsOneWidget);
+      expect(find.text('−₮4,500.00'), findsOneWidget);
+
+      // Deleting it says what goes with it, then takes both.
+      await _toLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('waiting-link')));
+      await tester.pumpAndSettle();
+      expect(find.text('new category'), findsOneWidget);
+      await tester.tap(find.text('Delete').first);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Delete Cof and the 1 entry in it (₮4,500.00)?'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+      expect(store.made, isEmpty);
+      expect(store.waiting, isEmpty);
+    },
+  );
+
+  testWidgets('Budget makes a new category, and says when the name is taken', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'groceries',
+    );
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('Groceries is already a category'), findsOneWidget);
+    expect(store.made, isEmpty);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Vet',
+    );
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(store.made.single.name, 'Vet');
+    // It lands with the money to spend, above the bills.
+    await tester.scrollUntilVisible(find.text('Vet'), 100);
+    expect(find.text('Vet'), findsOneWidget);
+  });
+
+  testWidgets('a category on Budget starts an entry in it, and what was '
+      'typed stays', (tester) async {
+    await _pump(tester);
+    await _type(tester, '500');
+    await _toBudget(tester);
+    await tester.tap(find.text('Transport'));
+    await tester.pumpAndSettle();
+    expect(find.text('−₮500'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(
+      find.text('₮61,500.00 left now · ₮61,000.00 after this'),
+      findsOneWidget,
+    );
+    expect(find.text('Cash wallet'), findsNothing);
+  });
+
+  testWidgets('an account chosen by hand stays when a category is chosen', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('account-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cash wallet'));
+    await tester.pumpAndSettle();
+    await _category(tester, 'Groceries');
+    expect(find.text('Cash wallet'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNothing);
   });
 
   testWidgets(
     'Save with nothing typed says what is missing and saves nothing',
     (tester) async {
       final store = await _pump(tester);
-      await tester.tap(find.text('Clothing'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Enter an amount'), findsOneWidget);
 
-      // Clothing has no payees yet, so an amount alone still isn't enough.
       await _type(tester, '5');
       expect(find.text('Enter an amount'), findsNothing);
+      // Named in the order they are on the screen: payee, then category.
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Enter a payee'), findsOneWidget);
-      expect(store.waiting, isEmpty);
 
       // A payee the ledger has never seen is typed in full.
       await _payee(tester, 'Shoppy');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Choose a category'), findsOneWidget);
+      expect(store.waiting, isEmpty);
+
+      await _category(tester, 'Clothing');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Choose an account'), findsOneWidget);
+      await _account(tester, 'Cash wallet');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(store.waiting.single.payee, 'Shoppy');
     },
   );
 
-  testWidgets('Cancel leaves nothing behind', (tester) async {
+  testWidgets('Clear empties the entry, and Undo brings a saved one back', (
+    tester,
+  ) async {
     final store = await _pump(tester);
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
     await _type(tester, '8000');
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Clear'), findsNothing);
+    expect(store.waiting, isEmpty);
+
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    expect(store.waiting, hasLength(1));
+    await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
     expect(store.waiting, isEmpty);
-    expect(find.text('₮61,500.00'), findsOneWidget);
+    expect(find.text('−₮8,000'), findsOneWidget);
+    expect(find.text('UB Cab'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
   });
 
   testWidgets('a waiting entry can be deleted, and Left goes back', (
     tester,
   ) async {
     final store = await _pump(tester);
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
-    await _type(tester, '8000');
-    await _payee(tester, 'ub', pick: 'UB Cab');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    await _toBudget(tester);
     expect(find.text('₮53,500.00'), findsOneWidget);
+    await _toLedger(tester);
 
-    await tester.tap(find.text('1 of your entries is waiting for the Mac'));
+    await tester.tap(
+      find.text('1 of your entries is waiting for your computer'),
+    );
     await tester.pumpAndSettle();
     expect(find.text('UB Cab'), findsOneWidget);
     expect(find.text('−₮8,000.00'), findsOneWidget);
@@ -333,6 +629,7 @@ void main() {
 
   testWidgets('Accounts lists balances, a card as Owed', (tester) async {
     await _pump(tester);
+    await _toBudget(tester);
     await tester.tap(find.text('Accounts'));
     await tester.pumpAndSettle();
     expect(find.text('₮2,431,800.00'), findsOneWidget);
@@ -343,20 +640,18 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    await tester.tap(find.text('Eating out'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Eating out');
     expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
     await _type(tester, '12500');
     expect(
       find.text('Overspent by ₮18,400.00 · by ₮30,900.00 after this'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
 
     // Money now, and this entry would go past it.
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Transport');
     await _type(tester, '70000');
     expect(
       find.text('₮61,500.00 left now · overspent by ₮8,500.00 after this'),
@@ -388,13 +683,16 @@ void main() {
         ],
       ),
     );
+    await _toBudget(tester);
     // A budget that runs by pay periods says when this one ends.
     expect(find.text('Left until 10.14'), findsOneWidget);
     expect(find.text('Due 10.20'), findsOneWidget);
     final groceries = tester.getTopLeft(find.text('Groceries')).dy;
+    final add = tester.getTopLeft(find.text('+ New category')).dy;
     final heading = tester.getTopLeft(find.text('Bills')).dy;
     final rent = tester.getTopLeft(find.text('Rent')).dy;
-    expect(groceries, lessThan(heading));
+    expect(groceries, lessThan(add));
+    expect(add, lessThan(heading));
     expect(heading, lessThan(rent));
     // Its amount is drawn quieter than money to spend.
     final spend = tester.widget<Text>(find.text('₮148,000.00')).style!.color;
@@ -405,6 +703,30 @@ void main() {
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
     expect(find.text('₮1,800,000.00 left now'), findsOneWidget);
+  });
+
+  testWidgets('with one account there is nothing to choose: it is shown', (
+    tester,
+  ) async {
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: const [
+          PhoneAccount(id: 'a', name: 'TDB Checking', balanceMinor: 0),
+        ],
+        categories: const [
+          PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+        ],
+      ),
+    );
+    expect(find.text('TDB Checking'), findsOneWidget);
+    await _category(tester, 'Groceries');
+    await _type(tester, '500');
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.accountId, 'a');
   });
 
   testWidgets('with no bills there is no Bills heading', (tester) async {
@@ -420,6 +742,7 @@ void main() {
         ],
       ),
     );
+    await _toBudget(tester);
     expect(find.byKey(const ValueKey('bills-heading')), findsNothing);
   });
 
@@ -442,8 +765,9 @@ void main() {
         ],
       ),
     );
-    await tester.tap(find.text('Travel'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Travel');
+    // The tugrik account isn't offered for a dollar category.
+    expect(find.text('TDB Checking'), findsNothing);
     await _type(tester, '20');
     await _payee(tester, 'Delta');
     await tester.tap(find.text('Save'));
@@ -458,29 +782,113 @@ void main() {
       tester,
       snapshot: previewSnapshot(DateTime(2026, 10, 1, 21, 40)),
     );
-    final line = tester.widget<Text>(find.byKey(const ValueKey('from-mac')));
-    expect(line.data, 'From your Mac 2026.10.01 21:40');
-    expect(line.style!.color, isNot(equals(null)));
-
     // ₮12,500 of groceries on TDB Checking, ₮30,000 of eating out on the Visa.
-    await tester.tap(find.text('Groceries'));
-    await tester.pumpAndSettle();
-    await _type(tester, '12500');
-    await _payee(tester, 'no', pick: 'Nomin');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Eating out'));
-    await tester.pumpAndSettle();
-    await _type(tester, '30000');
-    await _payee(tester, 'Rosewood');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await _spend(tester, 'Groceries', '12500', 'no', pick: 'Nomin');
+    await _spend(
+      tester,
+      'Eating out',
+      '30000',
+      'Rosewood',
+      from: 'Golomt Visa',
+    );
+    // Already overspent, and more so now: the card says by how much.
+    expect(find.text('Eating out · overspent by ₮48,400.00'), findsOneWidget);
 
+    await _toBudget(tester);
+    final line = tester.widget<Text>(find.byKey(const ValueKey('from-mac')));
+    expect(line.data, 'From your computer 2026.10.01 21:40');
+    expect(line.style!.color, isNot(equals(null)));
     await tester.tap(find.text('Accounts'));
     await tester.pumpAndSettle();
     expect(find.text('₮2,419,300.00'), findsOneWidget);
     expect(find.text('Owed ₮342,000.00'), findsOneWidget);
-    expect(find.text('From your Mac 2026.10.01 21:40'), findsOneWidget);
+    expect(find.text('From your computer 2026.10.01 21:40'), findsOneWidget);
+  });
+
+  testWidgets('cents a category’s currency can’t hold are cut, and a saved '
+      'line’s Undo goes once another entry is begun', (tester) async {
+    final yen = Currency.fromCode('JPY');
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: [
+          const PhoneAccount(
+            id: 'u',
+            name: 'Dollars',
+            balanceMinor: 0,
+            currency: Currency.usd,
+          ),
+          PhoneAccount(id: 'y', name: 'Yen', balanceMinor: 0, currency: yen),
+        ],
+        categories: [
+          PhoneCategory(id: 't', name: 'Trip', leftMinor: 50000, currency: yen),
+          const PhoneCategory(
+            id: 'f',
+            name: 'Food',
+            leftMinor: 5000,
+            currency: Currency.usd,
+          ),
+        ],
+      ),
+    );
+    // Typed in dollars, then filed from Budget in a yen category.
+    await _type(tester, '12.50');
+    await _toBudget(tester);
+    await tester.tap(find.text('Trip'));
+    await tester.pumpAndSettle();
+    expect(find.text('−¥12'), findsOneWidget);
+    await _payee(tester, 'Lawson');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -12);
+    expect(find.text('Undo'), findsOneWidget);
+
+    // The next entry is begun from Budget: Undo would write over it.
+    await _toBudget(tester);
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsNothing);
+    expect(store.waiting, hasLength(1));
+  });
+
+  testWidgets('on a short phone the entry scrolls instead of running off', (
+    tester,
+  ) async {
+    final store = await _pump(tester, size: const Size(360, 640));
+    store.categoryCalled('Coffee', Currency.mnt);
+    expect(tester.takeException(), isNull);
+    await _category(tester, 'Groceries');
+    await _payee(tester, 'no', pick: 'Nomin');
+    await _account(tester, 'TDB Checking');
+    await tester.ensureVisible(find.text('Save'));
+    await tester.pumpAndSettle();
+    await _type(tester, '12500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(store.waiting.single.amountMinor, -1250000);
+    await tester.ensureVisible(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        '1 of your entries and 1 new category are waiting for your computer',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  test('the category list fits what is typed, whatever its capitals', () {
+    const all = [
+      PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 0),
+      PhoneCategory(id: 'e', name: 'Eating out', leftMinor: 0),
+      PhoneCategory(id: 'r', name: 'Rent', leftMinor: 0),
+    ];
+    expect(categoriesMatching(all, '  ').map((c) => c.id), ['g', 'e', 'r']);
+    expect(categoriesMatching(all, 'R').map((c) => c.id), ['r', 'g']);
+    expect(categoriesMatching(all, 'vet'), isEmpty);
+    expect(categoryNamed(all, ' rent ')!.id, 'r');
+    expect(categoryNamed(all, 'Ren'), isNull);
   });
 
   test('a card paid past what was owed is in credit', () {
@@ -597,12 +1005,300 @@ void main() {
     );
   });
 
+  group('entries reach the computer', () {
+    final today = DateTime(2026, 9, 16, 9, 30);
+
+    PhoneEntry entry(String id, String category, String account, int amount) =>
+        PhoneEntry(
+          id: id,
+          categoryId: category,
+          accountId: account,
+          payee: 'Nomin',
+          amountMinor: amount,
+          date: DateTime(2026, 9, 15),
+          madeAt: today,
+        );
+
+    test('a phone’s file opens with the ledger’s key and no other', () {
+      final dir = _phoneDir();
+      final key = deriveDataKey(RecoveryKey.generate());
+      final file = File('${dir.path}/${phoneInboxName('ab12')}');
+      writePhoneInbox(
+        file,
+        key,
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('e1', '7', '3', -1250000)],
+          categories: const [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'Coffee',
+              leftMinor: 0,
+              madeHere: true,
+            ),
+          ],
+        ),
+      );
+      expect(isPhoneInboxName('Phone ab12.betterbudget-phone'), isTrue);
+      expect(isPhoneInboxName(ledgerFileName), isFalse);
+      // Nothing about the money is in the clear.
+      expect(
+        String.fromCharCodes(file.readAsBytesSync()),
+        isNot(contains('Nomin')),
+      );
+      final back = readPhoneInbox(file, key);
+      expect(back.device, 'ab12');
+      expect(back.entries.single.amountMinor, -1250000);
+      expect(back.entries.single.date, DateTime(2026, 9, 15));
+      expect(back.categories.single.name, 'Coffee');
+      expect(back.categories.single.madeHere, isTrue);
+      expect(
+        () => readPhoneInbox(file, deriveDataKey(RecoveryKey.generate())),
+        throwsA(anything),
+      );
+    });
+
+    test('the computer takes each entry in once, with one undo, and the '
+        'phone lets go of them', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final groceries = id('Groceries'), checking = id('TDB Checking');
+      final before = data.balanceOf(checking);
+      final rows = data.txns.length;
+      final inbox = PhoneInbox(
+        device: 'ab12',
+        entries: [
+          entry('e1', '$groceries', '$checking', -1250000),
+          entry('e2', 'new-1', '$checking', -450000),
+          // Its account was deleted on the computer: left with the phone.
+          entry('e3', '$groceries', '99999', -100),
+        ],
+        categories: const [
+          PhoneCategory(
+            id: 'new-1',
+            name: 'Coffee',
+            leftMinor: 0,
+            madeHere: true,
+          ),
+          // Already a category, whatever its capitals: no second one.
+          PhoneCategory(
+            id: 'new-2',
+            name: ' groceries',
+            leftMinor: 0,
+            madeHere: true,
+          ),
+        ],
+      );
+      final take = (await db.takePhoneEntries([inbox], today: today))!;
+      expect(take.transactionIds, hasLength(2));
+      expect(take.categoryIds, hasLength(1));
+      data = await db.loadLedger();
+      expect(data.txns.length, rows + 2);
+      expect(data.balanceOf(checking), before - 1700000);
+      expect(data.accounts[take.categoryIds.single]!.name, 'Coffee');
+
+      // The same file again brings nothing: nothing comes in twice.
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      expect((await db.loadLedger()).txns.length, rows + 2);
+
+      // The ledger says what is in, and the phone drops it.
+      final snapshot = snapshotOf(data, today: today, madeAt: today);
+      expect(snapshot.taken['ab12']!.entries, {'e1', 'e2'});
+      expect(snapshot.taken['ab12']!.categories, {
+        'new-1': '${take.categoryIds.single}',
+        'new-2': '$groceries',
+      });
+      final store = PhoneStore(
+        snapshot,
+        device: 'ab12',
+        waiting: [...inbox.entries, entry('e4', 'new-1', '$checking', -200)],
+        made: inbox.categories,
+      );
+      expect(store.waiting.map((e) => e.id), ['e3', 'e4']);
+      expect(store.made, isEmpty);
+      // One typed since, in the category the ledger now has, follows it.
+      expect(store.waiting.last.categoryId, '${take.categoryIds.single}');
+
+      // One undo takes the lot out, and they don't come back by themselves.
+      await db.undoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.txns.length, rows);
+      expect(data.balanceOf(checking), before);
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      await db.redoPhoneTake(take);
+      expect((await db.loadLedger()).balanceOf(checking), before - 1700000);
+
+      // The phone's file no longer holds them; they are still known, so
+      // an older copy of the file turning up brings nothing in.
+      await db.takePhoneEntries([
+        const PhoneInbox(device: 'ab12'),
+      ], today: today);
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
+      expect((await db.loadLedger()).txns.length, rows + 2);
+    });
+
+    test(
+      'two copies of one phone’s file, and two phones, each entry once',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, today);
+        final data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        final g = '${id('Groceries')}', c = '${id('TDB Checking')}';
+        final rows = data.txns.length;
+        // Drive holds a newer and an older file from the same phone.
+        final files = [
+          PhoneInbox(
+            device: 'ab12',
+            entries: [entry('a', g, c, -100), entry('b', g, c, -200)],
+          ),
+          PhoneInbox(device: 'ab12', entries: [entry('a', g, c, -100)]),
+          PhoneInbox(device: 'cd34', entries: [entry('a', g, c, -300)]),
+          // A category id that names an account isn't spending: left out.
+          PhoneInbox(device: 'ef56', entries: [entry('x', c, c, -400)]),
+        ];
+        final take = (await db.takePhoneEntries(files, today: today))!;
+        expect(take.transactionIds, hasLength(3));
+        for (var look = 0; look < 3; look++) {
+          expect(await db.takePhoneEntries(files, today: today), isNull);
+        }
+        expect((await db.loadLedger()).txns.length, rows + 3);
+      },
+    );
+
+    test('a category the take made and undo removed is made again for a '
+        'later entry', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      final c =
+          '${data.accounts.values.singleWhere((a) => a.name == 'TDB Checking').id}';
+      const coffee = PhoneCategory(
+        id: 'new-1',
+        name: 'Coffee',
+        leftMinor: 0,
+        madeHere: true,
+      );
+      final first = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', c, -100)],
+          categories: const [coffee],
+        ),
+      ], today: today))!;
+      await db.undoPhoneTake(first);
+      final second = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', c, -100), entry('b', 'new-1', c, -200)],
+          categories: const [coffee],
+        ),
+      ], today: today))!;
+      // Only the later entry comes in, in a Coffee that is live again.
+      expect(second.transactionIds, hasLength(1));
+      expect(second.categoryIds, hasLength(1));
+    });
+
+    test('an entry dated after the computer’s today is still spending, not '
+        'a scheduled row', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [
+            PhoneEntry(
+              id: 'late',
+              categoryId: '${id('Groceries')}',
+              accountId: '${id('TDB Checking')}',
+              payee: 'Nomin',
+              amountMinor: -500000,
+              // The phone's clock is a day ahead.
+              date: DateTime(2026, 9, 17),
+              madeAt: DateTime(2026, 9, 17, 0, 5),
+            ),
+          ],
+        ),
+      ], today: today))!;
+      final row = (await db.loadLedger()).txns.singleWhere(
+        (t) => t.id == take.transactionIds.single,
+      );
+      expect(row.scheduled, isFalse);
+    });
+
+    test('an entry filed in an archived category brings it back', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final groceries = id('Groceries');
+      await db.setArchived(groceries, true);
+      // The phone can't see it, so it makes "Groceries" again.
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [entry('a', 'new-1', '${id('TDB Checking')}', -100)],
+          categories: const [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'groceries',
+              leftMinor: 0,
+              madeHere: true,
+            ),
+          ],
+        ),
+      ], today: today))!;
+      expect(take.categoryIds, isEmpty);
+      expect((await db.loadLedger()).accounts[groceries]!.archived, isFalse);
+      await db.undoPhoneTake(take);
+      expect((await db.loadLedger()).accounts[groceries]!.archived, isTrue);
+    });
+
+    test('the computer finds each phone’s file in the folder', () async {
+      final dir = _phoneDir();
+      for (final device in ['ab12', 'cd34']) {
+        writePhoneInbox(
+          File('${dir.path}/${phoneInboxName(device)}'),
+          null,
+          PhoneInbox(
+            device: device,
+            entries: [entry('e-$device', '1', '2', -5)],
+          ),
+        );
+      }
+      // Not a phone's file, and one that is still arriving.
+      File('${dir.path}/$ledgerFileName').writeAsBytesSync([1, 2, 3]);
+      File('${dir.path}/${phoneInboxName('half')}').writeAsBytesSync([1, 2]);
+      final found = await readPhoneInboxes(
+        dir,
+        null,
+        scratch: Directory('${dir.path}/scratch'),
+      );
+      expect(found.map((i) => i.device).toSet(), {'ab12', 'cd34'});
+    });
+  });
+
   group('first launch', () {
     Future<({_FakeKeys keys, _FakeFolder folder, List<Uint8List> read})> start(
       WidgetTester tester, {
       _FakeKeys? keys,
       _FakeFolder? folder,
       Uint8List? opens,
+      Directory? dir,
+      Map<String, PhoneTaken> Function()? taken,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -615,7 +1311,7 @@ void main() {
           child: PhoneStart(
             keys: k,
             folder: f,
-            dir: Directory.systemTemp,
+            dir: dir ?? _phoneDir(),
             now: () => _now,
             read:
                 (
@@ -629,7 +1325,16 @@ void main() {
                   if (opens != null && !_same(key, opens)) {
                     throw WrongKeyException();
                   }
-                  return previewSnapshot(madeAt);
+                  final snapshot = previewSnapshot(madeAt);
+                  return taken == null
+                      ? snapshot
+                      : PhoneSnapshot(
+                          madeAt: snapshot.madeAt,
+                          categories: snapshot.categories,
+                          accounts: snapshot.accounts,
+                          payees: snapshot.payees,
+                          taken: taken(),
+                        );
                 },
           ),
         ),
@@ -638,7 +1343,7 @@ void main() {
       return (keys: k, folder: f, read: read);
     }
 
-    testWidgets('the key, then the folder, then what is left', (tester) async {
+    testWidgets('the key, then the folder, then Ledger', (tester) async {
       final key = RecoveryKey.generate();
       final s = await start(tester);
       expect(find.text('Enter your recovery key'), findsOneWidget);
@@ -666,19 +1371,20 @@ void main() {
 
       await tester.tap(find.text('Choose the folder'));
       await tester.pumpAndSettle();
+      // It opens on Ledger; the figures are on Budget.
+      expect(find.text('Save'), findsOneWidget);
+      await _toBudget(tester);
       expect(find.text('Left in October'), findsOneWidget);
-      expect(find.text('From your Mac today 13:30'), findsOneWidget);
+      expect(find.text('From your computer today 13:30'), findsOneWidget);
       expect(find.text('₮148,000.00'), findsOneWidget);
       expect(_same(s.keys.kept!, deriveDataKey(key)), isTrue);
     });
 
-    testWidgets('the next launch goes straight to what is left', (
-      tester,
-    ) async {
+    testWidgets('the next launch goes straight to Ledger', (tester) async {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       await start(tester, keys: keys, folder: folder);
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
     });
 
     testWidgets('a key that is not this ledger’s is not kept', (tester) async {
@@ -718,7 +1424,7 @@ void main() {
         ..ledger = Uint8List.fromList([1]);
       await tester.tap(find.text('Choose another folder'));
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(folder.forgotten, ['drive:Photos']);
     });
 
@@ -737,7 +1443,7 @@ void main() {
           child: PhoneStart(
             keys: keys,
             folder: folder,
-            dir: Directory.systemTemp,
+            dir: _phoneDir(),
             now: () => _now,
             read:
                 (
@@ -755,14 +1461,89 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       broken = true;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(find.textContaining('doesn’t open'), findsNothing);
       expect(_same(keys.kept!, right), isTrue);
+    });
+
+    testWidgets('an entry is written to the folder, is still there after '
+        'the app is closed, and goes once the computer has it', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final dir = _phoneDir();
+      var taken = <String, PhoneTaken>{};
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      // Nothing to say yet, so no file.
+      expect(folder.written, isEmpty);
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      final name = folder.written.keys.single;
+      expect(isPhoneInboxName(name), isTrue);
+      final file = File('${dir.path}/check')
+        ..writeAsBytesSync(folder.written[name]!);
+      final sent = readPhoneInbox(file, keys.kept);
+      expect(sent.entries.single.payee, 'UB Cab');
+      expect(sent.entries.single.amountMinor, -800000);
+
+      // Closed and opened again.
+      await tester.pumpWidget(const SizedBox());
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        taken: () => taken,
+      );
+      expect(
+        find.text('1 of your entries is waiting for your computer'),
+        findsOneWidget,
+      );
+
+      // The computer's next ledger says it is in.
+      taken = {
+        sent.device: PhoneTaken(entries: {sent.entries.single.id}),
+      };
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
+      file.writeAsBytesSync(folder.written[name]!);
+      expect(readPhoneInbox(file, keys.kept).entries, isEmpty);
+    });
+
+    testWidgets('while an entry waits the folder is asked every half minute, '
+        'and the ledger fetched only when it has changed', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final s = await start(tester, keys: keys, folder: folder);
+      // Nothing waiting: nothing to look for.
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(1));
+
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      // Asked, and the same ledger is still there: not fetched again.
+      expect(s.read, hasLength(1));
+
+      folder.changedAt = DateTime(2026, 10, 7, 14, 6);
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(2));
+
+      // A folder that goes on giving the old time is fetched anyway on
+      // every fourth look.
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(2));
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
+      expect(s.read, hasLength(3));
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (
@@ -771,13 +1552,7 @@ void main() {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       final s = await start(tester, keys: keys, folder: folder);
-      await tester.tap(find.text('Transport'));
-      await tester.pumpAndSettle();
-      await _type(tester, '8000');
-      await _payee(tester, 'ub', pick: 'UB Cab');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-      expect(find.text('₮53,500.00'), findsOneWidget);
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
 
       // Back from another app: the folder is read again.
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -785,11 +1560,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(s.read.length, 2);
       expect(s.folder.asked.toSet(), {ledgerFileName});
-      expect(find.text('₮53,500.00'), findsOneWidget);
       expect(
-        find.text('1 of your entries is waiting for the Mac'),
+        find.text('1 of your entries is waiting for your computer'),
         findsOneWidget,
       );
+      await _toBudget(tester);
+      expect(find.text('₮53,500.00'), findsOneWidget);
     });
   });
 }

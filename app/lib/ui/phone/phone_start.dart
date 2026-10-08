@@ -1,6 +1,9 @@
 // The phone app's first minute (ADR 0005): the recovery key, once; the folder
 // the ledger was moved to, once; then the ledger read from that folder, and
-// read again whenever the app comes back to the front.
+// read again whenever the app comes back to the front, and every half minute
+// while it is open. What is typed here is kept on the phone and written to the
+// same folder, in the phone's own file, for the computer to take in.
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -8,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/keys.dart';
 import '../../data/ledger_file.dart';
+import '../../data/phone_inbox.dart';
 import '../../data/phone_ledger.dart';
 import '../../domain/phone.dart';
 import '../data_words.dart';
@@ -34,7 +38,12 @@ class PhoneStart extends StatefulWidget {
     this.folder = const PhoneFolder(),
     this.read = readPhoneLedger,
     this.now = DateTime.now,
+    this.every = const Duration(seconds: 30),
   });
+
+  /// How often the folder is read again while the app is open: the
+  /// computer's answer to an entry arrives without the app being left.
+  final Duration every;
 
   final KeyStore keys;
 
@@ -51,6 +60,14 @@ class PhoneStart extends StatefulWidget {
 class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   _Step _step = _Step.loading;
   PhoneStore? _store;
+  PhoneOutbox? _outbox;
+  String? _folder;
+  Timer? _again;
+
+  /// What was last written to the folder, so a fresh read with nothing new
+  /// to say writes nothing; null after a write that failed, to try again.
+  String? _sent;
+  Future<void> _keeping = Future.value();
 
   /// The key as typed, until it has opened the ledger: only a key that fits
   /// is kept (a key that didn't would be asked about on every launch).
@@ -68,6 +85,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _again?.cancel();
+    _store?.removeListener(_keep);
     _keyText.dispose();
     super.dispose();
   }
@@ -86,10 +105,19 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// front would have two reads writing the same private copy.
   Future<void>? _reading;
 
-  Future<void> _load() =>
-      _reading ??= _read().whenComplete(() => _reading = null);
+  Future<void> _load({bool onlyIfNewer = false}) =>
+      _reading ??= _read(onlyIfNewer: onlyIfNewer)
+          .whenComplete(() => _reading = null);
 
-  Future<void> _read() async {
+  /// When the ledger last read was changed in the folder.
+  DateTime? _ledgerChanged;
+  var _quietLooks = 0;
+
+  /// [onlyIfNewer] is the look taken by itself while the app is open: it
+  /// asks the folder when the ledger was changed and fetches it only when
+  /// that has moved, so waiting for the computer doesn't cost a copy of
+  /// the whole ledger over mobile data every half minute.
+  Future<void> _read({bool onlyIfNewer = false}) async {
     final Uint8List? key;
     try {
       key = _typedKey ?? await widget.keys.readDataKey();
@@ -106,8 +134,24 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
     if (folder == null) return _go(_Step.folder);
     try {
+      // Every fourth look fetches whatever the folder says: on the owner's
+      // Pixel, Drive went on giving the old time for minutes after the
+      // computer had written a newer ledger (2026-10-08).
+      if (onlyIfNewer && ++_quietLooks % 4 != 0) {
+        final at = await widget.folder.changed(folder, ledgerFileName);
+        if (at != null && at == _ledgerChanged) {
+          // Still a chance to send what an earlier write couldn't.
+          _keep();
+          return;
+        }
+      }
       final found = await widget.folder.read(folder, ledgerFileName);
-      if (found == null) return _go(_Step.noLedger);
+      if (found == null) {
+        // Not there on a later read (the folder is still arriving): what is
+        // up, and an entry half typed, stay.
+        if (_step != _Step.ready) _go(_Step.noLedger);
+        return;
+      }
       final now = widget.now();
       final snapshot = await widget.read(
         found.bytes,
@@ -121,15 +165,35 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         _typedKey = null;
       }
       if (!mounted) return;
-      setState(() {
-        final store = _store;
-        if (store == null) {
-          _store = PhoneStore(snapshot);
-        } else {
-          store.snapshot = snapshot;
-        }
-        _step = _Step.ready;
-      });
+      _ledgerChanged = found.changed;
+      _folder = folder;
+      final store = _store;
+      if (store == null) {
+        // What was waiting when the app was last closed comes back.
+        final outbox = _outbox = PhoneOutbox(
+          Directory('${widget.dir.path}/waiting'),
+          key,
+        );
+        final kept = outbox.load();
+        _store = PhoneStore(
+          snapshot,
+          device: kept.device,
+          waiting: kept.entries,
+          made: kept.categories,
+        )..addListener(_keep);
+        // Only while something is waiting: that is all there is to wait
+        // for. Coming back to the front always reads.
+        _again ??= Timer.periodic(widget.every, (_) {
+          final store = _store;
+          if (_step != _Step.ready || store == null) return;
+          if (store.waiting.isEmpty && store.made.isEmpty) return;
+          _load(onlyIfNewer: true);
+        });
+      } else {
+        store.snapshot = snapshot;
+      }
+      _keep();
+      setState(() => _step = _Step.ready);
     } on WrongKeyException {
       if (_typedKey == null) {
         // The key kept here has opened this ledger before, so it is the
@@ -145,6 +209,41 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       // how old they are.
       if (_step != _Step.ready) _go(_Step.cantRead);
     }
+  }
+
+  /// Keeps what is waiting on the phone and writes it to the folder, one
+  /// write at a time. A write that fails (no signal) is tried again at the
+  /// next read.
+  void _keep() {
+    final store = _store, outbox = _outbox, folder = _folder;
+    if (store == null || outbox == null || folder == null) return;
+    final inbox = store.inbox;
+    final saying = [
+      for (final e in inbox.entries) '${e.id}>${e.categoryId}',
+      for (final c in inbox.categories) c.id,
+    ].join(',');
+    if (saying == _sent) return;
+    // A phone that has never had anything to say writes no file.
+    if (_sent == null && saying.isEmpty && !outbox.exists) return;
+    _sent = saying;
+    // Kept on the phone at once: only the folder waits its turn, and a
+    // folder that hangs with no signal can't cost an entry.
+    final Uint8List bytes;
+    try {
+      bytes = outbox.save(inbox);
+    } catch (e) {
+      debugPrint('Keeping this phone’s entries failed: $e');
+      _sent = null;
+      return;
+    }
+    _keeping = _keeping.then((_) async {
+      try {
+        await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
+      } catch (e) {
+        debugPrint('Writing this phone’s entries to the folder failed: $e');
+        if (_sent == saying) _sent = null;
+      }
+    });
   }
 
   void _useKey() {
