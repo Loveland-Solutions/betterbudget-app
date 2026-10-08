@@ -7132,5 +7132,14 @@
         "type": "int"
       }
     }
+  },
+  "ledgerEditCategory": "Edit {name}",
+  "@ledgerEditCategory": {
+    "description": "Button on the popup that says a phone made a new category: opens that category’s Edit on the Budget page, where money is assigned to it. {name} is the category, like Coffee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

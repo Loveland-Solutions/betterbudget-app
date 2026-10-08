@@ -473,11 +473,13 @@ class PhoneTake {
     this.transactionIds,
     this.categoryIds, [
     this.unarchivedIds = const [],
+    this.categoryNames = const [],
   ]);
   final List<int> transactionIds;
 
-  /// The categories it had to make.
+  /// The categories it had to make, and what each is called.
   final List<int> categoryIds;
+  final List<String> categoryNames;
 
   /// The archived categories it brought back to file an entry in.
   final List<int> unarchivedIds;
@@ -3812,6 +3814,7 @@ class AppDatabase extends _$AppDatabase {
         if (a.archivedAt != null) a.id,
     };
     final added = <int>[], made = <int>[], unarchived = <int>[];
+    final madeNames = <String>[];
     for (final inbox in inboxes) {
       final was = taken[inbox.device] ?? const PhoneTaken();
       final categories = {...was.categories};
@@ -3823,6 +3826,7 @@ class AppDatabase extends _$AppDatabase {
         if (id == null) {
           id = await createCategory(c.name, currency: c.currency);
           made.add(id);
+          madeNames.add(c.name.trim());
           spending.add(id);
           byName[name] = id;
         }
@@ -3878,7 +3882,7 @@ class AppDatabase extends _$AppDatabase {
     if (after != row?.value) await setPreference(phoneTakenKey, after);
     return added.isEmpty && made.isEmpty
         ? null
-        : PhoneTake(added, made, unarchived);
+        : PhoneTake(added, made, unarchived, madeNames);
   });
 
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.

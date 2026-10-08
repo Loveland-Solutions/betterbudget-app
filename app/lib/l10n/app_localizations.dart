@@ -6957,6 +6957,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 new category from your phone} other{{count} new categories from your phone}}'**
   String ledgerCategoryFromPhone(int count);
+
+  /// Button on the popup that says a phone made a new category: opens that category’s Edit on the Budget page, where money is assigned to it. {name} is the category, like Coffee.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {name}'**
+  String ledgerEditCategory(String name);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

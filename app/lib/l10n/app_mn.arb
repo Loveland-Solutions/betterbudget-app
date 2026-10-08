@@ -1133,5 +1133,6 @@
   "phoneSavedOver": "{category} · {over} хэтэрсэн",
   "phoneSavedNothingAssigned": "{category} · одоогоор мөнгө хуваарилаагүй",
   "ledgerFromPhone": "{count, plural, other{Утаснаас {count} гүйлгээ}}",
-  "ledgerCategoryFromPhone": "{count, plural, other{Утаснаас {count} шинэ ангилал}}"
+  "ledgerCategoryFromPhone": "{count, plural, other{Утаснаас {count} шинэ ангилал}}",
+  "ledgerEditCategory": "Засах: {name}"
 }

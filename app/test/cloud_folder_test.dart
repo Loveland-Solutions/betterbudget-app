@@ -449,6 +449,20 @@ void main() {
           expect(rows, hasLength(1));
         });
 
+        // ⌘Z doesn't reach it: that is for what the person did themselves
+        // (here it takes the folder away again). The popup's own Undo does.
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          final rows = (await db.loadLedger()).txns.where(
+            (t) => t.payee == 'From the phone',
+          );
+          expect(rows, hasLength(1));
+        });
+        await tester.pump();
+
         // Leave nothing running: the screen's copy timer goes with it.
         await tester.runAsync(() async {
           await tester.pumpWidget(const SizedBox());

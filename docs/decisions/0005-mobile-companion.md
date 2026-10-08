@@ -137,6 +137,14 @@ memory and nothing took it in.
   as an ordinary uncleared row.
 - **An arrival doesn't disturb what the person is doing**: it waits for a popup on
   screen to go, and it leaves redo as it was.
+- **⌘Z doesn't take an arrived batch out; its own popup's Undo does** (owner,
+  2026-10-08, asked whether ⌘Z pressed for something just typed should be able to
+  remove rows the phone has already let go of: "Yes" to leaving them alone). This
+  changes "one ⌘Z that undoes the whole batch" below. After the popup's Undo, ⌘⇧Z
+  brings the batch back.
+- **A new category's popup offers its Edit** (owner, same day): when one category
+  came with the batch, the popup has a button, "Edit Coffee", that opens the Budget
+  page with that category's Edit open, where money is assigned to it.
 - **An entry filed in an archived category brings the category back** (the phone
   can't see archived ones, so it would have made the name again); undo archives it
   again.

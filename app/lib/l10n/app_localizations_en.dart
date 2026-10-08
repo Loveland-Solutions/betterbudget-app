@@ -4878,4 +4878,9 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String ledgerEditCategory(String name) {
+    return 'Edit $name';
+  }
 }

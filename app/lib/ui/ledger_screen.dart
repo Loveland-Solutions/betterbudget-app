@@ -234,6 +234,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
   }
 
+  /// The Budget page with [id]'s Edit open under its row.
+  void _editCategory(int id) {
+    setState(() => _section = AppSection.budget);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _budgetKey.currentState?.openEdit(id),
+    );
+  }
+
   /// Adds the phones' entries to the ledger as uncleared rows (ADR 0005):
   /// straight in, with one undo for the lot.
   Future<void> _takePhones() async {
@@ -256,13 +264,37 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final take = await db.takePhoneEntries(inboxes, today: today);
       if (take == null || !mounted) return;
       final t = context.t;
-      _did(
-        take.transactionIds.isEmpty
-            ? t.ledgerCategoryFromPhone(take.categoryIds.length)
-            : t.ledgerFromPhone(take.transactionIds.length),
-        undo: () => db.undoPhoneTake(take),
-        redo: () => db.redoPhoneTake(take),
-        keepRedo: true,
+      final label = take.transactionIds.isEmpty
+          ? t.ledgerCategoryFromPhone(take.categoryIds.length)
+          : t.ledgerFromPhone(take.transactionIds.length);
+      // Not in ⌘Z's history (owner, 2026-10-08): ⌘Z pressed for something
+      // just typed would take out rows the phone has already let go of.
+      // Only this popup's Undo does, and ⌘⇧Z brings them back.
+      final action = _Undoable(
+        label,
+        () => db.undoPhoneTake(take),
+        () => db.redoPhoneTake(take),
+      );
+      _showToast(
+        label,
+        // One new category, with nothing assigned yet: its Edit is where
+        // that is done.
+        more: take.categoryIds.length == 1
+            ? (
+                label: t.ledgerEditCategory(take.categoryNames.single),
+                onTap: () => _editCategory(take.categoryIds.single),
+              )
+            : null,
+        undo: () async {
+          try {
+            await action.undo();
+          } catch (e) {
+            if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
+            return;
+          }
+          _redo.add(action);
+          if (mounted) _showToast(context.t.ledgerUndone(label));
+        },
       );
     } catch (e) {
       debugPrint('Taking in the phones’ entries failed: $e');
@@ -545,13 +577,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? message,
     String? detail,
     ({String label, VoidCallback onTap})? more,
-    bool keepRedo = false,
   }) {
     final action = _Undoable(label, undo, redo, detail: detail);
     _history.add(action);
-    // Something the person did ends what could be redone; something that
-    // arrived by itself (a phone's entries) doesn't take that from them.
-    if (!keepRedo) _redo.clear();
+    _redo.clear();
     if (toast) {
       _showToast(
         message ?? label,

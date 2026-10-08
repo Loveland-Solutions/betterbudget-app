@@ -4693,4 +4693,9 @@ class WordsMn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String ledgerEditCategory(String name) {
+    return 'Засах: $name';
+  }
 }

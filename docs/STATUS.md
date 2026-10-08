@@ -107,12 +107,11 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     free to assign, as built?
 12. **Balances in the phone's Paid from list** (2026-10-08): should each account in
     the list show its balance, so they can tell whether that card will go through?
-13. **Three from the budget review of the phone's entries** (2026-10-08). When a
-    category made on the phone arrives with nothing assigned, should its popup offer
-    to open the category's Edit? Should each phone start Paid from with the account
-    it last used itself, ahead of the category's own account (Jen's entry starts on
-    Tom's card when the category says so)? Should ⌘Z leave an arrived batch alone, so
-    only its own popup's Undo takes it out?
+13. **Which account the phone's Paid from row shows first** (2026-10-08, asked once in
+    words the owner couldn't follow, then again plainly). When Jen chooses Groceries
+    on her phone, the Paid from row shows the account the Groceries category is paid
+    from in the ledger, which may be Tom's card, and she has to change it each time.
+    Should it show the account Jen's own phone last paid from instead?
 14. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
@@ -213,8 +212,7 @@ open the archive).
   listed; on a 360 × 640 phone Save is reached by scrolling.
 - **From the reviews of the phone's entries reaching the computer (2026-10-08), not
   fixed:** a purchase imported from the bank before its phone entry arrives is in
-  twice (the other order is matched by import); ⌘Z pressed just as a batch arrives
-  takes the batch out, and the phone has already let go of it; an entry whose account
+  twice (the other order is matched by import); an entry whose account
   or category was deleted on the computer waits on the phone for good with no reason
   given; after a week away, 40 arrivals are one count in a popup with no way to see
   which rows they were; an entry dated in an earlier budget period or before the last
