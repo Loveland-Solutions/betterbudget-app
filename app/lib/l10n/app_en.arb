@@ -6751,15 +6751,6 @@
       }
     }
   },
-  "phoneAddTo": "Add to {category}",
-  "@phoneAddTo": {
-    "description": "Phone app: what a screen reader says for the + on a category’s row, which opens the amount pad for that category.",
-    "placeholders": {
-      "category": {
-        "type": "String"
-      }
-    }
-  },
   "phoneWaiting": "{count, plural, =1{1 of your entries is waiting for the Mac} other{{count} of your entries are waiting for the Mac}}",
   "@phoneWaiting": {
     "description": "Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.",
@@ -7026,5 +7017,73 @@
   "phoneBills": "Bills",
   "@phoneBills": {
     "description": "Phone app, the first screen: heading over the categories whose money is waiting for a bill (rent, with “Due 10.20” under its name), listed after the categories with money to spend."
+  },
+  "phoneNewCategory": "+ New category",
+  "@phoneNewCategory": {
+    "description": "Phone app: the row that makes a new category, in the category list with nothing typed and at the end of the Budget screen’s list. Same words as the computer’s entry row."
+  },
+  "phoneNewCategoryTitle": "New category",
+  "@phoneNewCategoryTitle": {
+    "description": "Phone app: heading of the box that asks for a new category’s name."
+  },
+  "phoneChooseCategory": "Choose a category",
+  "@phoneChooseCategory": {
+    "description": "Phone app: shown above Save when Save was tapped with no category chosen."
+  },
+  "phoneNothingAssigned": "Nothing assigned yet",
+  "@phoneNothingAssigned": {
+    "description": "Phone app: under the amount being typed, and under the category’s name on the Budget screen, for a category just made on the phone. Money is assigned to it on the computer; “Assigned” is the Budget page’s word."
+  },
+  "phoneSaved": "Saved · {payee} {amount}",
+  "@phoneSaved": {
+    "description": "Phone app: the line shown after an entry is saved, with Undo beside it. {amount} reads −₮12,500.00.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneWaitingCategories": "{count, plural, =1{1 new category is waiting for the Mac} other{{count} new categories are waiting for the Mac}}",
+  "@phoneWaitingCategories": {
+    "description": "Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneWaitingBoth": "{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for the Mac",
+  "@phoneWaitingBoth": {
+    "description": "Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.",
+    "placeholders": {
+      "entries": {
+        "type": "int"
+      },
+      "categories": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneDeleteCategory": "{count, plural, =1{Delete {name} and the 1 entry in it ({amount})?} other{Delete {name} and the {count} entries in it ({amount})?}}",
+  "@phoneDeleteCategory": {
+    "description": "Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneClear": "Clear",
+  "@phoneClear": {
+    "description": "Phone app, top right of the entry screen once anything is typed or chosen: empties the entry being typed."
   }
 }

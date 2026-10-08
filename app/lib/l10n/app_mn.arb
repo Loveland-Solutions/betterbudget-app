@@ -1078,7 +1078,6 @@
   "phoneLeftIn": "Үлдсэн · {month}",
   "phoneFromMacToday": "Mac-аас өнөөдөр {time}",
   "phoneFromMacOn": "Mac-аас {date} {time}",
-  "phoneAddTo": "{category} ангилалд нэмэх",
   "phoneWaiting": "{count, plural, other{Таны {count} гүйлгээ Mac-ийг хүлээж байна}}",
   "phoneWaitingTitle": "Mac-ийг хүлээж байна",
   "phoneOwed": "Өр {amount}",
@@ -1121,5 +1120,14 @@
   "phoneOverBoth": "{over}-өөр хэтэрсэн · үүний дараа {after}-өөр",
   "phoneChooseAccount": "Данс сонгоно уу",
   "phoneInCredit": "{amount} илүү төлсөн",
-  "phoneBills": "Төлбөрүүд"
+  "phoneBills": "Төлбөрүүд",
+  "phoneNewCategory": "+ Шинэ ангилал",
+  "phoneNewCategoryTitle": "Шинэ ангилал",
+  "phoneChooseCategory": "Ангилал сонгоно уу",
+  "phoneNothingAssigned": "Одоогоор мөнгө хуваарилаагүй",
+  "phoneSaved": "Хадгаллаа · {payee} {amount}",
+  "phoneWaitingCategories": "{count, plural, other{{count} шинэ ангилал Mac-ийг хүлээж байна}}",
+  "phoneWaitingBoth": "Таны {entries} гүйлгээ, {categories} шинэ ангилал Mac-ийг хүлээж байна",
+  "phoneDeleteCategory": "{count, plural, other{{name} ангилал болон доторх {count} гүйлгээг ({amount}) устгах уу?}}",
+  "phoneClear": "Цэвэрлэх"
 }

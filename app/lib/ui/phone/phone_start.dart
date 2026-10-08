@@ -107,7 +107,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     if (folder == null) return _go(_Step.folder);
     try {
       final found = await widget.folder.read(folder, ledgerFileName);
-      if (found == null) return _go(_Step.noLedger);
+      if (found == null) {
+        // Not there on a later read (the folder is still arriving): what is
+        // up, and an entry half typed, stay.
+        if (_step != _Step.ready) _go(_Step.noLedger);
+        return;
+      }
       final now = widget.now();
       final snapshot = await widget.read(
         found.bytes,

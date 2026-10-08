@@ -4444,11 +4444,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String phoneAddTo(String category) {
-    return '$category ангилалд нэмэх';
-  }
-
-  @override
   String phoneWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -4618,4 +4613,49 @@ class WordsMn extends Words {
 
   @override
   String get phoneBills => 'Төлбөрүүд';
+
+  @override
+  String get phoneNewCategory => '+ Шинэ ангилал';
+
+  @override
+  String get phoneNewCategoryTitle => 'Шинэ ангилал';
+
+  @override
+  String get phoneChooseCategory => 'Ангилал сонгоно уу';
+
+  @override
+  String get phoneNothingAssigned => 'Одоогоор мөнгө хуваарилаагүй';
+
+  @override
+  String phoneSaved(String payee, String amount) {
+    return 'Хадгаллаа · $payee $amount';
+  }
+
+  @override
+  String phoneWaitingCategories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count шинэ ангилал Mac-ийг хүлээж байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingBoth(int entries, int categories) {
+    return 'Таны $entries гүйлгээ, $categories шинэ ангилал Mac-ийг хүлээж байна';
+  }
+
+  @override
+  String phoneDeleteCategory(int count, String name, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name ангилал болон доторх $count гүйлгээг ($amount) устгах уу?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneClear => 'Цэвэрлэх';
 }

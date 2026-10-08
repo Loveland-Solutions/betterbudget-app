@@ -6616,12 +6616,6 @@ abstract class Words {
   /// **'From your Mac {date} {time}'**
   String phoneFromMacOn(String date, String time);
 
-  /// Phone app: what a screen reader says for the + on a category’s row, which opens the amount pad for that category.
-  ///
-  /// In en, this message translates to:
-  /// **'Add to {category}'**
-  String phoneAddTo(String category);
-
   /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
   ///
   /// In en, this message translates to:
@@ -6879,6 +6873,60 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Bills'**
   String get phoneBills;
+
+  /// Phone app: the row that makes a new category, in the category list with nothing typed and at the end of the Budget screen’s list. Same words as the computer’s entry row.
+  ///
+  /// In en, this message translates to:
+  /// **'+ New category'**
+  String get phoneNewCategory;
+
+  /// Phone app: heading of the box that asks for a new category’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get phoneNewCategoryTitle;
+
+  /// Phone app: shown above Save when Save was tapped with no category chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category'**
+  String get phoneChooseCategory;
+
+  /// Phone app: under the amount being typed, and under the category’s name on the Budget screen, for a category just made on the phone. Money is assigned to it on the computer; “Assigned” is the Budget page’s word.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing assigned yet'**
+  String get phoneNothingAssigned;
+
+  /// Phone app: the line shown after an entry is saved, with Undo beside it. {amount} reads −₮12,500.00.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved · {payee} {amount}'**
+  String phoneSaved(String payee, String amount);
+
+  /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new category is waiting for the Mac} other{{count} new categories are waiting for the Mac}}'**
+  String phoneWaitingCategories(int count);
+
+  /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for the Mac'**
+  String phoneWaitingBoth(int entries, int categories);
+
+  /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Delete {name} and the 1 entry in it ({amount})?} other{Delete {name} and the {count} entries in it ({amount})?}}'**
+  String phoneDeleteCategory(int count, String name, String amount);
+
+  /// Phone app, top right of the entry screen once anything is typed or chosen: empties the entry being typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get phoneClear;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

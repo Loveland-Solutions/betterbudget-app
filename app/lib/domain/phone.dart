@@ -16,7 +16,13 @@ class PhoneCategory {
     this.paidFromId,
     this.recentPayees = const [],
     this.due,
+    this.madeHere = false,
   });
+
+  /// Made on this phone and not in the ledger yet (owner, 2026-10-08: "in a
+  /// pinch, if they're out of the house, they should be able to create a new
+  /// category"). Nothing is assigned to it until that is done on the computer.
+  final bool madeHere;
 
   /// The day the bill this category is saving for is due, when it has one
   /// and it isn't paid yet: its money is spoken for.
@@ -71,15 +77,15 @@ class PhoneSnapshot {
   final List<String> payees;
 
   /// Payees from the ledger's history that fit what has been [typed] for an
-  /// entry in [category]: none until something is typed (owner, 2026-10-07:
+  /// entry in [category] (null while none is chosen): none until something is typed (owner, 2026-10-07:
   /// no payee filled in, no row of ready-made ones), then this category's
   /// own before the rest, and names that begin with it before names that
   /// only hold it.
-  List<String> payeesMatching(String typed, PhoneCategory category) {
+  List<String> payeesMatching(String typed, PhoneCategory? category) {
     final want = typed.trim().toLowerCase();
     if (want.isEmpty) return const [];
     final begins = <String>[], holds = <String>[];
-    for (final p in [...category.recentPayees, ...payees]) {
+    for (final p in [...?category?.recentPayees, ...payees]) {
       final name = p.toLowerCase();
       if (begins.contains(p) || holds.contains(p)) continue;
       if (name.startsWith(want)) {
@@ -141,6 +147,37 @@ int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
     if (e.categoryId == category.id) left += e.amountMinor;
   }
   return left;
+}
+
+/// The [categories] that fit what has been [typed] in the category list: all
+/// of them, in their own order, until something is typed; then names that
+/// begin with it before names that only hold it.
+List<PhoneCategory> categoriesMatching(
+  Iterable<PhoneCategory> categories,
+  String typed,
+) {
+  final want = typed.trim().toLowerCase();
+  if (want.isEmpty) return categories.toList();
+  final begins = <PhoneCategory>[], holds = <PhoneCategory>[];
+  for (final c in categories) {
+    final name = c.name.toLowerCase();
+    if (name.startsWith(want)) {
+      begins.add(c);
+    } else if (name.contains(want)) {
+      holds.add(c);
+    }
+  }
+  return [...begins, ...holds];
+}
+
+/// The category already called [name], whatever its capitals: a second one
+/// by the same name is never made.
+PhoneCategory? categoryNamed(Iterable<PhoneCategory> categories, String name) {
+  final want = name.trim().toLowerCase();
+  for (final c in categories) {
+    if (c.name.trim().toLowerCase() == want) return c;
+  }
+  return null;
 }
 
 /// The amount pad's text after [key] is pressed: a digit, `.` or `<` for

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-07** · version 0.16.2 · schema v18 · 523 tests pass
+**Last updated: 2026-10-08** · version 0.17.0 · schema v18 · 532 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -29,8 +29,9 @@ folder, and the Android app reads it there. Then, in order:
    in memory and gone when the app closes. To build: the phone keeps its entries,
    writes them to its own file in the folder, and the Mac takes them in as uncleared
    rows with one undo (ADR 0005). Then money in and transfers on the phone, the other
-   phone's entries, and the iPhone build (its folder access and icon). How entries
-   travel depends on what item 1 decides.
+   phone's entries, and the iPhone build (its folder access and icon). A category made
+   on the phone travels the same way (ADR 0005, "A new category from the phone"). How
+   entries travel depends on what item 1 decides.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
@@ -102,7 +103,12 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 11. **What "dedicated" means** (2026-10-02). Emergency fund limited to Khan Savings,
     holding ₮10,000,000 of its ₮12,600,000: is the other ₮2,600,000 the fund's too, or
     free to assign, as built?
-12. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
+12. **Four from the phone's Ledger screen** (2026-10-08). May Save go ahead with no
+    payee (a taxi, a market stall), as the Mac allows? Should the phone say "your
+    computer" where it says "the Mac" ("From your Mac today 08:10")? Should the Paid
+    from list show each account's balance? Should the line after Save also say what
+    is left ("Saved · Nomin −₮12,500.00 · Groceries ₮135,500.00 left")?
+13. **Header height.** About seven rows show at 1440 × 900. Collapsing the header on
     scroll was offered; the owner hasn't asked for it.
 
 ## Phase
@@ -162,12 +168,16 @@ open the archive).
 - CSV export, app lock, printing the recovery key.
 - **Phone apps** ([ADR 0005](decisions/0005-mobile-companion.md)): on Android the app
   asks once for the recovery key and for the folder the ledger was moved to, then
-  shows what is left in each category (those waiting for a bill apart, under Bills)
-  and each account's balance, read from
+  opens on Ledger: amount, Category (picked from a list or typed, and the list can
+  make a new one), Payee, Paid from, Date, Save. Budget, the other screen, shows what
+  is left in each category (those waiting for a bill apart, under Bills), makes a new
+  category too, and links to each account's balance. The figures are read from
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
-  or the list is pulled down (ADR 0004 "Phone screens", option B). Not built: entries
-  kept after the app closes, written to the folder and taken in by the Mac; money in
-  and transfers; other phones' entries; the iPhone's folder access and icon. The first
+  or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). Not
+  built: entries and new categories kept after the app closes, written to the folder
+  and taken in by the Mac; renaming a category made on the phone; fixing a waiting
+  entry; money in and transfers; other phones' entries; the iPhone's folder access
+  and icon. The first
   read from the owner's real Drive folder on the Pixel hasn't been watched yet.
 - **A Windows build.**
 - **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
@@ -189,6 +199,13 @@ open the archive).
   person's card; the Backups note still says to use a USB stick once the ledger is in
   a folder. Untested: the phone's figures for a budget run by pay periods, and the
   phone meeting a ledger from a newer version.
+- **From the reviews of the phone's Ledger screen (2026-10-08), not fixed:** the "left
+  now" line on Ledger doesn't say how old the figures are (Budget does) and counts
+  only this phone's entries, whatever their date; Rent chosen on Ledger reads "left
+  now" in ordinary ink, though Budget lists it apart as a bill; a waiting entry whose
+  category has gone from the ledger shows no category and its amount in tugrik; a
+  category made on the phone and one of the same name arriving from the Mac are both
+  listed; on a 360 × 640 phone Save is reached by scrolling.
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the

@@ -88,4 +88,7 @@ screen, with more as buttons under it (no payee filled in and none laid out; the
 ledger's payees are offered only as one is typed), and rent's money listed on the phone among the money to
 spend, in the same ink (categories waiting for a bill go under their own heading,
 **Bills**, quieter), asked about with a category called Housing (rent is in a Rent
-category: an example uses the names a person would).
+category: an example uses the names a person would), and a + on every
+category row of the phone's first screen, which opened on the budget (it opens on
+**Ledger**, everything a transaction needs on one screen; the category is picked from a
+list or typed, and the list can make a new one; Budget is the other screen).

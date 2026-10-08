@@ -120,9 +120,17 @@ the code stands.
 | Add a transaction: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
 | Fix or delete its own entries until the Mac takes them in | Fix another phone's entries |
 | See what's left in each budget, and account balances | Reconcile |
-| | Change budgets, accounts, categories or settings |
+| Make a new category, by name (owner, 2026-10-08) | Change budgets, accounts, other categories or settings |
 
 Mistakes in older transactions are fixed on the Mac.
+
+**A new category from the phone** (owner, 2026-10-08: "In a pinch, if they're out of
+the house, they should be able to create a new category. I know this deviates from
+what I said earlier"). It is an inbox item like an entry: a random ID, a name and a
+currency, with nothing assigned until that is done on the Mac. The phone's entries can
+be filed in it at once. When the Mac takes it in, a category already called that
+(whatever its capitals, archived ones included, which the phone can't see) is used
+instead of making a second.
 
 ### Numbers on the phone
 
@@ -153,7 +161,8 @@ catches mistakes, as it does for any uncleared row.
 ## Consequences
 
 - The database schema doesn't need random IDs. Only inbox items do.
-- The phone UI is two screens (entry, budgets), not a phone-sized register.
+- The phone UI is two screens (entry, budgets), not a phone-sized register. Since
+  2026-10-08 it opens on the entry (ADR 0004 "Phone screens: Ledger first").
 - Budget views on the phone depend on the budget existing on the Mac first ("ledger
   first, then the budget").
 - **Before choosing a service, test** how a shared folder shows up in Files (iOS) and the

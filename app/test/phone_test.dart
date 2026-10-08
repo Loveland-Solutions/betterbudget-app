@@ -1,5 +1,6 @@
-// The phone screens (ADR 0005; ADR 0004 "Phone screens"): what is left in each
-// category, and the amount pad a category's + opens. Drawn on a 390 × 844 phone.
+// The phone screens (ADR 0005; ADR 0004 "Phone screens"): Ledger, where a
+// transaction is typed and its category picked or made, and Budget, what is
+// left in each category. Drawn on a 390 × 844 phone.
 import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
@@ -29,8 +30,12 @@ Future<void> _loadFont(String family, String path) async {
 
 final _now = DateTime(2026, 10, 7, 14, 5);
 
-Future<PhoneStore> _pump(WidgetTester tester, {PhoneSnapshot? snapshot}) async {
-  tester.view.physicalSize = const Size(390, 844);
+Future<PhoneStore> _pump(
+  WidgetTester tester, {
+  PhoneSnapshot? snapshot,
+  Size size = const Size(390, 844),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final store = PhoneStore(
@@ -49,6 +54,39 @@ Future<void> _payee(WidgetTester tester, String typed, {String? pick}) async {
   await tester.enterText(find.byKey(const ValueKey('payee-field')), typed);
   await tester.pump();
   await tester.tap(pick == null ? find.text('Save').last : find.text(pick));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _toBudget(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('to-budget')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _toLedger(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('to-ledger')));
+  await tester.pumpAndSettle();
+}
+
+/// Picks [name] from the category list on the entry screen.
+Future<void> _category(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const ValueKey('category-row')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+}
+
+/// A whole entry: category, amount, payee, Save.
+Future<void> _spend(
+  WidgetTester tester,
+  String category,
+  String amount,
+  String payee, {
+  String? pick,
+}) async {
+  await _category(tester, category);
+  await _type(tester, amount);
+  await _payee(tester, payee, pick: pick);
+  await tester.tap(find.text('Save'));
   await tester.pumpAndSettle();
 }
 
@@ -170,19 +208,35 @@ void main() {
     expect(leftNow(groceries, waiting), 13550000);
   });
 
-  testWidgets('opens on what is left, with the cents where there is room', (
+  testWidgets('opens on Ledger with nothing chosen', (tester) async {
+    await _pump(tester);
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Category'), findsOneWidget);
+    expect(find.text('Payee'), findsOneWidget);
+    // Paid from and Date have their defaults; no category, so nothing is
+    // said about what is left.
+    expect(find.text('TDB Checking'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.byKey(const ValueKey('left-line')), findsNothing);
+    // Nothing is typed or waiting, so neither is offered.
+    expect(find.text('Clear'), findsNothing);
+    expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
+  });
+
+  testWidgets('Budget lists what is left, with the cents where there is room', (
     tester,
   ) async {
     await _pump(tester);
+    await _toBudget(tester);
     expect(find.text('Left in October'), findsOneWidget);
     expect(find.text('From your Mac today 08:10'), findsOneWidget);
     expect(find.text('₮148,000.00'), findsOneWidget);
     expect(find.text('−₮18,400.00'), findsOneWidget);
-    // Nothing is waiting, so nothing is said about waiting.
-    expect(find.textContaining('waiting for the Mac'), findsNothing);
+    // No + on the rows (owner, 2026-10-08).
+    expect(find.byIcon(Icons.add), findsNothing);
     await expectLater(
       find.byType(PhoneApp),
-      matchesGoldenFile('goldens/phone_left.png'),
+      matchesGoldenFile('goldens/phone_budget.png'),
     );
   });
 
@@ -200,19 +254,29 @@ void main() {
           PhoneCategory(
             id: 'c',
             name: 'Apartment renovation',
-            leftMinor: 1234567800,
+            leftMinor: 123456789000,
           ),
         ],
       ),
     );
-    expect(find.text('₮12,345,678'), findsOneWidget);
+    await _toBudget(tester);
+    expect(find.text('₮1,234,567,890'), findsOneWidget);
     expect(find.text('From your Mac 2026.10.06 21:40'), findsOneWidget);
   });
 
-  testWidgets('a category’s + opens the pad, and Save takes it from Left', (
-    tester,
-  ) async {
+  testWidgets('a category is picked from the list, and Save takes it from '
+      'what is left', (tester) async {
     final store = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    // Every category with what is left in it, the bills apart.
+    expect(find.text('₮148,000.00'), findsOneWidget);
+    expect(find.text('Bills'), findsOneWidget);
+    expect(find.text('+ New category'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_category.png'),
+    );
     await tester.tap(find.text('Groceries'));
     await tester.pumpAndSettle();
     expect(find.text('₮148,000.00 left now'), findsOneWidget);
@@ -225,7 +289,7 @@ void main() {
     );
     await expectLater(
       find.byType(PhoneApp),
-      matchesGoldenFile('goldens/phone_spend.png'),
+      matchesGoldenFile('goldens/phone_ledger.png'),
     );
 
     await tester.tap(find.text('Save'));
@@ -264,28 +328,182 @@ void main() {
     final entry = store.waiting.single;
     expect(entry.amountMinor, -1250000);
     expect(entry.payee, 'Nomin');
+    expect(entry.categoryId, 'groceries');
     expect(entry.accountId, 'tdb');
     expect(entry.date, DateTime(2026, 10, 7));
-    expect(find.text('₮135,500.00'), findsOneWidget);
+    // It says what went in, and the form is ready for the next one.
+    expect(find.text('Saved · Nomin −₮12,500.00'), findsOneWidget);
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Groceries'), findsNothing);
     expect(
       find.text('1 of your entries is waiting for the Mac'),
       findsOneWidget,
     );
+    await _toBudget(tester);
+    expect(find.text('₮135,500.00'), findsOneWidget);
+  });
+
+  testWidgets('typing narrows the list, and Done takes the first that fits', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('category-field')), 'e');
+    await tester.pump();
+    // Begins with it, before the names that only hold it.
+    expect(
+      tester.getTopLeft(find.text('Eating out')).dy,
+      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+    );
+    expect(find.text('Transport'), findsNothing);
+    expect(find.text('+ New category “e”'), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('Eating out'), findsOneWidget);
+    expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
+    // Paid from follows the category until an account is chosen by hand.
+    expect(find.text('Golomt Visa'), findsOneWidget);
+  });
+
+  testWidgets('a name that isn’t a category makes one, waiting for the Mac', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('category-field')), 'Cof');
+    await tester.pump();
+    expect(find.text('Groceries'), findsNothing);
+    // Done makes nothing: only the row does.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(store.made, isEmpty);
+    await tester.tap(find.text('+ New category “Cof”'));
+    await tester.pumpAndSettle();
+    final made = store.made.single;
+    expect(made.name, 'Cof');
+    expect(made.currency, Currency.mnt);
+    // Back on the entry with it chosen; it isn't called overspent.
+    expect(find.text('Cof'), findsOneWidget);
+    expect(find.text('Nothing assigned yet'), findsOneWidget);
+    expect(find.text('1 new category is waiting for the Mac'), findsOneWidget);
+
+    await _type(tester, '4500');
+    expect(find.text('Nothing assigned yet'), findsOneWidget);
+    await _payee(tester, 'Tom N Toms');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.categoryId, made.id);
+    expect(
+      find.text('1 of your entries and 1 new category are waiting for the Mac'),
+      findsOneWidget,
+    );
+
+    // A name that is already a category is listed, not offered again.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('category-field')), 'cof');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('new-category')), findsNothing);
+    expect(find.text('Cof'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    await _toBudget(tester);
+    expect(find.text('Cof'), findsOneWidget);
+    expect(find.text('Nothing assigned yet'), findsOneWidget);
+    expect(find.text('−₮4,500.00'), findsOneWidget);
+
+    // Deleting it says what goes with it, then takes both.
+    await _toLedger(tester);
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('new category'), findsOneWidget);
+    await tester.tap(find.text('Delete').first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Delete Cof and the 1 entry in it (₮4,500.00)?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(store.made, isEmpty);
+    expect(store.waiting, isEmpty);
+  });
+
+  testWidgets('Budget makes a new category, and says when the name is taken', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'groceries',
+    );
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('Groceries is already a category'), findsOneWidget);
+    expect(store.made, isEmpty);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Vet',
+    );
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(store.made.single.name, 'Vet');
+    // It lands with the money to spend, above the bills.
+    await tester.scrollUntilVisible(find.text('Vet'), 100);
+    expect(find.text('Vet'), findsOneWidget);
+  });
+
+  testWidgets('a category on Budget starts an entry in it, and what was '
+      'typed stays', (tester) async {
+    await _pump(tester);
+    await _type(tester, '500');
+    await _toBudget(tester);
+    await tester.tap(find.text('Transport'));
+    await tester.pumpAndSettle();
+    expect(find.text('−₮500'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(
+      find.text('₮61,500.00 left now · ₮61,000.00 after this'),
+      findsOneWidget,
+    );
+    expect(find.text('Cash wallet'), findsOneWidget);
+  });
+
+  testWidgets('an account chosen by hand stays when a category is chosen', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('account-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cash wallet'));
+    await tester.pumpAndSettle();
+    await _category(tester, 'Groceries');
+    expect(find.text('Cash wallet'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsNothing);
   });
 
   testWidgets(
     'Save with nothing typed says what is missing and saves nothing',
     (tester) async {
       final store = await _pump(tester);
-      await tester.tap(find.text('Clothing'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Enter an amount'), findsOneWidget);
 
-      // Clothing has no payees yet, so an amount alone still isn't enough.
       await _type(tester, '5');
       expect(find.text('Enter an amount'), findsNothing);
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Choose a category'), findsOneWidget);
+
+      await _category(tester, 'Clothing');
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Enter a payee'), findsOneWidget);
@@ -299,28 +517,35 @@ void main() {
     },
   );
 
-  testWidgets('Cancel leaves nothing behind', (tester) async {
+  testWidgets('Clear empties the entry, and Undo brings a saved one back', (
+    tester,
+  ) async {
     final store = await _pump(tester);
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
     await _type(tester, '8000');
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Clear'), findsNothing);
+    expect(store.waiting, isEmpty);
+
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    expect(store.waiting, hasLength(1));
+    await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
     expect(store.waiting, isEmpty);
-    expect(find.text('₮61,500.00'), findsOneWidget);
+    expect(find.text('−₮8,000'), findsOneWidget);
+    expect(find.text('UB Cab'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
   });
 
   testWidgets('a waiting entry can be deleted, and Left goes back', (
     tester,
   ) async {
     final store = await _pump(tester);
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
-    await _type(tester, '8000');
-    await _payee(tester, 'ub', pick: 'UB Cab');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    await _toBudget(tester);
     expect(find.text('₮53,500.00'), findsOneWidget);
+    await _toLedger(tester);
 
     await tester.tap(find.text('1 of your entries is waiting for the Mac'));
     await tester.pumpAndSettle();
@@ -333,6 +558,7 @@ void main() {
 
   testWidgets('Accounts lists balances, a card as Owed', (tester) async {
     await _pump(tester);
+    await _toBudget(tester);
     await tester.tap(find.text('Accounts'));
     await tester.pumpAndSettle();
     expect(find.text('₮2,431,800.00'), findsOneWidget);
@@ -343,20 +569,18 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    await tester.tap(find.text('Eating out'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Eating out');
     expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
     await _type(tester, '12500');
     expect(
       find.text('Overspent by ₮18,400.00 · by ₮30,900.00 after this'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
 
     // Money now, and this entry would go past it.
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Transport');
     await _type(tester, '70000');
     expect(
       find.text('₮61,500.00 left now · overspent by ₮8,500.00 after this'),
@@ -388,13 +612,16 @@ void main() {
         ],
       ),
     );
+    await _toBudget(tester);
     // A budget that runs by pay periods says when this one ends.
     expect(find.text('Left until 10.14'), findsOneWidget);
     expect(find.text('Due 10.20'), findsOneWidget);
     final groceries = tester.getTopLeft(find.text('Groceries')).dy;
+    final add = tester.getTopLeft(find.text('+ New category')).dy;
     final heading = tester.getTopLeft(find.text('Bills')).dy;
     final rent = tester.getTopLeft(find.text('Rent')).dy;
-    expect(groceries, lessThan(heading));
+    expect(groceries, lessThan(add));
+    expect(add, lessThan(heading));
     expect(heading, lessThan(rent));
     // Its amount is drawn quieter than money to spend.
     final spend = tester.widget<Text>(find.text('₮148,000.00')).style!.color;
@@ -420,6 +647,7 @@ void main() {
         ],
       ),
     );
+    await _toBudget(tester);
     expect(find.byKey(const ValueKey('bills-heading')), findsNothing);
   });
 
@@ -442,8 +670,9 @@ void main() {
         ],
       ),
     );
-    await tester.tap(find.text('Travel'));
-    await tester.pumpAndSettle();
+    await _category(tester, 'Travel');
+    // The tugrik account isn't offered for a dollar category.
+    expect(find.text('TDB Checking'), findsNothing);
     await _type(tester, '20');
     await _payee(tester, 'Delta');
     await tester.tap(find.text('Save'));
@@ -458,29 +687,102 @@ void main() {
       tester,
       snapshot: previewSnapshot(DateTime(2026, 10, 1, 21, 40)),
     );
+    // ₮12,500 of groceries on TDB Checking, ₮30,000 of eating out on the Visa.
+    await _spend(tester, 'Groceries', '12500', 'no', pick: 'Nomin');
+    await _spend(tester, 'Eating out', '30000', 'Rosewood');
+
+    await _toBudget(tester);
     final line = tester.widget<Text>(find.byKey(const ValueKey('from-mac')));
     expect(line.data, 'From your Mac 2026.10.01 21:40');
     expect(line.style!.color, isNot(equals(null)));
-
-    // ₮12,500 of groceries on TDB Checking, ₮30,000 of eating out on the Visa.
-    await tester.tap(find.text('Groceries'));
-    await tester.pumpAndSettle();
-    await _type(tester, '12500');
-    await _payee(tester, 'no', pick: 'Nomin');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Eating out'));
-    await tester.pumpAndSettle();
-    await _type(tester, '30000');
-    await _payee(tester, 'Rosewood');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Accounts'));
     await tester.pumpAndSettle();
     expect(find.text('₮2,419,300.00'), findsOneWidget);
     expect(find.text('Owed ₮342,000.00'), findsOneWidget);
     expect(find.text('From your Mac 2026.10.01 21:40'), findsOneWidget);
+  });
+
+  testWidgets('cents a category’s currency can’t hold are cut, and a saved '
+      'line’s Undo goes once another entry is begun', (tester) async {
+    final yen = Currency.fromCode('JPY');
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: [
+          const PhoneAccount(
+            id: 'u',
+            name: 'Dollars',
+            balanceMinor: 0,
+            currency: Currency.usd,
+          ),
+          PhoneAccount(id: 'y', name: 'Yen', balanceMinor: 0, currency: yen),
+        ],
+        categories: [
+          PhoneCategory(id: 't', name: 'Trip', leftMinor: 50000, currency: yen),
+          const PhoneCategory(
+            id: 'f',
+            name: 'Food',
+            leftMinor: 5000,
+            currency: Currency.usd,
+          ),
+        ],
+      ),
+    );
+    // Typed in dollars, then filed from Budget in a yen category.
+    await _type(tester, '12.50');
+    await _toBudget(tester);
+    await tester.tap(find.text('Trip'));
+    await tester.pumpAndSettle();
+    expect(find.text('−¥12'), findsOneWidget);
+    await _payee(tester, 'Lawson');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -12);
+    expect(find.text('Undo'), findsOneWidget);
+
+    // The next entry is begun from Budget: Undo would write over it.
+    await _toBudget(tester);
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsNothing);
+    expect(store.waiting, hasLength(1));
+  });
+
+  testWidgets('on a short phone the entry scrolls instead of running off', (
+    tester,
+  ) async {
+    final store = await _pump(tester, size: const Size(360, 640));
+    store.categoryCalled('Coffee', Currency.mnt);
+    expect(tester.takeException(), isNull);
+    await _category(tester, 'Groceries');
+    await _payee(tester, 'no', pick: 'Nomin');
+    await tester.ensureVisible(find.text('Save'));
+    await tester.pumpAndSettle();
+    await _type(tester, '12500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(store.waiting.single.amountMinor, -1250000);
+    await tester.ensureVisible(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('1 of your entries and 1 new category are waiting for the Mac'),
+      findsOneWidget,
+    );
+  });
+
+  test('the category list fits what is typed, whatever its capitals', () {
+    const all = [
+      PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 0),
+      PhoneCategory(id: 'e', name: 'Eating out', leftMinor: 0),
+      PhoneCategory(id: 'r', name: 'Rent', leftMinor: 0),
+    ];
+    expect(categoriesMatching(all, '  ').map((c) => c.id), ['g', 'e', 'r']);
+    expect(categoriesMatching(all, 'R').map((c) => c.id), ['r', 'g']);
+    expect(categoriesMatching(all, 'vet'), isEmpty);
+    expect(categoryNamed(all, ' rent ')!.id, 'r');
+    expect(categoryNamed(all, 'Ren'), isNull);
   });
 
   test('a card paid past what was owed is in credit', () {
@@ -638,7 +940,7 @@ void main() {
       return (keys: k, folder: f, read: read);
     }
 
-    testWidgets('the key, then the folder, then what is left', (tester) async {
+    testWidgets('the key, then the folder, then Ledger', (tester) async {
       final key = RecoveryKey.generate();
       final s = await start(tester);
       expect(find.text('Enter your recovery key'), findsOneWidget);
@@ -666,19 +968,20 @@ void main() {
 
       await tester.tap(find.text('Choose the folder'));
       await tester.pumpAndSettle();
+      // It opens on Ledger; the figures are on Budget.
+      expect(find.text('Save'), findsOneWidget);
+      await _toBudget(tester);
       expect(find.text('Left in October'), findsOneWidget);
       expect(find.text('From your Mac today 13:30'), findsOneWidget);
       expect(find.text('₮148,000.00'), findsOneWidget);
       expect(_same(s.keys.kept!, deriveDataKey(key)), isTrue);
     });
 
-    testWidgets('the next launch goes straight to what is left', (
-      tester,
-    ) async {
+    testWidgets('the next launch goes straight to Ledger', (tester) async {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       await start(tester, keys: keys, folder: folder);
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
     });
 
     testWidgets('a key that is not this ledger’s is not kept', (tester) async {
@@ -718,7 +1021,7 @@ void main() {
         ..ledger = Uint8List.fromList([1]);
       await tester.tap(find.text('Choose another folder'));
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(folder.forgotten, ['drive:Photos']);
     });
 
@@ -755,12 +1058,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       broken = true;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(find.text('Left in October'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(find.textContaining('doesn’t open'), findsNothing);
       expect(_same(keys.kept!, right), isTrue);
     });
@@ -771,13 +1074,7 @@ void main() {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       final s = await start(tester, keys: keys, folder: folder);
-      await tester.tap(find.text('Transport'));
-      await tester.pumpAndSettle();
-      await _type(tester, '8000');
-      await _payee(tester, 'ub', pick: 'UB Cab');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-      expect(find.text('₮53,500.00'), findsOneWidget);
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
 
       // Back from another app: the folder is read again.
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -785,11 +1082,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(s.read.length, 2);
       expect(s.folder.asked.toSet(), {ledgerFileName});
-      expect(find.text('₮53,500.00'), findsOneWidget);
       expect(
         find.text('1 of your entries is waiting for the Mac'),
         findsOneWidget,
       );
+      await _toBudget(tester);
+      expect(find.text('₮53,500.00'), findsOneWidget);
     });
   });
 }

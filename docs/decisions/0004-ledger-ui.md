@@ -2571,7 +2571,62 @@ it), and one large question per screen with the accounts in a side panel.
   does nothing there).
 
 
-### Phone screens: Budget is home (owner, 2026-10-07)
+### Phone screens: Ledger first (owner, 2026-10-08)
+
+"On the phone app, I don't want all the pluses on the categories. I want this UI to be
+intuitive. I want it to open ledger first with everything they need to enter a
+transaction. They can select and/or type the category from a dropdown." Said after
+using option B below, which this replaces where the two differ. What B settled about
+payees, bills, overspent words, cents and the Accounts link still holds.
+
+- **Two screens, Ledger and Budget, with the switch along the bottom.** The app opens
+  on Ledger. What is being typed stays through a look at Budget. The phone's Back on
+  Budget goes to Ledger.
+- **Ledger is the entry**: the amount in red with a minus, then Category, Payee, Paid
+  from and Date (Today), the pad's own number keys, and Save. Anything can be filled in
+  first; Save names the first thing missing above it ("Enter an amount", "Choose a
+  category", "Enter a payee", "Choose an account"). **Clear** is at the top right only
+  once something is typed or chosen.
+- **Nothing is said about what is left until a category is chosen**; then the line
+  under the amount reads as before. Its place is kept, so the rows don't move.
+- **Category opens a list of every category** with what is left in each, the bills
+  apart, in Budget's order. A box at the top narrows it as a name is typed: names that
+  begin with the letters, then names that hold them; the first is marked and the
+  keyboard's Done takes it. The keyboard stays down until the box is tapped, so the
+  whole list can be scrolled.
+- **"+ New category" is at the foot of that list** ("In a pinch, if they're out of the
+  house, they should be able to create a new category. I know this deviates from what I
+  said earlier, but it's what they would need"). With nothing typed it puts the cursor
+  in the box; with "Cof" typed it reads "+ New category “Cof”", makes it and goes back
+  to the entry with it chosen, asking nothing. A name that is already a category,
+  whatever its capitals, is in the list and isn't offered again.
+- **A category made on the phone holds nothing**, and says so: "Nothing assigned yet"
+  under the amount and under its name on Budget, not "Overspent by", which would blame
+  them for a category made a moment ago. What is spent in it shows red on Budget. It is
+  in the currency of the account being paid from, and waits for the Mac as entries do:
+  "1 of your entries and 1 new category are waiting for the Mac". The waiting list
+  shows it with Delete, which first says what goes with it: "Delete Coffee and the 1
+  entry in it (₮4,500.00)?".
+- **Budget has "+ New category" too**, where the new row lands: after the money to
+  spend, above Bills. It asks the name; a name already taken is said under the box.
+- **A category row on Budget has no +.** Tapping it goes to Ledger with that category
+  chosen and whatever was typed kept.
+- **Paid from** starts as the first account, follows the chosen category's own account,
+  and an account chosen by hand is kept while it is in the category's currency.
+- **After Save the form empties**, and a line above Save says what went in, "Saved ·
+  Nomin −₮12,500.00", with Undo, until the next key. On the page and not a popup: a
+  popup at the foot covered the switch to Budget.
+
+Asked of four reviewers first (layout, flow, words, a first-time reader). Where they
+disagreed: the pad stays (the first digit lands with no tap; the layout review wanted
+the phone's keyboard), and the category box isn't focused on open. Rejected: a + on
+each row; a dialog for the new category's name in the list; "your computer" for "the
+Mac" (the words review's suggestion, left for the owner).
+
+Not built: renaming a category made on the phone, fixing a waiting entry, and all of
+what reaches the Mac.
+
+### Phone screens: Budget is home (owner, 2026-10-07; replaced in part on 2026-10-08)
 
 The phone app ([ADR 0005](0005-mobile-companion.md)) records a transaction and shows
 what is left in a category. Three ways to arrange that were drawn
