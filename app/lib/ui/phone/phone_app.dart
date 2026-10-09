@@ -12,6 +12,7 @@ import '../../domain/ledger.dart' show isIncomeName;
 import '../../domain/money.dart';
 import '../../domain/phone.dart';
 import '../language.dart';
+import '../schemes.dart';
 import '../theme.dart';
 
 /// The snapshot and this phone's waiting entries. Where they are kept and how
@@ -117,6 +118,12 @@ class PhoneStore extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// The phone keeps dark Blue eclipse until its own turn at the new colors
+/// (owner, 2026-10-09: "Let's start with just the computer"). Called before
+/// the phone's screens are built, by the app, the preview and the tests.
+void usePhoneColors() =>
+    Mid.palette = Palette.of(blueEclipseScheme, Brightness.dark);
 
 /// The phone app's frame: its look and its words, around [child].
 class PhoneFrame extends StatelessWidget {

@@ -80,7 +80,8 @@ class Palette {
     green: Color(0xFF7EDDBB),
     coral: Color(0xFFEE807B),
     onAccent: Color(0xFF0D1522),
-    fill: Color(0xFF5FC9A3),
+    // Deeper than money in's mint, so Add can't be read as income.
+    fill: Color(0xFF4DB594),
     onFill: _tile,
     wash: Color(0xFFECEFF4),
     // A little lighter than by day, so its edge shows against the page.
@@ -245,7 +246,7 @@ double _contrast(Color a, Color b) {
 }
 
 /// Near coral's red or orange, money-in green, or (with [gold]) the gold of
-/// reconciled and scheduled.
+/// reconciled.
 bool _moneyHue(Color c, {required bool gold}) {
   final h = HSLColor.fromColor(c).hue;
   return h < 30 || h >= 335 || (h >= 85 && h < 165) || (gold && h < 65);
@@ -287,7 +288,7 @@ Color _until(Color c, Color against, double ratio) {
 /// The colors in use, read everywhere as `Mid.ink` and so on. [AppearanceScope]
 /// switches them and rebuilds the app.
 abstract final class Mid {
-  static Palette palette = Palette.of(defaultScheme, Brightness.dark);
+  static Palette palette = Palette.dark;
   static Palette get _p => palette;
   static bool get isLight => _p.brightness == Brightness.light;
 
@@ -302,7 +303,14 @@ abstract final class Mid {
   static Color get ink2 => _p.ink2;
   static Color get ink3 => _p.ink3;
   static Color get blue => _p.blue;
+
+  /// An accent, for what is done and safe: the reconciled diamond and the
+  /// button that hands it out (owner, 2026-10-09: "Gold is an accent color.
+  /// Don't overuse it"). Not for "not yet" or a heads-up: see [note].
   static Color get gold => _p.gold;
+
+  /// A heads-up worth reading with nothing wrong: quiet ink, never gold.
+  static Color get note => _p.ink2;
   static Color get green => _p.green;
   static Color get coral => _p.coral;
   static Color get onAccent => _p.onAccent;

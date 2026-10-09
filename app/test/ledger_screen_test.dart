@@ -104,7 +104,7 @@ void main() {
     });
   }
 
-  /// The new-transaction row opens from the gold Add button.
+  /// The new-transaction row opens from the Add button.
   Future<void> openEntry(WidgetTester tester) async {
     await tester.tap(find.byKey(const ValueKey('add-transaction')));
     await tester.pumpAndSettle();
@@ -5083,7 +5083,7 @@ void main() {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      // The Income tab carries a gold dot while pay isn't set up; on it,
+      // The Income tab carries a blue dot while pay isn't set up; on it,
       // the demo's salary this month, and that pay isn't set up.
       await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
@@ -5334,7 +5334,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
-      // Blue eclipse until someone picks, with the dark-mode logo.
+      // The app's own colors until someone picks, with the dark-mode logo.
       expect(Mid.palette, same(Palette.of(defaultScheme, Brightness.dark)));
       expect(
         find.descendant(
@@ -6431,9 +6431,9 @@ void main() {
     expect(find.text('Import into Golomt Visa'), findsOneWidget);
     final bought = previewOf('Test Corner Shop');
     final paid = previewOf('Test Card Payment');
-    // A purchase is money out here as anywhere: red, with a minus.
+    // A purchase is money out here as anywhere: plain, with a minus.
     expect(bought.minor, -1250000);
-    expect(bought.color, Mid.coral);
+    expect(bought.color, Mid.ink);
     expect(paid.minor, 25000000);
     expect(paid.color, Mid.green);
 
@@ -6463,7 +6463,7 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('money out is red with a minus, money in green with a plus', (
+  testWidgets('money out is plain with a minus, money in green with a plus', (
     tester,
   ) async {
     final db = await pumpLedger(tester);
@@ -6482,7 +6482,8 @@ void main() {
     );
     final out = amountOf('Unitel');
     expect(out.minor, lessThan(0));
-    expect(out.color, Mid.coral);
+    // Ordinary ink, not red (owner, 2026-10-09): the minus says which way.
+    expect(out.color, Mid.ink);
     expect(out.sign, MoneySign.plusForPositive); // a minus below zero
     final shown = formatMoney(out.minor);
     expect(shown, startsWith('−₮'));

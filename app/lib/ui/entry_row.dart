@@ -836,7 +836,7 @@ class _EntryRowState extends State<EntryRow> {
       );
     } else if (_newCategory != null) {
       // Said before saving, so a typo doesn't quietly become a category.
-      (text, color) = (_newCategoryNote, Mid.gold);
+      (text, color) = (_newCategoryNote, Mid.note);
     } else if (_hasContent && _missing.isNotEmpty) {
       final m = _missing;
       (text, color) = (
@@ -1585,8 +1585,8 @@ class _DateFieldState extends State<DateField> {
 }
 
 /// A month of days, Monday first. The selected day is filled, today is
-/// underlined, and days after today are gold because picking one schedules
-/// the transaction.
+/// underlined. Days after today are plain: the line under the month says
+/// picking one schedules the transaction.
 class _Calendar extends StatefulWidget {
   const _Calendar({
     required this.selected,
@@ -1654,8 +1654,6 @@ class _CalendarState extends State<_Calendar> {
           ? Mid.onAccent
           : off
           ? Mid.ink3.withValues(alpha: 0.5)
-          : _future(d)
-          ? Mid.gold
           : Mid.ink;
       return MouseRegion(
         cursor: off ? MouseCursor.defer : SystemMouseCursors.click,
@@ -1746,13 +1744,13 @@ class _CalendarState extends State<_Calendar> {
                     day(DateTime(_month.year, _month.month, d)),
                 ],
               ),
-              // Explains the gold, only when it matters.
+              // Says what a later day does, only when it matters.
               if (widget.allowFuture && hint != null && _future(hint))
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     t.rowsAfterTodayScheduled,
-                    style: onest(12, color: Mid.gold),
+                    style: onest(12, color: Mid.note),
                   ),
                 ),
             ],

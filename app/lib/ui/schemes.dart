@@ -42,9 +42,12 @@ const betterBudgetScheme = Scheme('betterbudget', null, [
   Color(0xFFEEF2F7),
 ]);
 
-/// Blue eclipse: what the app shows until someone picks (owner,
-/// 2026-09-30). Also in [schemes], in its place among Figma's.
-const defaultScheme = Scheme('blue-eclipse', SchemeGroup.monochromatic, [
+/// What the app shows until someone picks: its own colors (owner,
+/// 2026-10-09; Blue eclipse from 2026-09-30 until then).
+const defaultScheme = betterBudgetScheme;
+
+/// Blue eclipse, in its place among Figma's in [schemes].
+const blueEclipseScheme = Scheme('blue-eclipse', SchemeGroup.monochromatic, [
   Color(0xFF272757),
   Color(0xFF8686AC),
   Color(0xFF505081),
@@ -66,7 +69,7 @@ const schemes = <Scheme>[
     Color(0xFFD4DE95),
     Color(0xFF3D4127),
   ]),
-  defaultScheme,
+  blueEclipseScheme,
   Scheme('lush-forest', SchemeGroup.monochromatic, [
     Color(0xFF2E6F40),
     Color(0xFFCFFFDC),

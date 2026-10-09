@@ -541,7 +541,7 @@ class _FundPicker extends StatelessWidget {
         key: const ValueKey('fund-picker'),
         label: label,
         trailing: Icons.expand_more_rounded,
-        color: r.fundAccounts.isEmpty ? Mid.gold : null,
+        color: r.fundAccounts.isEmpty ? Mid.blue : null,
         onTap: () => menu.isOpen ? menu.close() : menu.open(),
       ),
     );
@@ -627,7 +627,7 @@ class _MonthFieldState extends State<_MonthField> {
             : m.typed
             ? t.planChangeMonth
             : t.planTypeOwnMonth,
-        color: m.amount == 0 ? Mid.gold : null,
+        color: m.amount == 0 ? Mid.blue : null,
         onTap: _start,
       );
     }
@@ -882,7 +882,7 @@ class _DebtLine extends StatelessWidget {
           child: Text(
             t.planCarried(sayFullDate(t, carried)),
             key: ValueKey('debt-${a.id}-carried'),
-            style: onest(12.5, color: Mid.gold, height: 1.4),
+            style: onest(12.5, color: Mid.ink, height: 1.4),
           ),
         ),
       ],

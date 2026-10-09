@@ -672,7 +672,7 @@ class _PayFormState extends State<_PayForm> {
             if (_varies && above > 0)
               hint(
                 t.setupHigherThan(above, _history.length),
-                color: Mid.gold,
+                color: Mid.note,
                 key: const ValueKey('pay-high'),
               ),
             line(
@@ -755,7 +755,7 @@ class _PayFormState extends State<_PayForm> {
             if (_rule == PayRule.twiceMonthly && (_days?.$1 ?? 0) >= 28)
               hint(
                 t.setupDaysMeet,
-                color: Mid.gold,
+                color: Mid.note,
                 key: const ValueKey('pay-days-meet'),
               ),
             line(
