@@ -278,6 +278,13 @@ class _Draft extends ChangeNotifier {
   void choose(PhoneCategory category, List<PhoneAccount> accounts) =>
       change(() {
         categoryId = category.id;
+        // Money moved is never money in, and never to the account it left.
+        // Nor is anyone paid: a payee typed before isn't kept out of sight.
+        if (category.transfer) {
+          moneyIn = false;
+          payee = null;
+          if (accountId == category.id) accountId = null;
+        }
         if (!category.isIncome &&
             !accounts.any(
               (a) => a.id == accountId && a.currency == category.currency,
@@ -710,8 +717,26 @@ class _EntryState extends State<_EntryScreen> {
   PhoneStore get _store => widget.store;
   _Draft get _draft => widget.draft;
 
+  /// The account money is being moved to, when that is what was picked in
+  /// the Category list.
+  PhoneAccount? get _to {
+    for (final a in _store.snapshot.accounts) {
+      if (a.id == _draft.categoryId) return a;
+    }
+    return null;
+  }
+
+  PhoneCategory _transferTo(PhoneAccount to) => PhoneCategory(
+    id: to.id,
+    name: context.t.phoneTransferTo(to.name),
+    leftMinor: 0,
+    currency: to.currency,
+    transfer: true,
+  );
+
   PhoneCategory? get _category {
     if (_draft.categoryId == phoneIncomeId) return _income;
+    if (_to case final to?) return _transferTo(to);
     for (final c in _store.categories) {
       if (c.id == _draft.categoryId) return c;
     }
@@ -736,6 +761,8 @@ class _EntryState extends State<_EntryScreen> {
 
   List<PhoneAccount> get _accounts {
     final category = _category;
+    // Moved from any other account in the same currency.
+    if (_to case final to?) return _store.snapshot.transferTargets(to);
     return category == null || category.isIncome
         ? _store.snapshot.accounts
         : _store.snapshot.accountsFor(category);
@@ -752,6 +779,15 @@ class _EntryState extends State<_EntryScreen> {
       if (a.id == _draft.accountId) return a;
     }
     return accounts.length == 1 ? accounts.single : null;
+  }
+
+  /// The account the entry is paid from as the screen shows it: the one
+  /// picked, whatever the category, or the only one there could be.
+  PhoneAccount? get _from {
+    for (final a in _store.snapshot.accounts) {
+      if (a.id == _draft.accountId) return a;
+    }
+    return _account;
   }
 
   /// The currency the amount is typed in: the category's, else the chosen
@@ -816,9 +852,11 @@ class _EntryState extends State<_EntryScreen> {
     final account = _account;
     final payee = _draft.payee;
     final amount = typedAmountMinor(_draft.typed, _currency);
+    final to = _to;
     final missing = amount == 0
         ? t.phoneEnterAmount
-        : payee == null
+        // Money moved between their own accounts has no one it was paid to.
+        : payee == null && to == null
         ? t.phoneEnterPayee
         : category == null
         ? t.phoneChooseCategory
@@ -836,7 +874,7 @@ class _EntryState extends State<_EntryScreen> {
     final random = Random.secure();
     final typed = _draft.typed;
     final date = _draft.date;
-    final moneyIn = _draft.moneyIn;
+    final moneyIn = _draft.moneyIn && to == null;
     final signed = moneyIn ? amount : -amount;
     final entry = PhoneEntry(
       id: [
@@ -845,7 +883,7 @@ class _EntryState extends State<_EntryScreen> {
       ].join(),
       categoryId: category!.id,
       accountId: account!.id,
-      payee: payee!,
+      payee: to == null ? payee! : '',
       amountMinor: signed,
       date: date ?? _day(widget.now()),
       madeAt: widget.now(),
@@ -856,19 +894,37 @@ class _EntryState extends State<_EntryScreen> {
     _saving = false;
     // The form is empty again, so this line is what says it went in.
     // What the entry did to its category, the reason the phone is opened.
-    final left = leftNow(category, _store.waiting);
+    final left = to == null ? leftNow(category, _store.waiting) : 0;
     final had = formatMoney(left.abs(), currency: category.currency);
     setState(() {
-      _saved = t.phoneSaved(payee, _signed(signed, category.currency));
-      // Income holds no budget: there is nothing left in it to say.
-      _savedLeft = category.isIncome
-          ? null
-          : category.madeHere
-          ? t.phoneSavedNothingAssigned(category.name)
-          : left < 0
-          ? t.phoneSavedOver(category.name, had)
-          : t.phoneSavedLeft(category.name, had);
-      _savedOver = left < 0 && !category.madeHere && !category.isIncome;
+      if (to != null) {
+        // A transfer changes no category: what the account it reached
+        // holds now is what there is to say.
+        final now = formatMoney(
+          balanceNow(to, _store.waiting),
+          currency: to.currency,
+        );
+        _saved = t.phoneSavedTransfer(
+          account.name,
+          to.name,
+          formatMoney(amount, currency: to.currency),
+        );
+        _savedLeft = to.owes
+            ? t.phoneTransferOwedNow(to.name, now)
+            : t.phoneTransferNow(to.name, now);
+        _savedOver = false;
+      } else {
+        _saved = t.phoneSaved(payee!, _signed(signed, category.currency));
+        // Income holds no budget: there is nothing left in it to say.
+        _savedLeft = category.isIncome
+            ? null
+            : category.madeHere
+            ? t.phoneSavedNothingAssigned(category.name)
+            : left < 0
+            ? t.phoneSavedOver(category.name, had)
+            : t.phoneSavedLeft(category.name, had);
+        _savedOver = left < 0 && !category.madeHere && !category.isIncome;
+      }
       _undo = () {
         _store.remove(entry.id);
         _change(() {
@@ -908,6 +964,20 @@ class _EntryState extends State<_EntryScreen> {
           currency: _currency,
           // Money in that isn't a refund is income; money out never is.
           income: _draft.moneyIn ? _income : null,
+          // Money out can instead be moved to another of their accounts:
+          // any but the one already chosen to pay from.
+          // Each has to have an account its money could come from; the
+          // one already paying, chosen or the only one there is, is not
+          // where its own money goes.
+          transfers: _draft.moneyIn
+              ? const []
+              : [
+                  for (final a in _store.snapshot.accounts)
+                    if (_store.snapshot.transferTargets(a).isNotEmpty &&
+                        a.id != _from?.id &&
+                        (_from == null || a.currency == _from!.currency))
+                      a,
+                ],
         ),
       ),
     );
@@ -1011,12 +1081,22 @@ class _EntryState extends State<_EntryScreen> {
     builder: (context, _) {
       final t = context.t;
       final category = _category;
-      final left = category == null ? 0 : leftNow(category, _store.waiting);
+      final to = _to;
+      final from = to == null ? null : _account;
+      final left = category == null || to != null
+          ? 0
+          : leftNow(category, _store.waiting);
       final amount = typedAmountMinor(_draft.typed, _currency);
-      final moneyIn = _draft.moneyIn;
+      final moneyIn = _draft.moneyIn && to == null;
+      // Moved out of [from]: what it holds once this has gone, or owes.
+      final fromAfter = from == null
+          ? 0
+          : balanceNow(from, _store.waiting) + (from.owes ? amount : -amount);
       final after = moneyIn ? left + amount : left - amount;
       final date = _draft.date;
-      final over = category != null && !category.madeHere && after < 0;
+      final over = to != null
+          ? from != null && !from.owes && fromAfter < 0
+          : category != null && !category.madeHere && after < 0;
       // A category that has gone (deleted from the waiting list) isn't
       // something left to clear.
       final nothing =
@@ -1060,15 +1140,24 @@ class _EntryState extends State<_EntryScreen> {
                         ),
                         Row(
                           children: [
-                            _SignButton(
-                              moneyIn: moneyIn,
-                              onTap: _draft.flipSign,
-                            ),
+                            // Money moved is neither out nor in: no sign to
+                            // turn while an account is the "category".
+                            if (to == null)
+                              _SignButton(
+                                moneyIn: moneyIn,
+                                onTap: _draft.flipSign,
+                              )
+                            else
+                              const SizedBox(width: _SignButton.size),
                             Expanded(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  '${moneyIn ? '+' : '−'}${typedAmountShown(_draft.typed, _currency)}',
+                                  '${to != null
+                                      ? ''
+                                      : moneyIn
+                                      ? '+'
+                                      : '−'}${typedAmountShown(_draft.typed, _currency)}',
                                   maxLines: 1,
                                   style: onest(
                                     52,
@@ -1076,6 +1165,8 @@ class _EntryState extends State<_EntryScreen> {
                                     letterSpacing: -1,
                                     color: _draft.typed.isEmpty
                                         ? Mid.ink3
+                                        : to != null
+                                        ? Mid.ink
                                         : moneyIn
                                         ? Mid.green
                                         : Mid.coral,
@@ -1093,10 +1184,29 @@ class _EntryState extends State<_EntryScreen> {
                         // under it don't move when one is.
                         SizedBox(
                           height: 22,
-                          child: category == null || category.isIncome
+                          child:
+                              category == null ||
+                                  category.isIncome ||
+                                  (to != null && from == null)
                               ? null
                               : Text(
-                                  _leftLine(t, category, left, after),
+                                  from != null
+                                      ? (from.owes
+                                            ? t.phoneTransferOwedAfter(
+                                                from.name,
+                                                formatMoney(
+                                                  fromAfter,
+                                                  currency: from.currency,
+                                                ),
+                                              )
+                                            : t.phoneTransferAfter(
+                                                from.name,
+                                                formatMoney(
+                                                  fromAfter,
+                                                  currency: from.currency,
+                                                ),
+                                              ))
+                                      : _leftLine(t, category, left, after),
                                   key: const ValueKey('left-line'),
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
@@ -1114,13 +1224,20 @@ class _EntryState extends State<_EntryScreen> {
                           clipBehavior: Clip.antiAlias,
                           child: Column(
                             children: [
-                              _FieldRow(
-                                key: const ValueKey('payee-row'),
-                                label: t.rowsColumnPayee,
-                                value: _draft.payee ?? '',
-                                onTap: _typePayee,
-                              ),
-                              Divider(height: 1, thickness: 1, color: Mid.rule),
+                              // Between their own accounts nobody was paid.
+                              if (to == null) ...[
+                                _FieldRow(
+                                  key: const ValueKey('payee-row'),
+                                  label: t.rowsColumnPayee,
+                                  value: _draft.payee ?? '',
+                                  onTap: _typePayee,
+                                ),
+                                Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Mid.rule,
+                                ),
+                              ],
                               _FieldRow(
                                 key: const ValueKey('category-row'),
                                 label: t.rowsColumnCategory,
@@ -1130,7 +1247,9 @@ class _EntryState extends State<_EntryScreen> {
                               Divider(height: 1, thickness: 1, color: Mid.rule),
                               _FieldRow(
                                 key: const ValueKey('account-row'),
-                                label: moneyIn
+                                label: to != null
+                                    ? t.phoneFrom
+                                    : moneyIn
                                     ? t.setupPaidInto
                                     : t.planLabelPaidFrom,
                                 value: _account?.name ?? '',
@@ -1351,8 +1470,14 @@ class _CategoryPage extends StatefulWidget {
     required this.store,
     required this.currency,
     this.income,
+    this.transfers = const [],
   });
   final PhoneStore store;
+
+  /// The accounts money can be moved to instead of spent, listed last
+  /// under their own heading; none when the entry is money in, or there is
+  /// no other account.
+  final List<PhoneAccount> transfers;
 
   /// The app's Income, the list's first line while the entry is money in;
   /// null for money out, which is never income.
@@ -1378,6 +1503,16 @@ class _CategoryPageState extends State<_CategoryPage> {
 
   String get _typed => _text.text.trim();
 
+  /// What the list answers with when an account is picked: the entry
+  /// becomes a transfer to it.
+  static PhoneCategory _toAccount(Words t, PhoneAccount to) => PhoneCategory(
+    id: to.id,
+    name: t.phoneTransferTo(to.name),
+    leftMinor: 0,
+    currency: to.currency,
+    transfer: true,
+  );
+
   void _make() =>
       Navigator.of(context)
           .pop(widget.store.categoryCalled(_typed, widget.currency));
@@ -1400,6 +1535,29 @@ class _CategoryPageState extends State<_CategoryPage> {
               income,
             ...categoriesMatching([?income, ...all], typed),
           ];
+    // An account's name typed narrows these as it does the categories.
+    final want = typed.toLowerCase();
+    final named = [
+      for (final a in widget.transfers)
+        if (want.isEmpty || a.name.toLowerCase().contains(want)) a,
+    ];
+    // "ATM" or "Transfer" typed is someone looking for these, and so is
+    // a word that fits no category: all of them, before "+ New category
+    // “ATM”" books cash taken out as spending.
+    final asked = [
+      t.startTransfer,
+      t.phoneMoveToAccount,
+      'atm',
+      'атм',
+    ].any((w) => want.length >= 2 && w.toLowerCase().startsWith(want));
+    final accounts = named.isNotEmpty
+        ? named
+        : (asked || listed.isEmpty ? widget.transfers : const <PhoneAccount>[]);
+    // The categories, then the heading and the accounts.
+    final rows = <Object?>[
+      ...listed,
+      if (accounts.isNotEmpty) ...[const _TransferHeading(), ...accounts],
+    ];
     return Scaffold(
       backgroundColor: Mid.ground,
       body: SafeArea(
@@ -1460,6 +1618,9 @@ class _CategoryPageState extends State<_CategoryPage> {
                       listed.firstOrNull;
                   if (typed.isNotEmpty && first != null) {
                     Navigator.of(context).pop(first);
+                  } else if (typed.isNotEmpty && named.isNotEmpty) {
+                    // No category fits, and an account's name does.
+                    Navigator.of(context).pop(_toAccount(t, named.first));
                   }
                 },
               ),
@@ -1479,11 +1640,21 @@ class _CategoryPageState extends State<_CategoryPage> {
                 child: ListView.separated(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  itemCount: listed.length,
+                  itemCount: rows.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
-                    final category = listed[i];
-                    if (category == null) return const _BillsHeading();
+                    final row = rows[i];
+                    if (row == null) return const _BillsHeading();
+                    if (row is _TransferHeading) return row;
+                    if (row is PhoneAccount) {
+                      return _TransferRow(
+                        account: row,
+                        balance: balanceNow(row, store.waiting),
+                        onTap: () =>
+                            Navigator.of(context).pop(_toAccount(t, row)),
+                      );
+                    }
+                    final category = row as PhoneCategory;
                     return _CategoryRow(
                       category: category,
                       left: leftNow(category, store.waiting),
@@ -1520,6 +1691,72 @@ class _CategoryPageState extends State<_CategoryPage> {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Over the accounts at the foot of the Category list.
+class _TransferHeading extends StatelessWidget {
+  const _TransferHeading();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+    child: Text(
+      context.t.phoneMoveToAccount,
+      key: const ValueKey('transfer-heading'),
+      style: onest(14, weight: 600, color: Mid.ink2),
+    ),
+  );
+}
+
+/// An account in the Category list: picking it makes the entry a transfer
+/// to it. Its balance is beside it, as what is left is beside a category.
+class _TransferRow extends StatelessWidget {
+  const _TransferRow({
+    required this.account,
+    required this.balance,
+    required this.onTap,
+  });
+  final PhoneAccount account;
+  final int balance;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final money = formatMoney(balance, currency: account.currency);
+    return Material(
+      color: Mid.card,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: ValueKey('transfer-to-${account.id}'),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.phoneTransferTo(account.name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(17, weight: 500),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  account.owes ? t.phoneOwed(money) : money,
+                  style: onest(15, color: Mid.ink2, tabular: true),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1992,26 +2229,52 @@ class _WaitingScreen extends StatelessWidget {
             }
             final e = entries[i - made.length];
             final category = names[e.categoryId];
+            // Money moved: the two accounts are its name.
+            final to = accounts[e.categoryId];
+            // Only a transfer has no payee: one whose account has gone
+            // from the ledger still says what it was.
+            final moved = to != null || e.payee.isEmpty;
             final filed = e.categoryId == phoneIncomeId
                 ? t.ledgerIncome
+                : moved
+                ? t.startTransfer
                 : category?.name ?? '';
             return _row(
-              title: e.payee,
+              title: to != null
+                  ? t.phoneTransferTitle(
+                      accounts[e.accountId]?.name ?? '',
+                      to.name,
+                    )
+                  : moved
+                  ? (accounts[e.accountId]?.name ?? t.startTransfer)
+                  : e.payee,
               under: '$filed · ${fullDate(e.date)}',
               amount: Text(
-                _signed(
-                  e.amountMinor,
-                  // An entry is in its account's currency; Income has none
-                  // of its own.
-                  accounts[e.accountId]?.currency ??
-                      category?.currency ??
-                      Currency.mnt,
-                ),
+                moved
+                    ? formatMoney(
+                        e.amountMinor.abs(),
+                        currency:
+                            to?.currency ??
+                            accounts[e.accountId]?.currency ??
+                            Currency.mnt,
+                      )
+                    : _signed(
+                        e.amountMinor,
+                        // An entry is in its account's currency; Income has
+                        // none of its own.
+                        accounts[e.accountId]?.currency ??
+                            category?.currency ??
+                            Currency.mnt,
+                      ),
                 style: onest(
                   16,
                   weight: 600,
                   tabular: true,
-                  color: e.amountMinor < 0 ? Mid.coral : Mid.green,
+                  color: moved
+                      ? Mid.ink
+                      : e.amountMinor < 0
+                      ? Mid.coral
+                      : Mid.green,
                 ),
               ),
               onDelete: () => store.remove(e.id),

@@ -2921,9 +2921,26 @@ and "can I afford this?" is asked before anything is typed. **C**, a form that s
 with the payee on the phone's own keyboard, its Budget tab sorted into Overspent, Money
 left and Nothing left.
 
-Not built yet: transfers from the phone (money in and transfers were drawn as a button,
-"Add money in or a transfer", under the list; money in became the +/− button of
-"Ledger first" above), fixing a waiting entry instead of deleting it, other
+**Transfers on the phone are picked in the Category list** (owner, 2026-10-09, of
+three sketched; asked with ₮100,000 taken out of an ATM from TDB Checking into Cash
+wallet). The list ends with a heading, "Move to an account", and the other accounts
+as the computer writes a transfer, "→ Cash wallet", each with its balance ("Owed
+₮312,000.00" on a card). Picked, the entry is a transfer: the Payee row and the +/−
+button go (nobody was paid, and it is neither out nor in; a payee typed before is
+dropped), the amount is plain ink with no sign, the Category row reads "→ Cash
+wallet", the account row is **From**, and under the amount "TDB Checking ·
+₮2,331,800.00 after this", red if that is below zero. The toast reads "Saved · TDB
+Checking → Cash wallet ₮100,000.00" over "Cash wallet · ₮186,000.00 now" (a card:
+"Golomt Visa · ₮112,000.00 owed now"), with Undo; the waiting list names it "TDB
+Checking → Cash wallet" over "Transfer · 2026.10.07". Offered: accounts in the same
+currency as the one paying, never that one, never for money in, and only where there
+are two accounts in a currency; between tugrik and dollars it is still done on the
+computer. "ATM" or "Transfer" typed in the list's box brings the accounts up, as
+does a word that fits no category, so cash taken out isn't made a new category;
+an account's name narrows them and the keyboard's Done takes it. Rejected: a third
+turn of the +/− button (⇄), and a screen of its own behind a "Transfer" link.
+
+Not built yet: fixing a waiting entry instead of deleting it, other
 phones' entries, and the figures coming from the Mac at all: the screens run on
 invented figures (`app/lib/phone_preview.dart`) until the Mac writes its snapshot.
 "Left in October" names the calendar month though a category can run by a pay period;

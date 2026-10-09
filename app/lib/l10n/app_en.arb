@@ -7114,6 +7114,49 @@
   "@phoneChooseAccount": {
     "description": "Phone app: shown above Save when no account is chosen under Paid from."
   },
+  "phoneMoveToAccount": "Move to an account",
+  "@phoneMoveToAccount": {
+    "description": "Phone, Category list: heading over the user's other accounts at the foot of the list. Picking one makes the entry a transfer to it (cash from an ATM, a credit card paid) instead of spending."
+  },
+  "phoneTransferTo": "→ {account}",
+  "@phoneTransferTo": {
+    "description": "Phone: an account as the destination of a transfer, in the Category list and in the Category row once picked, as the computer writes it: '→ Cash wallet'.",
+    "placeholders": {"account": {"type": "String"}}
+  },
+  "phoneFrom": "From",
+  "@phoneFrom": {
+    "description": "Phone, Ledger: label of the account row when the entry is a transfer: the account the money leaves. Takes the place of 'Paid from'."
+  },
+  "phoneTransferAfter": "{account} · {amount} after this",
+  "@phoneTransferAfter": {
+    "description": "Phone, Ledger, line under the amount of a transfer: what the account the money leaves will hold once it has gone, e.g. 'TDB Checking · ₮3,812,450.00 after this'.",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+  },
+  "phoneTransferOwedAfter": "{account} · {amount} owed after this",
+  "@phoneTransferOwedAfter": {
+    "description": "As phoneTransferAfter, when the money leaves a credit card or loan: what will be owed on it.",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+  },
+  "phoneSavedTransfer": "Saved · {from} → {to} {amount}",
+  "@phoneSavedTransfer": {
+    "description": "Phone toast after a transfer is saved, e.g. 'Saved · TDB Checking → Cash wallet ₮100,000.00'.",
+    "placeholders": {"from": {"type": "String"}, "to": {"type": "String"}, "amount": {"type": "String"}}
+  },
+  "phoneTransferNow": "{account} · {amount} now",
+  "@phoneTransferNow": {
+    "description": "Phone toast, second line after a transfer: what the account the money went to holds now, e.g. 'Cash wallet · ₮186,500.00 now'.",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+  },
+  "phoneTransferOwedNow": "{account} · {amount} owed now",
+  "@phoneTransferOwedNow": {
+    "description": "As phoneTransferNow, when the money went to a credit card or loan: what is still owed on it.",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+  },
+  "phoneTransferTitle": "{from} → {to}",
+  "@phoneTransferTitle": {
+    "description": "Phone, waiting list: the name of a transfer, the two accounts, e.g. 'TDB Checking → Cash wallet'.",
+    "placeholders": {"from": {"type": "String"}, "to": {"type": "String"}}
+  },
   "phoneInCredit": "{amount} in credit",
   "@phoneInCredit": {
     "description": "Phone app, Accounts list: a card or loan that has been paid more than was owed.",

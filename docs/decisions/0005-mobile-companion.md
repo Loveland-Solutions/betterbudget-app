@@ -170,7 +170,13 @@ folder: saved on the phone at 12:23, the phone's file on the Mac at 12:24, in th
 ledger at 12:25.
 
 No table was added: the ledger's schema is unchanged. Not built: other phones'
-entries shown on a phone, transfers, and the iPhone's folder access. With
+entries shown on a phone, and the iPhone's folder access. **Transfers (2026-10-09):**
+money moved between two of the ledger's own accounts is an entry whose category id is
+the account it went to (the ledger keeps categories and accounts in one list, so an id
+names one or the other), with the amount negative and no payee. The phone's file didn't
+change, so a computer on an older build leaves a transfer with the phone until it is
+updated. The computer posts it as a transfer when both accounts are live and in one
+currency; an account archived since comes back, as an archived category does. With
 two computers on one ledger each would take the same entries in (the next section).
 
 ### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed

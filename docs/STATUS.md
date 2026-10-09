@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 560 tests pass
+**Last updated: 2026-10-09** · version 0.22.0 · schema v18 · 563 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,11 +10,12 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #57 (version 0.21.0).** The open items are built (ADR 0004 rule 20,
-"Changed 2026-10-09", and "Backups"): the uncleared note goes by the last statement, a
-late bill counts the other late ones, Confirm names a row already in the account, the
-Move popup has Show, and after more than 30 days without "Back up to…" a line under
-Net worth says "Last backup 41 days ago". The Mac's icon is the logo on a navy tile.
+**After the phone-transfers PR (version 0.22.0).** The phone records money moved
+between two accounts (cash from an ATM, a card paid): the accounts are at the foot of
+its Category list under "Move to an account" (ADR 0004 "Phone screens: Ledger first").
+**Not yet on the owner's Pixel**, which still has the build from before PR #55:
+`adb install -r` keeps what the phone has stored; install when they ask. Before it, PR #57: the register's notes, the already-in
+check on Confirm, the backup reminder, the Mac's navy icon.
 The computer wears the owner's logo and its
 colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
 accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
@@ -45,7 +46,7 @@ phone come before item 1; "Waiting on the owner" 16):
    in is built: the +/− button beside the amount, with Income offered in the Category
    list (ADR 0004 "Phone screens: Ledger first"); the button was tapped on the
    owner's Pixel, but no real refund or income has been saved there and watched
-   arriving. Then: transfers on the phone, the other phone's entries, and the iPhone
+   arriving. Transfers are built (2026-10-09). Then: the other phone's entries, and the iPhone
    build (its folder access and icon). With two computers on one ledger each takes the same
    entries in, which item 1 has to settle.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
@@ -146,9 +147,11 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     second row. Should a phone entry under Income take the place of the next
     scheduled payday? Recommended yes: a button for it on the popup that says "1
     transaction from your phone".
-16. **Transfers on the phone next?** (2026-10-08) ₮100,000 taken out of an ATM is
-    neither a refund nor income, and the phone has only wrong places for it. Should
-    transfers on the phone be built ahead of the two-computers work (Next step 1)?
+16. **Two computers: which way?** (2026-10-09) An expert's three ways were put to
+    the owner: (A) never write over a newer ledger, open the newer one, and ask which
+    to keep when both changed; (B) A, plus combining the two and asking only about
+    rows both changed; (C) a file per computer merged row by row. Recommended A first.
+    Its four questions are in this session's reply; nothing is built.
 17. **Two wordings from the colors review** (2026-10-09). Should a late bill say what
     it means for the balance, "due 22 days ago · not in Working yet"? And should an
     import that doesn't match the bank lead with the amount as its own sentence,
@@ -185,7 +188,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
-| Language | Same as this Mac, English or Монгол; 1,148 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,157 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
@@ -220,8 +223,8 @@ open the archive).
   `Ledger.betterbudget` in that folder, again whenever the app comes back to the front
   or the Budget list is pulled down (ADR 0004 "Phone screens: Ledger first"). What is
   saved is kept on the phone, written to the folder in the phone's own file, and taken
-  in by the computer as uncleared rows with one undo. Not built: renaming a category
-  made on the phone; fixing a waiting entry; transfers; other phones'
+  in by the computer as uncleared rows with one undo. A transfer between two accounts in one currency is picked at the foot of the Category list. Not built: renaming a category
+  made on the phone; fixing a waiting entry; other phones'
   entries; the iPhone's folder access and icon.
 - **A Windows build.**
 - **Encryption has been run on macOS and iOS** (recorded 2026-09-29), **and once on
@@ -249,6 +252,16 @@ open the archive).
   to a row more than a screen down the list was not tested (the test's row is in
   sight); an open row scrolled far out of sight loses what was typed in it, as it
   did before.
+- **From the reviews of transfers on the phone (2026-10-09), not fixed:** a loan
+  payment moved to the loan takes the whole payment off what is owed, interest
+  included, so the debt reads low until it is split on the computer; an ATM or
+  interbank fee is a second entry nobody asks for; the heading says "Move" where the
+  waiting list and the computer say "Transfer", and the row is labelled Category
+  though it holds an account (both as sketched for the owner); paying more than is
+  owed on a card reads as a minus amount "owed now"; a transfer whose account was
+  deleted on the computer waits on the phone for good, named only "Transfer"; an
+  account that leaves the ledger while a transfer to it is half typed turns the entry
+  back into spending with no category.
 - **From the reviews of the backup reminder (2026-10-09), not fixed:** "Erase
   everything and start over" keeps the old record, so a new ledger can be told on
   its first day, or not for a month; "Back up to…" into a folder on the same disk
@@ -280,8 +293,7 @@ open the archive).
   entries already in (`phone.taken`) only grows, about 130 KB a year for two phones.
 - **From the reviews of money in on the phone (2026-10-08), not fixed:** pay saved
   under Income isn't tied to its scheduled payday, so the forecast counts both and
-  Confirm adds it again; with no transfers, cash from an ATM or a card payment has
-  only wrong homes; a refund the bank posts over 10 days later, or for another
+  Confirm adds it again; a refund the bank posts over 10 days later, or for another
   amount, comes in twice on import; a refund dated in an earlier period raises this
   period's "left" on the phone, though the computer may put it in Not assigned; the
   Income toast doesn't say the money is in no category; a category made while the

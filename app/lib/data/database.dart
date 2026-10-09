@@ -3792,7 +3792,10 @@ class AppDatabase extends _$AppDatabase {
   /// yet in the ledger becomes an uncleared row, and a category a phone
   /// made is made here unless one is already called that, whatever its
   /// capitals. Money in is a refund to its category, or income when the
-  /// phone filed it under [phoneIncomeId]. What was taken is remembered
+  /// phone filed it under [phoneIncomeId]. An entry whose category names
+  /// another account in the same currency is a transfer to it (cash from
+  /// an ATM, a card paid); an account archived since the phone last looked
+  /// comes back, as an archived category does. What was taken is remembered
   /// under [phoneTakenKey], in the same transaction, so nothing comes in
   /// twice; the phones read it from the ledger and drop what is in. Null
   /// when there was nothing new.
@@ -3824,6 +3827,7 @@ class AppDatabase extends _$AppDatabase {
       for (final a in live)
         if (a.type == AccountType.expense) a.name.trim().toLowerCase(): a.id,
     };
+    final currencyOf = {for (final a in live) a.id: a.currency};
     final archived = {
       for (final a in live)
         if (a.archivedAt != null) a.id,
@@ -3872,10 +3876,19 @@ class AppDatabase extends _$AppDatabase {
         // Money in under Income, which the phone names by a word: this
         // ledger may not have made its Income yet.
         final toIncome = e.categoryId == phoneIncomeId && e.amountMinor > 0;
-        // Only spending, a refund or income, in a real account: anything
-        // else in the file (a deleted category, an id that names an
-        // account) stays out.
-        if (!(toIncome || spending.contains(category)) ||
+        // Money moved between two of the ledger's own accounts: the
+        // "category" names the one it went to. Between two currencies it
+        // would need both amounts, which the phone doesn't ask.
+        final transfer =
+            !toIncome &&
+            e.amountMinor < 0 &&
+            paidFrom.contains(category) &&
+            category != account &&
+            currencyOf[category] == currencyOf[account];
+        // Only spending, a refund, income or a transfer, in a real account:
+        // anything else in the file (a deleted category or account) stays
+        // out.
+        if (!(toIncome || transfer || spending.contains(category)) ||
             !paidFrom.contains(account)) {
           continue;
         }

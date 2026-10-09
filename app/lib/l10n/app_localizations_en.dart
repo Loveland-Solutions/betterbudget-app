@@ -4837,6 +4837,47 @@ class WordsEn extends Words {
   String get phoneChooseAccount => 'Choose an account';
 
   @override
+  String get phoneMoveToAccount => 'Move to an account';
+
+  @override
+  String phoneTransferTo(String account) {
+    return '→ $account';
+  }
+
+  @override
+  String get phoneFrom => 'From';
+
+  @override
+  String phoneTransferAfter(String account, String amount) {
+    return '$account · $amount after this';
+  }
+
+  @override
+  String phoneTransferOwedAfter(String account, String amount) {
+    return '$account · $amount owed after this';
+  }
+
+  @override
+  String phoneSavedTransfer(String from, String to, String amount) {
+    return 'Saved · $from → $to $amount';
+  }
+
+  @override
+  String phoneTransferNow(String account, String amount) {
+    return '$account · $amount now';
+  }
+
+  @override
+  String phoneTransferOwedNow(String account, String amount) {
+    return '$account · $amount owed now';
+  }
+
+  @override
+  String phoneTransferTitle(String from, String to) {
+    return '$from → $to';
+  }
+
+  @override
   String phoneInCredit(String amount) {
     return '$amount in credit';
   }

@@ -4668,6 +4668,47 @@ class WordsMn extends Words {
   String get phoneChooseAccount => 'Данс сонгоно уу';
 
   @override
+  String get phoneMoveToAccount => 'Өөр данс руу шилжүүлэх';
+
+  @override
+  String phoneTransferTo(String account) {
+    return '→ $account';
+  }
+
+  @override
+  String get phoneFrom => 'Данснаас';
+
+  @override
+  String phoneTransferAfter(String account, String amount) {
+    return '$account · үүний дараа $amount';
+  }
+
+  @override
+  String phoneTransferOwedAfter(String account, String amount) {
+    return '$account · үүний дараа $amount өртэй';
+  }
+
+  @override
+  String phoneSavedTransfer(String from, String to, String amount) {
+    return 'Хадгаллаа · $from → $to $amount';
+  }
+
+  @override
+  String phoneTransferNow(String account, String amount) {
+    return '$account · одоо $amount';
+  }
+
+  @override
+  String phoneTransferOwedNow(String account, String amount) {
+    return '$account · одоо $amount өртэй';
+  }
+
+  @override
+  String phoneTransferTitle(String from, String to) {
+    return '$from → $to';
+  }
+
+  @override
   String phoneInCredit(String amount) {
     return '$amount илүү төлсөн';
   }
