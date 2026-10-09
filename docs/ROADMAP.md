@@ -88,7 +88,9 @@ Work:
 
 ### D. Savings, the differentiator (owner item 3)
 "Other budgets help you make it through the month. This budget helps you make it
-through life." Today Savings shows the self-reliance course steps (rule 25).
+through life." Today Savings shows the owner's four steps, each with its picture
+(ADR 0004 "Four Savings steps", 2026-10-09): a safety net, no debt but the house,
+three to six months, saving for the future.
 - [ ] Sketch what Savings becomes beyond the steps: goals with dates, and life events
       (missions, weddings, school, a house, a car, retirement), showing whether each
       is on track

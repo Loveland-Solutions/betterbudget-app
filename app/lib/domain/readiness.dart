@@ -1,41 +1,46 @@
-/// The Savings steps (ADR 0004, rule 25): getting financially prepared, in
-/// the order the Church's *Personal Finances for Self-Reliance* course
-/// teaches ("What Is My Current Financial Priority?", chapter 5). For
-/// everyone, so tithing isn't one of them (owner's call). The current step is
-/// the first not done; nothing is locked, and any step can be set aside.
-/// Pure Dart: no database, no Flutter.
+/// The Savings steps (ADR 0004, rule 25 and "Four Savings steps"): a safety
+/// net, no debt but the house, three to six months, saving for the future
+/// (owner, 2026-10-09). The current step is the first not done; nothing is
+/// locked, and any step can be set aside. Pure Dart: no database, no Flutter.
 library;
 
+import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
 
+/// The names are what a ledger keeps a set-aside step under, so the three
+/// that came from the six steps before keep theirs.
 enum ReadyStep {
-  /// One month of living expenses, not pay (course, chapter 6).
+  /// The safety net: one month of living expenses, not pay.
   oneMonth,
-  health,
+
+  /// Every card and loan but the house.
   consumerDebt,
 
-  /// Three to six months, once consumer debt is gone (chapter 9).
+  /// Three to six months, once that debt is gone.
   moreMonths,
-  retirement,
-  longLoans,
+
+  /// Saving for retirement, and paying off the house.
+  future,
 }
 
 enum ReadyState { done, current, later, setAside }
 
 /// Preference keys the steps keep their answers under.
 abstract final class ReadyKeys {
-  /// 'yes' or 'no'; unanswered is not yet.
-  static const health = 'ready.health';
+  /// 'yes'; unanswered is not yet. (A ledger from the six steps may also
+  /// hold `ready.health`, which nothing reads now.)
   static const retirement = 'ready.retirement';
 
-  /// 'yes': paying the mortgage and student loans down on purpose;
-  /// 'none': there aren't any.
+  /// 'yes': paying the mortgage down on purpose; 'none': there isn't one.
   static const longLoans = 'ready.longLoans';
 
-  /// The consumer debt to pay extra on, by account id; unset is the
-  /// smallest.
+  /// The debt to pay extra on, by account id; unset is the smallest.
   static const target = 'ready.target';
+
+  /// From the build before Safety net was built in: the id of a category
+  /// the user made for it. Read once, to make that one the app's own.
+  static const fundCategories = 'ready.fundCategories';
 
   /// A month of expenses the user typed, in minor units; overrides the
   /// average.
@@ -50,8 +55,11 @@ abstract final class ReadyKeys {
 
 typedef Debt = ({AccountInfo account, int owed});
 
-/// What a month of living costs. [amount] is 0 while it isn't known: no
-/// typed figure and under [minDays] of history.
+/// What a month of living costs: the figure typed, else what the budget
+/// holds for this month, else the average of what was spent (owner,
+/// 2026-10-09: "pull it from the budget and let them adjust it"). [amount]
+/// is 0 while it isn't known: nothing typed, nothing budgeted and under
+/// [minDays] of history.
 class MonthOfSpending {
   const MonthOfSpending({
     required this.amount,
@@ -59,9 +67,13 @@ class MonthOfSpending {
     required this.days,
     required this.spent,
     this.loanPayments = 0,
+    this.fromBudget = false,
   });
 
   final int amount;
+
+  /// [amount] is what the budget holds for this month ([budgeted]).
+  final bool fromBudget;
 
   /// Of [spent], paid into a mortgage or student loan: a bill that has to
   /// keep being paid, though it's a transfer and not spending.
@@ -79,13 +91,39 @@ class MonthOfSpending {
   static const spanDays = 91;
   static const minDays = 28;
 
+  /// What the budget holds for the calendar month [today] is in: for each
+  /// spending category in [main] that isn't archived, what its plan asks
+  /// for the month or what is assigned to it, whichever is more (a month
+  /// half assigned still counts the plan; a category with no plan counts
+  /// what it was given). A card or loan payment budgeted as a category is
+  /// in it like rent. A category that holds the safety net isn't an
+  /// expense, so it's left out. 0 when nothing is budgeted.
+  static int budgeted(
+    LedgerData data,
+    DateTime today,
+    Currency main, {
+    Budget? budget,
+  }) {
+    budget ??= monthBudget(data, today);
+    final fund = fundCategoryIds(data, main);
+    var sum = 0;
+    for (final MapEntry(key: id, value: line) in budget.lines.entries) {
+      if (line.currency != main || data.accounts[id]!.archived) continue;
+      if (fund.contains(id)) continue;
+      final planned = line.plan?.planned ?? 0;
+      final most = planned > line.assigned ? planned : line.assigned;
+      if (most > 0) sum += most;
+    }
+    return sum;
+  }
+
   /// Spending categories' posted rows over the last three months (or since
   /// the first one, so an opening balance dated months earlier doesn't
   /// thin the average), scaled to an average month and rounded up to a whole
   /// unit. Payments into a mortgage or student loan count too. Refunds count
   /// against spending; other transfers, card payments (the card's own
   /// spending already counts) and opening balances don't.
-  static MonthOfSpending of(LedgerData data, DateTime today) {
+  static MonthOfSpending of(LedgerData data, DateTime today, {Budget? budget}) {
     final typed = typedMonth(data.prefs[ReadyKeys.month], mainCurrency(data));
     final end = dateOnly(today);
     final main = mainCurrency(data);
@@ -138,6 +176,16 @@ class MonthOfSpending {
         loanPayments: loans,
       );
     }
+    final inBudget = budgeted(data, today, main, budget: budget);
+    if (inBudget > 0) {
+      return MonthOfSpending(
+        amount: inBudget,
+        typed: false,
+        fromBudget: true,
+        days: days,
+        spent: spent,
+      );
+    }
     if (days < minDays || spent <= 0) {
       return MonthOfSpending(
         amount: 0,
@@ -159,6 +207,33 @@ class MonthOfSpending {
     );
   }
 }
+
+/// The budget for the calendar month [today] is in, as of today.
+Budget monthBudget(LedgerData data, DateTime today) {
+  final day = dateOnly(today);
+  return Budget.of(
+    data,
+    start: DateTime(day.year, day.month),
+    end: DateTime(day.year, day.month + 1, 0),
+    today: day,
+  );
+}
+
+/// The app's own Safety net category (owner, 2026-10-09: "a dedicated
+/// safety net category built into the app"): the spending category marked
+/// [AccountRole.emergencyFund]. What is left in it is the safety net; an
+/// account is only where the money sits.
+bool isSafetyNet(AccountInfo a) =>
+    a.type == AccountType.expense &&
+    a.role == AccountRole.emergencyFund &&
+    !a.deleted;
+
+/// The Safety net category, when it counts in [main]. A set, as the rest
+/// was written for: there is one.
+Set<int> fundCategoryIds(LedgerData data, Currency main) => {
+  for (final a in data.accounts.values)
+    if (isSafetyNet(a) && !a.archived && a.currency == main) a.id,
+};
 
 /// A month of expenses the user typed, stored as `MNT:300000000` (a bare
 /// number is from before currencies, in tugrik). Null when it's in another
@@ -191,12 +266,18 @@ Currency mainCurrency(LedgerData data) {
 class Readiness {
   Readiness._({
     required this.month,
-    required this.fundAccounts,
+    required this.fundCategories,
+    required this.keptIn,
+    required this.keptThere,
+    required this.notAssigned,
+    required this.fundAssigned,
+    required this.held,
     required this.fund,
     required this.consumerDebts,
     required this.longLoans,
     required this.monthsTarget,
-    required this.answers,
+    required this.retirement,
+    required this.longAnswer,
     required this.setAside,
     required this.longMarked,
     required this.carriedSince,
@@ -212,21 +293,43 @@ class Readiness {
       for (final a in data.openAccounts)
         if (a.currency == main) a,
     ];
-    final fundAccounts = [
-      for (final a in open)
-        if (!a.isOwed && a.role == AccountRole.emergencyFund) a,
-    ];
     List<Debt> owed(bool Function(AccountInfo) which) => [
       for (final a in open)
         if (a.isOwed && which(a) && data.balanceOf(a.id) < 0)
           (account: a, owed: -data.balanceOf(a.id)),
     ]..sort((a, b) => a.owed.compareTo(b.owed));
-    const long = {AccountRole.mortgage, AccountRole.studentLoan};
+    // Only the house waits for the last step (owner: "credit cards,
+    // vehicles, not house"), so a student loan is debt to pay off now.
+    const long = {AccountRole.mortgage};
     final months = int.tryParse(data.prefs[ReadyKeys.months] ?? '') ?? 3;
     final consumer = owed(
       (a) => !long.contains(a.role) && a.role != AccountRole.paidMonthly,
     );
     final targetId = int.tryParse(data.prefs[ReadyKeys.target] ?? '');
+    final budget = monthBudget(data, today);
+    // What each spending category holds today; one overspent holds nothing.
+    final held = {
+      for (final MapEntry(key: id, value: line) in budget.lines.entries)
+        id: line.left > 0 ? line.left : 0,
+    };
+    final fundCategories = [
+      for (final id in fundCategoryIds(data, main)) data.accounts[id]!,
+    ];
+    final fund = fundCategories.fold(0, (s, c) => s + (held[c.id] ?? 0));
+    // Where it sits, when the category is paid from only some accounts.
+    final banks = [
+      for (final a in open)
+        if (!a.isOwed) a,
+    ];
+    final off = fundCategories.length == 1
+        ? data.accountsOff[fundCategories.single.id] ?? const <int>{}
+        : const <int>{};
+    final keptIn = [
+      for (final a in banks)
+        if (!off.contains(a.id)) a,
+    ];
+    final limited = keptIn.isNotEmpty && keptIn.length < banks.length;
+    final there = keptIn.fold(0, (s, a) => s + data.balanceOf(a.id));
     return Readiness._(
       longMarked: open.any((a) => a.isOwed && long.contains(a.role)),
       carriedSince: {
@@ -239,20 +342,26 @@ class Readiness {
       target:
           consumer.where((d) => d.account.id == targetId).firstOrNull ??
           consumer.firstOrNull,
-      month: MonthOfSpending.of(data, today),
-      fundAccounts: fundAccounts,
-      fund: fundAccounts.fold(0, (s, a) => s + data.balanceOf(a.id)),
+      month: MonthOfSpending.of(data, today, budget: budget),
+      fundCategories: fundCategories,
+      keptIn: limited ? keptIn : const [],
+      keptThere: limited ? there.clamp(0, fund) : 0,
+      notAssigned: budget.currency == main && budget.notAssigned > 0
+          ? budget.notAssigned
+          : 0,
+      fundAssigned: fundCategories.length == 1
+          ? budget.lines[fundCategories.single.id]?.assigned ?? 0
+          : 0,
+      held: held,
+      fund: fund,
       consumerDebts: consumer,
       longLoans: owed((a) => long.contains(a.role)),
       monthsTarget: months.clamp(3, 6),
-      answers: {
-        ReadyStep.health: data.prefs[ReadyKeys.health] == 'yes',
-        ReadyStep.retirement: data.prefs[ReadyKeys.retirement] == 'yes',
-        ReadyStep.longLoans: switch (data.prefs[ReadyKeys.longLoans]) {
-          'yes' => true,
-          'none' => !open.any((a) => a.isOwed && long.contains(a.role)),
-          _ => false,
-        },
+      retirement: data.prefs[ReadyKeys.retirement] == 'yes',
+      longAnswer: switch (data.prefs[ReadyKeys.longLoans]) {
+        'yes' => true,
+        'none' => !open.any((a) => a.isOwed && long.contains(a.role)),
+        _ => false,
       },
       setAside: {
         for (final n in (data.prefs[ReadyKeys.setAside] ?? '').split(','))
@@ -264,21 +373,52 @@ class Readiness {
 
   final MonthOfSpending month;
 
-  /// Bank accounts marked as holding the emergency fund.
-  final List<AccountInfo> fundAccounts;
+  /// The app's Safety net category ([isSafetyNet]). A bank account marked
+  /// as the fund's under the first build is no longer counted: its mark
+  /// stays in the ledger unread.
+  final List<AccountInfo> fundCategories;
 
-  /// What's in them together.
+  /// The accounts the safety net's category is paid from, when that is
+  /// only some of the bank and cash accounts: where it is kept. Empty when
+  /// it uses them all.
+  final List<AccountInfo> keptIn;
+
+  /// How much of [fund] is in [keptIn] already; the rest is still to move.
+  final int keptThere;
+
+  /// Money in the budget not assigned to any category, when there is some.
+  final int notAssigned;
+
+  /// Assigned to the safety net's category this calendar month.
+  final int fundAssigned;
+
+  /// What each spending category holds today, never below zero.
+  final Map<int, int> held;
+  int heldIn(int categoryId) => held[categoryId] ?? 0;
+
+  /// There is a category for it.
+  bool get hasFund => fundCategories.isNotEmpty;
+
+  /// What's left in the safety net's category.
   final int fund;
 
-  /// Cards and loans owing, smallest first: consumer debt unless marked a
-  /// mortgage, a student loan, or a card paid in full every month.
+  /// Cards and loans owing, smallest first: debt to pay off unless marked a
+  /// mortgage, or a card paid in full every month.
   final List<Debt> consumerDebts;
+
+  /// Mortgages owing.
   final List<Debt> longLoans;
   final int monthsTarget;
-  final Map<ReadyStep, bool> answers;
+
+  /// The user says they are saving for retirement.
+  final bool retirement;
+
+  /// The user says there is no mortgage (and none is marked), or that they
+  /// are paying extra on it.
+  final bool longAnswer;
   final Set<ReadyStep> setAside;
 
-  /// Some card or loan is marked a mortgage or student loan.
+  /// Some card or loan is marked a mortgage.
   final bool longMarked;
 
   /// Cards marked paid in full every month that have owed something every
@@ -326,14 +466,15 @@ class Readiness {
   };
 
   bool isDone(ReadyStep s) => switch (s) {
-    ReadyStep.oneMonth || ReadyStep.moreMonths =>
-      targetOf(s) > 0 && fundAccounts.isNotEmpty && fund >= targetOf(s),
+    ReadyStep.oneMonth ||
+    ReadyStep.moreMonths => targetOf(s) > 0 && hasFund && fund >= targetOf(s),
     ReadyStep.consumerDebt => consumerDebts.isEmpty,
-    // Nothing marked isn't "paid off": the mortgage may just not be kept
-    // here. Done when there's none, when it's paid, or when paying extra.
-    ReadyStep.longLoans => (longMarked && longLoans.isEmpty) || answers[s]!,
-    ReadyStep.health || ReadyStep.retirement => answers[s]!,
+    ReadyStep.future => retirement && mortgageDone,
   };
+
+  /// Nothing marked isn't "paid off": the mortgage may just not be kept
+  /// here. Done when there's none, when it's paid, or when paying extra.
+  bool get mortgageDone => (longMarked && longLoans.isEmpty) || longAnswer;
 
   /// The first step not done and not set aside; null when all are.
   late final ReadyStep? current = ReadyStep.values

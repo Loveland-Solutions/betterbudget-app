@@ -166,9 +166,18 @@ class _BudgetPageState extends State<_BudgetPage> {
       today: widget.today,
     );
     // "Not categorized" holds no money: its rows count in the top line.
-    final spending = data.categories
+    // The safety net is money kept, not spent: last, under "Saved" (owner,
+    // 2026-10-09: "we should probably create some type of visual
+    // separation").
+    final saved = fundCategoryIds(data, mainCurrency(data));
+    final listed = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
+    final spending = [
+      ...listed.where((c) => !saved.contains(c.id)),
+      ...listed.where((c) => saved.contains(c.id)),
+    ];
+    final firstSaved = spending.indexWhere((c) => saved.contains(c.id));
     final income = data.income;
     final archived = data.archivedCategories;
     final began = budget.began;
@@ -747,8 +756,22 @@ class _BudgetPageState extends State<_BudgetPage> {
                                 : currencies.first,
                             onCancel: () => setState(() => _adding = false),
                           ),
-                        for (final (i, c) in spending.indexed)
+                        for (final (i, c) in spending.indexed) ...[
+                          if (i == firstSaved)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
+                              child: Text(
+                                t.planSaved,
+                                key: const ValueKey('budget-saved'),
+                                style: onest(
+                                  12.5,
+                                  weight: 600,
+                                  color: Mid.ink3,
+                                ),
+                              ),
+                            ),
                           row(c, striped: i.isOdd),
+                        ],
                         const SizedBox(height: 14),
                         if (archived.isNotEmpty) ...[
                           Hoverable(
@@ -1477,7 +1500,8 @@ class _CategoryRowState extends State<_CategoryRow> {
       menuChildren: _categoryMenu(
         t,
         onEdit: widget.onOpen,
-        onDelete: widget.onDelete,
+        // The app's own Safety net stays, as Income does.
+        onDelete: isSafetyNet(widget.category) ? null : widget.onDelete,
       ),
       child: MouseRegion(
         onEnter: (_) => setState(() => _hover = true),
@@ -1654,7 +1678,7 @@ class _CategoryRowState extends State<_CategoryRow> {
 List<Widget> _categoryMenu(
   Words t, {
   required VoidCallback onEdit,
-  required VoidCallback onDelete,
+  required VoidCallback? onDelete,
 }) {
   Widget item(String label, String key, VoidCallback onTap, {Color? color}) =>
       MenuItemButton(
@@ -1668,7 +1692,8 @@ List<Widget> _categoryMenu(
       );
   return [
     item(t.planEdit, 'category-edit', onEdit),
-    item(t.planDeleteMenu, 'category-delete', onDelete, color: Mid.coral),
+    if (onDelete != null)
+      item(t.planDeleteMenu, 'category-delete', onDelete, color: Mid.coral),
   ];
 }
 
@@ -4440,11 +4465,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                         // Beside the usage, which is what decides it; apart
                         // from Cancel and Save.
                         if (widget.usage != null) const SizedBox(width: 10),
-                        BarButton(
-                          key: const ValueKey('edit-archive'),
-                          label: t.planArchive,
-                          onTap: widget.onArchive,
-                        ),
+                        if (!isSafetyNet(widget.category))
+                          BarButton(
+                            key: const ValueKey('edit-archive'),
+                            label: t.planArchive,
+                            onTap: widget.onArchive,
+                          ),
                         const Spacer(),
                         BarButton(
                           key: const ValueKey('edit-cancel'),

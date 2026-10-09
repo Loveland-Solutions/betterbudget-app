@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.23.0 · schema v18 · 598 tests pass
+**Last updated: 2026-10-09** · version 0.24.0 · schema v18 · 610 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,18 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #59 (version 0.23.0).** A computer no longer writes the folder's ledger
+**After PR #60 (version 0.24.0): Savings is the owner's four steps**, each with the
+picture they drew (ADR 0004 "Four Savings steps"): Build a safety net, Eliminate debt,
+Build three to six months of savings, Save for the future. A month of expenses comes
+from the budget. The safety net is one budget category, **built in as Income is**,
+whose Left is the count, set apart on the Budget page under "Saved"; the owner's
+ledger got it the first time this build opened it. **The owner is using it to see
+whether it works** ("I'll need to use it to see if it works") and has not yet said;
+expect corrections. Three questions asked with the steps are under "Waiting on the
+owner" (17). The steps' own work after that is whatever those answers ask for (a
+rate and payment per debt; what Save for the future holds).
+
+Before it, PR #59 (version 0.23.0): a computer no longer writes the folder's ledger
 without looking at it first: step 1 of two computers on one ledger is built (item 1
 below). Before it, PR #58: the phone records money moved
 between two accounts (cash from an ATM, a card paid): the accounts are at the foot of
@@ -81,9 +92,8 @@ folder. Then, in order:
    the Pixel still has the old build and the bee icon: its new icon is drawn in the
    project and arrives with the next install. The Mac's icon is the logo on a navy tile
    (2026-10-09); Android's drawn one is still the white tile. The iPhone and Windows
-   builds still have Flutter's icon. The four Savings pictures the owner drew are made ready
-   (`assets/logo/prepared/savings-*.svg`, day and night) and wait: the owner is going
-   to change the Savings steps, and said to take that up with the budget page.
+   builds still have Flutter's icon. The four Savings pictures the owner drew are on the
+   Savings page, day and night (`app/assets/brand/savings-*.svg`).
 
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
@@ -93,7 +103,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #58. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #60. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -161,6 +171,16 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     import that doesn't match the bank lead with the amount as its own sentence,
     "₮3,298,850.00 apart from the bank."?
 
+17. **Three about the four Savings steps** (2026-10-09). On Eliminate debt, should
+    each debt take its interest rate and its monthly payment, so the page can say
+    which costs most and about when it will be gone? What does Save for the future
+    hold: it has "Saving for retirement" (I am / Not yet) and "Paying off the
+    mortgage", and the budget review says the first means little where everyone
+    employed pays social insurance and nobody pays a 6% ипотек early; goals with
+    dates (ROADMAP D) were offered instead or as well. And should the line under the
+    steps, "In the order of Personal Finances for Self-Reliance…", go now that the
+    steps are the owner's own?
+
 ## Phase
 
 **A working desktop ledger and budget are built** and run on macOS from
@@ -184,16 +204,17 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Forecast | Its span is a dropdown: the pay period, 30, 60 or 90 days, 6 months, a year. It says the lowest point, or "Runs out" or "Below zero now". "N bills · amount through date" opens the list. Late money in is "not counted". Paydays and plan bills are projected past the scheduled ones |
 | Reconcile | Statement date and balance; "Add … adjustment and lock" when they differ; "Undo this reconcile" from a locked row. The database refuses changes to locked rows |
 | Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own |
+| Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
-| Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
+| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
 | Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …", with Undo); when both changed, nothing is written and "Your ledger was changed on two computers" asks which to keep, the other saved first; Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Not built: combining the two (ADR 0005) |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
-| Language | Same as this Mac, English or Монгол; 1,157 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,182 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
@@ -241,6 +262,27 @@ open the archive).
   counting a cash account, moving money between categories.
 
 ## Known bugs and loose ends
+
+- **From the reviews of the four Savings steps (2026-10-09), not fixed:** a month of
+  expenses taken from the three-month average (nothing budgeted) leaves out payments
+  on a car loan or salary loan; a month from the budget counts every category that
+  isn't picked as the safety net, a holiday or a new-phone category included; the
+  changes made after the owner's corrections had no review pass (owner's rule: once
+  per feature); the phone's Budget lists Safety net among the spending categories;
+  "in Khan Savings" counts all of that account, though another category paid from
+  it may claim part; Safety net is made at launch with no undo, and two computers each make their
+  own before the ledgers are combined (Income has the same gap; for step 2 of two
+  computers); merging it into another category by renaming removes it until the
+  next launch makes a new one; with it the Budget list is a row longer than a
+  1440 × 900 window, so the page scrolls; Eliminate debt shows a check when the ledger holds no card or loan, though
+  Storepay or a loan taken from pay may not be an account; with a mortgage, Save for
+  the future is done only by "Paying extra" or a zero balance, and one click on
+  "Paying extra" finishes it with the whole loan left; "Not yet" is lit under "Do you
+  have a mortgage?" before any answer; a mortgage account with no balance yet reads
+  "Paid off"; "Paid in full every month" is offered on a loan; the smallest debt is
+  the one to pay extra on even when it is Storepay at no interest; "pay only the
+  minimums" and "employer matches" don't fit loans and pay here. Untested: that an
+  account marked a student loan keeps its mark when "Debt to pay off" is picked.
 
 - **From the reviews of two computers, step 1 (2026-10-09), not fixed:** the
   question shows counts only, not which entries each side alone has; a setting that

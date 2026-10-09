@@ -1,9 +1,9 @@
 part of 'ledger_screen.dart';
 
-// The Savings section (ADR 0004, rule 25): getting financially prepared, one
-// step at a time, in the order of the self-reliance course. Every step shows;
-// the current one is the first not done, and any can be set aside. The app
-// works out what it can from the ledger and asks only what it can't know.
+// The Savings section (ADR 0004, rule 25 and "Four Savings steps"): the
+// owner's four steps, each with the picture they drew for it. Every step
+// shows; the current one is the first not done, and any can be set aside. The
+// app works out what it can from the ledger and asks only what it can't know.
 
 /// What the page changes, each recorded for undo by the screen.
 class _SavingsActions {
@@ -11,7 +11,11 @@ class _SavingsActions {
     required this.setRole,
     required this.setPref,
     required this.setAside,
+    required this.assign,
   });
+
+  /// Sets what is assigned to [category] this calendar month to [total].
+  final void Function(AccountInfo category, int total) assign;
 
   /// Sets a step aside or brings it back, from the newest ledger so two
   /// quick clicks both count.
@@ -57,8 +61,8 @@ class _SavingsPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
         child: Align(
           alignment: Alignment.topLeft,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+          child: SizedBox(
+            width: double.infinity,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -133,13 +137,19 @@ class _SavingsPage extends StatelessWidget {
   }
 }
 
-String _stepTitle(Words t, ReadyStep s, Readiness r) => switch (s) {
+String _stepTitle(Words t, ReadyStep s) => switch (s) {
   ReadyStep.oneMonth => t.planStepOneMonth,
-  ReadyStep.health => t.planStepHealth,
   ReadyStep.consumerDebt => t.planStepConsumerDebt,
-  ReadyStep.moreMonths => t.planStepMoreMonths(r.monthsTarget),
-  ReadyStep.retirement => t.planStepRetirement,
-  ReadyStep.longLoans => t.planStepLongLoans,
+  ReadyStep.moreMonths => t.planStepMoreMonths,
+  ReadyStep.future => t.planStepFuture,
+};
+
+/// The owner's picture for a step, by its file's name.
+String _stepPicture(ReadyStep s) => switch (s) {
+  ReadyStep.oneMonth => 'safety-net',
+  ReadyStep.consumerDebt => 'eliminate-debt',
+  ReadyStep.moreMonths => 'three-to-six-months',
+  ReadyStep.future => 'save-for-the-future',
 };
 
 class _StepRow extends StatelessWidget {
@@ -173,37 +183,53 @@ class _StepRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Opacity(
+            opacity: aside ? 0.45 : 1,
+            child: SavingsPicture(_stepPicture(step), size: 96),
+          ),
+          const SizedBox(width: 20),
           _StepMarker(number: number, state: state),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            // The page fills the window; a step's words stay a width that
+            // reads.
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        _stepTitle(t, step, r),
-                        style: onest(
-                          14.5,
-                          weight: current ? 600 : 500,
-                          color: aside ? Mid.ink3 : Mid.ink,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _stepTitle(t, step),
+                            style: onest(
+                              14.5,
+                              weight: current ? 600 : 500,
+                              color: aside ? Mid.ink3 : Mid.ink,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (current) ...[
+                          const SizedBox(width: 10),
+                          Text(t.planNow, style: onest(12, color: Mid.blue)),
+                        ],
+                        if (aside) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            t.planSetAside,
+                            style: onest(12, color: Mid.ink3),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (current) ...[
-                      const SizedBox(width: 10),
-                      Text(t.planNow, style: onest(12, color: Mid.blue)),
-                    ],
-                    if (aside) ...[
-                      const SizedBox(width: 10),
-                      Text(t.planSetAside, style: onest(12, color: Mid.ink3)),
-                    ],
+                    const SizedBox(height: 4),
+                    ..._body(context, t, state),
                   ],
                 ),
-                const SizedBox(height: 4),
-                ..._body(context, t, state),
-              ],
+              ),
             ),
           ),
           _StepMenu(
@@ -214,8 +240,8 @@ class _StepRow extends StatelessWidget {
               step,
               a,
               a
-                  ? t.planSetAsideUndo(_stepTitle(t, step, r))
-                  : t.planBackInStepsUndo(_stepTitle(t, step, r)),
+                  ? t.planSetAsideUndo(_stepTitle(t, step))
+                  : t.planBackInStepsUndo(_stepTitle(t, step)),
             ),
           ),
         ],
@@ -247,14 +273,16 @@ class _StepRow extends StatelessWidget {
         final loans = m.loanPayments > 0 ? 'yes' : 'no';
         final aboutMonth = m.amount == 0
             ? (m.days < MonthOfSpending.minDays
-                  ? t.planMonthUnknown(m.days)
+                  ? t.planMonthUnknown
                   : t.planMonthNoSpending(m.days))
             : m.typed
             ? t.planMonthTyped(_here(context, m.amount))
+            : m.fromBudget
+            ? t.planMonthBudget(_here(context, m.amount))
             : m.days >= MonthOfSpending.spanDays
             ? t.planMonthAverage3(_here(context, m.amount), loans)
             : t.planMonthAverageDays(_here(context, m.amount), m.days, loans);
-        final noFund = r.fundAccounts.isEmpty;
+        final noFund = !r.hasFund;
         return [
           if (target > 0 && !noFund) ...[
             fact(
@@ -277,9 +305,9 @@ class _StepRow extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           if (step == ReadyStep.oneMonth || current) fact(aboutMonth),
-          if (current && noFund) guide(t.planWhichAccount),
+          if (step == ReadyStep.oneMonth) ..._safetyNet(context, t, guide),
           if (current && step == ReadyStep.oneMonth) ...[
-            guide(t.planKeepReachable),
+            if (r.fund > 0) guide(t.planKeepReachable),
             if (r.consumerDebts.isNotEmpty)
               guide(
                 t.planMinimumsOn(
@@ -290,43 +318,12 @@ class _StepRow extends StatelessWidget {
           if (current && step == ReadyStep.moreMonths)
             guide(t.planEnoughForJobLoss),
           // The fund and the month are set on step 1 only, so they never
-          // show twice; step 4 adds how many months.
+          // show twice; step 3 adds how many months.
           if (step == ReadyStep.oneMonth)
-            controls([
-              _FundPicker(data: data, r: r, actions: actions),
-              _MonthField(r: r, actions: actions),
-            ]),
-          if (step == ReadyStep.moreMonths && current)
+            controls([_MonthField(r: r, actions: actions)]),
+          // The title says three to six; this says which, and changes it.
+          if (step == ReadyStep.moreMonths)
             controls([_MonthsChoice(r: r, actions: actions)]),
-        ];
-      case ReadyStep.health:
-      case ReadyStep.retirement:
-        final yes = r.answers[step]!;
-        final key = step == ReadyStep.health
-            ? ReadyKeys.health
-            : ReadyKeys.retirement;
-        return [
-          fact(
-            step == ReadyStep.health
-                ? (yes ? t.planHealthYes : t.planHealthWhat)
-                : (yes ? t.planRetirementYes : t.planRetirementWhat),
-          ),
-          if (current && step == ReadyStep.retirement)
-            guide(t.planEmployerMatch),
-          controls([
-            _Answer(
-              stepKey: step.name,
-              yes: yes,
-              yesLabel: step == ReadyStep.health ? t.planIHaveIt : t.planIAm,
-              onChanged: (v) => actions.setPref(
-                key,
-                v ? 'yes' : null,
-                v
-                    ? t.planAnswerYesUndo(_stepTitle(t, step, r))
-                    : t.planAnswerNotYetUndo(_stepTitle(t, step, r)),
-              ),
-            ),
-          ]),
         ];
       case ReadyStep.consumerDebt:
         return [
@@ -350,14 +347,41 @@ class _StepRow extends StatelessWidget {
                 actions: actions,
               ),
         ];
-      case ReadyStep.longLoans:
+      case ReadyStep.future:
+        Widget part(String text) => Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 2),
+          child: Text(text, style: onest(13, weight: 600, color: Mid.ink)),
+        );
         void answer(String? v, String label) =>
             actions.setPref(ReadyKeys.longLoans, v, label);
         final said = data.prefs[ReadyKeys.longLoans];
-        if (!r.longMarked) {
-          return [
-            fact(r.answers[step]! ? t.planLongNone : t.planLongAsk),
-            if (r.consumerDebts.isNotEmpty && !r.answers[step]!)
+        return [
+          part(t.planStepRetirement),
+          fact(r.retirement ? t.planRetirementYes : t.planRetirementWhat),
+          if (current && !r.retirement) guide(t.planEmployerMatch),
+          controls([
+            _Answer(
+              stepKey: 'retirement',
+              yes: r.retirement,
+              yesLabel: t.planIAm,
+              onChanged: (v) => actions.setPref(
+                ReadyKeys.retirement,
+                v ? 'yes' : null,
+                v
+                    ? t.planAnswerYesUndo(t.planStepRetirement)
+                    : t.planAnswerNotYetUndo(t.planStepRetirement),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          part(t.planStepLongLoans),
+          if (!r.longMarked) ...[
+            fact(switch (said) {
+              'none' => t.planLongNone,
+              'yes' => t.planPayingExtra,
+              _ => t.planLongAsk,
+            }),
+            if (r.consumerDebts.isNotEmpty && !r.longAnswer)
               guide(t.planLongMarkThere),
             controls([
               _Choice(
@@ -379,30 +403,82 @@ class _StepRow extends StatelessWidget {
                 onTap: () => answer(null, t.planLoansNotYetUndo),
               ),
             ]),
-          ];
-        }
-        return [
-          fact(
-            r.longLoans.isEmpty
-                ? t.planPaidOff
-                : t.planAmountLeft(_here(context, r.longOwed)),
-          ),
-          for (final d in r.longLoans)
-            _DebtLine(debt: d, r: r, actions: actions),
-          if (r.longLoans.isNotEmpty)
-            controls([
-              _Answer(
-                stepKey: step.name,
-                yes: said == 'yes',
-                yesLabel: t.planPayingExtra,
-                onChanged: (v) => answer(
-                  v ? 'yes' : null,
-                  v ? t.planPayingExtraUndo : t.planNotPayingExtraUndo,
+          ] else ...[
+            fact(
+              r.longLoans.isEmpty
+                  ? t.planPaidOff
+                  : t.planAmountLeft(_here(context, r.longOwed)),
+            ),
+            for (final d in r.longLoans)
+              _DebtLine(debt: d, r: r, actions: actions),
+            if (r.longLoans.isNotEmpty)
+              controls([
+                _Answer(
+                  stepKey: 'longLoans',
+                  yes: said == 'yes',
+                  yesLabel: t.planPayingExtra,
+                  onChanged: (v) => answer(
+                    v ? 'yes' : null,
+                    v ? t.planPayingExtraUndo : t.planNotPayingExtraUndo,
+                  ),
                 ),
-              ),
-            ]),
+              ]),
+          ],
         ];
     }
+  }
+}
+
+extension on _StepRow {
+  /// The safety net is a budget category: what it is while there is none,
+  /// then where its money sits and what in the budget could still go to it.
+  List<Widget> _safetyNet(
+    BuildContext context,
+    Words t,
+    Widget Function(String) guide,
+  ) {
+    if (!r.hasFund) return const [];
+    final target = r.targetOf(ReadyStep.oneMonth);
+    final toGo = target - r.fund;
+    // Only as much as fills it, when a month is known.
+    final offer = target > 0 && toGo < r.notAssigned ? toGo : r.notAssigned;
+    final category = r.fundCategories.length == 1
+        ? r.fundCategories.single
+        : null;
+    final banks = data.openAccounts.where((a) => !a.isOwed).length;
+    return [
+      // Nothing in it yet: what it is and where to keep it.
+      if (r.fund == 0) guide(t.planWhichAccount),
+      if (r.keptIn.isNotEmpty && r.fund > 0)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            r.keptThere >= r.fund
+                ? t.planFundAllIn(_names(t, r.keptIn.map((a) => a.name)))
+                : t.planFundWhere(
+                    _here(context, r.keptThere),
+                    _names(t, r.keptIn.map((a) => a.name)),
+                    _here(context, r.fund - r.keptThere),
+                  ),
+            key: const ValueKey('fund-where'),
+            style: onest(13, color: Mid.ink2, tabular: true),
+          ),
+        ),
+      if (r.keptIn.isEmpty && banks > 1 && r.fund > 0)
+        guide(t.planFundSetPaidFrom),
+      if (category != null && offer > 0 && (target == 0 || toGo > 0)) ...[
+        guide(t.planFundNotAssigned(_here(context, r.notAssigned))),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: BarButton(
+            key: const ValueKey('fund-assign'),
+            label: t.planAssignUndo(_here(context, offer), category.name),
+            color: Mid.blue,
+            onTap: () => actions.assign(category, r.fundAssigned + offer),
+          ),
+        ),
+      ],
+    ];
   }
 }
 
@@ -474,78 +550,6 @@ class _Progress extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Which bank accounts hold the fund: a menu of them, ticked when marked.
-class _FundPicker extends StatelessWidget {
-  const _FundPicker({
-    required this.data,
-    required this.r,
-    required this.actions,
-  });
-  final LedgerData data;
-  final Readiness r;
-  final _SavingsActions actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final banks = data.openAccounts.where((a) => !a.isOwed).toList();
-    final main = CurrencyScope.of(context);
-    final label = r.fundAccounts.isEmpty
-        ? t.planPickAccount
-        : t.planKeptIn(_names(t, r.fundAccounts.map((a) => a.name)));
-    return MenuAnchor(
-      style: _menuStyle,
-      menuChildren: [
-        for (final a in banks)
-          MenuItemButton(
-            key: ValueKey('fund-${a.id}'),
-            // Savings counts one currency for now: another can't hold the
-            // fund until it can be counted, and the line says so.
-            onPressed: a.currency != main
-                ? null
-                : () {
-                    final on = a.role == AccountRole.emergencyFund;
-                    actions.setRole(
-                      a,
-                      on ? null : AccountRole.emergencyFund,
-                      on ? t.planFundOffUndo(a.name) : t.planFundOnUndo(a.name),
-                    );
-                  },
-            leadingIcon: Icon(
-              a.role == AccountRole.emergencyFund ? Icons.check_rounded : null,
-              size: 16,
-              color: Mid.blue,
-            ),
-            style: ButtonStyle(
-              minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
-              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-            ),
-            child: Text(
-              a.currency == main
-                  ? '${a.name}  ${_money(data.balanceOf(a.id), a.currency)}'
-                  : t.savingsOtherCurrencyItem(
-                      a.name,
-                      _money(data.balanceOf(a.id), a.currency),
-                    ),
-              style: onest(
-                13,
-                color: a.currency == main ? Mid.ink2 : Mid.ink3,
-                tabular: true,
-              ),
-            ),
-          ),
-      ],
-      builder: (context, menu, _) => BarButton(
-        key: const ValueKey('fund-picker'),
-        label: label,
-        trailing: Icons.expand_more_rounded,
-        color: r.fundAccounts.isEmpty ? Mid.blue : null,
-        onTap: () => menu.isOpen ? menu.close() : menu.open(),
-      ),
-    );
-  }
 }
 
 /// A month of expenses, typed over the average. Empty goes back to it.
@@ -755,9 +759,16 @@ class _Answer extends StatelessWidget {
   );
 }
 
+/// What Savings counts a card or loan as: a student loan (marked when it
+/// waited with the mortgage) is debt to pay off like an unmarked one.
+bool _sameRole(AccountRole? a, AccountRole? b) {
+  AccountRole? counted(AccountRole? r) =>
+      r == AccountRole.studentLoan ? null : r;
+  return counted(a) == counted(b);
+}
+
 String _roleWords(Words t, AccountRole? role) => switch (role) {
   AccountRole.mortgage => t.planRoleMortgage,
-  AccountRole.studentLoan => t.planRoleStudentLoan,
   AccountRole.paidMonthly => t.planRolePaidMonthly,
   _ => t.planRoleConsumer,
 };
@@ -765,7 +776,6 @@ String _roleWords(Words t, AccountRole? role) => switch (role) {
 /// The undo label for marking [name] as [role].
 String _countsAs(Words t, String name, AccountRole? role) => switch (role) {
   AccountRole.mortgage => t.planCountsAsMortgage(name),
-  AccountRole.studentLoan => t.planCountsAsStudentLoan(name),
   AccountRole.paidMonthly => t.planCountsAsPaidMonthly(name),
   _ => t.planCountsAsConsumer(name),
 };
@@ -828,14 +838,17 @@ class _DebtLine extends StatelessWidget {
                 null,
                 AccountRole.paidMonthly,
                 AccountRole.mortgage,
-                AccountRole.studentLoan,
               ])
                 MenuItemButton(
                   key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
-                  onPressed: () =>
-                      actions.setRole(a, role, _countsAs(t, a.name, role)),
+                  // An account marked a student loan under the six steps is
+                  // debt to pay off already: picking that leaves its mark.
+                  onPressed: () {
+                    if (_sameRole(a.role, role)) return;
+                    actions.setRole(a, role, _countsAs(t, a.name, role));
+                  },
                   leadingIcon: Icon(
-                    a.role == role ? Icons.check_rounded : null,
+                    _sameRole(a.role, role) ? Icons.check_rounded : null,
                     size: 16,
                     color: Mid.blue,
                   ),

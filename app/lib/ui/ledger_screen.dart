@@ -589,6 +589,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               .then((_) => db.ensurePaydays(today))
               .then((_) => db.ensurePlanBills(today)),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
+          _ensureSafetyNet(data);
           // The first look isn't a change; [CloudFolder.load] copies at launch.
           if (_ledgerSeen) _cloud.ledgerChanged(widget.clock);
           _ledgerSeen = true;
@@ -3612,6 +3613,39 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A Savings answer or setting. Answers are quiet, like clearing a row;
   /// ⌘Z undoes them.
+  bool _safetyNetAsked = false;
+
+  /// Safety net is built in (ADR 0004 "Four Savings steps"): a ledger past
+  /// setup that has none gets it, once. A category the user made for it
+  /// under the build before, or one already called that, becomes it.
+  void _ensureSafetyNet(LedgerData data) {
+    if (_safetyNetAsked || inSetup(data)) return;
+    if (data.accounts.values.any(isSafetyNet)) return;
+    _safetyNetAsked = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final name = context.t.planFundCategoryName;
+      final made = data
+          .accounts[int.tryParse(data.prefs[ReadyKeys.fundCategories] ?? '')];
+      final named = _categoryNamed(data, name);
+      bool own(AccountInfo? a) =>
+          a != null && a.type == AccountType.expense && !a.deleted;
+      try {
+        await db.safetyNetCategory(
+          name: name,
+          currency: mainCurrency(data),
+          adopt: own(made)
+              ? made!.id
+              : own(named)
+              ? named!.id
+              : null,
+        );
+      } catch (_) {
+        // Tried again the next time the app opens.
+      }
+    });
+  }
+
   Future<void> _setPref(
     String key,
     String? value,
@@ -4331,6 +4365,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                               label,
                                               toast: toast,
                                             ),
+                                    assign: (category, total) {
+                                      final day = dateOnly(widget.clock());
+                                      _setBudgetAmount(category, (
+                                        start: DateTime(day.year, day.month),
+                                        end: DateTime(
+                                          day.year,
+                                          day.month + 1,
+                                          0,
+                                        ),
+                                        label: '',
+                                      ), total);
+                                    },
                                     setAside: (step, aside, label) => _setPref(
                                       ReadyKeys.setAside,
                                       Readiness.of(

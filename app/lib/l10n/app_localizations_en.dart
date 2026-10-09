@@ -1477,24 +1477,22 @@ class WordsEn extends Words {
       'In the order of Personal Finances for Self-Reliance: each step makes the next one safer.';
 
   @override
-  String get planStepOneMonth => 'One month of expenses set aside';
+  String get planStepOneMonth => 'Build a safety net';
 
   @override
-  String get planStepHealth => 'Health coverage';
+  String get planStepConsumerDebt => 'Eliminate debt';
 
   @override
-  String get planStepConsumerDebt => 'No consumer debt';
+  String get planStepMoreMonths => 'Build three to six months of savings';
 
   @override
-  String planStepMoreMonths(int months) {
-    return '$months months of expenses set aside';
-  }
+  String get planStepFuture => 'Save for the future';
 
   @override
   String get planStepRetirement => 'Saving for retirement';
 
   @override
-  String get planStepLongLoans => 'Paying off the mortgage and student loans';
+  String get planStepLongLoans => 'Paying off the mortgage';
 
   @override
   String get planNow => 'Now';
@@ -1516,19 +1514,17 @@ class WordsEn extends Words {
   }
 
   @override
-  String planMonthUnknown(int days) {
-    String _temp0 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: '$days days',
-      one: '1 day',
-    );
-    return 'A month of your spending isn’t known yet ($_temp0 of rows). Type it, or come back in a few weeks.';
-  }
+  String get planMonthUnknown =>
+      'A month of your expenses isn’t known yet. It comes from your budget once you fill that in, or you can type it.';
 
   @override
   String planMonthNoSpending(int days) {
     return 'No spending in the last $days days to go by. Type a month of your expenses.';
+  }
+
+  @override
+  String planMonthBudget(String amount) {
+    return 'A month of expenses: $amount, from your budget';
   }
 
   @override
@@ -1566,7 +1562,32 @@ class WordsEn extends Words {
 
   @override
   String get planWhichAccount =>
-      'Which account holds it? Pick one below. A savings account you can reach but don’t spend from works best.';
+      'Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.';
+
+  @override
+  String get planFundCategoryName => 'Safety net';
+
+  @override
+  String planFundWhere(String there, String names, String move) {
+    return '$there in $names · $move still to move there';
+  }
+
+  @override
+  String planFundAllIn(String names) {
+    return 'All of it is in $names';
+  }
+
+  @override
+  String get planFundSetPaidFrom =>
+      'Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.';
+
+  @override
+  String planFundNotAssigned(String amount) {
+    return '$amount in your budget is not assigned to anything.';
+  }
+
+  @override
+  String get planSaved => 'Saved';
 
   @override
   String get planKeepReachable =>
@@ -1582,13 +1603,6 @@ class WordsEn extends Words {
       'Enough to get through losing a job or a long illness.';
 
   @override
-  String get planHealthYes => 'You have it';
-
-  @override
-  String get planHealthWhat =>
-      'Insurance, or some other way to get medical care';
-
-  @override
   String get planRetirementYes => 'You’re putting money into it';
 
   @override
@@ -1598,9 +1612,6 @@ class WordsEn extends Words {
   @override
   String get planEmployerMatch =>
       'If your employer matches what you put in, put in at least enough to get all of it.';
-
-  @override
-  String get planIHaveIt => 'I have it';
 
   @override
   String get planIAm => 'I am';
@@ -1631,32 +1642,32 @@ class WordsEn extends Words {
   String get planLongNone => 'You have none';
 
   @override
-  String get planLongAsk => 'Do you have a mortgage or student loans?';
+  String get planLongAsk => 'Do you have a mortgage?';
 
   @override
   String get planLongMarkThere =>
-      'If a loan under No consumer debt is one, mark it there.';
+      'If a loan under Eliminate debt is the mortgage, mark it there.';
 
   @override
   String get planIHaveNone => 'I have none';
 
   @override
-  String get planPayingExtraOnThem => 'Paying extra on them';
+  String get planPayingExtraOnThem => 'Paying extra on it';
 
   @override
   String get planNotYet => 'Not yet';
 
   @override
-  String get planNoLongLoansUndo => 'No mortgage or student loans';
+  String get planNoLongLoansUndo => 'No mortgage';
 
   @override
-  String get planPayingExtraUndo => 'Paying extra on loans';
+  String get planPayingExtraUndo => 'Paying extra on the mortgage';
 
   @override
-  String get planLoansNotYetUndo => 'Loans: not yet';
+  String get planLoansNotYetUndo => 'Mortgage: not yet';
 
   @override
-  String get planNotPayingExtraUndo => 'Not paying extra on loans';
+  String get planNotPayingExtraUndo => 'Not paying extra on the mortgage';
 
   @override
   String get planPaidOff => 'Paid off';
@@ -1675,26 +1686,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planPickAccount => 'Pick the account';
-
-  @override
-  String planKeptIn(String names) {
-    return 'Kept in $names';
-  }
-
-  @override
-  String planFundOffUndo(String account) {
-    return '$account no longer holds the emergency fund';
-  }
-
-  @override
-  String planFundOnUndo(String account) {
-    return '$account holds the emergency fund';
-  }
-
-  @override
   String get planMonthBackToAverage =>
-      'A month of expenses: back to your average';
+      'A month of expenses: no longer the one you typed';
 
   @override
   String planMonthSet(String amount) {
@@ -1717,7 +1710,8 @@ class WordsEn extends Words {
   String get planSave => 'Save';
 
   @override
-  String get planEmptyToAverage => 'Empty goes back to your average';
+  String get planEmptyToAverage =>
+      'Empty goes back to your budget or your average';
 
   @override
   String planMonthsChoice(int count) {
@@ -1733,22 +1727,14 @@ class WordsEn extends Words {
   String get planRoleMortgage => 'Mortgage';
 
   @override
-  String get planRoleStudentLoan => 'Student loan';
-
-  @override
   String get planRolePaidMonthly => 'Paid in full every month';
 
   @override
-  String get planRoleConsumer => 'Consumer debt';
+  String get planRoleConsumer => 'Debt to pay off';
 
   @override
   String planCountsAsMortgage(String account) {
     return '$account counts as mortgage';
-  }
-
-  @override
-  String planCountsAsStudentLoan(String account) {
-    return '$account counts as student loan';
   }
 
   @override
@@ -1758,7 +1744,7 @@ class WordsEn extends Words {
 
   @override
   String planCountsAsConsumer(String account) {
-    return '$account counts as consumer debt';
+    return '$account counts as debt to pay off';
   }
 
   @override
@@ -1777,7 +1763,7 @@ class WordsEn extends Words {
 
   @override
   String planCarried(String date) {
-    return 'Owed every day since $date: a balance is carrying over. It’s left out of consumer debt only because it’s marked paid in full.';
+    return 'Owed every day since $date: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.';
   }
 
   @override
@@ -3487,11 +3473,6 @@ class WordsEn extends Words {
     String one,
   ) {
     return '$account: $amount · $rate per $one';
-  }
-
-  @override
-  String savingsOtherCurrencyItem(Object account, Object amount) {
-    return '$account  $amount · another currency, not counted yet';
   }
 
   @override

@@ -2185,34 +2185,29 @@
   "@planCourseNote": {
     "description": "Savings page: small note under the steps. Personal Finances for Self-Reliance is the Church’s course; use its official Mongolian title if it has one"
   },
-  "planStepOneMonth": "One month of expenses set aside",
+  "planStepOneMonth": "Build a safety net",
   "@planStepOneMonth": {
-    "description": "Savings page, step title (step 1)"
+    "description": "Savings page, step title (step 1): a month of expenses set aside"
   },
-  "planStepHealth": "Health coverage",
-  "@planStepHealth": {
-    "description": "Savings page, step title (step 2): health insurance or another way to get medical care"
-  },
-  "planStepConsumerDebt": "No consumer debt",
+  "planStepConsumerDebt": "Eliminate debt",
   "@planStepConsumerDebt": {
-    "description": "Savings page, step title (step 3): no credit card or consumer loan balances"
+    "description": "Savings page, step title (step 2): every credit card and loan except the mortgage"
   },
-  "planStepMoreMonths": "{months} months of expenses set aside",
+  "planStepMoreMonths": "Build three to six months of savings",
   "@planStepMoreMonths": {
-    "description": "Savings page, step title (step 4): months is 3 to 6",
-    "placeholders": {
-      "months": {
-        "type": "int"
-      }
-    }
+    "description": "Savings page, step title (step 3): three to six months of expenses set aside"
+  },
+  "planStepFuture": "Save for the future",
+  "@planStepFuture": {
+    "description": "Savings page, step title (step 4): retirement and the mortgage"
   },
   "planStepRetirement": "Saving for retirement",
   "@planStepRetirement": {
-    "description": "Savings page, step title (step 5)"
+    "description": "Savings page, step 4 (Save for the future): heading of its first part"
   },
-  "planStepLongLoans": "Paying off the mortgage and student loans",
+  "planStepLongLoans": "Paying off the mortgage",
   "@planStepLongLoans": {
-    "description": "Savings page, step title (step 6)"
+    "description": "Savings page, step 4 (Save for the future): heading of its second part"
   },
   "planNow": "Now",
   "@planNow": {
@@ -2244,14 +2239,9 @@
       }
     }
   },
-  "planMonthUnknown": "A month of your spending isn’t known yet ({days, plural, =1{1 day} other{{days} days}} of rows). Type it, or come back in a few weeks.",
+  "planMonthUnknown": "A month of your expenses isn’t known yet. It comes from your budget once you fill that in, or you can type it.",
   "@planMonthUnknown": {
-    "description": "Savings page, emergency fund steps: not enough history to average a month",
-    "placeholders": {
-      "days": {
-        "type": "int"
-      }
-    }
+    "description": "Savings page, safety net step: nothing budgeted and not enough history to know a month"
   },
   "planMonthNoSpending": "No spending in the last {days} days to go by. Type a month of your expenses.",
   "@planMonthNoSpending": {
@@ -2259,6 +2249,15 @@
     "placeholders": {
       "days": {
         "type": "int"
+      }
+    }
+  },
+  "planMonthBudget": "A month of expenses: {amount}, from your budget",
+  "@planMonthBudget": {
+    "description": "Savings page, safety net step: the month is what the budget holds for this month; amount like ₮2,400,000",
+    "placeholders": {
+      "amount": {
+        "type": "String"
       }
     }
   },
@@ -2325,9 +2324,54 @@
       }
     }
   },
-  "planWhichAccount": "Which account holds it? Pick one below. A savings account you can reach but don’t spend from works best.",
+  "planWhichAccount": "Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.",
   "@planWhichAccount": {
     "description": "Savings page, emergency fund steps: guidance when no account is picked"
+  },
+  "planFundCategoryName": "Safety net",
+  "@planFundCategoryName": {
+    "description": "The name the app gives its built-in Safety net budget category when it makes it"
+  },
+  "planFundWhere": "{there} in {names} · {move} still to move there",
+  "@planFundWhere": {
+    "description": "Savings page, safety net step: how much of the safety net is already in the account(s) its category is paid from, and how much is still elsewhere; names is one or more account names",
+    "placeholders": {
+      "there": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      },
+      "move": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundAllIn": "All of it is in {names}",
+  "@planFundAllIn": {
+    "description": "Savings page, safety net step: the whole safety net is in the account(s) its category is paid from",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planFundSetPaidFrom": "Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.",
+  "@planFundSetPaidFrom": {
+    "description": "Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words"
+  },
+  "planFundNotAssigned": "{amount} in your budget is not assigned to anything.",
+  "@planFundNotAssigned": {
+    "description": "Savings page, safety net step: money not assigned in the budget, above a button offering to assign it to the safety net",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planSaved": "Saved",
+  "@planSaved": {
+    "description": "Budget page: quiet heading above the safety net’s category, under the spending categories"
   },
   "planKeepReachable": "Keep it where you can reach it. If you use it, fill it back up before anything else.",
   "@planKeepReachable": {
@@ -2344,15 +2388,7 @@
   },
   "planEnoughForJobLoss": "Enough to get through losing a job or a long illness.",
   "@planEnoughForJobLoss": {
-    "description": "Savings page, step 4: guidance"
-  },
-  "planHealthYes": "You have it",
-  "@planHealthYes": {
-    "description": "Savings page, health step: answered yes"
-  },
-  "planHealthWhat": "Insurance, or some other way to get medical care",
-  "@planHealthWhat": {
-    "description": "Savings page, health step: what it means, before an answer"
+    "description": "Savings page, step 3: guidance"
   },
   "planRetirementYes": "You’re putting money into it",
   "@planRetirementYes": {
@@ -2365,10 +2401,6 @@
   "planEmployerMatch": "If your employer matches what you put in, put in at least enough to get all of it.",
   "@planEmployerMatch": {
     "description": "Savings page, retirement step: guidance"
-  },
-  "planIHaveIt": "I have it",
-  "@planIHaveIt": {
-    "description": "Savings page, health step: answer button"
   },
   "planIAm": "I am",
   "@planIAm": {
@@ -2413,19 +2445,19 @@
   "@planLongNone": {
     "description": "Savings page, mortgage step: the user said there are none"
   },
-  "planLongAsk": "Do you have a mortgage or student loans?",
+  "planLongAsk": "Do you have a mortgage?",
   "@planLongAsk": {
     "description": "Savings page, mortgage step: question before an answer"
   },
-  "planLongMarkThere": "If a loan under No consumer debt is one, mark it there.",
+  "planLongMarkThere": "If a loan under Eliminate debt is the mortgage, mark it there.",
   "@planLongMarkThere": {
-    "description": "Savings page, mortgage step: guidance; No consumer debt is step 3’s title"
+    "description": "Savings page, mortgage part of step 4: guidance; Eliminate debt is step 2’s title"
   },
   "planIHaveNone": "I have none",
   "@planIHaveNone": {
     "description": "Savings page, mortgage step: answer button"
   },
-  "planPayingExtraOnThem": "Paying extra on them",
+  "planPayingExtraOnThem": "Paying extra on it",
   "@planPayingExtraOnThem": {
     "description": "Savings page, mortgage step: answer button"
   },
@@ -2433,19 +2465,19 @@
   "@planNotYet": {
     "description": "Savings page: answer button"
   },
-  "planNoLongLoansUndo": "No mortgage or student loans",
+  "planNoLongLoansUndo": "No mortgage",
   "@planNoLongLoansUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
-  "planPayingExtraUndo": "Paying extra on loans",
+  "planPayingExtraUndo": "Paying extra on the mortgage",
   "@planPayingExtraUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
-  "planLoansNotYetUndo": "Loans: not yet",
+  "planLoansNotYetUndo": "Mortgage: not yet",
   "@planLoansNotYetUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
-  "planNotPayingExtraUndo": "Not paying extra on loans",
+  "planNotPayingExtraUndo": "Not paying extra on the mortgage",
   "@planNotPayingExtraUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
@@ -2478,38 +2510,7 @@
       }
     }
   },
-  "planPickAccount": "Pick the account",
-  "@planPickAccount": {
-    "description": "Savings page, step 1: gold button, pick the account that holds the emergency fund"
-  },
-  "planKeptIn": "Kept in {names}",
-  "@planKeptIn": {
-    "description": "Savings page, step 1: button showing the account(s) that hold the emergency fund",
-    "placeholders": {
-      "names": {
-        "type": "String"
-      }
-    }
-  },
-  "planFundOffUndo": "{account} no longer holds the emergency fund",
-  "@planFundOffUndo": {
-    "description": "Savings page: undo label",
-    "placeholders": {
-      "account": {
-        "type": "String"
-      }
-    }
-  },
-  "planFundOnUndo": "{account} holds the emergency fund",
-  "@planFundOnUndo": {
-    "description": "Savings page: undo label",
-    "placeholders": {
-      "account": {
-        "type": "String"
-      }
-    }
-  },
-  "planMonthBackToAverage": "A month of expenses: back to your average",
+  "planMonthBackToAverage": "A month of expenses: no longer the one you typed",
   "@planMonthBackToAverage": {
     "description": "Savings page: toast and undo label after clearing the typed month"
   },
@@ -2542,13 +2543,13 @@
   "@planSave": {
     "description": "Savings page, step 1, beside the month field; and the Budget page, Edit under a category's row: button that keeps what was changed"
   },
-  "planEmptyToAverage": "Empty goes back to your average",
+  "planEmptyToAverage": "Empty goes back to your budget or your average",
   "@planEmptyToAverage": {
     "description": "Savings page, step 1: note beside the month field"
   },
   "planMonthsChoice": "{count} months",
   "@planMonthsChoice": {
-    "description": "Savings page, step 4: choice of 3 to 6 months",
+    "description": "Savings page, step 3: choice of 3 to 6 months",
     "placeholders": {
       "count": {
         "type": "int"
@@ -2557,7 +2558,7 @@
   },
   "planAimingFor": "Aiming for {count} months",
   "@planAimingFor": {
-    "description": "Savings page, step 4: undo label",
+    "description": "Savings page, step 3: undo label",
     "placeholders": {
       "count": {
         "type": "int"
@@ -2568,29 +2569,16 @@
   "@planRoleMortgage": {
     "description": "Savings page: what a card or loan counts as (menu and label)"
   },
-  "planRoleStudentLoan": "Student loan",
-  "@planRoleStudentLoan": {
-    "description": "Savings page: what a card or loan counts as (menu and label)"
-  },
   "planRolePaidMonthly": "Paid in full every month",
   "@planRolePaidMonthly": {
     "description": "Savings page: what a card counts as (menu and label)"
   },
-  "planRoleConsumer": "Consumer debt",
+  "planRoleConsumer": "Debt to pay off",
   "@planRoleConsumer": {
     "description": "Savings page: what a card or loan counts as (menu and label)"
   },
   "planCountsAsMortgage": "{account} counts as mortgage",
   "@planCountsAsMortgage": {
-    "description": "Savings page: undo label",
-    "placeholders": {
-      "account": {
-        "type": "String"
-      }
-    }
-  },
-  "planCountsAsStudentLoan": "{account} counts as student loan",
-  "@planCountsAsStudentLoan": {
     "description": "Savings page: undo label",
     "placeholders": {
       "account": {
@@ -2607,7 +2595,7 @@
       }
     }
   },
-  "planCountsAsConsumer": "{account} counts as consumer debt",
+  "planCountsAsConsumer": "{account} counts as debt to pay off",
   "@planCountsAsConsumer": {
     "description": "Savings page: undo label",
     "placeholders": {
@@ -2637,9 +2625,9 @@
   "@planPayExtraHere": {
     "description": "Savings page: blue tag on the debt to pay extra on"
   },
-  "planCarried": "Owed every day since {date}: a balance is carrying over. It’s left out of consumer debt only because it’s marked paid in full.",
+  "planCarried": "Owed every day since {date}: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.",
   "@planCarried": {
-    "description": "Savings page: gold warning under a card marked paid in full every month; date like 2026.09.16",
+    "description": "Savings page: warning under a card marked paid in full every month; date like 2026.09.16",
     "placeholders": {
       "date": {
         "type": "String"
@@ -5101,14 +5089,6 @@
       "one": {
         "type": "String"
       }
-    }
-  },
-  "savingsOtherCurrencyItem": "{account}  {amount} · another currency, not counted yet",
-  "@savingsOtherCurrencyItem": {
-    "description": "Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.",
-    "placeholders": {
-      "account": {},
-      "amount": {}
     }
   },
   "savingsOnlyOne": "Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.",

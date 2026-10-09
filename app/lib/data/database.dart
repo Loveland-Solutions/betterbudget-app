@@ -3426,6 +3426,49 @@ class AppDatabase extends _$AppDatabase {
     return existing.read<int>('id');
   }
 
+  /// The one Safety net category (ADR 0004 "Four Savings steps"), made the
+  /// first time it's wanted: the spending category marked as the fund.
+  /// [adopt] is a category the user already made for it, which becomes
+  /// the app's own instead of a second one being made.
+  Future<int> safetyNetCategory({
+    required String name,
+    required Currency currency,
+    int? adopt,
+  }) => transaction(() async {
+    final existing =
+        await (select(accounts)
+              ..where(
+                (a) =>
+                    a.type.equalsValue(AccountType.expense) &
+                    a.role.equalsValue(AccountRole.emergencyFund) &
+                    a.deletedAt.isNull(),
+              )
+              ..orderBy([(a) => OrderingTerm(expression: a.id)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing != null) return existing.id;
+    if (adopt != null) {
+      await (update(accounts)..where(
+            (a) => a.id.equals(adopt) & a.type.equalsValue(AccountType.expense),
+          ))
+          .write(
+            const AccountsCompanion(
+              role: Value(AccountRole.emergencyFund),
+              archivedAt: Value(null),
+            ),
+          );
+      return adopt;
+    }
+    return into(accounts).insert(
+      AccountsCompanion.insert(
+        name: name,
+        type: AccountType.expense,
+        currency: Value(currency.code),
+        role: const Value(AccountRole.emergencyFund),
+      ),
+    );
+  });
+
   /// A category of the user's own: not the app's Income, which holds no
   /// budget and can't be deleted or merged away.
   Future<void> _assertOwnCategory(int id) async {

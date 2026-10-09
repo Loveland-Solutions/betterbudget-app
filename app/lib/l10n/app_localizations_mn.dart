@@ -1401,25 +1401,22 @@ class WordsMn extends Words {
       '«Өөртөө найдах чадварын төлөө хувийн санхүү» сургалтын дарааллаар: алхам бүр дараагийнхыг илүү найдвартай болгоно.';
 
   @override
-  String get planStepOneMonth => 'Нэг сарын зардлын нөөц';
+  String get planStepOneMonth => 'Аюулгүйн нөөц бүрдүүлэх';
 
   @override
-  String get planStepHealth => 'Эрүүл мэндийн даатгал';
+  String get planStepConsumerDebt => 'Өрөө төлж дуусгах';
 
   @override
-  String get planStepConsumerDebt => 'Хэрэглээний өргүй';
+  String get planStepMoreMonths => 'Гурваас зургаан сарын хуримтлал бүрдүүлэх';
 
   @override
-  String planStepMoreMonths(int months) {
-    return '$months сарын зардлын нөөц';
-  }
+  String get planStepFuture => 'Ирээдүйдээ зориулж хуримтлуулах';
 
   @override
   String get planStepRetirement => 'Тэтгэврийн хуримтлал';
 
   @override
-  String get planStepLongLoans =>
-      'Орон сууцны болон оюутны зээлээ төлж дуусгах';
+  String get planStepLongLoans => 'Орон сууцны зээлээ төлж дуусгах';
 
   @override
   String get planNow => 'Одоо';
@@ -1441,13 +1438,17 @@ class WordsMn extends Words {
   }
 
   @override
-  String planMonthUnknown(int days) {
-    return 'Таны сарын зарлага одоохондоо тодорхойгүй ($days хоногийн гүйлгээ бий). Дүнгээ оруулах эсвэл хэдэн долоо хоногийн дараа эргэж үзээрэй.';
-  }
+  String get planMonthUnknown =>
+      'Таны нэг сарын зардал одоохондоо тодорхойгүй. Төсвөө бөглөсний дараа тэндээс авна, эсвэл дүнгээ өөрөө оруулж болно.';
 
   @override
   String planMonthNoSpending(int days) {
     return 'Сүүлийн $days хоногт тооцох зарлага алга. Нэг сарын зардлаа оруулаарай.';
+  }
+
+  @override
+  String planMonthBudget(String amount) {
+    return 'Нэг сарын зардал: $amount, төсвөөс тань';
   }
 
   @override
@@ -1485,7 +1486,32 @@ class WordsMn extends Words {
 
   @override
   String get planWhichAccount =>
-      'Энэ мөнгийг аль дансанд хадгалах вэ? Доороос сонгоорой. Хүссэн үедээ авч болох ч зарцуулдаггүй хадгаламж хамгийн тохиромжтой.';
+      'Аюулгүйн нөөц бол төсөв дэх «Аюулгүйн нөөц» ангилал: түүнд хуваарилаад зарцуулдаггүй мөнгө. Тусдаа хадгаламжийн дансанд байлгах нь хамгийн зөв; ийм данс нээх хүртлээ зарлагын дансандаа байлгаж болно.';
+
+  @override
+  String get planFundCategoryName => 'Аюулгүйн нөөц';
+
+  @override
+  String planFundWhere(String there, String names, String move) {
+    return '$names: $there · $move шилжүүлэх үлдсэн';
+  }
+
+  @override
+  String planFundAllIn(String names) {
+    return 'Бүгд $names дансанд байна';
+  }
+
+  @override
+  String get planFundSetPaidFrom =>
+      'Хадгаламжийн дансанд байлгаж байна уу? Төсөв хуудсан дээр ангиллын Засах хэсгийг нээж, Төлөх дансыг тэр данс болгоорой. Тэгвэл энэ алхам тийш хэдийг шилжүүлснийг харуулна.';
+
+  @override
+  String planFundNotAssigned(String amount) {
+    return 'Төсөвт тань $amount юунд ч хуваарилагдаагүй байна.';
+  }
+
+  @override
+  String get planSaved => 'Хуримтлал';
 
   @override
   String get planKeepReachable =>
@@ -1501,12 +1527,6 @@ class WordsMn extends Words {
       'Ажилгүй болох эсвэл удаан өвдөх үед хүрэлцэх хэмжээ.';
 
   @override
-  String get planHealthYes => 'Танд бий';
-
-  @override
-  String get planHealthWhat => 'Даатгал, эсвэл эмчилгээ авах өөр боломж';
-
-  @override
   String get planRetirementYes => 'Та мөнгө хийж байгаа';
 
   @override
@@ -1515,9 +1535,6 @@ class WordsMn extends Words {
   @override
   String get planEmployerMatch =>
       'Таны хийсэн мөнгөтэй адил дүнг ажил олгогч нэмж хийдэг бол тэр нэмэлтийг бүтэн авахуйц хэмжээгээр хийгээрэй.';
-
-  @override
-  String get planIHaveIt => 'Надад бий';
 
   @override
   String get planIAm => 'Хийж байна';
@@ -1548,12 +1565,11 @@ class WordsMn extends Words {
   String get planLongNone => 'Танд байхгүй';
 
   @override
-  String get planLongAsk =>
-      'Танд орон сууцны зээл эсвэл оюутны зээл байгаа юу?';
+  String get planLongAsk => 'Танд орон сууцны зээл байгаа юу?';
 
   @override
   String get planLongMarkThere =>
-      '«Хэрэглээний өргүй» алхмын доорх зээлүүдийн аль нэг нь ийм бол тэнд тэмдэглээрэй.';
+      '«Өрөө төлж дуусгах» алхмын доорх зээлүүдийн аль нэг нь орон сууцны зээл бол тэнд тэмдэглээрэй.';
 
   @override
   String get planIHaveNone => 'Надад байхгүй';
@@ -1565,16 +1581,17 @@ class WordsMn extends Words {
   String get planNotYet => 'Одоохондоо үгүй';
 
   @override
-  String get planNoLongLoansUndo => 'Орон сууцны болон оюутны зээлгүй';
+  String get planNoLongLoansUndo => 'Орон сууцны зээлгүй';
 
   @override
-  String get planPayingExtraUndo => 'Зээлдээ илүү төлж байна';
+  String get planPayingExtraUndo => 'Орон сууцны зээлдээ илүү төлж байна';
 
   @override
-  String get planLoansNotYetUndo => 'Зээл: одоохондоо үгүй';
+  String get planLoansNotYetUndo => 'Орон сууцны зээл: одоохондоо үгүй';
 
   @override
-  String get planNotPayingExtraUndo => 'Зээлдээ илүү төлөхгүй байна';
+  String get planNotPayingExtraUndo =>
+      'Орон сууцны зээлдээ илүү төлөхгүй байна';
 
   @override
   String get planPaidOff => 'Төлж дууссан';
@@ -1593,25 +1610,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planPickAccount => 'Данс сонгох';
-
-  @override
-  String planKeptIn(String names) {
-    return 'Хадгалдаг данс: $names';
-  }
-
-  @override
-  String planFundOffUndo(String account) {
-    return '$account дансанд яаралтай үеийн нөөц хадгалахаа больсон';
-  }
-
-  @override
-  String planFundOnUndo(String account) {
-    return '$account дансанд яаралтай үеийн нөөц хадгална';
-  }
-
-  @override
-  String get planMonthBackToAverage => 'Нэг сарын зардал: дунджаар тооцно';
+  String get planMonthBackToAverage =>
+      'Нэг сарын зардал: таны оруулсан дүн биш боллоо';
 
   @override
   String planMonthSet(String amount) {
@@ -1634,7 +1634,7 @@ class WordsMn extends Words {
   String get planSave => 'Хадгалах';
 
   @override
-  String get planEmptyToAverage => 'Хоосон бол дунджаар тооцно';
+  String get planEmptyToAverage => 'Хоосон бол төсөв эсвэл дунджаар тооцно';
 
   @override
   String planMonthsChoice(int count) {
@@ -1650,22 +1650,14 @@ class WordsMn extends Words {
   String get planRoleMortgage => 'Орон сууцны зээл';
 
   @override
-  String get planRoleStudentLoan => 'Оюутны зээл';
-
-  @override
   String get planRolePaidMonthly => 'Сар бүр бүрэн төлдөг';
 
   @override
-  String get planRoleConsumer => 'Хэрэглээний өр';
+  String get planRoleConsumer => 'Төлж дуусгах өр';
 
   @override
   String planCountsAsMortgage(String account) {
     return '$account: орон сууцны зээл гэж тооцно';
-  }
-
-  @override
-  String planCountsAsStudentLoan(String account) {
-    return '$account: оюутны зээл гэж тооцно';
   }
 
   @override
@@ -1675,7 +1667,7 @@ class WordsMn extends Words {
 
   @override
   String planCountsAsConsumer(String account) {
-    return '$account: хэрэглээний өр гэж тооцно';
+    return '$account: төлж дуусгах өр гэж тооцно';
   }
 
   @override
@@ -1694,7 +1686,7 @@ class WordsMn extends Words {
 
   @override
   String planCarried(String date) {
-    return '$date өдрөөс хойш өдөр бүр өртэй байна: үлдэгдэл дараа сард шилжиж байна. Сар бүр бүрэн төлдөг гэж тэмдэглэсэн учраас л хэрэглээний өрөнд ороогүй.';
+    return '$date өдрөөс хойш өдөр бүр өртэй байна: үлдэгдэл дараа сард шилжиж байна. Сар бүр бүрэн төлдөг гэж тэмдэглэсэн учраас л төлж дуусгах өрөнд ороогүй.';
   }
 
   @override
@@ -3342,11 +3334,6 @@ class WordsMn extends Words {
     String one,
   ) {
     return '$account: $amount · $one = $rate';
-  }
-
-  @override
-  String savingsOtherCurrencyItem(Object account, Object amount) {
-    return '$account  $amount · өөр валют, одоогоор тооцохгүй';
   }
 
   @override

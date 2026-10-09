@@ -242,10 +242,13 @@ def main() -> None:
     # What the app draws today: the sidebar is dark in every color scheme, so it
     # shows the night logo and word. The day word is kept beside it as the source
     # the next run reads.
+    # The Savings page draws each step's picture, the night copy on a dark page.
+    steps = ("safety-net", "eliminate-debt", "three-to-six-months", "save-for-the-future")
     for made, used in (
         ("logo-night.svg", "mark-dark.svg"),
         ("wordmark-night.svg", "wordmark-dark.svg"),
         ("wordmark.svg", "wordmark.svg"),
+        *((f"savings-{s}{n}.svg",) * 2 for s in steps for n in ("", "-night")),
     ):
         (BRAND / used).write_text((HERE / made).read_text())
         print(f"  -> app/assets/brand/{used}")

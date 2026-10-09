@@ -108,7 +108,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | card charge / card payment | зарлага / төлөлт | |
 | expenses | зардал | "a month of expenses" = нэг сарын зардал |
 | emergency fund | яаралтай үеийн нөөц | |
-| consumer debt | хэрэглээний өр | |
+| debt to pay off (Savings step 2) | төлж дуусгах өр | every card and loan but the mortgage; was "consumer debt" |
 | mortgage | орон сууцны зээл | |
 | set aside (a step) | хойшлуулах | |
 | estimate | тооцоолсон дүн | |

@@ -215,9 +215,8 @@ screens at https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S.
   what the app shows written into `app/assets/brand/`. The owner took "3-6 MONTHS" and
   the "$" out of pictures 3 and 4 themselves, so the "$" came off the Safety net coin
   and "DEBT" off the ball as well (words in a picture can't be translated, and "$"
-  says dollars in a tugrik ledger). The Savings pictures are prepared and not yet on
-  the Savings page: two of its six steps (health coverage; the mortgage and student
-  loans) have no picture.
+  says dollars in a tugrik ledger). The Savings pictures are on the Savings page since
+  2026-10-09, one to a step ("Four Savings steps" below).
 - **App icon.** The logo upright on a white tile, on Android
   (`app/tool/gen_android_icons.sh`), and until 2026-10-09 on the Mac. This
   replaces the bee tilted 45° (2026-09-29). The iPhone and Windows builds still have
@@ -272,7 +271,7 @@ the owner settled what was left of the first color scheme on the computer.
   with just the computer"); `main.dart` sets it.
 - **The Savings steps are going to change** (owner, when asked where the four Savings
   pictures go: "We're going to change the steps. We'll get to that when we get to the
-  budget page"). The pictures wait for that.
+  budget page"). Changed on 2026-10-09: "Four Savings steps" below.
 
 ### Color: how the dark and light modes were reached (owner, 2026-09-29)
 
@@ -1087,7 +1086,9 @@ What's known so far:
       two. Adding pay after "I don't have regular pay" clears the saying, and
       undo brings it back; the button isn't offered again once it's set.
 25. **Savings is the steps to getting financially prepared** (owner's calls,
-    2026-09-19). It follows the order of the Church's *Personal Finances for
+    2026-09-19). **The six steps below became four on 2026-10-09** ("Four Savings
+    steps"); how a step works is as written here unless that section says
+    otherwise. It follows the order of the Church's *Personal Finances for
     Self-Reliance* course ("What Is My Current Financial Priority?", chapter 5;
     see [self-reliance-course.md](../self-reliance-course.md)), **for everyone**.
     Tithing is left out: "I'm not going to push tithing. I want to push getting
@@ -2762,6 +2763,94 @@ it), and one large question per screen with the accounts in a side panel.
   Continue when Bills is. The filled buttons in setup no longer show a ⌘N tooltip (⌘N
   does nothing there).
 
+
+### Four Savings steps (owner, 2026-10-09)
+
+The owner: "Let's work on the savings portion of this budget. There will be four
+steps. 1. Build a safety net 2. Eliminated Debt (credit cards, vehicles, not house)
+3. Build a three to six month savings 4. Final Save for the future." They are the
+four pictures the owner drew (`assets/logo/Images/Savings_*`). This replaces rule 25's
+six steps; everything else in rule 25 stands.
+
+- **The titles are the owner's words:** Build a safety net · Eliminate debt · Build
+  three to six months of savings · Save for the future. Each step shows its picture
+  to the left of its number, the night copy on a dark page (`SavingsPicture` in
+  `ui/brand.dart`; the files are copied into `app/assets/brand/` by `prepare.py`).
+- **Step 1, the safety net, is still one month of expenses** (rule 25). The owner
+  renamed the step and gave no new amount.
+- **A month of expenses comes from the budget** (owner, on seeing the step: "Shouldn't
+  you know what a month of their expenses is? Maybe pull it from the budget and let
+  them adjust it."). In order: the figure they typed; else what the budget holds for
+  this calendar month (for each spending category, what its plan asks for the month
+  or what is assigned to it, whichever is more), said as "from your budget"; else the
+  three-month average of spending as before; else it asks. A card or loan payment
+  budgeted as a category is in it like rent, which the average left out. "Type your
+  own month" stays.
+- **The safety net is kept apart: "in a different account (ideally) or a different
+  category"** (owner's correction, the same day). The first build counted the whole
+  of the account picked, and with one account that was every tugrik they had, their
+  rent money included ("No, man"). A second build let them tick accounts and
+  categories in a "Kept in" menu; the owner could not follow it ("I don't know what
+  you're saying here"), and it counted money twice once a ticked category's money
+  was moved into a ticked account.
+- **The safety net is one budget category, and its Left is the count** (owner,
+  2026-10-09: "Yes, build a, but I'll need to use it to see if it works"; the
+  `budget-expert` agent's way A of three). The owner's two cases, saving straight
+  into a savings account and assigning to a category then moving the money when they
+  can, come to one figure: a transfer between their own accounts changes where the
+  money is, never how much is saved.
+  - **Safety net is built into the app, like Income** (owner, shown a button that
+    made the category: "No, I think we should have a dedicated safety net category
+    built into the app"). Every ledger past setup has one: it is made, with no
+    button and no question, the first time such a ledger is opened without it, in
+    the currency most accounts are in. It is the spending category carrying the
+    mark an account used to carry (`AccountRole.emergencyFund`), so there is no
+    schema change. It can be renamed and edited like any category; its menu has no
+    Delete and its Edit no Archive. A category the owner had made with the earlier
+    button, or one already named Safety net, becomes it, with its rows and amounts
+    as they were.
+  - The step counts what is Left in it. When the category's **Paid from** is only
+    some accounts, the step says where the money is: "₮600,000 in Khan Savings ·
+    ₮400,000 still to move there", or "All of it is in Khan Savings". With two or
+    more accounts and no such limit, it says how to set one.
+  - Money saved straight into an account is Not assigned on the Budget page; the
+    step says "₮1,000,000 in your budget is not assigned to anything." with a
+    button, "Assign ₮1,000,000 to Safety net" (no more than fills it).
+  - The category is left out of a month of expenses.
+  - **On the Budget page it sits last, under a quiet heading "Saved"** (owner: "we
+    should probably create some type of visual separation"; and "Just safety net"
+    when asked whether every category being saved in goes there). The top line is
+    unchanged.
+  - *Rejected:* B, both ticks with the overlap taken off (the figure rests on a rule
+    nobody can see, and money saved straight into the account still reads Not
+    assigned); C, only the savings account counts (with one account there could
+    never be a safety net).
+  - **An account marked as holding the fund before this is no longer counted.** Its
+    mark stays in the ledger and nothing reads it.
+- **Step 2 is every card and loan owing except the house:** not one marked Mortgage,
+  and not a card marked "Paid in full every month". **A student loan counts here now**
+  (it waited with the mortgage before): the owner left out only the house. "Student
+  loan" is offered in a debt's menu only to an account already marked one. What was
+  "Consumer debt" on a debt's line reads **"Debt to pay off"**.
+- **Step 3** is as before. Its title no longer carries the number of months, so the
+  3, 4, 5, 6 months buttons always show on it, not only while it is the current step.
+- **Step 4, Save for the future, holds what were steps 5 and 6** as two headed parts:
+  "Saving for retirement" (I am / Not yet) and "Paying off the mortgage" (as step 6
+  was, less student loans). It is done when both are. What else belongs in it is the
+  owner's to say (ROADMAP D: goals with dates).
+- **Health coverage is no longer a step.** An answer already given stays in the
+  ledger (`ready.health`) and nothing reads it.
+- **Nothing in a ledger is changed or dropped,** and there is no schema change. The
+  three steps that carried over keep the names a set-aside step is stored under; a
+  set-aside "health", "retirement" or "longLoans" is passed over.
+- **The page fills the window** (the owner's correction on the Budget page), with
+  each step's words held to a width that reads.
+- **From the reviews** (decided along the lines above): an account marked a student
+  loan under the six steps shows as "Debt to pay off", already ticked, and picking
+  that leaves its mark alone (the mark still keeps its payments in a month of
+  expenses); "Paying extra on it" with no loan marked reads "Paying extra", not the
+  question again. What the budget review found and was left for the owner is in
+  STATUS ("Waiting on the owner" 17, and "Known bugs").
 
 ### Two computers: what is said when the ledger comes from another one (2026-10-09)
 

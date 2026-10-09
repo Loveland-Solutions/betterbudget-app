@@ -51,7 +51,7 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Accounts | `database.dart` "accounts" | `accounts.dart`; sidebar in `ledger_screen.dart` | both ledger tests ("accounts") |
 | Pay | `domain/pay.dart`; `database.dart` "pay" | `pay_setup.dart` (`_PayForm`); `_applyPay` in `ledger_screen.dart` writes its answer | `pay_test.dart`; both ledger tests ("pay"); `setup_test.dart` (the Pay step) |
 | Budget, categories | `domain/budget.dart`; `domain/ledger.dart` (`CategoryPlan`, `BudgetAmount`); `database.dart` "categories" | `budget.dart` | `budget_test.dart`; both ledger tests ("categories") |
-| Savings steps | `domain/readiness.dart` | `savings.dart` | `readiness_test.dart`, `ledger_screen_test.dart` |
+| Savings steps | `domain/readiness.dart` (`ReadyStep`: four; its names are stored, don't rename; `isSafetyNet`, the built-in category) and `database.dart` `safetyNetCategory`; `_ensureSafetyNet` in `ledger_screen.dart` makes it at launch | `savings.dart`; `SavingsPicture` in `brand.dart` draws a step's picture from `assets/brand/savings-*.svg` | `readiness_test.dart`, `ledger_screen_test.dart` ("savings:") |
 | Import | `import/sheet.dart` (`readSheet` picks `xls`, `xlsx`, `csv` or `ofx`); `import/mapping.dart` (`guessMapping`, `readRows`, `importKeys`); `database.dart` "import" (`planImport`, `applyImport`, `undoImport`) | `import_dialog.dart`; file picking in `ledger_screen.dart` | `import_test.dart`, `xls_fixture.dart` |
 | Currencies | `domain/money.dart` + `domain/currencies.dart`; `l10n/currency_names.dart` | `theme.dart` (`Money`, `CurrencyScope`); `language.dart` (`currencyName`) | `money_test.dart`, `currency_test.dart` |
 | Keys, encryption | `data/keys.dart`, `data/encryption.dart` | `startup.dart`, `recovery_key_screen.dart` | `keys_test.dart`, `encryption_test.dart`, `cipher_test.dart`, `startup_test.dart`, `recovery_key_screen_test.dart` |
@@ -80,7 +80,8 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `flutter gen-l10n` or any build. `domain/currencies.dart` and
   `l10n/currency_names.dart` by `tool/gen_currencies.py`; `BetterBudgetSymbols.ttf` by
   `tool/gen_symbol_font.py` ([currencies.md](currencies.md)).
-- **Logo and pictures.** `assets/brand/mark-dark.svg` and the two wordmarks are written
+- **Logo and pictures.** `assets/brand/mark-dark.svg`, the two wordmarks and the eight
+  `savings-*.svg` (four steps, day and night) are written
   by `assets/logo/prepared/prepare.py` (repo root) from the owner's vectors in
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
   Mac icon is drawn by `design/icon/app_icon.py`, Android's by
