@@ -65,8 +65,9 @@ phone come before item 1; "Waiting on the owner" 16):
    "Gold is an accent, and the new colors come first"). **The phone is next when the
    owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
    the Pixel still has the old build and the bee icon: its new icon is drawn in the
-   project and arrives with the next install. The iPhone and Windows builds still have
-   Flutter's icon. The four Savings pictures the owner drew are made ready
+   project and arrives with the next install. The Mac's icon is the logo on a navy tile
+   (2026-10-09); Android's drawn one is still the white tile. The iPhone and Windows
+   builds still have Flutter's icon. The four Savings pictures the owner drew are made ready
    (`assets/logo/prepared/savings-*.svg`, day and night) and wait: the owner is going
    to change the Savings steps, and said to take that up with the budget page.
 

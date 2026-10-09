@@ -81,7 +81,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
 - **Logo and pictures.** `assets/brand/mark-dark.svg` and the two wordmarks are written
   by `assets/logo/prepared/prepare.py` (repo root) from the owner's vectors in
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
-  Mac icon is drawn by `design/icon/app_icon.swift`, Android's by
+  Mac icon is drawn by `design/icon/app_icon.py`, Android's by
   `tool/gen_android_icons.sh`.
 - **Words.** New text goes in both `.arb` files with the same key and placeholders, or
   `language_test.dart` fails. Terms and tone: [l10n-glossary.md](l10n-glossary.md).

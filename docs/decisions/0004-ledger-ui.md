@@ -218,10 +218,15 @@ screens at https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S.
   says dollars in a tugrik ledger). The Savings pictures are prepared and not yet on
   the Savings page: two of its six steps (health coverage; the mortgage and student
   loans) have no picture.
-- **App icon.** The logo upright on a white tile, on the Mac
-  (`design/icon/app_icon.swift`) and Android (`app/tool/gen_android_icons.sh`). This
+- **App icon.** The logo upright on a white tile, on Android
+  (`app/tool/gen_android_icons.sh`), and until 2026-10-09 on the Mac. This
   replaces the bee tilted 45° (2026-09-29). The iPhone and Windows builds still have
-  Flutter's icon.
+  Flutter's icon. **On the Mac it is the logo's night form on a navy tile** (owner,
+  2026-10-09: "Let's redo the main app icon… Make a nice one with the new icon"):
+  the sidebar's navy, lit a little from above, with the white B, the green B and
+  the coins, so the subject stays light when macOS's dark style turns tiles
+  charcoal (`design/icon/app_icon.py`). Drawn beside it and not chosen: the same
+  logo on a soft white tile. Android still has the white tile.
 
 ### Gold is an accent, and the new colors come first (owner, 2026-10-09)
 
