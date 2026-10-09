@@ -213,7 +213,11 @@ class EntryRow extends StatefulWidget {
     this.accountChoices,
     this.currency = Currency.mnt,
     this.pays = const [],
+    this.notice,
   });
+
+  /// Something the row has to say before it's saved, under its fields.
+  final Widget? notice;
 
   /// Adding: each pay the new row could be a paycheck of, as Category
   /// names it. In All accounts, only those paid into the account picked.
@@ -918,243 +922,261 @@ class _EntryRowState extends State<EntryRow> {
             ),
             child: FocusTraversalGroup(
               policy: OrderedTraversalPolicy(),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
                 children: [
-                  SizedBox(
-                    width: Cols.status,
-                    height: 34,
-                    child: Icon(
-                      _editing ? Icons.edit_rounded : Icons.add_rounded,
-                      size: _editing ? 14 : 16,
-                      color: lit ? Mid.blue : Mid.ink3,
-                    ),
-                  ),
-                  const SizedBox(width: Cols.gap),
-                  SizedBox(
-                    width: Cols.date,
-                    child: initial != null && initial.lockDate
-                        ? _locked(fullDate(initial.date), tip: reconciledTip)
-                        : FocusTraversalOrder(
-                            order: const NumericFocusOrder(1),
-                            child: DateField(
-                              controller: _date,
-                              focusNode: _dateFocus,
-                              today: widget.today,
-                              wanted: _wants('date'),
-                              onSubmitted: _submit,
-                              onPicked: _payeeFocus.requestFocus,
-                              // Confirming means it happened: no future days.
-                              allowFuture: !(initial?.confirming ?? false),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: Cols.gap),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        FocusTraversalOrder(
-                          order: const NumericFocusOrder(2),
-                          child: _Autocomplete<String>(
-                            controller: _payee,
-                            focusNode: _payeeFocus,
-                            hint: _editing
-                                ? t.rowsHintPayee
-                                : t.rowsHintNewPayee,
-                            wanted: _wants('payee'),
-                            options: (q) => q.isEmpty
-                                ? const []
-                                : widget.controller.payeeNames
-                                      .where(
-                                        (p) => p.toLowerCase().contains(
-                                          q.toLowerCase(),
-                                        ),
-                                      )
-                                      .take(8),
-                            label: (p) => p,
-                            onSelected: (p) async {
-                              final filled = await _prefillCategory();
-                              (filled ? _amountFocus : _categoryFocus)
-                                  .requestFocus();
-                            },
-                            onSubmit: _submit,
-                          ),
-                        ),
-                        // Adding: the memo line shows while the row is in use.
-                        if (_editing || _active || _memo.text.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          FocusTraversalOrder(
-                            order: const NumericFocusOrder(2.5),
-                            child: _Field(
-                              controller: _memo,
-                              focusNode: _memoFocus,
-                              hint: t.rowsHintMemo,
-                              small: true,
-                              onSubmitted: (_) => _submit(),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: Cols.gap),
-                  Column(
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: Cols.category,
-                            child: initial != null && initial.lockCategory
-                                ? _locked(
-                                    initial.lockedCategory(t),
-                                    tip: _lockedCategoryTip(
-                                      t,
-                                      initial.row,
-                                      reconciledTip,
-                                    ),
-                                  )
-                                : FocusTraversalOrder(
-                                    order: const NumericFocusOrder(3),
-                                    child:
-                                        _Autocomplete<
-                                          ({String label, AccountInfo account})
-                                        >(
-                                          controller: _category,
-                                          focusNode: _categoryFocus,
-                                          hint: t.rowsHintCategory,
-                                          wanted: _wants('category'),
-                                          options: (q) => [
-                                            ..._listOptions.where(
-                                              (o) => o.label
-                                                  .toLowerCase()
-                                                  .contains(q.toLowerCase()),
+                      SizedBox(
+                        width: Cols.status,
+                        height: 34,
+                        child: Icon(
+                          _editing ? Icons.edit_rounded : Icons.add_rounded,
+                          size: _editing ? 14 : 16,
+                          color: lit ? Mid.blue : Mid.ink3,
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.date,
+                        child: initial != null && initial.lockDate
+                            ? _locked(
+                                fullDate(initial.date),
+                                tip: reconciledTip,
+                              )
+                            : FocusTraversalOrder(
+                                order: const NumericFocusOrder(1),
+                                child: DateField(
+                                  controller: _date,
+                                  focusNode: _dateFocus,
+                                  today: widget.today,
+                                  wanted: _wants('date'),
+                                  onSubmitted: _submit,
+                                  onPicked: _payeeFocus.requestFocus,
+                                  // Confirming means it happened: no future days.
+                                  allowFuture: !(initial?.confirming ?? false),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            FocusTraversalOrder(
+                              order: const NumericFocusOrder(2),
+                              child: _Autocomplete<String>(
+                                controller: _payee,
+                                focusNode: _payeeFocus,
+                                hint: _editing
+                                    ? t.rowsHintPayee
+                                    : t.rowsHintNewPayee,
+                                wanted: _wants('payee'),
+                                options: (q) => q.isEmpty
+                                    ? const []
+                                    : widget.controller.payeeNames
+                                          .where(
+                                            (p) => p.toLowerCase().contains(
+                                              q.toLowerCase(),
                                             ),
-                                            if (_newCategory case final n?)
-                                              _createOption(n),
-                                          ],
-                                          label: (o) =>
-                                              o.account.id == _createId
-                                              ? o.account.name
-                                              : o.label,
-                                          optionText: (o) => o.label,
-                                          onSelected: (o) {
-                                            // Picked on purpose: no doubt left.
-                                            if (o.account.id == _createId) {
-                                              _chosenNew = o.account.name;
-                                            }
-                                            _amountFocus.requestFocus();
+                                          )
+                                          .take(8),
+                                label: (p) => p,
+                                onSelected: (p) async {
+                                  final filled = await _prefillCategory();
+                                  (filled ? _amountFocus : _categoryFocus)
+                                      .requestFocus();
+                                },
+                                onSubmit: _submit,
+                              ),
+                            ),
+                            // Adding: the memo line shows while the row is in use.
+                            if (_editing ||
+                                _active ||
+                                _memo.text.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              FocusTraversalOrder(
+                                order: const NumericFocusOrder(2.5),
+                                child: _Field(
+                                  controller: _memo,
+                                  focusNode: _memoFocus,
+                                  hint: t.rowsHintMemo,
+                                  small: true,
+                                  onSubmitted: (_) => _submit(),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: Cols.category,
+                                child: initial != null && initial.lockCategory
+                                    ? _locked(
+                                        initial.lockedCategory(t),
+                                        tip: _lockedCategoryTip(
+                                          t,
+                                          initial.row,
+                                          reconciledTip,
+                                        ),
+                                      )
+                                    : FocusTraversalOrder(
+                                        order: const NumericFocusOrder(3),
+                                        child:
+                                            _Autocomplete<
+                                              ({
+                                                String label,
+                                                AccountInfo account,
+                                              })
+                                            >(
+                                              controller: _category,
+                                              focusNode: _categoryFocus,
+                                              hint: t.rowsHintCategory,
+                                              wanted: _wants('category'),
+                                              options: (q) => [
+                                                ..._listOptions.where(
+                                                  (o) => o.label
+                                                      .toLowerCase()
+                                                      .contains(
+                                                        q.toLowerCase(),
+                                                      ),
+                                                ),
+                                                if (_newCategory case final n?)
+                                                  _createOption(n),
+                                              ],
+                                              label: (o) =>
+                                                  o.account.id == _createId
+                                                  ? o.account.name
+                                                  : o.label,
+                                              optionText: (o) => o.label,
+                                              onSelected: (o) {
+                                                // Picked on purpose: no doubt left.
+                                                if (o.account.id == _createId) {
+                                                  _chosenNew = o.account.name;
+                                                }
+                                                _amountFocus.requestFocus();
+                                              },
+                                              onSubmit: _submit,
+                                            ),
+                                      ),
+                              ),
+                              const SizedBox(width: Cols.gap),
+                              SizedBox(
+                                width: Cols.amount,
+                                child: initial != null && initial.lockAmount
+                                    ? Align(
+                                        alignment: Alignment.centerRight,
+                                        child: _locked(
+                                          // As the register shows it: out plain, in with +.
+                                          initial.amount > 0
+                                              ? '+${formatMoney(initial.amount, currency: _hereCurrency)}'
+                                              : formatMoney(
+                                                  initial.amount.abs(),
+                                                  currency: _hereCurrency,
+                                                ),
+                                          tip: initial.locked
+                                              ? reconciledTip
+                                              : t.rowsSplitTotalFollows,
+                                        ),
+                                      )
+                                    : FocusTraversalOrder(
+                                        order: const NumericFocusOrder(4),
+                                        child: _Field(
+                                          controller: _amount,
+                                          focusNode: _amountFocus,
+                                          hint: zeroHint(_hereCurrency),
+                                          tabular: true,
+                                          align: TextAlign.right,
+                                          wanted: _wants('amount'),
+                                          onSubmitted: (_) => _submit(),
+                                        ),
+                                      ),
+                              ),
+                              const SizedBox(width: Cols.gap),
+                              SizedBox(
+                                width: Cols.balance,
+                                height: 34,
+                                child: _picking
+                                    ? FocusTraversalOrder(
+                                        // After the amount, where it sits.
+                                        order: const NumericFocusOrder(4.5),
+                                        child: _AccountPicker(
+                                          choices: widget.accountChoices!,
+                                          value: widget.controller.account,
+                                          focusNode: _accountFocus,
+                                          wanted: _wants('account'),
+                                          onPicked: (a) {
+                                            setState(
+                                              () =>
+                                                  widget.controller.account = a,
+                                            );
+                                            _problem(null);
+                                          },
+                                          onMenu: (open) {
+                                            _accountMenuOpen = open;
+                                            _focusChanged();
                                           },
                                           onSubmit: _submit,
                                         ),
-                                  ),
+                                      )
+                                    : _submitLine(preview, showsMath),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: Cols.gap),
-                          SizedBox(
-                            width: Cols.amount,
-                            child: initial != null && initial.lockAmount
-                                ? Align(
-                                    alignment: Alignment.centerRight,
-                                    child: _locked(
-                                      // As the register shows it: out plain, in with +.
-                                      initial.amount > 0
-                                          ? '+${formatMoney(initial.amount, currency: _hereCurrency)}'
-                                          : formatMoney(
-                                              initial.amount.abs(),
-                                              currency: _hereCurrency,
-                                            ),
-                                      tip: initial.locked
-                                          ? reconciledTip
-                                          : t.rowsSplitTotalFollows,
-                                    ),
-                                  )
-                                : FocusTraversalOrder(
-                                    order: const NumericFocusOrder(4),
-                                    child: _Field(
-                                      controller: _amount,
-                                      focusNode: _amountFocus,
-                                      hint: zeroHint(_hereCurrency),
-                                      tabular: true,
-                                      align: TextAlign.right,
-                                      wanted: _wants('amount'),
-                                      onSubmitted: (_) => _submit(),
-                                    ),
-                                  ),
-                          ),
-                          const SizedBox(width: Cols.gap),
-                          SizedBox(
-                            width: Cols.balance,
-                            height: 34,
-                            child: _picking
-                                ? FocusTraversalOrder(
-                                    // After the amount, where it sits.
-                                    order: const NumericFocusOrder(4.5),
-                                    child: _AccountPicker(
-                                      choices: widget.accountChoices!,
-                                      value: widget.controller.account,
-                                      focusNode: _accountFocus,
-                                      wanted: _wants('account'),
-                                      onPicked: (a) {
-                                        setState(
-                                          () => widget.controller.account = a,
-                                        );
-                                        _problem(null);
-                                      },
-                                      onMenu: (open) {
-                                        _accountMenuOpen = open;
-                                        _focusChanged();
-                                      },
-                                      onSubmit: _submit,
-                                    ),
-                                  )
-                                : _submitLine(preview, showsMath),
-                          ),
+                          // All accounts: the last column is the account, so the
+                          // note and Add sit under it.
+                          if (_picking && (_hasContent || _active))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: SizedBox(
+                                width:
+                                    Cols.category +
+                                    Cols.amount +
+                                    Cols.balance +
+                                    2 * Cols.gap,
+                                height: 30,
+                                child: _submitLine(preview, showsMath),
+                              ),
+                            ),
+                          if (shortBy != null)
+                            _OwedLine(
+                              short: shortBy,
+                              due: initial!.plannedDate,
+                              keep: _keepOwedFor(shortBy),
+                              currency: _hereCurrency,
+                              onChanged: (v) =>
+                                  setState(() => _keepOwedChoice = v),
+                            ),
+                          if (transferLine != null)
+                            _TransferLine(
+                              text: transferLine,
+                              onSwap: initial != null && initial.lockAmount
+                                  ? null
+                                  : _swapDirection,
+                            ),
+                          if (_exchangeWith case final other?)
+                            _ExchangeLine(
+                              other: other,
+                              inflow: _amount.text.trim().startsWith('+'),
+                              here: _hereCurrency,
+                              hereAmount: preview,
+                              controller: _otherAmount,
+                              focusNode: _otherAmountFocus,
+                              locked: initial != null && initial.lockAmount,
+                              wanted: _hasContent && (_otherParsed ?? 0) == 0,
+                              onSubmitted: _submit,
+                            ),
                         ],
                       ),
-                      // All accounts: the last column is the account, so the
-                      // note and Add sit under it.
-                      if (_picking && (_hasContent || _active))
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: SizedBox(
-                            width:
-                                Cols.category +
-                                Cols.amount +
-                                Cols.balance +
-                                2 * Cols.gap,
-                            height: 30,
-                            child: _submitLine(preview, showsMath),
-                          ),
-                        ),
-                      if (shortBy != null)
-                        _OwedLine(
-                          short: shortBy,
-                          due: initial!.plannedDate,
-                          keep: _keepOwedFor(shortBy),
-                          currency: _hereCurrency,
-                          onChanged: (v) => setState(() => _keepOwedChoice = v),
-                        ),
-                      if (transferLine != null)
-                        _TransferLine(
-                          text: transferLine,
-                          onSwap: initial != null && initial.lockAmount
-                              ? null
-                              : _swapDirection,
-                        ),
-                      if (_exchangeWith case final other?)
-                        _ExchangeLine(
-                          other: other,
-                          inflow: _amount.text.trim().startsWith('+'),
-                          here: _hereCurrency,
-                          hereAmount: preview,
-                          controller: _otherAmount,
-                          focusNode: _otherAmountFocus,
-                          locked: initial != null && initial.lockAmount,
-                          wanted: _hasContent && (_otherParsed ?? 0) == 0,
-                          onSubmitted: _submit,
-                        ),
                     ],
                   ),
+                  // The row's whole width: it names another row.
+                  ?widget.notice,
                 ],
               ),
             ),

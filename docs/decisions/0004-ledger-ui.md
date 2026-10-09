@@ -733,6 +733,40 @@ What's known so far:
     Nothing changes Working by age on its own. Rejected: a header line that filters to
     these rows (B), and both (C).
 
+    **Changed 2026-10-09** (the owner said to work the open items; each was built as
+    it had been recommended in STATUS, then refined by the two reviews). **The
+    uncleared note goes by the statement, not by age, once an account has been
+    reconciled**: a row the last statement should have had says "· not on the 09.10
+    statement", since a statement that didn't have it is the reason to doubt it. By
+    age it was noise for someone who reconciles monthly. "Should have had" leaves
+    out a row from the statement's last 3 days (30 on a card or loan): that is a
+    hold the statement was too early for. An account never reconciled still counts
+    days ("not cleared for 34 days") from 14, and from 30 on a card or loan, where a
+    hold from abroad sits 20 to 30 days; a row newer than the last statement says
+    its age only from 45 days, for the account reconciled once and then left. A cash
+    account never says it: nothing clears cash. **A late bill counts the other late
+    ones**: All shows only the first scheduled row, so it reads "· due 7 days ago ·
+    1 more overdue", and the count opens the Scheduled tab as "next of N scheduled"
+    does ("2 overdue" read as two others). **Confirm names a row already in.**
+    Confirming a late bill that was typed from the bank app, or imported, put it in
+    twice. When Confirm opens on a bill and the account holds a row for it, a line
+    under the fields names that row as it reads, "Already in this account · 09.10 ·
+    Mobicom · −₮41,500.00", with "Delete the scheduled one". A row for it is one the
+    same way, dated from 6 days before the bill to 6 days after (a week would find
+    last week's weekly bill), or up to today when the bill is late, with the same
+    payee; failing that, for a category's bill, a row in that category for between
+    half and twice the amount. The button deletes the scheduled row, ties the row to
+    the category's plan as that bill when it is in the category, and schedules the
+    next bill, as one undo. When the row is for less than the bill the line ends "·
+    ₮800,000 less than this bill" and the popup says that much "is no longer
+    scheduled". Confirm is still there (warn, don't block). A payday is not looked
+    for: money in is made a pay's paycheck from its own row's Category. **The Move
+    popup has Show**, which opens the account the row went to with the row chosen
+    (a scheduled one in the Scheduled tab). **Not built: a `+` put in the amount
+    when a payee's last row was money in.** It was on the same list, and it is a
+    guess filled into a field, which the owner sent back on 2026-10-08 ("Don't
+    autofill").
+
 21. **Accounts are added and managed where they're used** (owner's call, option A of
     three). A quiet "+ Add account" sits under the accounts in the sidebar and opens a
     form in the main area: a name ("New account" if left empty) and a kind, Bank account

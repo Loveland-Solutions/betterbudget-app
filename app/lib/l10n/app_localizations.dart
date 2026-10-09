@@ -468,6 +468,18 @@ abstract class Words {
   /// **'{name} deleted'**
   String ledgerDeleted(String name);
 
+  /// Undo-menu label after a scheduled bill was deleted because the real one was already in. name is the payee.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled {name} deleted'**
+  String ledgerScheduledDeleted(String name);
+
+  /// Toast after a scheduled bill was deleted because the real one was already in the account. name is the payee, date a day like 10.05.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled {name} deleted · already in on {date}'**
+  String ledgerScheduledDeletedAlreadyIn(String name, String date);
+
   /// Toast when moving a row to another account is refused; reason comes from the app.
   ///
   /// In en, this message translates to:
@@ -485,6 +497,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{name} moved to {account}'**
   String ledgerMovedTo(String name, String account);
+
+  /// Toast after a scheduled bill was deleted because a row for it was already in the account, when that row was for less than the bill: short, like ₮800,000, is the part of the bill that is now neither paid nor scheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled {name} deleted · {short} of it is no longer scheduled'**
+  String ledgerScheduledDeletedShort(String name, String short);
+
+  /// Button on the toast after a row is moved to another account: opens that account with the row chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get ledgerShowMoved;
 
   /// Toast after a transfer is moved to another account. payee is the account the money went to.
   ///
@@ -2459,6 +2483,35 @@ abstract class Words {
   /// **'next of {count} scheduled'**
   String rowsNextOfScheduled(int count);
 
+  /// Register, on the one scheduled row shown at the top of All when it is past its date and so are others: how many other scheduled rows are past their date (1 or more). Follows 'due 7 days ago'. Clickable, opens the Scheduled tab. Lowercase in English.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more overdue'**
+  String rowsMoreOverdue(int count);
+
+  /// Register, under a scheduled bill being confirmed, when a row that looks to be the same bill is already in the account: confirming would put the bill in twice. Names that row as the register shows it: date like 10.05, payee, amount like −₮900,000.00.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in this account · {date} · {payee} · {amount}'**
+  String rowsAlreadyIn(String date, String payee, String amount);
+
+  /// As rowsAlreadyIn, when that row is for less than the scheduled bill being confirmed: short is the difference, like ₮800,000.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in this account · {date} · {payee} · {amount} · {short} less than this bill'**
+  String rowsAlreadyInLess(
+    String date,
+    String payee,
+    String amount,
+    String short,
+  );
+
+  /// Button beside rowsAlreadyIn: deletes the scheduled bill being confirmed, since the real one is already in.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the scheduled one'**
+  String get rowsAlreadyInDelete;
+
   /// Register, after the payee of the only scheduled row shown at the top of All
   ///
   /// In en, this message translates to:
@@ -4166,6 +4219,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'not cleared for {days} days'**
   String startStaleNote(int days);
+
+  /// Register row, small note on a row still not cleared though the account was reconciled to a bank statement dated on or after it: the bank's statement didn't have it, so it may never have happened. date is a day like 09.10. Lowercase in English.
+  ///
+  /// In en, this message translates to:
+  /// **'not on the {date} statement'**
+  String startNotOnStatement(String date);
 
   /// Register row and bill list, small note on a scheduled bill or income one day past its date. Lowercase in English.
   ///

@@ -50,7 +50,12 @@ class RegisterActions {
     required this.onMove,
     this.pays = const [],
     this.onSetPay,
+    this.onAlreadyIn,
   });
+
+  /// Confirming [scheduled], and [found] is the same bill, already in: the
+  /// scheduled one goes instead of being confirmed.
+  final void Function(RegisterRow scheduled, RegisterRow found)? onAlreadyIn;
 
   /// Each pay set up, by the name the dropdown says it under ("Income ·
   /// Loveland Solutions"), and the account it's paid into. Picking one on
@@ -132,6 +137,7 @@ class RegisterPanel extends StatelessWidget {
     required this.transferTargets,
     this.currency = Currency.mnt,
     this.allAccounts,
+    required this.unclearedCheck,
     required this.entryController,
     required this.today,
     required this.actions,
@@ -200,6 +206,10 @@ class RegisterPanel extends StatelessWidget {
   /// place of a running balance that would mix accounts, and the entry row
   /// asks which account a new row goes in.
   final Map<int, AccountInfo>? allAccounts;
+
+  /// What an account's uncleared rows are held against, for the note an
+  /// old one gets (`LedgerData.unclearedCheck`).
+  final UnclearedCheck? Function(int accountId) unclearedCheck;
   final EntryRowController entryController;
   final DateTime today;
   final RegisterActions actions;
@@ -281,6 +291,10 @@ class RegisterPanel extends StatelessWidget {
     Widget? editor(RegisterRow r) {
       final e = editing;
       if (e == null || e.txnId != r.txnId) return null;
+      // Confirming a bill that looks to be in already would put it in twice.
+      final found = e.confirming && actions.onAlreadyIn != null
+          ? alreadyIn(r, posted, today)
+          : null;
       return EntryRow(
         key: ValueKey('edit-${r.txnId}'),
         controller: e.controller,
@@ -297,6 +311,13 @@ class RegisterPanel extends StatelessWidget {
           focus: e.focus,
           confirmingOn: e.confirming ? today : null,
         ),
+        notice: found == null
+            ? null
+            : _AlreadyInLine(
+                found: found,
+                bill: r.amount,
+                onDelete: () => actions.onAlreadyIn!(r, found),
+              ),
         onCancel: actions.onCancelEdit,
       );
     }
@@ -340,6 +361,10 @@ class RegisterPanel extends StatelessWidget {
     } else {
       if (showNext) {
         final next = visibleScheduled.first;
+        // Only the first shows here, so a second late bill would go unsaid.
+        final late = visibleScheduled
+            .where((r) => overdueDays(r, today) != null)
+            .length;
         children.add(
           keyed(
             next,
@@ -356,6 +381,7 @@ class RegisterPanel extends StatelessWidget {
                             ? t.rowsNextOfScheduled(visibleScheduled.length)
                             : t.rowsScheduledOnly),
                   accountName: _accountOf(next),
+                  overdueMore: late > 1 ? t.rowsMoreOverdue(late - 1) : null,
                   onMore: () => actions.onFilter(RegisterFilter.scheduled),
                   bar: bar(next),
                   onTap: () => tap(next.txnId),
@@ -380,6 +406,7 @@ class RegisterPanel extends StatelessWidget {
                 _PostedRow(
                   row: r,
                   today: today,
+                  check: unclearedCheck(r.accountId),
                   owed: owed,
                   accountName: _accountOf(r),
                   striped: i.isOdd,
@@ -884,6 +911,7 @@ class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
     required this.today,
+    required this.check,
     required this.owed,
     this.accountName,
     required this.striped,
@@ -908,6 +936,9 @@ class _PostedRow extends StatelessWidget {
 
   final RegisterRow row;
   final DateTime today;
+
+  /// What this row's account holds an uncleared row against.
+  final UnclearedCheck? check;
   final bool owed;
 
   /// All accounts: the row's account, shown where the balance would be.
@@ -964,7 +995,7 @@ class _PostedRow extends StatelessWidget {
             ),
           ].join(' · ')
         : r.memo;
-    final stale = staleNoteIn(t, r, today);
+    final stale = unclearedNoteIn(t, r, today, check);
     final statusTip = r.clearedIn == null
         ? t.rowsStatusTip(r.cleared.name)
         : t.rowsStatusTipIn(r.clearedIn!, r.cleared.name);
@@ -1210,6 +1241,76 @@ class _PostedRow extends StatelessWidget {
   }
 }
 
+/// Under a scheduled row being confirmed: the row already in that looks
+/// to be the same bill, as its own row reads, and the way out that doesn't
+/// put it in twice.
+class _AlreadyInLine extends StatelessWidget {
+  const _AlreadyInLine({
+    required this.found,
+    required this.bill,
+    required this.onDelete,
+  });
+  final RegisterRow found;
+
+  /// What the scheduled bill is for: a row for less leaves part of it
+  /// unpaid, and deleting the scheduled one takes that out of the forecast.
+  final int bill;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final amount = found.amount > 0
+        ? '+${formatMoney(found.amount, currency: found.currency)}'
+        : formatMoney(found.amount, currency: found.currency);
+    final short = bill.abs() - found.amount.abs();
+    return Padding(
+      key: const ValueKey('already-in'),
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Text(
+              short > 0
+                  ? t.rowsAlreadyInLess(
+                      sayDate(t, found.date),
+                      rowPayee(t, found),
+                      amount,
+                      formatShort(short, currency: found.currency),
+                    )
+                  : t.rowsAlreadyIn(
+                      sayDate(t, found.date),
+                      rowPayee(t, found),
+                      amount,
+                    ),
+              style: onest(13, weight: 600, color: Mid.ink, tabular: true),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Hoverable(
+            onTap: onDelete,
+            builder: (h) => Container(
+              key: const ValueKey('already-in-delete'),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: h ? Mid.blueWash : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                t.rowsAlreadyInDelete,
+                style: onest(13, weight: 500, color: Mid.blue),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ScheduledRow extends StatelessWidget {
   const _ScheduledRow({
     required this.row,
@@ -1220,7 +1321,12 @@ class _ScheduledRow extends StatelessWidget {
     required this.onTap,
     this.onMore,
     this.accountName,
+    this.overdueMore,
   });
+
+  /// "2 more overdue", when this late row is not the only late one; it opens the
+  /// Scheduled tab, as [extra] does.
+  final String? overdueMore;
 
   /// All accounts: which account it's in, shown even when overdue.
   final String? accountName;
@@ -1316,6 +1422,23 @@ class _ScheduledRow extends StatelessWidget {
                                 // Full ink and heavier: late is the one thing on this
                                 // row to notice, now that it isn't gold.
                                 style: onest(14, weight: 600, color: Mid.ink),
+                              ),
+                            ],
+                            if (overdue != null && overdueMore != null) ...[
+                              const SizedBox(width: 8),
+                              Hoverable(
+                                onTap: onMore,
+                                builder: (h) => Text(
+                                  '· $overdueMore',
+                                  key: const ValueKey('overdue-count'),
+                                  style: onest(14, weight: 600, color: Mid.ink)
+                                      .copyWith(
+                                        decoration: onMore != null && h
+                                            ? TextDecoration.underline
+                                            : null,
+                                        decorationColor: Mid.ink,
+                                      ),
+                                ),
                               ),
                             ],
                             // The overdue note takes the place of "next of

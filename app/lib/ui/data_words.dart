@@ -83,12 +83,21 @@ String splitLineName(Words t, SplitLine l) => switch (l.deleted) {
 String stepLabel(Words t, RegisterRow r) =>
     r.kind == RowKind.transfer ? rowPayee(t, r) : rowCategory(t, r);
 
-/// "not cleared for 34 days" on an uncleared row that old; otherwise null.
-String? staleNoteIn(Words t, RegisterRow r, DateTime today) =>
-    switch (staleDays(r, today)) {
-      final days? => t.startStaleNote(days),
-      null => null,
-    };
+/// "not on the 09.10 statement" on an uncleared row a reconcile passed over,
+/// or "not cleared for 34 days" in an account never reconciled; otherwise
+/// null.
+String? unclearedNoteIn(
+  Words t,
+  RegisterRow r,
+  DateTime today,
+  UnclearedCheck? check,
+) => switch (unclearedDoubt(r, today, check)) {
+  (statement: final statement?, days: _) => t.startNotOnStatement(
+    sayDate(t, statement),
+  ),
+  (statement: _, days: final days?) => t.startStaleNote(days),
+  _ => null,
+};
 
 /// "due 7 days ago" on a scheduled row past its date; otherwise null.
 String? overdueNoteIn(Words t, RegisterRow r, DateTime today) =>

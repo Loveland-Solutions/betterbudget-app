@@ -1429,6 +1429,61 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Confirming [r] would put a bill in twice: [found] is it, already in.
+  /// The scheduled one goes instead, and the next of its plan or pay is
+  /// scheduled as a confirm would, all one action.
+  Future<void> _alreadyIn(RegisterRow r, RegisterRow found) async {
+    final t = context.t;
+    final deleted = await db.softDeleteMany([r.txnId]);
+    if (!mounted) return;
+    if (deleted.isEmpty) {
+      _showToast(_lockMessage(r));
+      return;
+    }
+    _cancelEdit();
+    _clearSelection();
+    var nextBills = const <int>[];
+    final planned = r.planCategoryId;
+    // A category's bill: the row in that category is the bill paid, so the
+    // plan counts it and the next bill doesn't find it again.
+    final tie =
+        planned != null &&
+        found.planCategoryId == null &&
+        found.categoryId == planned;
+    if (planned != null) {
+      try {
+        if (tie) await db.setPlanBill(found.txnId, planned);
+        nextBills = await db.ensurePlanBills(today, only: planned);
+      } catch (e) {
+        debugPrint('Scheduling the next bill failed: $e');
+      }
+    }
+    if (!mounted) return;
+    final short = r.amount.abs() - found.amount.abs();
+    _did(
+      t.ledgerScheduledDeleted(rowPayee(t, r)),
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(nextBills);
+        if (tie) await db.setPlanBill(found.txnId, null);
+        await db.restoreMany(deleted);
+      }),
+      redo: () => db.transaction(() async {
+        _expect((await db.softDeleteMany(deleted)).length == deleted.length);
+        if (tie) await db.setPlanBill(found.txnId, planned);
+        if (planned != null) await db.bringBackPlanBills(nextBills, planned);
+      }),
+      message: short > 0
+          ? t.ledgerScheduledDeletedShort(
+              rowPayee(t, r),
+              formatShort(short, currency: r.currency),
+            )
+          : t.ledgerScheduledDeletedAlreadyIn(
+              rowPayee(t, r),
+              sayDate(t, found.date),
+            ),
+    );
+  }
+
   /// Moves a row entered in the wrong account. It leaves this register, so
   /// the toast names where it went.
   Future<void> _move(RegisterRow r, AccountInfo from, AccountInfo to) async {
@@ -1465,6 +1520,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       message: r.cleared == Cleared.uncleared
           ? label
           : '$label · ${t.ledgerUnclearedThere}',
+      // It left this register: one click to where it went.
+      more: (
+        label: t.ledgerShowMoved,
+        onTap: () => _showIn(to.id, r.txnId, scheduled: r.scheduled),
+      ),
     );
   }
 
@@ -1492,6 +1552,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _all = false;
       _accountId = id;
       _selected = null;
+    });
+  }
+
+  /// [accountId]'s register with row [txnId] chosen and in sight.
+  /// A [scheduled] one is shown in the Scheduled tab: All draws only the
+  /// next of them.
+  void _showIn(int accountId, int txnId, {bool scheduled = false}) {
+    _openAccount(accountId);
+    if (_accountId != accountId || _all) return;
+    _search.clear();
+    setState(() {
+      _filter = scheduled ? RegisterFilter.scheduled : RegisterFilter.all;
+      _selected = txnId;
+    });
+    _registerFocus.requestFocus();
+    // Two frames: the new register is built on the first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final row = _selectedKey.currentContext;
+        if (row == null || !row.mounted) return;
+        Scrollable.ensureVisible(row, alignment: 0.2);
+      });
     });
   }
 
@@ -1906,6 +1988,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               categories: data.knownCategories,
               transferTargets: open,
               allAccounts: data.accounts,
+              unclearedCheck: data.unclearedCheck,
               entryController: _entry,
               today: today,
               adding: _adding,
@@ -1922,6 +2005,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
                 onConfirm: _startConfirm,
+                onAlreadyIn: _alreadyIn,
                 onSetCategory: (r, c) => _setCategory(r, c),
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
@@ -4097,6 +4181,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     .where((a) => a.id != account.id)
                     .toList(),
                 currency: account.currency,
+                unclearedCheck: data.unclearedCheck,
                 entryController: _entry,
                 today: today,
                 adding: _adding,
@@ -4113,6 +4198,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onRowTap: _tapRow,
                   onToggleCleared: _toggleCleared,
                   onConfirm: _startConfirm,
+                  onAlreadyIn: _alreadyIn,
                   onSetCategory: _setCategory,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,

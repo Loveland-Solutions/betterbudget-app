@@ -1996,12 +1996,20 @@ void main() {
     );
     expect(payeeCell, findsNothing);
 
-    await tester.tap(find.text('Cash wallet').first);
-    await tester.pumpAndSettle();
+    // Show goes to where it went, with the row chosen.
+    await tapAndWait(tester, find.text('Show'));
     expect(payeeCell, findsOneWidget);
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.text('Show'), findsNothing);
     await tester.tap(find.text('TDB Checking').first);
     await tester.pumpAndSettle();
-    await tapAndWait(tester, find.text('Undo'));
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
     expect(payeeCell, findsOneWidget);
     await tester.tap(payeeCell);
     await tester.pumpAndSettle();
@@ -2358,11 +2366,25 @@ void main() {
           (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
         ],
       );
+      // What each account holds an uncleared row against: its statement
+      // and its age (a card's holds sit longer), and cash nothing.
+      UnclearedCheck? check(String name) => ledger.unclearedCheck(
+        ledger.balanceSheetAccounts.firstWhere((a) => a.name == name).id,
+      );
+      expect(check('TDB Checking'), (
+        statement: DateTime(2026, 9, 10),
+        owed: false,
+      ));
+      expect(check('Khan Savings'), (statement: null, owed: false));
+      expect(check('Golomt Visa'), (statement: null, owed: true));
+      expect(check('Cash wallet'), isNull);
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
     expect(find.text('· due 7 days ago'), findsOneWidget);
     expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
+    // The only late one: no count.
+    expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/overdue_row.png'),
@@ -2382,7 +2404,8 @@ void main() {
     );
     await tester.ensureVisible(skytel);
     await tester.pumpAndSettle();
-    expect(find.text(' · not cleared for 34 days'), findsOneWidget);
+    // The 09.10 reconcile passed over it: that, not its age, is the doubt.
+    expect(find.text(' · not on the 09.10 statement'), findsOneWidget);
     expect(find.byKey(const ValueKey('stale-note')), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
@@ -2408,6 +2431,79 @@ void main() {
     });
     await settle(tester);
     expect(find.text('· due 7 days ago'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a late bill counts the other late ones, and Confirm names the '
+      'row already in', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      for (final (payee, day) in [('Mobicom', 9), ('Univision', 12)]) {
+        await db.postTransaction(
+          date: DateTime(2026, 9, day),
+          payee: payee,
+          scheduled: true,
+          lines: [
+            (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+            (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+          ],
+        );
+      }
+      // Typed from the bank app the day after it was due, never confirmed.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 10),
+        today: DateTime(2026, 9, 16),
+        payee: 'Mobicom',
+        counterAccountId: phone,
+        amount: -4150000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· 1 more overdue'), findsOneWidget);
+
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(
+      find.text('Already in this account · 09.10 · Mobicom · −₮41,500.00'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_already_in.png'),
+    );
+    await tapAndWait(tester, find.text('Delete the scheduled one'));
+    expect(
+      find.text('Scheduled Mobicom deleted · already in on 09.10'),
+      findsOneWidget,
+    );
+    // Univision is the next, and the only late one left.
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
+    expect(find.byKey(const ValueKey('already-in')), findsNothing);
+
+    await tapAndWait(tester, find.text('Undo'));
+    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· 1 more overdue'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+
+    // Nothing like it in the account: Confirm opens with no such line.
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.byKey(const ValueKey('already-in')), findsNothing);
     await tidy(tester, db);
   });
 

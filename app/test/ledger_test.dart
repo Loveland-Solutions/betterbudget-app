@@ -1077,13 +1077,152 @@ void main() {
       splitLines: const [],
     );
     DateTime ago(int d) => DateTime(today.year, today.month, today.day - d);
-    expect(staleNote(row(ago(13)), today), isNull);
-    expect(staleNote(row(ago(14)), today), 'not cleared for 14 days');
-    expect(staleNote(row(ago(40), c: Cleared.cleared), today), isNull);
+    // Never reconciled: by age, a card's later than a bank account's.
+    const bank = (statement: null, owed: false);
+    const card = (statement: null, owed: true);
+    expect(unclearedDoubt(row(ago(13)), today, bank), isNull);
+    expect(unclearedDoubt(row(ago(14)), today, bank), (
+      statement: null,
+      days: 14,
+    ));
+    expect(unclearedDoubt(row(ago(29)), today, card), isNull);
+    expect(unclearedDoubt(row(ago(30)), today, card)?.days, 30);
+    expect(
+      unclearedDoubt(row(ago(40), c: Cleared.cleared), today, bank),
+      isNull,
+    );
+    // Reconciled: what the statement should have had, however old. A row
+    // from its last days may be a hold the statement was too early for.
+    final statement = (statement: ago(20), owed: false);
+    expect(unclearedDoubt(row(ago(23)), today, statement), (
+      statement: ago(20),
+      days: null,
+    ));
+    expect(unclearedDoubt(row(ago(22)), today, statement), isNull);
+    expect(unclearedDoubt(row(ago(19)), today, statement), isNull);
+    // A card's hold sits a month: the statement has to be that much later.
+    final cardStatement = (statement: ago(10), owed: true);
+    expect(unclearedDoubt(row(ago(39)), today, cardStatement), isNull);
+    expect(
+      unclearedDoubt(row(ago(40)), today, cardStatement)?.statement,
+      ago(10),
+    );
+    // Reconciled once, long ago: rows since then say their age, late.
+    final old = (statement: ago(90), owed: false);
+    expect(unclearedDoubt(row(ago(44)), today, old), isNull);
+    expect(unclearedDoubt(row(ago(45)), today, old), (
+      statement: null,
+      days: 45,
+    ));
+    // Cash: nothing ever clears it.
+    expect(unclearedDoubt(row(ago(400)), today, null), isNull);
     expect(overdueNote(row(today, scheduled: true), today), isNull);
     expect(overdueNote(row(ago(1), scheduled: true), today), 'due yesterday');
     expect(overdueNote(row(ago(7), scheduled: true), today), 'due 7 days ago');
     expect(overdueNote(row(ago(7)), today), isNull);
+  });
+
+  test('a row is tied to a plan as its bill, and untied', () async {
+    final ledger = await db.loadLedger();
+    final row = ledger.txns.firstWhere((t) => !t.scheduled);
+    final category = ledger.categories.first.id;
+    expect(await db.setPlanBill(row.id, category), isNull);
+    expect(
+      (await db.loadLedger()).txns
+          .firstWhere((t) => t.id == row.id)
+          .planCategoryId,
+      category,
+    );
+    expect(await db.setPlanBill(row.id, null), category);
+    expect(
+      (await db.loadLedger()).txns
+          .firstWhere((t) => t.id == row.id)
+          .planCategoryId,
+      isNull,
+    );
+  });
+
+  test('a scheduled bill finds the row already in that it would repeat', () {
+    RegisterRow row(
+      int id,
+      DateTime date, {
+      String payee = 'Rent',
+      int amount = -900000,
+      bool scheduled = false,
+      int account = 1,
+      int category = 2,
+      int? plan,
+    }) => RegisterRow(
+      txnId: id,
+      entryId: id,
+      date: date,
+      payee: payee,
+      memo: '',
+      amount: amount,
+      cleared: Cleared.uncleared,
+      scheduled: scheduled,
+      kind: RowKind.simple,
+      categoryLabel: 'Y',
+      categoryId: category,
+      splitLines: const [],
+      accountId: account,
+      planCategoryId: plan,
+    );
+    DateTime day(int d) => DateTime(2026, 9, d);
+    final bill = row(1, day(20), scheduled: true);
+    int? found(List<RegisterRow> posted, {RegisterRow? of, int on = 20}) =>
+        alreadyIn(of ?? bill, posted, day(on))?.txnId;
+
+    expect(found([row(2, day(14)), row(3, day(26))]), 3); // a tie: the later
+    expect(found([row(2, day(13))]), isNull); // a week off: last week's
+    expect(found([row(2, day(21), payee: ' rent ')]), 2);
+    expect(found([row(2, day(21), payee: 'Water')]), isNull);
+    expect(found([row(2, day(21), account: 5)]), isNull);
+    expect(found([row(2, day(21), amount: 900000)]), isNull); // a refund
+    expect(found([row(2, day(21), scheduled: true)]), isNull);
+    expect(found([row(2, day(15)), row(3, day(19))]), 3); // the nearest
+    // Paid late, it is dated late: a late bill looks as far as today.
+    expect(found([row(2, day(29))]), isNull);
+    expect(found([row(2, day(29))], on: 30), 2);
+
+    // A category's bill: a row in that category for about the amount counts,
+    // whatever the bank called the payee, though a row with the payee comes
+    // first; not the one already tied to the plan (the bill before).
+    final planned = row(1, day(20), scheduled: true, plan: 9);
+    final bank = row(2, day(20), payee: 'IB TRANSFER', category: 9);
+    expect(found([bank], of: planned), 2);
+    expect(found([bank, row(3, day(17))], of: planned), 3);
+    expect(
+      found([
+        row(2, day(20), payee: 'Other', category: 9, amount: -400000),
+      ], of: planned),
+      isNull,
+    );
+    expect(found([row(2, day(16), plan: 9, category: 9)], of: planned), isNull);
+    // A payday is never looked for here.
+    expect(
+      alreadyIn(
+        RegisterRow(
+          txnId: 1,
+          entryId: 1,
+          date: day(20),
+          payee: 'Rent',
+          memo: '',
+          amount: 900000,
+          cleared: Cleared.uncleared,
+          scheduled: true,
+          kind: RowKind.simple,
+          categoryLabel: 'Y',
+          categoryId: 2,
+          splitLines: const [],
+          accountId: 1,
+          payScheduleId: 4,
+        ),
+        [row(2, day(20), amount: 900000)],
+        day(20),
+      ),
+      isNull,
+    );
   });
 
   group('editing', () {
