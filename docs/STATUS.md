@@ -38,7 +38,9 @@ folder. Then, in order:
    second computer is now safe to set up: Restore from… the folder's
    `Ledger.betterbudget`, then "Move my ledger to a folder…" and the same folder.
    **It has not been run on two real computers**, only in tests with two ledgers and
-   one folder; the first real run is the owner's to watch. **Next, step 2:** every
+   one folder; the first real run is the owner's to watch. On the owner's Mac
+   (2026-10-09) the first look sealed the Drive folder's file where it was. The
+   owner has not yet seen the question or its words (ADR 0004 "Two computers"). **Next, step 2:** every
    row gets a permanent id by an upgrade that keeps every row (way C weighed again,
    ADR 0005: nothing of the owner's is replaced), each computer keeps the file both
    last agreed on, and what each changed apart is brought together as one undo, so
