@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After the phone-transfers PR (version 0.22.0).** The phone records money moved
+**After PR #58 (version 0.22.0).** The phone records money moved
 between two accounts (cash from an ATM, a card paid): the accounts are at the foot of
 its Category list under "Move to an account" (ADR 0004 "Phone screens: Ledger first").
 **Not yet on the owner's Pixel**, which still has the build from before PR #55:
@@ -84,7 +84,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #57. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #58. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.

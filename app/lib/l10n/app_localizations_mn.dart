@@ -4676,7 +4676,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get phoneFrom => 'Данснаас';
+  String get phoneFrom => 'Шилжүүлэх данс';
 
   @override
   String phoneTransferAfter(String account, String amount) {
