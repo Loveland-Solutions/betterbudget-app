@@ -4815,4 +4815,101 @@ class WordsMn extends Words {
 
   @override
   String get phoneToMoneyOut => 'Зарлага болгох';
+
+  @override
+  String ledgerFolderOpenedFrom(String computer) {
+    return '$computer дээр хадгалсан дэвтрийг нээлээ';
+  }
+
+  @override
+  String get ledgerFolderOpened =>
+      'Өөр компьютер дээр хадгалсан дэвтрийг нээлээ';
+
+  @override
+  String ledgerFolderCouldntOpen(String folder) {
+    return '$folder доторх дэвтрийг нээж чадсангүй · юу ч өөрчлөгдөөгүй';
+  }
+
+  @override
+  String ledgerFolderArriving(String folder) {
+    return '$folder · тэнд байгаа дэвтрийг одоохондоо уншиж чадахгүй байна';
+  }
+
+  @override
+  String ledgerFolderNewerAppLine(String folder) {
+    return '$folder · BetterBudget-ийн шинэ хувилбараар хадгалсан · энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү';
+  }
+
+  @override
+  String ledgerFolderApart(String folder) {
+    return '$folder · өөр компьютер дээр бас өөрчлөгдсөн · энэ компьютерийн өөрчлөлт хавтсанд ороогүй';
+  }
+
+  @override
+  String get ledgerFolderChooseWhich => 'Алийг нь үлдээхээ сонгох…';
+
+  @override
+  String get ledgerFolderApartAlert =>
+      'Дэвтэр тань хоёр компьютер дээр өөрчлөгдсөн';
+
+  @override
+  String get ledgerTwoTitle => 'Дэвтэр тань хоёр компьютер дээр өөрчлөгдсөн';
+
+  @override
+  String get ledgerTwoTitleFolder => 'Энэ хавтсанд дэвтэр аль хэдийн байна';
+
+  @override
+  String ledgerTwoBody(String folder) {
+    return '$folder доторх дэвтэрт энэ компьютерт байхгүй өөрчлөлт байна, энэ компьютерт ч хавтсанд байхгүй өөрчлөлт байна. BetterBudget одоогоор энэ хоёрыг нэгтгэж чадахгүй тул алийг нь үлдээхээ сонгоно уу. Нөгөөх нь эхлээд хадгалагдах ба Тохиргооны «Нөөцөөс сэргээх…» түүнийг буцааж авчирна. Таныг сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны гүйлгээнүүд хавтсанд орохгүй.';
+  }
+
+  @override
+  String get ledgerTwoInFolder => 'Хавтсанд';
+
+  @override
+  String get ledgerTwoHere => 'Энэ компьютерт';
+
+  @override
+  String ledgerTwoSavedOn(String computer, String when) {
+    return '$computer дээр хадгалсан · $when';
+  }
+
+  @override
+  String ledgerTwoSavedWhen(String when) {
+    return 'Өөр компьютер дээр хадгалсан · $when';
+  }
+
+  @override
+  String get ledgerTwoNotNow => 'Одоо биш';
+
+  @override
+  String get ledgerTwoUseMine => 'Энэ компьютерийн дэвтрийг үлдээх';
+
+  @override
+  String get ledgerTwoUseFolder => 'Хавтсан дахь дэвтрийг үлдээх';
+
+  @override
+  String ledgerFolderKeptMine(String folder) {
+    return 'Энэ компьютерийн дэвтэр одоо $folder хавтсанд байна · тэнд байсан нь Нөөц хуулбарт хадгалагдсан';
+  }
+
+  @override
+  String get ledgerFolderUnreadableTitle =>
+      'Энэ хавтсан дахь дэвтрийг нээж чадахгүй байна';
+
+  @override
+  String ledgerFolderUnreadableBody(String folder) {
+    return '$folder хавтсанд энэ компьютер нээж чадахгүй дэвтэр байна. Өөр дэвтэр байж магадгүй, эсвэл бүрэн ирж амжаагүй байж болно.';
+  }
+
+  @override
+  String get ledgerFolderUnreadableKept =>
+      'Хэрэв солих бол түүнийг эхлээд энэ компьютерт хадгална. «Нөөцөөс сэргээх…» түүнийг өөрийнх нь сэргээх түлхүүрээр нээнэ.';
+
+  @override
+  String get ledgerFolderReplace => 'Солих';
+
+  @override
+  String get ledgerFolderNewerApp =>
+      'Тэр хавтсан дахь дэвтрийг BetterBudget-ийн шинэ хувилбараар хадгалсан · эхлээд энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү';
 }

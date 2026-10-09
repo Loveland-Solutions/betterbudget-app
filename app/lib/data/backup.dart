@@ -368,7 +368,12 @@ class Backups {
     for (final f in all.where((f) => gone.contains(_basename(f.path)))) {
       await f.delete();
     }
-    for (final kind in ['before-restore-', 'restored-', 'before-new-ledger-']) {
+    for (final kind in [
+      'before-restore-',
+      'restored-',
+      'before-new-ledger-',
+      fromFolderPrefix,
+    ]) {
       final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.(?:sqlite|betterbudget)\$');
       for (final old in (await _files(pattern)).skip(_restoreKeep)) {
         await old.delete();
@@ -565,15 +570,49 @@ class Backups {
   /// and [replaceWith] (undo/redo) assumes every `restored-…`/
   /// `before-restore-…` file is encrypted with [dataKey], same as this
   /// connection.
-  Future<RestoreRecord> restore(RestoreCandidate c, DateTime now) async {
+  ///
+  /// [fromFolder]: [c] is the ledger in the folder this one is stored in,
+  /// taken in as it is, with the computers' counts and the seal it carries
+  /// (ADR 0005, "Never write blind").
+  Future<RestoreRecord> restore(
+    RestoreCandidate c,
+    DateTime now, {
+    bool fromFolder = false,
+    String? onlyIfDigest,
+  }) async {
     final dir = (await folder())!;
     final before = _unused(dir, 'before-restore-', now);
     await db.copyTo(before.path);
-    await db.replaceAllFrom(c.file.path, sourceKeyBind: c.sourceKeyBind);
+    try {
+      await db.replaceAllFrom(
+        c.file.path,
+        sourceKeyBind: c.sourceKeyBind,
+        fromFolder: fromFolder,
+        onlyIfDigest: onlyIfDigest,
+      );
+    } on ChangedSinceException {
+      if (before.existsSync()) await before.delete();
+      await _deleteIncoming(dir, c.file);
+      rethrow;
+    }
     await _deleteIncoming(dir, c.file);
     final restored = _unused(dir, 'restored-', now);
     await db.copyTo(restored.path);
     return (before: before, restored: restored);
+  }
+
+  /// What a file kept by [keepFromFolder] is named with.
+  static const fromFolderPrefix = 'from-folder-';
+
+  /// Keeps [file], the ledger found in a folder, as
+  /// `from-folder-….betterbudget` before this computer's is written over
+  /// it: byte for byte, so one that this ledger's key doesn't open is kept
+  /// too, and Restore from… opens it with its own key.
+  Future<File> keepFromFolder(File file, DateTime now) async {
+    final dir = await folder();
+    if (dir == null) throw StateError('No database file to save beside');
+    await dir.create(recursive: true);
+    return file.copy(_unused(dir, fromFolderPrefix, now).path);
   }
 
   /// Saves what's here as `before-new-ledger-….betterbudget` before a new ledger

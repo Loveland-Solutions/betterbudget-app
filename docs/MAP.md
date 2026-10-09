@@ -56,7 +56,8 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Currencies | `domain/money.dart` + `domain/currencies.dart`; `l10n/currency_names.dart` | `theme.dart` (`Money`, `CurrencyScope`); `language.dart` (`currencyName`) | `money_test.dart`, `currency_test.dart` |
 | Keys, encryption | `data/keys.dart`, `data/encryption.dart` | `startup.dart`, `recovery_key_screen.dart` | `keys_test.dart`, `encryption_test.dart`, `cipher_test.dart`, `startup_test.dart`, `recovery_key_screen_test.dart` |
 | Backups, restore, new ledger | `data/backup.dart` (`Backups`; `CopiedElsewhere` and the file `copied-elsewhere` beside the ledger hold when "Back up to…" last worked, for the line under Net worth) | `_SettingsPage` in `ledger_screen.dart` | `backup_test.dart`, `encrypted_backup_test.dart`, `ledger_screen_test.dart` ("backups") |
-| Ledger kept in a folder (ADR 0005) | `data/cloud_folder.dart` (`CloudFolder` writes `Ledger.betterbudget` through `Backups.saveTo` after each change; `FolderAccess` keeps the Mac's bookmark, made in `macos/Runner/MainFlutterWindow.swift`); the setting is the file `cloud-folder` beside the ledger | `_keepInFolder`, `_stopFolder` and the "Stored in" line of `_SettingsPage` in `ledger_screen.dart` | `cloud_folder_test.dart` (1 golden) |
+| Ledger kept in a folder (ADR 0005) | `data/cloud_folder.dart` (`CloudFolder`: every look and write goes through `_sync`, which never writes `Ledger.betterbudget` without reading the one there; `FolderStanding` says how the two stand; `FolderAccess` keeps the Mac's bookmark and asks the computer's name, both in `macos/Runner/MainFlutterWindow.swift`); the setting, and this computer's id, are the file `cloud-folder` beside the ledger | `_keepInFolder`, `_stopFolder` and the "Stored in" line of `_SettingsPage` in `ledger_screen.dart` | `cloud_folder_test.dart` (3 goldens) |
+| Two computers on one ledger (ADR 0005, "Never write blind") | `domain/sync.dart` (`SyncKeys`, the computers' counts, `decideFolderMove`); `data/ledger_seal.dart` (`ledgerDigest`, `lookAtLedger` for a ledger file that isn't the live one); `database.dart` (`sealState`, `sealAs`, `restoreSync`, `replaceAllFrom(fromFolder:)`); `Backups.restore(fromFolder:)`, `Backups.keepFromFolder` | `_firstLookInFolder`, `_lookInFolder`, `_openFolderLedger`, `_takeFolderLedger`, `_chooseLedger` and `_TwoLedgersDialog` in `ledger_screen.dart` | `two_computers_test.dart`; `cloud_folder_test.dart` ("two computers", through the real screen) |
 | File names | `data/ledger_file.dart` (`ledgerExtension`, `ledgerFileName`; `ledgerFileIn` renames a ledger still called `betterbudget.sqlite`, called from `main.dart` and `AppDatabase.openEncrypted`) | none | `ledger_file_test.dart` |
 | Schema, upgrades | tables at the top of `database.dart`; `schemaVersion`, `migration` | none | `migration_test.dart` |
 | Words | `l10n/app_en.arb`, `l10n/app_mn.arb` | `language.dart` (`context.t`, `sayDate`), `data_words.dart` | `language_test.dart` |
@@ -66,9 +67,10 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Phone app (ADR 0005) | `domain/phone.dart` (`PhoneSnapshot`, `PhoneEntry`, `leftNow`, `categoriesMatching`, `categoryNamed`, `phoneIncomeId` for money in filed as income, the amount pad's keys, `snapshotOf` a ledger); `data/phone_ledger.dart` (`PhoneFolder`, the folder channel answered by `android/.../MainActivity.kt`; `readPhoneLedger` opens a private copy); `data/phone_inbox.dart` (the phone's own file in the folder: `writePhoneInbox`, `readPhoneInboxes`, `PhoneOutbox` keeps it on the phone); `database.dart` "phones" (`takePhoneEntries`, `undoPhoneTake`) | `ui/phone/phone_start.dart` (`PhoneStart`: recovery key, folder, problems), `ui/phone/phone_app.dart` (`PhoneFrame`, `PhoneStore` with the entries and categories made here, `PhoneHome` holding `_EntryScreen` (Ledger) and `_BudgetScreen`, `_CategoryPage`); `_takePhones` in `ledger_screen.dart` takes the phones' entries in on the computer; `main.dart` runs `PhoneStart` on Android and iOS; `phone_preview.dart` runs the screens on invented figures (`-t lib/phone_preview.dart`) | `phone_test.dart` (8 goldens, 390 × 844); `cloud_folder_test.dart` (an entry taken in through the real screen) |
 | Demo data | `data/demo_seed.dart` (`seedDemoIfEmpty`, called by `LedgerScreen` only with `demo: true`) | none | most tests seed with it |
 
-`database.dart` is 4,300 lines marked off by `// ---------- name ----------` comments;
+`database.dart` is 4,600 lines marked off by `// ---------- name ----------` comments;
 search for the marker. Keys for the `Preferences` table are defined in the domain
-(`BudgetKeys`, `ReadyKeys`, `SetupKeys`, `ForecastSpan.prefKey`, `noRegularPayKey`).
+(`BudgetKeys`, `ReadyKeys`, `SetupKeys`, `SyncKeys`, `ForecastSpan.prefKey`,
+`noRegularPayKey`).
 
 ## Gotchas
 
@@ -96,13 +98,19 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `startup_test.dart`, `language_test.dart`).
 - **Real secrets in the repo folder, ignored by git: never open.**
   `BetterBudget recovery key*.txt` and the two `*-bank-transaction-exports/` folders.
+- **Two computers in a test.** Give each its own folder, database file, `Backups`
+  and `CloudFolder`, and one shared folder for the ledger (`_Computer` in
+  `two_computers_test.dart`). A change the folder code should notice has to be a real
+  one in the database: `ledgerChanged` alone writes nothing now.
 - **Widget tests.** Database work goes inside `tester.runAsync`; reuse `pumpLedger`,
   `settle` and `tidy` from the top of `ledger_screen_test.dart`. Open and save dialogs
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
 - **Goldens** come from `ledger_screen_test.dart` (69), `setup_test.dart` (6),
-  `language_test.dart` (4, Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
+  `language_test.dart` (4, Mongolian), `cloud_folder_test.dart` (3) and
+  `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
+  one, capture `find.byType(MaterialApp)`. `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.
 - **A Mac draws buttons 8 shorter** (Flutter's compact density on desktop), and goldens

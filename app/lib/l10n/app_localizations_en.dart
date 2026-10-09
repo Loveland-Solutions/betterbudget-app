@@ -5000,4 +5000,101 @@ class WordsEn extends Words {
 
   @override
   String get phoneToMoneyOut => 'Change to money out';
+
+  @override
+  String ledgerFolderOpenedFrom(String computer) {
+    return 'Opened the ledger saved on $computer';
+  }
+
+  @override
+  String get ledgerFolderOpened =>
+      'Opened the ledger saved on another computer';
+
+  @override
+  String ledgerFolderCouldntOpen(String folder) {
+    return 'Couldn’t open the ledger in $folder · nothing was changed';
+  }
+
+  @override
+  String ledgerFolderArriving(String folder) {
+    return '$folder · the ledger there can’t be read yet';
+  }
+
+  @override
+  String ledgerFolderNewerAppLine(String folder) {
+    return '$folder · saved by a newer version of BetterBudget · update BetterBudget on this computer';
+  }
+
+  @override
+  String ledgerFolderApart(String folder) {
+    return '$folder · changed on another computer too · this computer’s changes aren’t in the folder';
+  }
+
+  @override
+  String get ledgerFolderChooseWhich => 'Choose which to keep…';
+
+  @override
+  String get ledgerFolderApartAlert =>
+      'Your ledger was changed on two computers';
+
+  @override
+  String get ledgerTwoTitle => 'Your ledger was changed on two computers';
+
+  @override
+  String get ledgerTwoTitleFolder => 'This folder already has a ledger';
+
+  @override
+  String ledgerTwoBody(String folder) {
+    return 'The ledger in $folder has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
+  }
+
+  @override
+  String get ledgerTwoInFolder => 'In the folder';
+
+  @override
+  String get ledgerTwoHere => 'On this computer';
+
+  @override
+  String ledgerTwoSavedOn(String computer, String when) {
+    return 'Saved on $computer · $when';
+  }
+
+  @override
+  String ledgerTwoSavedWhen(String when) {
+    return 'Saved on another computer · $when';
+  }
+
+  @override
+  String get ledgerTwoNotNow => 'Not now';
+
+  @override
+  String get ledgerTwoUseMine => 'Keep this computer’s ledger';
+
+  @override
+  String get ledgerTwoUseFolder => 'Keep the folder’s ledger';
+
+  @override
+  String ledgerFolderKeptMine(String folder) {
+    return 'This computer’s ledger is now in $folder · the one that was there is saved in Backups';
+  }
+
+  @override
+  String get ledgerFolderUnreadableTitle =>
+      'The ledger in this folder can’t be opened';
+
+  @override
+  String ledgerFolderUnreadableBody(String folder) {
+    return '$folder holds a ledger that this computer can’t open. It may be another ledger, or one that is still arriving.';
+  }
+
+  @override
+  String get ledgerFolderUnreadableKept =>
+      'If you replace it, it is saved on this computer first, and Restore from… opens it with its own recovery key.';
+
+  @override
+  String get ledgerFolderReplace => 'Replace it';
+
+  @override
+  String get ledgerFolderNewerApp =>
+      'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first';
 }

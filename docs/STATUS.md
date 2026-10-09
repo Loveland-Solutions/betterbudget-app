@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.22.0 · schema v18 · 563 tests pass
+**Last updated: 2026-10-09** · version 0.23.0 · schema v18 · 598 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #58 (version 0.22.0).** The phone records money moved
+**After PR #59 (version 0.23.0).** A computer no longer writes the folder's ledger
+without looking at it first: step 1 of two computers on one ledger is built (item 1
+below). Before it, PR #58: the phone records money moved
 between two accounts (cash from an ATM, a card paid): the accounts are at the foot of
 its Category list under "Move to an account" (ADR 0004 "Phone screens: Ledger first").
 **Not yet on the owner's Pixel**, which still has the build from before PR #55:
@@ -26,19 +28,23 @@ The owner's ledger is stored in their Google Drive folder; the Android app recor
 money out and money in, and what it records reaches the computer's ledger through the
 folder. Then, in order:
 
-1. **More than one computer on the same ledger.** The way is chosen (owner,
-   2026-10-09; [ADR 0005](decisions/0005-mobile-companion.md) "More than one computer
-   on one ledger"): the app combines what two computers changed apart and asks only
-   about a real conflict, and both may be open at once. **The owner has said the
-   existing ledger may be replaced if a bulletproof design needs it** ("Remove it if
-   you must"), so weigh the row-by-row way (C) again first, and ask before anything
-   of theirs is actually removed. **Nothing is built.** The owner wants it done in a
-   new conversation: start there. Build it
-   in the three steps written there, each its own PR, starting with "Never write
-   blind", which alone ends the silent loss and fixes four things unsafe today with
-   one computer. Until then only one computer should have the ledger moved to the
-   folder: each still writes the whole ledger over `Ledger.betterbudget` without
-   looking.
+1. **More than one computer on the same ledger: step 2, combine.** The way is chosen
+   (owner, 2026-10-09; [ADR 0005](decisions/0005-mobile-companion.md) "More than one
+   computer on one ledger"): the app combines what two computers changed apart and
+   asks only about a real conflict. **Step 1, "Never write blind", is built** (ADR
+   0005 "Built, 2026-10-09: step 1", with step 3's look while the app is open): the
+   folder's ledger is read before every write, a newer one is opened with an Undo,
+   and when both changed nothing is written and a question asks which to keep. A
+   second computer is now safe to set up: Restore from… the folder's
+   `Ledger.betterbudget`, then "Move my ledger to a folder…" and the same folder.
+   **It has not been run on two real computers**, only in tests with two ledgers and
+   one folder; the first real run is the owner's to watch. **Next, step 2:** every
+   row gets a permanent id by an upgrade that keeps every row (way C weighed again,
+   ADR 0005: nothing of the owner's is replaced), each computer keeps the file both
+   last agreed on, and what each changed apart is brought together as one undo, so
+   the question is left for a row both changed. Until then the question also comes
+   up when nothing conflicts (both computers taking in the same phone entry, or
+   scheduling the same payday on one morning).
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
@@ -181,6 +187,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
+| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …", with Undo); when both changed, nothing is written and "Your ledger was changed on two computers" asks which to keep, the other saved first; Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Not built: combining the two (ADR 0005) |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
@@ -233,6 +240,19 @@ open the archive).
 
 ## Known bugs and loose ends
 
+- **From the reviews of two computers, step 1 (2026-10-09), not fixed:** the
+  question shows counts only, not which entries each side alone has; a setting that
+  only changes a view (the forecast's span) counts as a change, so it can raise the
+  question; with something done since, Undo on "Opened the ledger…" says to undo the
+  newer changes first and the popup is gone, leaving Restore from…; picking a folder
+  whose ledger hasn't arrived yet writes this computer's there; a second file the
+  sync service makes beside the ledger ("Ledger (1).betterbudget") isn't looked for;
+  a disk cloned to another computer gives both one id; undoing "Move my ledger to a
+  folder…" after "Replace it" doesn't put the replaced file back (it is in Backups
+  as `from-folder-…`); on the first run after the build before this one, a second
+  computer's file written within two minutes of this one's last write is taken for
+  this one's own; the Mongolian for the new words is a draft like the rest.
+
 - **From the reviews of the new look (2026-10-09), not fixed:** the gold popup that
   says a change was saved also carries failures ("Couldn't save: …", "Couldn't
   undo…"), which read as success (about 35 places show one; a failure wants its own
@@ -267,8 +287,8 @@ open the archive).
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
-  it back to this computer" is pressed still lands in the folder; an old or second
-  computer replaces the folder's ledger without a warning (Next step 1); the Backups note still says to use a USB stick once the ledger is in
+  it back to this computer" is pressed still lands in the folder (fixed in PR #59,
+  as is an old or second computer replacing the folder's ledger); the Backups note still says to use a USB stick once the ledger is in
   a folder. Untested: the phone's figures for a budget run by pay periods, and the
   phone meeting a ledger from a newer version.
 - **From the reviews of the phone's Ledger screen (2026-10-08), not fixed:** the "left

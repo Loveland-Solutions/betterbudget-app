@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -8,9 +10,11 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/phone.dart';
+import '../domain/sync.dart';
 import '../import/mapping.dart';
 import 'encryption.dart';
 import 'ledger_file.dart';
+import 'ledger_seal.dart';
 
 part 'database.g.dart';
 
@@ -662,6 +666,10 @@ class ImportRecord {
   final int uncategorizedCount;
 }
 
+/// The ledger was changed between being compared with the folder's and
+/// being replaced by it. Nothing was replaced.
+class ChangedSinceException implements Exception {}
+
 /// The ledger was saved by a newer BetterBudget than this one. Nothing was
 /// changed.
 class NewerLedgerException implements Exception {
@@ -1002,6 +1010,73 @@ class AppDatabase extends _$AppDatabase {
   /// exist). Safe while the app is open: SQLite takes a snapshot.
   Future<void> copyTo(String path) => customStatement('VACUUM INTO ?', [path]);
 
+  /// What the ledger holds now as a digest, with the seal and the computers'
+  /// counts it carries (ADR 0005, "Never write blind"), read in one go. A
+  /// digest that isn't the seal means it was changed since it was last
+  /// written to a folder or taken from one.
+  Future<({String digest, String? seal, SyncComputers computers})>
+  sealState() => transaction(() async {
+    final digest = await ledgerDigest(
+      (sql) async => [for (final r in await customSelect(sql).get()) r.data],
+    );
+    final prefs = await _syncPrefs();
+    return (
+      digest: digest,
+      seal: prefs[SyncKeys.seal],
+      computers: SyncComputers.parse(prefs[SyncKeys.computers]),
+    );
+  });
+
+  /// The `sync.*` preferences as they are stored.
+  Future<Map<String, String>> _syncPrefs() async => {
+    for (final p in await (select(
+      preferences,
+    )..where((p) => p.key.like('${SyncKeys.prefix}%'))).get())
+      p.key: p.value,
+  };
+
+  /// Seals the ledger as [computer] is about to write it over a folder's
+  /// file that carries the counts [over]: its own count goes up by one and
+  /// [over] is folded in, so the file written is ahead of the one it
+  /// replaces. A ledger not changed since its seal, and already level with
+  /// or ahead of [over], is left as it is.
+  Future<void> sealAs(
+    String computer, {
+    String? name,
+    required DateTime at,
+    Counters over = const {},
+  }) => transaction(() async {
+    final now = await sealState();
+    final standing = compareCounters(now.computers.counters, over);
+    if (now.seal == now.digest &&
+        (standing == Standing.same || standing == Standing.mineAhead)) {
+      return;
+    }
+    await setPreference(
+      SyncKeys.computers,
+      now.computers.writtenBy(computer, name, over).encode(),
+    );
+    await setPreference(SyncKeys.seal, now.digest);
+    await setPreference(
+      SyncKeys.saved,
+      jsonEncode({'by': computer, 'at': at.toIso8601String()}),
+    );
+  });
+
+  /// The folder's ledger holds the very rows this one does, sealed, with
+  /// counts level with or ahead of this one's: this ledger takes those
+  /// counts and that seal as its own. Nothing is done unless the rows still
+  /// give [digest].
+  Future<void> adoptSeal(SyncComputers theirs, String digest) =>
+      transaction(() async {
+        final now = await sealState();
+        if (now.digest != digest) return;
+        final joined = now.computers.joined(theirs).encode();
+        if (now.seal == digest && now.computers.encode() == joined) return;
+        await setPreference(SyncKeys.computers, joined);
+        await setPreference(SyncKeys.seal, digest);
+      });
+
   /// Transactions that don't sum to zero or have fewer than two entries.
   /// Every write refuses to leave one (ADR 0003); a restored file must too.
   /// Each currency adds up to zero on its own, as every write checks.
@@ -1027,7 +1102,23 @@ class AppDatabase extends _$AppDatabase {
   /// genuinely plain file — verified against the linked SQLite3 Multiple
   /// Ciphers build. Leave it null only when this connection itself has no
   /// cipher configured (tests, and any other plain executor).
-  Future<void> replaceAllFrom(String path, {String? sourceKeyBind}) async {
+  ///
+  /// The ledger put in is a change a person made here (a restore, or its
+  /// undo), so it keeps the counts this ledger had and loses its seal: where
+  /// the ledger is stored in a folder it is then written there, not taken
+  /// for an older one and replaced by the folder's. [fromFolder] is the one
+  /// case where it isn't: the folder's own ledger taken in as it is.
+  ///
+  /// [onlyIfDigest]: what this ledger held when it was found to have
+  /// nothing the folder's lacks. Checked inside the same write: a change
+  /// made here since (a click while the folder's was being read) and
+  /// nothing is replaced, with a [ChangedSinceException].
+  Future<void> replaceAllFrom(
+    String path, {
+    String? sourceKeyBind,
+    bool fromFolder = false,
+    String? onlyIfDigest,
+  }) async {
     const parentsFirst = [
       'accounts',
       'pay_schedules',
@@ -1064,6 +1155,13 @@ class AppDatabase extends _$AppDatabase {
     }
     try {
       await transaction(() async {
+        if (onlyIfDigest != null &&
+            (await sealState()).digest != onlyIfDigest) {
+          throw ChangedSinceException();
+        }
+        final had = SyncComputers.parse(
+          (await _syncPrefs())[SyncKeys.computers],
+        );
         for (final t in parentsFirst.reversed) {
           await customStatement('DELETE FROM main.$t');
         }
@@ -1074,6 +1172,26 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
           );
+        }
+        // A computer's count never goes down: the counts this ledger had
+        // are folded into the ones that came, from the folder or not.
+        {
+          final kept = SyncComputers.parse(
+            (await _syncPrefs())[SyncKeys.computers],
+          ).joined(had);
+          if (!fromFolder) {
+            await customStatement(
+              'DELETE FROM main.preferences WHERE key IN (?, ?)',
+              [SyncKeys.seal, SyncKeys.saved],
+            );
+          }
+          if (kept.counters.isNotEmpty) {
+            await customStatement(
+              'INSERT OR REPLACE INTO main.preferences (key, value) '
+              'VALUES (?, ?)',
+              [SyncKeys.computers, kept.encode()],
+            );
+          }
         }
         final unbalanced = await customSelect(unbalancedSql).get();
         if (unbalanced.isNotEmpty) {
@@ -2653,7 +2771,11 @@ class AppDatabase extends _$AppDatabase {
         await delete(transactions).go();
         await delete(paySchedules).go();
         await delete(payees).go();
-        await delete(preferences).go();
+        // The computers' counts stay: where the ledger is stored in a
+        // folder, the new one is this ledger changed, and is written there.
+        await (delete(
+          preferences,
+        )..where((p) => p.key.equals(SyncKeys.computers).not())).go();
         await (delete(accounts)..where(
               (a) => keepCategories
                   ? (a.type.isIn([

@@ -2763,6 +2763,31 @@ it), and one large question per screen with the accounts in a side panel.
   does nothing there).
 
 
+### Two computers: what is said when the ledger comes from another one (2026-10-09)
+
+Built with step 1 of "More than one computer on one ledger"
+([ADR 0005](0005-mobile-companion.md)); the owner has not seen these yet.
+
+- **A newer ledger opened by itself** is a popup, since it is a saved change: "Opened
+  the ledger saved on Tom’s MacBook Air", under it the folder and when, as Settings
+  writes them ("My Drive/BetterBudget · Yesterday 21:40"), and Undo. ⌘Z doesn't
+  reach it, as with the phones' entries.
+- **Both changed** is a question, "Your ledger was changed on two computers": a line
+  for each ledger in real numbers ("In the folder · 21 transactions · 4 accounts",
+  with "Saved on The laptop · Today 10:00" under it; "On this computer · 20
+  transactions · 4 accounts"), then what it means and what waiting costs, and three
+  buttons: Not now, Keep this computer's ledger, Keep the folder's ledger. None is
+  the default: either choice sets work aside. Esc and a click away are Not now.
+  One verb, **keep**, here and on the Settings button ("Choose which to keep…")
+  (budget review: the first wording had "use", "keep" and "go on with").
+- **Said where it's fixed:** while it is undecided the "Stored in" line is red,
+  "My Drive/BetterBudget · changed on another computer too · this computer’s
+  changes aren’t in the folder", with the button beside the folder's other buttons,
+  and the gear has its dot.
+- This question is the stand-in until the app combines the two; it goes when that is
+  built. Offered by the budget review and not built, because combining replaces it:
+  listing under each line the entries only that side has.
+
 ### Phone screens: Ledger first (owner, 2026-10-08)
 
 "On the phone app, I don't want all the pluses on the categories. I want this UI to be
