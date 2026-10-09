@@ -25,7 +25,13 @@ class PhoneCategory {
     this.recentPayees = const [],
     this.due,
     this.madeHere = false,
+    this.transfer = false,
   });
+
+  /// Not a category: another of the ledger's accounts, picked in the
+  /// Category list to move money to it (cash from an ATM, a card paid).
+  /// [id] is the account's.
+  final bool transfer;
 
   /// Made on this phone and not in the ledger yet (owner, 2026-10-08: "in a
   /// pinch, if they're out of the house, they should be able to create a new
@@ -124,6 +130,21 @@ class PhoneSnapshot {
   final List<PhoneCategory> categories;
   final List<PhoneAccount> accounts;
 
+  /// The account [e] moved money to, when it is a transfer; otherwise null.
+  PhoneAccount? transferTo(PhoneEntry e) {
+    for (final a in accounts) {
+      if (a.id == e.categoryId) return a;
+    }
+    return null;
+  }
+
+  /// The accounts money can be moved to from [from]: the others in its
+  /// currency (between two currencies takes both amounts, on the computer).
+  List<PhoneAccount> transferTargets(PhoneAccount from) => [
+    for (final a in accounts)
+      if (a.id != from.id && a.currency == from.currency) a,
+  ];
+
   /// The accounts an entry in [category] can be paid from: those in its
   /// currency.
   List<PhoneAccount> accountsFor(PhoneCategory category) => [
@@ -146,12 +167,18 @@ class PhoneEntry {
 
   /// Random, so the Mac never takes the same entry in twice.
   final String id;
+
+  /// The category, or for a transfer the account the money went to: the
+  /// ledger keeps both in one list, so an id names one or the other
+  /// ([PhoneSnapshot.transferTo]). A computer too old to know of transfers
+  /// leaves such an entry with the phone.
   final String categoryId;
   final String accountId;
   final String payee;
 
   /// Money out is negative, as in the ledger; money in (a refund to its
-  /// category, or income) is positive.
+  /// category, or income) is positive. A transfer is what left [accountId],
+  /// negative.
   final int amountMinor;
   final DateTime date;
   final DateTime madeAt;
@@ -402,13 +429,18 @@ PhoneSnapshot snapshotOf(
   );
 }
 
-/// [account]'s balance once the [waiting] entries paid from it are counted.
-/// What is owed on a card grows as money goes out.
+/// [account]'s balance once the [waiting] entries paid from it, and the
+/// transfers into it, are counted. What is owed on a card grows as money
+/// goes out and shrinks as a payment comes in.
 int balanceNow(PhoneAccount account, Iterable<PhoneEntry> waiting) {
   var balance = account.balanceMinor;
   for (final e in waiting) {
-    if (e.accountId != account.id) continue;
-    balance += account.owes ? -e.amountMinor : e.amountMinor;
+    final change = e.accountId == account.id
+        ? e.amountMinor
+        : e.categoryId == account.id
+        ? -e.amountMinor
+        : 0;
+    balance += account.owes ? -change : change;
   }
   return balance;
 }

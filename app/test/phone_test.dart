@@ -11,7 +11,7 @@ import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/domain/budget.dart';
-import 'package:betterbudget/domain/ledger.dart' show AccountType;
+import 'package:betterbudget/domain/ledger.dart' show AccountType, RowKind;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/phone_preview.dart';
@@ -715,6 +715,201 @@ void main() {
     expect(find.text('₮160,500.00'), findsOneWidget);
   });
 
+  testWidgets('an account picked in the Category list makes a transfer: '
+      'cash from an ATM, and a card paid', (tester) async {
+    final store = await _pump(tester);
+    PhoneAccount account(String id) =>
+        store.snapshot.accounts.singleWhere((a) => a.id == id);
+    Future<void> to(String name) async {
+      await tester.tap(find.byKey(const ValueKey('category-row')));
+      await tester.pumpAndSettle();
+      // The accounts are the list's last rows.
+      await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name));
+      await tester.pumpAndSettle();
+    }
+
+    // The accounts are at the foot of the Category list, under a heading.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('→ Golomt Visa'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Move to an account'), findsOneWidget);
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('Owed ₮312,000.00'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_transfer_list.png'),
+    );
+    await tester.tap(find.text('→ Cash wallet'));
+    await tester.pumpAndSettle();
+
+    // No payee to ask for, no sign to turn, and the account row reads From.
+    expect(find.byKey(const ValueKey('payee-row')), findsNothing);
+    expect(find.byKey(const ValueKey('sign')), findsNothing);
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('From'), findsOneWidget);
+    expect(find.text('Paid from'), findsNothing);
+    await _type(tester, '100000');
+    expect(find.text('₮100,000'), findsOneWidget);
+    expect(tester.widget<Text>(find.text('₮100,000')).style?.color, Mid.ink);
+    // Nothing is said until the account it leaves is known.
+    expect(find.byKey(const ValueKey('left-line')), findsNothing);
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Choose an account'), findsOneWidget);
+    // The account it goes to isn't offered to take it from.
+    await tester.tap(find.byKey(const ValueKey('account-row')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cash wallet'), findsNothing);
+    await tester.tap(find.text('TDB Checking'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('TDB Checking · ₮2,331,800.00 after this'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_transfer.png'),
+    );
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final atm = store.waiting.single;
+    expect(atm.categoryId, 'cash');
+    expect(atm.accountId, 'tdb');
+    expect(atm.amountMinor, -10000000);
+    expect(atm.payee, '');
+    expect(
+      find.text('Saved · TDB Checking → Cash wallet ₮100,000.00'),
+      findsOneWidget,
+    );
+    expect(find.text('Cash wallet · ₮186,000.00 now'), findsOneWidget);
+    expect(balanceNow(account('tdb'), store.waiting), 233180000);
+    expect(balanceNow(account('cash'), store.waiting), 18600000);
+    // The next entry is spending again, with its payee row.
+    expect(find.byKey(const ValueKey('payee-row')), findsOneWidget);
+    expect(find.text('−₮0'), findsOneWidget);
+
+    // Undo brings the transfer back as it was typed.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.waiting, isEmpty);
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('₮100,000'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    // A card paid: what is owed on it goes down.
+    await _account(tester, 'TDB Checking');
+    await to('→ Golomt Visa');
+    await _type(tester, '200000');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Saved · TDB Checking → Golomt Visa ₮200,000.00'),
+      findsOneWidget,
+    );
+    expect(find.text('Golomt Visa · ₮112,000.00 owed now'), findsOneWidget);
+    expect(balanceNow(account('visa'), store.waiting), 11200000);
+
+    // The waiting list names a transfer by its two accounts, in plain ink.
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('TDB Checking → Cash wallet'), findsOneWidget);
+    expect(find.text('Transfer · 2026.10.07'), findsNWidgets(2));
+    expect(tester.widget<Text>(find.text('₮100,000.00')).style?.color, Mid.ink);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // With an account already chosen, it isn't in the list to move to; and
+    // money in is never a transfer.
+    await _account(tester, 'Cash wallet');
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('→ Golomt Visa'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('→ Cash wallet'), findsNothing);
+    expect(find.text('→ TDB Checking'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    expect(find.text('Move to an account'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+
+    // "ATM" typed is someone looking for these, not a new category's name.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('category-field')), 'ATM');
+    await tester.pump();
+    expect(find.text('Move to an account'), findsOneWidget);
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('→ TDB Checking'), findsOneWidget);
+    // An account's name narrows them, and Done takes it when no category
+    // fits.
+    await tester.enterText(
+      find.byKey(const ValueKey('category-field')),
+      'cash w',
+    );
+    await tester.pump();
+    expect(find.text('→ TDB Checking'), findsNothing);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('From'), findsOneWidget);
+
+    // A payee typed before the transfer was picked isn't kept out of sight.
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await _payee(tester, 'Nomin');
+    await to('→ Cash wallet');
+    await _category(tester, 'Groceries');
+    expect(find.text('Nomin'), findsNothing);
+    expect(find.byKey(const ValueKey('payee-row')), findsOneWidget);
+  });
+
+  testWidgets('an account with no other in its currency is not offered to '
+      'move money to', (tester) async {
+    final base = previewSnapshot(DateTime(2026, 10, 7, 8, 10));
+    await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: base.madeAt,
+        categories: base.categories,
+        accounts: [
+          ...base.accounts.take(2),
+          const PhoneAccount(
+            id: 'usd',
+            name: 'Dollars',
+            balanceMinor: 50000,
+            currency: Currency.usd,
+          ),
+        ],
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    expect(find.text('→ Cash wallet'), findsOneWidget);
+    expect(find.text('→ Dollars'), findsNothing);
+  });
+
   testWidgets('a refund to an overspent category says what it leaves', (
     tester,
   ) async {
@@ -1347,6 +1542,103 @@ void main() {
       );
     });
 
+    test('a transfer on the phone is a transfer on the computer', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final checking = id('TDB Checking'), cash = id('Cash wallet');
+      final visa = id('Golomt Visa');
+      final dollars = await db.createAccount(
+        name: 'Dollars',
+        type: AccountType.asset,
+        currency: Currency.usd,
+      );
+      final was = (
+        checking: data.balanceOf(checking),
+        cash: data.balanceOf(cash),
+        visa: data.balanceOf(visa),
+      );
+      final rows = data.txns.length;
+
+      // The phone's own sums, before the computer has seen anything.
+      final snapshot = snapshotOf(data, today: today, madeAt: today);
+      PhoneAccount phone(int id) =>
+          snapshot.accounts.singleWhere((a) => a.id == '$id');
+      final atm = entry('t1', '$cash', '$checking', -10000000);
+      final card = entry('t2', '$visa', '$checking', -20000000);
+      expect(snapshot.transferTo(atm)!.name, 'Cash wallet');
+      expect(
+        snapshot.transferTo(entry('e', '${id('Groceries')}', '$checking', -1)),
+        isNull,
+      );
+      expect(
+        snapshot.transferTargets(phone(checking)).map((a) => a.name),
+        isNot(contains('TDB Checking')),
+      );
+      expect(
+        balanceNow(phone(checking), [atm, card]),
+        phone(checking).balanceMinor - 30000000,
+      );
+      expect(
+        balanceNow(phone(cash), [atm, card]),
+        phone(cash).balanceMinor + 10000000,
+      );
+      // A card paid: what is owed goes down.
+      expect(
+        balanceNow(phone(visa), [atm, card]),
+        phone(visa).balanceMinor - 20000000,
+      );
+
+      // Cash wallet was put away on the computer since the phone looked:
+      // the transfer still comes in, and the account comes back.
+      await db.setArchived(cash, true);
+      final inbox = PhoneInbox(
+        device: 'ab12',
+        entries: [
+          atm,
+          card,
+          // To itself, to another currency, or the wrong way round: left
+          // with the phone.
+          entry('t3', '$checking', '$checking', -500),
+          entry('t4', '$dollars', '$checking', -500),
+          entry('t5', '$cash', '$checking', 500),
+        ],
+      );
+      final take = (await db.takePhoneEntries([inbox], today: today))!;
+      expect(take.transactionIds, hasLength(2));
+      data = await db.loadLedger();
+      expect(data.txns.length, rows + 2);
+      expect(data.balanceOf(checking), was.checking - 30000000);
+      expect(data.balanceOf(cash), was.cash + 10000000);
+      expect(data.balanceOf(visa), was.visa + 20000000);
+      final row = data
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == take.transactionIds.first);
+      expect(data.accounts[cash]!.archived, isFalse);
+      expect(row.kind, RowKind.transfer);
+      expect(row.payee, 'Cash wallet');
+      expect(row.amount, -10000000);
+      expect(
+        snapshotOf(data, today: today, madeAt: today).taken['ab12']!.entries,
+        {'t1', 't2'},
+      );
+
+      await db.undoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), was.checking);
+      expect(data.balanceOf(cash), was.cash);
+      expect(data.balanceOf(visa), was.visa);
+      expect(data.accounts[cash]!.archived, isTrue);
+      await db.redoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(cash), was.cash + 10000000);
+      expect(data.accounts[cash]!.archived, isFalse);
+    });
+
     test('the computer takes each entry in once, with one undo, and the '
         'phone lets go of them', () async {
       final db = AppDatabase(NativeDatabase.memory());
@@ -1449,7 +1741,7 @@ void main() {
           ),
           PhoneInbox(device: 'ab12', entries: [entry('a', g, c, -100)]),
           PhoneInbox(device: 'cd34', entries: [entry('a', g, c, -300)]),
-          // A category id that names an account isn't spending: left out.
+          // Money moved to the account it came from is nothing: left out.
           PhoneInbox(device: 'ef56', entries: [entry('x', c, c, -400)]),
         ];
         final take = (await db.takePhoneEntries(files, today: today))!;

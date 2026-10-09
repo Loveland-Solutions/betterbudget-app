@@ -46,7 +46,11 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   schema change needs an upgrade that keeps what's in their file, with a test; weigh a
   change by what it does to rows already there, and say so when one would alter or drop
   them. Never delete, reseed, erase or hand-edit their database file; try things on
-  demo data or a copy.
+  demo data or a copy. One exception (owner, 2026-10-09, for the two-computers work in
+  ADR 0005: "It's okay if we need to replace the existing ledger to build something
+  that is bulletproof. Remove it if you must"): that design may change the file's
+  form or replace the ledger, and before anything of theirs is removed, say what will
+  go and ask.
 - **Warn, don't block** (owner, 2026-09-18: "I really hate it when a developer tries to
   save me from myself"). Don't forbid an action to protect the user. Say exactly what
   will happen, big and specific with real numbers, then let them go ahead, with undo.

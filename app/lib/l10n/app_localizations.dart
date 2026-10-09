@@ -6945,6 +6945,60 @@ abstract class Words {
   /// **'Choose an account'**
   String get phoneChooseAccount;
 
+  /// Phone, Category list: heading over the user's other accounts at the foot of the list. Picking one makes the entry a transfer to it (cash from an ATM, a credit card paid) instead of spending.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to an account'**
+  String get phoneMoveToAccount;
+
+  /// Phone: an account as the destination of a transfer, in the Category list and in the Category row once picked, as the computer writes it: '→ Cash wallet'.
+  ///
+  /// In en, this message translates to:
+  /// **'→ {account}'**
+  String phoneTransferTo(String account);
+
+  /// Phone, Ledger: label of the account row when the entry is a transfer: the account the money leaves. Takes the place of 'Paid from'.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get phoneFrom;
+
+  /// Phone, Ledger, line under the amount of a transfer: what the account the money leaves will hold once it has gone, e.g. 'TDB Checking · ₮3,812,450.00 after this'.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} · {amount} after this'**
+  String phoneTransferAfter(String account, String amount);
+
+  /// As phoneTransferAfter, when the money leaves a credit card or loan: what will be owed on it.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} · {amount} owed after this'**
+  String phoneTransferOwedAfter(String account, String amount);
+
+  /// Phone toast after a transfer is saved, e.g. 'Saved · TDB Checking → Cash wallet ₮100,000.00'.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved · {from} → {to} {amount}'**
+  String phoneSavedTransfer(String from, String to, String amount);
+
+  /// Phone toast, second line after a transfer: what the account the money went to holds now, e.g. 'Cash wallet · ₮186,500.00 now'.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} · {amount} now'**
+  String phoneTransferNow(String account, String amount);
+
+  /// As phoneTransferNow, when the money went to a credit card or loan: what is still owed on it.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} · {amount} owed now'**
+  String phoneTransferOwedNow(String account, String amount);
+
+  /// Phone, waiting list: the name of a transfer, the two accounts, e.g. 'TDB Checking → Cash wallet'.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} → {to}'**
+  String phoneTransferTitle(String from, String to);
+
   /// Phone app, Accounts list: a card or loan that has been paid more than was owed.
   ///
   /// In en, this message translates to:
