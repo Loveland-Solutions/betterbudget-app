@@ -1259,10 +1259,9 @@ class _ScheduledRow extends StatelessWidget {
           painter: _DashedBorder(
             color: selected
                 ? Mid.blueEdge
-                // "Not real yet": stronger on white, where a faint dash vanishes.
-                : Mid.gold.withValues(
-                    alpha: (hover ? 0.55 : 0.35) + (Mid.isLight ? 0.2 : 0),
-                  ),
+                // "Not real yet", in gray: gold is for what is done (owner,
+                // 2026-10-09). Stronger on white, where a faint dash vanishes.
+                : Mid.ink3.withValues(alpha: (hover ? 0.75 : 0.55)),
           ),
           child: Container(
             padding: Cols.inset,
@@ -1283,7 +1282,7 @@ class _ScheduledRow extends StatelessWidget {
                           child: Icon(
                             Icons.event_repeat_rounded,
                             size: 14,
-                            color: Mid.gold,
+                            color: Mid.ink3,
                           ),
                         ),
                       ),
@@ -1292,7 +1291,7 @@ class _ScheduledRow extends StatelessWidget {
                         width: Cols.date,
                         child: Text(
                           fullDate(r.date),
-                          style: onest(13, color: Mid.gold, tabular: true),
+                          style: onest(13, color: Mid.ink2, tabular: true),
                         ),
                       ),
                       const SizedBox(width: Cols.gap),
@@ -1314,7 +1313,9 @@ class _ScheduledRow extends StatelessWidget {
                               Text(
                                 '· $overdue',
                                 key: const ValueKey('overdue-note'),
-                                style: onest(14, color: Mid.gold),
+                                // Full ink and heavier: late is the one thing on this
+                                // row to notice, now that it isn't gold.
+                                style: onest(14, weight: 600, color: Mid.ink),
                               ),
                             ],
                             // The overdue note takes the place of "next of
@@ -1381,14 +1382,12 @@ class _ScheduledRow extends StatelessWidget {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: h
-                                    ? Mid.gold.withValues(alpha: 0.12)
-                                    : Colors.transparent,
+                                color: h ? Mid.blueWash : Colors.transparent,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 t.rowsConfirm,
-                                style: onest(13, weight: 500, color: Mid.gold),
+                                style: onest(13, weight: 500, color: Mid.blue),
                               ),
                             ),
                           ),
@@ -1408,8 +1407,9 @@ class _ScheduledRow extends StatelessWidget {
 }
 
 /// A row's amount, told apart at a glance (owner, 2026-10-06: "it's hard
-/// to tell if the values are negative or positive"): money out is red with
-/// a minus in front, money in green with a plus. Nothing is plain but zero.
+/// to tell if the values are negative or positive"): money out has a minus
+/// in front, money in is green with a plus. Money out is in ordinary ink, not
+/// red (owner, 2026-10-09): red is for a shortfall, and spending isn't one.
 class _Amount extends StatelessWidget {
   const _Amount(this.minor);
   final int minor;
@@ -1417,11 +1417,14 @@ class _Amount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (minor == 0) return Money(minor, sign: MoneySign.none);
-    final color = minor > 0 ? Mid.green : Mid.coral;
+    if (minor < 0) {
+      return Money(minor, color: Mid.ink, sign: MoneySign.plusForPositive);
+    }
     return Money(
       minor,
-      color: color,
-      centsColor: Mid.isLight ? color : color.withValues(alpha: 0.6),
+      color: Mid.green,
+      // Quieter at night, without fading into a hovered row.
+      centsColor: Mid.isLight ? Mid.green : Mid.green.withValues(alpha: 0.8),
       sign: MoneySign.plusForPositive,
     );
   }

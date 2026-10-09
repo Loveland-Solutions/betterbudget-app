@@ -33,7 +33,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
     can't see.
   - Arithmetic that's right can still confuse: show a number the way a person would
     say it.
-  - Toasts are for saved changes. Money out is red with a minus in front. A currency's
+  - Toasts are for saved changes. Money out is ordinary ink with a minus in front;
+    red is for a shortfall. A currency's
     code goes at the end, with its real symbol.
   - Questions to the owner are whole sentences with a plain example from the screen,
     not the app's internals.

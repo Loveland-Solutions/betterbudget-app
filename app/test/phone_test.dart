@@ -17,6 +17,7 @@ import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_start.dart';
+import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -171,6 +172,7 @@ Directory _phoneDir() {
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   setUpAll(() async {
+    usePhoneColors();
     await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');
     await _loadFont('Manrope', 'assets/fonts/Manrope-Variable.ttf');
     await _loadFont(
@@ -237,6 +239,11 @@ void main() {
       ),
     ];
     expect(leftNow(groceries, waiting), 13550000);
+  });
+
+  test('the phone keeps dark Blue eclipse for now', () {
+    usePhoneColors();
+    expect(Mid.palette, same(Palette.of(blueEclipseScheme, Brightness.dark)));
   });
 
   testWidgets('opens on Ledger with nothing chosen', (tester) async {

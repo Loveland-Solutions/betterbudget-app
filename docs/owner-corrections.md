@@ -102,4 +102,9 @@ filled in under the phone's Paid from, then a question about which account to fi
 green logo that came out navy and blue, because green had been kept for money in alone
 ("Why no green in the color scheme?": the logo's colors are at work in the app, so the
 main buttons are its green; a rule that takes a brand color out is a trade to show,
-not to settle for them).
+not to settle for them), and gold on about forty things that weren't done yet or were
+only a heads-up, a scheduled bill among them ("Gold is an accent color. Don't overuse
+it": gold is for what is done and safe; not-yet is gray with a blue Confirm, and a
+heads-up is plain ink), and money out in red (ordinary ink, with its minus: "I said I
+wanted the outflow to be normal color instead of red"; this replaces "it's red with a
+minus in front" above. Red is left for a shortfall).

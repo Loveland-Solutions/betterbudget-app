@@ -631,7 +631,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       children: [
         _note(
           Icons.info_outline_rounded,
-          Mid.gold,
+          Mid.ink,
           t.importNoBalance(
             widget.owed ? t.setupStartOwedToday : t.setupStartInToday,
           ),
@@ -885,7 +885,7 @@ class _ImportDialogState extends State<_ImportDialog> {
               )
             : _note(
                 Icons.info_outline_rounded,
-                Mid.gold,
+                Mid.note,
                 day == null
                     ? t.importClearedDiffers(
                         _money(_shown(ours)),
@@ -908,7 +908,7 @@ class _ImportDialogState extends State<_ImportDialog> {
           key: const ValueKey('import-repeats'),
           child: _note(
             Icons.info_outline_rounded,
-            Mid.gold,
+            Mid.note,
             t.importRepeats(repeats),
           ),
         ),
@@ -958,7 +958,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       notes.add(
         _note(
           Icons.info_outline_rounded,
-          Mid.gold,
+          Mid.note,
           t.importUnmatched(
             u.length,
             sayFullDate(t, plan.firstDay!),
@@ -1010,7 +1010,7 @@ class _ImportDialogState extends State<_ImportDialog> {
               text,
               style: big
                   ? onest(14.5, weight: 600, color: color)
-                  : onest(13, color: color == Mid.gold ? Mid.ink2 : color),
+                  : onest(13, color: color),
             ),
           ),
         ],
@@ -1086,9 +1086,7 @@ class _PlanLine extends StatelessWidget {
               shown,
               size: 13.5,
               sign: MoneySign.plusForPositive,
-              color: dim
-                  ? Mid.ink3
-                  : (shown > 0 ? Mid.green : (shown < 0 ? Mid.coral : Mid.ink)),
+              color: dim ? Mid.ink3 : (shown > 0 ? Mid.green : Mid.ink),
             ),
           ),
         ),

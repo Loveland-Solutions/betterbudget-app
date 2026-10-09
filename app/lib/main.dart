@@ -24,6 +24,7 @@ Future<void> main() async {
   final dir = await getApplicationSupportDirectory();
   // A phone records and checks (ADR 0005); it never holds the ledger itself.
   if (Platform.isAndroid || Platform.isIOS) {
+    usePhoneColors();
     runApp(
       PhoneFrame(
         child: PhoneStart(keys: KeyStore(), dir: dir),

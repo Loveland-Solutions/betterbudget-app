@@ -23,10 +23,12 @@ void main() {
     );
     expect(schemes.where((s) => s.group == SchemeGroup.seasonal).length, 12);
     expect(schemeById('stormy-morning').colors.first, const Color(0xFF6A89A7));
-    // Blue eclipse is the default (owner, 2026-09-30), and the same one as in
-    // the list.
-    expect(defaultScheme.id, 'blue-eclipse');
+    // The app's own colors are what a new install shows (owner, 2026-10-09),
+    // and Blue eclipse, the default before, is still in the list.
+    expect(defaultScheme, betterBudgetScheme);
     expect(schemes.where((s) => identical(s, defaultScheme)).length, 1);
+    expect(schemeById('blue-eclipse'), blueEclipseScheme);
+    expect(schemes.where((s) => identical(s, blueEclipseScheme)).length, 1);
     expect(schemeById('purple'), defaultScheme);
     expect(schemeById(null), defaultScheme);
   });
@@ -42,6 +44,32 @@ void main() {
       Palette.of(s, Brightness.dark),
       same(Palette.of(s, Brightness.dark)),
     );
+  });
+
+  test('gold is an accent: only what is done and safe uses it', () {
+    // Owner, 2026-10-09: "Gold is an accent color. Don't overuse it." A
+    // heads-up is Mid.note; the phone keeps its gold until its own turn.
+    const allowed = {
+      'theme.dart',
+      'reconcile.dart',
+      'recovery_key_screen.dart',
+      'ledger_screen.dart',
+      'phone_app.dart',
+    };
+    final using = [
+      for (final f in Directory('lib/ui').listSync(recursive: true))
+        if (f is File &&
+            f.path.endsWith('.dart') &&
+            f.readAsStringSync().contains('Mid.gold'))
+          f.uri.pathSegments.last,
+    ];
+    expect(using.toSet().difference(allowed), isEmpty);
+    for (final p in [Palette.light, Palette.dark]) {
+      Mid.palette = p;
+      expect(Mid.note, p.ink2);
+      expect(Mid.note, isNot(Mid.gold));
+    }
+    Mid.palette = Palette.dark;
   });
 
   for (final b in Brightness.values) {

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.19.0 · schema v18 · 551 tests pass
+**Last updated: 2026-10-09** · version 0.20.0 · schema v18 · 553 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,10 +10,12 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #55 (version 0.19.0).** The app wears the owner's new logo and its colors:
-a navy sidebar, green main buttons, the coins' gold for the sidebar's marks and the
-saved popup, and the logo on a white tile as the icon (ADR 0004 "The logo's colors";
-the five options drawn are at <https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S>).
+**After the colors PR (version 0.20.0).** The computer wears the owner's logo and its
+colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
+accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
+a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
+an accent, and the new colors come first"; the screens compared are at
+<https://claude.ai/artifact/1xJW37g537PUgA5BRLkzvq>).
 The owner's ledger is stored in their Google Drive folder; the Android app records
 money out and money in, and what it records reaches the computer's ledger through the
 folder. Then, in order (the owner was asked on 2026-10-08 whether transfers on the
@@ -59,13 +61,14 @@ phone come before item 1; "Waiting on the owner" 16):
    PR #48).
 4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
-5. **The rest of the new look**, when the owner asks for it. The four Savings pictures
-   the owner drew are made ready (`assets/logo/prepared/savings-*.svg`, day and night)
-   and not on the Savings page: where they sit is a design question, and two of the six
-   steps have no picture ("Waiting on the owner" 19). The phone still always shows dark
-   Blue eclipse, and the Pixel still has the old build and the bee icon: its new icon is
-   drawn in the project and arrives with the next install. The iPhone and Windows builds
-   still have Flutter's icon.
+5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
+   "Gold is an accent, and the new colors come first"). **The phone is next when the
+   owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
+   the Pixel still has the old build and the bee icon: its new icon is drawn in the
+   project and arrives with the next install. The iPhone and Windows builds still have
+   Flutter's icon. The four Savings pictures the owner drew are made ready
+   (`assets/logo/prepared/savings-*.svg`, day and night) and wait: the owner is going
+   to change the Savings steps, and said to take that up with the budget page.
 
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
@@ -140,18 +143,10 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 16. **Transfers on the phone next?** (2026-10-08) ₮100,000 taken out of an ATM is
     neither a refund nor income, and the phone has only wrong places for it. Should
     transfers on the phone be built ahead of the two-computers work (Next step 1)?
-17. **Gold on a bill that hasn't happened yet** (2026-10-08). Rent scheduled for 09.20
-    is outlined in gold with a gold "Confirm". With gold coins in the logo, a first-time
-    reader took gold on a row to mean "money I have". Should that row go quiet gray with
-    a blue Confirm, keeping gold for reconciled rows and the saved popup? Both are drawn
-    on the canvas (row "A separate question"). Recommended yes.
-18. **What a new install shows** (2026-10-08). Blue eclipse has been the starting colors
-    since 2026-09-30. Should the new colors show first, with Blue eclipse still in the
-    list, and the phone show them too and follow its own day and night setting?
-    Recommended yes.
-19. **Two Savings steps have no picture** (2026-10-08): Health coverage, and Paying off
-    the mortgage and student loans. Will the owner draw two more, or do those steps go
-    without? The pictures wait on this.
+17. **Two wordings from the colors review** (2026-10-09). Should a late bill say what
+    it means for the balance, "due 22 days ago · not in Working yet"? And should an
+    import that doesn't match the bank lead with the amount as its own sentence,
+    "₮3,298,850.00 apart from the bank."?
 
 ## Phase
 
@@ -166,7 +161,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Storage | Drift/SQLite at schema v18, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v19-from-v18-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
 | Sidebar | Sections Ledger, Budget, Savings. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
-| Register | One signed amount column (money in green with a plus, money out in the coral red with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
+| Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
 | Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date |
 | Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. Split lines can't be edited |
 | Row actions | Edit, Categorize, Mark cleared, Move to, Delete; Confirm on a scheduled row. Keys Enter, C, Delete |
@@ -183,7 +178,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
-| Appearance | Same as this Mac, Light or Dark; 101 color schemes, Blue eclipse the default. The app's own, “BetterBudget”, is the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green, red and gold are the same in every scheme |
+| Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
 | Language | Same as this Mac, English or Монгол; 1,135 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
@@ -235,16 +230,11 @@ open the archive).
 
 - **From the reviews of the new look (2026-10-09), not fixed:** the gold popup that
   says a change was saved also carries failures ("Couldn't save: …", "Couldn't
-  undo…"), which now read as success: each should start "Not saved"; by day gold and
-  red are close for someone red-green colorblind, so a scheduled row's date, amount
-  and Confirm come out one olive ("Waiting on the owner" 17 would remove it, and the
-  calendar's gold future days should follow it); at night the green Add and money in
-  are close mints (a deeper night button, `#4DB594`, was suggested), and the phone's
-  amount screen needs that look before it follows day and night; an amount's dimmed
-  cents are under 4.5 at night (2.8 to 4.6), and by day money out's `.00` is full red
-  where Balance's is quiet; on a hovered row or menu item by day, white on the gold
-  button is 4.2 and the gray currency code 4.0; eight old bee files are still in
-  `assets/logo/`.
+  undo…"), which read as success (about 35 places show one; a failure wants its own
+  plain popup); on a
+  hovered row or menu item by day the gray currency code is 4.0; eight old bee files
+  are still in `assets/logo/`; the phone's amount screen needs the deeper green
+  button before it follows day and night.
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
@@ -287,7 +277,11 @@ open the archive).
 - **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
   the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
   on the startup screen until the app is quit and opened again. Seen 2026-10-01; the
-  ledger wasn't touched. Worth an "unlock your Mac and try again" screen.
+  ledger wasn't touched. **Seen again 2026-10-09 with the Mac unlocked** (the owner:
+  a blank window after a rebuild and relaunch; it opened normally the next three
+  times), so the cause isn't known. Agreed with the owner as the next small fix: the
+  startup screen says what went wrong, with a Try again button and no "unlock your
+  Mac" line.
 - **Buttons may sit wrong on a Mac while their goldens look right** (a Mac draws them
   8 shorter). Only the popup's two were looked at.
 - **From the reviews of PR #44, none fixed:** the mouse wheel does nothing over the
@@ -297,7 +291,7 @@ open the archive).
   waiting rows in every period while the Not categorized tab counts this period's, and
   the offer silently replaces an earlier rule for the payee; reconcile's "Add ₮X
   adjustment" doesn't say which way; a transfer shown once in All accounts reads as
-  red spending.
+  spending.
 - **From the reviews of setup's Accounts step, not fixed:** reopened on a later day,
   "Balances as of" still shows the day setup began and nothing says the earlier
   figures are from then; the "You owe" hints fit a credit card and not a salary loan,

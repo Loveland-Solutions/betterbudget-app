@@ -817,7 +817,7 @@ class _AccountWarning extends StatelessWidget {
                 ),
                 Material(
                   key: const ValueKey('warning-confirm'),
-                  color: danger ? Mid.coral : Mid.gold,
+                  color: danger ? Mid.coral : Mid.fill,
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     onTap: () => Navigator.of(context).pop(true),
@@ -829,7 +829,11 @@ class _AccountWarning extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         action,
-                        style: onest(13, weight: 600, color: Mid.onAccent),
+                        style: onest(
+                          13,
+                          weight: 600,
+                          color: danger ? Mid.onAccent : Mid.onFill,
+                        ),
                       ),
                     ),
                   ),

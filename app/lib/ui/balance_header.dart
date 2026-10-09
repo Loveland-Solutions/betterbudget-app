@@ -428,7 +428,7 @@ class _LateNote extends StatelessWidget {
       context,
       late.fold(0, (s, r) => s + r.amount).abs(),
     );
-    // "+… in" says which way it goes: late bills use the same gold.
+    // "+… in" says which way it goes: late bills are written the same way.
     final String what;
     if (late.length > 1) {
       what = t.planLateSeveral(total, late.length);
@@ -440,9 +440,9 @@ class _LateNote extends StatelessWidget {
       key: const ValueKey('forecast-late'),
       onTap: () => onOpen(late.first),
       builder: (h) {
-        final style = onest(12, color: Mid.gold, tabular: true).copyWith(
+        final style = onest(12, color: Mid.ink, tabular: true).copyWith(
           decoration: h ? TextDecoration.underline : null,
-          decorationColor: Mid.gold,
+          decorationColor: Mid.ink,
         );
         // Only the amount part shrinks: "not counted" explains the warning.
         return Row(
@@ -679,9 +679,9 @@ class ForecastPanel extends StatelessWidget {
                   onTap: onAddPay,
                   builder: (hover) => Text(
                     t.planAddPay,
-                    style: onest(12, color: Mid.gold).copyWith(
+                    style: onest(12, color: Mid.blue).copyWith(
                       decoration: hover ? TextDecoration.underline : null,
-                      decorationColor: Mid.gold,
+                      decorationColor: Mid.blue,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1212,7 +1212,7 @@ class _BillLineState extends State<_BillLine> {
                     if (overdue != null)
                       Text(
                         ' · $overdue',
-                        style: onest(12.5, color: Mid.gold),
+                        style: onest(12.5, weight: 600, color: Mid.ink),
                         maxLines: 1,
                       ),
                   ],

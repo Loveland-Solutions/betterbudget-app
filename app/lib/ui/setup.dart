@@ -684,7 +684,7 @@ class _SetupPageState extends State<_SetupPage> {
               Text(
                 t.setupNoCashWarning,
                 key: const ValueKey('setup-no-cash'),
-                style: onest(13, color: Mid.gold, height: 1.4),
+                style: onest(13, color: Mid.note, height: 1.4),
               ),
               BarButton(
                 key: const ValueKey('setup-add-cash-now'),

@@ -223,6 +223,52 @@ screens at https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S.
   replaces the bee tilted 45° (2026-09-29). The iPhone and Windows builds still have
   Flutter's icon.
 
+### Gold is an accent, and the new colors come first (owner, 2026-10-09)
+
+Shown the real screens side by side (https://claude.ai/artifact/1xJW37g537PUgA5BRLkzvq),
+the owner settled what was left of the first color scheme on the computer.
+
+- **A new install shows the app's own colors**, not Blue eclipse (which had been the
+  default since 2026-09-30). Blue eclipse and the other 99 schemes stay in Settings →
+  Appearance ("let's leave them there for now"). A computer whose
+  appearance was never touched changes with this; one that picked a scheme keeps it,
+  and so does one where only Light or Dark was chosen (that wrote Blue eclipse down). The test screenshots are drawn
+  in the app's own night colors.
+- **"Gold is an accent color. Don't overuse it."** Gold is for what is done and safe:
+  the reconciled diamond and the button that locks a reconcile, the saved popup, the
+  sidebar's marks (and the recovery key's letters). It had also meant "not yet" and
+  "heads-up", about forty places, and by day those came out brown-olive, nothing like
+  the coins. Now:
+  - A scheduled row is gray dashes with a gray date and a **blue Confirm**; the
+    calendar's days after today are plain, and "After today · it will be scheduled"
+    says the rest. **This undoes "gold: reconciled, scheduled"** (2026-09-29).
+  - A heads-up with nothing wrong is quiet ink (`Mid.note`): "new category" beside
+    Add, the notes on Budget, Import, Pay and setup. Where a quiet line sat beside it
+    already ("on track" against "₮200,000 short"), the one to notice is in full ink.
+  - A heads-up about money that could be missed and regretted is full ink, and
+    heavier where it shares a line (budget review, 2026-10-09: with the gold gone
+    "due 22 days ago" read the same as "next of 4 scheduled"): a late bill on its row
+    and in the forecast's list, late income "not counted", a card carrying a balance
+    on Savings, an import with no balance to check against. Not coral: nothing is
+    short.
+  - What was gold to say "click here" is blue: "Add pay", the dot on the Income tab,
+    the Savings buttons still waiting for an answer. The go-ahead button of a warning
+    that isn't a deletion is the green filled button.
+- **Money out is ordinary ink, with its minus** (owner, 2026-10-09: "I said I wanted
+  the outflow to be normal color instead of red"), in the register and the import
+  preview. **This undoes "money out is red with a minus in front"** (2026-10-06); the
+  minus and money in's green and plus still tell the two apart. Red (coral) is left
+  for what is wrong: a balance below zero, a forecast that runs out, a category
+  overspent, an error. The phone still shows it red until its own turn.
+- **At night the Add button is the day's green** (`#4DB594`, was `#5FC9A3`), so it
+  can't be read as money in's mint; an amount's cents in the register are at 80%, was
+  60%.
+- **The phone is left on dark Blue eclipse** until its own turn (owner: "Let's start
+  with just the computer"); `main.dart` sets it.
+- **The Savings steps are going to change** (owner, when asked where the four Savings
+  pictures go: "We're going to change the steps. We'll get to that when we get to the
+  budget page"). The pictures wait for that.
+
 ### Color: how the dark and light modes were reached (owner, 2026-09-29)
 
 The owner: Midnight is "a bit too dark. We need some color." Sketched on one canvas,

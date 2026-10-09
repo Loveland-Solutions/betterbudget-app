@@ -202,7 +202,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     }
 
     // The panel's top row: the two tabs, and over the categories their
-    // column heads. A gold dot on Income says pay wants attention (not set
+    // column heads. A blue dot on Income says pay wants attention (not set
     // up, or an estimate to update).
     Widget tabs() => CustomPaint(
       foregroundPainter: _tab == _BudgetTab.spending
@@ -869,7 +869,7 @@ class _PageTab extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  /// Something on the tab wants attention: a small gold dot after it.
+  /// Something on the tab wants attention: a small blue dot after it.
   final bool dot;
 
   @override
@@ -901,7 +901,7 @@ class _PageTab extends StatelessWidget {
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: Mid.gold,
+                  color: Mid.blue,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1066,7 +1066,7 @@ class _IncomeTab extends StatelessWidget {
                               key: ValueKey('pay-nudge-${p.id}'),
                               style: onest(
                                 12.5,
-                                color: Mid.gold,
+                                color: Mid.note,
                                 tabular: true,
                               ),
                             ),
@@ -1107,7 +1107,7 @@ class _IncomeTab extends StatelessWidget {
                 : Text(
                     t.planPaydayNotSetUp,
                     key: const ValueKey('income-not-set-up'),
-                    style: onest(13.5, color: Mid.gold),
+                    style: onest(13.5, color: Mid.note),
                   ),
           ),
       ],
@@ -1249,7 +1249,7 @@ class _PeriodArrow extends StatelessWidget {
 
 /// What the Budget page says about pay, beside what came in: "Pay:
 /// ₮2,100,000 or more on the 10th and 25th · next 09.25", or "Pay not set
-/// up" (gold, until it is). With more than one pay it's about the one that
+/// up" (until it is). With more than one pay it's about the one that
 /// wants its estimate updated, else the one the budget's period follows,
 /// else the one that comes next; a click opens that one.
 ({String text, bool nudge, PaySchedule? schedule}) _payNote(
@@ -1884,7 +1884,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
                 ),
               if (kindNote != null) ...[
                 const SizedBox(height: 10),
-                Text(kindNote, style: onest(13, color: Mid.gold)),
+                Text(kindNote, style: onest(13, color: Mid.note)),
               ],
               const SizedBox(height: 20),
               Row(
@@ -2104,7 +2104,7 @@ class _AssignFieldState extends State<_AssignField> {
   }
 }
 
-/// The gold note after the first amount lands in a period already under
+/// The note after the first amount lands in a period already under
 /// way: what it counts, and the choice to start in the next period.
 class _StartOffer extends StatelessWidget {
   const _StartOffer({
@@ -2165,7 +2165,7 @@ String? _ownPayName(Words t, LedgerData data, CategoryPlan plan) {
 
 /// What a plan says under its category's name: the plan, then whether a
 /// dated one has what it should ("on track", or "₮200,000 short" in
-/// gold).
+/// full ink).
 typedef _PlanNote = ({String text, String? state, bool behind});
 
 _PlanNote _planNote(
@@ -2327,7 +2327,7 @@ class _PlanNoteLine extends StatelessWidget {
               key: ValueKey('plan-state-$id'),
               style: onest(
                 12,
-                color: note.behind ? Mid.gold : Mid.ink2,
+                color: note.behind ? Mid.ink : Mid.ink2,
                 tabular: true,
               ),
             ),
@@ -2630,7 +2630,7 @@ List<_LineFlag> _lineFlags(
                 data.accounts[line.offAccounts.single]?.name ?? '',
               )
             : t.planOffAccounts(money(line.offSpent), line.offAccounts.length),
-        color: Mid.gold,
+        color: Mid.note,
         onTap: onRows,
       ),
     if (line.otherCurrency case final other? when line.otherRows > 0)
@@ -2641,7 +2641,7 @@ List<_LineFlag> _lineFlags(
           c.currency.shown,
           other.shown,
         ),
-        color: Mid.gold,
+        color: Mid.note,
         onTap: onAllRows,
       ),
   ];
@@ -4354,7 +4354,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                                   style: onest(
                                                     12.5,
                                                     color: note!.behind
-                                                        ? Mid.gold
+                                                        ? Mid.ink
                                                         : Mid.ink2,
                                                     tabular: true,
                                                   ),
@@ -4410,15 +4410,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       ),
                     ),
                     if (returns != null)
-                      warning(returns, 'plan-returns', Mid.gold),
+                      warning(returns, 'plan-returns', Mid.note),
                     if (paidArchived != null)
-                      warning(paidArchived, 'plan-paid-archived', Mid.gold),
+                      warning(paidArchived, 'plan-paid-archived', Mid.note),
                     if (rest != null) warning(rest, 'money-rest', Mid.ink2),
                     if (loses)
                       warning(
                         _moneyChange(t, c, assigned, hasPlan),
                         'money-change',
-                        Mid.gold,
+                        Mid.note,
                       ),
                     const SizedBox(height: 12),
                     Row(

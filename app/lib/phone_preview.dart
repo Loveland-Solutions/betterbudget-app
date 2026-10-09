@@ -80,6 +80,7 @@ PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
 );
 
 void main() {
+  usePhoneColors();
   final now = DateTime.now();
   runApp(
     PhoneApp(
