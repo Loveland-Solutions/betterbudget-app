@@ -1,4 +1,5 @@
 import '../domain/ledger.dart';
+import '../domain/money.dart';
 import 'database.dart';
 
 /// Synthetic demo data (never real statement data), dated relative to [today]
@@ -64,6 +65,8 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
     ]) {
       cat[n] = await db.addAccount(name: n, type: AccountType.expense);
     }
+    // Built in, as the app makes it for a ledger past setup.
+    await db.safetyNetCategory(name: 'Safety net', currency: Currency.mnt);
 
     DateTime day(int offset) => dateOnly(today).add(Duration(days: offset));
     const unc = Cleared.uncleared,

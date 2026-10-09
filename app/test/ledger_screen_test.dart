@@ -170,21 +170,20 @@ void main() {
     final db = await pumpLedger(tester);
     await tester.tap(find.text('Savings'));
     await tester.pumpAndSettle();
-    expect(find.text('One month of expenses set aside'), findsOneWidget);
+    expect(find.text('Build a safety net'), findsOneWidget);
+    expect(find.text('Eliminate debt'), findsOneWidget);
+    expect(find.text('Build three to six months of savings'), findsOneWidget);
+    expect(find.text('Save for the future'), findsOneWidget);
+    expect(find.byType(SavingsPicture), findsNWidgets(4));
+    // Which of three to six, whether or not it's the current step.
+    expect(find.byKey(const ValueKey('months-3')), findsOneWidget);
     expect(find.text('Now'), findsOneWidget);
-    expect(find.text('Pick the account'), findsOneWidget);
-
-    // Khan Savings holds the fund.
-    await tester.tap(find.byKey(const ValueKey('fund-picker')));
+    // Safety net is built in: the ledger has it without being asked.
+    var data = (await tester.runAsync(db.loadLedger))!;
+    final net = data.accounts.values.where(isSafetyNet).single;
+    expect(net.name, 'Safety net');
+    await settle(tester);
     await tester.pumpAndSettle();
-    final khan = (await tester.runAsync(db.loadLedger))!.balanceSheetAccounts
-        .firstWhere((a) => a.name == 'Khan Savings');
-    await tester.tap(find.byKey(ValueKey('fund-${khan.id}')));
-    await settle(tester);
-    await settle(tester);
-    await settle(tester);
-    expect(find.text('Kept in Khan Savings'), findsOneWidget);
-    expect(find.text('Khan Savings holds the emergency fund'), findsOneWidget);
 
     // Type a month, so the numbers don't hang on the demo's dates.
     await tester.tap(find.byKey(const ValueKey('month-edit')));
@@ -195,16 +194,27 @@ void main() {
     );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
-    var data = (await tester.runAsync(db.loadLedger))!;
+    data = (await tester.runAsync(db.loadLedger))!;
     expect(data.prefs[ReadyKeys.month], 'MNT:200000000');
-    final r = Readiness.of(data, DateTime(2026, 9, 16));
-    expect(r.fund, data.balanceOf(khan.id));
 
-    // Health is a quiet answer; ⌘Z takes it back.
-    await tester.tap(find.byKey(const ValueKey('answer-health-yes')));
+    // What isn't assigned in the budget is offered, as much as fills it.
+    expect(find.text('Assign ₮2,000,000 to Safety net'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('fund-assign')));
+    await settle(tester);
+    await settle(tester);
+    data = (await tester.runAsync(db.loadLedger))!;
+    final r = Readiness.of(data, DateTime(2026, 9, 16));
+    expect(r.fund, 200000000);
+    expect(r.isDone(ReadyStep.oneMonth), isTrue);
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('fund-assign')), findsNothing);
+
+    // Retirement is a quiet answer; ⌘Z takes it back.
+    await tester.tap(find.byKey(const ValueKey('answer-retirement-yes')));
     await settle(tester);
     expect(
-      (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.health],
+      (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.retirement],
       'yes',
     );
     await expectLater(
@@ -219,7 +229,7 @@ void main() {
     });
     await tester.pumpAndSettle();
     data = (await tester.runAsync(db.loadLedger))!;
-    expect(data.prefs[ReadyKeys.health], isNull);
+    expect(data.prefs[ReadyKeys.retirement], isNull);
     // Redo puts it back.
     await tester.runAsync(() async {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -229,12 +239,12 @@ void main() {
     });
     await tester.pumpAndSettle();
     data = (await tester.runAsync(db.loadLedger))!;
-    expect(data.prefs[ReadyKeys.health], 'yes');
+    expect(data.prefs[ReadyKeys.retirement], 'yes');
 
     // A step can be set aside, and brought back.
-    await tester.tap(find.byKey(const ValueKey('step-retirement-menu')));
+    await tester.tap(find.byKey(const ValueKey('step-future-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('step-retirement-aside')));
+    await tester.tap(find.byKey(const ValueKey('step-future-aside')));
     await settle(tester);
     await settle(tester);
     expect(find.text('Set aside'), findsOneWidget);
@@ -252,6 +262,100 @@ void main() {
       isNull,
     );
     await tidy(tester, db);
+  });
+
+  testWidgets('savings: a month of expenses comes from the budget', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final groceries = (await db.loadLedger()).accounts.values.firstWhere(
+        (a) => a.name == 'Groceries',
+      );
+      await db.restoreBudgetAmounts(
+        groceries.id,
+        DateTime(2026, 9),
+        DateTime(2026, 9, 30),
+        [
+          BudgetAmount(
+            categoryId: groceries.id,
+            date: DateTime(2026, 9),
+            amount: 240000000,
+          ),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('A month of expenses: ₮2,400,000, from your budget'),
+      findsOneWidget,
+    );
+    // Still theirs to change.
+    expect(find.text('Type your own month'), findsOneWidget);
+
+    // On Budget it sits apart, under Saved, and can't be deleted.
+    final data = (await tester.runAsync(db.loadLedger))!;
+    final net = data.accounts.values.where(isSafetyNet).single;
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    final heading = find.byKey(const ValueKey('budget-saved'));
+    final row = find.byKey(ValueKey('category-${net.id}'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    expect(heading, findsOneWidget);
+    expect(
+      tester.getTopLeft(row).dy,
+      greaterThan(tester.getTopLeft(heading).dy),
+    );
+    final groceries = find.byKey(
+      ValueKey(
+        'category-${data.categories.firstWhere((c) => c.name == 'Groceries').id}',
+      ),
+    );
+    expect(groceries, findsOneWidget);
+    await tester.tap(row, buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('category-edit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-delete')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Safety net is built in: a ledger without one gets it, and a '
+      'category already called that becomes it', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final theirs in [false, true]) {
+      final db = AppDatabase(NativeDatabase.memory());
+      int? made;
+      await tester.runAsync(() async {
+        await db.createAccount(name: 'Bank', type: AccountType.asset);
+        if (theirs) made = await db.createCategory('Safety net');
+        await tester.pumpWidget(
+          MaterialApp(
+            key: UniqueKey(),
+            debugShowCheckedModeBanner: false,
+            theme: appTheme(),
+            builder: (context, child) => FitWindow(child: child!),
+            home: LedgerScreen(db: db, clock: () => DateTime(2026, 9, 16, 10)),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await settle(tester);
+      final data = (await tester.runAsync(db.loadLedger))!;
+      final net = data.accounts.values.where(isSafetyNet).single;
+      expect(net.name, 'Safety net');
+      expect(
+        data.categories.where((c) => c.name == 'Safety net'),
+        hasLength(1),
+      );
+      if (theirs) expect(net.id, made);
+      await tidy(tester, db);
+    }
   });
 
   testWidgets('sidebar sections: the one you are in expands', (tester) async {
@@ -2339,7 +2443,7 @@ void main() {
     ]) {
       expect(find.descendant(of: goes, matching: find.text(t)), findsOneWidget);
     }
-    expect(find.text('Your 14 categories'), findsOneWidget);
+    expect(find.text('Your 15 categories'), findsOneWidget);
     expect(
       find.text('Kept with no rows in them, ready for your real accounts.'),
       findsOneWidget,
@@ -2368,7 +2472,7 @@ void main() {
     var now = await ledger();
     expect(now.txns, isEmpty);
     expect(now.balanceSheetAccounts, isEmpty);
-    expect(now.categories, hasLength(15));
+    expect(now.categories, hasLength(16)); // 14, Income and Safety net
     expect(
       Directory('${dir.path}/Backups').listSync().where(
         (f) => f.path.split('/').last.startsWith('before-new-ledger-'),
@@ -3324,6 +3428,12 @@ void main() {
       String name,
       String item,
     ) async {
+      // With Safety net under Saved the list is a row longer than the
+      // window, so an Edit lower down can leave this row scrolled away.
+      if (find.text(name).hitTestable().evaluate().isEmpty) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text(name), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey(item)));
@@ -3459,6 +3569,8 @@ void main() {
           matchesGoldenFile('goldens/budget_two_earners.png'),
         );
         // Both pays on the Income tab, by name (the view says Jenny too).
+        await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
         await tester.pumpAndSettle();
         for (final (id, name) in [(jeff, 'Jeff'), (jenny, 'Jenny')]) {
@@ -3908,6 +4020,8 @@ void main() {
         find.text('₮900,000 a month · what’s left doesn’t carry over'),
         findsOneWidget,
       );
+      await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$clothing')));
       await tester.pumpAndSettle();
       await type('plan-amount', '1');
@@ -5471,6 +5585,21 @@ void main() {
 
   group('appearance', () {
     tearDown(() => Mid.palette = Palette.of(defaultScheme, Brightness.dark));
+
+    testWidgets('savings by day: each step has the day copy of its picture', (
+      tester,
+    ) async {
+      Mid.palette = Palette.light;
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Savings'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SavingsPicture), findsNWidgets(4));
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/savings_day.png'),
+      );
+      await tidy(tester, db);
+    });
 
     testWidgets('follows the Mac, and Settings picks light or dark', (
       tester,

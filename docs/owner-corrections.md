@@ -110,4 +110,7 @@ wanted the outflow to be normal color instead of red"; this replaces "it's red w
 minus in front" above. Red is left for a shortfall), and "Last copied elsewhere 41 days ago"
 under Net worth ("Did it actually detect that someone on another machine backed it up
 somewhere else?": a line says only what this computer did, in the word on the button
-that does it: "Last backup 41 days ago").
+that does it: "Last backup 41 days ago"), and being asked to type a month of expenses
+the budget already holds (it comes from the budget, and they can adjust it), and a
+safety net counted as everything in the one account they spend from (it is kept apart:
+in a different account, ideally, or in its own budget category, and only that counts), and a menu of accounts and categories to tick for where the safety net is kept and then a button that made a Safety net category (Safety net is built into the app, as Income is; its Left is the count, and on Budget it sits apart under **Saved**).

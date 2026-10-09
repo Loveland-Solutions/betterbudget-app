@@ -2033,40 +2033,40 @@ abstract class Words {
   /// **'In the order of Personal Finances for Self-Reliance: each step makes the next one safer.'**
   String get planCourseNote;
 
-  /// Savings page, step title (step 1)
+  /// Savings page, step title (step 1): a month of expenses set aside
   ///
   /// In en, this message translates to:
-  /// **'One month of expenses set aside'**
+  /// **'Build a safety net'**
   String get planStepOneMonth;
 
-  /// Savings page, step title (step 2): health insurance or another way to get medical care
+  /// Savings page, step title (step 2): every credit card and loan except the mortgage
   ///
   /// In en, this message translates to:
-  /// **'Health coverage'**
-  String get planStepHealth;
-
-  /// Savings page, step title (step 3): no credit card or consumer loan balances
-  ///
-  /// In en, this message translates to:
-  /// **'No consumer debt'**
+  /// **'Eliminate debt'**
   String get planStepConsumerDebt;
 
-  /// Savings page, step title (step 4): months is 3 to 6
+  /// Savings page, step title (step 3): three to six months of expenses set aside
   ///
   /// In en, this message translates to:
-  /// **'{months} months of expenses set aside'**
-  String planStepMoreMonths(int months);
+  /// **'Build three to six months of savings'**
+  String get planStepMoreMonths;
 
-  /// Savings page, step title (step 5)
+  /// Savings page, step title (step 4): retirement and the mortgage
+  ///
+  /// In en, this message translates to:
+  /// **'Save for the future'**
+  String get planStepFuture;
+
+  /// Savings page, step 4 (Save for the future): heading of its first part
   ///
   /// In en, this message translates to:
   /// **'Saving for retirement'**
   String get planStepRetirement;
 
-  /// Savings page, step title (step 6)
+  /// Savings page, step 4 (Save for the future): heading of its second part
   ///
   /// In en, this message translates to:
-  /// **'Paying off the mortgage and student loans'**
+  /// **'Paying off the mortgage'**
   String get planStepLongLoans;
 
   /// Savings page: blue tag beside the current step’s title
@@ -2099,17 +2099,23 @@ abstract class Words {
   /// **'“{step}” back in the steps'**
   String planBackInStepsUndo(String step);
 
-  /// Savings page, emergency fund steps: not enough history to average a month
+  /// Savings page, safety net step: nothing budgeted and not enough history to know a month
   ///
   /// In en, this message translates to:
-  /// **'A month of your spending isn’t known yet ({days, plural, =1{1 day} other{{days} days}} of rows). Type it, or come back in a few weeks.'**
-  String planMonthUnknown(int days);
+  /// **'A month of your expenses isn’t known yet. It comes from your budget once you fill that in, or you can type it.'**
+  String get planMonthUnknown;
 
   /// Savings page, emergency fund steps: history but no spending
   ///
   /// In en, this message translates to:
   /// **'No spending in the last {days} days to go by. Type a month of your expenses.'**
   String planMonthNoSpending(int days);
+
+  /// Savings page, safety net step: the month is what the budget holds for this month; amount like ₮2,400,000
+  ///
+  /// In en, this message translates to:
+  /// **'A month of expenses: {amount}, from your budget'**
+  String planMonthBudget(String amount);
 
   /// Savings page, emergency fund steps: the month the user typed
   ///
@@ -2144,8 +2150,44 @@ abstract class Words {
   /// Savings page, emergency fund steps: guidance when no account is picked
   ///
   /// In en, this message translates to:
-  /// **'Which account holds it? Pick one below. A savings account you can reach but don’t spend from works best.'**
+  /// **'Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.'**
   String get planWhichAccount;
+
+  /// The name the app gives its built-in Safety net budget category when it makes it
+  ///
+  /// In en, this message translates to:
+  /// **'Safety net'**
+  String get planFundCategoryName;
+
+  /// Savings page, safety net step: how much of the safety net is already in the account(s) its category is paid from, and how much is still elsewhere; names is one or more account names
+  ///
+  /// In en, this message translates to:
+  /// **'{there} in {names} · {move} still to move there'**
+  String planFundWhere(String there, String names, String move);
+
+  /// Savings page, safety net step: the whole safety net is in the account(s) its category is paid from
+  ///
+  /// In en, this message translates to:
+  /// **'All of it is in {names}'**
+  String planFundAllIn(String names);
+
+  /// Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.'**
+  String get planFundSetPaidFrom;
+
+  /// Savings page, safety net step: money not assigned in the budget, above a button offering to assign it to the safety net
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} in your budget is not assigned to anything.'**
+  String planFundNotAssigned(String amount);
+
+  /// Budget page: quiet heading above the safety net’s category, under the spending categories
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get planSaved;
 
   /// Savings page, step 1: guidance
   ///
@@ -2159,23 +2201,11 @@ abstract class Words {
   /// **'Until it’s full, pay only the minimums on {names}.'**
   String planMinimumsOn(String names);
 
-  /// Savings page, step 4: guidance
+  /// Savings page, step 3: guidance
   ///
   /// In en, this message translates to:
   /// **'Enough to get through losing a job or a long illness.'**
   String get planEnoughForJobLoss;
-
-  /// Savings page, health step: answered yes
-  ///
-  /// In en, this message translates to:
-  /// **'You have it'**
-  String get planHealthYes;
-
-  /// Savings page, health step: what it means, before an answer
-  ///
-  /// In en, this message translates to:
-  /// **'Insurance, or some other way to get medical care'**
-  String get planHealthWhat;
 
   /// Savings page, retirement step: answered yes
   ///
@@ -2194,12 +2224,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'If your employer matches what you put in, put in at least enough to get all of it.'**
   String get planEmployerMatch;
-
-  /// Savings page, health step: answer button
-  ///
-  /// In en, this message translates to:
-  /// **'I have it'**
-  String get planIHaveIt;
 
   /// Savings page, retirement step: answer button (to “saving for retirement”)
   ///
@@ -2246,13 +2270,13 @@ abstract class Words {
   /// Savings page, mortgage step: question before an answer
   ///
   /// In en, this message translates to:
-  /// **'Do you have a mortgage or student loans?'**
+  /// **'Do you have a mortgage?'**
   String get planLongAsk;
 
-  /// Savings page, mortgage step: guidance; No consumer debt is step 3’s title
+  /// Savings page, mortgage part of step 4: guidance; Eliminate debt is step 2’s title
   ///
   /// In en, this message translates to:
-  /// **'If a loan under No consumer debt is one, mark it there.'**
+  /// **'If a loan under Eliminate debt is the mortgage, mark it there.'**
   String get planLongMarkThere;
 
   /// Savings page, mortgage step: answer button
@@ -2264,7 +2288,7 @@ abstract class Words {
   /// Savings page, mortgage step: answer button
   ///
   /// In en, this message translates to:
-  /// **'Paying extra on them'**
+  /// **'Paying extra on it'**
   String get planPayingExtraOnThem;
 
   /// Savings page: answer button
@@ -2276,25 +2300,25 @@ abstract class Words {
   /// Savings page, mortgage step: undo label
   ///
   /// In en, this message translates to:
-  /// **'No mortgage or student loans'**
+  /// **'No mortgage'**
   String get planNoLongLoansUndo;
 
   /// Savings page, mortgage step: undo label
   ///
   /// In en, this message translates to:
-  /// **'Paying extra on loans'**
+  /// **'Paying extra on the mortgage'**
   String get planPayingExtraUndo;
 
   /// Savings page, mortgage step: undo label
   ///
   /// In en, this message translates to:
-  /// **'Loans: not yet'**
+  /// **'Mortgage: not yet'**
   String get planLoansNotYetUndo;
 
   /// Savings page, mortgage step: undo label
   ///
   /// In en, this message translates to:
-  /// **'Not paying extra on loans'**
+  /// **'Not paying extra on the mortgage'**
   String get planNotPayingExtraUndo;
 
   /// Savings page, mortgage step: nothing left owing
@@ -2321,34 +2345,10 @@ abstract class Words {
   /// **'{first} and {last}'**
   String planNamesAnd(String first, String last);
 
-  /// Savings page, step 1: gold button, pick the account that holds the emergency fund
-  ///
-  /// In en, this message translates to:
-  /// **'Pick the account'**
-  String get planPickAccount;
-
-  /// Savings page, step 1: button showing the account(s) that hold the emergency fund
-  ///
-  /// In en, this message translates to:
-  /// **'Kept in {names}'**
-  String planKeptIn(String names);
-
-  /// Savings page: undo label
-  ///
-  /// In en, this message translates to:
-  /// **'{account} no longer holds the emergency fund'**
-  String planFundOffUndo(String account);
-
-  /// Savings page: undo label
-  ///
-  /// In en, this message translates to:
-  /// **'{account} holds the emergency fund'**
-  String planFundOnUndo(String account);
-
   /// Savings page: toast and undo label after clearing the typed month
   ///
   /// In en, this message translates to:
-  /// **'A month of expenses: back to your average'**
+  /// **'A month of expenses: no longer the one you typed'**
   String get planMonthBackToAverage;
 
   /// Savings page: toast and undo label after typing a month
@@ -2390,16 +2390,16 @@ abstract class Words {
   /// Savings page, step 1: note beside the month field
   ///
   /// In en, this message translates to:
-  /// **'Empty goes back to your average'**
+  /// **'Empty goes back to your budget or your average'**
   String get planEmptyToAverage;
 
-  /// Savings page, step 4: choice of 3 to 6 months
+  /// Savings page, step 3: choice of 3 to 6 months
   ///
   /// In en, this message translates to:
   /// **'{count} months'**
   String planMonthsChoice(int count);
 
-  /// Savings page, step 4: undo label
+  /// Savings page, step 3: undo label
   ///
   /// In en, this message translates to:
   /// **'Aiming for {count} months'**
@@ -2411,12 +2411,6 @@ abstract class Words {
   /// **'Mortgage'**
   String get planRoleMortgage;
 
-  /// Savings page: what a card or loan counts as (menu and label)
-  ///
-  /// In en, this message translates to:
-  /// **'Student loan'**
-  String get planRoleStudentLoan;
-
   /// Savings page: what a card counts as (menu and label)
   ///
   /// In en, this message translates to:
@@ -2426,7 +2420,7 @@ abstract class Words {
   /// Savings page: what a card or loan counts as (menu and label)
   ///
   /// In en, this message translates to:
-  /// **'Consumer debt'**
+  /// **'Debt to pay off'**
   String get planRoleConsumer;
 
   /// Savings page: undo label
@@ -2438,19 +2432,13 @@ abstract class Words {
   /// Savings page: undo label
   ///
   /// In en, this message translates to:
-  /// **'{account} counts as student loan'**
-  String planCountsAsStudentLoan(String account);
-
-  /// Savings page: undo label
-  ///
-  /// In en, this message translates to:
   /// **'{account} counts as paid in full every month'**
   String planCountsAsPaidMonthly(String account);
 
   /// Savings page: undo label
   ///
   /// In en, this message translates to:
-  /// **'{account} counts as consumer debt'**
+  /// **'{account} counts as debt to pay off'**
   String planCountsAsConsumer(String account);
 
   /// Savings page: a card or loan line with nothing owed
@@ -2477,10 +2465,10 @@ abstract class Words {
   /// **'Pay extra here'**
   String get planPayExtraHere;
 
-  /// Savings page: gold warning under a card marked paid in full every month; date like 2026.09.16
+  /// Savings page: warning under a card marked paid in full every month; date like 2026.09.16
   ///
   /// In en, this message translates to:
-  /// **'Owed every day since {date}: a balance is carrying over. It’s left out of consumer debt only because it’s marked paid in full.'**
+  /// **'Owed every day since {date}: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.'**
   String planCarried(String date);
 
   /// Savings page: step ⋯ menu item on a set-aside step
@@ -4839,12 +4827,6 @@ abstract class Words {
     Object rate,
     String one,
   );
-
-  /// Savings, emergency-fund menu: an account in the currency Savings doesn't count yet; it can't be picked.
-  ///
-  /// In en, this message translates to:
-  /// **'{account}  {amount} · another currency, not counted yet'**
-  String savingsOtherCurrencyItem(Object account, Object amount);
 
   /// Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.
   ///
