@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After the register-notes PR (version 0.21.0).** Four of the open items are built (ADR 0004 rule 20, "Changed 2026-10-09"): the uncleared note goes by the last statement, a late bill counts the other late ones, Confirm names a row already in, and the Move popup has Show. The computer wears the owner's logo and its
+**After PR #57 (version 0.21.0).** Four of the open items are built (ADR 0004 rule 20, "Changed 2026-10-09"): the uncleared note goes by the last statement, a late bill counts the other late ones, Confirm names a row already in, and the Move popup has Show. The computer wears the owner's logo and its
 colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
 accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
 a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
@@ -77,7 +77,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #56. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #57. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
