@@ -972,16 +972,16 @@ abstract class Words {
   /// **'incl. {amount} in archived'**
   String ledgerInclArchived(String amount);
 
-  /// Sidebar, small line under Net worth, shown once it has been more than 30 days since the ledger was last saved somewhere other than this computer with Settings → Back up to…. Clicking it opens Settings. days is 31 or more.
+  /// Sidebar, small line under Net worth, shown once it has been more than 30 days since Settings → Back up to… was last used on this computer (the owner read "elsewhere" as another machine having done it: say only what this computer did). Clicking it opens Settings. days is 31 or more.
   ///
   /// In en, this message translates to:
-  /// **'Last copied elsewhere {days} days ago'**
+  /// **'Last backup {days} days ago'**
   String ledgerLastCopiedElsewhere(int days);
 
   /// Sidebar, small line under Net worth, shown after 30 days when the ledger has never been saved somewhere other than this computer with Settings → Back up to…. Clicking it opens Settings.
   ///
   /// In en, this message translates to:
-  /// **'Not copied anywhere but this computer'**
+  /// **'No backup yet'**
   String get ledgerNeverCopiedElsewhere;
 
   /// Settings → Backups card, row label (120px wide), shown while the ledger is stored on this computer only: when it was last saved somewhere else with the Back up to… button under it.

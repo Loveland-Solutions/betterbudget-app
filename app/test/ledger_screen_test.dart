@@ -2060,7 +2060,7 @@ void main() {
         copied: DateTime(2026, 8, 6, 21),
       );
       await tester.pump();
-      expect(find.text('Last copied elsewhere 41 days ago'), findsOneWidget);
+      expect(find.text('Last backup 41 days ago'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/backup_reminder.png'),
@@ -2068,10 +2068,7 @@ void main() {
       // Never copied: counted from when this computer first looked.
       backups.elsewhere.value = CopiedElsewhere(since: DateTime(2026, 7, 1));
       await tester.pump();
-      expect(
-        find.text('Not copied anywhere but this computer'),
-        findsOneWidget,
-      );
+      expect(find.text('No backup yet'), findsOneWidget);
       // It leads to where a copy is made, which says the same thing.
       await tester.tap(find.byKey(const ValueKey('backup-reminder')));
       await tester.pumpAndSettle();

@@ -674,12 +674,11 @@ class WordsEn extends Words {
 
   @override
   String ledgerLastCopiedElsewhere(int days) {
-    return 'Last copied elsewhere $days days ago';
+    return 'Last backup $days days ago';
   }
 
   @override
-  String get ledgerNeverCopiedElsewhere =>
-      'Not copied anywhere but this computer';
+  String get ledgerNeverCopiedElsewhere => 'No backup yet';
 
   @override
   String get ledgerCopiedElsewhere => 'Backed up';

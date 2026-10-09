@@ -697,8 +697,11 @@ What's known so far:
     call, 2026-10-09, of two: there, seen on every page, or only in Settings beside
     "Back up to…"). The daily copies share a disk with the ledger. Once "Back up
     to…" hasn't been used for more than 30 days, a small line in plain ink under
-    the Net worth figure reads "Last copied elsewhere 41 days ago", or "Not copied
-    anywhere but this computer" when it never has been (counted from the day this
+    the Net worth figure reads "Last backup 41 days ago", or "No backup yet" when it
+    never has been (first "Last copied elsewhere 41 days ago", which the owner read
+    as another machine having backed it up: "Did it actually detect that someone on
+    another machine backed it up somewhere else?" It says only what this computer
+    did, in the button's word) (counted from the day this
     computer first looked, so a new ledger isn't told on its first day). It opens
     Settings, where a "Backed up" line above the button says when, or "Not yet ·
     Back up to… saves a copy to another drive". Never while the ledger is stored

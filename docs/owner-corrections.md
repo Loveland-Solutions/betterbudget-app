@@ -107,4 +107,7 @@ only a heads-up, a scheduled bill among them ("Gold is an accent color. Don't ov
 it": gold is for what is done and safe; not-yet is gray with a blue Confirm, and a
 heads-up is plain ink), and money out in red (ordinary ink, with its minus: "I said I
 wanted the outflow to be normal color instead of red"; this replaces "it's red with a
-minus in front" above. Red is left for a shortfall).
+minus in front" above. Red is left for a shortfall), and "Last copied elsewhere 41 days ago"
+under Net worth ("Did it actually detect that someone on another machine backed it up
+somewhere else?": a line says only what this computer did, in the word on the button
+that does it: "Last backup 41 days ago").

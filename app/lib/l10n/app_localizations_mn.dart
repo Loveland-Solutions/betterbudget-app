@@ -670,12 +670,11 @@ class WordsMn extends Words {
 
   @override
   String ledgerLastCopiedElsewhere(int days) {
-    return 'Өөр газар $days хоногийн өмнө хуулсан';
+    return 'Сүүлд $days хоногийн өмнө нөөцөлсөн';
   }
 
   @override
-  String get ledgerNeverCopiedElsewhere =>
-      'Энэ компьютероос өөр газар хуулаагүй';
+  String get ledgerNeverCopiedElsewhere => 'Хараахан нөөцлөөгүй';
 
   @override
   String get ledgerCopiedElsewhere => 'Нөөцөлсөн';
