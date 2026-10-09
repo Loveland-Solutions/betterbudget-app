@@ -10,7 +10,12 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #57 (version 0.21.0).** Four of the open items are built (ADR 0004 rule 20, "Changed 2026-10-09"): the uncleared note goes by the last statement, a late bill counts the other late ones, Confirm names a row already in, the Move popup has Show, and a month without a copy off this computer is said under Net worth. The computer wears the owner's logo and its
+**After PR #57 (version 0.21.0).** The open items are built (ADR 0004 rule 20,
+"Changed 2026-10-09", and "Backups"): the uncleared note goes by the last statement, a
+late bill counts the other late ones, Confirm names a row already in the account, the
+Move popup has Show, and after more than 30 days without "Back up to…" a line under
+Net worth says "Last backup 41 days ago". The Mac's icon is the logo on a navy tile.
+The computer wears the owner's logo and its
 colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
 accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
 a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
