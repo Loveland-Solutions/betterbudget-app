@@ -121,6 +121,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// On the selected row, so it can be scrolled into view.
   final _selectedKey = GlobalKey();
+
+  /// The row the "Already in this account" line led to, while its bill is
+  /// still open.
+  int? _pointed;
+  final _pointedKey = GlobalKey();
   var _filter = RegisterFilter.all;
   final _hoveredStatus = ValueNotifier<Cleared?>(null);
   final _search = TextEditingController();
@@ -1119,7 +1124,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _cancelEdit() {
     final editing = _editing;
     if (editing == null) return;
-    setState(() => _editing = null);
+    setState(() {
+      _editing = null;
+      _pointed = null;
+    });
     _registerFocus.requestFocus();
     // The row's widgets still hold the focus node until this frame ends.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -1429,6 +1437,92 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Outlines [found], the row a bill's "Already in this account" line names,
+  /// and scrolls just far enough to see it: it can be a screen or more down
+  /// the list, where rows aren't built until they're near.
+  Future<void> _pointTo(RegisterRow found) async {
+    setState(() => _pointed = found.txnId);
+    final open = _selectedKey.currentContext;
+    final position = open == null ? null : Scrollable.maybeOf(open)?.position;
+    if (position == null) return;
+    for (var i = 0; i < 60; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _pointed != found.txnId) return;
+      final row = _pointedKey.currentContext;
+      if (row != null && row.mounted) {
+        await Scrollable.ensureVisible(
+          row,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+      if (position.pixels >= position.maxScrollExtent) return;
+      final next = position.pixels + position.viewportDimension * 0.8;
+      position.jumpTo(
+        next > position.maxScrollExtent ? position.maxScrollExtent : next,
+      );
+    }
+  }
+
+  /// Confirming [r] would put a bill in twice: [found] is it, already in.
+  /// The scheduled one goes instead, and the next of its plan or pay is
+  /// scheduled as a confirm would, all one action.
+  Future<void> _alreadyIn(RegisterRow r, RegisterRow found) async {
+    final t = context.t;
+    final deleted = await db.softDeleteMany([r.txnId]);
+    if (!mounted) return;
+    if (deleted.isEmpty) {
+      _showToast(_lockMessage(r));
+      return;
+    }
+    _cancelEdit();
+    _clearSelection();
+    var nextBills = const <int>[];
+    final planned = r.planCategoryId;
+    // A category's bill: the row in that category is the bill paid, so the
+    // plan counts it and the next bill doesn't find it again.
+    final tie =
+        planned != null &&
+        found.planCategoryId == null &&
+        found.categoryId == planned;
+    if (planned != null) {
+      try {
+        if (tie) await db.setPlanBill(found.txnId, planned);
+        nextBills = await db.ensurePlanBills(today, only: planned);
+      } catch (e) {
+        debugPrint('Scheduling the next bill failed: $e');
+      }
+    }
+    if (!mounted) return;
+    final short = r.amount.abs() - found.amount.abs();
+    _did(
+      t.ledgerScheduledDeleted(rowPayee(t, r)),
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(nextBills);
+        if (tie) await db.setPlanBill(found.txnId, null);
+        await db.restoreMany(deleted);
+      }),
+      redo: () => db.transaction(() async {
+        _expect((await db.softDeleteMany(deleted)).length == deleted.length);
+        if (tie) await db.setPlanBill(found.txnId, planned);
+        if (planned != null) await db.bringBackPlanBills(nextBills, planned);
+      }),
+      message: short > 0
+          ? t.ledgerScheduledDeletedShort(
+              rowPayee(t, r),
+              formatShort(short, currency: r.currency),
+            )
+          : t.ledgerScheduledDeletedAlreadyIn(
+              rowPayee(t, r),
+              sayDate(t, found.date),
+            ),
+    );
+  }
+
   /// Moves a row entered in the wrong account. It leaves this register, so
   /// the toast names where it went.
   Future<void> _move(RegisterRow r, AccountInfo from, AccountInfo to) async {
@@ -1465,6 +1559,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       message: r.cleared == Cleared.uncleared
           ? label
           : '$label · ${t.ledgerUnclearedThere}',
+      // It left this register: one click to where it went.
+      more: (
+        label: t.ledgerShowMoved,
+        onTap: () => _showIn(to.id, r.txnId, scheduled: r.scheduled),
+      ),
     );
   }
 
@@ -1492,6 +1591,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _all = false;
       _accountId = id;
       _selected = null;
+    });
+  }
+
+  /// [accountId]'s register with row [txnId] chosen and in sight.
+  /// A [scheduled] one is shown in the Scheduled tab: All draws only the
+  /// next of them.
+  void _showIn(int accountId, int txnId, {bool scheduled = false}) {
+    _openAccount(accountId);
+    if (_accountId != accountId || _all) return;
+    _search.clear();
+    setState(() {
+      _filter = scheduled ? RegisterFilter.scheduled : RegisterFilter.all;
+      _selected = txnId;
+    });
+    _registerFocus.requestFocus();
+    // Two frames: the new register is built on the first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final row = _selectedKey.currentContext;
+        if (row == null || !row.mounted) return;
+        Scrollable.ensureVisible(row, alignment: 0.2);
+      });
     });
   }
 
@@ -1906,6 +2027,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
               categories: data.knownCategories,
               transferTargets: open,
               allAccounts: data.accounts,
+              unclearedCheck: data.unclearedCheck,
+              pointed: _pointed,
+              pointedKey: _pointedKey,
               entryController: _entry,
               today: today,
               adding: _adding,
@@ -1922,6 +2046,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
                 onConfirm: _startConfirm,
+                onAlreadyIn: _alreadyIn,
+                onPoint: _pointTo,
                 onSetCategory: (r, c) => _setCategory(r, c),
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
@@ -3370,6 +3496,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(t.ledgerCouldntBackUp);
       return;
     }
+    await _backups.copiedElsewhere(now);
+    if (!mounted) return;
     final name = location.path.split(RegExp(r'[/\\]')).last;
     _showToast(t.ledgerBackedUp(name));
   }
@@ -3738,7 +3866,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             ? null
                             : account?.id,
                         backupHealth: _backups.health,
+                        elsewhere: _backups.elsewhere,
                         folder: _cloud,
+                        folderLoaded: _cloud.loaded,
                         now: widget.clock,
                         onSelect: _openAccount,
                         allActive: _all && !_newAccount,
@@ -3805,6 +3935,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 ),
                                 AppSection.settings => _SettingsPage(
                                   health: _backups.health,
+                                  backedUp: _backups.elsewhere,
                                   now: widget.clock,
                                   onBackUp: _backUpTo,
                                   onRestore: _restoreFrom,
@@ -4097,6 +4228,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     .where((a) => a.id != account.id)
                     .toList(),
                 currency: account.currency,
+                unclearedCheck: data.unclearedCheck,
+                pointed: _pointed,
+                pointedKey: _pointedKey,
                 entryController: _entry,
                 today: today,
                 adding: _adding,
@@ -4113,6 +4247,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onRowTap: _tapRow,
                   onToggleCleared: _toggleCleared,
                   onConfirm: _startConfirm,
+                  onAlreadyIn: _alreadyIn,
+                  onPoint: _pointTo,
                   onSetCategory: _setCategory,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
@@ -4154,6 +4290,8 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.backupHealth,
+    required this.elsewhere,
+    required this.folderLoaded,
     required this.folder,
     required this.now,
     required this.addingAccount,
@@ -4180,6 +4318,13 @@ class _Sidebar extends StatelessWidget {
   final bool addingAccount;
   final VoidCallback onAddAccount;
   final ValueListenable<BackupHealth> backupHealth;
+
+  /// When the ledger was last copied off this computer, for the reminder
+  /// under Net worth.
+  final ValueListenable<CopiedElsewhere?> elsewhere;
+
+  /// Whether it is known yet where the ledger is stored.
+  final ValueListenable<bool> folderLoaded;
 
   /// The folder the ledger was moved to: failing to write it lights the
   /// gear too.
@@ -4403,6 +4548,48 @@ class _Sidebar extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          // The daily copies share a disk with the ledger:
+                          // said here, on every page, once it has been a
+                          // month, and never while the ledger is in a folder.
+                          if (!setup)
+                            ListenableBuilder(
+                              listenable: Listenable.merge([
+                                elsewhere,
+                                folder,
+                                folderLoaded,
+                              ]),
+                              builder: (context, _) {
+                                final e = elsewhere.value;
+                                if (e == null ||
+                                    !folderLoaded.value ||
+                                    folder.value.path != null ||
+                                    !e.dueAt(now())) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Hoverable(
+                                    key: const ValueKey('backup-reminder'),
+                                    onTap: () => onSection(AppSection.settings),
+                                    builder: (h) => Text(
+                                      e.copied == null
+                                          ? t.ledgerNeverCopiedElsewhere
+                                          : t.ledgerLastCopiedElsewhere(
+                                              e.daysAt(now()),
+                                            ),
+                                      // 11: the longest of the two fits the sidebar on one line.
+                                      style: onest(11, color: Mid.sideInk2)
+                                          .copyWith(
+                                            decoration: h
+                                                ? TextDecoration.underline
+                                                : null,
+                                            decorationColor: Mid.sideInk2,
+                                          ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -4491,6 +4678,7 @@ class _SettingsGear extends StatelessWidget {
 class _SettingsPage extends StatelessWidget {
   const _SettingsPage({
     required this.health,
+    required this.backedUp,
     required this.now,
     required this.onBackUp,
     required this.onRestore,
@@ -4508,6 +4696,9 @@ class _SettingsPage extends StatelessWidget {
     this.language,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// When "Back up to…" last worked, said beside it.
+  final ValueListenable<CopiedElsewhere?> backedUp;
 
   /// Light, dark or the system's; null without an [AppearanceScope] (tests).
   final Widget? appearance;
@@ -4603,7 +4794,7 @@ class _SettingsPage extends StatelessWidget {
                     border: Border.all(color: Mid.rule),
                   ),
                   child: ListenableBuilder(
-                    listenable: Listenable.merge([health, folder]),
+                    listenable: Listenable.merge([health, folder, backedUp]),
                     builder: (context, _) {
                       final h = health.value;
                       final kept = folder.value;
@@ -4646,7 +4837,7 @@ class _SettingsPage extends StatelessWidget {
                             ),
                           ),
                           // Always said, moved or not: where the ledger is now.
-                          if (keptIn == null)
+                          if (keptIn == null) ...[
                             line(
                               t.ledgerFolderLabel,
                               Text(
@@ -4654,8 +4845,21 @@ class _SettingsPage extends StatelessWidget {
                                 key: const ValueKey('stored-in'),
                                 style: onest(13.5, color: Mid.ink),
                               ),
-                            )
-                          else
+                            ),
+                            // What the sidebar's reminder counts from, beside
+                            // the button that answers it.
+                            if (backedUp.value case final e?)
+                              line(
+                                t.ledgerCopiedElsewhere,
+                                Text(
+                                  e.copied == null
+                                      ? t.ledgerCopiedElsewhereNever
+                                      : when(e.copied!),
+                                  key: const ValueKey('copied-elsewhere'),
+                                  style: onest(13.5, color: Mid.ink),
+                                ),
+                              ),
+                          ] else
                             line(
                               t.ledgerFolderLabel,
                               Tooltip(

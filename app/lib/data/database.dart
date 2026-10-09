@@ -2346,6 +2346,19 @@ class AppDatabase extends _$AppDatabase {
         );
       });
 
+  /// Ties a row to [categoryId]'s plan as the bill it paid, or with null
+  /// unties it: the plan then counts it as that bill, as it does one
+  /// confirmed. Returns what it was tied to before, for undo.
+  Future<int?> setPlanBill(int transactionId, int? categoryId) =>
+      transaction(() async {
+        final row = await (select(
+          transactions,
+        )..where((t) => t.id.equals(transactionId))).getSingle();
+        await (update(transactions)..where((t) => t.id.equals(transactionId)))
+            .write(TransactionsCompanion(planCategoryId: Value(categoryId)));
+        return row.planCategoryId;
+      });
+
   /// Keeps each dated plan's next bill scheduled in the account it's paid
   /// from (rule 27), the way [ensurePaydays] keeps paydays: a plan with
   /// nothing waiting from [today] on gets the bill after its latest

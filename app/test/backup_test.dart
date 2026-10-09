@@ -34,6 +34,48 @@ void main() {
     }
   }
 
+  test('the last copy elsewhere is remembered on this computer', () async {
+    final backups = Backups(db);
+    final record = File('${dir.path}/copied-elsewhere');
+    // First seen today: nothing to remind of for a month.
+    await backups.loadElsewhere(today);
+    expect(backups.elsewhere.value!.since, today);
+    expect(backups.elsewhere.value!.copied, isNull);
+    expect(record.existsSync(), isTrue);
+    DateTime later(int days) => today.add(Duration(days: days));
+    expect(backups.elsewhere.value!.dueAt(later(30)), isFalse);
+    expect(backups.elsewhere.value!.dueAt(later(31)), isTrue);
+
+    // Back up to… on day 40 starts the count again, and a new launch reads it.
+    await backups.copiedElsewhere(later(40));
+    final again = Backups(db);
+    await again.loadElsewhere(later(41));
+    expect(again.elsewhere.value!.since, today);
+    expect(again.elsewhere.value!.copied, later(40));
+    expect(again.elsewhere.value!.dueAt(later(70)), isFalse);
+    expect(again.elsewhere.value!.daysAt(later(81)), 41);
+    expect(again.elsewhere.value!.dueAt(later(81)), isTrue);
+
+    // A record that can't be read, or dated ahead of today (a clock that
+    // was wrong), starts again from today instead of staying silent.
+    await record.writeAsString('not json');
+    final broken = Backups(db);
+    await broken.loadElsewhere(later(90));
+    expect(broken.elsewhere.value!.since, later(90));
+    expect(broken.elsewhere.value!.copied, isNull);
+    await Backups(db).copiedElsewhere(later(400));
+    final ahead = Backups(db);
+    await ahead.loadElsewhere(later(100));
+    expect(ahead.elsewhere.value!.since, later(100));
+    expect(ahead.elsewhere.value!.copied, isNull);
+    expect(File('${record.path}.tmp').existsSync(), isFalse);
+
+    // The daily run reads it at launch.
+    final launched = Backups(db);
+    await launched.runDaily(later(101));
+    expect(launched.elsewhere.value!.since, later(100));
+  });
+
   test('a daily copy from before the new name still counts', () async {
     // Made by a build that named them .sqlite: today's is not made twice,
     // and old ones are cleared away with the rest.

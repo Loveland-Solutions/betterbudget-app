@@ -299,6 +299,16 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerScheduledDeleted(String name) {
+    return 'Scheduled $name deleted';
+  }
+
+  @override
+  String ledgerScheduledDeletedAlreadyIn(String name, String date) {
+    return 'Scheduled $name deleted · already in on $date';
+  }
+
+  @override
   String ledgerCantMove(String reason) {
     return 'Can’t move · $reason';
   }
@@ -310,6 +320,14 @@ class WordsEn extends Words {
   String ledgerMovedTo(String name, String account) {
     return '$name moved to $account';
   }
+
+  @override
+  String ledgerScheduledDeletedShort(String name, String short) {
+    return 'Scheduled $name deleted · $short of it is no longer scheduled';
+  }
+
+  @override
+  String get ledgerShowMoved => 'Show';
 
   @override
   String ledgerTransferToMovedTo(String payee, String account) {
@@ -653,6 +671,21 @@ class WordsEn extends Words {
   String ledgerInclArchived(String amount) {
     return 'incl. $amount in archived';
   }
+
+  @override
+  String ledgerLastCopiedElsewhere(int days) {
+    return 'Last backup $days days ago';
+  }
+
+  @override
+  String get ledgerNeverCopiedElsewhere => 'No backup yet';
+
+  @override
+  String get ledgerCopiedElsewhere => 'Backed up';
+
+  @override
+  String get ledgerCopiedElsewhereNever =>
+      'Not yet · Back up to… saves a copy to another drive';
 
   @override
   String get ledgerDailyCopyFailing => 'The daily copy is failing';
@@ -1760,6 +1793,29 @@ class WordsEn extends Words {
   String rowsNextOfScheduled(int count) {
     return 'next of $count scheduled';
   }
+
+  @override
+  String rowsMoreOverdue(int count) {
+    return '$count more overdue';
+  }
+
+  @override
+  String rowsAlreadyIn(String date, String payee, String amount) {
+    return 'Already in this account · $date · $payee · $amount';
+  }
+
+  @override
+  String rowsAlreadyInLess(
+    String date,
+    String payee,
+    String amount,
+    String short,
+  ) {
+    return 'Already in this account · $date · $payee · $amount · $short less than this bill';
+  }
+
+  @override
+  String get rowsAlreadyInDelete => 'Delete the scheduled one';
 
   @override
   String get rowsScheduledOnly => 'scheduled';
@@ -2927,6 +2983,11 @@ class WordsEn extends Words {
   @override
   String startStaleNote(int days) {
     return 'not cleared for $days days';
+  }
+
+  @override
+  String startNotOnStatement(String date) {
+    return 'not on the $date statement';
   }
 
   @override

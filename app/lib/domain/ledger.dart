@@ -431,10 +431,28 @@ class RegisterRow {
   );
 }
 
-/// Uncleared this long, a row says so: longer than a card hold usually
-/// lasts, so it may never have happened (cancelled, or entered twice), yet it
-/// still counts in Working.
+/// Uncleared this long in an account never reconciled, a row says so:
+/// longer than a card hold usually lasts, so it may never have happened
+/// (cancelled, or entered twice), yet it still counts in Working.
 const staleUnclearedDays = 14;
+
+/// On a card or loan a hold from abroad sits 20 to 30 days before it
+/// clears, so its rows wait longer before they say anything.
+const staleUnclearedDaysOwed = 30;
+
+/// A row this close before a statement is likely a hold the statement was
+/// too early for, not a row the bank never had.
+const statementGraceDays = 3;
+
+/// Past its account's last statement, a row says its age only this late:
+/// longer than a month between reconciles and a hold together, so someone
+/// who reconciles monthly never sees it.
+const staleAfterStatementDays = 45;
+
+/// What an account's uncleared rows are held against (ADR 0004 rule 20):
+/// its last statement once it has been reconciled, and their age, counted
+/// longer where it's [owed]. Null for cash: nothing ever clears it.
+typedef UnclearedCheck = ({DateTime? statement, bool owed});
 
 /// Whole days from [date] to [today].
 int daysBefore(DateTime date, DateTime today) =>
@@ -445,21 +463,29 @@ int daysBefore(DateTime date, DateTime today) =>
       today.day,
     ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
 
-/// Days an uncleared row has waited, when that's long enough to say so;
-/// otherwise null.
-int? staleDays(RegisterRow r, DateTime today) {
-  if (r.scheduled || r.cleared != Cleared.uncleared) return null;
+/// Why an uncleared row may be wrong, if it may be: it is dated long enough
+/// before [statement] that the statement should have had it, or it has
+/// waited [days] with no statement to go by. Otherwise null.
+({DateTime? statement, int? days})? unclearedDoubt(
+  RegisterRow r,
+  DateTime today,
+  UnclearedCheck? check,
+) {
+  if (check == null || r.scheduled || r.cleared != Cleared.uncleared) {
+    return null;
+  }
+  final hold = check.owed ? staleUnclearedDaysOwed : staleUnclearedDays;
   final days = daysBefore(r.date, today);
-  return days >= staleUnclearedDays ? days : null;
+  final statement = check.statement;
+  if (statement == null) {
+    return days >= hold ? (statement: null, days: days) : null;
+  }
+  final grace = check.owed ? staleUnclearedDaysOwed : statementGraceDays;
+  if (daysBefore(r.date, statement) >= grace) {
+    return (statement: statement, days: null);
+  }
+  return days >= staleAfterStatementDays ? (statement: null, days: days) : null;
 }
-
-/// "not cleared for 34 days" ([staleDays]), in English; the UI words it with
-/// `staleNoteIn` (ui/data_words.dart).
-String? staleNote(RegisterRow r, DateTime today) =>
-    switch (staleDays(r, today)) {
-      final days? => 'not cleared for $days days',
-      null => null,
-    };
 
 /// Days a scheduled row is past its date (it isn't in Working until it's
 /// confirmed); otherwise null.
@@ -477,6 +503,145 @@ String? overdueNote(RegisterRow r, DateTime today) =>
       final days? => 'due $days days ago',
       null => null,
     };
+
+/// A scheduled row and one already in this near in date may be the same
+/// bill. Under a week, so a weekly bill doesn't find last week's.
+const alreadyInDays = 6;
+
+const _latinFor = {
+  'а': 'a',
+  'б': 'b',
+  'в': 'v',
+  'г': 'g',
+  'д': 'd',
+  'е': 'e',
+  'ё': 'io',
+  'ж': 'j',
+  'з': 'z',
+  'и': 'i',
+  'й': 'i',
+  'к': 'k',
+  'л': 'l',
+  'м': 'm',
+  'н': 'n',
+  'о': 'o',
+  'ө': 'o',
+  'п': 'p',
+  'р': 'r',
+  'с': 's',
+  'т': 't',
+  'у': 'u',
+  'ү': 'u',
+  'ф': 'f',
+  'х': 'h',
+  'ц': 'ts',
+  'ч': 'ch',
+  'ш': 'sh',
+  'щ': 'sh',
+  'ъ': '',
+  'ы': 'i',
+  'ь': '',
+  'э': 'e',
+  'ю': 'iu',
+  'я': 'ia',
+};
+
+/// A payee reduced to what two spellings of one name share, to tell that
+/// the bank's "МОБИКОМ КОРПОРАЦИ ХХК" is a bill called "Mobicom": lower
+/// case, Cyrillic in Latin letters, the letters people swap made one (c and
+/// k, kh and h, w and v, y and i), and nothing but letters and digits.
+String payeeKey(String payee) {
+  final latin = StringBuffer();
+  for (final rune in payee.trim().toLowerCase().runes) {
+    final c = String.fromCharCode(rune);
+    latin.write(_latinFor[c] ?? c);
+  }
+  return latin
+      .toString()
+      .replaceAll('kh', 'h')
+      .replaceAll(RegExp('c(?!h)'), 'k')
+      .replaceAll('w', 'v')
+      .replaceAll('y', 'i')
+      .replaceAll(RegExp(r'[^a-z0-9]'), '');
+}
+
+/// Two payees are the same name: one's [payeeKey] holds the other's. A
+/// name under four letters has to be the whole of the other, since "TDB"
+/// is inside too many.
+bool samePayeeName(String a, String b) {
+  final x = payeeKey(a), y = payeeKey(b);
+  if (x.isEmpty || y.isEmpty) return false;
+  if (x == y) return true;
+  final (short, long) = x.length <= y.length ? (x, y) : (y, x);
+  return short.length >= 4 && long.contains(short);
+}
+
+/// The row already in [posted] that [scheduled] looks to be, so that
+/// confirming would put it in twice (typed from the bank app, or imported,
+/// before the bill was confirmed): the same account, the same way, dated
+/// within [alreadyInDays] of the bill, or up to [today] for a late one (paid
+/// late, it is dated late). What makes it the bill, the surest first: the
+/// same payee as typed; the same name in another spelling
+/// ([samePayeeName]); for a category's bill, a row in that category for
+/// between half and twice the amount; a row still in [uncategorizedId]
+/// (as an import leaves it, under the bank's own name) for exactly the
+/// amount. Among equals the nearest in date; null when there is none. A
+/// row already tied to the same plan is the bill before, not this one. Not
+/// for a payday: money in is made a pay's paycheck from its own row.
+RegisterRow? alreadyIn(
+  RegisterRow scheduled,
+  Iterable<RegisterRow> posted,
+  DateTime today, {
+  int? uncategorizedId,
+}) {
+  if (scheduled.payScheduleId != null) return null;
+  final payee = scheduled.payee.trim().toLowerCase();
+  final plan = scheduled.planCategoryId;
+  final late = daysBefore(scheduled.date, today);
+  final after = late > alreadyInDays ? late : alreadyInDays;
+  RegisterRow? found;
+  var foundSure = 0;
+  var nearest = 0;
+  for (final r in posted) {
+    if (r.scheduled ||
+        r.accountId != scheduled.accountId ||
+        r.kind != scheduled.kind ||
+        (r.amount < 0) != (scheduled.amount < 0) ||
+        (plan != null && r.planCategoryId == plan)) {
+      continue;
+    }
+    final since = daysBefore(scheduled.date, r.date);
+    if (since < -alreadyInDays || since > after) continue;
+    final int sure;
+    if (payee.isNotEmpty && r.payee.trim().toLowerCase() == payee) {
+      sure = 4;
+    } else if (samePayeeName(r.payee, scheduled.payee)) {
+      sure = 3;
+    } else if (plan != null &&
+        r.categoryId == plan &&
+        r.amount.abs() * 2 >= scheduled.amount.abs() &&
+        r.amount.abs() <= scheduled.amount.abs() * 2) {
+      sure = 2;
+    } else if (uncategorizedId != null &&
+        r.categoryId == uncategorizedId &&
+        r.amount == scheduled.amount) {
+      sure = 1;
+    } else {
+      continue;
+    }
+    final apart = since.abs();
+    if (found == null ||
+        sure > foundSure ||
+        (sure == foundSure &&
+            (apart < nearest ||
+                (apart == nearest && r.date.isAfter(found.date))))) {
+      found = r;
+      foundSure = sure;
+      nearest = apart;
+    }
+  }
+  return found;
+}
 
 enum ReconcileCause { notCleared, datedAfter, clearedEarly }
 
@@ -1000,6 +1165,16 @@ class LedgerData {
 
   AccountSummary summaryFor(int accountId) =>
       _summaries.putIfAbsent(accountId, () => _summary(accountId));
+
+  /// What [accountId]'s uncleared rows are held against; null for cash.
+  UnclearedCheck? unclearedCheck(int accountId) {
+    final account = accounts[accountId];
+    if (account == null || account.isCash) return null;
+    return (
+      statement: latestReconciliation(accountId)?.statementDate,
+      owed: account.isOwed,
+    );
+  }
 
   AccountSummary _summary(int accountId) {
     var working = 0, cleared = 0, unclearedCount = 0;

@@ -218,10 +218,15 @@ screens at https://claude.ai/artifact/45WadFF4LmDnbYxTTNeT8S.
   says dollars in a tugrik ledger). The Savings pictures are prepared and not yet on
   the Savings page: two of its six steps (health coverage; the mortgage and student
   loans) have no picture.
-- **App icon.** The logo upright on a white tile, on the Mac
-  (`design/icon/app_icon.swift`) and Android (`app/tool/gen_android_icons.sh`). This
+- **App icon.** The logo upright on a white tile, on Android
+  (`app/tool/gen_android_icons.sh`), and until 2026-10-09 on the Mac. This
   replaces the bee tilted 45° (2026-09-29). The iPhone and Windows builds still have
-  Flutter's icon.
+  Flutter's icon. **On the Mac it is the logo's night form on a navy tile** (owner,
+  2026-10-09: "Let's redo the main app icon… Make a nice one with the new icon"):
+  the sidebar's navy, lit a little from above, with the white B, the green B and
+  the coins, so the subject stays light when macOS's dark style turns tiles
+  charcoal (`design/icon/app_icon.py`). Drawn beside it and not chosen: the same
+  logo on a soft white tile. Android still has the white tile.
 
 ### Gold is an accent, and the new colors come first (owner, 2026-10-09)
 
@@ -693,6 +698,21 @@ What's known so far:
     (owner's call), once the newest copy is over two days old; a single failed hour
     stays quiet. The gear gets a coral dot, and Settings says "Failing · the last one
     is from …" in coral.
+    **A month without a copy off this computer is said under Net worth** (owner's
+    call, 2026-10-09, of two: there, seen on every page, or only in Settings beside
+    "Back up to…"). The daily copies share a disk with the ledger. Once "Back up
+    to…" hasn't been used for more than 30 days, a small line in plain ink under
+    the Net worth figure reads "Last backup 41 days ago", or "No backup yet" when it
+    never has been (first "Last copied elsewhere 41 days ago", which the owner read
+    as another machine having backed it up: "Did it actually detect that someone on
+    another machine backed it up somewhere else?" It says only what this computer
+    did, in the button's word) (counted from the day this
+    computer first looked, so a new ledger isn't told on its first day). It opens
+    Settings, where a "Backed up" line above the button says when, or "Not yet ·
+    Back up to… saves a copy to another drive". Never while the ledger is stored
+    in a folder, nor in setup. It is a heads-up, so no dot and no coral. The date
+    is this computer's own, in a small file beside the ledger (`copied-elsewhere`),
+    not in the ledger, where a restore would turn it back.
     Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
     **Start over** (owner, 2026-09-24, for the alpha: "a clean start with no demo
     accounts") is the last section of Settings: "Start a new ledger…" opens a coral
@@ -732,6 +752,49 @@ What's known so far:
     may never have happened (cancelled, or entered twice) yet still lowers Working.
     Nothing changes Working by age on its own. Rejected: a header line that filters to
     these rows (B), and both (C).
+
+    **Changed 2026-10-09** (the owner said to work the open items; each was built as
+    it had been recommended in STATUS, then refined by the two reviews). **The
+    uncleared note goes by the statement, not by age, once an account has been
+    reconciled**: a row the last statement should have had says "· not on the 09.10
+    statement", since a statement that didn't have it is the reason to doubt it. By
+    age it was noise for someone who reconciles monthly. "Should have had" leaves
+    out a row from the statement's last 3 days (30 on a card or loan): that is a
+    hold the statement was too early for. An account never reconciled still counts
+    days ("not cleared for 34 days") from 14, and from 30 on a card or loan, where a
+    hold from abroad sits 20 to 30 days; a row newer than the last statement says
+    its age only from 45 days, for the account reconciled once and then left. A cash
+    account never says it: nothing clears cash. **A late bill counts the other late
+    ones**: All shows only the first scheduled row, so it reads "· due 7 days ago ·
+    1 more overdue", and the count opens the Scheduled tab as "next of N scheduled"
+    does ("2 overdue" read as two others). **Confirm names a row already in.**
+    Confirming a late bill that was typed from the bank app, or imported, put it in
+    twice. When Confirm opens on a bill and the account holds a row for it, a line
+    under the fields names that row as it reads, "Already in this account · 09.10 ·
+    Mobicom · −₮41,500.00", with "Delete the scheduled one". A row for it is one the
+    same way, dated from 6 days before the bill to 6 days after (a week would find
+    last week's weekly bill), or up to today when the bill is late, with the same
+    payee; failing that, for a category's bill, a row in that category for between
+    half and twice the amount. **The payee may be the bank's spelling of it** (owner,
+    2026-10-09, "Fix these"): "МОБИКОМ КОРПОРАЦИ ХХК" is a bill called Mobicom, told
+    by putting both in lower-case Latin letters, with c and k, kh and h, w and v, y
+    and i made one, and seeing whether one holds the other (a name under four
+    letters has to be the whole of it). Last, a row still in Not categorized, as
+    an import leaves it, counts when it is for exactly the bill's amount. The
+    surest kind wins, then the nearest date. **The line leads to its row**: clicked,
+    the row it names is outlined and the list scrolls just far enough to show it;
+    in the Scheduled tab, which lists no such rows, the row is drawn under the
+    line. The button deletes the scheduled row, ties the row to
+    the category's plan as that bill when it is in the category, and schedules the
+    next bill, as one undo. When the row is for less than the bill the line ends "·
+    ₮800,000 less than this bill" and the popup says that much "is no longer
+    scheduled". Confirm is still there (warn, don't block). A payday is not looked
+    for: money in is made a pay's paycheck from its own row's Category. **The Move
+    popup has Show**, which opens the account the row went to with the row chosen
+    (a scheduled one in the Scheduled tab). **Not built: a `+` put in the amount
+    when a payee's last row was money in.** It was on the same list, and it is a
+    guess filled into a field, which the owner sent back on 2026-10-08 ("Don't
+    autofill").
 
 21. **Accounts are added and managed where they're used** (owner's call, option A of
     three). A quiet "+ Add account" sits under the accounts in the sidebar and opens a

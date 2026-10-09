@@ -299,6 +299,16 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerScheduledDeleted(String name) {
+    return 'Товлосон $name устгагдлаа';
+  }
+
+  @override
+  String ledgerScheduledDeletedAlreadyIn(String name, String date) {
+    return 'Товлосон $name устгагдлаа · $date-нд аль хэдийн бий';
+  }
+
+  @override
   String ledgerCantMove(String reason) {
     return 'Зөөх боломжгүй · $reason';
   }
@@ -310,6 +320,14 @@ class WordsMn extends Words {
   String ledgerMovedTo(String name, String account) {
     return '$name $account данс руу зөөгдлөө';
   }
+
+  @override
+  String ledgerScheduledDeletedShort(String name, String short) {
+    return 'Товлосон $name устгагдлаа · үүний $short нь товлогдоогүй болсон';
+  }
+
+  @override
+  String get ledgerShowMoved => 'Харах';
 
   @override
   String ledgerTransferToMovedTo(String payee, String account) {
@@ -649,6 +667,21 @@ class WordsMn extends Words {
   String ledgerInclArchived(String amount) {
     return 'үүнээс $amount архивласан дансанд';
   }
+
+  @override
+  String ledgerLastCopiedElsewhere(int days) {
+    return 'Сүүлд $days хоногийн өмнө нөөцөлсөн';
+  }
+
+  @override
+  String get ledgerNeverCopiedElsewhere => 'Хараахан нөөцлөөгүй';
+
+  @override
+  String get ledgerCopiedElsewhere => 'Нөөцөлсөн';
+
+  @override
+  String get ledgerCopiedElsewhereNever =>
+      'Хараахан үгүй · “Нөөцлөх…” өөр диск рүү хуулбар хадгална';
 
   @override
   String get ledgerDailyCopyFailing => 'Өдөр бүрийн хуулбар хийгдэхгүй байна';
@@ -1677,6 +1710,29 @@ class WordsMn extends Words {
   String rowsNextOfScheduled(int count) {
     return '$count товлосноос';
   }
+
+  @override
+  String rowsMoreOverdue(int count) {
+    return 'өөр $count нь хугацаа хэтэрсэн';
+  }
+
+  @override
+  String rowsAlreadyIn(String date, String payee, String amount) {
+    return 'Энэ дансанд аль хэдийн бий · $date · $payee · $amount';
+  }
+
+  @override
+  String rowsAlreadyInLess(
+    String date,
+    String payee,
+    String amount,
+    String short,
+  ) {
+    return 'Энэ дансанд аль хэдийн бий · $date · $payee · $amount · энэ төлбөрөөс $short-өөр бага';
+  }
+
+  @override
+  String get rowsAlreadyInDelete => 'Товлосныг устгах';
 
   @override
   String get rowsScheduledOnly => 'товлосон';
@@ -2837,6 +2893,11 @@ class WordsMn extends Words {
   @override
   String startStaleNote(int days) {
     return '$days хоног баталгаажаагүй';
+  }
+
+  @override
+  String startNotOnStatement(String date) {
+    return '$date-ны хуулганд байхгүй';
   }
 
   @override

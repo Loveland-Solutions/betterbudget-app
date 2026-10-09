@@ -93,8 +93,20 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     return dir == null ? null : File('${dir.parent.path}/cloud-folder');
   }
 
+  /// Whether [load] has finished: until then nobody knows whether the
+  /// ledger is in a folder, and nothing should be said as though it isn't.
+  final loaded = ValueNotifier(false);
+
   /// Reads the setting at launch and writes the ledger afresh. Never throws.
   Future<void> load(DateTime now) async {
+    try {
+      await _load(now);
+    } finally {
+      loaded.value = true;
+    }
+  }
+
+  Future<void> _load(DateTime now) async {
     try {
       final file = await _settings();
       if (file == null || !file.existsSync()) return;
@@ -265,6 +277,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   @override
   void dispose() {
     _cancel();
+    loaded.dispose();
     super.dispose();
   }
 }

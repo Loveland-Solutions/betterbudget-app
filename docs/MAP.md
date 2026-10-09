@@ -55,7 +55,7 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Import | `import/sheet.dart` (`readSheet` picks `xls`, `xlsx`, `csv` or `ofx`); `import/mapping.dart` (`guessMapping`, `readRows`, `importKeys`); `database.dart` "import" (`planImport`, `applyImport`, `undoImport`) | `import_dialog.dart`; file picking in `ledger_screen.dart` | `import_test.dart`, `xls_fixture.dart` |
 | Currencies | `domain/money.dart` + `domain/currencies.dart`; `l10n/currency_names.dart` | `theme.dart` (`Money`, `CurrencyScope`); `language.dart` (`currencyName`) | `money_test.dart`, `currency_test.dart` |
 | Keys, encryption | `data/keys.dart`, `data/encryption.dart` | `startup.dart`, `recovery_key_screen.dart` | `keys_test.dart`, `encryption_test.dart`, `cipher_test.dart`, `startup_test.dart`, `recovery_key_screen_test.dart` |
-| Backups, restore, new ledger | `data/backup.dart` (`Backups`) | `_SettingsPage` in `ledger_screen.dart` | `backup_test.dart`, `encrypted_backup_test.dart`, `ledger_screen_test.dart` ("backups") |
+| Backups, restore, new ledger | `data/backup.dart` (`Backups`; `CopiedElsewhere` and the file `copied-elsewhere` beside the ledger hold when "Back up to…" last worked, for the line under Net worth) | `_SettingsPage` in `ledger_screen.dart` | `backup_test.dart`, `encrypted_backup_test.dart`, `ledger_screen_test.dart` ("backups") |
 | Ledger kept in a folder (ADR 0005) | `data/cloud_folder.dart` (`CloudFolder` writes `Ledger.betterbudget` through `Backups.saveTo` after each change; `FolderAccess` keeps the Mac's bookmark, made in `macos/Runner/MainFlutterWindow.swift`); the setting is the file `cloud-folder` beside the ledger | `_keepInFolder`, `_stopFolder` and the "Stored in" line of `_SettingsPage` in `ledger_screen.dart` | `cloud_folder_test.dart` (1 golden) |
 | File names | `data/ledger_file.dart` (`ledgerExtension`, `ledgerFileName`; `ledgerFileIn` renames a ledger still called `betterbudget.sqlite`, called from `main.dart` and `AppDatabase.openEncrypted`) | none | `ledger_file_test.dart` |
 | Schema, upgrades | tables at the top of `database.dart`; `schemaVersion`, `migration` | none | `migration_test.dart` |
@@ -81,7 +81,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
 - **Logo and pictures.** `assets/brand/mark-dark.svg` and the two wordmarks are written
   by `assets/logo/prepared/prepare.py` (repo root) from the owner's vectors in
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
-  Mac icon is drawn by `design/icon/app_icon.swift`, Android's by
+  Mac icon is drawn by `design/icon/app_icon.py`, Android's by
   `tool/gen_android_icons.sh`.
 - **Words.** New text goes in both `.arb` files with the same key and placeholders, or
   `language_test.dart` fails. Terms and tone: [l10n-glossary.md](l10n-glossary.md).
@@ -101,7 +101,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (66), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (69), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.

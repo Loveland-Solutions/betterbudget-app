@@ -1996,12 +1996,20 @@ void main() {
     );
     expect(payeeCell, findsNothing);
 
-    await tester.tap(find.text('Cash wallet').first);
-    await tester.pumpAndSettle();
+    // Show goes to where it went, with the row chosen.
+    await tapAndWait(tester, find.text('Show'));
     expect(payeeCell, findsOneWidget);
+    expect(find.text('Mark cleared'), findsOneWidget);
+    expect(find.text('Show'), findsNothing);
     await tester.tap(find.text('TDB Checking').first);
     await tester.pumpAndSettle();
-    await tapAndWait(tester, find.text('Undo'));
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
     expect(payeeCell, findsOneWidget);
     await tester.tap(payeeCell);
     await tester.pumpAndSettle();
@@ -2018,6 +2026,73 @@ void main() {
   });
 
   group('backups', () {
+    testWidgets('a month without a copy elsewhere is said under Net worth', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final db = AppDatabase(NativeDatabase.memory());
+      final backups = Backups(db)
+        ..elsewhere.value = CopiedElsewhere(
+          since: DateTime(2026, 7, 1),
+          copied: DateTime(2026, 8, 17, 21),
+        );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              backups: backups,
+              clock: () => DateTime(2026, 9, 16, 10),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      // 30 days is not yet worth saying.
+      expect(find.byKey(const ValueKey('backup-reminder')), findsNothing);
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 8, 6, 21),
+      );
+      await tester.pump();
+      expect(find.text('Last backup 41 days ago'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/backup_reminder.png'),
+      );
+      // Never copied: counted from when this computer first looked.
+      backups.elsewhere.value = CopiedElsewhere(since: DateTime(2026, 7, 1));
+      await tester.pump();
+      expect(find.text('No backup yet'), findsOneWidget);
+      // It leads to where a copy is made, which says the same thing.
+      await tester.tap(find.byKey(const ValueKey('backup-reminder')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('back-up')), findsOneWidget);
+      expect(
+        find.text('Not yet · Back up to… saves a copy to another drive'),
+        findsOneWidget,
+      );
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 8, 6, 21),
+      );
+      await tester.pump();
+      expect(find.text('2026.08.06 21:00'), findsOneWidget);
+      // Copied today: nothing left to say.
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 9, 16, 9),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('backup-reminder')), findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets('a daily copy that keeps failing shows under Net worth', (
       tester,
     ) async {
@@ -2358,11 +2433,25 @@ void main() {
           (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
         ],
       );
+      // What each account holds an uncleared row against: its statement
+      // and its age (a card's holds sit longer), and cash nothing.
+      UnclearedCheck? check(String name) => ledger.unclearedCheck(
+        ledger.balanceSheetAccounts.firstWhere((a) => a.name == name).id,
+      );
+      expect(check('TDB Checking'), (
+        statement: DateTime(2026, 9, 10),
+        owed: false,
+      ));
+      expect(check('Khan Savings'), (statement: null, owed: false));
+      expect(check('Golomt Visa'), (statement: null, owed: true));
+      expect(check('Cash wallet'), isNull);
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
     expect(find.text('· due 7 days ago'), findsOneWidget);
     expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
+    // The only late one: no count.
+    expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/overdue_row.png'),
@@ -2382,7 +2471,8 @@ void main() {
     );
     await tester.ensureVisible(skytel);
     await tester.pumpAndSettle();
-    expect(find.text(' · not cleared for 34 days'), findsOneWidget);
+    // The 09.10 reconcile passed over it: that, not its age, is the doubt.
+    expect(find.text(' · not on the 09.10 statement'), findsOneWidget);
     expect(find.byKey(const ValueKey('stale-note')), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
@@ -2408,6 +2498,233 @@ void main() {
     });
     await settle(tester);
     expect(find.text('· due 7 days ago'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a late bill counts the other late ones, and Confirm names the '
+      'row already in', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      for (final (payee, day) in [('Mobicom', 9), ('Univision', 12)]) {
+        await db.postTransaction(
+          date: DateTime(2026, 9, day),
+          payee: payee,
+          scheduled: true,
+          lines: [
+            (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+            (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+          ],
+        );
+      }
+      // Typed from the bank app the day after it was due, never confirmed.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 10),
+        today: DateTime(2026, 9, 16),
+        payee: 'Mobicom',
+        counterAccountId: phone,
+        amount: -4150000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· 1 more overdue'), findsOneWidget);
+
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(
+      find.text('Already in this account · 09.10 · Mobicom · −₮41,500.00'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_already_in.png'),
+    );
+    await tapAndWait(tester, find.text('Delete the scheduled one'));
+    expect(
+      find.text('Scheduled Mobicom deleted · already in on 09.10'),
+      findsOneWidget,
+    );
+    // Univision is the next, and the only late one left.
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
+    expect(find.byKey(const ValueKey('already-in')), findsNothing);
+
+    await tapAndWait(tester, find.text('Undo'));
+    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· 1 more overdue'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+
+    // Nothing like it in the account: Confirm opens with no such line.
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.byKey(const ValueKey('already-in')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the Already in line scrolls to a row far down the list', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      await db.postTransaction(
+        date: DateTime(2026, 9, 9),
+        payee: 'Mobicom',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+          (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+        ],
+      );
+      // Paid six days early: a dozen rows down, past the foot of the window.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 3),
+        today: DateTime(2026, 9, 16),
+        payee: 'Mobicom',
+        counterAccountId: phone,
+        amount: -4000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    final row = find.byWidgetPredicate(
+      (w) => w is Text && w.data == 'Mobicom' && w.style?.fontSize == 14.5,
+    );
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(
+      find.text('Already in this account · 09.03 · Mobicom · −₮40,000.00'),
+      findsOneWidget,
+    );
+    expect(row.hitTestable(), findsNothing);
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('already-in-text')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    });
+    await settle(tester);
+    expect(row.hitTestable(), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a category’s repeating bill already in: the line leads to its '
+      'row, and Delete the scheduled one ties the row and schedules the next', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    late int fee, paid;
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      fee = await db.createCategory('СӨХ');
+      await db.setCategoryPlan(
+        fee,
+        CategoryPlan(
+          categoryId: fee,
+          kind: PlanKind.byDate,
+          amount: 27000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2026, 9, 12),
+          everyMonths: 1,
+          paidFrom: checking,
+        ),
+      );
+      // Scheduled before it was due, and still waiting four days after.
+      await db.ensurePlanBills(DateTime(2026, 9, 10), only: fee);
+      // The bank's row for it: its own payee, filed under the category.
+      paid = await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 16),
+        payee: 'IB TRANSFER 0412',
+        counterAccountId: fee,
+        amount: -27000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    // The plan's bills still scheduled, and what the bank's row is tied to.
+    Future<void> expectState(DateTime coming, int? tied) async {
+      final ledger = (await tester.runAsync(db.loadLedger))!;
+      expect(
+        [
+          for (final x in ledger.txns)
+            if (x.planCategoryId == fee && x.scheduled) x.date,
+        ],
+        [coming],
+      );
+      expect(ledger.txns.firstWhere((x) => x.id == paid).planCategoryId, tied);
+    }
+
+    await expectState(DateTime(2026, 9, 12), null);
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+
+    const line =
+        'Already in this account · 09.14 · IB TRANSFER 0412 · '
+        '−₮270,000.00';
+    int outlined() =>
+        tester.widgetList<Container>(find.byType(Container)).where((c) {
+          final d = c.decoration;
+          return d is BoxDecoration &&
+              d.border is Border &&
+              (d.border! as Border).top.color == Mid.blueEdge;
+        }).length;
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(find.text(line), findsOneWidget);
+    // The line leads to the row it names.
+    final before = outlined();
+    await tapAndWait(tester, find.byKey(const ValueKey('already-in-text')));
+    expect(outlined(), before + 1);
+    expect(find.text('IB TRANSFER 0412').hitTestable(), findsOneWidget);
+    await tapAndWait(tester, find.text('Cancel'));
+    expect(outlined(), before - 1); // the open row's outline went too
+
+    // The Scheduled tab lists no rows already in: it is drawn under the line.
+    await tapAndWait(tester, find.text('Scheduled'));
+    await tapAndWait(tester, find.text('Confirm').first);
+    expect(find.text(line), findsOneWidget);
+    expect(find.byKey(const ValueKey('already-in-row')), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_already_in_scheduled.png'),
+    );
+
+    await tapAndWait(tester, find.text('Delete the scheduled one'));
+    expect(
+      find.text('Scheduled СӨХ deleted · already in on 09.14'),
+      findsOneWidget,
+    );
+    // The row is the bill paid, and October's is the one waiting.
+    await expectState(DateTime(2026, 10, 12), fee);
+
+    await tapAndWait(tester, find.text('Undo'));
+    await expectState(DateTime(2026, 9, 12), null);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    await expectState(DateTime(2026, 10, 12), fee);
     await tidy(tester, db);
   });
 

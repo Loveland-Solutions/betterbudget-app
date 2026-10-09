@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.20.0 · schema v18 · 553 tests pass
+**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 560 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,12 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #56 (version 0.20.0).** The computer wears the owner's logo and its
+**After PR #57 (version 0.21.0).** The open items are built (ADR 0004 rule 20,
+"Changed 2026-10-09", and "Backups"): the uncleared note goes by the last statement, a
+late bill counts the other late ones, Confirm names a row already in the account, the
+Move popup has Show, and after more than 30 days without "Back up to…" a line under
+Net worth says "Last backup 41 days ago". The Mac's icon is the logo on a navy tile.
+The computer wears the owner's logo and its
 colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
 accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
 a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
@@ -65,8 +70,9 @@ phone come before item 1; "Waiting on the owner" 16):
    "Gold is an accent, and the new colors come first"). **The phone is next when the
    owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
    the Pixel still has the old build and the bee icon: its new icon is drawn in the
-   project and arrives with the next install. The iPhone and Windows builds still have
-   Flutter's icon. The four Savings pictures the owner drew are made ready
+   project and arrives with the next install. The Mac's icon is the logo on a navy tile
+   (2026-10-09); Android's drawn one is still the white tile. The iPhone and Windows
+   builds still have Flutter's icon. The four Savings pictures the owner drew are made ready
    (`assets/logo/prepared/savings-*.svg`, day and night) and wait: the owner is going
    to change the Savings steps, and said to take that up with the budget page.
 
@@ -77,7 +83,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #56. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #57. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -164,7 +170,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
 | Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date |
 | Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. Split lines can't be edited |
-| Row actions | Edit, Categorize, Mark cleared, Move to, Delete; Confirm on a scheduled row. Keys Enter, C, Delete |
+| Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row, which names a row already in the account that looks to be the same bill and offers "Delete the scheduled one". Keys Enter, C, Delete |
 | Undo | ⌘Z and ⌘⇧Z (Ctrl+Y on Windows) through the session's actions; in a text field they act on typing |
 | Popup | A card 440 wide with Undo. After a category is picked it offers "Always file this payee here", and the next import follows the rule |
 | Header | Cleared + uncleared = working, the working balance as the large number; "Last reconciled on"; Reconcile and Import… buttons; a credit account reads Owed |
@@ -176,10 +182,10 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
+| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
-| Language | Same as this Mac, English or Монгол; 1,135 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,148 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
@@ -235,6 +241,20 @@ open the archive).
   hovered row or menu item by day the gray currency code is 4.0; eight old bee files
   are still in `assets/logo/`; the phone's amount screen needs the deeper green
   button before it follows day and night.
+- **From the reviews of the register notes (2026-10-09), not fixed:** a bill the
+  bank names with no word in common with its payee (Rent paid as "IB TRANSFER
+  0412"), not yet categorized and for another amount, still isn't found when the
+  bill is confirmed; All accounts looks only among the rows it shows; two fast
+  clicks on "Delete the scheduled one" (or on Delete) record two undos; the scroll
+  to a row more than a screen down the list was not tested (the test's row is in
+  sight); an open row scrolled far out of sight loses what was typed in it, as it
+  did before.
+- **From the reviews of the backup reminder (2026-10-09), not fixed:** "Erase
+  everything and start over" keeps the old record, so a new ledger can be told on
+  its first day, or not for a month; "Back up to…" into a folder on the same disk
+  counts as elsewhere; a count of 100 days or more may wrap to a second line in the
+  sidebar, and the Mongolian line's fit wasn't looked at; no test that a ledger in
+  a folder, or setup, hides the line, nor that "Back up to…" records the day.
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
@@ -269,6 +289,9 @@ open the archive).
   mortgage or student loan, which the computer's budget leaves out; the +/− button is
   half under the toast while it shows; the +/− button's spoken label in Mongolian
   ("Орлого болгох") uses Income's own word.
+- **`keys_test.dart` "rejects a bad checksum" failed once in a full run**
+  (2026-10-09) and passed alone and in the next two full runs; like the one below
+  it builds its input from a random key.
 - **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
   (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
   random key. **`budget_test.dart` "plans paid weekly, a date years ahead is still
@@ -312,22 +335,10 @@ open the archive).
 - **The Mongolian is a draft** awaiting a native speaker
   ([mongolian-review.csv](mongolian-review.csv)).
 
-## Open items, roughly by value (none decided)
+## Open items
 
-1. **A better "not cleared" note.** Today any uncleared row 14+ days old says "not
-   cleared for 34 days". It's noisy for monthly reconcilers, fires on foreign card holds
-   (20–30 days) and on every cash row. Recommended: note rows dated on or before the
-   last statement ("· not on the 09.10 statement"); count days only on accounts never
-   reconciled (30 on credit); none on cash.
-2. **Duplicate check on Confirm.** Confirming an overdue bill can duplicate one already
-   typed from the bank app. Recommended: when Confirm opens, name a posted row with the
-   same payee within 7 days and offer to delete the scheduled one instead.
-3. **Several overdue bills.** In All only the first scheduled row shows, and its "due 7
-   days ago" replaces "next of N". Recommended: "· due 7 days ago · 2 overdue".
-4. **Backup reminders.** "Last copied elsewhere 41 days ago" once past 30 days (daily
-   copies share a disk with the data).
-5. **Smaller:** a "Show" button on the Move toast; prefill `+` when a payee's last
-   transaction was money in (refunds typed without it count twice).
+None waiting. **Dropped:** putting `+` in the amount when a payee's last row was
+money in. It is a guess filled into a field (owner, 2026-10-08: "Don't autofill").
 
 **Known limits, accepted:** a scheduled split confirms at its planned total only;
 "Back up to…" overwriting a file isn't atomic in the sandbox; the newest 5

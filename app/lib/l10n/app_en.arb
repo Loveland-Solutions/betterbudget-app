@@ -445,6 +445,27 @@
       }
     }
   },
+  "ledgerScheduledDeleted": "Scheduled {name} deleted",
+  "@ledgerScheduledDeleted": {
+    "description": "Undo-menu label after a scheduled bill was deleted because the real one was already in. name is the payee.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerScheduledDeletedAlreadyIn": "Scheduled {name} deleted · already in on {date}",
+  "@ledgerScheduledDeletedAlreadyIn": {
+    "description": "Toast after a scheduled bill was deleted because the real one was already in the account. name is the payee, date a day like 10.05.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerCantMove": "Can’t move · {reason}",
   "@ledgerCantMove": {
     "description": "Toast when moving a row to another account is refused; reason comes from the app.",
@@ -469,6 +490,22 @@
         "type": "String"
       }
     }
+  },
+  "ledgerScheduledDeletedShort": "Scheduled {name} deleted · {short} of it is no longer scheduled",
+  "@ledgerScheduledDeletedShort": {
+    "description": "Toast after a scheduled bill was deleted because a row for it was already in the account, when that row was for less than the bill: short, like ₮800,000, is the part of the bill that is now neither paid nor scheduled.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerShowMoved": "Show",
+  "@ledgerShowMoved": {
+    "description": "Button on the toast after a row is moved to another account: opens that account with the row chosen."
   },
   "ledgerTransferToMovedTo": "Transfer to {payee} moved to {account}",
   "@ledgerTransferToMovedTo": {
@@ -977,6 +1014,27 @@
         "type": "String"
       }
     }
+  },
+  "ledgerLastCopiedElsewhere": "Last backup {days} days ago",
+  "@ledgerLastCopiedElsewhere": {
+    "description": "Sidebar, small line under Net worth, shown once it has been more than 30 days since Settings → Back up to… was last used on this computer (the owner read \"elsewhere\" as another machine having done it: say only what this computer did). Clicking it opens Settings. days is 31 or more.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerNeverCopiedElsewhere": "No backup yet",
+  "@ledgerNeverCopiedElsewhere": {
+    "description": "Sidebar, small line under Net worth, shown after 30 days when the ledger has never been saved somewhere other than this computer with Settings → Back up to…. Clicking it opens Settings."
+  },
+  "ledgerCopiedElsewhere": "Backed up",
+  "@ledgerCopiedElsewhere": {
+    "description": "Settings → Backups card, row label (120px wide), shown while the ledger is stored on this computer only: when it was last saved somewhere else with the Back up to… button under it."
+  },
+  "ledgerCopiedElsewhereNever": "Not yet · Back up to… saves a copy to another drive",
+  "@ledgerCopiedElsewhereNever": {
+    "description": "Settings → Backups card, value of the Copied elsewhere row when Back up to… has never been used on this computer. Names the button below it."
   },
   "ledgerDailyCopyFailing": "The daily copy is failing",
   "@ledgerDailyCopyFailing": {
@@ -2608,6 +2666,52 @@
         "type": "int"
       }
     }
+  },
+  "rowsMoreOverdue": "{count} more overdue",
+  "@rowsMoreOverdue": {
+    "description": "Register, on the one scheduled row shown at the top of All when it is past its date and so are others: how many other scheduled rows are past their date (1 or more). Follows 'due 7 days ago'. Clickable, opens the Scheduled tab. Lowercase in English.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rowsAlreadyIn": "Already in this account · {date} · {payee} · {amount}",
+  "@rowsAlreadyIn": {
+    "description": "Register, under a scheduled bill being confirmed, when a row that looks to be the same bill is already in the account: confirming would put the bill in twice. Names that row as the register shows it: date like 10.05, payee, amount like −₮900,000.00.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsAlreadyInLess": "Already in this account · {date} · {payee} · {amount} · {short} less than this bill",
+  "@rowsAlreadyInLess": {
+    "description": "As rowsAlreadyIn, when that row is for less than the scheduled bill being confirmed: short is the difference, like ₮800,000.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsAlreadyInDelete": "Delete the scheduled one",
+  "@rowsAlreadyInDelete": {
+    "description": "Button beside rowsAlreadyIn: deletes the scheduled bill being confirmed, since the real one is already in."
   },
   "rowsScheduledOnly": "scheduled",
   "@rowsScheduledOnly": {
@@ -4293,6 +4397,15 @@
     "placeholders": {
       "days": {
         "type": "int"
+      }
+    }
+  },
+  "startNotOnStatement": "not on the {date} statement",
+  "@startNotOnStatement": {
+    "description": "Register row, small note on a row still not cleared though the account was reconciled to a bank statement dated on or after it: the bank's statement didn't have it, so it may never have happened. date is a day like 09.10. Lowercase in English.",
+    "placeholders": {
+      "date": {
+        "type": "String"
       }
     }
   },
