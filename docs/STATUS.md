@@ -24,21 +24,17 @@ an accent, and the new colors come first"; the screens compared are at
 <https://claude.ai/artifact/1xJW37g537PUgA5BRLkzvq>).
 The owner's ledger is stored in their Google Drive folder; the Android app records
 money out and money in, and what it records reaches the computer's ledger through the
-folder. Then, in order (the owner was asked on 2026-10-08 whether transfers on the
-phone come before item 1; "Waiting on the owner" 16):
+folder. Then, in order:
 
-1. **More than one computer on the same ledger** (owner, 2026-10-07: "I definitely
-   want to be able to support multiple machines on the same ledger. Let's figure that
-   out in a new conversation"). **Start that conversation with this**, before building
-   anything else on the folder. Where it stands: each computer keeps its own working
-   file and writes the whole of it over `Ledger.betterbudget` in the folder, at launch
-   and after each change, without looking at what is there, so a second or
-   out-of-date computer silently replaces the newer ledger. Nothing reads the folder's
-   file back in except Restore from…. [ADR 0005](decisions/0005-mobile-companion.md)
-   was written for one computer plus phones ("one writer per file") and rejected a
-   full two-way merge as too much for phones; that has to be looked at again for
-   computers. Until it is designed, only one computer should have the ledger moved to
-   the folder. Bring two or three ways with sketches, as for any feature.
+1. **More than one computer on the same ledger.** The way is chosen (owner,
+   2026-10-09; [ADR 0005](decisions/0005-mobile-companion.md) "More than one computer
+   on one ledger"): the app combines what two computers changed apart and asks only
+   about a real conflict, and both may be open at once. **Nothing is built.** Build it
+   in the three steps written there, each its own PR, starting with "Never write
+   blind", which alone ends the silent loss and fixes four things unsafe today with
+   one computer. Until then only one computer should have the ledger moved to the
+   folder: each still writes the whole ledger over `Ledger.betterbudget` without
+   looking.
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
@@ -147,12 +143,7 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     second row. Should a phone entry under Income take the place of the next
     scheduled payday? Recommended yes: a button for it on the popup that says "1
     transaction from your phone".
-16. **Two computers: which way?** (2026-10-09) An expert's three ways were put to
-    the owner: (A) never write over a newer ledger, open the newer one, and ask which
-    to keep when both changed; (B) A, plus combining the two and asking only about
-    rows both changed; (C) a file per computer merged row by row. Recommended A first.
-    Its four questions are in this session's reply; nothing is built.
-17. **Two wordings from the colors review** (2026-10-09). Should a late bill say what
+16. **Two wordings from the colors review** (2026-10-09). Should a late bill say what
     it means for the balance, "due 22 days ago · not in Working yet"? And should an
     import that doesn't match the bank lead with the amount as its own sentence,
     "₮3,298,850.00 apart from the bank."?

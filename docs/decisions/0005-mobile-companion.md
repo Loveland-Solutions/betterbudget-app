@@ -179,16 +179,75 @@ updated. The computer posts it as a transfer when both accounts are live and in 
 currency; an account archived since comes back, as an archived category does. With
 two computers on one ledger each would take the same entries in (the next section).
 
-### More than one computer on one ledger (owner, 2026-10-07): wanted, not designed
+### More than one computer on one ledger (owner, 2026-10-07; the way chosen 2026-10-09)
 
-"I definitely want to be able to support multiple machines on the same ledger. Let's
-figure that out in a new conversation." Said when told that a second or out-of-date
-computer writes its own ledger over the one in the folder. This record assumed one
-computer and some phones: the computer is the folder file's only writer, and the full
-two-way merge under Rejected was turned down as too much for a phone that records
-purchases. Two computers that both edit the ledger change that, so the choice has to be
-made again for them. Nothing is decided; [STATUS](../STATUS.md) "Next step" says where
-the code stands.
+"I definitely want to be able to support multiple machines on the same ledger." Said
+when told that a second or out-of-date computer writes its own ledger over the one in
+the folder. This record assumed one computer and some phones: the computer is the
+folder file's only writer, and the full two-way merge under Rejected was turned down
+as too much for a phone that records purchases. Two computers that both edit the
+ledger change that.
+
+**The scenario put to the owner.** Monday a week of spending is entered on the Mac,
+which writes the ledger to the folder. Tuesday the laptop, still holding its older
+copy, fixes one payee and five seconds later writes its whole older ledger over the
+folder's. Monday's entries are gone from the folder with no word on either computer,
+and the Mac's next change writes over the laptop's fix the same way.
+
+**Decided (owner, 2026-10-09), after an expert's three ways were laid out:**
+
+1. **Two computers changing the ledger apart is ordinary, and the app combines
+   them.** "This should be a common practice. The only time this should be a problem
+   is if person A does something that conflicts with something person B did. If this
+   is a problem, we should ask the user." So: what one changed and the other didn't
+   touch is brought together without a question; a row both changed, or one changed
+   and the other deleted, or a change to a reconciled row, is put to the person with
+   the real values.
+2. **Both may be open at once, and the design allows for it.** "Yes, and we should
+   prepare for this by design." A computer left running takes in what the other
+   wrote while it is open, not only at launch.
+
+Rejected: asking which whole ledger to keep whenever both changed (way A alone: the
+other side's work is re-entered by hand), and a file per computer merged row by row
+with a permanent id and version on every row (way C: two to three months, a schema
+change on every table, the most room for money bugs).
+
+**How it is to be built, in order, each its own PR** (the expert's judgement, taken):
+
+1. **Never write blind.** Each computer has a random id of its own, kept beside the
+   ledger in `cloud-folder`. The ledger carries a counter per computer in
+   `Preferences` (no table change), raised when that computer writes the folder. No
+   clocks. Before every write, at launch, when the app comes to the front and on a
+   timer while open, the folder's file is copied to scratch (as the phones' files
+   are) and its counters read. Same or older than mine: write. Ahead of mine, and I
+   have changed nothing: save a copy of mine, take the folder's in, clear undo, and
+   say so with Undo ("Opened the ledger from the Mac, Monday 21:40 · 23 transactions
+   newer"). Both changed: don't write; go to step 2 (until it exists: keep both
+   files and say so). Can't be read (still arriving): hold the write, say "not
+   copied yet", try again. This step alone ends the silent loss.
+2. **Combine.** Each computer keeps the exact file both last agreed on. When both
+   changed, compare that file, mine and theirs, table by table: rows only in theirs
+   come in under new ids (a transaction with its entries as one, so it still sums to
+   zero), rows changed on one side are applied, and the rest are the questions of
+   decision 1. The same thing made on both sides is one: a scheduled bill by its plan
+   or pay and date, a bank row by its import key, a payee by name, a phone's entry
+   by its id. All of it is one undo: "Brought in 4 transactions and 1 payee change
+   from the laptop".
+3. **While open.** The check of step 1 runs while the app is open, and the app's own
+   scheduling at launch (`ensurePaydays`, `ensurePlanBills`) runs after the folder
+   has been looked at, not before.
+
+Known before starting: every table's ids are counted from 1 on each computer, so two
+computers give the same id to different rows, and step 2 must remap; a "change made
+by a person" has to be told from the app's own scheduling, or every stale computer
+looks as though it changed something; a computer on an older build still writes
+blind, and a new build can only notice afterwards; ledgers at two schema versions
+aren't combined until both are updated. **Also unsafe today with one computer, to
+fix in step 1:** picking a folder that already holds a ledger writes over it (a
+second or reinstalled computer destroys the folder's ledger); "Move it back to this
+computer" and moving to another folder don't wait for a write under way; moving to
+another folder deletes the ledger from the one it left, which a phone may still be
+reading; the temporary file is written inside the synced folder.
 
 ### What a phone can and can't do
 

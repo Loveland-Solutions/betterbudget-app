@@ -151,8 +151,9 @@ what's left in each budget, synced through a cloud folder the user picks. Comes 
 since phones show budget amounts.
 - [x] The ledger stored in a cloud folder, written by the Mac (2026-10-07,
       `Ledger.betterbudget`)
-- [ ] **More than one computer on the same ledger** (owner, 2026-10-07; to be designed
-      in its own conversation, see STATUS "Next step")
+- [ ] **More than one computer on the same ledger** (owner, 2026-10-07; the way
+      chosen 2026-10-09: combine, ask only on a conflict, both open at once; three
+      steps in ADR 0005, none built)
 - [ ] One file of entries per phone, taken in by the Mac
 - [x] Entry screen and budget-left screen, on Android, reading the folder (2026-10-07)
 - [ ] The iPhone build: folder access, icon
