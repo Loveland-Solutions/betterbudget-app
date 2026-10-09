@@ -7119,6 +7119,42 @@ abstract class Words {
   /// **'Opened the ledger saved on another computer'**
   String get ledgerFolderOpened;
 
+  /// Popup when this computer and another both changed the ledger, and what the other changed was brought into this one without a question. {count} is how many transactions were added, changed or deleted here; {computer} is what the other computer is called, like “Tom’s MacBook Air”. Worded as ledgerFromPhone is. Its second line is ledgerFolderCopied (the folder and when), and it has Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from {computer}} other{{count} transactions from {computer}}}'**
+  String ledgerCombinedFrom(int count, String computer);
+
+  /// As ledgerCombinedFrom, when the other computer also changed something that isn’t a transaction: an account, a category, an amount assigned, a setting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction and other changes from {computer}} other{{count} transactions and other changes from {computer}}}'**
+  String ledgerCombinedMoreFrom(int count, String computer);
+
+  /// As ledgerCombinedFrom, when the other computer changed no transaction, only something else: an account, a category, an amount assigned, a setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes from {computer}'**
+  String ledgerCombinedOtherFrom(String computer);
+
+  /// As ledgerCombinedFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from another computer} other{{count} transactions from another computer}}'**
+  String ledgerCombined(int count);
+
+  /// As ledgerCombinedMoreFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction and other changes from another computer} other{{count} transactions and other changes from another computer}}'**
+  String ledgerCombinedMore(int count);
+
+  /// As ledgerCombinedOtherFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes from another computer'**
+  String get ledgerCombinedOther;
+
   /// Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).
   ///
   /// In en, this message translates to:
@@ -7170,7 +7206,7 @@ abstract class Words {
   /// Under ledgerTwoTitle. {folder} is the folder’s last two parts, like “My Drive/BetterBudget”. “Restore from…” is the button ledgerRestoreFrom.
   ///
   /// In en, this message translates to:
-  /// **'The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  /// **'The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put these two together, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
   String ledgerTwoBody(String folder);
 
   /// The question ledgerTwoTitle: label of the line that says what the folder’s ledger holds.

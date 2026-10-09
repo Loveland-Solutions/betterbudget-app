@@ -4992,6 +4992,58 @@ class WordsEn extends Words {
       'Opened the ledger saved on another computer';
 
   @override
+  String ledgerCombinedFrom(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions from $computer',
+      one: '1 transaction from $computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedMoreFrom(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions and other changes from $computer',
+      one: '1 transaction and other changes from $computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedOtherFrom(String computer) {
+    return 'Changes from $computer';
+  }
+
+  @override
+  String ledgerCombined(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions from another computer',
+      one: '1 transaction from another computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transactions and other changes from another computer',
+      one: '1 transaction and other changes from another computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerCombinedOther => 'Changes from another computer';
+
+  @override
   String ledgerFolderCouldntOpen(String folder) {
     return 'Couldn’t open the ledger in $folder · nothing was changed';
   }
@@ -5026,7 +5078,7 @@ class WordsEn extends Words {
 
   @override
   String ledgerTwoBody(String folder) {
-    return 'The ledger in $folder has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
+    return 'The ledger in $folder has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put these two together, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
   }
 
   @override

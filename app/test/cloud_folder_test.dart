@@ -635,16 +635,58 @@ void main() {
           expect(await payees(db), contains('Nomin'));
         });
 
-        // Both change. This computer writes nothing over the other's.
-        late List<int> theirs;
+        Future<void> rename(AppDatabase of, String from, String to) async {
+          final data = await of.loadLedger();
+          await of.renameAccount(
+            data.accounts.values.singleWhere((a) => a.name == from).id,
+            to,
+          );
+        }
+
+        // Both change, each something the other didn't touch: the other's
+        // spending is brought in here beside this computer's new name, and
+        // nobody is asked.
         await tester.runAsync(() async {
           await spendOnTheOther('E-Mart');
-          theirs = await copy().readAsBytes();
-          final data = await db.loadLedger();
-          await db.renameAccount(
-            data.accounts.values.singleWhere((a) => a.name == 'Cash wallet').id,
-            'Wallet',
+          await rename(db, 'Cash wallet', 'Wallet');
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pump();
+        await comeBackToTheFront();
+        expect(find.text('1 transaction from The laptop'), findsOneWidget);
+        expect(
+          find.text('Your ledger was changed on two computers'),
+          findsNothing,
+        );
+        await expectLater(
+          find.byType(LedgerScreen),
+          matchesGoldenFile('goldens/two_combined.png'),
+        );
+        await tester.runAsync(() async {
+          expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
+          // Both are in the folder now, and the other takes them in.
+          expect(
+            await otherCloud.check(today, fresh: true),
+            FolderStanding.newer,
           );
+          await otherBackups.restore(
+            await otherBackups.inspect(otherCloud.theirs!.copy.path, today),
+            today,
+            fromFolder: true,
+          );
+          expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
+          final data = await other.loadLedger();
+          expect(data.accounts.values.map((a) => a.name), contains('Wallet'));
+        });
+
+        // Both give one category another name. That can't be combined, and
+        // this computer writes nothing over the other's.
+        late List<int> theirs;
+        await tester.runAsync(() async {
+          await rename(other, 'Groceries', 'Food');
+          expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
+          theirs = await copy().readAsBytes();
+          await rename(db, 'Groceries', 'Supermarket');
           await Future<void>.delayed(const Duration(milliseconds: 300));
         });
         await tester.pump();

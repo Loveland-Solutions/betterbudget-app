@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/budget.dart' show Budget;
+import '../domain/combine.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
@@ -22,7 +23,7 @@ part 'database.g.dart';
 // must sum to zero per transaction. Categories are income/expense accounts.
 
 class Accounts extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   TextColumn get name => text()();
   TextColumn get type => textEnum<AccountType>()();
   TextColumn get currency => text().withDefault(const Constant('MNT'))();
@@ -59,7 +60,7 @@ class Preferences extends Table {
 /// When pay comes into an account (rule 24). Its next payday is always
 /// scheduled, from the plan, not from what last came.
 class PaySchedules extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   IntColumn get categoryId => integer().references(Accounts, #id)();
   IntColumn get accountId => integer().references(Accounts, #id)();
   TextColumn get payee => text().nullable()();
@@ -94,13 +95,13 @@ class PaySchedules extends Table {
 }
 
 class Payees extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   TextColumn get name => text().unique()();
 }
 
 @DataClassName('TransactionRow')
 class Transactions extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
 
   /// Calendar date as `YYYY-MM-DD`, never a timestamp (ADR 0001).
   TextColumn get date => text()();
@@ -126,7 +127,7 @@ class Transactions extends Table {
 @DataClassName('EntryRow')
 @TableIndex(name: 'entries_import_key', columns: {#importKey}, unique: true)
 class Entries extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   IntColumn get transactionId => integer().references(Transactions, #id)();
   IntColumn get accountId => integer().references(Accounts, #id)();
   IntColumn get amountMinor => integer()();
@@ -149,7 +150,7 @@ class Entries extends Table {
 
 @DataClassName('ReconciliationRow')
 class Reconciliations extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   IntColumn get accountId => integer().references(Accounts, #id)();
   TextColumn get statementDate => text()();
   IntColumn get statementBalanceMinor => integer()();
@@ -163,7 +164,7 @@ class Reconciliations extends Table {
 /// category and day, and they add up.
 @DataClassName('BudgetAmountRow')
 class BudgetAmounts extends Table {
-  IntColumn get id => integer().autoIncrement()();
+  IntColumn get id => integer().autoIncrement().clientDefault(newRowId)();
   IntColumn get categoryId => integer().references(Accounts, #id)();
 
   /// Calendar date as `YYYY-MM-DD`: the first day of its period.
@@ -670,6 +671,10 @@ class ImportRecord {
 /// being replaced by it. Nothing was replaced.
 class ChangedSinceException implements Exception {}
 
+/// What another computer changed can't all be brought into this ledger as
+/// it is. Nothing was changed.
+class CantCombineException implements Exception {}
+
 /// The ledger was saved by a newer BetterBudget than this one. Nothing was
 /// changed.
 class NewerLedgerException implements Exception {
@@ -1076,6 +1081,83 @@ class AppDatabase extends _$AppDatabase {
         await setPreference(SyncKeys.computers, joined);
         await setPreference(SyncKeys.seal, digest);
       });
+
+  /// Every row this ledger holds, as [combine] compares them.
+  Future<LedgerRows> allRows() => transaction(
+    () => ledgerRows(
+      (sql) async => [for (final r in await customSelect(sql).get()) r.data],
+    ),
+  );
+
+  /// Makes the changes [combine] worked out (ADR 0005, "Combine"): what
+  /// another computer changed, brought into this ledger, all of it or none.
+  /// Nothing is done unless the rows still give [onlyIfDigest], what they
+  /// were when the changes were worked out ([ChangedSinceException]). A
+  /// change that would leave a transaction not adding up, a row naming one
+  /// that is gone, or two rows where there may be one, stops all of it with
+  /// a [CantCombineException].
+  Future<void> applyCombined(
+    List<RowOp> ops, {
+    required String onlyIfDigest,
+  }) async {
+    String q(String name) => '"$name"';
+    try {
+      await transaction(() async {
+        if ((await sealState()).digest != onlyIfDigest) {
+          throw ChangedSinceException();
+        }
+        // Checked when the whole of it is in, not row by row.
+        await customStatement('PRAGMA defer_foreign_keys = ON');
+        String where(Row key) =>
+            key.keys.map((c) => '${q(c)} IS ?').join(' AND ');
+        for (final table in combineOrder.reversed) {
+          for (final op in ops) {
+            if (op.table != table || op.row != null) continue;
+            await customStatement(
+              'DELETE FROM ${q(table)} WHERE ${where(op.key)}',
+              op.key.values.toList(),
+            );
+          }
+        }
+        for (final table in combineOrder) {
+          for (final op in ops) {
+            final row = op.row;
+            if (op.table != table || row == null) continue;
+            final columns = row.keys.toList();
+            if (op.insert) {
+              await customStatement(
+                'INSERT INTO ${q(table)} (${columns.map(q).join(', ')}) '
+                'VALUES (${columns.map((_) => '?').join(', ')})',
+                row.values.toList(),
+              );
+            } else {
+              await customStatement(
+                'UPDATE ${q(table)} SET '
+                '${columns.map((c) => '${q(c)} = ?').join(', ')} '
+                'WHERE ${where(op.key)}',
+                [...row.values, ...op.key.values],
+              );
+            }
+          }
+        }
+        if ((await customSelect('PRAGMA foreign_key_check').get()).isNotEmpty ||
+            (await customSelect(unbalancedSql).get()).isNotEmpty) {
+          throw CantCombineException();
+        }
+      });
+    } on ChangedSinceException {
+      rethrow;
+    } on CantCombineException {
+      rethrow;
+    } on Object catch (e) {
+      // A rule of the tables themselves (one payee per name, one row per
+      // bank row): the two can't both stand.
+      debugPrint('Combining was refused by the ledger: ${e.runtimeType}');
+      throw CantCombineException();
+    } finally {
+      markTablesUpdated(allTables);
+    }
+  }
 
   /// Transactions that don't sum to zero or have fewer than two entries.
   /// Every write refuses to leave one (ADR 0003); a restored file must too.

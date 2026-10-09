@@ -601,6 +601,26 @@ class Backups {
     return (before: before, restored: restored);
   }
 
+  /// Saves what's here as `before-restore-….betterbudget`, before another
+  /// computer's changes are brought into it (ADR 0005, "Combine"): the file
+  /// its undo puts back with [replaceWith].
+  Future<File> keepBefore(DateTime now) async {
+    final dir = (await folder())!;
+    await dir.create(recursive: true);
+    final file = _unused(dir, 'before-restore-', now);
+    await db.copyTo(file.path);
+    return file;
+  }
+
+  /// Saves what's here as `restored-….betterbudget`, once another computer's
+  /// changes are in: the file a redo puts back.
+  Future<File> keepRestored(DateTime now) async {
+    final dir = (await folder())!;
+    final file = _unused(dir, 'restored-', now);
+    await db.copyTo(file.path);
+    return file;
+  }
+
   /// What a file kept by [keepFromFolder] is named with.
   static const fromFolderPrefix = 'from-folder-';
 

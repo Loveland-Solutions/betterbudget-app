@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.24.0 · schema v18 · 610 tests pass
+**Last updated: 2026-10-10** · version 0.25.0 · schema v18 · 655 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,14 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #60 (version 0.24.0): Savings is the owner's four steps**, each with the
+**After PR #61 (version 0.25.0): two computers that each changed the ledger are
+combined** without a question when what they did can both stand (item 1 below; ADR
+0005 "Built, 2026-10-10: step 2"). A popup says "4 transactions from Tom’s MacBook
+Air" with Undo. No upgrade: nothing in the owner's file changed. **Not yet run on two
+real computers**, and three questions from its budget review are under "Waiting on
+the owner" (18).
+
+Before it, PR #60 (version 0.24.0): Savings is the owner's four steps, each with the
 picture they drew (ADR 0004 "Four Savings steps"): Build a safety net, Eliminate debt,
 Build three to six months of savings, Save for the future. A month of expenses comes
 from the budget. The safety net is one budget category, **built in as Income is**,
@@ -39,25 +46,22 @@ The owner's ledger is stored in their Google Drive folder; the Android app recor
 money out and money in, and what it records reaches the computer's ledger through the
 folder. Then, in order:
 
-1. **More than one computer on the same ledger: step 2, combine.** The way is chosen
-   (owner, 2026-10-09; [ADR 0005](decisions/0005-mobile-companion.md) "More than one
-   computer on one ledger"): the app combines what two computers changed apart and
-   asks only about a real conflict. **Step 1, "Never write blind", is built** (ADR
-   0005 "Built, 2026-10-09: step 1", with step 3's look while the app is open): the
-   folder's ledger is read before every write, a newer one is opened with an Undo,
-   and when both changed nothing is written and a question asks which to keep. A
-   second computer is now safe to set up: Restore from… the folder's
+1. **More than one computer on the same ledger: the question about one row.**
+   Steps 1 to 3 are built ([ADR 0005](decisions/0005-mobile-companion.md) "More than
+   one computer on one ledger": never write blind, combine, look while open). What
+   two computers changed apart is brought together and written to the folder, with
+   one Undo; a second computer is set up by Restore from… the folder's
    `Ledger.betterbudget`, then "Move my ledger to a folder…" and the same folder.
    **It has not been run on two real computers**, only in tests with two ledgers and
-   one folder; the first real run is the owner's to watch. On the owner's Mac
-   (2026-10-09) the first look sealed the Drive folder's file where it was. The
-   owner has not yet seen the question or its words (ADR 0004 "Two computers"). **Next, step 2:** every
-   row gets a permanent id by an upgrade that keeps every row (way C weighed again,
-   ADR 0005: nothing of the owner's is replaced), each computer keeps the file both
-   last agreed on, and what each changed apart is brought together as one undo, so
-   the question is left for a row both changed. Until then the question also comes
-   up when nothing conflicts (both computers taking in the same phone entry, or
-   scheduling the same payday on one morning).
+   one folder; the first real run is the owner's to watch. **Left of the owner's
+   decision 1:** when the two changed the same thing two ways (one row's amount, one
+   category's assigned amount for a month), the app still asks which whole ledger
+   to keep and shows only counts. Next is to bring in everything that can stand and
+   ask about that one row with both values ("Nomin, 10.04: ₮45,000 here, ₮54,000 on
+   the laptop"): a new screen, so two or three sketches for the owner first. Before
+   that, cheaper and common between two people: both confirming the same payday,
+   and one filing a bank row the other imported unfiled, should be counted once
+   rather than asked about.
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
@@ -66,8 +70,8 @@ folder. Then, in order:
    list (ADR 0004 "Phone screens: Ledger first"); the button was tapped on the
    owner's Pixel, but no real refund or income has been saved there and watched
    arriving. Transfers are built (2026-10-09). Then: the other phone's entries, and the iPhone
-   build (its folder access and icon). With two computers on one ledger each takes the same
-   entries in, which item 1 has to settle.
+   build (its folder access and icon). Two computers that each take the same entries
+   in are combined and the entries counted once.
 3. **The rest of setup.** The owner picked mockup A (setup inside the app's own window;
    ADR 0004, "Onboarding: the first half hour"; the mockups are at
    <https://claude.ai/artifact/QUejrKZteHYtATY65EV3kS>, the committee's reports in
@@ -181,6 +185,16 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     steps, "In the order of Personal Finances for Self-Reliance…", go now that the
     steps are the owner's own?
 
+18. **Three from the budget review of combining** (2026-10-10). A purchase one
+    person typed and the other imported from the bank comes in as two rows (on one
+    computer the import would have matched them): should the popup say "1 looks
+    the same as one already here", with Show? Undo on "4 transactions from Tom’s
+    MacBook Air" takes Tom's four out of the ledger on both computers (his copy is
+    saved in his Backups): should it say so before it does, or should the popup
+    have Show instead of Undo? And when each assigns the same pay to different
+    categories, the two together assign more than there is: should the popup say
+    "₮3,000,000 more is assigned than you have"?
+
 ## Phase
 
 **A working desktop ledger and budget are built** and run on macOS from
@@ -210,7 +224,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …", with Undo); when both changed, nothing is written and "Your ledger was changed on two computers" asks which to keep, the other saved first; Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Not built: combining the two (ADR 0005) |
+| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …", with Undo); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", with Undo, which puts this computer's back and writes that); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Not built: asking about the one row in conflict |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
@@ -284,10 +298,27 @@ open the archive).
   minimums" and "employer matches" don't fit loans and pay here. Untested: that an
   account marked a student loan keeps its mark when "Debt to pay off" is picked.
 
+- **From the reviews of combining (2026-10-10), not fixed:** two real
+  purchases typed alike on each computer beside a phone entry both took in can be
+  paired as that entry (the count stays right); a purchase typed on one and
+  imported on the other, or one statement imported as OFX on one and CSV on the
+  other, is in twice with nothing said (question 18); a refund recorded to an
+  account the other archived lands out of sight; an amount assigned to a category
+  the other deleted comes in, and goes back to Not assigned; each picking a
+  different pay to view the budget by can leave both marked; a category whose
+  amounts were spread over days of one period and changed on both on different
+  days isn't seen as one category assigned on both; both taking an "Always file"
+  offer in one account, both confirming one payday, or one filing a bank row the
+  other imported, is asked about though it needn't be; the popup is up six
+  seconds and can come and go with nobody looking, and nothing afterwards says
+  what came in; on the computer whose changes an Undo took out, the popup says
+  "Opened the ledger…" or "N transactions from…" and not that entries were
+  removed; a future upgrade that adds rows with plain SQL would give two
+  computers one id (asked about, not silent). Untested on the screen: Undo and
+  redo of the popup (tested on two ledgers without it).
+
 - **From the reviews of two computers, step 1 (2026-10-09), not fixed:** the
-  question shows counts only, not which entries each side alone has; a setting that
-  only changes a view (the forecast's span) counts as a change, so it can raise the
-  question; with something done since, Undo on "Opened the ledger…" says to undo the
+  question shows counts only, not which entries each side alone has; with something done since, Undo on "Opened the ledger…" says to undo the
   newer changes first and the popup is gone, leaving Restore from…; picking a folder
   whose ledger hasn't arrived yet writes this computer's there; a second file the
   sync service makes beside the ledger ("Ledger (1).betterbudget") isn't looked for;

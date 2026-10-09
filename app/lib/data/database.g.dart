@@ -20,6 +20,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
@@ -736,6 +737,7 @@ class $PaySchedulesTable extends PaySchedules
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _categoryIdMeta = const VerificationMeta(
     'categoryId',
@@ -1755,6 +1757,7 @@ class $PayeesTable extends Payees with TableInfo<$PayeesTable, Payee> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
@@ -1941,6 +1944,7 @@ class $TransactionsTable extends Transactions
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
@@ -2620,6 +2624,7 @@ class $ReconciliationsTable extends Reconciliations
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _accountIdMeta = const VerificationMeta(
     'accountId',
@@ -2996,6 +3001,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, EntryRow> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _transactionIdMeta = const VerificationMeta(
     'transactionId',
@@ -3791,6 +3797,7 @@ class $BudgetAmountsTable extends BudgetAmounts
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+    clientDefault: newRowId,
   );
   static const VerificationMeta _categoryIdMeta = const VerificationMeta(
     'categoryId',

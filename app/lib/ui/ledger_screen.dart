@@ -289,6 +289,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     switch (_cloud.value.standing) {
       case FolderStanding.newer:
         await _openFolderLedger();
+      case FolderStanding.combine:
+        await _bringInFolderChanges();
+        // Found not to combine after all: asked about like any other.
+        if (mounted && _cloud.value.standing == FolderStanding.apart) {
+          await _folderNews(justMoved: justMoved);
+        }
       case FolderStanding.apart:
         final digest = _cloud.theirs?.look.digest;
         if (digest == null || digest == _askedAbout || _busyForFolder) return;
@@ -408,6 +414,90 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
       () => _whileRestoring(
         () => _backups.replaceWith(done.restored, widget.clock()),
+      ),
+      detail: detail,
+    );
+    _showToast(
+      label,
+      detail: detail,
+      undo: () async {
+        // Something was done since: undoing this would take it away too.
+        if (_history.isNotEmpty) {
+          _showToast(context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'));
+          return;
+        }
+        try {
+          await action.undo();
+        } catch (e) {
+          if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
+          return;
+        }
+        _redo
+          ..clear()
+          ..add(action);
+        if (mounted) _showToast(context.t.ledgerUndone(label));
+      },
+    );
+  }
+
+  /// This computer and another both changed the ledger, in ways that can
+  /// both stand (ADR 0005, "Combine"): what the other changed is brought in
+  /// here, and the two together are written to the folder. This computer's
+  /// ledger as it was is saved first, and the popup's Undo puts it back.
+  Future<void> _bringInFolderChanges() async {
+    final path = _cloud.value.path;
+    if (path == null || _busyForFolder) return;
+    _cancelEdit();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
+    final CombinedIn? done;
+    try {
+      done = await _whileRestoring(() => _cloud.bringIn(widget.clock()));
+    } catch (e) {
+      debugPrint('Bringing in the folder’s changes failed: $e');
+      return;
+    }
+    if (done == null) return;
+    // What the two plans and pays ask for now, as after a ledger is taken
+    // in.
+    try {
+      await db.ensurePaydays(today);
+      await db.ensurePlanBills(today);
+    } catch (e) {
+      debugPrint('Scheduling after the folder’s changes failed: $e');
+    }
+    // Earlier actions may point at rows the other computer changed.
+    _history.clear();
+    _redo.clear();
+    // The two together go to the folder.
+    await _cloud.check(widget.clock(), fresh: true);
+    if (!mounted) return;
+    final t = context.t;
+    final n = done.transactions;
+    final label = switch (done.from.savedByName) {
+      final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
+      final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
+      final name? => t.ledgerCombinedMoreFrom(n, name),
+      null when n == 0 => t.ledgerCombinedOther,
+      null when done.others == 0 => t.ledgerCombined(n),
+      null => t.ledgerCombinedMore(n),
+    };
+    final detail = t.ledgerFolderCopied(
+      _folderName(path),
+      _sayWhen(t, done.from.savedAt ?? done.modified, widget.clock()),
+    );
+    // As when a whole ledger is taken in: not in ⌘Z's history. This
+    // popup's Undo puts back the ledger as it was here, and that is then
+    // what the folder holds.
+    final action = _Undoable(
+      label,
+      () => _whileRestoring(
+        () => _backups.replaceWith(done!.before, widget.clock()),
+      ),
+      () => _whileRestoring(
+        () => _backups.replaceWith(done!.after, widget.clock()),
       ),
       detail: detail,
     );
@@ -5253,7 +5343,9 @@ class _SettingsPage extends StatelessWidget {
                                       t.ledgerFolderArriving(
                                         folderName(keptIn),
                                       ),
-                                    FolderStanding.ok || FolderStanding.newer =>
+                                    FolderStanding.ok ||
+                                    FolderStanding.newer ||
+                                    FolderStanding.combine =>
                                       t.ledgerFolderCopied(
                                         folderName(keptIn),
                                         when(kept.copiedAt ?? now()),

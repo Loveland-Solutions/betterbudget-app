@@ -270,7 +270,8 @@ a time on every row, which every one of the app's writes would have to keep righ
 What changed is still found by comparing with the file both last agreed on (step 2
 as written). The ids arrive in step 2 as a new column filled in by an upgrade, so
 **nothing of the owner's is replaced or removed**, and the leave given in decision 3
-isn't used. Step 1 needs neither and changes no table.
+isn't used. Step 1 needs neither and changes no table. (As built in step 2, the id
+is the row's own and no column was added: "Built, 2026-10-10" below.)
 
 **Built, 2026-10-09: step 1, "Never write blind"** (with step 3's look while open,
 since the look had to exist anyway).
@@ -336,19 +337,97 @@ since the look had to exist anyway).
 - A ledger saved by a newer BetterBudget is neither read nor written over: the line
   says to update this computer's.
 
-Not built: step 2. Until it is, two computers open together that each change
-something (the same phone entry taken in by both, the same payday scheduled by both
-on one morning, the forecast's span changed on one) get the question though nothing
-conflicts, and the question shows only counts, not which entries each side alone
-has. Two people who each choose "Keep this computer's ledger" replace each other's
-in turn; nothing is deleted (each is saved first), and step 2 ends it. Undoing
-"Opened the ledger…" writes this computer's older ledger to the folder, and the
-other computer then takes that in. Known gaps: a folder whose ledger hasn't arrived
+Undoing "Opened the ledger…" writes this computer's older ledger to the folder, and
+the other computer then takes that in. Known gaps: a folder whose ledger hasn't arrived
 yet looks empty, and this computer's is written there; a second file
 a sync service makes beside the ledger when two computers write in the same minute
 ("Ledger (1).betterbudget") isn't looked for; a disk cloned to a second computer
 gives two computers one id, which is caught only as "changed apart"; a computer on
 a build before this one still writes blind, and is noticed afterwards by the seal.
+
+**Built, 2026-10-10: step 2, "Combine".** Two computers that each changed the
+ledger are combined without a question whenever what they did can both stand.
+
+- **A row's id is its permanent id, and no column was added.** Way C's id was to be
+  a new column filled in by an upgrade. Instead every new row is given an id no
+  other computer gives one of its own (`newRowId`, `domain/sync.dart`: the time in
+  milliseconds, then 20 random bits, each higher than the last made here, so rows
+  still sort in the order they were made). A row then has the same id on every
+  computer, and nothing that names a row by its id has to be renumbered when two
+  ledgers are combined: an entry's account, `budget.from.<id>` and the other
+  settings keyed by an id, a bank row's import key (`a<id>|…`), what a phone wrote
+  against the folder's ledger. Renumbering was the step with the most room for a
+  row joined to the wrong account without a word. **Nothing in the owner's file
+  changed**: no upgrade, schema still v18, and rows made before this keep the ids
+  counted from 1, which every computer that has the ledger already shares. Two rows
+  given one such id on two computers by the build before (each changed apart, then
+  both updated) are different rows under one id: that is found as a row "made on
+  both, not the same", and asked about.
+- **The ledger both agreed on** is kept beside the working one
+  (`cloud-folder-agreed`): the file this computer last wrote to the folder, or the
+  folder's when it holds exactly what this computer's seal says (after a take, and
+  at the first look of this build). It is used only while its contents give this
+  ledger's seal. A restore, its undo and "Erase everything and start over" lose the
+  seal, so after one of those nothing is combined: the question is asked, as in
+  step 1. So is it when the folder's file was written by a build that keeps no
+  seal, or under another version of the tables.
+- **What comes in** (`domain/combine.dart`, pure, row maps by table): a row only
+  the other computer added, changed or deleted. In an account, payee, transaction
+  or entry each computer may have changed a different column, and both stand (one
+  renamed an account, the other archived it; one cleared a row, the other filed
+  it). What a category is assigned for a period is compared as the sum for that
+  category and day, never row by row, since a change of it writes new rows.
+  Deleted on both, or archived on both, is agreement. `phone.taken` is the two
+  put together. A setting that only changes a view (the
+  forecast's span) stays this computer's own.
+- **Counted once**: a payee both typed (by name); Income, Safety net and a category
+  of one name each made (a phone's new category both took in), the other's rows
+  moved to this computer's (and on the next round the other computer follows:
+  what it still files under its own is moved to the one kept); the payday or plan
+  bill each scheduled (one confirmed or skipped since is the one kept, whatever
+  day it was confirmed on; two still waiting that differ are asked about; and one
+  scheduled here from a pay or plan the other has changed goes, for scheduling to
+  make again); a bank row both imported, when both filed
+  it the same; a phone's entry both took in, found by what it says, since nothing
+  on the row names the phone's entry.
+- **Asked about instead, with nothing combined** (the whole-ledger question of step
+  1): one column of one row changed two ways; a transaction deleted on one and
+  changed on the other (a delete only marks the row, so this is looked for by
+  name: a paycheck confirmed here must not go because the pay changed there); one
+  transaction edited on both where either rewrote its entries; a
+  transaction that wouldn't add up; a row reconciled on one whose amount, account
+  or date the other changed; one account reconciled, or its reconcile undone, on
+  both; a statement reconciled on one while the other cleared or added a cleared
+  row dated within it; a folder's ledger that lacks a transaction or account both
+  agreed on (it was replaced whole there: a restore, an erase, "Keep this
+  computer's ledger"); an account or category deleted on one and given a row on the other; a pay
+  or a category's plan changed on both; one category assigned on both for one
+  period; a setting changed on both; a bank row both imported and filed two ways; a
+  phone's entry both took in and one changed since; one payday confirmed on both.
+  The rows are also checked as a whole before anything is written (every reference
+  still names a row, every transaction adds up), and again by the database inside
+  the one write that makes the changes; any failure and nothing is changed.
+- **On screen** it waits, as a take does, for an open edit, a reconcile, a dialog
+  or a popup to go. This computer's ledger is saved first (`before-restore-…`), the
+  changes are made only if its rows are still the ones compared, paydays and bills
+  are scheduled, undo is cleared, both together are written to the folder, and a
+  popup says "4 transactions from Tom’s MacBook Air" (or "… and other changes
+  from", or "Changes from"; the count is of transactions that arrived, and one
+  changed or deleted there is another change) over the folder and time, with Undo. Like a take it
+  isn't in ⌘Z's history. **Undo puts this computer's ledger back as it was, and
+  that is then written to the folder**, so the other computer's changes leave the
+  shared ledger too; the other computer saves its own in Backups when it takes
+  that in. When everything the folder's has is already here (both took the same
+  phone entry, both scheduled the same payday), this computer just writes, and
+  says nothing.
+- A guard: the same folder file is never brought in twice by itself; if something
+  of it were still found missing afterwards, the question is asked.
+
+Not built: a question about the one row in conflict, with the real values (decision
+1). A conflict still asks which whole ledger to keep, and still shows only counts.
+Two people who each choose "Keep this computer's ledger" replace each other's in
+turn; nothing is deleted. A purchase both computers typed by hand is two rows, as
+it would be typed twice on one. Not yet run on two real computers.
 
 ### What a phone can and can't do
 
