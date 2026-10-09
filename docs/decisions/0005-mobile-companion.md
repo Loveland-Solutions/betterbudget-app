@@ -207,7 +207,19 @@ and the Mac's next change writes over the laptop's fix the same way.
    prepare for this by design." A computer left running takes in what the other
    wrote while it is open, not only at launch.
 
-Rejected: asking which whole ledger to keep whenever both changed (way A alone: the
+3. **The existing ledger may be replaced to get this right** (owner, 2026-10-09,
+   told the work would be built with care because their ledger is real data: "It's
+   okay if we need to replace the existing ledger to build something that is
+   bulletproof. Remove it if you must."). So the design is not held to keeping the
+   file's present form: how rows are identified, the schema, or the file itself may
+   change if a sounder design needs it. This reopens way C below (a permanent id and
+   version on every row), turned down partly for what its upgrade would cost;
+   weigh it again before starting step 1. It is leave to do so, not an instruction
+   to: keep the owner's rows through an upgrade wherever that is no worse a design,
+   and before anything of theirs is actually removed or replaced, say exactly what
+   will go and get their word at that moment.
+
+Rejected on 2026-10-09, before decision 3: asking which whole ledger to keep whenever both changed (way A alone: the
 other side's work is re-entered by hand), and a file per computer merged row by row
 with a permanent id and version on every row (way C: two to three months, a schema
 change on every table, the most room for money bugs).

@@ -29,7 +29,11 @@ folder. Then, in order:
 1. **More than one computer on the same ledger.** The way is chosen (owner,
    2026-10-09; [ADR 0005](decisions/0005-mobile-companion.md) "More than one computer
    on one ledger"): the app combines what two computers changed apart and asks only
-   about a real conflict, and both may be open at once. **Nothing is built.** Build it
+   about a real conflict, and both may be open at once. **The owner has said the
+   existing ledger may be replaced if a bulletproof design needs it** ("Remove it if
+   you must"), so weigh the row-by-row way (C) again first, and ask before anything
+   of theirs is actually removed. **Nothing is built.** The owner wants it done in a
+   new conversation: start there. Build it
    in the three steps written there, each its own PR, starting with "Never write
    blind", which alone ends the silent loss and fixes four things unsafe today with
    one computer. Until then only one computer should have the ledger moved to the
@@ -75,7 +79,8 @@ folder. Then, in order:
 
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
-[CLAUDE.md](../CLAUDE.md)). It holds one tugrik account; the dollar accounts and their
+[CLAUDE.md](../CLAUDE.md)). One exception, for the two-computers work only (owner,
+2026-10-09): it may be replaced if the design needs it, asked about first (ADR 0005). It holds one tugrik account; the dollar accounts and their
 categories were deleted on 2026-10-07. A wordless screenshot from the owner, after
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
