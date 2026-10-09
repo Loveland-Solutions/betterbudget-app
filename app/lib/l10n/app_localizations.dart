@@ -7124,6 +7124,150 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Change to money out'**
   String get phoneToMoneyOut;
+
+  /// Popup when the ledger in the folder was newer than this computer's and was taken in, because another computer saved changes there and nothing was changed here. {computer} is what that computer is called, like “Tom’s MacBook Air”. Its second line is ledgerFolderCopied (the folder and when), and it has Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened the ledger saved on {computer}'**
+  String ledgerFolderOpenedFrom(String computer);
+
+  /// As ledgerFolderOpenedFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened the ledger saved on another computer'**
+  String get ledgerFolderOpened;
+
+  /// Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t open the ledger in {folder} · nothing was changed'**
+  String ledgerFolderCouldntOpen(String folder);
+
+  /// Settings, Backups, the “Stored in” line: the folder holds a ledger file this computer can’t read, usually because the sync app is still bringing it. Nothing is written over it.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · the ledger there can’t be read yet'**
+  String ledgerFolderArriving(String folder);
+
+  /// Settings, Backups, the “Stored in” line, in red: another computer with a newer version of the app saved the ledger in the folder, so this computer can’t read it and won’t write over it until its app is updated.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · saved by a newer version of BetterBudget · update BetterBudget on this computer'**
+  String ledgerFolderNewerAppLine(String folder);
+
+  /// Settings, Backups, the “Stored in” line, in red: the ledger in the folder and the one on this computer were both changed, so neither is written over the other until the person chooses (the button ledgerFolderChooseWhich).
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} · changed on another computer too · this computer’s changes aren’t in the folder'**
+  String ledgerFolderApart(String folder);
+
+  /// Settings, Backups: a button shown only while the ledger in the folder and this computer’s were both changed. Opens the question ledgerTwoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which to keep…'**
+  String get ledgerFolderChooseWhich;
+
+  /// Tooltip on the Settings gear’s red dot while the ledger in the folder and this computer’s were both changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger was changed on two computers'**
+  String get ledgerFolderApartAlert;
+
+  /// Heading of the question shown when the ledger in the folder has changes this computer doesn’t, and this computer has changes the folder doesn’t.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger was changed on two computers'**
+  String get ledgerTwoTitle;
+
+  /// Heading of the same question when it comes up right after “Move my ledger to a folder…” picked a folder that already holds a different ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder already has a ledger'**
+  String get ledgerTwoTitleFolder;
+
+  /// Under ledgerTwoTitle. {folder} is the folder’s last two parts, like “My Drive/BetterBudget”. “Restore from…” is the button ledgerRestoreFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  String ledgerTwoBody(String folder);
+
+  /// The question ledgerTwoTitle: label of the line that says what the folder’s ledger holds.
+  ///
+  /// In en, this message translates to:
+  /// **'In the folder'**
+  String get ledgerTwoInFolder;
+
+  /// The question ledgerTwoTitle: label of the line that says what this computer’s ledger holds.
+  ///
+  /// In en, this message translates to:
+  /// **'On this computer'**
+  String get ledgerTwoHere;
+
+  /// The question ledgerTwoTitle, under the folder’s line: which computer saved the folder’s ledger and when. {when} reads “Yesterday 21:40”.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on {computer} · {when}'**
+  String ledgerTwoSavedOn(String computer, String when);
+
+  /// As ledgerTwoSavedOn, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on another computer · {when}'**
+  String ledgerTwoSavedWhen(String when);
+
+  /// The question ledgerTwoTitle: closes it with nothing changed. Until one is chosen this computer’s changes aren’t written to the folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get ledgerTwoNotNow;
+
+  /// The question ledgerTwoTitle: this computer’s ledger is written to the folder; the one that was there is saved as a backup first.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this computer’s ledger'**
+  String get ledgerTwoUseMine;
+
+  /// The question ledgerTwoTitle: the folder’s ledger is opened on this computer; what this computer had is saved as a backup first.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the folder’s ledger'**
+  String get ledgerTwoUseFolder;
+
+  /// Popup after “Use this computer’s”, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer’s ledger is now in {folder} · the one that was there is saved in Backups'**
+  String ledgerFolderKeptMine(String folder);
+
+  /// Heading of the warning when “Move my ledger to a folder…” picked a folder holding a ledger file this computer’s recovery key doesn’t open.
+  ///
+  /// In en, this message translates to:
+  /// **'The ledger in this folder can’t be opened'**
+  String get ledgerFolderUnreadableTitle;
+
+  /// Under ledgerFolderUnreadableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{folder} holds a ledger that this computer can’t open. It may be another ledger, or one that is still arriving.'**
+  String ledgerFolderUnreadableBody(String folder);
+
+  /// Second paragraph under ledgerFolderUnreadableTitle. “Restore from…” is the button ledgerRestoreFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'If you replace it, it is saved on this computer first, and Restore from… opens it with its own recovery key.'**
+  String get ledgerFolderUnreadableKept;
+
+  /// The red button of the warning ledgerFolderUnreadableTitle: writes this computer’s ledger over the one in the folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace it'**
+  String get ledgerFolderReplace;
+
+  /// Popup when “Move my ledger to a folder…” picked a folder whose ledger was saved by a newer version of the app. Nothing was changed.
+  ///
+  /// In en, this message translates to:
+  /// **'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first'**
+  String get ledgerFolderNewerApp;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

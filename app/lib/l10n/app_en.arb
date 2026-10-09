@@ -7321,5 +7321,154 @@
   "phoneToMoneyOut": "Change to money out",
   "@phoneToMoneyOut": {
     "description": "Phone app, Ledger: what a screen reader says for the +/− button beside the amount while the entry is money in. Tapping it makes the entry money out again."
+  },
+  "ledgerFolderOpenedFrom": "Opened the ledger saved on {computer}",
+  "@ledgerFolderOpenedFrom": {
+    "description": "Popup when the ledger in the folder was newer than this computer's and was taken in, because another computer saved changes there and nothing was changed here. {computer} is what that computer is called, like “Tom’s MacBook Air”. Its second line is ledgerFolderCopied (the folder and when), and it has Undo.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderOpened": "Opened the ledger saved on another computer",
+  "@ledgerFolderOpened": {
+    "description": "As ledgerFolderOpenedFrom, when the other computer’s name isn’t known."
+  },
+  "ledgerFolderCouldntOpen": "Couldn’t open the ledger in {folder} · nothing was changed",
+  "@ledgerFolderCouldntOpen": {
+    "description": "Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderArriving": "{folder} · the ledger there can’t be read yet",
+  "@ledgerFolderArriving": {
+    "description": "Settings, Backups, the “Stored in” line: the folder holds a ledger file this computer can’t read, usually because the sync app is still bringing it. Nothing is written over it.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderNewerAppLine": "{folder} · saved by a newer version of BetterBudget · update BetterBudget on this computer",
+  "@ledgerFolderNewerAppLine": {
+    "description": "Settings, Backups, the “Stored in” line, in red: another computer with a newer version of the app saved the ledger in the folder, so this computer can’t read it and won’t write over it until its app is updated.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderApart": "{folder} · changed on another computer too · this computer’s changes aren’t in the folder",
+  "@ledgerFolderApart": {
+    "description": "Settings, Backups, the “Stored in” line, in red: the ledger in the folder and the one on this computer were both changed, so neither is written over the other until the person chooses (the button ledgerFolderChooseWhich).",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderChooseWhich": "Choose which to keep…",
+  "@ledgerFolderChooseWhich": {
+    "description": "Settings, Backups: a button shown only while the ledger in the folder and this computer’s were both changed. Opens the question ledgerTwoTitle."
+  },
+  "ledgerFolderApartAlert": "Your ledger was changed on two computers",
+  "@ledgerFolderApartAlert": {
+    "description": "Tooltip on the Settings gear’s red dot while the ledger in the folder and this computer’s were both changed."
+  },
+  "ledgerTwoTitle": "Your ledger was changed on two computers",
+  "@ledgerTwoTitle": {
+    "description": "Heading of the question shown when the ledger in the folder has changes this computer doesn’t, and this computer has changes the folder doesn’t."
+  },
+  "ledgerTwoTitleFolder": "This folder already has a ledger",
+  "@ledgerTwoTitleFolder": {
+    "description": "Heading of the same question when it comes up right after “Move my ledger to a folder…” picked a folder that already holds a different ledger."
+  },
+  "ledgerTwoBody": "The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
+  "@ledgerTwoBody": {
+    "description": "Under ledgerTwoTitle. {folder} is the folder’s last two parts, like “My Drive/BetterBudget”. “Restore from…” is the button ledgerRestoreFrom.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTwoInFolder": "In the folder",
+  "@ledgerTwoInFolder": {
+    "description": "The question ledgerTwoTitle: label of the line that says what the folder’s ledger holds."
+  },
+  "ledgerTwoHere": "On this computer",
+  "@ledgerTwoHere": {
+    "description": "The question ledgerTwoTitle: label of the line that says what this computer’s ledger holds."
+  },
+  "ledgerTwoSavedOn": "Saved on {computer} · {when}",
+  "@ledgerTwoSavedOn": {
+    "description": "The question ledgerTwoTitle, under the folder’s line: which computer saved the folder’s ledger and when. {when} reads “Yesterday 21:40”.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTwoSavedWhen": "Saved on another computer · {when}",
+  "@ledgerTwoSavedWhen": {
+    "description": "As ledgerTwoSavedOn, when the other computer’s name isn’t known.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTwoNotNow": "Not now",
+  "@ledgerTwoNotNow": {
+    "description": "The question ledgerTwoTitle: closes it with nothing changed. Until one is chosen this computer’s changes aren’t written to the folder."
+  },
+  "ledgerTwoUseMine": "Keep this computer’s ledger",
+  "@ledgerTwoUseMine": {
+    "description": "The question ledgerTwoTitle: this computer’s ledger is written to the folder; the one that was there is saved as a backup first."
+  },
+  "ledgerTwoUseFolder": "Keep the folder’s ledger",
+  "@ledgerTwoUseFolder": {
+    "description": "The question ledgerTwoTitle: the folder’s ledger is opened on this computer; what this computer had is saved as a backup first."
+  },
+  "ledgerFolderKeptMine": "This computer’s ledger is now in {folder} · the one that was there is saved in Backups",
+  "@ledgerFolderKeptMine": {
+    "description": "Popup after “Use this computer’s”, with Undo.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderUnreadableTitle": "The ledger in this folder can’t be opened",
+  "@ledgerFolderUnreadableTitle": {
+    "description": "Heading of the warning when “Move my ledger to a folder…” picked a folder holding a ledger file this computer’s recovery key doesn’t open."
+  },
+  "ledgerFolderUnreadableBody": "{folder} holds a ledger that this computer can’t open. It may be another ledger, or one that is still arriving.",
+  "@ledgerFolderUnreadableBody": {
+    "description": "Under ledgerFolderUnreadableTitle.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerFolderUnreadableKept": "If you replace it, it is saved on this computer first, and Restore from… opens it with its own recovery key.",
+  "@ledgerFolderUnreadableKept": {
+    "description": "Second paragraph under ledgerFolderUnreadableTitle. “Restore from…” is the button ledgerRestoreFrom."
+  },
+  "ledgerFolderReplace": "Replace it",
+  "@ledgerFolderReplace": {
+    "description": "The red button of the warning ledgerFolderUnreadableTitle: writes this computer’s ledger over the one in the folder."
+  },
+  "ledgerFolderNewerApp": "The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first",
+  "@ledgerFolderNewerApp": {
+    "description": "Popup when “Move my ledger to a folder…” picked a folder whose ledger was saved by a newer version of the app. Nothing was changed."
   }
 }

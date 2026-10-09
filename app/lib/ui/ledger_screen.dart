@@ -221,10 +221,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
   bool _ledgerSeen = false;
   AppLifecycleListener? _exit;
 
-  /// Looks in the folder for what the phones have written, while the
-  /// ledger is stored in one.
+  /// Looks in the folder while the ledger is stored in one: at the ledger
+  /// there, which another computer may have written, and for what the
+  /// phones have written.
   Timer? _phones;
   bool _takingPhones = false;
+  bool _lookingInFolder = false;
+
+  /// The folder's ledger the question was last asked about, by its digest:
+  /// asked once by itself, and after that from Settings.
+  String? _askedAbout;
+
+  /// A folder's ledger that couldn't be taken in, by its digest: not tried
+  /// again until the file changes.
+  String? _folderRefused;
 
   void _watchPhones() {
     if (_cloud.value.path == null) {
@@ -233,10 +243,255 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } else if (_phones == null) {
       _phones = Timer.periodic(
         const Duration(seconds: 15),
-        (_) => _takePhones(),
+        (_) => _lookInFolder(),
       );
-      unawaited(_takePhones());
+      unawaited(_lookInFolder());
     }
+  }
+
+  /// One look in the folder (ADR 0005, "Never write blind"): the ledger
+  /// there first, written over only if it holds nothing this computer
+  /// lacks, then the phones' entries.
+  Future<void> _lookInFolder() async {
+    if (_cloud.value.path == null || _lookingInFolder) return;
+    _lookingInFolder = true;
+    try {
+      await _cloud.check(widget.clock());
+      if (!mounted) return;
+      await _folderNews();
+      // Not while the folder's ledger is waiting to be taken in or chosen:
+      // an entry taken in now would be a change here, and gone again if the
+      // folder's ledger is the one kept.
+      if (mounted && _cloud.value.standing == FolderStanding.ok) {
+        await _takePhones();
+      }
+    } catch (e) {
+      debugPrint('Looking in the folder failed: $e');
+    } finally {
+      _lookingInFolder = false;
+    }
+  }
+
+  /// Something is open that a whole new ledger mustn't land in the middle
+  /// of: the next look brings it.
+  bool get _busyForFolder =>
+      !mounted ||
+      _restoring ||
+      _reconcile != null ||
+      _toast != null ||
+      (_editing?.controller.isDirty() ?? false) ||
+      (_adding && _entry.isDirty()) ||
+      !(ModalRoute.of(context)?.isCurrent ?? true);
+
+  /// Acts on what the last look found: a newer ledger is taken in, and one
+  /// changed apart from this computer's is asked about, once.
+  Future<void> _folderNews({bool justMoved = false}) async {
+    switch (_cloud.value.standing) {
+      case FolderStanding.newer:
+        await _openFolderLedger();
+      case FolderStanding.apart:
+        final digest = _cloud.theirs?.look.digest;
+        if (digest == null || digest == _askedAbout || _busyForFolder) return;
+        await _chooseLedger(justMoved: justMoved);
+      default:
+    }
+  }
+
+  /// Takes in the ledger another computer saved to the folder, which has
+  /// everything this one has and more. What was here is saved first, and
+  /// the popup's Undo puts it back.
+  Future<void> _openFolderLedger({bool atLaunch = false}) async {
+    if (!atLaunch && _busyForFolder) return;
+    final now = widget.clock();
+    // Worked out afresh, trusting nothing remembered: this replaces
+    // everything here.
+    if (await _cloud.check(now, fresh: true) != FolderStanding.newer) return;
+    final theirs = _cloud.theirs;
+    if (theirs == null || theirs.look.digest == _folderRefused || !mounted) {
+      return;
+    }
+    // What this computer held when it was found to have nothing the
+    // folder's lacks: the take goes ahead only if it still holds that.
+    final unchanged = _cloud.mineDigest;
+    if (unchanged == null) return;
+    final RestoreCandidate candidate;
+    try {
+      candidate = await _backups.inspect(theirs.copy.path, now);
+    } catch (e) {
+      debugPrint('The folder’s ledger couldn’t be opened: $e');
+      _folderRefused = theirs.look.digest;
+      _couldntOpenFolderLedger();
+      return;
+    }
+    // The folder's file was read again meanwhile, or something was opened
+    // here: not this one, not now. The next look brings it.
+    if (!identical(_cloud.theirs, theirs) || (!atLaunch && _busyForFolder)) {
+      await _backups.discard(candidate);
+      return;
+    }
+    await _takeFolderLedger(candidate, theirs, onlyIfDigest: unchanged);
+  }
+
+  void _couldntOpenFolderLedger() {
+    final path = _cloud.value.path;
+    if (!mounted || path == null) return;
+    _showToast(context.t.ledgerFolderCouldntOpen(_folderName(path)));
+  }
+
+  /// Replaces what's here with [candidate], the folder's ledger, as it is.
+  Future<void> _takeFolderLedger(
+    RestoreCandidate candidate,
+    FolderTheirs theirs, {
+    String? onlyIfDigest,
+  }) async {
+    final path = _cloud.value.path;
+    if (!mounted || path == null) {
+      await _backups.discard(candidate);
+      return;
+    }
+    _cancelEdit();
+    _endReconcile();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
+    final RestoreRecord done;
+    try {
+      done = await _whileRestoring(
+        () => _backups.restore(
+          candidate,
+          widget.clock(),
+          fromFolder: true,
+          onlyIfDigest: onlyIfDigest,
+        ),
+      );
+    } on ChangedSinceException {
+      // Something was changed here while the folder's was being read: it
+      // stays, and the next look finds the two changed apart.
+      return;
+    } catch (e) {
+      debugPrint('Taking in the folder’s ledger failed: $e');
+      _folderRefused = theirs.look.digest;
+      _couldntOpenFolderLedger();
+      return;
+    }
+    // Its paydays and bills are scheduled after it is in, never before: a
+    // row this computer scheduled first would be a change made here.
+    try {
+      await db.ensurePaydays(today);
+      await db.ensurePlanBills(today);
+    } catch (e) {
+      debugPrint('Scheduling after the folder’s ledger failed: $e');
+    }
+    // Earlier actions point at rows the folder's ledger replaced.
+    _history.clear();
+    _redo.clear();
+    await _cloud.check(widget.clock(), fresh: true);
+    if (!mounted) return;
+    final t = context.t;
+    final label = switch (theirs.look.savedByName) {
+      final name? => t.ledgerFolderOpenedFrom(name),
+      null => t.ledgerFolderOpened,
+    };
+    final detail = t.ledgerFolderCopied(
+      _folderName(path),
+      _sayWhen(t, theirs.look.savedAt ?? theirs.modified, widget.clock()),
+    );
+    // Like the phones' entries, not in ⌘Z's history: ⌘Z pressed later for
+    // something just typed mustn't swap the whole ledger back. This
+    // popup's Undo does, and ⌘⇧Z opens the folder's again. Either is this
+    // computer's own change, so it is then written to the folder.
+    final action = _Undoable(
+      label,
+      () => _whileRestoring(
+        () => _backups.replaceWith(done.before, widget.clock()),
+      ),
+      () => _whileRestoring(
+        () => _backups.replaceWith(done.restored, widget.clock()),
+      ),
+      detail: detail,
+    );
+    _showToast(
+      label,
+      detail: detail,
+      undo: () async {
+        // Something was done since: undoing this would take it away too.
+        if (_history.isNotEmpty) {
+          _showToast(context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'));
+          return;
+        }
+        try {
+          await action.undo();
+        } catch (e) {
+          if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
+          return;
+        }
+        _redo
+          ..clear()
+          ..add(action);
+        if (mounted) _showToast(context.t.ledgerUndone(label));
+      },
+    );
+  }
+
+  /// Both this computer's ledger and the folder's were changed: shows what
+  /// each holds and lets the person choose. Nothing is written until then.
+  Future<void> _chooseLedger({bool justMoved = false}) async {
+    final theirs = _cloud.theirs;
+    final path = _cloud.value.path;
+    if (theirs == null || path == null || _restoring) return;
+    _askedAbout = theirs.look.digest;
+    final now = widget.clock();
+    final t = context.t;
+    final RestoreCandidate candidate;
+    try {
+      candidate = await _backups.inspect(theirs.copy.path, now);
+    } catch (e) {
+      debugPrint('The folder’s ledger couldn’t be read: $e');
+      _couldntOpenFolderLedger();
+      return;
+    }
+    if (!mounted) {
+      await _backups.discard(candidate);
+      return;
+    }
+    final data = _data;
+    final choice = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => _TwoLedgersDialog(
+        title: justMoved ? t.ledgerTwoTitleFolder : t.ledgerTwoTitle,
+        folder: _folderName(path),
+        theirs: candidate,
+        savedBy: theirs.look.savedByName,
+        savedWhen: _sayWhen(t, theirs.look.savedAt ?? theirs.modified, now),
+        transactionsHere: data?.txns.length ?? 0,
+        accountsHere: data?.balanceSheetAccounts.length ?? 0,
+      ),
+    );
+    if (choice == null || !mounted) {
+      await _backups.discard(candidate);
+      return;
+    }
+    if (choice) {
+      await _takeFolderLedger(candidate, theirs);
+      return;
+    }
+    await _backups.discard(candidate);
+    late KeptMine kept;
+    try {
+      kept = await _cloud.keepMine(widget.clock());
+    } catch (e) {
+      debugPrint('Writing this computer’s ledger to the folder failed: $e');
+      _showToast(t.ledgerFolderCouldnt);
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.ledgerFolderKeptMine(_folderName(path)),
+      undo: () => _cloud.undoKeepMine(kept, widget.clock()),
+      redo: () async => kept = await _cloud.keepMine(widget.clock()),
+    );
   }
 
   /// The Budget page with [id]'s Edit open under its row.
@@ -258,6 +513,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_data case final d? when inSetup(d)) return;
     // Nor over a popup still on screen, whose Undo would be lost.
     if (_toast != null) return;
+    // Nor while the folder's ledger isn't this computer's.
+    if (_cloud.value.standing != FolderStanding.ok) return;
     _takingPhones = true;
     try {
       final inboxes = await readPhoneInboxes(
@@ -321,10 +578,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_keepKeys);
-    // Each pay schedule's next payday is scheduled before the first look.
+    // Each pay schedule's next payday is scheduled before the first look,
+    // and after the folder has been looked at (ADR 0005): a row this
+    // computer scheduled before taking in a newer ledger would be a change
+    // made here, and the two would look changed apart.
     _ledger =
         Stream.fromFuture(
           (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
+              .then((_) => _firstLookInFolder())
               .then((_) => db.ensurePaydays(today))
               .then((_) => db.ensurePlanBills(today)),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
@@ -333,12 +594,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
           _ledgerSeen = true;
           return data;
         });
-    _cloud.addListener(_watchPhones);
-    unawaited(_cloud.load(widget.clock()));
     // A change made in the last few seconds is written before the app goes.
     _exit = AppLifecycleListener(
-      // Back at the front: a phone may have written since.
-      onResume: _takePhones,
+      // Back at the front: another computer or a phone may have written
+      // since.
+      onResume: _lookInFolder,
       onExitRequested: () async {
         await _cloud.flush().timeout(
           const Duration(seconds: 5),
@@ -365,6 +625,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (widget.startupNotice case final n?) _showToast(n);
       if (widget.offerRestore) _offerRestore();
     });
+  }
+
+  /// The folder is looked at before anything is scheduled or shown: a
+  /// newer ledger there is taken in first. A folder that doesn't answer
+  /// doesn't hold the app up for long.
+  Future<void> _firstLookInFolder() async {
+    try {
+      await _cloud
+          .load(widget.clock())
+          .timeout(const Duration(seconds: 20), onTimeout: () {});
+      if (mounted && _cloud.value.standing == FolderStanding.newer) {
+        await _openFolderLedger(atLaunch: true);
+      }
+    } catch (e) {
+      debugPrint('The first look in the folder failed: $e');
+    }
+    if (mounted) _cloud.addListener(_watchPhones);
+    if (mounted) _watchPhones();
   }
 
   late bool _keySaved;
@@ -3526,21 +3804,53 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (picked == null) return;
     final before = _cloud.value.path;
+    final to = picked;
+    // A ledger already there is never written over without a look: one
+    // this computer can't read is asked about here, and a readable one is
+    // taken in or asked about below, as at any other look.
+    var replace = false;
     try {
-      await _cloud.keepIn(picked, widget.clock());
+      try {
+        await _cloud.keepIn(to, widget.clock());
+      } on FolderLedgerUnreadable {
+        if (!mounted) return;
+        final go = await showDialog<bool>(
+          context: context,
+          builder: (_) => _AccountWarning(
+            title: t.ledgerFolderUnreadableTitle,
+            lines: [
+              (t) => t.ledgerFolderUnreadableBody(_folderName(to)),
+              (t) => t.ledgerFolderUnreadableKept,
+            ],
+            action: t.ledgerFolderReplace,
+            danger: true,
+          ),
+        );
+        if (go != true || !mounted) return;
+        replace = true;
+        await _cloud.keepIn(to, widget.clock(), replaceUnreadable: true);
+      }
+    } on FolderLedgerNewer {
+      _showToast(t.ledgerFolderNewerApp);
+      return;
     } catch (e) {
       debugPrint('Keeping the ledger in a folder failed: $e');
       _showToast(t.ledgerFolderCouldnt);
       return;
     }
-    final to = picked;
+    if (!mounted) return;
+    final found = _cloud.value.standing;
     _did(
       t.ledgerFolderKept(_folderName(to)),
       undo: () => before == null
           ? _cloud.stop()
           : _cloud.keepIn(before, widget.clock()),
-      redo: () => _cloud.keepIn(to, widget.clock()),
+      redo: () => _cloud.keepIn(to, widget.clock(), replaceUnreadable: replace),
+      // The folder had a ledger of its own: what is said next is what
+      // became of it.
+      toast: found == FolderStanding.ok,
     );
+    if (found != FolderStanding.ok) await _folderNews(justMoved: true);
   }
 
   /// Stops writing the copy. The one in the folder is left where it is.
@@ -3943,6 +4253,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   folderName: _folderName,
                                   onKeepInFolder: _keepInFolder,
                                   onStopFolder: _stopFolder,
+                                  onChooseLedger: _chooseLedger,
                                   onNewLedger: _startNewLedger,
                                   version: _version,
                                   encrypted: widget.encrypted,
@@ -4270,6 +4581,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
 /// A class, not a record: a toast checks its action is still the newest by
 /// identity, which records don't have.
+/// "Today 14:32", "Yesterday 21:40", or the date in full with the time.
+String _sayWhen(Words t, DateTime at, DateTime now) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  final today = dateOnly(now);
+  final day = dateOnly(at) == today
+      ? t.today
+      : dateOnly(at) == today.subtract(const Duration(days: 1))
+      ? t.yesterday
+      : sayFullDate(t, at);
+  return t.ledgerTimeAt(day, '${two(at.hour)}:${two(at.minute)}');
+}
+
 class _Undoable {
   _Undoable(this.label, this.undo, this.redo, {this.detail});
   final String label;
@@ -4496,7 +4819,9 @@ class _Sidebar extends StatelessWidget {
                         listenable: Listenable.merge([backupHealth, folder]),
                         builder: (context, _) => _SettingsGear(
                           active: section == AppSection.settings,
-                          alert: folder.value.failing
+                          alert: folder.value.standing == FolderStanding.apart
+                              ? context.t.ledgerFolderApartAlert
+                              : folder.value.held
                               ? context.t.ledgerFolderAlert
                               : backupHealth.value.alarmingAt(now())
                               ? context.t.ledgerDailyCopyFailing
@@ -4686,6 +5011,7 @@ class _SettingsPage extends StatelessWidget {
     required this.folderName,
     required this.onKeepInFolder,
     required this.onStopFolder,
+    required this.onChooseLedger,
     required this.onNewLedger,
     required this.recoveryKeySaved,
     this.version,
@@ -4718,6 +5044,10 @@ class _SettingsPage extends StatelessWidget {
   final String Function(String path) folderName;
   final VoidCallback onKeepInFolder;
   final VoidCallback onStopFolder;
+
+  /// Opens the question of which ledger to keep, while this computer's and
+  /// the folder's were both changed.
+  final VoidCallback onChooseLedger;
   final VoidCallback onNewLedger;
 
   /// Whether the recovery key was saved or copied when it was shown (ADR
@@ -4750,16 +5080,7 @@ class _SettingsPage extends StatelessWidget {
         ],
       ),
     );
-    String when(DateTime at) {
-      String two(int v) => v.toString().padLeft(2, '0');
-      final today = dateOnly(now());
-      final day = dateOnly(at) == today
-          ? t.today
-          : dateOnly(at) == today.subtract(const Duration(days: 1))
-          ? t.yesterday
-          : sayFullDate(t, at);
-      return t.ledgerTimeAt(day, '${two(at.hour)}:${two(at.minute)}');
-    }
+    String when(DateTime at) => _sayWhen(t, at, now());
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
@@ -4865,23 +5186,37 @@ class _SettingsPage extends StatelessWidget {
                               Tooltip(
                                 message: keptIn,
                                 child: Text(
-                                  kept.failing
-                                      ? (kept.copiedAt == null
-                                            ? t.ledgerFolderFailingNone(
-                                                folderName(keptIn),
-                                              )
-                                            : t.ledgerFolderFailing(
-                                                folderName(keptIn),
-                                                when(kept.copiedAt!),
-                                              ))
-                                      : t.ledgerFolderCopied(
-                                          folderName(keptIn),
-                                          when(kept.copiedAt ?? now()),
-                                        ),
+                                  switch (kept.standing) {
+                                    FolderStanding.failing =>
+                                      kept.copiedAt == null
+                                          ? t.ledgerFolderFailingNone(
+                                              folderName(keptIn),
+                                            )
+                                          : t.ledgerFolderFailing(
+                                              folderName(keptIn),
+                                              when(kept.copiedAt!),
+                                            ),
+                                    FolderStanding.apart => t.ledgerFolderApart(
+                                      folderName(keptIn),
+                                    ),
+                                    FolderStanding.newerApp =>
+                                      t.ledgerFolderNewerAppLine(
+                                        folderName(keptIn),
+                                      ),
+                                    FolderStanding.arriving =>
+                                      t.ledgerFolderArriving(
+                                        folderName(keptIn),
+                                      ),
+                                    FolderStanding.ok || FolderStanding.newer =>
+                                      t.ledgerFolderCopied(
+                                        folderName(keptIn),
+                                        when(kept.copiedAt ?? now()),
+                                      ),
+                                  },
                                   key: const ValueKey('stored-in'),
                                   style: onest(
                                     13.5,
-                                    color: kept.failing ? Mid.coral : Mid.ink,
+                                    color: kept.held ? Mid.coral : Mid.ink,
                                   ),
                                 ),
                               ),
@@ -4922,6 +5257,14 @@ class _SettingsPage extends StatelessWidget {
                                 ),
                                 onTap: onKeepInFolder,
                               ),
+                              // Offered only while there are two to choose
+                              // between.
+                              if (kept.standing == FolderStanding.apart)
+                                BarButton(
+                                  key: const ValueKey('choose-ledger'),
+                                  label: t.ledgerFolderChooseWhich,
+                                  onTap: onChooseLedger,
+                                ),
                               // Offered only while there is a folder to stop.
                               if (keptIn != null)
                                 BarButton(
@@ -5066,6 +5409,125 @@ class _SettingsPage extends StatelessWidget {
 
 /// Asks before a restore replaces everything, with what the backup holds
 /// beside what's here now.
+/// Which ledger to go on with, when this computer's and the folder's were
+/// both changed (ADR 0005, "Never write blind"): what each holds, in real
+/// numbers. Pops true for the folder's, false for this computer's, and
+/// null when it is put off.
+class _TwoLedgersDialog extends StatelessWidget {
+  const _TwoLedgersDialog({
+    required this.title,
+    required this.folder,
+    required this.theirs,
+    required this.savedBy,
+    required this.savedWhen,
+    required this.transactionsHere,
+    required this.accountsHere,
+  });
+  final String title;
+  final String folder;
+  final RestoreCandidate theirs;
+
+  /// What the computer that saved the folder's ledger is called, if known.
+  final String? savedBy;
+  final String savedWhen;
+  final int transactionsHere;
+  final int accountsHere;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    Widget line(String label, String value, [String? under]) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(label, style: onest(13, color: Mid.ink3)),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: onest(13.5, color: Mid.ink, tabular: true)),
+                if (under != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(under, style: onest(13, color: Mid.ink2)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Mid.rule),
+      ),
+      child: SizedBox(
+        width: 520,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: onest(17, weight: 600, letterSpacing: -0.2)),
+              const SizedBox(height: 16),
+              line(
+                t.ledgerTwoInFolder,
+                t.ledgerCounts(theirs.transactions, theirs.accounts),
+                savedBy == null
+                    ? t.ledgerTwoSavedWhen(savedWhen)
+                    : t.ledgerTwoSavedOn(savedBy!, savedWhen),
+              ),
+              line(
+                t.ledgerTwoHere,
+                t.ledgerCounts(transactionsHere, accountsHere),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t.ledgerTwoBody(folder),
+                style: onest(13, color: Mid.ink2, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              // At the right, like every other dialog's buttons.
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    BarButton(
+                      key: const ValueKey('two-not-now'),
+                      label: t.ledgerTwoNotNow,
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
+                    BarButton(
+                      key: const ValueKey('two-use-mine'),
+                      label: t.ledgerTwoUseMine,
+                      onTap: () => Navigator.of(context).pop(false),
+                    ),
+                    BarButton(
+                      key: const ValueKey('two-use-folder'),
+                      label: t.ledgerTwoUseFolder,
+                      onTap: () => Navigator.of(context).pop(true),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RestoreDialog extends StatelessWidget {
   const _RestoreDialog({
     required this.candidate,

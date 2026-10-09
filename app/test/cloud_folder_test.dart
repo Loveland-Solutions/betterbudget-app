@@ -30,10 +30,21 @@ class _FakeAccess extends FolderAccess {
   Future<String?> remember(String path) async => 'token:$path';
 
   @override
+  Future<String> computerName() async => 'The desk Mac';
+
+  @override
   Future<({String path, String? token})?> open(String token) async {
     if (broken) throw StateError('the bookmark is no good');
     return (path: movedTo ?? token.substring('token:'.length), token: null);
   }
+}
+
+class _OtherAccess extends FolderAccess {
+  @override
+  Future<String?> remember(String path) async => null;
+
+  @override
+  Future<String> computerName() async => 'The laptop';
 }
 
 class _FakeDialogs extends FileSelectorPlatform {
@@ -135,29 +146,24 @@ void main() {
       },
     );
 
-    test(
-      'moving to another folder takes the ledger out of the first',
-      () async {
-        final second = await Directory('${dir.path}/OneDrive/Budget')
-            .create(recursive: true);
-        final cloud = CloudFolder(backups, access: _FakeAccess());
-        await cloud.keepIn(drive.path, today);
-        await cloud.keepIn(second.path, today);
-        expect(copy().existsSync(), isFalse);
-        expect(
-          File('${second.path}/${CloudFolder.fileName}').existsSync(),
-          isTrue,
-        );
-        // Undo is the same move the other way.
-        await cloud.keepIn(drive.path, today);
-        expect(copy().existsSync(), isTrue);
-        expect(
-          File('${second.path}/${CloudFolder.fileName}').existsSync(),
-          isFalse,
-        );
-        cloud.dispose();
-      },
-    );
+    test('moving to another folder leaves the ledger in the first', () async {
+      // A phone may still be reading it (ADR 0005).
+      final second = await Directory('${dir.path}/OneDrive/Budget')
+          .create(recursive: true);
+      final cloud = CloudFolder(backups, access: _FakeAccess());
+      await cloud.keepIn(drive.path, today);
+      await cloud.keepIn(second.path, today);
+      expect(copy().existsSync(), isTrue);
+      expect(
+        File('${second.path}/${CloudFolder.fileName}').existsSync(),
+        isTrue,
+      );
+      // Undo is the same move the other way.
+      await cloud.keepIn(drive.path, today);
+      expect(cloud.value.path, drive.path);
+      expect(cloud.value.standing, FolderStanding.ok);
+      cloud.dispose();
+    });
 
     test(
       'a change made just before quitting is written on the way out',
@@ -169,6 +175,7 @@ void main() {
         );
         await cloud.keepIn(drive.path, today);
         final later = today.add(const Duration(minutes: 1));
+        await db.setPreference('budget.view', 'month');
         cloud.ledgerChanged(() => later);
         await cloud.flush();
         expect(cloud.value.copiedAt, later);
@@ -206,6 +213,7 @@ void main() {
       await cloud.keepIn(drive.path, today);
       final later = today.add(const Duration(minutes: 5));
       // Three changes in a row make one copy, stamped with the last.
+      await db.setPreference('budget.view', 'month');
       cloud.ledgerChanged(() => today.add(const Duration(minutes: 1)));
       cloud.ledgerChanged(() => today.add(const Duration(minutes: 2)));
       cloud.ledgerChanged(() => later);
@@ -225,10 +233,17 @@ void main() {
         // Renamed while the app was closed: the bookmark still finds it.
         final renamed = await drive.rename('${dir.path}/My Drive/Budget');
         access.movedTo = renamed.path;
+        // Nothing changed meanwhile: the ledger there is this computer's
+        // own, and isn't written again.
         final next = CloudFolder(backups, access: access);
         final tomorrow = today.add(const Duration(days: 1));
         await next.load(tomorrow);
         expect(next.value.path, renamed.path);
+        expect(next.value.standing, FolderStanding.ok);
+        expect(next.value.copiedAt, today);
+        await db.setPreference('budget.view', 'month');
+        next.ledgerChanged(() => tomorrow);
+        await next.flush();
         expect(next.value.copiedAt, tomorrow);
         expect(
           File('${renamed.path}/${CloudFolder.fileName}').existsSync(),
@@ -466,6 +481,256 @@ void main() {
         // Leave nothing running: the screen's copy timer goes with it.
         await tester.runAsync(() async {
           await tester.pumpWidget(const SizedBox());
+          await db.close();
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        });
+      },
+    );
+  });
+
+  group('two computers', () {
+    setUpAll(() async {
+      await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');
+      await _loadFont('Manrope', 'assets/fonts/Manrope-Variable.ttf');
+      await _loadFont(
+        'BetterBudget Symbols',
+        'assets/fonts/BetterBudgetSymbols.ttf',
+      );
+      // As the Settings group does: the same icons whichever runs first.
+      final icons =
+          '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf';
+      if (File(icons).existsSync()) await _loadFont('MaterialIcons', icons);
+    });
+
+    testWidgets(
+      'a newer ledger in the folder is opened with an Undo; one changed '
+      'apart is asked about, and nothing is written until then',
+      (tester) async {
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final dialogs = _FakeDialogs();
+        final before = FileSelectorPlatform.instance;
+        FileSelectorPlatform.instance = dialogs;
+        addTearDown(() => FileSelectorPlatform.instance = before);
+
+        late AppDatabase other;
+        late Backups otherBackups;
+        late CloudFolder otherCloud;
+        await tester.runAsync(() async {
+          dir = await Directory.systemTemp.createTemp('bb-two-ui');
+          drive = await Directory('${dir.path}/My Drive/BetterBudget')
+              .create(recursive: true);
+          await Directory('${dir.path}/here').create();
+          await Directory('${dir.path}/other').create();
+          db = AppDatabase(
+            NativeDatabase(File('${dir.path}/here/Ledger.betterbudget')),
+          );
+        });
+        final made = dir;
+        addTearDown(() => made.deleteSync(recursive: true));
+        dialogs.folder = drive.path;
+
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: appTheme(),
+              home: LedgerScreen(
+                demo: true,
+                db: db,
+                clock: () => today,
+                folderAccess: _FakeAccess(),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('settings')));
+        await tester.pumpAndSettle();
+
+        Future<void> press(Finder f) async {
+          await tester.runAsync(() async {
+            await tester.tap(f);
+            await Future<void>.delayed(const Duration(milliseconds: 600));
+          });
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+
+        Future<void> comeBackToTheFront() async {
+          await tester.runAsync(() async {
+            // A popup still up holds an arrival back: its own six seconds,
+            // on the real clock it was made on.
+            await Future<void>.delayed(const Duration(milliseconds: 6500));
+          });
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 500));
+          await tester.runAsync(() async {
+            for (final state in [
+              AppLifecycleState.inactive,
+              AppLifecycleState.hidden,
+              AppLifecycleState.paused,
+              AppLifecycleState.hidden,
+              AppLifecycleState.inactive,
+              AppLifecycleState.resumed,
+            ]) {
+              tester.binding.handleAppLifecycleStateChanged(state);
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 900));
+          });
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+
+        Future<List<String?>> payees(AppDatabase of) async => [
+          for (final t in (await of.loadLedger()).txns) t.payee,
+        ];
+
+        Future<void> spendOnTheOther(String payee) async {
+          final data = await other.loadLedger();
+          int id(String name) =>
+              data.accounts.values.singleWhere((a) => a.name == name).id;
+          await other.postSimple(
+            accountId: id('TDB Checking'),
+            date: today,
+            today: today,
+            payee: payee,
+            counterAccountId: id('Groceries'),
+            amount: -1250000,
+          );
+          expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
+        }
+
+        await press(find.byKey(const ValueKey('keep-in-folder')));
+        expect(copy().existsSync(), isTrue);
+
+        // A second computer opens the folder's ledger and spends.
+        await tester.runAsync(() async {
+          other = AppDatabase(
+            NativeDatabase(File('${dir.path}/other/Ledger.betterbudget')),
+          );
+          await seedDemoIfEmpty(other, today);
+          otherBackups = Backups(other);
+          otherCloud = CloudFolder(otherBackups, access: _OtherAccess());
+          await otherBackups.restore(
+            await otherBackups.inspect(copy().path, today),
+            today,
+            fromFolder: true,
+          );
+          await otherCloud.keepIn(drive.path, today);
+          expect(otherCloud.value.standing, FolderStanding.ok);
+          await spendOnTheOther('Nomin');
+        });
+
+        // Nothing was changed here: it comes in, and says whose it was.
+        await comeBackToTheFront();
+        expect(
+          find.text('Opened the ledger saved on The laptop'),
+          findsOneWidget,
+        );
+        expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
+        await tester.runAsync(() async {
+          expect(await payees(db), contains('Nomin'));
+        });
+
+        // Both change. This computer writes nothing over the other's.
+        late List<int> theirs;
+        await tester.runAsync(() async {
+          await spendOnTheOther('E-Mart');
+          theirs = await copy().readAsBytes();
+          final data = await db.loadLedger();
+          await db.renameAccount(
+            data.accounts.values.singleWhere((a) => a.name == 'Cash wallet').id,
+            'Wallet',
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pump();
+        await comeBackToTheFront();
+        expect(
+          find.text('Your ledger was changed on two computers'),
+          findsOneWidget,
+        );
+        expect(find.text('Saved on The laptop · Today 10:00'), findsOneWidget);
+        await tester.runAsync(() async {
+          expect(await copy().readAsBytes(), theirs);
+        });
+        // The whole app: the question is drawn over the screen, not in it.
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('goldens/two_ledgers.png'),
+        );
+
+        // Put off: Settings says so, and offers the question again.
+        await tester.tap(find.byKey(const ValueKey('two-not-now')));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'My Drive/BetterBudget · changed on another computer too · '
+            'this computer’s changes aren’t in the folder',
+          ),
+          findsOneWidget,
+        );
+        await tester.runAsync(() async {
+          expect(await copy().readAsBytes(), theirs);
+        });
+        await expectLater(
+          find.byType(LedgerScreen),
+          matchesGoldenFile('goldens/settings_folder_apart.png'),
+        );
+
+        await press(find.byKey(const ValueKey('choose-ledger')));
+        await press(find.byKey(const ValueKey('two-use-mine')));
+        expect(
+          find.text(
+            'This computer’s ledger is now in My Drive/BetterBudget · '
+            'the one that was there is saved in Backups',
+          ),
+          findsOneWidget,
+        );
+        await tester.runAsync(() async {
+          expect(await copy().readAsBytes(), isNot(theirs));
+          // The other computer's is kept, whole.
+          final kept = Directory('${dir.path}/here/Backups')
+              .listSync()
+              .whereType<File>()
+              .singleWhere((f) => f.path.contains('from-folder-'));
+          expect(await kept.readAsBytes(), theirs);
+        });
+
+        // Ctrl+Z (⌘Z on a Mac) puts the other's back in the folder, and
+        // the two stand as they stood.
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+          expect(await copy().readAsBytes(), theirs);
+        });
+        await tester.pump();
+        expect(find.byKey(const ValueKey('choose-ledger')), findsOneWidget);
+
+        // The folder's, this time: this computer has what the other had.
+        await press(find.byKey(const ValueKey('choose-ledger')));
+        await press(find.byKey(const ValueKey('two-use-folder')));
+        await tester.runAsync(() async {
+          expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
+          // The folder's rows are the other's still. (Its counts may have
+          // been raised: this computer's own never goes down.)
+          final look = AppDatabase(
+            NativeDatabase(await copy().copy('${dir.path}/look.betterbudget')),
+          );
+          expect(await payees(look), containsAll(['Nomin', 'E-Mart']));
+          await look.close();
+        });
+        expect(find.byKey(const ValueKey('choose-ledger')), findsNothing);
+
+        await tester.runAsync(() async {
+          await tester.pumpWidget(const SizedBox());
+          otherCloud.dispose();
+          await other.close();
           await db.close();
           await Future<void>.delayed(const Duration(milliseconds: 50));
         });

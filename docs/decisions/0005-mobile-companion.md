@@ -261,6 +261,95 @@ computer" and moving to another folder don't wait for a write under way; moving 
 another folder deletes the ledger from the one it left, which a phone may still be
 reading; the temporary file is written inside the synced folder.
 
+**Way C weighed again (2026-10-09), as decision 3 asks, before step 1.** Taken from
+it: a permanent random id on every row. Without one, step 2 has to match rows by ids
+each computer counts from 1, and a comparison against the wrong earlier file would
+join one computer's entry to another's account without a word; with one, the worst a
+wrong comparison can do is ask a question that wasn't needed. Not taken: a version or
+a time on every row, which every one of the app's writes would have to keep right.
+What changed is still found by comparing with the file both last agreed on (step 2
+as written). The ids arrive in step 2 as a new column filled in by an upgrade, so
+**nothing of the owner's is replaced or removed**, and the leave given in decision 3
+isn't used. Step 1 needs neither and changes no table.
+
+**Built, 2026-10-09: step 1, "Never write blind"** (with step 3's look while open,
+since the look had to exist anyway).
+
+- **What the ledger carries** (three `Preferences`, `domain/sync.dart`): for each
+  computer that has written it to a folder, a count and the computer's name
+  (`sync.computers`); a seal, the SHA-256 of every row but these three
+  (`sync.seal`); who wrote it last and when by their clock, for the screen only
+  (`sync.saved`). A ledger whose rows no longer give its seal was changed since it
+  was last written to the folder or taken from it. No clock decides anything.
+- **Each computer's id** is 8 random bytes in `cloud-folder` beside the ledger, never
+  inside it, so a ledger restored on another computer doesn't bring the id along.
+- **The look** (`CloudFolder._sync`): the folder's file is copied out, opened and
+  compared, and then one of four things (`decideFolderMove`). The same rows: nothing
+  is written, and where only the counts differ this computer takes the folder's
+  counts and seal as its own (were each to write, two computers would answer each
+  other for good). The folder holds this computer's last write, or an older one: write. The folder is
+  ahead and nothing changed here: take it in. Anything else (both changed, or the
+  folder's rows aren't what its seal says, which is what a build before this one
+  leaves behind): write nothing and ask. It runs at launch before anything is
+  scheduled, before every write, when the app comes to the front, and every 15
+  seconds, one at a time.
+- **Taking it in** happens only if this computer's rows are still the ones that were
+  compared, checked inside the same write that replaces them (a click made while
+  the folder's file was being read stops it, and the next look asks). It is a
+  restore that keeps the folder's counts: what was here is
+  saved as `before-restore-…` first, paydays and bills are scheduled afterwards, undo
+  is cleared, and a popup says "Opened the ledger saved on Tom’s MacBook Air" over
+  "My Drive/BetterBudget · Yesterday 21:40" with Undo. Like the phones' entries it
+  isn't in ⌘Z's history. Undo puts this computer's back, and since that is a change
+  made here it is then written to the folder; the other's is in `restored-…`. It
+  waits for an open edit, a reconcile, a dialog or a popup to go.
+- **Both changed** (until step 2 combines them): nothing is written. A question
+  comes up once, "Your ledger was changed on two computers", with what each holds
+  (transactions, accounts, who saved the folder's and when) and Not now, Use this
+  computer's, Use the folder's. Whichever isn't chosen is saved first
+  (`from-folder-…` or `before-restore-…`, both opened by Restore from…), and each
+  choice undoes. Undoing "Keep this computer's ledger" puts the other's file back
+  only while the folder still holds exactly what was written (after that another
+  computer has gone on from it, and the undo says it can't), and the two are then
+  asked about again by the file's digest, kept in `cloud-folder`: **a computer's own
+  count never goes down**, here or in a restore, or one count would come to stand
+  for two different ledgers. Until one is chosen the "Stored in" line is red, "changed on
+  another computer too · not copied", with a button, "Choose which to keep…", and
+  the phones' entries aren't taken in.
+- **A restore, its undo, and "Erase everything and start over"** are changes a
+  person made here: they keep the counts and lose the seal, so they are written to
+  the folder, never taken for an older ledger and replaced by the folder's.
+- **The first run of this build**, with a folder already holding the file the build
+  before wrote (no counts, no seal): the same rows are sealed where they are; rows
+  one change behind are written over when the file's time is within two minutes of
+  this computer's own last write; otherwise it is asked about.
+- **The four things unsafe with one computer:** a picked folder that already holds a
+  ledger is looked at like any other (taken in, asked about, or, when this
+  computer's key doesn't open it, a warning with "Replace it" that keeps the file
+  first); "Move it back" and moving to another folder wait for a write under way;
+  the ledger in a folder that is left stays there; and the file is made whole in the
+  app's own folder, checked against its seal, and written over the folder's in
+  place, so the sync service sees one file with a new version. A write cut short is
+  remembered (`writing` in `cloud-folder`) and written again; a file that can't be
+  read otherwise is waited for ("the ledger there can’t be read yet"), tried again
+  at every look, and after three minutes the line is red and the gear has its dot.
+- A ledger saved by a newer BetterBudget is neither read nor written over: the line
+  says to update this computer's.
+
+Not built: step 2. Until it is, two computers open together that each change
+something (the same phone entry taken in by both, the same payday scheduled by both
+on one morning, the forecast's span changed on one) get the question though nothing
+conflicts, and the question shows only counts, not which entries each side alone
+has. Two people who each choose "Keep this computer's ledger" replace each other's
+in turn; nothing is deleted (each is saved first), and step 2 ends it. Undoing
+"Opened the ledger…" writes this computer's older ledger to the folder, and the
+other computer then takes that in. Known gaps: a folder whose ledger hasn't arrived
+yet looks empty, and this computer's is written there; a second file
+a sync service makes beside the ledger when two computers write in the same minute
+("Ledger (1).betterbudget") isn't looked for; a disk cloned to a second computer
+gives two computers one id, which is caught only as "changed apart"; a computer on
+a build before this one still writes blind, and is noticed afterwards by the seal.
+
 ### What a phone can and can't do
 
 | Can | Can't |

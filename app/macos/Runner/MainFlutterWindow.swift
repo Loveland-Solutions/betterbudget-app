@@ -97,6 +97,10 @@ class MainFlutterWindow: NSWindow {
           ).base64EncodedString()
         }
         result(["path": url.path, "token": renewed as Any])
+      case "computerName":
+        // What the owner called this Mac ("Tom's MacBook Air"): written in
+        // the ledger so another computer can say whose changes it opened.
+        result(Host.current().localizedName)
       default:
         result(FlutterMethodNotImplemented)
       }
