@@ -3,6 +3,7 @@
 // file, whether the one there is its own last write, an older one, or holds
 // another computer's changes. No clocks: a count per computer.
 import 'dart:convert';
+import 'dart:math';
 
 /// Keys in the `Preferences` table. They travel inside the ledger, and they
 /// are not part of what [SyncKeys.seal] is worked out from.
@@ -179,4 +180,23 @@ FolderMove decideFolderMove({
     Standing.theirsAhead => changedHere ? FolderMove.ask : FolderMove.take,
     Standing.apart => FolderMove.ask,
   };
+}
+
+var _lastRowId = 0;
+final _rowIdRandom = Random.secure();
+
+/// An id for a new row that no other computer gives a row of its own (ADR
+/// 0005, "Combine"): the time in milliseconds, then 20 random bits. So a
+/// row made on one computer keeps its id on every other, and nothing that
+/// names a row by its id (an entry's account, a setting's key, a bank
+/// row's import key, a phone's entry) has to be renumbered when two
+/// ledgers are combined. Each is higher than the last one made here, so
+/// rows still sort in the order they were made. Rows made before this had
+/// ids counted from 1, and keep them.
+int newRowId() {
+  var id =
+      DateTime.now().millisecondsSinceEpoch * (1 << 20) +
+      _rowIdRandom.nextInt(1 << 20);
+  if (id <= _lastRowId) id = _lastRowId + 1;
+  return _lastRowId = id;
 }

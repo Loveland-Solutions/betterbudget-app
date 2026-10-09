@@ -289,6 +289,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     switch (_cloud.value.standing) {
       case FolderStanding.newer:
         await _openFolderLedger();
+      case FolderStanding.combine:
+        await _bringInFolderChanges();
+        // Found not to combine after all: asked about like any other.
+        if (mounted && _cloud.value.standing == FolderStanding.apart) {
+          await _folderNews(justMoved: justMoved);
+        }
       case FolderStanding.apart:
         final digest = _cloud.theirs?.look.digest;
         if (digest == null || digest == _askedAbout || _busyForFolder) return;
@@ -298,8 +304,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   /// Takes in the ledger another computer saved to the folder, which has
-  /// everything this one has and more. What was here is saved first, and
-  /// the popup's Undo puts it back.
+  /// everything this one has and more. What was here is saved first, in
+  /// Backups.
   Future<void> _openFolderLedger({bool atLaunch = false}) async {
     if (!atLaunch && _busyForFolder) return;
     final now = widget.clock();
@@ -355,9 +361,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _selected = null;
       _adding = false;
     });
-    final RestoreRecord done;
     try {
-      done = await _whileRestoring(
+      await _whileRestoring(
         () => _backups.restore(
           candidate,
           widget.clock(),
@@ -397,40 +402,111 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _folderName(path),
       _sayWhen(t, theirs.look.savedAt ?? theirs.modified, widget.clock()),
     );
-    // Like the phones' entries, not in ⌘Z's history: ⌘Z pressed later for
-    // something just typed mustn't swap the whole ledger back. This
-    // popup's Undo does, and ⌘⇧Z opens the folder's again. Either is this
-    // computer's own change, so it is then written to the folder.
-    final action = _Undoable(
-      label,
-      () => _whileRestoring(
-        () => _backups.replaceWith(done.before, widget.clock()),
-      ),
-      () => _whileRestoring(
-        () => _backups.replaceWith(done.restored, widget.clock()),
-      ),
-      detail: detail,
-    );
+    // No Undo (owner, 2026-10-10: "Only undo what the user in front of
+    // the computer did or decided. Nothing else"): this was the other
+    // computer's doing. What was here is in Backups, for Restore from….
+    _showToast(label, detail: detail);
+  }
+
+  /// This computer and another both changed the ledger, in ways that can
+  /// both stand (ADR 0005, "Combine"): what the other changed is brought in
+  /// here, and the two together are written to the folder. This computer's
+  /// ledger as it was is saved first, in Backups. The popup says what came,
+  /// and what the person would want to look at: a row that looks the same
+  /// as one already here, and more assigned than there is.
+  Future<void> _bringInFolderChanges() async {
+    final path = _cloud.value.path;
+    if (path == null || _busyForFolder) return;
+    _cancelEdit();
+    setState(() {
+      _selected = null;
+      _adding = false;
+    });
+    // How much more is assigned than there is, by currency.
+    Map<Currency, int> over(LedgerData? data) {
+      if (data == null) return const {};
+      final p = budgetPeriod(today, data.periodSchedule);
+      return {
+        for (final pool in Budget.of(
+          data,
+          start: p.start,
+          end: p.end,
+          today: today,
+        ).pools)
+          if (pool.notAssigned < 0) pool.currency: -pool.notAssigned,
+      };
+    }
+
+    final overBefore = over(_data);
+    final CombinedIn? done;
+    try {
+      done = await _whileRestoring(() => _cloud.bringIn(widget.clock()));
+    } catch (e) {
+      debugPrint('Bringing in the folder’s changes failed: $e');
+      return;
+    }
+    if (done == null) return;
+    // What the two plans and pays ask for now, as after a ledger is taken
+    // in.
+    try {
+      await db.ensurePaydays(today);
+      await db.ensurePlanBills(today);
+    } catch (e) {
+      debugPrint('Scheduling after the folder’s changes failed: $e');
+    }
+    // Earlier actions may point at rows the other computer changed.
+    _history.clear();
+    _redo.clear();
+    // The two together go to the folder.
+    await _cloud.check(widget.clock(), fresh: true);
+    Map<Currency, int> overNow = const {};
+    try {
+      overNow = over(await db.loadLedger());
+    } catch (e) {
+      debugPrint('The budget after the folder’s changes couldn’t be read: $e');
+    }
+    if (!mounted) return;
+    final t = context.t;
+    final n = done.transactions;
+    final label = switch (done.from.savedByName) {
+      final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
+      final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
+      final name? => t.ledgerCombinedMoreFrom(n, name),
+      null when n == 0 => t.ledgerCombinedOther,
+      null when done.others == 0 => t.ledgerCombined(n),
+      null => t.ledgerCombinedMore(n),
+    };
+    // More assigned than there is, where it wasn't or was less before.
+    final short = overNow.entries
+        .where((e) => e.value > (overBefore[e.key] ?? 0))
+        .firstOrNull;
+    final lines = [
+      if (done.alike.isNotEmpty) t.ledgerCombinedAlike(done.alike.length),
+      if (short != null)
+        t.ledgerCombinedOverAssigned(
+          formatShort(short.value, currency: short.key),
+        ),
+    ];
+    // No Undo (owner, 2026-10-10: "Only undo what the user in front of the
+    // computer did or decided. Nothing else"). ⌘Z undoes what is done here
+    // from now on; this computer's ledger as it was is in Backups.
     _showToast(
       label,
-      detail: detail,
-      undo: () async {
-        // Something was done since: undoing this would take it away too.
-        if (_history.isNotEmpty) {
-          _showToast(context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'));
-          return;
-        }
-        try {
-          await action.undo();
-        } catch (e) {
-          if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
-          return;
-        }
-        _redo
-          ..clear()
-          ..add(action);
-        if (mounted) _showToast(context.t.ledgerUndone(label));
-      },
+      detail: lines.isEmpty
+          ? t.ledgerFolderCopied(
+              _folderName(path),
+              _sayWhen(t, done.from.savedAt ?? done.modified, widget.clock()),
+            )
+          : lines.join('\n'),
+      more: done.alike.isEmpty
+          ? null
+          : (
+              label: t.ledgerShowMoved,
+              onTap: () => _showIn(
+                done!.alike.first.account,
+                done.alike.first.transaction,
+              ),
+            ),
     );
   }
 
@@ -5253,7 +5329,9 @@ class _SettingsPage extends StatelessWidget {
                                       t.ledgerFolderArriving(
                                         folderName(keptIn),
                                       ),
-                                    FolderStanding.ok || FolderStanding.newer =>
+                                    FolderStanding.ok ||
+                                    FolderStanding.newer ||
+                                    FolderStanding.combine =>
                                       t.ledgerFolderCopied(
                                         folderName(keptIn),
                                         when(kept.copiedAt ?? now()),
@@ -6400,7 +6478,8 @@ class _Toast extends StatelessWidget {
                         child: Text(
                           detail,
                           key: const ValueKey('toast-detail'),
-                          maxLines: 1,
+                          // Two things to say are a line each.
+                          maxLines: detail.contains('\n') ? 2 : 1,
                           overflow: TextOverflow.ellipsis,
                           style: onest(
                             12.5,

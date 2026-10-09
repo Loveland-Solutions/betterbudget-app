@@ -4813,6 +4813,69 @@ class WordsMn extends Words {
       'Өөр компьютер дээр хадгалсан дэвтрийг нээлээ';
 
   @override
+  String ledgerCombinedFrom(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$computer компьютерээс $count гүйлгээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedMoreFrom(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$computer компьютерээс $count гүйлгээ болон бусад өөрчлөлт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedOtherFrom(String computer) {
+    return '$computer компьютерээс орсон өөрчлөлт';
+  }
+
+  @override
+  String ledgerCombined(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Өөр компьютерээс $count гүйлгээ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Өөр компьютерээс $count гүйлгээ болон бусад өөрчлөлт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerCombinedOther => 'Өөр компьютерээс орсон өөрчлөлт';
+
+  @override
+  String ledgerCombinedAlike(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нь энд байгаа гүйлгээтэй адилхан харагдаж байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedOverAssigned(String amount) {
+    return 'Байгаа мөнгөнөөс илүү хуваарилсан: $amount';
+  }
+
+  @override
   String ledgerFolderCouldntOpen(String folder) {
     return '$folder доторх дэвтрийг нээж чадсангүй · юу ч өөрчлөгдөөгүй';
   }
@@ -4847,7 +4910,7 @@ class WordsMn extends Words {
 
   @override
   String ledgerTwoBody(String folder) {
-    return '$folder доторх дэвтэрт энэ компьютерт байхгүй өөрчлөлт байна, энэ компьютерт ч хавтсанд байхгүй өөрчлөлт байна. BetterBudget одоогоор энэ хоёрыг нэгтгэж чадахгүй тул алийг нь үлдээхээ сонгоно уу. Нөгөөх нь эхлээд хадгалагдах ба Тохиргооны «Нөөцөөс сэргээх…» түүнийг буцааж авчирна. Таныг сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны гүйлгээнүүд хавтсанд орохгүй.';
+    return '$folder доторх дэвтэрт энэ компьютерт байхгүй өөрчлөлт байна, энэ компьютерт ч хавтсанд байхгүй өөрчлөлт байна. BetterBudget энэ хоёрыг нэгтгэж чадахгүй тул алийг нь үлдээхээ сонгоно уу. Нөгөөх нь эхлээд хадгалагдах ба Тохиргооны «Нөөцөөс сэргээх…» түүнийг буцааж авчирна. Таныг сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны гүйлгээнүүд хавтсанд орохгүй.';
   }
 
   @override

@@ -69,6 +69,14 @@ void main() {
     if (File(icons).existsSync()) await _loadFont('MaterialIcons', icons);
   });
 
+  /// TDB Checking's rows: a row's id is whatever it was given, so the
+  /// account is found by its name.
+  ({List<RegisterRow> posted, List<RegisterRow> scheduled}) checking(
+    LedgerData data,
+  ) => data.registerFor(
+    data.accounts.values.singleWhere((a) => a.name == 'TDB Checking').id,
+  );
+
   Future<AppDatabase> pumpLedger(
     WidgetTester tester, {
     Size size = const Size(1440, 900),
@@ -1663,11 +1671,10 @@ void main() {
       // Gold with dark text in light mode too.
       expect(Mid.onToast.computeLuminance(), lessThan(0.05));
       Future<String> category() async => (await tester.runAsync(
-        () async => (await db.loadLedger())
-            .registerFor(1)
-            .posted
-            .firstWhere((r) => r.payee == 'Unitel')
-            .categoryLabel,
+        () async =>
+            checking(await db.loadLedger()).posted
+                .firstWhere((r) => r.payee == 'Unitel')
+                .categoryLabel,
       ))!;
       expect(await category(), 'Groceries');
 
@@ -2930,7 +2937,7 @@ void main() {
     );
     Future<List<int>> salaries() async => (await tester.runAsync(
       () async => [
-        for (final r in (await db.loadLedger()).registerFor(1).scheduled)
+        for (final r in checking(await db.loadLedger()).scheduled)
           if (r.payee == 'Altan Gadas LLC') r.amount,
       ],
     ))!;

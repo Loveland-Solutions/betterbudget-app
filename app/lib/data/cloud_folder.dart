@@ -11,6 +11,10 @@
 // computer's ledger (`decideFolderMove`). A newer one is handed to the screen
 // to take in, and when both were changed neither is touched until the person
 // has chosen.
+//
+// Changed on both ("Combine"): this computer keeps the file both last agreed
+// on, and what the other changed since is worked out against it and brought
+// in. The person is asked only when the two can't both stand.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -19,9 +23,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../domain/combine.dart';
 import '../domain/sync.dart';
 import 'backup.dart';
-import 'database.dart' show fileStamp;
+import 'database.dart'
+    show CantCombineException, ChangedSinceException, fileStamp;
 import 'ledger_file.dart';
 import 'ledger_seal.dart';
 
@@ -92,7 +98,12 @@ enum FolderStanding {
   /// nothing was changed here: the screen takes it in.
   newer,
 
-  /// Both were changed apart. Nothing is written until the person chooses.
+  /// Both were changed apart, and what the folder's has that this
+  /// computer's lacks can be brought in: the screen does it.
+  combine,
+
+  /// Both were changed apart in a way that can't be combined. Nothing is
+  /// written until the person chooses.
   apart,
 }
 
@@ -158,6 +169,17 @@ typedef FolderTheirs = ({File copy, LedgerLook look, DateTime modified});
 /// What [CloudFolder.keepMine] replaced and what it wrote, so the one can
 /// be put back while the folder still holds the other.
 typedef KeptMine = ({File? theirs, String? theirsDigest, String wrote});
+
+/// What [CloudFolder.bringIn] brought in. This computer's ledger as it was
+/// before is kept as [before], which Restore from… opens.
+typedef CombinedIn = ({
+  File before,
+  int transactions,
+  int others,
+  List<({int transaction, int account})> alike,
+  LedgerLook from,
+  DateTime modified,
+});
 
 /// The folder no longer holds what [CloudFolder.keepMine] wrote: another
 /// computer has written since, and nothing was put back over it.
@@ -226,6 +248,41 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// in `cloud-folder`.
   String? _askAbout;
 
+  /// What the folder's ledger has that this computer's lacks, worked out
+  /// for the two as they were then.
+  ({String mine, String theirs, Combined found})? _plan;
+
+  /// Two ledgers that couldn't be combined after all, by their digests:
+  /// asked about, not tried again.
+  String? _cantCombine;
+
+  /// The folder's ledger whose changes were last brought in, by its digest.
+  String? _broughtIn;
+
+  /// The digest of the file kept by [_keepAgreed].
+  String? _agreed;
+
+  /// The ledger both computers last agreed on: the one this computer last
+  /// wrote to the folder or took from it, whole. What each changed since is
+  /// found by comparing with it.
+  Future<File> _agreedFile() async =>
+      File('${(await backups.folder())!.parent.path}/cloud-folder-agreed');
+
+  /// Keeps [file], whose contents give [digest], as the ledger both agreed
+  /// on. Whole or not at all.
+  Future<void> _keepAgreed(File file, String digest) async {
+    final kept = await _agreedFile();
+    if (_agreed == digest && kept.existsSync()) return;
+    try {
+      final temp = await file.copy('${kept.path}.tmp');
+      await temp.rename(kept.path);
+      _agreed = digest;
+      await _save();
+    } catch (e) {
+      debugPrint('The agreed ledger couldn’t be kept: $e');
+    }
+  }
+
   /// This computer's ledger as the last look found it, for the screen to
   /// hand back when it takes the folder's in: null once it has changed.
   String? get mineDigest => _mine?.digest;
@@ -275,6 +332,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       _computer = saved['computer'] as String?;
       _writingMark = saved['writing'] == true;
       _askAbout = saved['askAbout'] as String?;
+      _agreed = saved['agreed'] as String?;
       _token = saved['token'] as String?;
       var path = saved['path'] as String?;
       if (_token != null) {
@@ -304,7 +362,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     final file = await _settings();
     if (file == null) return;
     final path = value.path;
-    if (path == null && _computer == null) {
+    if (path == null && _computer == null && _agreed == null) {
       if (file.existsSync()) await file.delete();
       return;
     }
@@ -313,6 +371,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     await temp.writeAsString(
       jsonEncode({
         'computer': ?_computer,
+        'agreed': ?_agreed,
         'path': ?path,
         if (path != null) 'token': ?_token,
         if (path != null) 'copiedAt': ?value.copiedAt?.toIso8601String(),
@@ -584,6 +643,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         if (theirs.digest == _askAbout && mine.digest != theirs.digest) {
           return (standing: FolderStanding.apart, replaced: null);
         }
+        // The folder holds exactly what this computer last wrote or took:
+        // the ledger both agree on, kept for comparing later.
+        if (theirs.digest == mine.seal) {
+          await _keepAgreed(found.copy, theirs.digest);
+        }
         final copied = value.copiedAt;
         final move = decideFolderMove(
           identical: mine.digest == theirs.digest,
@@ -608,7 +672,28 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           case FolderMove.take:
             return (standing: FolderStanding.newer, replaced: null);
           case FolderMove.ask:
-            return (standing: FolderStanding.apart, replaced: null);
+            final plan = await _combinable(mine, found);
+            if (plan == null) {
+              return (standing: FolderStanding.apart, replaced: null);
+            }
+            if (plan.ops.isNotEmpty) {
+              // Brought in once already and still not all here: never
+              // again by itself.
+              return (
+                standing: theirs.digest == _broughtIn
+                    ? FolderStanding.apart
+                    : FolderStanding.combine,
+                replaced: null,
+              );
+            }
+            // Everything the folder's has is here already, and more.
+            await _put(
+              path,
+              now,
+              over: theirs.computers.counters,
+              expected: stat,
+            );
+            return (standing: FolderStanding.ok, replaced: null);
           case FolderMove.write:
             await _put(
               path,
@@ -624,6 +709,108 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       }
     }
   }
+
+  /// What the folder's ledger has that this computer's lacks, when the two
+  /// were changed apart and can be combined: null when they can't, and the
+  /// person is asked. They can't without the ledger both last agreed on
+  /// (after a restore, or before this computer ever wrote one), when the
+  /// folder's was written by a build that keeps no seal, or was saved by
+  /// another version of the tables.
+  Future<Combined?> _combinable(
+    ({String digest, String? seal, SyncComputers computers}) mine,
+    FolderTheirs found,
+  ) async {
+    final theirs = found.look;
+    final pair = '${mine.digest}|${theirs.digest}';
+    if (pair == _cantCombine) return null;
+    if (_plan case final p?
+        when p.mine == mine.digest && p.theirs == theirs.digest) {
+      return p.found.conflict == null ? p.found : null;
+    }
+    _plan = null;
+    final db = backups.db;
+    if (mine.seal == null ||
+        !theirs.sealed ||
+        theirs.schemaVersion != db.schemaVersion) {
+      return null;
+    }
+    try {
+      final agreed = await _agreedFile();
+      if (!agreed.existsSync()) return null;
+      final was = await lookAtLedger(agreed, backups.dataKey);
+      if (was.digest != mine.seal || was.schemaVersion != db.schemaVersion) {
+        return null;
+      }
+      final at = _changed;
+      final rows = await db.allRows();
+      // Changed while it was read: the next look works it out.
+      if (at != _changed) return null;
+      final combined = combine(
+        base: await readLedgerRows(agreed, backups.dataKey),
+        mine: rows,
+        theirs: await readLedgerRows(found.copy, backups.dataKey),
+      );
+      if (combined.conflict case final why?) {
+        debugPrint('The two ledgers can’t be combined: $why');
+      }
+      _plan = (mine: mine.digest, theirs: theirs.digest, found: combined);
+      return combined.conflict == null ? combined : null;
+    } catch (e) {
+      debugPrint('The two ledgers couldn’t be compared: $e');
+      return null;
+    }
+  }
+
+  /// Brings into this computer's ledger what the last look found the
+  /// folder's to have ([FolderStanding.combine]), and writes the two
+  /// together to the folder. This computer's ledger as it was is kept
+  /// first. Null, with nothing changed, when the two are no longer the ones
+  /// that were compared (something was changed here meanwhile: the next
+  /// look works it out again) or can't be combined after all (then the
+  /// person is asked).
+  Future<CombinedIn?> bringIn(DateTime now) => _queued(() async {
+    final path = value.path;
+    final plan = _plan;
+    final seen = _seen;
+    if (path == null ||
+        plan == null ||
+        seen == null ||
+        plan.found.conflict != null ||
+        plan.found.ops.isEmpty ||
+        plan.theirs != seen.theirs.look.digest) {
+      return null;
+    }
+    final dir = (await backups.folder())!;
+    await dir.create(recursive: true);
+    final before = await backups.keepBefore(now);
+    try {
+      await backups.db.applyCombined(plan.found.ops, onlyIfDigest: plan.mine);
+    } on ChangedSinceException {
+      if (before.existsSync()) await before.delete();
+      return null;
+    } on CantCombineException {
+      if (before.existsSync()) await before.delete();
+      _cantCombine = '${plan.mine}|${plan.theirs}';
+      _plan = null;
+      value = CloudFolderState(
+        path: path,
+        copiedAt: value.copiedAt,
+        standing: FolderStanding.apart,
+      );
+      return null;
+    }
+    _mine = null;
+    _plan = null;
+    _broughtIn = plan.theirs;
+    return (
+      before: before,
+      transactions: plan.found.transactions,
+      others: plan.found.others,
+      alike: plan.found.alike,
+      from: seen.theirs.look,
+      modified: seen.theirs.modified,
+    );
+  });
 
   /// The folder's file, copied out and read; null when it can't be read.
   /// Read again only when the file has changed.
@@ -725,13 +912,14 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       }
       _writingMark = false;
       _seen = null;
+      await _keepAgreed(made, wrote!);
       final earlier = File('$path/$earlierFileName');
       if (earlier.existsSync()) await earlier.delete();
       if (value.path == path) {
         value = CloudFolderState(path: path, copiedAt: now);
       }
       await _save();
-      return wrote!;
+      return wrote;
     } finally {
       if (made.existsSync()) await made.delete();
     }

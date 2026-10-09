@@ -29,6 +29,8 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
     only noise.
   - Say a thing on the page where it's fixed. Pages fill the window.
   - Everything works with the mouse alone (a Cancel button, a click away), and Esc too.
+  - Undo is only for what the person at this computer did or decided, never for
+    what another computer or the app did.
   - Offer a thing only while there's something for it, and don't ask about what they
     can't see.
   - Arithmetic that's right can still confuse: show a number the way a person would

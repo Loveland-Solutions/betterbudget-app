@@ -7107,7 +7107,7 @@ abstract class Words {
   /// **'Change to money out'**
   String get phoneToMoneyOut;
 
-  /// Popup when the ledger in the folder was newer than this computer's and was taken in, because another computer saved changes there and nothing was changed here. {computer} is what that computer is called, like “Tom’s MacBook Air”. Its second line is ledgerFolderCopied (the folder and when), and it has Undo.
+  /// Popup when the ledger in the folder was newer than this computer's and was taken in, because another computer saved changes there and nothing was changed here. {computer} is what that computer is called, like “Tom’s MacBook Air”. Its second line is ledgerFolderCopied (the folder and when). It has no Undo: what was here is saved in Backups.
   ///
   /// In en, this message translates to:
   /// **'Opened the ledger saved on {computer}'**
@@ -7118,6 +7118,54 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Opened the ledger saved on another computer'**
   String get ledgerFolderOpened;
+
+  /// Popup when this computer and another both changed the ledger, and what the other changed was brought into this one without a question. {count} is how many transactions were added, changed or deleted here; {computer} is what the other computer is called, like “Tom’s MacBook Air”. Worded as ledgerFromPhone is. Its second line is ledgerFolderCopied (the folder and when), or ledgerCombinedAlike and ledgerCombinedOverAssigned when there is one of those to say. It has no Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from {computer}} other{{count} transactions from {computer}}}'**
+  String ledgerCombinedFrom(int count, String computer);
+
+  /// As ledgerCombinedFrom, when the other computer also changed something that isn’t a transaction: an account, a category, an amount assigned, a setting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction and other changes from {computer}} other{{count} transactions and other changes from {computer}}}'**
+  String ledgerCombinedMoreFrom(int count, String computer);
+
+  /// As ledgerCombinedFrom, when the other computer changed no transaction, only something else: an account, a category, an amount assigned, a setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes from {computer}'**
+  String ledgerCombinedOtherFrom(String computer);
+
+  /// As ledgerCombinedFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction from another computer} other{{count} transactions from another computer}}'**
+  String ledgerCombined(int count);
+
+  /// As ledgerCombinedMoreFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction and other changes from another computer} other{{count} transactions and other changes from another computer}}'**
+  String ledgerCombinedMore(int count);
+
+  /// As ledgerCombinedOtherFrom, when the other computer’s name isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes from another computer'**
+  String get ledgerCombinedOther;
+
+  /// Second line of the popup that says transactions came from another computer (ledgerCombinedFrom), when some of them have the same account and amount, within a few days, as a transaction entered on this computer: a purchase one person typed and the other imported from the bank. Both are in the ledger; the popup’s Show button opens the row. {count} is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 looks the same as one already here} other{{count} look the same as ones already here}}'**
+  String ledgerCombinedAlike(int count);
+
+  /// A line of the popup that says changes came from another computer, when the amounts assigned to categories on the two computers together come to more money than there is. {amount} is the shortfall with its currency, like “₮3,000,000”; it is the figure the Budget page shows as Assigned too much.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more is assigned than you have'**
+  String ledgerCombinedOverAssigned(String amount);
 
   /// Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).
   ///
@@ -7170,7 +7218,7 @@ abstract class Words {
   /// Under ledgerTwoTitle. {folder} is the folder’s last two parts, like “My Drive/BetterBudget”. “Restore from…” is the button ledgerRestoreFrom.
   ///
   /// In en, this message translates to:
-  /// **'The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put the two together yet, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  /// **'The ledger in {folder} has changes that aren’t on this computer, and this computer has changes that aren’t in the folder. BetterBudget can’t put these two together, so choose which one to keep. The other is saved first, and Restore from… in Settings brings it back. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
   String ledgerTwoBody(String folder);
 
   /// The question ledgerTwoTitle: label of the line that says what the folder’s ledger holds.

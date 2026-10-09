@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../domain/combine.dart' show LedgerRows;
 import '../domain/sync.dart';
 import 'encryption.dart';
 
@@ -54,6 +55,34 @@ Future<String> ledgerDigest(
   }
   input.close();
   return out.value.toString();
+}
+
+/// Every row of every table in what [select] reads, as [combine] compares
+/// them (ADR 0005, "Combine").
+Future<LedgerRows> ledgerRows(
+  Future<List<Map<String, Object?>>> Function(String sql) select,
+) async => {
+  for (final r in await select(
+    "SELECT name FROM sqlite_master WHERE type = 'table' "
+    "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+  ))
+    r['name'] as String: await select('SELECT * FROM "${r['name']}"'),
+};
+
+/// The rows of [file], a whole ledger that isn't the one the app works in,
+/// read without changing it. A null [key] reads it plain (tests).
+Future<LedgerRows> readLedgerRows(File file, Uint8List? key) async {
+  final db = sqlite3.open(file.path, mode: OpenMode.readOnly);
+  try {
+    if (key != null) applyCipherKey(db, key);
+    return await ledgerRows(
+      (sql) async => withoutKeyInErrors(
+        () => [for (final row in db.select(sql)) Map.of(row)],
+      ),
+    );
+  } finally {
+    db.close();
+  }
 }
 
 class _Collected implements Sink<Digest> {
