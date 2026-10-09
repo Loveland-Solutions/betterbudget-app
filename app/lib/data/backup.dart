@@ -602,21 +602,12 @@ class Backups {
   }
 
   /// Saves what's here as `before-restore-….betterbudget`, before another
-  /// computer's changes are brought into it (ADR 0005, "Combine"): the file
-  /// its undo puts back with [replaceWith].
+  /// computer's changes are brought into it (ADR 0005, "Combine"): Restore
+  /// from… opens it.
   Future<File> keepBefore(DateTime now) async {
     final dir = (await folder())!;
     await dir.create(recursive: true);
     final file = _unused(dir, 'before-restore-', now);
-    await db.copyTo(file.path);
-    return file;
-  }
-
-  /// Saves what's here as `restored-….betterbudget`, once another computer's
-  /// changes are in: the file a redo puts back.
-  Future<File> keepRestored(DateTime now) async {
-    final dir = (await folder())!;
-    final file = _unused(dir, 'restored-', now);
     await db.copyTo(file.path);
     return file;
   }

@@ -2856,6 +2856,8 @@ six steps; everything else in rule 25 stands.
 
 Built with step 1 of "More than one computer on one ledger"
 ([ADR 0005](0005-mobile-companion.md)); the owner has not seen these yet.
+**The Undo described below was taken off on 2026-10-10** ("Two computers: combined
+without a question, and no Undo on another's changes", at the end of this record).
 
 - **A newer ledger opened by itself** is a popup, since it is a saved change: "Opened
   the ledger saved on Tom’s MacBook Air", under it the folder and when, as Settings
@@ -3079,3 +3081,40 @@ that heading has to be settled when real figures arrive.
   header on scroll is an open idea, not a decision.
 - Golden screenshot tests (`app/test/goldens/`) pin these rules visually. Update them
   only for intentional changes.
+
+### Two computers: combined without a question, and no Undo on another's changes (2026-10-10)
+
+Built as step 2 of "More than one computer on one ledger"
+([ADR 0005](0005-mobile-companion.md), "Built, 2026-10-10").
+
+- **What another computer changed arrives as a popup**, worded as the phone's is:
+  "4 transactions from Tom’s MacBook Air"; "4 transactions and other changes from …"
+  when it also changed something that isn't a new transaction (one changed or
+  deleted counts here, so the number is only ever of rows that arrived); "Changes
+  from …" when no transaction is new. Its second line is the folder and the time,
+  unless there is something to look at.
+- **Undo is only for what the person at this computer did or decided** (owner,
+  2026-10-10, asked whether Undo on that popup should say first that it takes Tom's
+  four transactions out of the ledger on both computers, or give way to Show: "Only
+  undo what the user in front of the computer did or decided. Nothing else"). So
+  the popup has no Undo. Nor has "Opened the ledger saved on …", which step 1 gave
+  one: taking in a newer ledger is also the other computer's doing. In both cases
+  this computer's ledger as it was is in Backups (`before-restore-…`), and Restore
+  from… is the person's own act. Rejected: Undo with a warning naming what it
+  removes on both computers (the recommendation). The phone's popup keeps its Undo
+  (owner, 2026-10-08): those are entries the same person typed.
+- **A row that looks the same as one already here is said, not settled** (owner,
+  2026-10-10: yes). One person typed "Nomin ₮45,000" and the other imported the
+  bank file with it: both rows are in, and the popup's second line says "1 looks
+  the same as one already here", with **Show**, which opens the account with the
+  row that came chosen. Alike means the same account and amount within 6 days (the
+  span "Already in this account" uses), against rows made here since the two
+  computers last agreed, each matched once. Nothing is merged or deleted for them.
+- **More assigned than there is, is said** (owner, 2026-10-10: yes). Each assigns
+  one pay to different categories and the two together assign it twice: the popup
+  says "₮3,000,000 more is assigned than you have", the Budget page's Assigned too
+  much, only when combining made it so or made it worse. With a row alike as well,
+  each has its own line.
+- The question's sentence "BetterBudget can’t put the two together yet" lost its
+  "yet": it now comes up only when the two can't both stand.
+

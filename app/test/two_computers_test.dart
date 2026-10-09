@@ -823,8 +823,8 @@ void main() {
       );
     });
 
-    test('undoing it puts this computer’s back, and that is what the folder '
-        'then holds', () async {
+    test('this computer’s ledger as it was is kept, and putting it back is '
+        'a change made here', () async {
       await agree();
       await mac.spend('Nomin', tuesday);
       await mac.cloud.check(tuesday, fresh: true);
@@ -832,14 +832,27 @@ void main() {
       final done = await bringIn(laptop);
       expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
 
+      // As Restore from… does with the file.
       await laptop.backups.replaceWith(done.before, tuesday);
       expect(await laptop.payees(), isNot(contains('Nomin')));
       expect(await laptop.payees(), contains('E-Mart'));
       expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      // Done again, both are back.
-      await laptop.backups.replaceWith(done.after, tuesday);
-      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
+    });
+
+    test('a purchase typed here and brought in from there is in twice, and '
+        'said to look the same', () async {
+      await agree();
+      await mac.spend('Nomin', tuesday);
+      await mac.spend('E-Mart', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      // The same money from the same account, typed here under another
+      // name three days on.
+      await laptop.spend('NOMIN UB', tuesday.add(const Duration(days: 3)));
+      final done = await bringIn(laptop);
+      expect(done.transactions, 2);
+      expect(done.alike, hasLength(1));
+      expect(done.alike.single.account, await laptop.account('TDB Checking'));
+      expect(await laptop.payees(), containsAll(['Nomin', 'NOMIN UB']));
     });
 
     test('after a restore here the two aren’t combined: asked', () async {

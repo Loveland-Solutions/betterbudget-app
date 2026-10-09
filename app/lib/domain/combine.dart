@@ -14,6 +14,7 @@
 import 'dart:convert';
 
 import 'forecast.dart' show ForecastSpan;
+import 'ledger.dart' show alreadyInDays;
 import 'phone.dart' show PhoneTaken, phoneTakenKey;
 import 'sync.dart' show SyncKeys;
 
@@ -45,12 +46,17 @@ class RowOp {
 
 /// What [combine] found.
 class Combined {
-  const Combined(this.ops, {this.transactions = 0, this.others = 0})
-    : conflict = null;
+  const Combined(
+    this.ops, {
+    this.transactions = 0,
+    this.others = 0,
+    this.alike = const [],
+  }) : conflict = null;
   const Combined.conflict(String this.conflict)
     : ops = const [],
       transactions = 0,
-      others = 0;
+      others = 0,
+      alike = const [];
 
   /// What to change here so this ledger also holds what the other changed.
   /// Empty: it holds all of it already.
@@ -61,6 +67,13 @@ class Combined {
   /// plan, an amount assigned).
   final int transactions;
   final int others;
+
+  /// The transactions among those that came which look the same as one
+  /// made here since the two last agreed (the same account and amount,
+  /// within [alreadyInDays] days): a purchase one typed and the other
+  /// imported. Both are in; the person is told, and shown. Each with the
+  /// account it is alike in.
+  final List<({int transaction, int account})> alike;
 
   /// Why the two can't be combined without asking; for the log, not the
   /// screen. Null when they can.
@@ -229,7 +242,46 @@ class _Combine {
       ops,
       transactions: _arrived.length,
       others: _others + _touched.difference(_arrived).length,
+      alike: _alike(),
     );
+  }
+
+  List<({int transaction, int account})> _alike() {
+    bool counts(Row t) => t['scheduled'] != 1 && t['deleted_at'] == null;
+    final real = {
+      for (final a in result['accounts']!.values)
+        if (a['type'] == 'asset' || a['type'] == 'liability') a['id'],
+    };
+    DateTime? day(Row t) => DateTime.tryParse('${t['date']}');
+    // What was made here since, by account and amount, each matched once.
+    final here = <String, List<DateTime>>{};
+    for (final t in _onlyIn(mine, theirs).where(counts)) {
+      final on = day(t);
+      if (on == null) continue;
+      for (final e in _entriesOf(mine, t['id'])) {
+        if (real.contains(e['account_id'])) {
+          (here['${e['account_id']}|${e['amount_minor']}'] ??= []).add(on);
+        }
+      }
+    }
+    final out = <({int transaction, int account})>[];
+    final entries = _byTransaction(result['entries']!.values);
+    for (final id in _arrived) {
+      final t = result['transactions']!['$id'];
+      final on = t == null || !counts(t) ? null : day(t);
+      if (on == null) continue;
+      for (final e in entries[id] ?? const <Row>[]) {
+        final days = here['${e['account_id']}|${e['amount_minor']}'];
+        final same = days
+            ?.where((d) => d.difference(on).inDays.abs() <= alreadyInDays)
+            .firstOrNull;
+        if (same == null) continue;
+        days!.remove(same);
+        out.add((transaction: id as int, account: e['account_id'] as int));
+        break;
+      }
+    }
+    return out;
   }
 
   // ---------- the same thing made on both computers ----------

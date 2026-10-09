@@ -164,6 +164,19 @@ void main() {
     );
   });
 
+  test('one that came looks the same as one made here: both in, and named', () {
+    spend(mine, 50);
+    spend(theirs, 60);
+    row(theirs, 'transactions', 60)['date'] = '2026-10-09';
+    spend(theirs, 70, amount: 3000);
+    final found = run();
+    expect(found.transactions, 2);
+    expect(found.alike, [(transaction: 60, account: 1)]);
+    // A week apart isn't the same purchase.
+    row(theirs, 'transactions', 60)['date'] = '2026-10-20';
+    expect(run().alike, isEmpty);
+  });
+
   test('what the other changed, deleted and added in other tables', () {
     row(theirs, 'accounts', 2)['name'] = 'Wallet';
     theirs['accounts']!.add(account(7, 'Rent', type: 'expense'));

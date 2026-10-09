@@ -5044,6 +5044,22 @@ class WordsEn extends Words {
   String get ledgerCombinedOther => 'Changes from another computer';
 
   @override
+  String ledgerCombinedAlike(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count look the same as ones already here',
+      one: '1 looks the same as one already here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedOverAssigned(String amount) {
+    return '$amount more is assigned than you have';
+  }
+
+  @override
   String ledgerFolderCouldntOpen(String folder) {
     return 'Couldn’t open the ledger in $folder · nothing was changed';
   }

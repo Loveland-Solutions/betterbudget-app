@@ -170,13 +170,13 @@ typedef FolderTheirs = ({File copy, LedgerLook look, DateTime modified});
 /// be put back while the folder still holds the other.
 typedef KeptMine = ({File? theirs, String? theirsDigest, String wrote});
 
-/// What [CloudFolder.combine] brought in, and this computer's ledger as it
-/// was before and is now, each a file, so it can be undone and done again.
+/// What [CloudFolder.bringIn] brought in. This computer's ledger as it was
+/// before is kept as [before], which Restore from… opens.
 typedef CombinedIn = ({
   File before,
-  File after,
   int transactions,
   int others,
+  List<({int transaction, int account})> alike,
   LedgerLook from,
   DateTime modified,
 });
@@ -802,12 +802,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     _mine = null;
     _plan = null;
     _broughtIn = plan.theirs;
-    final after = await backups.keepRestored(now);
     return (
       before: before,
-      after: after,
       transactions: plan.found.transactions,
       others: plan.found.others,
+      alike: plan.found.alike,
       from: seen.theirs.look,
       modified: seen.theirs.modified,
     );

@@ -1166,6 +1166,8 @@
   "ledgerCombined": "{count, plural, other{Өөр компьютерээс {count} гүйлгээ}}",
   "ledgerCombinedMore": "{count, plural, other{Өөр компьютерээс {count} гүйлгээ болон бусад өөрчлөлт}}",
   "ledgerCombinedOther": "Өөр компьютерээс орсон өөрчлөлт",
+  "ledgerCombinedAlike": "{count, plural, other{{count} нь энд байгаа гүйлгээтэй адилхан харагдаж байна}}",
+  "ledgerCombinedOverAssigned": "Байгаа мөнгөнөөс илүү хуваарилсан: {amount}",
   "ledgerFolderCouldntOpen": "{folder} доторх дэвтрийг нээж чадсангүй · юу ч өөрчлөгдөөгүй",
   "ledgerFolderArriving": "{folder} · тэнд байгаа дэвтрийг одоохондоо уншиж чадахгүй байна",
   "ledgerFolderNewerAppLine": "{folder} · BetterBudget-ийн шинэ хувилбараар хадгалсан · энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү",

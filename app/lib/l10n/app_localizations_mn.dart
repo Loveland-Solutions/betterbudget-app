@@ -4861,6 +4861,21 @@ class WordsMn extends Words {
   String get ledgerCombinedOther => 'Өөр компьютерээс орсон өөрчлөлт';
 
   @override
+  String ledgerCombinedAlike(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нь энд байгаа гүйлгээтэй адилхан харагдаж байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedOverAssigned(String amount) {
+    return 'Байгаа мөнгөнөөс илүү хуваарилсан: $amount';
+  }
+
+  @override
   String ledgerFolderCouldntOpen(String folder) {
     return '$folder доторх дэвтрийг нээж чадсангүй · юу ч өөрчлөгдөөгүй';
   }

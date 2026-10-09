@@ -300,10 +300,9 @@ since the look had to exist anyway).
   restore that keeps the folder's counts: what was here is
   saved as `before-restore-…` first, paydays and bills are scheduled afterwards, undo
   is cleared, and a popup says "Opened the ledger saved on Tom’s MacBook Air" over
-  "My Drive/BetterBudget · Yesterday 21:40" with Undo. Like the phones' entries it
-  isn't in ⌘Z's history. Undo puts this computer's back, and since that is a change
-  made here it is then written to the folder; the other's is in `restored-…`. It
-  waits for an open edit, a reconcile, a dialog or a popup to go.
+  "My Drive/BetterBudget · Yesterday 21:40". It had an Undo until 2026-10-10 (ADR
+  0004: Undo is only for what the person at this computer did); what was here is in
+  Backups. It waits for an open edit, a reconcile, a dialog or a popup to go.
 - **Both changed** (until step 2 combines them): nothing is written. A question
   comes up once, "Your ledger was changed on two computers", with what each holds
   (transactions, accounts, who saved the folder's and when) and Not now, Use this
@@ -337,8 +336,7 @@ since the look had to exist anyway).
 - A ledger saved by a newer BetterBudget is neither read nor written over: the line
   says to update this computer's.
 
-Undoing "Opened the ledger…" writes this computer's older ledger to the folder, and
-the other computer then takes that in. Known gaps: a folder whose ledger hasn't arrived
+Known gaps: a folder whose ledger hasn't arrived
 yet looks empty, and this computer's is written there; a second file
 a sync service makes beside the ledger when two computers write in the same minute
 ("Ledger (1).betterbudget") isn't looked for; a disk cloned to a second computer
@@ -413,11 +411,13 @@ ledger are combined without a question whenever what they did can both stand.
   are scheduled, undo is cleared, both together are written to the folder, and a
   popup says "4 transactions from Tom’s MacBook Air" (or "… and other changes
   from", or "Changes from"; the count is of transactions that arrived, and one
-  changed or deleted there is another change) over the folder and time, with Undo. Like a take it
-  isn't in ⌘Z's history. **Undo puts this computer's ledger back as it was, and
-  that is then written to the folder**, so the other computer's changes leave the
-  shared ledger too; the other computer saves its own in Backups when it takes
-  that in. When everything the folder's has is already here (both took the same
+  changed or deleted there is another change) over the folder and time. **It has no
+  Undo** (owner, 2026-10-10; ADR 0004 "Two computers: combined without a question"):
+  this computer's ledger as it was is in Backups. In place of the folder and time it
+  says "1 looks the same as one already here", with Show, for a row that came and
+  has the account and amount of one made here within 6 days (`Combined.alike`), and
+  "₮3,000,000 more is assigned than you have" when the two together assign more
+  than there is. When everything the folder's has is already here (both took the same
   phone entry, both scheduled the same payday), this computer just writes, and
   says nothing.
 - A guard: the same folder file is never brought in twice by itself; if something
