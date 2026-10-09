@@ -121,6 +121,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// On the selected row, so it can be scrolled into view.
   final _selectedKey = GlobalKey();
+
+  /// The row the "Already in this account" line led to, while its bill is
+  /// still open.
+  int? _pointed;
+  final _pointedKey = GlobalKey();
   var _filter = RegisterFilter.all;
   final _hoveredStatus = ValueNotifier<Cleared?>(null);
   final _search = TextEditingController();
@@ -1119,7 +1124,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _cancelEdit() {
     final editing = _editing;
     if (editing == null) return;
-    setState(() => _editing = null);
+    setState(() {
+      _editing = null;
+      _pointed = null;
+    });
     _registerFocus.requestFocus();
     // The row's widgets still hold the focus node until this frame ends.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -1427,6 +1435,37 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () async =>
           _expect((await db.softDeleteMany(deleted)).length == deleted.length),
     );
+  }
+
+  /// Outlines [found], the row a bill's "Already in this account" line names,
+  /// and scrolls just far enough to see it: it can be a screen or more down
+  /// the list, where rows aren't built until they're near.
+  Future<void> _pointTo(RegisterRow found) async {
+    setState(() => _pointed = found.txnId);
+    final open = _selectedKey.currentContext;
+    final position = open == null ? null : Scrollable.maybeOf(open)?.position;
+    if (position == null) return;
+    for (var i = 0; i < 60; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _pointed != found.txnId) return;
+      final row = _pointedKey.currentContext;
+      if (row != null && row.mounted) {
+        await Scrollable.ensureVisible(
+          row,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+      if (position.pixels >= position.maxScrollExtent) return;
+      final next = position.pixels + position.viewportDimension * 0.8;
+      position.jumpTo(
+        next > position.maxScrollExtent ? position.maxScrollExtent : next,
+      );
+    }
   }
 
   /// Confirming [r] would put a bill in twice: [found] is it, already in.
@@ -1989,6 +2028,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
               transferTargets: open,
               allAccounts: data.accounts,
               unclearedCheck: data.unclearedCheck,
+              pointed: _pointed,
+              pointedKey: _pointedKey,
               entryController: _entry,
               today: today,
               adding: _adding,
@@ -2006,6 +2047,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onToggleCleared: _toggleCleared,
                 onConfirm: _startConfirm,
                 onAlreadyIn: _alreadyIn,
+                onPoint: _pointTo,
                 onSetCategory: (r, c) => _setCategory(r, c),
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
@@ -4182,6 +4224,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     .toList(),
                 currency: account.currency,
                 unclearedCheck: data.unclearedCheck,
+                pointed: _pointed,
+                pointedKey: _pointedKey,
                 entryController: _entry,
                 today: today,
                 adding: _adding,
@@ -4199,6 +4243,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onToggleCleared: _toggleCleared,
                   onConfirm: _startConfirm,
                   onAlreadyIn: _alreadyIn,
+                  onPoint: _pointTo,
                   onSetCategory: _setCategory,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,

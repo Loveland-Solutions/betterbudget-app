@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 556 tests pass
+**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 557 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -235,14 +235,14 @@ open the archive).
   hovered row or menu item by day the gray currency code is 4.0; eight old bee files
   are still in `assets/logo/`; the phone's amount screen needs the deeper green
   button before it follows day and night.
-- **From the reviews of the register notes (2026-10-09), not fixed:** an imported
-  row the bank named differently ("МОБИКОМ КОРПОРАЦИ ХХК" for a bill called Mobicom)
-  and not yet categorized isn't found when the bill is confirmed, so it is still in
-  twice until reconcile; the row "Already in this account" names can be off screen,
-  and the line doesn't lead to it; All accounts looks only among the rows it shows;
-  two fast clicks on "Delete the scheduled one" (or on Delete) record two undos;
-  "Delete the scheduled one" on a category's bill is tested through the database
-  and the plain-row screen test, not on the screen with a plan's bill.
+- **From the reviews of the register notes (2026-10-09), not fixed:** a bill the
+  bank names with no word in common with its payee (Rent paid as "IB TRANSFER
+  0412"), not yet categorized and for another amount, still isn't found when the
+  bill is confirmed; All accounts looks only among the rows it shows; two fast
+  clicks on "Delete the scheduled one" (or on Delete) record two undos; the scroll
+  to a row more than a screen down the list was not tested (the test's row is in
+  sight); an open row scrolled far out of sight loses what was typed in it, as it
+  did before.
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move

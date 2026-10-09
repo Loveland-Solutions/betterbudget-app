@@ -101,7 +101,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (67), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (68), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian) and `recovery_key_screen_test.dart` (1). `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.

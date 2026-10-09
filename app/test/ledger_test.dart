@@ -1199,6 +1199,41 @@ void main() {
       isNull,
     );
     expect(found([row(2, day(16), plan: 9, category: 9)], of: planned), isNull);
+    // The bank's spelling of the same name: Cyrillic for Latin, c for k,
+    // a company's full name around the one the bill goes by.
+    expect(payeeKey(' МОБИКОМ Корпораци ХХК '), 'mobikomkorporatsihhk');
+    expect(payeeKey('Mobicom'), 'mobikom');
+    expect(samePayeeName('Mobicom', 'МОБИКОМ КОРПОРАЦИ ХХК'), isTrue);
+    expect(samePayeeName('Khan Bank', 'ХААН БАНК'), isFalse); // aa for a
+    expect(samePayeeName('Номин', 'NOMIN SUPERMARKET'), isTrue);
+    expect(samePayeeName('TDB', 'TDB CHARGE'), isFalse); // too short
+    expect(samePayeeName('TDB', 'tdb'), isTrue);
+    expect(samePayeeName('', 'Rent'), isFalse);
+    final mobicom = row(1, day(20), payee: 'Mobicom', scheduled: true);
+    expect(
+      found([row(2, day(21), payee: 'МОБИКОМ КОРПОРАЦИ ХХК')], of: mobicom),
+      2,
+    );
+    // As typed comes before another spelling, however near that one is.
+    expect(
+      found([
+        row(2, day(20), payee: 'МОБИКОМ КОРПОРАЦИ ХХК'),
+        row(3, day(17), payee: 'mobicom'),
+      ], of: mobicom),
+      3,
+    );
+    // An import nobody has categorized, under a name that says nothing:
+    // only for exactly the bill's amount.
+    int? waiting(int amount) => alreadyIn(
+      bill,
+      [row(2, day(21), payee: 'IB 0412', category: 7, amount: amount)],
+      day(20),
+      uncategorizedId: 7,
+    )?.txnId;
+    expect(waiting(-900000), 2);
+    expect(waiting(-900100), isNull);
+    expect(found([row(2, day(21), payee: 'IB 0412', category: 7)]), isNull);
+
     // A payday is never looked for here.
     expect(
       alreadyIn(

@@ -2507,6 +2507,109 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a category’s repeating bill already in: the line leads to its '
+      'row, and Delete the scheduled one ties the row and schedules the next', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    late int fee, paid;
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      fee = await db.createCategory('СӨХ');
+      await db.setCategoryPlan(
+        fee,
+        CategoryPlan(
+          categoryId: fee,
+          kind: PlanKind.byDate,
+          amount: 27000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2026, 9, 12),
+          everyMonths: 1,
+          paidFrom: checking,
+        ),
+      );
+      // Scheduled before it was due, and still waiting four days after.
+      await db.ensurePlanBills(DateTime(2026, 9, 10), only: fee);
+      // The bank's row for it: its own payee, filed under the category.
+      paid = await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 16),
+        payee: 'IB TRANSFER 0412',
+        counterAccountId: fee,
+        amount: -27000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    // The plan's bills still scheduled, and what the bank's row is tied to.
+    Future<void> expectState(DateTime coming, int? tied) async {
+      final ledger = (await tester.runAsync(db.loadLedger))!;
+      expect(
+        [
+          for (final x in ledger.txns)
+            if (x.planCategoryId == fee && x.scheduled) x.date,
+        ],
+        [coming],
+      );
+      expect(ledger.txns.firstWhere((x) => x.id == paid).planCategoryId, tied);
+    }
+
+    await expectState(DateTime(2026, 9, 12), null);
+    expect(find.text('· due 4 days ago'), findsOneWidget);
+
+    const line =
+        'Already in this account · 09.14 · IB TRANSFER 0412 · '
+        '−₮270,000.00';
+    int outlined() =>
+        tester.widgetList<Container>(find.byType(Container)).where((c) {
+          final d = c.decoration;
+          return d is BoxDecoration &&
+              d.border is Border &&
+              (d.border! as Border).top.color == Mid.blueEdge;
+        }).length;
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(find.text(line), findsOneWidget);
+    // The line leads to the row it names.
+    final before = outlined();
+    await tapAndWait(tester, find.byKey(const ValueKey('already-in-text')));
+    expect(outlined(), before + 1);
+    expect(find.text('IB TRANSFER 0412').hitTestable(), findsOneWidget);
+    await tapAndWait(tester, find.text('Cancel'));
+    expect(outlined(), before - 1); // the open row's outline went too
+
+    // The Scheduled tab lists no rows already in: it is drawn under the line.
+    await tapAndWait(tester, find.text('Scheduled'));
+    await tapAndWait(tester, find.text('Confirm').first);
+    expect(find.text(line), findsOneWidget);
+    expect(find.byKey(const ValueKey('already-in-row')), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/confirm_already_in_scheduled.png'),
+    );
+
+    await tapAndWait(tester, find.text('Delete the scheduled one'));
+    expect(
+      find.text('Scheduled СӨХ deleted · already in on 09.14'),
+      findsOneWidget,
+    );
+    // The row is the bill paid, and October's is the one waiting.
+    await expectState(DateTime(2026, 10, 12), fee);
+
+    await tapAndWait(tester, find.text('Undo'));
+    await expectState(DateTime(2026, 9, 12), null);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    await expectState(DateTime(2026, 10, 12), fee);
+    await tidy(tester, db);
+  });
+
   testWidgets('a late salary is named and not counted', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;

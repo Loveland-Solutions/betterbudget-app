@@ -51,7 +51,12 @@ class RegisterActions {
     this.pays = const [],
     this.onSetPay,
     this.onAlreadyIn,
+    this.onPoint,
   });
+
+  /// The "Already in this account" line was clicked: bring the row it names
+  /// into sight.
+  final ValueChanged<RegisterRow>? onPoint;
 
   /// Confirming [scheduled], and [found] is the same bill, already in: the
   /// scheduled one goes instead of being confirmed.
@@ -138,6 +143,8 @@ class RegisterPanel extends StatelessWidget {
     this.currency = Currency.mnt,
     this.allAccounts,
     required this.unclearedCheck,
+    this.pointed,
+    this.pointedKey,
     required this.entryController,
     required this.today,
     required this.actions,
@@ -210,6 +217,11 @@ class RegisterPanel extends StatelessWidget {
   /// What an account's uncleared rows are held against, for the note an
   /// old one gets (`LedgerData.unclearedCheck`).
   final UnclearedCheck? Function(int accountId) unclearedCheck;
+
+  /// The row the "Already in this account" line led to, outlined, with
+  /// [pointedKey] on it so the screen can scroll it into view.
+  final int? pointed;
+  final Key? pointedKey;
   final EntryRowController entryController;
   final DateTime today;
   final RegisterActions actions;
@@ -288,13 +300,21 @@ class RegisterPanel extends StatelessWidget {
           )
         : null;
 
+    // Confirming a bill that looks to be in already would put it in twice.
+    RegisterRow? alreadyFor(RegisterRow r) {
+      final e = editing;
+      return e != null &&
+              e.txnId == r.txnId &&
+              e.confirming &&
+              actions.onAlreadyIn != null
+          ? alreadyIn(r, posted, today, uncategorizedId: uncategorizedId)
+          : null;
+    }
+
     Widget? editor(RegisterRow r) {
       final e = editing;
       if (e == null || e.txnId != r.txnId) return null;
-      // Confirming a bill that looks to be in already would put it in twice.
-      final found = e.confirming && actions.onAlreadyIn != null
-          ? alreadyIn(r, posted, today)
-          : null;
+      final found = alreadyFor(r);
       return EntryRow(
         key: ValueKey('edit-${r.txnId}'),
         controller: e.controller,
@@ -316,6 +336,10 @@ class RegisterPanel extends StatelessWidget {
             : _AlreadyInLine(
                 found: found,
                 bill: r.amount,
+                // In the Scheduled tab the row is drawn right under this one.
+                onShow: showScheduled || actions.onPoint == null
+                    ? null
+                    : () => actions.onPoint!(found),
                 onDelete: () => actions.onAlreadyIn!(r, found),
               ),
         onCancel: actions.onCancelEdit,
@@ -333,7 +357,28 @@ class RegisterPanel extends StatelessWidget {
       duration: grow,
       child: r.txnId == selected && selectedKey != null
           ? KeyedSubtree(key: selectedKey, child: row)
+          : r.txnId == pointed && pointedKey != null
+          ? KeyedSubtree(key: pointedKey, child: row)
           : row,
+    );
+    Widget postedRow(int i, RegisterRow r, {bool? isPointed}) => _PostedRow(
+      row: r,
+      today: today,
+      check: unclearedCheck(r.accountId),
+      owed: owed,
+      accountName: _accountOf(r),
+      striped: i.isOdd,
+      pointed: isPointed ?? r.txnId == pointed,
+      reconciling: through != null,
+      bar: bar(r),
+      onTap: (field) => tap(r.txnId, field),
+      onToggleCleared: () => actions.onToggleCleared(r),
+      categories: categoriesFor(r, categories),
+      onSetCategory: (c) => actions.onSetCategory(r, c),
+      pays: paysFor(r, actions),
+      onSetPay: (id) => actions.onSetPay?.call(r, id),
+      categoryShown: categoryShown(r, actions),
+      hoveredStatus: hoveredStatus,
     );
 
     final children = <Widget>[];
@@ -357,6 +402,16 @@ class RegisterPanel extends StatelessWidget {
                 ),
           ),
         );
+        // This tab lists no rows already in, so the one the line names is
+        // drawn under it.
+        if (alreadyFor(r) case final found?) {
+          children.add(
+            KeyedSubtree(
+              key: const ValueKey('already-in-row'),
+              child: postedRow(0, found, isPointed: true),
+            ),
+          );
+        }
       }
     } else {
       if (showNext) {
@@ -399,30 +454,7 @@ class RegisterPanel extends StatelessWidget {
         );
       }
       for (final (i, r) in visiblePosted.indexed) {
-        children.add(
-          keyed(
-            r,
-            editor(r) ??
-                _PostedRow(
-                  row: r,
-                  today: today,
-                  check: unclearedCheck(r.accountId),
-                  owed: owed,
-                  accountName: _accountOf(r),
-                  striped: i.isOdd,
-                  reconciling: through != null,
-                  bar: bar(r),
-                  onTap: (field) => tap(r.txnId, field),
-                  onToggleCleared: () => actions.onToggleCleared(r),
-                  categories: categoriesFor(r, categories),
-                  onSetCategory: (c) => actions.onSetCategory(r, c),
-                  pays: paysFor(r, actions),
-                  onSetPay: (id) => actions.onSetPay?.call(r, id),
-                  categoryShown: categoryShown(r, actions),
-                  hoveredStatus: hoveredStatus,
-                ),
-          ),
-        );
+        children.add(keyed(r, editor(r) ?? postedRow(i, r)));
       }
     }
 
@@ -915,6 +947,7 @@ class _PostedRow extends StatelessWidget {
     required this.owed,
     this.accountName,
     required this.striped,
+    this.pointed = false,
     required this.reconciling,
     required this.bar,
     required this.onTap,
@@ -936,6 +969,9 @@ class _PostedRow extends StatelessWidget {
 
   final RegisterRow row;
   final DateTime today;
+
+  /// The row a line elsewhere names: outlined so it's found at a glance.
+  final bool pointed;
 
   /// What this row's account holds an uncleared row against.
   final UnclearedCheck? check;
@@ -1026,7 +1062,7 @@ class _PostedRow extends StatelessWidget {
                     ),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: selected ? Mid.blueEdge : Colors.transparent,
+                color: selected || pointed ? Mid.blueEdge : Colors.transparent,
               ),
             ),
             child: Column(
@@ -1248,9 +1284,13 @@ class _AlreadyInLine extends StatelessWidget {
   const _AlreadyInLine({
     required this.found,
     required this.bill,
+    required this.onShow,
     required this.onDelete,
   });
   final RegisterRow found;
+
+  /// Brings that row into sight; null where it is already beside this line.
+  final VoidCallback? onShow;
 
   /// What the scheduled bill is for: a row for less leaves part of it
   /// unpaid, and deleting the scheduled one takes that out of the forecast.
@@ -1271,22 +1311,32 @@ class _AlreadyInLine extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Flexible(
-            child: Text(
-              short > 0
-                  ? t.rowsAlreadyInLess(
-                      sayDate(t, found.date),
-                      rowPayee(t, found),
-                      amount,
-                      formatShort(short, currency: found.currency),
-                    )
-                  : t.rowsAlreadyIn(
-                      sayDate(t, found.date),
-                      rowPayee(t, found),
-                      amount,
+            child: Hoverable(
+              onTap: onShow,
+              builder: (h) => Text(
+                short > 0
+                    ? t.rowsAlreadyInLess(
+                        sayDate(t, found.date),
+                        rowPayee(t, found),
+                        amount,
+                        formatShort(short, currency: found.currency),
+                      )
+                    : t.rowsAlreadyIn(
+                        sayDate(t, found.date),
+                        rowPayee(t, found),
+                        amount,
+                      ),
+                key: const ValueKey('already-in-text'),
+                style: onest(13, weight: 600, color: Mid.ink, tabular: true)
+                    .copyWith(
+                      decoration: onShow != null && h
+                          ? TextDecoration.underline
+                          : null,
+                      decorationColor: Mid.ink,
                     ),
-              style: onest(13, weight: 600, color: Mid.ink, tabular: true),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
           const SizedBox(width: 10),

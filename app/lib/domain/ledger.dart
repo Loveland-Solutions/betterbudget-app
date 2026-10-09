@@ -508,27 +508,99 @@ String? overdueNote(RegisterRow r, DateTime today) =>
 /// bill. Under a week, so a weekly bill doesn't find last week's.
 const alreadyInDays = 6;
 
+const _latinFor = {
+  'а': 'a',
+  'б': 'b',
+  'в': 'v',
+  'г': 'g',
+  'д': 'd',
+  'е': 'e',
+  'ё': 'io',
+  'ж': 'j',
+  'з': 'z',
+  'и': 'i',
+  'й': 'i',
+  'к': 'k',
+  'л': 'l',
+  'м': 'm',
+  'н': 'n',
+  'о': 'o',
+  'ө': 'o',
+  'п': 'p',
+  'р': 'r',
+  'с': 's',
+  'т': 't',
+  'у': 'u',
+  'ү': 'u',
+  'ф': 'f',
+  'х': 'h',
+  'ц': 'ts',
+  'ч': 'ch',
+  'ш': 'sh',
+  'щ': 'sh',
+  'ъ': '',
+  'ы': 'i',
+  'ь': '',
+  'э': 'e',
+  'ю': 'iu',
+  'я': 'ia',
+};
+
+/// A payee reduced to what two spellings of one name share, to tell that
+/// the bank's "МОБИКОМ КОРПОРАЦИ ХХК" is a bill called "Mobicom": lower
+/// case, Cyrillic in Latin letters, the letters people swap made one (c and
+/// k, kh and h, w and v, y and i), and nothing but letters and digits.
+String payeeKey(String payee) {
+  final latin = StringBuffer();
+  for (final rune in payee.trim().toLowerCase().runes) {
+    final c = String.fromCharCode(rune);
+    latin.write(_latinFor[c] ?? c);
+  }
+  return latin
+      .toString()
+      .replaceAll('kh', 'h')
+      .replaceAll(RegExp('c(?!h)'), 'k')
+      .replaceAll('w', 'v')
+      .replaceAll('y', 'i')
+      .replaceAll(RegExp(r'[^a-z0-9]'), '');
+}
+
+/// Two payees are the same name: one's [payeeKey] holds the other's. A
+/// name under four letters has to be the whole of the other, since "TDB"
+/// is inside too many.
+bool samePayeeName(String a, String b) {
+  final x = payeeKey(a), y = payeeKey(b);
+  if (x.isEmpty || y.isEmpty) return false;
+  if (x == y) return true;
+  final (short, long) = x.length <= y.length ? (x, y) : (y, x);
+  return short.length >= 4 && long.contains(short);
+}
+
 /// The row already in [posted] that [scheduled] looks to be, so that
 /// confirming would put it in twice (typed from the bank app, or imported,
 /// before the bill was confirmed): the same account, the same way, dated
 /// within [alreadyInDays] of the bill, or up to [today] for a late one (paid
-/// late, it is dated late). The same payee is taken first; failing that, for
-/// a category's bill, a row in that category for between half and twice the
-/// amount. The nearest in date; null when there is none. A row already tied
-/// to the same plan is the bill before, not this one. Not for a payday: money
-/// in is made a pay's paycheck from its own row.
+/// late, it is dated late). What makes it the bill, the surest first: the
+/// same payee as typed; the same name in another spelling
+/// ([samePayeeName]); for a category's bill, a row in that category for
+/// between half and twice the amount; a row still in [uncategorizedId]
+/// (as an import leaves it, under the bank's own name) for exactly the
+/// amount. Among equals the nearest in date; null when there is none. A
+/// row already tied to the same plan is the bill before, not this one. Not
+/// for a payday: money in is made a pay's paycheck from its own row.
 RegisterRow? alreadyIn(
   RegisterRow scheduled,
   Iterable<RegisterRow> posted,
-  DateTime today,
-) {
+  DateTime today, {
+  int? uncategorizedId,
+}) {
   if (scheduled.payScheduleId != null) return null;
   final payee = scheduled.payee.trim().toLowerCase();
   final plan = scheduled.planCategoryId;
   final late = daysBefore(scheduled.date, today);
   final after = late > alreadyInDays ? late : alreadyInDays;
   RegisterRow? found;
-  var foundPayee = false;
+  var foundSure = 0;
   var nearest = 0;
   for (final r in posted) {
     if (r.scheduled ||
@@ -540,21 +612,31 @@ RegisterRow? alreadyIn(
     }
     final since = daysBefore(scheduled.date, r.date);
     if (since < -alreadyInDays || since > after) continue;
-    final samePayee = payee.isNotEmpty && r.payee.trim().toLowerCase() == payee;
-    final sameBill =
-        plan != null &&
+    final int sure;
+    if (payee.isNotEmpty && r.payee.trim().toLowerCase() == payee) {
+      sure = 4;
+    } else if (samePayeeName(r.payee, scheduled.payee)) {
+      sure = 3;
+    } else if (plan != null &&
         r.categoryId == plan &&
         r.amount.abs() * 2 >= scheduled.amount.abs() &&
-        r.amount.abs() <= scheduled.amount.abs() * 2;
-    if (!samePayee && !sameBill) continue;
-    if (foundPayee && !samePayee) continue;
+        r.amount.abs() <= scheduled.amount.abs() * 2) {
+      sure = 2;
+    } else if (uncategorizedId != null &&
+        r.categoryId == uncategorizedId &&
+        r.amount == scheduled.amount) {
+      sure = 1;
+    } else {
+      continue;
+    }
     final apart = since.abs();
     if (found == null ||
-        (samePayee && !foundPayee) ||
-        apart < nearest ||
-        (apart == nearest && r.date.isAfter(found.date))) {
+        sure > foundSure ||
+        (sure == foundSure &&
+            (apart < nearest ||
+                (apart == nearest && r.date.isAfter(found.date))))) {
       found = r;
-      foundPayee = samePayee;
+      foundSure = sure;
       nearest = apart;
     }
   }

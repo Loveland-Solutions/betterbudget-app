@@ -755,7 +755,16 @@ What's known so far:
     same way, dated from 6 days before the bill to 6 days after (a week would find
     last week's weekly bill), or up to today when the bill is late, with the same
     payee; failing that, for a category's bill, a row in that category for between
-    half and twice the amount. The button deletes the scheduled row, ties the row to
+    half and twice the amount. **The payee may be the bank's spelling of it** (owner,
+    2026-10-09, "Fix these"): "МОБИКОМ КОРПОРАЦИ ХХК" is a bill called Mobicom, told
+    by putting both in lower-case Latin letters, with c and k, kh and h, w and v, y
+    and i made one, and seeing whether one holds the other (a name under four
+    letters has to be the whole of it). Last, a row still in Not categorized, as
+    an import leaves it, counts when it is for exactly the bill's amount. The
+    surest kind wins, then the nearest date. **The line leads to its row**: clicked,
+    the row it names is outlined and the list scrolls just far enough to show it;
+    in the Scheduled tab, which lists no such rows, the row is drawn under the
+    line. The button deletes the scheduled row, ties the row to
     the category's plan as that bill when it is in the category, and schedules the
     next bill, as one undo. When the row is for less than the bill the line ends "·
     ₮800,000 less than this bill" and the popup says that much "is no longer
