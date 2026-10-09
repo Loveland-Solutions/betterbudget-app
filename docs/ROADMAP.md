@@ -160,9 +160,9 @@ since phones show budget amounts.
 - [ ] TestFlight / Play internal testing, then the stores
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)
-Splits, search, sorting, cash accounts, backup reminders, app lock. (The better
-"not cleared" note, the duplicate check on Confirm and the count of overdue bills
-were built on 2026-10-09: ADR 0004 rule 20.)
+Splits, search, sorting, cash accounts, app lock. (The better "not cleared" note,
+the duplicate check on Confirm, the count of overdue bills and the backup reminder
+were built on 2026-10-09: ADR 0004 rule 20 and "Backups".)
 
 **A place to see and drop the "Always file" rules** (owner, 2026-10-06: "put it on the
 list of things to do"). The rules themselves are built (ADR 0004 "Import": a payee

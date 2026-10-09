@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 557 tests pass
+**Last updated: 2026-10-09** · version 0.21.0 · schema v18 · 560 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #57 (version 0.21.0).** Four of the open items are built (ADR 0004 rule 20, "Changed 2026-10-09"): the uncleared note goes by the last statement, a late bill counts the other late ones, Confirm names a row already in, and the Move popup has Show. The computer wears the owner's logo and its
+**After PR #57 (version 0.21.0).** Four of the open items are built (ADR 0004 rule 20, "Changed 2026-10-09"): the uncleared note goes by the last statement, a late bill counts the other late ones, Confirm names a row already in, the Move popup has Show, and a month without a copy off this computer is said under Net worth. The computer wears the owner's logo and its
 colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
 accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
 a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
@@ -143,6 +143,11 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
 16. **Transfers on the phone next?** (2026-10-08) ₮100,000 taken out of an ATM is
     neither a refund nor income, and the phone has only wrong places for it. Should
     transfers on the phone be built ahead of the two-computers work (Next step 1)?
+18. **"Copied" or "backed up"?** (2026-10-09) The line under Net worth says "Last
+    copied elsewhere 41 days ago", as the owner was shown it; the button it leads
+    to says "Back up to…", and Settings' only "copy" is the daily one. The budget
+    review would have the line use the button's word: "Backed up elsewhere 41 days
+    ago" and "Not backed up off this computer".
 17. **Two wordings from the colors review** (2026-10-09). Should a late bill say what
     it means for the balance, "due 22 days ago · not in Working yet"? And should an
     import that doesn't match the bank lead with the amount as its own sentence,
@@ -176,10 +181,10 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Six steps: one month of expenses, health coverage, no consumer debt, more months, retirement, the mortgage and student loans. Each is done, current, later or set aside. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to…, Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
+| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last copied elsewhere 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
-| Language | Same as this Mac, English or Монгол; 1,144 messages, the same keys in both files |
+| Language | Same as this Mac, English or Монгол; 1,148 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
 | Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
@@ -243,6 +248,12 @@ open the archive).
   to a row more than a screen down the list was not tested (the test's row is in
   sight); an open row scrolled far out of sight loses what was typed in it, as it
   did before.
+- **From the reviews of the backup reminder (2026-10-09), not fixed:** "Erase
+  everything and start over" keeps the old record, so a new ledger can be told on
+  its first day, or not for a month; "Back up to…" into a folder on the same disk
+  counts as elsewhere; a count of 100 days or more may wrap to a second line in the
+  sidebar, and the Mongolian line's fit wasn't looked at; no test that a ledger in
+  a folder, or setup, hides the line, nor that "Back up to…" records the day.
 - **From the reviews of the folder and the phone (2026-10-07), not fixed:** a ledger
   under both names (`betterbudget.sqlite` beside `Ledger.betterbudget`, which an older
   build would make) is ignored without a word; a write already under way when "Move
@@ -277,6 +288,9 @@ open the archive).
   mortgage or student loan, which the computer's budget leaves out; the +/− button is
   half under the toast while it shows; the +/− button's spoken label in Mongolian
   ("Орлого болгох") uses Income's own word.
+- **`keys_test.dart` "rejects a bad checksum" failed once in a full run**
+  (2026-10-09) and passed alone and in the next two full runs; like the one below
+  it builds its input from a random key.
 - **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
   (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
   random key. **`budget_test.dart` "plans paid weekly, a date years ahead is still
@@ -320,14 +334,10 @@ open the archive).
 - **The Mongolian is a draft** awaiting a native speaker
   ([mongolian-review.csv](mongolian-review.csv)).
 
-## Open items (none decided)
+## Open items
 
-1. **Backup reminders.** "Last copied elsewhere 41 days ago" once past 30 days (daily
-   copies share a disk with the data). Asked 2026-10-09 where it should show; it
-   would never show for a ledger stored in a folder, as the owner's is.
-
-**Dropped:** putting `+` in the amount when a payee's last row was money in. It is a
-guess filled into a field (owner, 2026-10-08: "Don't autofill").
+None waiting. **Dropped:** putting `+` in the amount when a payee's last row was
+money in. It is a guess filled into a field (owner, 2026-10-08: "Don't autofill").
 
 **Known limits, accepted:** a scheduled split confirms at its planned total only;
 "Back up to…" overwriting a file isn't atomic in the sandbox; the newest 5

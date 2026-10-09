@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -25,6 +26,37 @@ class BackupHealth {
   bool alarmingAt(DateTime now) =>
       failed &&
       (newest == null || now.difference(newest!) > const Duration(days: 2));
+}
+
+/// When the ledger was last copied somewhere other than this computer's
+/// disk with "Back up to…": the daily copies sit beside the ledger, so a
+/// lost or broken computer takes them too.
+@immutable
+class CopiedElsewhere {
+  const CopiedElsewhere({required this.since, this.copied});
+
+  /// Past this many days without a copy elsewhere, the sidebar says so.
+  static const remindAfterDays = 30;
+
+  /// When this was first looked at on this computer: what a ledger never
+  /// copied is counted from, so a new one isn't nagged on its first day.
+  final DateTime since;
+
+  /// The last "Back up to…" that worked, if there has been one.
+  final DateTime? copied;
+
+  /// Whole days since [copied], or since [since] when there's been none.
+  int daysAt(DateTime now) => DateTime.utc(now.year, now.month, now.day)
+      .difference(
+        DateTime.utc(
+          (copied ?? since).year,
+          (copied ?? since).month,
+          (copied ?? since).day,
+        ),
+      )
+      .inDays;
+
+  bool dueAt(DateTime now) => daysAt(now) > remindAfterDays;
 }
 
 /// A backup file picked for restore, already copied into the app's folder
@@ -138,6 +170,78 @@ class Backups {
 
   final health = ValueNotifier(const BackupHealth());
 
+  /// Null until [loadElsewhere] has read it, and where there's no ledger
+  /// file (tests).
+  final elsewhere = ValueNotifier<CopiedElsewhere?>(null);
+
+  /// This computer's own record, in a small file beside the ledger like the
+  /// folder setting: it doesn't travel inside the ledger, where a restore
+  /// would turn it back.
+  Future<File?> _elsewhereFile() async {
+    final dir = await folder();
+    return dir == null ? null : File('${dir.parent.path}/copied-elsewhere');
+  }
+
+  /// Reads the record, starting it at [now] on a computer that has none,
+  /// or whose record can't be read or is dated after [now] (a clock that
+  /// was set ahead): better counted again from today than silent for good.
+  /// Never throws.
+  Future<void> loadElsewhere(DateTime now) async {
+    if (elsewhere.value != null) return;
+    try {
+      final file = await _elsewhereFile();
+      if (file == null) return;
+      CopiedElsewhere? read;
+      if (file.existsSync()) {
+        try {
+          final saved = jsonDecode(await file.readAsString()) as Map;
+          final copied = saved['copied'] as String?;
+          read = CopiedElsewhere(
+            since: DateTime.parse(saved['since'] as String),
+            copied: copied == null ? null : DateTime.parse(copied),
+          );
+        } catch (e) {
+          debugPrint('The copied-elsewhere record was unreadable: $e');
+        }
+      }
+      if (read != null && read.daysAt(now) >= 0) {
+        elsewhere.value = read;
+        return;
+      }
+      await _writeElsewhere(CopiedElsewhere(since: now));
+    } catch (e) {
+      debugPrint('Reading the copied-elsewhere record failed: $e');
+    }
+  }
+
+  /// "Back up to…" worked at [now].
+  Future<void> copiedElsewhere(DateTime now) async {
+    try {
+      await _writeElsewhere(
+        CopiedElsewhere(since: elsewhere.value?.since ?? now, copied: now),
+      );
+    } catch (e) {
+      debugPrint('Writing the copied-elsewhere record failed: $e');
+    }
+  }
+
+  Future<void> _writeElsewhere(CopiedElsewhere record) async {
+    elsewhere.value = record;
+    final file = await _elsewhereFile();
+    if (file == null) return;
+    await file.parent.create(recursive: true);
+    // Whole or not at all: a write cut short mustn't leave half a record.
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsString(
+      jsonEncode({
+        'since': record.since.toIso8601String(),
+        'copied': ?record.copied?.toIso8601String(),
+      }),
+      flush: true,
+    );
+    await temp.rename(file.path);
+  }
+
   static const _prefix = 'betterbudget-';
 
   /// A daily copy's name. They end in [extension] since 2026-10-07; the ones
@@ -201,6 +305,7 @@ class Backups {
   /// The daily copy, run at launch and hourly. Never throws: a failure is
   /// recorded in [health] for the sidebar to show.
   Future<void> runDaily(DateTime now) async {
+    await loadElsewhere(now);
     var failed = false;
     try {
       await automaticIfDue(now);

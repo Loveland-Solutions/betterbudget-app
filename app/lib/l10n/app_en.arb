@@ -1015,6 +1015,27 @@
       }
     }
   },
+  "ledgerLastCopiedElsewhere": "Last copied elsewhere {days} days ago",
+  "@ledgerLastCopiedElsewhere": {
+    "description": "Sidebar, small line under Net worth, shown once it has been more than 30 days since the ledger was last saved somewhere other than this computer with Settings → Back up to…. Clicking it opens Settings. days is 31 or more.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerNeverCopiedElsewhere": "Not copied anywhere but this computer",
+  "@ledgerNeverCopiedElsewhere": {
+    "description": "Sidebar, small line under Net worth, shown after 30 days when the ledger has never been saved somewhere other than this computer with Settings → Back up to…. Clicking it opens Settings."
+  },
+  "ledgerCopiedElsewhere": "Backed up",
+  "@ledgerCopiedElsewhere": {
+    "description": "Settings → Backups card, row label (120px wide), shown while the ledger is stored on this computer only: when it was last saved somewhere else with the Back up to… button under it."
+  },
+  "ledgerCopiedElsewhereNever": "Not yet · Back up to… saves a copy to another drive",
+  "@ledgerCopiedElsewhereNever": {
+    "description": "Settings → Backups card, value of the Copied elsewhere row when Back up to… has never been used on this computer. Names the button below it."
+  },
   "ledgerDailyCopyFailing": "The daily copy is failing",
   "@ledgerDailyCopyFailing": {
     "description": "Tooltip on the Settings gear’s coral dot."

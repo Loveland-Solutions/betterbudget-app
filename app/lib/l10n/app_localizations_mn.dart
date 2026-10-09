@@ -669,6 +669,22 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerLastCopiedElsewhere(int days) {
+    return 'Өөр газар $days хоногийн өмнө хуулсан';
+  }
+
+  @override
+  String get ledgerNeverCopiedElsewhere =>
+      'Энэ компьютероос өөр газар хуулаагүй';
+
+  @override
+  String get ledgerCopiedElsewhere => 'Нөөцөлсөн';
+
+  @override
+  String get ledgerCopiedElsewhereNever =>
+      'Хараахан үгүй · “Нөөцлөх…” өөр диск рүү хуулбар хадгална';
+
+  @override
   String get ledgerDailyCopyFailing => 'Өдөр бүрийн хуулбар хийгдэхгүй байна';
 
   @override

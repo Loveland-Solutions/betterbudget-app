@@ -3496,6 +3496,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(t.ledgerCouldntBackUp);
       return;
     }
+    await _backups.copiedElsewhere(now);
+    if (!mounted) return;
     final name = location.path.split(RegExp(r'[/\\]')).last;
     _showToast(t.ledgerBackedUp(name));
   }
@@ -3864,7 +3866,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             ? null
                             : account?.id,
                         backupHealth: _backups.health,
+                        elsewhere: _backups.elsewhere,
                         folder: _cloud,
+                        folderLoaded: _cloud.loaded,
                         now: widget.clock,
                         onSelect: _openAccount,
                         allActive: _all && !_newAccount,
@@ -3931,6 +3935,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 ),
                                 AppSection.settings => _SettingsPage(
                                   health: _backups.health,
+                                  backedUp: _backups.elsewhere,
                                   now: widget.clock,
                                   onBackUp: _backUpTo,
                                   onRestore: _restoreFrom,
@@ -4285,6 +4290,8 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.backupHealth,
+    required this.elsewhere,
+    required this.folderLoaded,
     required this.folder,
     required this.now,
     required this.addingAccount,
@@ -4311,6 +4318,13 @@ class _Sidebar extends StatelessWidget {
   final bool addingAccount;
   final VoidCallback onAddAccount;
   final ValueListenable<BackupHealth> backupHealth;
+
+  /// When the ledger was last copied off this computer, for the reminder
+  /// under Net worth.
+  final ValueListenable<CopiedElsewhere?> elsewhere;
+
+  /// Whether it is known yet where the ledger is stored.
+  final ValueListenable<bool> folderLoaded;
 
   /// The folder the ledger was moved to: failing to write it lights the
   /// gear too.
@@ -4534,6 +4548,48 @@ class _Sidebar extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          // The daily copies share a disk with the ledger:
+                          // said here, on every page, once it has been a
+                          // month, and never while the ledger is in a folder.
+                          if (!setup)
+                            ListenableBuilder(
+                              listenable: Listenable.merge([
+                                elsewhere,
+                                folder,
+                                folderLoaded,
+                              ]),
+                              builder: (context, _) {
+                                final e = elsewhere.value;
+                                if (e == null ||
+                                    !folderLoaded.value ||
+                                    folder.value.path != null ||
+                                    !e.dueAt(now())) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Hoverable(
+                                    key: const ValueKey('backup-reminder'),
+                                    onTap: () => onSection(AppSection.settings),
+                                    builder: (h) => Text(
+                                      e.copied == null
+                                          ? t.ledgerNeverCopiedElsewhere
+                                          : t.ledgerLastCopiedElsewhere(
+                                              e.daysAt(now()),
+                                            ),
+                                      // 11: the longest of the two fits the sidebar on one line.
+                                      style: onest(11, color: Mid.sideInk2)
+                                          .copyWith(
+                                            decoration: h
+                                                ? TextDecoration.underline
+                                                : null,
+                                            decorationColor: Mid.sideInk2,
+                                          ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -4622,6 +4678,7 @@ class _SettingsGear extends StatelessWidget {
 class _SettingsPage extends StatelessWidget {
   const _SettingsPage({
     required this.health,
+    required this.backedUp,
     required this.now,
     required this.onBackUp,
     required this.onRestore,
@@ -4639,6 +4696,9 @@ class _SettingsPage extends StatelessWidget {
     this.language,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// When "Back up to…" last worked, said beside it.
+  final ValueListenable<CopiedElsewhere?> backedUp;
 
   /// Light, dark or the system's; null without an [AppearanceScope] (tests).
   final Widget? appearance;
@@ -4734,7 +4794,7 @@ class _SettingsPage extends StatelessWidget {
                     border: Border.all(color: Mid.rule),
                   ),
                   child: ListenableBuilder(
-                    listenable: Listenable.merge([health, folder]),
+                    listenable: Listenable.merge([health, folder, backedUp]),
                     builder: (context, _) {
                       final h = health.value;
                       final kept = folder.value;
@@ -4777,7 +4837,7 @@ class _SettingsPage extends StatelessWidget {
                             ),
                           ),
                           // Always said, moved or not: where the ledger is now.
-                          if (keptIn == null)
+                          if (keptIn == null) ...[
                             line(
                               t.ledgerFolderLabel,
                               Text(
@@ -4785,8 +4845,21 @@ class _SettingsPage extends StatelessWidget {
                                 key: const ValueKey('stored-in'),
                                 style: onest(13.5, color: Mid.ink),
                               ),
-                            )
-                          else
+                            ),
+                            // What the sidebar's reminder counts from, beside
+                            // the button that answers it.
+                            if (backedUp.value case final e?)
+                              line(
+                                t.ledgerCopiedElsewhere,
+                                Text(
+                                  e.copied == null
+                                      ? t.ledgerCopiedElsewhereNever
+                                      : when(e.copied!),
+                                  key: const ValueKey('copied-elsewhere'),
+                                  style: onest(13.5, color: Mid.ink),
+                                ),
+                              ),
+                          ] else
                             line(
                               t.ledgerFolderLabel,
                               Tooltip(

@@ -693,6 +693,18 @@ What's known so far:
     (owner's call), once the newest copy is over two days old; a single failed hour
     stays quiet. The gear gets a coral dot, and Settings says "Failing · the last one
     is from …" in coral.
+    **A month without a copy off this computer is said under Net worth** (owner's
+    call, 2026-10-09, of two: there, seen on every page, or only in Settings beside
+    "Back up to…"). The daily copies share a disk with the ledger. Once "Back up
+    to…" hasn't been used for more than 30 days, a small line in plain ink under
+    the Net worth figure reads "Last copied elsewhere 41 days ago", or "Not copied
+    anywhere but this computer" when it never has been (counted from the day this
+    computer first looked, so a new ledger isn't told on its first day). It opens
+    Settings, where a "Backed up" line above the button says when, or "Not yet ·
+    Back up to… saves a copy to another drive". Never while the ledger is stored
+    in a folder, nor in setup. It is a heads-up, so no dot and no coral. The date
+    is this computer's own, in a small file beside the ledger (`copied-elsewhere`),
+    not in the ledger, where a restore would turn it back.
     Backups are unencrypted until SQLCipher; that work must encrypt or remove them.
     **Start over** (owner, 2026-09-24, for the alpha: "a clean start with no demo
     accounts") is the last section of Settings: "Start a new ledger…" opens a coral

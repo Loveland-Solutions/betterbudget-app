@@ -2026,6 +2026,76 @@ void main() {
   });
 
   group('backups', () {
+    testWidgets('a month without a copy elsewhere is said under Net worth', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final db = AppDatabase(NativeDatabase.memory());
+      final backups = Backups(db)
+        ..elsewhere.value = CopiedElsewhere(
+          since: DateTime(2026, 7, 1),
+          copied: DateTime(2026, 8, 17, 21),
+        );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              backups: backups,
+              clock: () => DateTime(2026, 9, 16, 10),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      // 30 days is not yet worth saying.
+      expect(find.byKey(const ValueKey('backup-reminder')), findsNothing);
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 8, 6, 21),
+      );
+      await tester.pump();
+      expect(find.text('Last copied elsewhere 41 days ago'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/backup_reminder.png'),
+      );
+      // Never copied: counted from when this computer first looked.
+      backups.elsewhere.value = CopiedElsewhere(since: DateTime(2026, 7, 1));
+      await tester.pump();
+      expect(
+        find.text('Not copied anywhere but this computer'),
+        findsOneWidget,
+      );
+      // It leads to where a copy is made, which says the same thing.
+      await tester.tap(find.byKey(const ValueKey('backup-reminder')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('back-up')), findsOneWidget);
+      expect(
+        find.text('Not yet · Back up to… saves a copy to another drive'),
+        findsOneWidget,
+      );
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 8, 6, 21),
+      );
+      await tester.pump();
+      expect(find.text('2026.08.06 21:00'), findsOneWidget);
+      // Copied today: nothing left to say.
+      backups.elsewhere.value = CopiedElsewhere(
+        since: DateTime(2026, 7, 1),
+        copied: DateTime(2026, 9, 16, 9),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('backup-reminder')), findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets('a daily copy that keeps failing shows under Net worth', (
       tester,
     ) async {
@@ -2504,6 +2574,57 @@ void main() {
     await tapAndWait(tester, find.text('Confirm'));
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.byKey(const ValueKey('already-in')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the Already in line scrolls to a row far down the list', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      await db.postTransaction(
+        date: DateTime(2026, 9, 9),
+        payee: 'Mobicom',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+          (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+        ],
+      );
+      // Paid six days early: a dozen rows down, past the foot of the window.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 9, 3),
+        today: DateTime(2026, 9, 16),
+        payee: 'Mobicom',
+        counterAccountId: phone,
+        amount: -4000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    final row = find.byWidgetPredicate(
+      (w) => w is Text && w.data == 'Mobicom' && w.style?.fontSize == 14.5,
+    );
+    await tapAndWait(tester, find.text('Confirm'));
+    expect(
+      find.text('Already in this account · 09.03 · Mobicom · −₮40,000.00'),
+      findsOneWidget,
+    );
+    expect(row.hitTestable(), findsNothing);
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('already-in-text')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    });
+    await settle(tester);
+    expect(row.hitTestable(), findsOneWidget);
     await tidy(tester, db);
   });
 

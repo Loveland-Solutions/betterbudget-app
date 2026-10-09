@@ -673,6 +673,22 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerLastCopiedElsewhere(int days) {
+    return 'Last copied elsewhere $days days ago';
+  }
+
+  @override
+  String get ledgerNeverCopiedElsewhere =>
+      'Not copied anywhere but this computer';
+
+  @override
+  String get ledgerCopiedElsewhere => 'Backed up';
+
+  @override
+  String get ledgerCopiedElsewhereNever =>
+      'Not yet · Back up to… saves a copy to another drive';
+
+  @override
   String get ledgerDailyCopyFailing => 'The daily copy is failing';
 
   @override
