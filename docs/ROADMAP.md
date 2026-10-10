@@ -178,6 +178,22 @@ from its dropdown. Asked 2026-10-07, not answered: the offer at the foot of a ro
 category dropdown, reading "Always filed here · Stop" once the rule exists (STATUS
 "Waiting on the owner").
 
+**A second computer set up in one step** (owner, 2026-10-10: "let's put this on a
+list of things to do"). Today it takes two: Restore from… the folder's
+`Ledger.betterbudget`, then "Move my ledger to a folder…" and the same folder.
+Nothing says the second is needed, and the owner missed it: the restored ledger
+stayed on that computer and nothing reached the folder. To build: when Restore
+from… is pointed at the ledger inside a synced folder, ask right then "Keep this
+computer on this folder's ledger?", Yes the main button, which also spares the
+which-to-keep question a restored ledger is asked on first meeting the folder.
+
+**A plain popup for a failure** (owner, 2026-10-10, the same words). "Couldn't
+save: …" arrives in the gold popup that says a change was saved, and carries the
+error's whole text (the owner's was a screen of library paths). To build: a
+failure has its own plain popup, saying what didn't happen in one line, with the
+detail put away behind a click. About 35 places show one (STATUS, "From the
+reviews of the new look").
+
 Moved from STATUS on 2026-10-07, as written there. Each must follow
 [ADR 0004](decisions/0004-ledger-ui.md); design each before building it and show it to
 the owner.

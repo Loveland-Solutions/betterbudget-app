@@ -728,10 +728,32 @@ class _LedgerScreenState extends State<LedgerScreen> {
   (String, String)? _version;
 
   /// On a new computer, the ledger usually comes from a backup saved with
-  /// Back up to…: offer it first. Starting empty is one click away.
+  /// Back up to…: offer it first. Starting empty is one click away. Asked
+  /// again until a backup is open or the answer is to start empty: Cancel in
+  /// the file dialog comes back here, and setup has no other way to a backup.
   Future<void> _offerRestore() async {
+    while (mounted) {
+      final open = await _askOpenBackup();
+      // Closed without an answer: asked at the next launch.
+      if (open == null || !mounted) return;
+      if (!open) {
+        try {
+          await db.setPreference(
+            SetupKeys.backupOffer,
+            SetupKeys.backupOfferNo,
+          );
+        } catch (e) {
+          debugPrint('Keeping "Start empty" failed: $e');
+        }
+        return;
+      }
+      if (await _restoreFrom()) return;
+    }
+  }
+
+  Future<bool?> _askOpenBackup() {
     final t = context.t;
-    final open = await showDialog<bool>(
+    return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Mid.panel,
@@ -761,7 +783,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ],
       ),
     );
-    if (open == true && mounted) await _restoreFrom();
   }
 
   Future<void> _checkRecoveryKey() async {
@@ -3978,14 +3999,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Puts back a backup: the daily copies (the picker opens on their folder)
   /// or one saved elsewhere. Shows what it holds against what's here, saves
-  /// what's here first, and can be undone.
-  Future<void> _restoreFrom() async {
-    if (_restoring) return;
+  /// what's here first, and can be undone. Resolves to whether a backup was
+  /// put back.
+  Future<bool> _restoreFrom() async {
+    if (_restoring) return false;
     final t = context.t;
     // A restore replaces the rows an open edit or reconcile points at.
     if (_editing?.controller.isDirty() ?? false) {
       _showToast(context.t.ledgerSaveOrDiscard);
-      return;
+      return false;
     }
     _cancelEdit();
     _endReconcile();
@@ -4011,15 +4033,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       debugPrint('Open dialog failed: $e');
       _showToast(t.ledgerCouldntOpenFileDialog);
-      return;
+      return false;
     }
-    if (picked == null) return;
+    if (picked == null) return false;
     RestoreCandidate? found;
     try {
       found = await _backups.inspect(picked.path, now);
     } on RestoreNeedsKeyException {
       // Made under another ledger's key: its own recovery key opens it.
-      if (!mounted) return;
+      if (!mounted) return false;
       await showBackupKeyDialog(context, (key) async {
         try {
           found = await _backups.inspect(
@@ -4035,16 +4057,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
           return t.ledgerCouldntReadBackup;
         }
       });
-      if (found == null) return;
+      if (found == null) return false;
     } on RestoreException catch (e) {
       _showToast(restoreProblem(t, e.problem));
-      return;
+      return false;
     } catch (e) {
       debugPrint('Restore check failed: $e');
       _showToast(t.ledgerCouldntReadBackup);
-      return;
+      return false;
     }
-    if (!mounted) return;
+    if (!mounted) return false;
     final candidate = found!;
     final data = _data;
     final confirmed = await showDialog<bool>(
@@ -4058,7 +4080,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     if (confirmed != true) {
       await _backups.discard(candidate);
-      return;
+      return false;
     }
     final RestoreRecord done;
     try {
@@ -4066,9 +4088,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       debugPrint('Restore failed: $e');
       _showToast(t.ledgerCouldntRestore);
-      return;
+      return false;
     }
-    if (!mounted) return;
+    if (!mounted) return false;
     // A restored file's pay schedules get their next paydays, and its
     // plans their next bills, as at launch.
     try {
@@ -4091,6 +4113,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
       message: '$label · ${t.ledgerWhatYouHadIsSaved}',
     );
+    return true;
   }
 
   /// Clears everything for a real start once trying things out is done.
