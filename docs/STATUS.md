@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-10** · version 0.25.0 · schema v18 · 657 tests pass
+**Last updated: 2026-10-10** · version 0.25.1 · schema v18 · 664 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,15 +10,26 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #61 (version 0.25.0): two computers that each changed the ledger are
+**After PR #62 (version 0.25.1), a fix:** on a computer where the recovery key was
+typed, "Open your newest backup?" comes back after Cancel in the file dialog and
+at each launch until it is answered. Before, Cancel left the person in setup with
+no way to a backup (the owner hit it setting up a second account).
+
+**Before it, PR #61 (version 0.25.0): two computers that each changed the ledger are
 combined** without a question when what they did can both stand (item 1 below; ADR
 0005 "Built, 2026-10-10: step 2"). A popup says "4 transactions from Tom’s MacBook
 Air", and when there is one, that a row looks the same as one already here (with
 Show) or that more is assigned than there is. It has no Undo, and "Opened the ledger
 saved on …" lost its own (owner, 2026-10-10: Undo is only for what the person at
 this computer did; ADR 0004 "Two computers: combined without a question"). No
-upgrade: nothing in the owner's file changed. **Not yet run on two real
-computers.**
+upgrade: nothing in the owner's file changed. **Seen working by the owner on
+2026-10-10 on two accounts of one Mac** (a second macOS user, the same Drive
+folder), not yet on two machines. A second computer takes two steps (Restore
+from…, then "Move my ledger to a folder…"), and nothing says the second is
+needed: the owner missed it. Making it one step is on the list
+([ROADMAP](ROADMAP.md) "Still on the list"), as is a plain popup for a failure.
+The app must be opened from Applications, never from inside the Drive folder:
+Drive drops the links inside it and every save fails.
 
 Before it, PR #60 (version 0.24.0): Savings is the owner's four steps, each with the
 picture they drew (ADR 0004 "Four Savings steps"): Build a safety net, Eliminate debt,
@@ -92,6 +103,8 @@ folder. Then, in order:
    PR #48).
 4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
+   Beside it there since 2026-10-10 (owner: "put this on a list of things to
+   do"): a second computer set up in one step, and a plain popup for a failure.
 5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
    "Gold is an accent, and the new colors come first"). **The phone is next when the
    owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
@@ -109,7 +122,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #60. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #62. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -222,7 +235,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
 | Language | Same as this Mac, English or Монгол; 1,182 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it |
+| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it. On a computer where the recovery key was typed, "Open your newest backup?" comes first, and comes back after Cancel in the file dialog and at each launch until a backup is open, "Start empty" is picked or an account is added (setup has no other way to a backup) |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
 
 Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).

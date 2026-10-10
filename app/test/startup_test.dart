@@ -8,11 +8,13 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/keys.dart';
+import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/recovery_key_screen.dart';
 import 'package:betterbudget/ui/startup.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
@@ -54,6 +56,21 @@ class _FakeSecureStorage extends FlutterSecureStoragePlatform {
   @override
   Future<void> deleteAll({required Map<String, String> options}) async =>
       values.clear();
+}
+
+/// The system's open dialog, cancelled every time.
+class _CancelledDialogs extends FileSelectorPlatform {
+  var opened = 0;
+
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async {
+    opened++;
+    return null;
+  }
 }
 
 Future<void> _loadFont(String family, String path) async {
@@ -294,5 +311,103 @@ void main() {
     expect(ledger!.txns, isEmpty);
     expect(ledger.balanceSheetAccounts, isEmpty);
     await tidy(tester);
+  });
+
+  testWidgets('Cancel in the file dialog comes back to the offer', (
+    tester,
+  ) async {
+    final dialogs = _CancelledDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    await launch(tester);
+    await typeKey(tester, RecoveryKey.generate());
+    await until(tester, () => shown(find.text('Open your newest backup?')));
+    await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-open')));
+    await until(
+      tester,
+      () => dialogs.opened == 1 && shown(find.text('Open your newest backup?')),
+    );
+    expect(find.text('Open your newest backup?'), findsOne);
+    await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-empty')));
+    expect(find.text('Open your newest backup?'), findsNothing);
+    await tidy(tester);
+  });
+
+  testWidgets(
+    'an offer left unanswered is made at the next launch, until Start empty',
+    (tester) async {
+      await launch(tester);
+      await typeKey(tester, RecoveryKey.generate());
+      await until(tester, () => shown(find.text('Open your newest backup?')));
+      // Quit without answering.
+      await tidy(tester);
+      opened.clear();
+
+      await launch(tester);
+      await until(tester, () => shown(find.text('Open your newest backup?')));
+      await tapAndWait(
+        tester,
+        find.byKey(const ValueKey('offer-restore-empty')),
+      );
+      await tidy(tester);
+      opened.clear();
+
+      await launch(tester);
+      expect(find.byType(LedgerScreen), findsOne);
+      await tapAndWait(tester, find.byType(LedgerScreen));
+      expect(find.text('Open your newest backup?'), findsNothing);
+      await tidy(tester);
+    },
+  );
+
+  testWidgets('a key made on this computer is not offered a backup', (
+    tester,
+  ) async {
+    await launch(tester);
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('recovery-key-generate-new')),
+    );
+    await until(tester, () => shown(find.byType(RecoveryKeySetupScreen)));
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('recovery-key-continue')),
+    );
+    await until(tester, () => shown(find.byType(LedgerScreen)));
+    await tapAndWait(tester, find.byType(LedgerScreen));
+    expect(find.text('Open your newest backup?'), findsNothing);
+    await tidy(tester);
+  });
+
+  group('whether a backup is still to be offered', () {
+    late AppDatabase db;
+    setUp(() => db = AppDatabase(NativeDatabase.memory()));
+    tearDown(() => db.close());
+
+    test('an empty ledger nobody has answered for: yes', () async {
+      expect(await db.backupOfferOpen(), isTrue);
+    });
+
+    test(
+      'a ledger that has held an account: no, even with it deleted',
+      () async {
+        final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+        expect(await db.backupOfferOpen(), isFalse);
+        await db.deleteAccount(bank);
+        expect(await db.backupOfferOpen(), isFalse);
+      },
+    );
+
+    test('categories alone don’t count as a ledger in use', () async {
+      await db.createCategory('Groceries');
+      expect(await db.backupOfferOpen(), isTrue);
+    });
+
+    test('a new ledger started here: no', () async {
+      await db.addAccount(name: 'Bank', type: AccountType.asset);
+      await db.startNewLedger(now, keepCategories: false);
+      expect(await db.backupOfferOpen(), isFalse);
+    });
   });
 }

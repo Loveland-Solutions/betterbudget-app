@@ -13,6 +13,7 @@ import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/ledger_file.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
+import '../domain/setup.dart' show SetupKeys;
 import 'data_words.dart';
 import 'fit_window.dart';
 import 'language.dart';
@@ -49,10 +50,10 @@ class _Setup extends _Step {
 }
 
 class _Running extends _Step {
-  _Running(this.opened, this.dataKey, {this.newDevice = false});
+  _Running(this.opened, this.dataKey, {this.offerBackup = false});
   final OpenedLedger opened;
   final Uint8List dataKey;
-  final bool newDevice;
+  final bool offerBackup;
 }
 
 /// A launch that couldn't finish, with what went wrong: [keyNotKept] (the
@@ -198,13 +199,26 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       return;
     }
     _keySaved = kept;
-    await _open(key);
+    await _open(key, newKey: true);
   }
 
-  Future<void> _open(Uint8List key, {bool newDevice = false}) async {
+  /// [newDevice]: the key was typed and no ledger is here. [newKey]: the key
+  /// was made here, so no backup is waiting to be opened with it.
+  Future<void> _open(
+    Uint8List key, {
+    bool newDevice = false,
+    bool newKey = false,
+  }) async {
     final OpenedLedger opened;
+    var offerBackup = newDevice;
     try {
       opened = await widget.open(key);
+      if (newKey) {
+        await opened.db.setPreference(
+          SetupKeys.backupOffer,
+          SetupKeys.backupOfferNo,
+        );
+      }
       if (newDevice) {
         // A ledger coming from a backup, not the demo.
         await opened.db.setPreference(
@@ -219,12 +233,15 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
           await widget.store.writeKeySaved(true);
         }
       }
+      // Not answered at an earlier launch (the file dialog was cancelled,
+      // or the app was quit): the ledger is still empty, so it's asked again.
+      offerBackup = offerBackup || await opened.db.backupOfferOpen();
     } catch (e) {
       debugPrint('Opening the ledger failed: $e');
       _go(_Failed(e));
       return;
     }
-    _go(_Running(opened, key, newDevice: newDevice));
+    _go(_Running(opened, key, offerBackup: offerBackup));
   }
 
   static Future<bool> _savedInLedger(AppDatabase db) async =>
@@ -289,7 +306,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       clock: widget.clock,
       onContinue: (kept) => _onSetupDone(key, kept),
     ),
-    _Running(:final opened, :final dataKey, :final newDevice) => LedgerScreen(
+    _Running(:final opened, :final dataKey, :final offerBackup) => LedgerScreen(
       db: opened.db,
       backups: opened.backups,
       clock: widget.clock,
@@ -301,7 +318,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
         if (_canPersist) widget.store.writeKeySaved(true);
       },
       startupNotice: _notice(t, opened.report),
-      offerRestore: newDevice,
+      offerRestore: offerBackup,
     ),
     final _Failed f => Scaffold(
       backgroundColor: Mid.ground,

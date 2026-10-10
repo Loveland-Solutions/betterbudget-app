@@ -16,6 +16,11 @@ abstract final class SetupKeys {
   static const stepAccounts = 'accounts';
   static const stepPay = 'pay';
 
+  /// Set to [backupOfferNo] once "Open your newest backup?" needn't be asked
+  /// again: the recovery key was made here, or the answer was "Start empty".
+  static const backupOffer = 'setup.backupOffer';
+  static const backupOfferNo = 'no';
+
   /// The answer to "How do you pay for everyday things?".
   static const everyday = 'setup.everyday';
   static const everydayBank = 'bank';

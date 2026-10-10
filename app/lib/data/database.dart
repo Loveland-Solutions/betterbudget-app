@@ -11,6 +11,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/phone.dart';
+import '../domain/setup.dart' show SetupKeys;
 import '../domain/sync.dart';
 import '../import/mapping.dart';
 import 'encryption.dart';
@@ -2840,6 +2841,26 @@ class AppDatabase extends _$AppDatabase {
       )..where((p) => p.key.equals(startedKey))).getSingleOrNull()) !=
       null;
 
+  /// Whether "Open your newest backup?" is still to be asked at launch:
+  /// nothing says not to ([SetupKeys.backupOffer]) and the ledger has never
+  /// held an account, a deleted one included.
+  Future<bool> backupOfferOpen() async {
+    final answered = await (select(
+      preferences,
+    )..where((p) => p.key.isIn([SetupKeys.backupOffer, SetupKeys.done]))).get();
+    if (answered.isNotEmpty) return false;
+    final held =
+        await (select(accounts)
+              ..where(
+                (a) =>
+                    a.type.equalsValue(AccountType.asset) |
+                    a.type.equalsValue(AccountType.liability),
+              )
+              ..limit(1))
+            .get();
+    return held.isEmpty;
+  }
+
   /// A clean start: every account, transaction, reconcile, pay schedule,
   /// payee and setting goes, in one write. With [keepCategories] the open
   /// categories stay, with no rows in them. The caller saves a copy first.
@@ -2872,6 +2893,9 @@ class AppDatabase extends _$AppDatabase {
             .go();
         await incomeCategory();
         await setPreference(startedKey, dateKey(dateOnly(today)));
+        // Starting clean was the choice: a backup isn't offered at the next
+        // launch.
+        await setPreference(SetupKeys.backupOffer, SetupKeys.backupOfferNo);
       });
 
   Future<void> renameAccount(int accountId, String name) async {
