@@ -5400,4 +5400,79 @@ class WordsEn extends Words {
 
   @override
   String get payeesCategoryGone => 'A deleted category';
+
+  @override
+  String ledgerRowsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things were changed on both computers',
+      one: 'One thing was changed on both computers',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerRowsBody(String computer) {
+    return 'Choose which to keep for each. Everything else $computer changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
+  }
+
+  @override
+  String get ledgerRowsThisComputer => 'This computer';
+
+  @override
+  String get ledgerRowsOtherComputer => 'The other computer';
+
+  @override
+  String get ledgerRowsKeepHere => 'Keep this computer’s';
+
+  @override
+  String ledgerRowsKeepTheirs(String computer) {
+    return 'Keep $computer’s';
+  }
+
+  @override
+  String get ledgerRowsKeepDeletedHere => 'Keep it deleted';
+
+  @override
+  String ledgerRowsKeepDeletedTheirs(String computer) {
+    return 'Keep it deleted ($computer’s)';
+  }
+
+  @override
+  String get ledgerRowsKeepNeither => 'Neither: as it was';
+
+  @override
+  String get ledgerRowsSave => 'Save my choices';
+
+  @override
+  String ledgerRowsAssigned(String category, String date) {
+    return '$category · Assigned, period starting $date';
+  }
+
+  @override
+  String get ledgerRowsDeleted => 'Deleted';
+
+  @override
+  String get ledgerRowsNoPayee => 'No payee';
+
+  @override
+  String ledgerRowsAsItWas(String what) {
+    return 'As it was: $what';
+  }
+
+  @override
+  String ledgerRowsSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your $count choices are saved',
+      one: 'Your choice is saved',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerRowsChangedMeanwhile =>
+      'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.';
 }

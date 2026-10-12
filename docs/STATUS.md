@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.28.0 · schema v19 · 681 tests pass
+**Last updated: 2026-10-12** · version 0.29.0 · schema v19 · 687 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,7 +10,43 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**PR #65 (version 0.28.0): Payees is a section of its own in the sidebar, under
+**The two-computers design was re-chosen on 2026-10-12: a change file per
+computer** (ADR 0005 "Two computers: the way chosen, 2026-10-12"; the four expert
+reports are in [committee/two-computers/](committee/two-computers/)). Told that
+five kinds of conflict still asked which whole ledger to keep, the owner said "I
+don't want them to have to make this decision" and "Databases are made for this
+type of thing", proposed a master database with a local child and a lock file,
+and after the reports chose B ("Let's go with B"): each computer appends its
+changes to a file only it writes (as the phones do), every computer applies the
+others', `Ledger.betterbudget` becomes a derived snapshot the phones keep reading,
+and the lock goes (not atomic over Drive). About six weeks, give or take two, in
+five PRs. **Next is PR 1 of 5: schema v20**, the `changes` table filled by
+triggers, the echo guard, `sync.applied` and `ledger.id`, the upgrade and its test
+on a v19-shaped file, a test that every write path yields a change; nothing in the
+folder changes yet. Then 2 (deterministic ids for paydays, bills, phone entries,
+bank rows), 3 (the folder cycle and the derived snapshot; counters, seal and the
+agreed file go), 4 (the facts-first policy and the blocks), 5 (restore as a batch,
+erase as a new ledger id, the digest guard, a soak on two Mac accounts). The money
+rules were put to the owner with the choice and not objected to (ADR 0005 "The
+money rules"). **Known and left open until PR 3** (found by the review): two
+computers writing within Drive's propagation window make the loser's agreed file a
+false base, so its edits to existing rows are reverted under the "changes arrived"
+popup; added rows are safe. Rare and silent.
+
+Before it, **the row question (version 0.29.0)**, built the same morning (ADR 0004
+"Two computers: the one row both changed"; ADR 0005 "Built, 2026-10-12: asking
+about the one row"): when two computers changed one transaction two ways (or one
+deleted it and the other changed it), or one category's assigned amount for one
+period, a window lists each with what each computer says and "As it was", three
+buttons on each (Keep this computer's, Keep the other's, Neither: as it was), one
+Save my choices; nothing is written until answered; put off, Settings is red with
+Choose…; no Undo (owner: "We don't need to build Undo into this part"). Both
+review passes run and their fixes in. It survives the new design whole, reading
+later as a thing already done that the person may change. The two small questions
+asked with it (a Show on each block; a line under Net worth while put off) fold
+into PR 4 and aren't asked again. **Not run on two real computers.**
+
+Before it, PR #65 (version 0.28.0): Payees is a section of its own in the sidebar, under
 Savings, and a real feature** (ADR 0004 "Payees: its own section" and "Payees: the real
 feature"; owner, 2026-10-12: "I don't want to hide this", "Let's make this a real
 feature", "B. Looks great.", "allow them to apply a payee rule to multiple
@@ -98,15 +134,10 @@ folder. Then, in order:
    ledger on the second Mac account: the Mac's real folder dialog has only been
    faked in tests.
    **It has not been run on two real computers**, only in tests with two ledgers and
-   one folder; the first real run is the owner's to watch. **Left of the owner's
-   decision 1:** when the two changed the same thing two ways (one row's amount, one
-   category's assigned amount for a month), the app still asks which whole ledger
-   to keep and shows only counts. Next is to bring in everything that can stand and
-   ask about that one row with both values ("Nomin, 10.04: ₮45,000 here, ₮54,000 on
-   the laptop"): a new screen, so two or three sketches for the owner first. Before
-   that, cheaper and common between two people: both confirming the same payday,
-   and one filing a bank row the other imported unfiled, should be counted once
-   rather than asked about.
+   one folder; the first real run is the owner's to watch. **The design was
+   re-chosen on 2026-10-12** (above, and ADR 0005 "the way chosen"): five PRs,
+   starting with schema v20. Until PR 3 lands, what is built keeps running as it
+   is.
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
@@ -274,7 +305,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Restore from… pointed at the folder's `Ledger.betterbudget` offers, ticked, "Share the ledger in My Drive/BetterBudget": one step sets up a second computer. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Not built: asking about the one row in conflict |
+| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Restore from… pointed at the folder's `Ledger.betterbudget` offers, ticked, "Share the ledger in My Drive/BetterBudget": one step sets up a second computer. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Row in conflict: asked about (a transaction or one assigned amount), the rest of conflicts ask which whole ledger |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |

@@ -239,7 +239,95 @@ void main() {
         ..add(entry(first, 10, 1, -amount))
         ..add(entry(first + 1, 10, 3, amount));
     }
-    expect(run().conflict, contains('edited on both'));
+    final found = run();
+    expect(found.conflict, isNull);
+    expect(found.asking, isTrue);
+    expect(found.ops, isEmpty);
+    expect(found.asks.single.id, 'transaction|10');
+    expect(found.asks.single.mine.lines.map((l) => l.amountMinor), [
+      -6000,
+      6000,
+    ]);
+    expect(found.asks.single.theirs.lines.map((l) => l.amountMinor), [
+      -8000,
+      8000,
+    ]);
+    expect(found.asks.single.neither.lines.map((l) => l.amountMinor), [
+      -5000,
+      5000,
+    ]);
+    for (final (pick, amount) in [
+      (Pick.mine, 6000),
+      (Pick.theirs, 8000),
+      (Pick.neither, 5000),
+    ]) {
+      final settled = combine(
+        base: base,
+        mine: mine,
+        theirs: theirs,
+        picks: {'transaction|10': pick},
+      );
+      expect(settled.conflict, isNull);
+      expect(settled.asking, isFalse);
+      final result = after(mine, settled.ops);
+      expect(
+        [for (final e in result['entries']!) e['amount_minor']],
+        [-amount, amount],
+        reason: '$pick',
+      );
+    }
+  });
+
+  test('an amount changed on both entries of one row is one question', () {
+    row(mine, 'entries', 20)['amount_minor'] = -6000;
+    row(mine, 'entries', 21)['amount_minor'] = 6000;
+    row(theirs, 'entries', 20)['amount_minor'] = -9000;
+    row(theirs, 'entries', 21)['amount_minor'] = 9000;
+    // Something else the other did comes in with the answer, not before.
+    spend(theirs, 50);
+    final found = run();
+    expect(found.asking, isTrue);
+    expect(found.asks, hasLength(1));
+    final settled = combine(
+      base: base,
+      mine: mine,
+      theirs: theirs,
+      picks: {'transaction|10': Pick.theirs},
+    );
+    final result = after(mine, settled.ops);
+    expect(row(result, 'entries', 20)['amount_minor'], -9000);
+    expect(row(result, 'entries', 21)['amount_minor'], 9000);
+    expect(row(result, 'transactions', 50)['date'], '2026-10-06');
+    expect(settled.transactions, 1);
+    // Done again, nothing is left to do or to ask.
+    final again = combine(base: base, mine: result, theirs: theirs);
+    expect(again.asking, isFalse);
+    expect(again.ops, isEmpty);
+  });
+
+  test('a row both gave another payee and memo keeps the chosen one whole', () {
+    mine['payees']!.add({'id': 2, 'name': 'Unitel'});
+    row(mine, 'transactions', 10)
+      ..['payee_id'] = 2
+      ..['memo'] = 'a';
+    row(theirs, 'transactions', 10)['memo'] = 'b';
+    final found = run();
+    expect(found.asking, isTrue);
+    expect(found.asks.single.theirs.memo, 'b');
+    expect(found.asks.single.mine.payee, 'Unitel');
+    final result = after(
+      mine,
+      combine(
+        base: base,
+        mine: mine,
+        theirs: theirs,
+        picks: {'transaction|10': Pick.theirs},
+      ).ops,
+    );
+    final t = row(result, 'transactions', 10);
+    expect(t['memo'], 'b');
+    // Taken whole: the payee is the other's too, which was unchanged.
+    expect(t['payee_id'], 1);
   });
 
   test('amounts changed on both sides of one transaction don’t add up', () {
@@ -260,10 +348,27 @@ void main() {
     row(mine, 'transactions', 10)['deleted_at'] = 900;
     row(theirs, 'entries', 20)['amount_minor'] = -50000;
     row(theirs, 'entries', 21)['amount_minor'] = 50000;
-    expect(run().conflict, contains('deleted on one and changed'));
+    var found = run();
+    expect(found.conflict, isNull);
+    expect(found.asks.single.mine.deleted, isTrue);
+    expect(found.asks.single.theirs.deleted, isFalse);
+    // Neither: as it was, not deleted and not changed.
+    final result = after(
+      mine,
+      combine(
+        base: base,
+        mine: mine,
+        theirs: theirs,
+        picks: {'transaction|10': Pick.neither},
+      ).ops,
+    );
+    expect(row(result, 'transactions', 10)['deleted_at'], isNull);
+    expect(row(result, 'entries', 20)['amount_minor'], -5000);
     // And the other way about.
     (mine, theirs) = (theirs, mine);
-    expect(run().conflict, contains('deleted on one and changed'));
+    found = run();
+    expect(found.asks.single.mine.deleted, isFalse);
+    expect(found.asks.single.theirs.deleted, isTrue);
   });
 
   test('a payday confirmed here isn’t taken away by a change of the pay '
@@ -282,7 +387,12 @@ void main() {
     row(theirs, 'transactions', 50)
       ..['deleted_at'] = 300
       ..['pay_schedule_id'] = null;
-    expect(run().conflict, contains('deleted on one and changed'));
+    // Never taken away on its own: the person says.
+    final found = run();
+    expect(found.conflict, isNull);
+    expect(found.asks.single.id, 'transaction|50');
+    expect(found.asks.single.theirs.deleted, isTrue);
+    expect(found.asks.single.mine.deleted, isFalse);
   });
 
   test('deleted on the other and untouched here: it goes', () {
@@ -384,13 +494,58 @@ void main() {
     theirs['budget_amounts'] = [
       {'id': 8, 'category_id': 3, 'date': '2026-10-01', 'amount_minor': 55000},
     ];
-    expect(run().conflict, contains('assigned on both'));
+    final found = run();
+    expect(found.conflict, isNull);
+    expect(found.asks.single.kind, AskKind.assigned);
+    expect(found.asks.single.category, 'Groceries');
+    expect(found.asks.single.mine.assignedMinor, 60000);
+    expect(found.asks.single.theirs.assignedMinor, 55000);
+    expect(found.asks.single.neither.assignedMinor, 40000);
+    for (final (pick, amount) in [
+      (Pick.mine, 60000),
+      (Pick.theirs, 55000),
+      (Pick.neither, 40000),
+    ]) {
+      final result = after(
+        mine,
+        combine(
+          base: base,
+          mine: mine,
+          theirs: theirs,
+          picks: {found.asks.single.id: pick},
+        ).ops,
+      );
+      expect(result['budget_amounts']!.single['amount_minor'], amount);
+    }
     // Another period is no conflict.
     theirs['budget_amounts'] = [
       ...base['budget_amounts']!,
       {'id': 8, 'category_id': 3, 'date': '2026-11-01', 'amount_minor': 55000},
     ];
     expect(combined()['budget_amounts'], hasLength(2));
+  });
+
+  test('what is asked about is still held to the reconcile and deleted-'
+      'account checks against what the other really has', () {
+    // A memo changed two ways makes the transaction a question; the other
+    // also cleared its row inside the statement this computer reconciled.
+    mine['reconciliations']!.add({
+      'id': 5,
+      'account_id': 1,
+      'statement_date': '2026-10-05',
+    });
+    row(mine, 'transactions', 10)['memo'] = 'a';
+    row(theirs, 'transactions', 10)['memo'] = 'b';
+    row(theirs, 'entries', 20)['cleared'] = 1;
+    expect(run().conflict, contains('statement reconciled on the other'));
+    // And a row moved into an account deleted here.
+    mine = copy(base);
+    theirs = copy(base);
+    row(mine, 'accounts', 2)['deleted_at'] = 900;
+    row(mine, 'transactions', 10)['memo'] = 'a';
+    row(theirs, 'transactions', 10)['memo'] = 'b';
+    row(theirs, 'entries', 20)['account_id'] = 2;
+    expect(run().conflict, contains('deleted on one and used'));
   });
 
   test('a pay changed on both is asked about, whichever days', () {

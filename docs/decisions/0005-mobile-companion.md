@@ -449,11 +449,231 @@ its `Ledger.betterbudget` in by the same path (`_finishRestore`). A folder that
 holds no ledger is refused there and nothing is written to it, which closes, for
 this door, the gap of a folder whose ledger hasn't arrived yet.
 
-Not built: a question about the one row in conflict, with the real values (decision
-1). A conflict still asks which whole ledger to keep, and still shows only counts.
+**Built, 2026-10-12: asking about the one row** (decision 1, the rest of it; ADR
+0004 "Two computers: the one row both changed"). A thing both computers changed in
+ways that can't both stand is no longer the whole-ledger question.
+
+- **Units.** `combine` found the conflict at one of a few places and now throws
+  an `_Ask` for its unit: a transaction (its header and entries together) or one
+  category's assigned amount for one period. The run starts over with that unit
+  *frozen*: its rows on the agreed ledger and on the other's are replaced by this
+  computer's, so it reads as unchanged there, and everything else is combined as
+  before. Its rows as the other had them and as the agreed ledger had them are held
+  aside (`_heldTheirs`, `_heldBase`), renamed along with the rest when a payee or
+  category both made is counted as one. At most 25 are asked at once; more, or one
+  asked twice, is a conflict as before. A unit holding a reconciled entry is never
+  asked: the lock stays.
+- **Answers** are a `Pick` for each ask by its id (`transaction|<id>`,
+  `assigned|<category>|<date>`): `mine` (nothing changes here), `theirs` (the unit's
+  rows made as the other had them) or `neither` (as the agreed ledger had them).
+  `combine(picks:)` freezes what was picked from the start, applies the choices
+  inside the same comparison, and runs the same checks (every reference names a
+  row, every transaction adds up) on the result. Without a pick for each ask it
+  returns `Combined.asking` and no ops: nothing comes in partly.
+- **In the folder code** the standing is `FolderStanding.rows`, held like `apart`
+  (nothing is written, phones' entries wait). `CloudFolder.asks` are the questions;
+  `bringIn(picks:)` compares again with them, applies the ops, and the write that
+  follows goes to the folder. **The choices are remembered for that folder
+  ledger's digest** (`_decided`): the write after it compares with them, so it is
+  not asked again over what it just chose, and a `neither` that puts every row
+  back as the agreed ledger had it counts as a change made here, not as "nothing
+  changed here, take the folder's".
+- **One computer is asked.** Nothing is written until the answer, so the other
+  computer finds the folder ahead of it with nothing changed there (or the same
+  rows) and takes it in. Known gap: two computers that both write in the same
+  minute and a sync service that keeps both files.
+- **Not asked, still the whole ledger**: a row both made under one id, a pay or a
+  category's plan changed on both, an account or payee renamed on both, a setting
+  changed on both, a reconciled row, an account deleted on one and spent from on the
+  other. And a bank row both imported and filed two ways, which is not yet a card.
+
 Two people who each choose "Keep this computer's ledger" replace each other's in
 turn; nothing is deleted. A purchase both computers typed by hand is two rows, as
 it would be typed twice on one. Not yet run on two real computers.
+
+### Two computers: the way chosen, 2026-10-12 — a change file per computer
+
+**Why it was reopened.** Told that five kinds of conflict (a bank row both
+imported and filed two ways, a pay or plan changed on both, an account renamed on
+both, a setting changed on both, a reconciled row changed on the other side) still
+asked which whole ledger to keep, the owner said: "I don't want them to have to
+make this decision. We need to make a way where entries are ingested without
+replacing the entire database." They proposed a master database loaded into a
+local child copy, the session happening locally, and every X minutes and on
+close: check whether the master changed, place a lock file so other machines
+don't write, write if nothing did, check for conflicts if something did.
+"Databases are made for this type of thing. I feel like we should be able to
+leverage that." Four experts were briefed with one text and the same code
+([committee/two-computers/](../committee/two-computers/)): a distributed-systems
+engineer, a SQLite engineer, a folder-sync practitioner, and the household-money
+expert. The three engineers converged, unbriefed on each other. The owner chose
+this way on 2026-10-12 ("Let's go with B").
+
+**What all four found.** The proposal is right in every step but the lock. A
+local working copy, a check whether the shared file moved before writing, a merge
+instead of an overwrite: built already. The lock breaks because creating a file
+through Drive is neither instant nor atomic (both Macs create it, both succeed,
+they meet in the cloud as `lock` and `lock (1)` after both have written), a lock
+held by a closed laptop needs an expiry, an expiry needs a clock, and when a lock
+does work it blocks the other person. Every folder-sync product that tried one
+(KeePass, Moneydance, Banktivity) removed it. The fix is the rule the phones
+already follow, **one writer per file**: each computer appends its changes to a
+file only it writes, every computer applies the others', and
+`Ledger.betterbudget` becomes a snapshot derived from the logs, which the phones
+and a new computer keep reading unchanged. With nobody sharing a file there is
+nothing to lock, and Drive can't make a conflict copy of a file with one writer.
+SQLite's session extension is compiled into the sqlite3mc build the app links
+(checked in the Mac, Android and iOS binaries: `ENABLE_SESSION`,
+`ENABLE_PREUPDATE_HOOK`, 44 exported symbols; `package:sqlite3` exposes `Session`,
+`Changeset`, `Session.diff`).
+
+**A hole in what is built today**, found on the way (the distributed-systems
+report, finding 2): `cloud-folder-agreed` is a true common ancestor only while the
+folder's history is a straight line. If two computers write inside Drive's
+propagation window, Drive keeps one, and the loser's base is its own lost write;
+for edits to existing rows `_table` then sees was == here != there and takes the
+other's, reverting the loser's edits under the "changes arrived" popup. Added
+rows are caught by `_checkDescends`, as the whole-ledger question. Rare (both
+must write within the same minute or so) and silent. Step 3 below removes it; no
+interim guard, to avoid throwaway work.
+
+**Rejected.** A: keep the one shared file, close the hole by keeping the last few
+agreed files, turn the five cases into blocks in the row window (about two
+weeks); it keeps the whole-ledger question after a restore or whenever no common
+base is on hand, and the write race. C: the proposal as written, with a lock
+(two to three weeks; still breaks when one computer is offline, which is when
+conflicts are made). The smaller step of a change log inside the single shared
+file (fixes the base problem, keeps the race and the "(1)" copies) was not
+stopped at either.
+
+**The design.** Terms: a *change* is one row's insert, update or delete with its
+old and new values by column name; a *batch* is the changes one computer made
+between two flushes; a computer's *applied vector* is, for every computer it
+knows, the last sequence number it has applied.
+
+- *In the ledger (schema v20; the upgrade adds, never alters, and keeps every
+  row, with a test on a v19-shaped file):* a `changes` table (sequence, computer,
+  table, key, op, old JSON, new JSON, schema version), filled by AFTER
+  INSERT/UPDATE/DELETE triggers on every one of the twelve tables, generated from
+  the table list and asserted by a test (a table without its three triggers, or
+  missing from `combine.dart`'s `_keys`, fails the suite). Triggers rather than a
+  live `Session`, because they are name-keyed (raw changesets are positional, and
+  the owner's file and a fresh file don't share a column order,
+  `ledger_seal.dart` line 19), they commit inside the same transaction as the
+  write, they need no isolate plumbing (drift_flutter opens the ledger in a
+  background isolate), and the log lives in the encrypted file so backups and
+  the snapshot carry it. Preferences: `sync.applied` (the vector), `sync.applying`
+  (set inside the transaction that applies another's batch, so its writes aren't
+  logged as this computer's: the echo guard, with a test), `ledger.id` (adopted
+  from the folder, never invented twice). `Session.diff` is used where it is
+  unbeatable: to log a Restore as one batch, and in tests to prove two files
+  identical.
+- *In the folder:* `Ledger.betterbudget`, the snapshot as today plus the vector
+  and a 30-day tail of `changes`, written only by a computer whose vector is at
+  or past the snapshot's, 5 seconds after quiet, through `_put` as now (a
+  `Ledger (1).betterbudget` is harmless, derived, and removed once its vector is
+  covered). `Computer <id>.betterbudget-changes`, one per computer, encrypted
+  like the phone's file, written whole and only by its owner: a header (vector,
+  schema, ledger id) and its changes since the lowest point any other known
+  computer has reported applying. Phone files as today; phones ignore the new
+  file (`isPhoneInboxName`).
+- *Locally:* the ledger (its full `changes`) and the computer id in
+  `cloud-folder`. `cloud-folder-agreed`, the counters, the seal as a merge
+  input, `theirsIsMyOldWrite` and `_writingMark` go. `ledgerDigest` stays as the
+  convergence check.
+- *The cycle* (same triggers as today's look: launch, before a write, on
+  foreground, every 15 s, at quit; one at a time): copy out each other
+  computer's file whose size or time moved (torn copy: "arriving", retry); take
+  its changes past my vector in order; if its header says it depends on changes I
+  lack from a third computer, hold the whole file until they arrive (causal
+  order: a change never names a row that hasn't come); apply the batch in one
+  transaction in `applyCombined`'s shape (parents first, deferred foreign keys,
+  then `foreign_key_check` and `unbalancedSql`; any failure, nothing changes and
+  the batch is held, said in red with the computer and day); per row, current ==
+  old → apply, current == new → nothing, else a true crossed change → the policy
+  below; advance the vector; rewrite my own file if my log has grown; write the
+  snapshot if my vector is past it. Drive slow: nothing waits but the causal
+  hold. Offline a day: both logs grow, each applies the other's on return. A
+  cloned disk (my id in a file I didn't write): take a new id, say so.
+- *Deterministic ids* for rows two computers make on their own, in a reserved
+  range above `newRowId`'s: a scheduled payday or bill from (schedule id, date);
+  a phone entry's transaction from the phone entry id; a bank row from its import
+  key; Income and Safety net fixed. Then "both made the same thing" is one id,
+  and `_sameScheduled`, `_samePhoneEntries`, `_sameBankRows` stay only as the
+  backstop for rows made before. A payee keeps `newRowId` and `_samePayees` (a
+  name hash collides across spellings).
+- *Converge first, ask second* (my call, from the practitioner's report; the
+  owner's rule "warn, don't block" applied to merging). Both computers see each
+  other's batches, so a crossed change would be a question on both, and two
+  people could answer it two ways, the one thing that must never happen. So every
+  computer settles a crossed change the same way by a rule that needs no clock:
+  a fact first (a reconciled row keeps its money columns; a bank-matched row
+  beats a hand-typed one on amount, date and account), then the batch made with
+  more knowledge (the vector that dominates), then the lower computer id. Both
+  ledgers are then identical the moment both have read the same files, and the
+  phones agree. The person whose change lost gets the row window
+  (`rows_dialog.dart`: keep this computer's, keep the other's, neither), now
+  reading as a thing already done that they may change; their answer is an
+  ordinary change the other computer applies. Nothing is lost: the losing version
+  is on the card and in Backups. Rejected: holding the unit unapplied on both
+  until one answers (the ledgers differ meanwhile and the phones show whichever
+  wrote last).
+- *The money rules* (the money expert's, taken; new ways money is counted, put to
+  the owner with the choice and not objected to): reconciled wins on money columns
+  only, payee, memo and category edits still come in, and a row the other side
+  added cleared inside the statement arrives uncleared with a note; bank-matched
+  beats hand-typed on money columns and the typed filing stays; deleted on one and
+  changed on the other **stays**, with the change, said with Show and "Delete it
+  anyway" (a dropped real row is invisible until a balance is off); one payday is
+  one row, two confirmations of it are two updates, different amounts settle by
+  the rule above and are shown; an account or category renamed on both keeps this
+  computer's name and mentions the other, never a question; an amount assigned
+  two ways for one period is never summed and never "larger wins" (one shared
+  pool); "later edit wins" is never a rule. What still reaches a person as a
+  block: the same amount changed two ways with neither matched to the bank; the
+  same category assigned two amounts for one period (with what would be left to
+  assign under each); a bank row both filed, two ways; a pay or plan changed on
+  both in the same column.
+- *Restore and erase.* A Restore is logged as one batch (`Session.diff` against
+  the attached backup), and the restoring computer is told first what it undoes
+  elsewhere ("the laptop's 23 rows since Monday"), warn-don't-block; rows the
+  other side changed since become blocks. "Erase everything and start over" gives
+  a new `ledger.id`; computers never merge across ids: "The Mac started a new
+  ledger: open it / keep this one". That is the one whole-ledger question left,
+  after the one whole-ledger act.
+- *Guards against silent drift:* each batch carries the writer's `ledgerDigest`
+  after it; a reader whose vector equals the writer's at that batch must get the
+  same digest, or the line goes red that day with a repair (take the snapshot).
+  Property tests shuffle batch order across two ledgers and assert equal digests.
+- *Transition:* both computers must be on v20 (the schema gate holds an older
+  build as `newerApp` does today). The first meeting after both upgrade uses
+  today's path once; from then on, logs. The old path is removed a release later.
+  Nothing of the owner's is replaced; the leave in decision 3 is not used.
+- *Cost:* about six weeks, give or take two. Survives: `rows_dialog.dart`,
+  `Ask`/`Pick`, `_byColumn` and the unit machinery and checks in `combine.dart`,
+  `applyCombined`, `unbalancedSql`, `ledger_seal.dart`, `newRowId`, the queue,
+  scratch copy, `_put` and `FolderAccess` in `cloud_folder.dart`, all phone code,
+  `Backups`. Goes: `cloud-folder-agreed`, counters and seal as merge inputs,
+  `decideFolderMove` except as the snapshot rule, `keepMine`/`undoKeepMine`,
+  `_decided`, `_askedAbout`, the whole-ledger question except at an erase.
+
+**Built in order, each its own PR:**
+
+1. Schema v20: the `changes` table, the triggers, the echo guard, `sync.applied`,
+   `ledger.id`; the upgrade and its test on a v19-shaped file; a test that every
+   write path yields a change. No change to the folder yet.
+2. Deterministic ids for paydays, bills, phone entries and bank rows, with the
+   old dedupe kept as backstop.
+3. The folder cycle: the per-computer change file, reading others', causal apply
+   with the per-row policy ported from `combine.dart`, the derived snapshot, the
+   transition gate. Counters, seal and the agreed file go. This closes the hole
+   above.
+4. The policy and the blocks: the facts-first rule, the window as "already done,
+   change it", the new block kinds (bank row filed two ways, pay or plan), the
+   resolution travelling as a change, the money rules above.
+5. Restore as a batch, erase as a new ledger id, the digest guard, compaction of
+   old changes, cleanup of `(1)` copies, and a soak on two Mac accounts through
+   Drive, then two machines.
 
 ### What a phone can and can't do
 

@@ -44,6 +44,91 @@ class RowOp {
       : '${insert ? 'insert' : 'update'} $table $row';
 }
 
+/// What the person chose for one thing both computers changed.
+enum Pick {
+  /// This computer's way: left as it is here.
+  mine,
+
+  /// The other computer's way.
+  theirs,
+
+  /// Neither: as it was before either changed it.
+  neither,
+}
+
+enum AskKind { transaction, assigned }
+
+/// One line of a transaction, as the person reads it.
+class AskLine {
+  const AskLine({
+    required this.account,
+    required this.amountMinor,
+    required this.currency,
+    required this.isCategory,
+  });
+  final String account;
+  final int amountMinor;
+  final String currency;
+
+  /// A category rather than a bank, cash or credit account.
+  final bool isCategory;
+}
+
+/// What one version of a thing says.
+class AskSide {
+  const AskSide({
+    this.deleted = false,
+    this.date,
+    this.payee,
+    this.memo,
+    this.lines = const [],
+    this.assignedMinor,
+  });
+
+  /// A transaction taken away in this version.
+  final bool deleted;
+  final String? date;
+  final String? payee;
+  final String? memo;
+  final List<AskLine> lines;
+
+  /// For [AskKind.assigned]: what the category is assigned for the period.
+  final int? assignedMinor;
+}
+
+/// One thing both computers changed in ways that can't both stand: the
+/// person chooses [Pick] for it. Everything else in the two comes in
+/// without a question.
+class Ask {
+  const Ask({
+    required this.id,
+    required this.kind,
+    required this.mine,
+    required this.theirs,
+    required this.neither,
+    this.transaction,
+    this.category,
+    this.date,
+    this.currency,
+  });
+
+  /// Stable for the same two ledgers; what a [Pick] is given under.
+  final String id;
+  final AskKind kind;
+  final AskSide mine;
+  final AskSide theirs;
+  final AskSide neither;
+
+  /// The transaction, for [AskKind.transaction].
+  final int? transaction;
+
+  /// For [AskKind.assigned]: the category's name, the period's first day
+  /// and the currency.
+  final String? category;
+  final String? date;
+  final String? currency;
+}
+
 /// What [combine] found.
 class Combined {
   const Combined(
@@ -51,12 +136,34 @@ class Combined {
     this.transactions = 0,
     this.others = 0,
     this.alike = const [],
-  }) : conflict = null;
+    this.asks = const [],
+  }) : conflict = null,
+       asking = false;
   const Combined.conflict(String this.conflict)
     : ops = const [],
       transactions = 0,
       others = 0,
-      alike = const [];
+      alike = const [],
+      asks = const [],
+      asking = false;
+
+  /// Things both computers changed that need an answer, with nothing
+  /// brought in until each has one ([ops] is empty then).
+  const Combined.asking(this.asks)
+    : ops = const [],
+      transactions = 0,
+      others = 0,
+      alike = const [],
+      conflict = null,
+      asking = true;
+
+  /// The things the person has to choose for. When [combine] was given a
+  /// [Pick] for each, the ones that were chosen.
+  final List<Ask> asks;
+
+  /// Some of [asks] have no [Pick] yet: nothing is to be brought in until
+  /// each has one.
+  final bool asking;
 
   /// What to change here so this ledger also holds what the other changed.
   /// Empty: it holds all of it already.
@@ -186,36 +293,125 @@ Map<String, Row> _index(String table, List<Row>? rows) => {
   for (final r in rows ?? const <Row>[]) _keyOf(table, r): r,
 };
 
+/// The most things asked about at once; more than that is a ledger the
+/// person had better choose whole.
+const _mostAsks = 25;
+
 /// What to change in [mine] so that it also holds everything [theirs]
 /// changed since [base], or why that can't be done without asking. [base]
 /// is the ledger both computers last agreed on; nothing given is changed.
+///
+/// A thing both changed in ways that can't both stand (one transaction's
+/// amount, what one category is assigned for one period, a transaction
+/// deleted on one and changed on the other) is left as it is here and
+/// comes back in [Combined.asks]. With a [Pick] for each in [picks] it is
+/// settled as chosen; with none for some, nothing is brought in yet
+/// ([Combined.asking]). Anything else that can't stand is a conflict, and
+/// the person chooses a whole ledger.
 Combined combine({
   required LedgerRows base,
   required LedgerRows mine,
   required LedgerRows theirs,
+  Map<String, Pick> picks = const {},
 }) {
-  try {
-    return _Combine(base, mine, theirs).run();
-  } on _Conflict catch (c) {
-    return Combined.conflict(c.why);
+  // What was already chosen is left out of the comparison from the start:
+  // this computer's ledger holds the choice, and the other's version of it
+  // mustn't come in again over it.
+  final units = <String, _Unit>{
+    for (final id in picks.keys) id: _Unit.parse(id),
+  };
+  while (true) {
+    try {
+      final run = _Combine(base, mine, theirs, units, picks);
+      final found = run.run();
+      if (units.isEmpty) return found;
+      final asks = run.asks();
+      if (units.keys.any((id) => !picks.containsKey(id))) {
+        return Combined.asking(asks);
+      }
+      return Combined(
+        found.ops,
+        transactions: found.transactions,
+        others: found.others,
+        alike: found.alike,
+        asks: asks,
+      );
+    } on _Ask catch (a) {
+      // Asked about twice: left out of the comparison and still in the way.
+      if (units.containsKey(a.unit.id) || units.length >= _mostAsks) {
+        return Combined.conflict(a.why);
+      }
+      units[a.unit.id] = a.unit;
+    } on _Conflict catch (c) {
+      return Combined.conflict(c.why);
+    }
   }
 }
 
+/// A thing that is chosen for as a whole: a transaction with its entries,
+/// or what one category is assigned for one period.
+class _Unit {
+  _Unit.transaction(this.transaction) : category = null, date = null;
+  _Unit.assigned(this.category, this.date) : transaction = null;
+  final Object? transaction;
+  final Object? category;
+  final String? date;
+
+  /// Made again from its [id].
+  factory _Unit.parse(String id) {
+    final p = id.split('|');
+    if (p.first == 'transaction') return _Unit.transaction(int.parse(p[1]));
+    return _Unit.assigned(int.parse(p[1]), p[2]);
+  }
+
+  String get id => transaction != null
+      ? 'transaction|$transaction'
+      : 'assigned|$category|$date';
+}
+
+class _Ask implements Exception {
+  _Ask(this.unit, this.why);
+  final _Unit unit;
+  final String why;
+}
+
 class _Combine {
-  _Combine(this.base, this.mine, LedgerRows theirs)
-    : theirs = {
+  _Combine(
+    LedgerRows base,
+    this.mine,
+    LedgerRows theirs,
+    this.units,
+    this.picks,
+  ) : base = {
+        for (final e in base.entries) e.key: [...e.value],
+      },
+      theirs = {
         for (final e in theirs.entries)
           e.key: [
             for (final r in e.value) {...r},
           ],
       };
 
+  /// What was already asked about: left out of the comparison (it reads as
+  /// unchanged on the other computer) until it is settled.
+  final Map<String, _Unit> units;
+  final Map<String, Pick> picks;
+
+  /// The rows of those, as the other computer and the agreed ledger had
+  /// them, by table. What the other computer renamed is renamed in them.
+  final _heldTheirs = <String, List<Row>>{};
+  final _heldBase = <String, List<Row>>{};
+
   final LedgerRows base;
   final LedgerRows mine;
 
   /// A copy: what each computer made for itself is renamed in it to this
   /// computer's before the two are compared.
-  final LedgerRows theirs;
+  LedgerRows theirs;
+
+  /// [theirs] before what was asked about was made to read as unchanged:
+  /// the checks of what must still hold are made against it.
+  LedgerRows? _theirsFull;
 
   final ops = <RowOp>[];
 
@@ -238,6 +434,7 @@ class _Combine {
     }
     _oneOfEach();
     _checkDescends();
+    _freeze();
     for (final t in combineOrder) {
       if (t == 'budget_amounts') {
         _budgetAmounts();
@@ -247,10 +444,19 @@ class _Combine {
         _table(t);
       }
     }
+    _resolve();
     _moveToReplacements();
     _checkTransactions();
-    _checkDeletedAccounts();
-    _checkReconciliations();
+    // Against what the other computer really has: a version chosen from it
+    // mustn't put a row in a deleted account or inside a statement.
+    final frozen = theirs;
+    theirs = _theirsFull ?? theirs;
+    try {
+      _checkDeletedAccounts();
+      _checkReconciliations();
+    } finally {
+      theirs = frozen;
+    }
     _checkReferences();
     return Combined(
       ops,
@@ -298,6 +504,204 @@ class _Combine {
     return out;
   }
 
+  // ---------- what the person is asked about ----------
+
+  bool _inUnit(_Unit u, String table, Row r) {
+    if (u.transaction != null) {
+      return table == 'transactions'
+          ? r['id'] == u.transaction
+          : table == 'entries' && r['transaction_id'] == u.transaction;
+    }
+    return table == 'budget_amounts' &&
+        r['category_id'] == u.category &&
+        r['date'] == u.date;
+  }
+
+  static const _unitTables = {
+    'transactions': ['transactions', 'entries'],
+    'assigned': ['budget_amounts'],
+  };
+
+  List<String> _tablesOf(_Unit u) =>
+      _unitTables[u.transaction != null ? 'transactions' : 'assigned']!;
+
+  /// Each thing already asked about is made to read as unchanged on the
+  /// other computer, so the rest of the two can be compared without it.
+  /// What the other computer and the agreed ledger said of it is kept
+  /// aside for the answer.
+  void _freeze() {
+    if (units.isEmpty) return;
+    _theirsFull = {
+      for (final e in theirs.entries) e.key: [...e.value],
+    };
+    for (final u in units.values) {
+      for (final table in _tablesOf(u)) {
+        final here = [
+          for (final r in mine[table] ?? const <Row>[])
+            if (_inUnit(u, table, r)) r,
+        ];
+        void swap(LedgerRows side, Map<String, List<Row>> held) {
+          final rows = side[table] ??= [];
+          for (final r in rows) {
+            if (_inUnit(u, table, r)) (held[table] ??= []).add({...r});
+          }
+          rows.removeWhere((r) => _inUnit(u, table, r));
+          rows.addAll([
+            for (final r in here) {...r},
+          ]);
+        }
+
+        swap(theirs, _heldTheirs);
+        swap(base, _heldBase);
+      }
+    }
+  }
+
+  /// A thing both changed, to be chosen for as a whole: unless it holds a
+  /// reconciled row, whose lock stays whatever is chosen.
+  Never _ask(_Unit u, String why) {
+    if (u.transaction != null) {
+      for (final of in [base, mine, theirs]) {
+        for (final e in of['entries'] ?? const <Row>[]) {
+          if (e['transaction_id'] == u.transaction &&
+              e['reconciliation_id'] != null) {
+            _stop(why);
+          }
+        }
+      }
+    }
+    throw _Ask(u, why);
+  }
+
+  /// The transaction a row of the transactions or entries tables is of.
+  Never _askAbout(String table, Iterable<Row?> rows, String why) {
+    for (final r in rows) {
+      if (r == null) continue;
+      if (table == 'transactions') _ask(_Unit.transaction(r['id']), why);
+      if (table == 'entries') {
+        _ask(_Unit.transaction(r['transaction_id']), why);
+      }
+    }
+    _stop(why);
+  }
+
+  /// Makes [table]'s rows of one thing in the result as [wanted] has them.
+  void _setRows(String table, Iterable<Row> current, List<Row> wanted) {
+    final by = {for (final r in wanted) _keyOf(table, r): r};
+    final has = {for (final r in current) _keyOf(table, r): r};
+    for (final e in has.entries) {
+      if (!by.containsKey(e.key)) _delete(table, e.value);
+    }
+    for (final e in by.entries) {
+      final was = has[e.key];
+      if (was == null) {
+        // Under an id that is another thing's here.
+        if (result[table]!.containsKey(e.key)) {
+          _stop('$table ${e.key} is taken, choosing a version of another');
+        }
+        _insert(table, {...e.value});
+      } else if (!_same(was, e.value)) {
+        _update(table, {...e.value});
+      }
+    }
+  }
+
+  /// Settles what was asked as it was chosen. This computer's way is what
+  /// is here already.
+  void _resolve() {
+    for (final u in units.values) {
+      final pick = picks[u.id];
+      if (pick == null || pick == Pick.mine) continue;
+      final from = pick == Pick.theirs ? _heldTheirs : _heldBase;
+      for (final table in _tablesOf(u)) {
+        _setRows(
+          table,
+          [
+            for (final r in result[table]!.values)
+              if (_inUnit(u, table, r)) r,
+          ],
+          [for (final r in from[table] ?? const <Row>[]) r],
+        );
+      }
+    }
+  }
+
+  String? _nameIn(String table, Object? id, String column) {
+    for (final of in [mine, theirs, base]) {
+      for (final r in of[table] ?? const <Row>[]) {
+        if (r['id'] == id) return r[column] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// What each of the three said of what was asked about, for the screen.
+  List<Ask> asks() => [for (final u in units.values) _describe(u)];
+
+  Ask _describe(_Unit u) {
+    if (u.transaction != null) {
+      AskSide side(Map<String, List<Row>> rows) {
+        final t = (rows['transactions'] ?? const <Row>[]).firstOrNull;
+        return AskSide(
+          deleted: t == null || t['deleted_at'] != null,
+          date: t?['date'] as String?,
+          payee: t == null ? null : _nameIn('payees', t['payee_id'], 'name'),
+          memo: t?['memo'] as String?,
+          lines: [
+            for (final e in rows['entries'] ?? const <Row>[])
+              AskLine(
+                account: _nameIn('accounts', e['account_id'], 'name') ?? '',
+                amountMinor: e['amount_minor'] as int,
+                currency: '${e['currency']}',
+                isCategory: const {
+                  'income',
+                  'expense',
+                  'equity',
+                }.contains(_nameIn('accounts', e['account_id'], 'type')),
+              ),
+          ],
+        );
+      }
+
+      Map<String, List<Row>> of(LedgerRows rows) => {
+        for (final table in const ['transactions', 'entries'])
+          table: [
+            for (final r in rows[table] ?? const <Row>[])
+              if (_inUnit(u, table, r)) r,
+          ],
+      };
+      return Ask(
+        id: u.id,
+        kind: AskKind.transaction,
+        transaction: u.transaction as int?,
+        mine: side(of(mine)),
+        theirs: side(_heldTheirs),
+        neither: side(_heldBase),
+      );
+    }
+    AskSide side(Map<String, List<Row>> rows) => AskSide(
+      assignedMinor: (rows['budget_amounts'] ?? const <Row>[]).fold<int>(
+        0,
+        (sum, r) => sum + (r['amount_minor'] as int),
+      ),
+    );
+    return Ask(
+      id: u.id,
+      kind: AskKind.assigned,
+      category: _nameIn('accounts', u.category, 'name'),
+      currency: _nameIn('accounts', u.category, 'currency'),
+      date: u.date,
+      mine: side({
+        'budget_amounts': [
+          for (final r in mine['budget_amounts'] ?? const <Row>[])
+            if (_inUnit(u, 'budget_amounts', r)) r,
+        ],
+      }),
+      theirs: side(_heldTheirs),
+      neither: side(_heldBase),
+    );
+  }
+
   // ---------- the same thing made on both computers ----------
 
   void _oneOfEach() {
@@ -310,7 +714,7 @@ class _Combine {
   }
 
   void _rename(String table, String column, Object? from, Object? to) {
-    for (final r in theirs[table] ?? const <Row>[]) {
+    for (final r in [...?theirs[table], ...?_heldTheirs[table]]) {
       if (r[column] == from) r[column] = to;
     }
   }
@@ -756,7 +1160,11 @@ class _Combine {
       }
       if (was == null) _stop('$table $k made on both, not the same');
       if (here == null || there == null) {
-        _stop('$table $k changed on one and deleted on the other');
+        _askAbout(table, [
+          was,
+          here,
+          there,
+        ], '$table $k changed on one and deleted on the other');
       }
       if (!_byColumn.contains(table)) _stop('$table $k changed on both');
       final merged = {...here};
@@ -771,7 +1179,7 @@ class _Combine {
           final a = here[c], o = there[c];
           merged[c] = a is int && o is int && o > a ? o : a;
         } else {
-          _stop('$table $k: $c changed on both');
+          _askAbout(table, [was, here, there], '$table $k: $c changed on both');
         }
       }
       if (!_same(merged, here)) _update(table, merged);
@@ -798,7 +1206,13 @@ class _Combine {
     for (final k in {...b.keys, ...m.keys, ...t.keys}) {
       final was = sum(b[k]), here = sum(m[k]), there = sum(t[k]);
       if (there == was || there == here) continue;
-      if (here != was) _stop('assigned on both: $k');
+      if (here != was) {
+        final any = [...?t[k], ...?m[k], ...?b[k]].first;
+        throw _Ask(
+          _Unit.assigned(any['category_id'], any['date'] as String),
+          'assigned on both: $k',
+        );
+      }
       changed.add(k);
     }
     // What goes, from every one of them, before anything comes: a row
@@ -940,7 +1354,10 @@ class _Combine {
         final (ot, oe) = deleted(mt) ? (tt, te) : (mt, me);
         if (_whole(ot, oe[id] ?? const [], id, but: but) !=
             _whole(bt, be[id] ?? const [], id, but: but)) {
-          _stop('transaction $id deleted on one and changed on the other');
+          _ask(
+            _Unit.transaction(id),
+            'transaction $id deleted on one and changed on the other',
+          );
         }
       }
       final was = _whole(bt, be[id] ?? const [], id);
@@ -953,7 +1370,7 @@ class _Combine {
         for (final e in rows ?? []) e['id'],
       };
       if (!_sameSet(ids(me[id]), ids(te[id]))) {
-        _stop('transaction $id edited on both');
+        _ask(_Unit.transaction(id), 'transaction $id edited on both');
       }
       // A reconciled row keeps what it was reconciled as: its amount, its
       // account, its date. One computer locking it while the other changed

@@ -1242,5 +1242,21 @@
   "payeesAlreadyListed": "«{payee}» жагсаалтад аль хэдийн байна, {category} гэж",
   "payeesAlreadyIn": "{count, plural, other{{count} нь аль хэдийн {category} ангилалд}}",
   "payeesAnywhereWould": "{count, plural, other{{count} мөрд энэ үг орсон байна}}",
-  "payeesCategoryGone": "Устгасан ангилал"
+  "payeesCategoryGone": "Устгасан ангилал",
+  "ledgerRowsTitle": "{count, plural, other{{count} зүйл хоёр компьютер дээр өөрчлөгдсөн}}",
+  "ledgerRowsBody": "Тус бүрээс аль нэгийг нь сонгоно уу. {computer}-ийн бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.",
+  "ledgerRowsThisComputer": "Энэ компьютер",
+  "ledgerRowsOtherComputer": "Нөгөө компьютер",
+  "ledgerRowsKeepHere": "Энэ компьютерийнхийг үлдээх",
+  "ledgerRowsKeepTheirs": "{computer}-ийнхийг үлдээх",
+  "ledgerRowsKeepDeletedHere": "Устгасан хэвээр нь үлдээх",
+  "ledgerRowsKeepDeletedTheirs": "Устгасан хэвээр нь үлдээх ({computer}-ийнх)",
+  "ledgerRowsKeepNeither": "Аль нь ч биш, урьдынхаар",
+  "ledgerRowsSave": "Сонголтоо хадгалах",
+  "ledgerRowsAssigned": "{category} · Оноосон, {date}-аас эхлэх үе",
+  "ledgerRowsDeleted": "Устгасан",
+  "ledgerRowsNoPayee": "Хүлээн авагчгүй",
+  "ledgerRowsAsItWas": "Урьд нь: {what}",
+  "ledgerRowsSaved": "{count, plural, other{{count} сонголт хадгалагдлаа}}",
+  "ledgerRowsChangedMeanwhile": "Сонгож байх хооронд энэ компьютер дээр ямар нэг зүйл өөрчлөгдсөн тул юу ч хадгалагдсангүй. Танаас дахин асууна."
 }

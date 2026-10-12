@@ -3365,3 +3365,50 @@ on the transaction for associating the payee with the category."
   remembered for next time", with the offer to file that payee's rows still in Not
   categorized. The popup's own offer after a category is picked stays.
 
+### Two computers: the one row both changed (2026-10-12)
+
+Built as the rest of decision 1 of "More than one computer on one ledger"
+([ADR 0005](0005-mobile-companion.md), "Built, 2026-10-12: asking about the one
+row"). Owner, 2026-10-12, told the app would still ask which whole ledger to keep
+when two computers changed one row's amount two ways: "There is no way around this.
+If they both changed the same entry, you'll have to have someone decide which one
+to keep if they're different. Let's do it."
+
+- **Three sketches were offered** (one list of every row with two sides each; one
+  row at a time; a list with "all of this computer's" and "all of the laptop's"
+  at the top). The owner chose none of them as drawn: "It would be very rare that
+  there would be multiples like this, but if there did, there should be an option
+  to accept from remote machine, accept from local machine or reject altogether
+  for each entry. We can have those buttons on every transaction being asked
+  about, though, so there aren't a million screens to look at." So: **one window,
+  a card for each thing, three buttons on each card**: **Keep this computer's**,
+  **Keep The laptop's** (the other computer's own name), **Neither: as it was**.
+  Each card says what each computer says and, under both, "As it was: …". One
+  **Save my choices**; **Not now** and Esc leave it as it is.
+- **What is asked**: a transaction changed two ways (an amount, a date, a payee, a
+  memo, the category), a transaction deleted on one and changed on the other (the
+  card says Deleted), and what one category is assigned for one budget period
+  changed two ways. The owner said yes to the deleted-and-changed kind too ("Also
+  deleted vs changed"). A row both made, a pay or plan changed on both, an
+  account renamed on both, a setting changed on both, and **a reconciled row**
+  still ask which whole ledger to keep: a lock the owner chose stays whatever is
+  picked.
+- **A default, not a required choice**: each card starts on Keep this computer's,
+  which changes nothing on this screen. Save is never greyed.
+- **Nothing comes in, and nothing is written to the folder, until it is answered**,
+  so that only one computer is ever asked. What doesn't conflict comes in with the
+  answer, in one write. Put off, Settings says "changed on another computer too",
+  in red, with **Choose…** (the same button the whole-ledger question has).
+- The popup after is the one for other computers' changes, with no Undo: this
+  computer's ledger as it was is in Backups.
+- Sent to the budget-app review and the code review before it was called done;
+  see STATUS.
+- **The same day, the owner reopened the whole design** ("I don't want them to
+  have to make this decision"; "Databases are made for this type of thing") and,
+  after four expert reports, chose a change file per computer with the shared
+  ledger a derived snapshot (ADR 0005 "Two computers: the way chosen,
+  2026-10-12"). This window survives it; it will read as a thing already done
+  that the person may change, since both computers settle a crossed change the
+  same way first. Rejected with it: patching the one shared file (A) and the
+  owner's master-plus-lock proposal as written (C).
+

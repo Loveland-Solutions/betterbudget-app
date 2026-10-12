@@ -5208,4 +5208,77 @@ class WordsMn extends Words {
 
   @override
   String get payeesCategoryGone => 'Устгасан ангилал';
+
+  @override
+  String ledgerRowsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count зүйл хоёр компьютер дээр өөрчлөгдсөн',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerRowsBody(String computer) {
+    return 'Тус бүрээс аль нэгийг нь сонгоно уу. $computer-ийн бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.';
+  }
+
+  @override
+  String get ledgerRowsThisComputer => 'Энэ компьютер';
+
+  @override
+  String get ledgerRowsOtherComputer => 'Нөгөө компьютер';
+
+  @override
+  String get ledgerRowsKeepHere => 'Энэ компьютерийнхийг үлдээх';
+
+  @override
+  String ledgerRowsKeepTheirs(String computer) {
+    return '$computer-ийнхийг үлдээх';
+  }
+
+  @override
+  String get ledgerRowsKeepDeletedHere => 'Устгасан хэвээр нь үлдээх';
+
+  @override
+  String ledgerRowsKeepDeletedTheirs(String computer) {
+    return 'Устгасан хэвээр нь үлдээх ($computer-ийнх)';
+  }
+
+  @override
+  String get ledgerRowsKeepNeither => 'Аль нь ч биш, урьдынхаар';
+
+  @override
+  String get ledgerRowsSave => 'Сонголтоо хадгалах';
+
+  @override
+  String ledgerRowsAssigned(String category, String date) {
+    return '$category · Оноосон, $date-аас эхлэх үе';
+  }
+
+  @override
+  String get ledgerRowsDeleted => 'Устгасан';
+
+  @override
+  String get ledgerRowsNoPayee => 'Хүлээн авагчгүй';
+
+  @override
+  String ledgerRowsAsItWas(String what) {
+    return 'Урьд нь: $what';
+  }
+
+  @override
+  String ledgerRowsSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count сонголт хадгалагдлаа',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerRowsChangedMeanwhile =>
+      'Сонгож байх хооронд энэ компьютер дээр ямар нэг зүйл өөрчлөгдсөн тул юу ч хадгалагдсангүй. Танаас дахин асууна.';
 }

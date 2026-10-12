@@ -7616,6 +7616,102 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'A deleted category'**
   String get payeesCategoryGone;
+
+  /// Title of the question that lists what two computers each changed in a way that can’t both stand: a transaction’s amount or details, or what a category is assigned for a period. {count} is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}'**
+  String ledgerRowsTitle(int count);
+
+  /// Under ledgerRowsTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which to keep for each. Everything else {computer} changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  String ledgerRowsBody(String computer);
+
+  /// Heading over this computer’s version of a thing both computers changed.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer'**
+  String get ledgerRowsThisComputer;
+
+  /// The other computer’s name, when it isn’t known.
+  ///
+  /// In en, this message translates to:
+  /// **'The other computer'**
+  String get ledgerRowsOtherComputer;
+
+  /// Button under one thing both computers changed: keep the version made on this computer.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this computer’s'**
+  String get ledgerRowsKeepHere;
+
+  /// Button under one thing both computers changed: keep the version made on the other computer. {computer} is its name.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {computer}’s'**
+  String ledgerRowsKeepTheirs(String computer);
+
+  /// Button in the question ledgerRowsTitle when this computer deleted the transaction and the other changed it: leave it deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it deleted'**
+  String get ledgerRowsKeepDeletedHere;
+
+  /// Button in the question ledgerRowsTitle when the other computer deleted the transaction and this one changed it: delete it. {computer} is the other computer’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it deleted ({computer}’s)'**
+  String ledgerRowsKeepDeletedTheirs(String computer);
+
+  /// Button under one thing both computers changed: put it back as it was before either changed it.
+  ///
+  /// In en, this message translates to:
+  /// **'Neither: as it was'**
+  String get ledgerRowsKeepNeither;
+
+  /// Button of the question ledgerRowsTitle: makes the choices and brings in everything else the other computer changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save my choices'**
+  String get ledgerRowsSave;
+
+  /// Heading over a category’s assigned amount both computers changed for one budget period. {date} is the period’s first day.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · Assigned, period starting {date}'**
+  String ledgerRowsAssigned(String category, String date);
+
+  /// One version of a transaction in the question ledgerRowsTitle: it was deleted there.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get ledgerRowsDeleted;
+
+  /// Heading over a transaction in the question ledgerRowsTitle that has no payee.
+  ///
+  /// In en, this message translates to:
+  /// **'No payee'**
+  String get ledgerRowsNoPayee;
+
+  /// Line under a thing both computers changed: what it said before either changed it. {what} is its amount and category.
+  ///
+  /// In en, this message translates to:
+  /// **'As it was: {what}'**
+  String ledgerRowsAsItWas(String what);
+
+  /// Popup after the question ledgerRowsTitle is answered and there was nothing else to bring in.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Your choice is saved} other{Your {count} choices are saved}}'**
+  String ledgerRowsSaved(int count);
+
+  /// Popup when the ledger changed under the question ledgerRowsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.'**
+  String get ledgerRowsChangedMeanwhile;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
