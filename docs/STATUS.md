@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.26.0 · schema v18 · 666 tests pass
+**Last updated: 2026-10-12** · version 0.27.0 · schema v18 · 667 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,18 +10,24 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #63 (version 0.26.0): a second computer is set up in one step.** Restore
-from… pointed at `Ledger.betterbudget` in the folder (from Settings, or from "Open
-your newest backup?" on a new computer) shows a ticked "Share the ledger in My
-Drive/BetterBudget" in the restore dialog; Restore then brings the ledger over and
-keeps the computer on the folder, with nothing asked about which ledger to keep
-(ADR 0004 "A second computer set up in one step"). On a Mac the folder is chosen
-once more in the Mac's own dialog, which opens on it. **Not yet seen by the owner
-on a second account or machine**: tests only, with two ledgers and one folder.
+**After PR #64 (version 0.27.0): a computer with no ledger opens on three ways to
+start** (ADR 0004 "How a new computer starts"): Start fresh, Restore from backup,
+Open ledger, the one clicked opening in place with the recovery key and its button.
+Open ledger is one pick of the folder: the ledger there comes over and the computer
+stays on it. The key is kept only once it opens what was picked. "Open your newest backup?" is gone; where a pick is cancelled, "Where
+is your ledger?" asks. **Not yet seen by the owner**: their own account has a
+ledger, so it shows only on a second account or machine.
+
+Before it, PR #63 (version 0.26.0): Restore from… pointed at `Ledger.betterbudget`
+in the folder shows a ticked "Share the ledger in My Drive/BetterBudget" in the
+restore dialog; Restore then brings the ledger over and keeps the computer on the
+folder (ADR 0004 "A second computer set up in one step"). On a Mac the folder is
+chosen once more in the Mac's own dialog, which opens on it. **Not yet seen by the
+owner on a second account or machine**: tests only.
 
 Before it, PR #62 (version 0.25.1), a fix: on a computer where the recovery key was
 typed, "Open your newest backup?" comes back after Cancel in the file dialog and
-at each launch until it is answered.
+at each launch until it is answered (now "Where is your ledger?").
 
 **Before it, PR #61 (version 0.25.0): two computers that each changed the ledger are
 combined** without a question when what they did can both stand (item 1 below; ADR
@@ -69,8 +75,12 @@ folder. Then, in order:
 1. **More than one computer on the same ledger: the question about one row.**
    Steps 1 to 3 are built ([ADR 0005](decisions/0005-mobile-companion.md) "More than
    one computer on one ledger": never write blind, combine, look while open). What
-   two computers changed apart is brought together and written to the folder; a second computer is set up by Restore from… the folder's
-   `Ledger.betterbudget`, with "Share the ledger in My Drive/BetterBudget" ticked.
+   two computers changed apart is brought together and written to the folder; a second computer is set up by **Open ledger** on its first screen
+   (one pick of the folder), or, where a ledger is already there, by Restore from…
+   the folder's `Ledger.betterbudget` with "Share the ledger in My
+   Drive/BetterBudget" ticked. **The first thing to watch with the owner** is Open
+   ledger on the second Mac account: the Mac's real folder dialog has only been
+   faked in tests.
    **It has not been run on two real computers**, only in tests with two ledgers and
    one folder; the first real run is the owner's to watch. **Left of the owner's
    decision 1:** when the two changed the same thing two ways (one row's amount, one
@@ -128,7 +138,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #63. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #64. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -206,14 +216,6 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     steps, "In the order of Personal Finances for Self-Reliance…", go now that the
     steps are the owner's own?
 
-18. **How a new computer starts** (2026-10-12). Asked whether "Open your newest
-    backup?" should be titled "Bring your ledger here?", the owner asked instead
-    whether it always assumes a backup, and proposed three choices as when
-    installing an OS: Start fresh, Restore from backup, Open ledger ("it shouldn't
-    matter if they're sharing or not"). Issues were laid out the same day; next is
-    two or three sketches. The checkbox's words were settled then: "Share the
-    ledger in My Drive/BetterBudget".
-
 ## Phase
 
 **A working desktop ledger and budget are built** and run on macOS from
@@ -249,7 +251,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
 | Language | Same as this Mac, English or Монгол; 1,182 messages, the same keys in both files |
 | Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it. On a computer where the recovery key was typed, "Open your newest backup?" comes first, and comes back after Cancel in the file dialog and at each launch until a backup is open, "Start empty" is picked or an account is added (setup has no other way to a backup) |
+| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it. A computer with no ledger and no key opens on "How do you want to start?": Start fresh (a new recovery key), Restore from backup, Open ledger (the folder it is stored in); the last two open in place with the recovery key and go to the file or folder dialog. Where that is cancelled or doesn't work, "Where is your ledger?" asks (folder, backup, Start empty), and again at each launch until a ledger is here, "Start empty" is picked or an account is added |
 | Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
 
 Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).
@@ -316,6 +318,19 @@ open the archive).
   the one to pay extra on even when it is Storepay at no interest; "pay only the
   minimums" and "employer matches" don't fit loans and pay here. Untested: that an
   account marked a student loan keeps its mark when "Debt to pay off" is picked.
+
+- **From the reviews of how a new computer starts (2026-10-12), not fixed:** the
+  three rows can't be reached with Tab (a click opens one; Enter and Esc work
+  inside); without a keychain (Linux, no Secret Service) the first screen no longer
+  says the key is asked at every launch, only the second launch does; "Where is
+  your ledger?" answered In a folder on a computer whose empty ledger is already
+  stored in another folder moves it without a word; a ledger half-arrived in the
+  folder reads as a key that doesn't open it (the line says it may still be
+  copying); a restore that throws leaves its `incoming-…` copy for the daily sweep;
+  the popup for a folder with no ledger is the gold one, behind the dialog;
+  `ledgerHere` on the key screen is always true now. Untested: Undo and Redo of
+  Open ledger, the folder failing to be kept after it, the wrong-key line for a
+  folder (the backup's is tested), the first screen in Mongolian past its heading.
 
 - **From the reviews of a second computer in one step (2026-10-12), not fixed:**
   whether the Mac's folder dialog really opens on the folder, and its answer is

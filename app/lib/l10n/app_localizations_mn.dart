@@ -72,18 +72,7 @@ class WordsMn extends Words {
   String get yesterday => 'Өчигдөр';
 
   @override
-  String get ledgerOfferRestoreTitle =>
-      'Хамгийн сүүлийн нөөц хуулбараа нээх үү?';
-
-  @override
-  String get ledgerOfferRestoreBody =>
-      'Сэргээх түлхүүр тань энэ компьютер дээр тохирсон. Хэрэв дэвтэр тань Google Drive зэрэг хавтсанд хадгалагдаж байгаа бол тэндээс Ledger.betterbudget файлыг нээнэ үү. Хэрэв та «Нөөцлөх…» товчоор өөр диск рүү хуулбар хадгалсан бол хамгийн сүүлийнхийг нээнэ үү.';
-
-  @override
   String get ledgerStartEmpty => 'Хоосноос эхлэх';
-
-  @override
-  String get ledgerOpenABackup => 'Нөөц хуулбар нээх…';
 
   @override
   String ledgerAdded(String name) {
@@ -2695,10 +2684,6 @@ class WordsMn extends Words {
   String get startNewLedgerInstead => 'Оронд нь шинэ дэвтэр эхлүүлэх…';
 
   @override
-  String get startNewToApp =>
-      'BetterBudget-ийг анх ашиглаж байна уу? Дэвтэр үүсгэх';
-
-  @override
   String get startSetAsideTitle => 'Шинэ дэвтэр эхлүүлэх үү?';
 
   @override
@@ -2767,16 +2752,8 @@ class WordsMn extends Words {
       'Энэ компьютер дээр дэвтэр байна. Нээхийн тулд түүний сэргээх түлхүүрийг бичнэ үү.';
 
   @override
-  String get startEntryNoLedger =>
-      'Энэ компьютер дээр дэвтэр хараахан алга. Өмнө нь BetterBudget ашиглаж байсан бол сэргээх түлхүүрээ бичээд, «Нөөцлөх…»-ээр хадгалсан нөөц хуулбараа нээнэ үү.';
-
-  @override
   String get startEntryLedgerHereEveryLaunch =>
       'Энэ компьютерт BetterBudget ашиглаж болох түлхүүр хадгалах сан (keychain) алга тул нээх бүрдээ таны сэргээх түлхүүрийг асууна. Энэ компьютер дээр дэвтэр байна. Нээхийн тулд түүний сэргээх түлхүүрийг бичнэ үү.';
-
-  @override
-  String get startEntryNoLedgerEveryLaunch =>
-      'Энэ компьютерт BetterBudget ашиглаж болох түлхүүр хадгалах сан (keychain) алга тул нээх бүрдээ таны сэргээх түлхүүрийг асууна. Энэ компьютер дээр дэвтэр хараахан алга. Өмнө нь BetterBudget ашиглаж байсан бол сэргээх түлхүүрээ бичээд, «Нөөцлөх…»-ээр хадгалсан нөөц хуулбараа нээнэ үү.';
 
   @override
   String get startKeyWrongHere =>
@@ -5004,4 +4981,73 @@ class WordsMn extends Words {
   @override
   String get ledgerBringLedgerNote =>
       'Энд байгаа бүх зүйлийг энэ дэвтрээр солино. Одоо байгаа өгөгдөл тань эхлээд хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get startWhereTitle => 'Дэвтэр тань хаана байна вэ?';
+
+  @override
+  String get startWhereFolder => 'Google Drive зэрэг хавтсанд';
+
+  @override
+  String get startWhereFolderNote =>
+      'Энэ компьютер тэнд байгаа дэвтрийг хуваалцана.';
+
+  @override
+  String get startWhereBackup => 'Нөөц хуулбарт';
+
+  @override
+  String get startWhereBackupNote =>
+      'Тохиргооны «Нөөцлөх…» товчоор хадгалсан хуулбар.';
+
+  @override
+  String ledgerFolderWrongKey(String folder) {
+    return 'Сэргээх түлхүүр тань $folder доторх дэвтрийг нээхгүй байна';
+  }
+
+  @override
+  String ledgerFolderNoLedger(String folder) {
+    return '$folder дотор дэвтэр алга · Ledger.betterbudget байгаа хавтсыг сонгоно уу. Хэрэв энэ компьютерт хуулагдаж дуусаагүй бол минутын дараа дахин оролдоно уу.';
+  }
+
+  @override
+  String get startHowTitle => 'Хэрхэн эхлэх вэ?';
+
+  @override
+  String get startFresh => 'Шинээр эхлэх';
+
+  @override
+  String get startFreshNote =>
+      'Манай өрх BetterBudget-ийг анх удаа ашиглаж байна.';
+
+  @override
+  String get startRestore => 'Нөөц хуулбараас сэргээх';
+
+  @override
+  String get startRestoreNote =>
+      'Надад Тохиргооны «Нөөцлөх…» товчоор хадгалсан нөөц файл бий. Энэ компьютер өөрийн хуулбартай болно.';
+
+  @override
+  String get startOpen => 'Дэвтэр нээх';
+
+  @override
+  String get startOpenNote =>
+      'Манай өрх BetterBudget-ийг өөр компьютер дээр аль хэдийн ашигладаг, дэвтэр нь Google Drive зэрэг хавтсанд байгаа. Энэ компьютер түүнийг хуваалцана.';
+
+  @override
+  String get startKeyLabel => 'Сэргээх түлхүүр';
+
+  @override
+  String get startChooseFolder => 'Хавтас сонгох…';
+
+  @override
+  String get startChooseBackup => 'Нөөц хуулбар сонгох…';
+
+  @override
+  String get startKeyHint =>
+      'BetterBudget-ийг анх тохируулахад харуулсан түлхүүр. Хадгалсан бол «BetterBudget recovery key.txt» файлд бий.';
+
+  @override
+  String startKeyWrongFolder(String folder) {
+    return 'Тэр түлхүүр $folder доторх дэвтрийг нээхгүй байна. Хавтас энэ компьютерт хуулагдаж дуусаагүй бол минутын дараа дахин оролдоно уу.';
+  }
 }

@@ -3161,3 +3161,63 @@ that "Move my ledger to a folder…" had to follow, so that computer went its ow
   first offer's title was put too, and the owner asked instead whether a new
   computer should open on three choices (Start fresh, Restore from backup, Open
   ledger): not decided, sketches to come.
+
+### How a new computer starts (2026-10-12)
+
+A computer with no ledger opened on "Enter your recovery key", with "New to
+BetterBudget? Set up a ledger" as a small link under it, and someone who typed a key
+was then asked "Open your newest backup?". Asked whether that question should be
+retitled, the owner asked instead: "Do we always assume they have a backup? This may
+need to change. We may just have wizard like they're installing an OS: 1. Start
+Fresh 2. Restore from Backup 3. Open Ledger (it shouldn't matter if they're sharing
+or not)."
+
+- **Three ways to start, and the one clicked opens in place** (owner, 2026-10-12,
+  from three sketches at <https://claude.ai/artifact/Nzasw8pEQATkPRZpBEpSL5>: "I
+  like that one best"). "How do you want to start?" over three rows, in the owner's
+  order: **Start fresh**, **Restore from backup**, **Open ledger**. Start fresh goes
+  to the screen that shows a new recovery key. The other two open where they are,
+  with the recovery key and one button, "Choose the backup…" or "Choose the
+  folder…". A click on an open row's name closes it; another row opens in its place.
+- **Each row says who it is for, without leaning on "ledger"** (owner, 2026-10-12:
+  "the word 'Ledger' may be jargon that throws them off. Just ask if they already
+  use BetterBudget"): "My household is new to BetterBudget." / "I have a backup
+  file, saved with Back up to… in Settings. This computer gets its own copy." /
+  "My household already uses BetterBudget on another computer, and the ledger is
+  in a folder, such as Google Drive. This computer shares it." A newcomer never
+  has to know the word. It is the household, not "I" (budget review): a spouse
+  setting up the second laptop has never opened the app, and "I'm new to
+  BetterBudget" was true of them. The last two end with what this computer ends
+  up with, its own copy or the shared ledger, since that is all that parts them.
+- **The key is kept only once it opens what was picked.** The button under the key
+  opens the file or folder dialog first; the key is then tried on what was picked,
+  and only if it opens is it stored and a ledger made here. A key from another
+  ledger, a folder with no ledger, a dialog closed: said under the key field,
+  where it is fixed, with nothing stored. (As first built the key was stored
+  before the pick, and a wrong one left no way back: both reviews.) Under the
+  field: "It was shown when BetterBudget was first set up, and is in
+  “BetterBudget recovery key.txt” if it was saved." Esc closes an open row.
+- **Pointing at My Drive is enough**: the one folder directly inside it that holds
+  a ledger is the one meant.
+- **Open ledger is one pick, of the folder.** The ledger there is brought here and
+  this computer stays on it: no file to pick, no Share box, no second Mac dialog,
+  and no question about what it replaces, since nothing is here. The popup says
+  "This computer is now on the ledger in My Drive/BetterBudget", with Undo. A
+  folder with no `Ledger.betterbudget` in it is never written to: "There's no
+  ledger in My Drive/Photos · if the folder is still arriving on this computer, try
+  again in a minute" (now: "There's no ledger in My Drive/Photos · choose the folder
+  that holds Ledger.betterbudget. If it is still copying to this computer, try
+  again in a minute.").
+- **With a key kept and still no ledger, it asks where the ledger is.** The
+  restore cancelled at its last question, or one that failed, brings "Where is
+  your ledger?": In a backup / In a folder, such as Google Drive / Start empty.
+  The same question comes at each later launch while the ledger is still empty
+  and unanswered. "Start empty" stays its own word: it goes on with the key
+  already typed, where Start fresh makes a new one. It
+  replaces "Open your newest backup?", which assumed a backup.
+- Rejected: A, the three rows each leading to a screen of its own (the owner liked
+  it, then C more); B, "Do you already have a BetterBudget ledger?" then where it
+  is (liked, but for its word "ledger"; its plain question went into C's rows).
+- A ledger already on the computer that the kept key doesn't open, or with no key
+  kept, still gets "Enter your recovery key" as before.
+

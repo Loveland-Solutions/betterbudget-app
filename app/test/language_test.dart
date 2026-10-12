@@ -254,17 +254,17 @@ void main() {
         ),
       );
     });
-    // No ledger and no key: it asks for the key, in Mongolian.
+    // No ledger and no key: it asks how to start, in Mongolian.
     for (var i = 0; i < 100; i++) {
       await tester.pump();
-      if (find.textContaining(mn.startEntryNoLedger).evaluate().isNotEmpty) {
+      if (find.textContaining(mn.startHowTitle).evaluate().isNotEmpty) {
         break;
       }
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
     }
-    expect(find.textContaining(mn.startEntryNoLedger), findsOneWidget);
+    expect(find.textContaining(mn.startHowTitle), findsOneWidget);
     await tester.runAsync(() => tester.pumpWidget(const SizedBox()));
   });
 

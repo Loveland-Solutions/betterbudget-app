@@ -442,6 +442,13 @@ compares the two. If the folder can't be kept after the restore, the ledger here
 carries the folder's seal though it is stored on this computer: harmless, since a
 later move to that folder then takes, writes or asks as the counts say.
 
+On a computer with no ledger the same is reached by **Open ledger** on the first
+screen (ADR 0004 "How a new computer starts"): the folder is picked, not the file,
+so the Mac's one dialog gives the app the folder, and `_openLedgerInFolder` brings
+its `Ledger.betterbudget` in by the same path (`_finishRestore`). A folder that
+holds no ledger is refused there and nothing is written to it, which closes, for
+this door, the gap of a folder whose ledger hasn't arrived yet.
+
 Not built: a question about the one row in conflict, with the real values (decision
 1). A conflict still asks which whole ledger to keep, and still shows only counts.
 Two people who each choose "Keep this computer's ledger" replace each other's in
