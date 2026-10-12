@@ -10,8 +10,8 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Version 0.28.0: Payees is a section of its own in the sidebar, under Savings,
-and a real feature** (ADR 0004 "Payees: its own section" and "Payees: the real
+**PR #65 (version 0.28.0): Payees is a section of its own in the sidebar, under
+Savings, and a real feature** (ADR 0004 "Payees: its own section" and "Payees: the real
 feature"; owner, 2026-10-12: "I don't want to hide this", "Let's make this a real
 feature", "B. Looks great.", "allow them to apply a payee rule to multiple
 accounts"). Every payee the app remembers a category for is a line that reads as a
@@ -156,7 +156,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #64. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #65. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
