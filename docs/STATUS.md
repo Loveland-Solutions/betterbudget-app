@@ -75,8 +75,12 @@ folder. Then, in order:
 1. **More than one computer on the same ledger: the question about one row.**
    Steps 1 to 3 are built ([ADR 0005](decisions/0005-mobile-companion.md) "More than
    one computer on one ledger": never write blind, combine, look while open). What
-   two computers changed apart is brought together and written to the folder; a second computer is set up by Restore from… the folder's
-   `Ledger.betterbudget`, with "Share the ledger in My Drive/BetterBudget" ticked.
+   two computers changed apart is brought together and written to the folder; a second computer is set up by **Open ledger** on its first screen
+   (one pick of the folder), or, where a ledger is already there, by Restore from…
+   the folder's `Ledger.betterbudget` with "Share the ledger in My
+   Drive/BetterBudget" ticked. **The first thing to watch with the owner** is Open
+   ledger on the second Mac account: the Mac's real folder dialog has only been
+   faked in tests.
    **It has not been run on two real computers**, only in tests with two ledgers and
    one folder; the first real run is the owner's to watch. **Left of the owner's
    decision 1:** when the two changed the same thing two ways (one row's amount, one
