@@ -2,6 +2,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/domain/sync.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -563,15 +564,20 @@ void main() {
       await db.setAccountRole(id, AccountRole.emergencyFund);
       await db.setPreference(ReadyKeys.retirement, 'yes');
       await db.setPreference(ReadyKeys.retirement, 'yes');
+      // A new ledger carries its own id among the settings (sync.ledger).
+      Map<String, String> own(LedgerData d) => {
+        for (final e in d.prefs.entries)
+          if (!e.key.startsWith(SyncKeys.prefix)) e.key: e.value,
+      };
       var data = await db.loadLedger();
       expect(data.accounts[id]!.role, AccountRole.emergencyFund);
-      expect(data.prefs, {ReadyKeys.retirement: 'yes'});
+      expect(own(data), {ReadyKeys.retirement: 'yes'});
 
       await db.setAccountRole(id, null);
       await db.setPreference(ReadyKeys.retirement, null);
       data = await db.loadLedger();
       expect(data.accounts[id]!.role, isNull);
-      expect(data.prefs, isEmpty);
+      expect(own(data), isEmpty);
     });
   });
 }

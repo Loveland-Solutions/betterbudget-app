@@ -290,6 +290,42 @@ class PayeeRuleAccounts extends Table {
   Set<Column> get primaryKey => {ruleId, accountId};
 }
 
+/// What this computer changed, one row per row changed (ADR 0005, "Two
+/// computers: the way chosen, 2026-10-12"): the table, which row, and the
+/// row before and after as JSON by column name. Filled by triggers
+/// ([AppDatabase.changeTriggerSql]), never by the app's own code; read in
+/// order of [seq] to publish to the folder. It is this computer's own: not
+/// part of the ledger's digest, never combined, not restored over, and
+/// [seq] counts 1, 2, 3 here on purpose where every other id is
+/// [newRowId].
+@DataClassName('ChangeRow')
+class Changes extends Table {
+  IntColumn get seq => integer().autoIncrement()();
+
+  /// The table the row is in.
+  TextColumn get tbl => text()();
+
+  /// The row's key columns, as a JSON object.
+  TextColumn get pk => text()();
+
+  /// `insert`, `update` or `delete`; `restore` or `erase` for a whole ledger
+  /// put in or cleared here, with no rows (ADR 0005: made a batch of its own
+  /// in step 5).
+  TextColumn get op => text()();
+
+  /// The whole row before, as JSON; null for an insert.
+  TextColumn get before => text().nullable()();
+
+  /// The whole row after, as JSON; null for a delete.
+  TextColumn get after => text().nullable()();
+
+  /// When, by this computer's clock, for the screen only.
+  IntColumn get atMs => integer()();
+
+  /// The tables' version the row was written under.
+  IntColumn get withSchema => integer()();
+}
+
 /// What [AppDatabase.setCategoryMoney] replaced, so undo can put it back:
 /// the category's currency and unchecked accounts, and what a change of
 /// currency took away (its amounts and its plan).
@@ -757,6 +793,7 @@ typedef PlanChange = ({
     CategoryAccountsOff,
     PayeeRules,
     PayeeRuleAccounts,
+    Changes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -794,10 +831,17 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await _ensureApplyingTable();
+      await m.createAll();
+      await _makeChangeTriggers();
+      // A ledger made here is a new one, with an id of its own.
+      await setPreference(SyncKeys.ledger, newLedgerId());
+    },
     onUpgrade: (m, from, to) async {
       // Opened by an older build than the one that last saved it: refuse,
       // before anything is written. Going on would mark it as the older
@@ -805,6 +849,7 @@ class AppDatabase extends _$AppDatabase {
       // then no longer open it (2026-09-30).
       if (from > to) throw NewerLedgerException(from);
       await _backupBeforeUpgrade(from);
+      await _ensureApplyingTable();
       // Drift doesn't wrap upgrades; a failure halfway must leave the old
       // version intact so the next launch can try again.
       await transaction(() async {
@@ -960,13 +1005,158 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(payeeRuleAccounts);
           await _carryPayeeRules();
         }
+        if (from < 20) {
+          // What this computer changes is recorded from here on (ADR 0005,
+          // "the way chosen 2026-10-12"). Rows untouched; no ledger id yet:
+          // a ledger that may already be shared takes the folder's.
+          await m.createTable(changes);
+        }
+        // Each trigger names its table's columns: made afresh after every
+        // upgrade, whatever it changed.
+        await _makeChangeTriggers();
       });
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA journal_mode = WAL');
+      await _ensureApplyingTable();
+      await _ensureChangeTriggers();
     },
   );
+
+  // ---------- the change log ----------
+
+  /// A table this connection alone sees. A row in it while another
+  /// computer's changes are applied here, or a whole ledger is put in, keeps
+  /// the triggers from recording them as this computer's.
+  static const _applyingTable = 'bb_applying';
+
+  Future<void> _ensureApplyingTable() => customStatement(
+    'CREATE TEMP TABLE IF NOT EXISTS $_applyingTable (flag INTEGER)',
+  );
+
+  /// Runs [body] with the change log held: nothing it writes is recorded.
+  /// Inside a transaction, so a failure leaves neither the writes nor the
+  /// hold.
+  Future<T> _withoutChangeLog<T>(Future<T> Function() body) async {
+    await customStatement('INSERT INTO temp.$_applyingTable (flag) VALUES (1)');
+    try {
+      return await body();
+    } finally {
+      await customStatement('DELETE FROM temp.$_applyingTable');
+    }
+  }
+
+  static String _triggerName(String table, String op) =>
+      'bb_change_${table}_$op';
+
+  /// The triggers that fill [changes]: after every insert, update and delete
+  /// on each ledger table, the row before and after as JSON by column name
+  /// (by name, since an upgraded file's columns are in another order than a
+  /// new one's). Not while [_withoutChangeLog] holds, never for the `sync.*`
+  /// settings (each computer's own), and not for an update that changed
+  /// nothing. They live in the connection, not the file (TEMP): a trigger
+  /// in the file could neither read the hold, which is TEMP, nor let a
+  /// later upgrade drop a column it names. Every connection the app opens
+  /// gets them in `beforeOpen`; a reader that opens the file raw writes
+  /// nothing. Public for the test that checks every table has its three.
+  List<String> changeTriggerSql() {
+    const guard = 'NOT EXISTS (SELECT 1 FROM temp.$_applyingTable)';
+    // Milliseconds since 1970 by this computer's clock, for the screen.
+    const at = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+    final out = <String>[];
+    for (final table in allTables) {
+      final name = table.actualTableName;
+      if (name == changeLogTable) continue;
+      String json(Iterable<GeneratedColumn> columns, String row) =>
+          'json_object(${[for (final c in columns) "'${c.name}', $row.\"${c.name}\""].join(', ')})';
+      String whole(String row) => json(table.$columns, row);
+      String key(String row) => json(table.$primaryKey, row);
+      String own(String row) => name == 'preferences'
+          ? " AND $row.key NOT LIKE '${SyncKeys.prefix}%'"
+          : '';
+      String record(String pk, String op, String before, String after) =>
+          'INSERT INTO main.$changeLogTable (tbl, pk, op, before, after, at_ms, '
+          "with_schema) VALUES ('$name', $pk, '$op', $before, $after, $at, "
+          '$schemaVersion);';
+      out.add(
+        'CREATE TEMP TRIGGER IF NOT EXISTS ${_triggerName(name, 'insert')} '
+        'AFTER INSERT ON "$name" WHEN $guard${own('NEW')} '
+        "BEGIN ${record(key('NEW'), 'insert', 'NULL', whole('NEW'))} END",
+      );
+      out.add(
+        'CREATE TEMP TRIGGER IF NOT EXISTS ${_triggerName(name, 'update')} '
+        'AFTER UPDATE ON "$name" WHEN $guard${own('NEW')} '
+        'AND ${whole('NEW')} IS NOT ${whole('OLD')} '
+        "BEGIN ${record(key('OLD'), 'update', whole('OLD'), whole('NEW'))} END",
+      );
+      out.add(
+        'CREATE TEMP TRIGGER IF NOT EXISTS ${_triggerName(name, 'delete')} '
+        'AFTER DELETE ON "$name" WHEN $guard${own('OLD')} '
+        "BEGIN ${record(key('OLD'), 'delete', whole('OLD'), 'NULL')} END",
+      );
+    }
+    return out;
+  }
+
+  /// The change triggers this connection has.
+  Future<List<String>> changeTriggersPresent() async => [
+    for (final r in await customSelect(
+      "SELECT name FROM sqlite_temp_master WHERE type = 'trigger' "
+      "AND name LIKE 'bb_change_%'",
+    ).get())
+      r.read<String>('name'),
+  ];
+
+  /// Drops every change trigger and makes them all again.
+  Future<void> _makeChangeTriggers() async {
+    for (final name in await changeTriggersPresent()) {
+      await customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+    }
+    for (final sql in changeTriggerSql()) {
+      await customStatement(sql);
+    }
+  }
+
+  /// Makes the change triggers this connection lacks (all of them, on a
+  /// connection just opened). Only once the log's table is there to write
+  /// to.
+  Future<void> _ensureChangeTriggers() async {
+    final sql = changeTriggerSql();
+    if ((await changeTriggersPresent()).length == sql.length) return;
+    final hasLog = await customSelect(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(changeLogTable)],
+    ).get();
+    if (hasLog.isEmpty) return;
+    for (final statement in sql) {
+      await customStatement(statement);
+    }
+  }
+
+  /// Records a whole-ledger act ([op] `restore` or `erase`) in the log, with
+  /// no rows: step 5 of ADR 0005 makes it a batch of its own.
+  Future<void> _logMarker(String op) => into(changes).insert(
+    ChangesCompanion.insert(
+      tbl: '',
+      pk: '{}',
+      op: op,
+      atMs: _now,
+      withSchema: schemaVersion,
+    ),
+  );
+
+  /// This computer's changes after [seq], oldest first.
+  Future<List<ChangeRow>> changesSince(int seq) =>
+      (select(changes)
+            ..where((c) => c.seq.isBiggerThanValue(seq))
+            ..orderBy([(c) => OrderingTerm.asc(c.seq)]))
+          .get();
+
+  /// The last change recorded here; 0 when none.
+  Future<int> lastChangeSeq() async => (await customSelect(
+    'SELECT COALESCE(MAX(seq), 0) AS n FROM $changeLogTable',
+  ).getSingle()).read<int>('n');
 
   /// v13 (rule 30): every income category becomes the one Income. Their
   /// rows and pay schedules move to it; the names go.
@@ -1212,50 +1402,13 @@ class AppDatabase extends _$AppDatabase {
     List<RowOp> ops, {
     required String onlyIfDigest,
   }) async {
-    String q(String name) => '"$name"';
     try {
       await transaction(() async {
         if ((await sealState()).digest != onlyIfDigest) {
           throw ChangedSinceException();
         }
-        // Checked when the whole of it is in, not row by row.
-        await customStatement('PRAGMA defer_foreign_keys = ON');
-        String where(Row key) =>
-            key.keys.map((c) => '${q(c)} IS ?').join(' AND ');
-        for (final table in combineOrder.reversed) {
-          for (final op in ops) {
-            if (op.table != table || op.row != null) continue;
-            await customStatement(
-              'DELETE FROM ${q(table)} WHERE ${where(op.key)}',
-              op.key.values.toList(),
-            );
-          }
-        }
-        for (final table in combineOrder) {
-          for (final op in ops) {
-            final row = op.row;
-            if (op.table != table || row == null) continue;
-            final columns = row.keys.toList();
-            if (op.insert) {
-              await customStatement(
-                'INSERT INTO ${q(table)} (${columns.map(q).join(', ')}) '
-                'VALUES (${columns.map((_) => '?').join(', ')})',
-                row.values.toList(),
-              );
-            } else {
-              await customStatement(
-                'UPDATE ${q(table)} SET '
-                '${columns.map((c) => '${q(c)} = ?').join(', ')} '
-                'WHERE ${where(op.key)}',
-                [...row.values, ...op.key.values],
-              );
-            }
-          }
-        }
-        if ((await customSelect('PRAGMA foreign_key_check').get()).isNotEmpty ||
-            (await customSelect(unbalancedSql).get()).isNotEmpty) {
-          throw CantCombineException();
-        }
+        // Another computer's changes, not this one's: kept out of the log.
+        await _withoutChangeLog(() => _applyOps(ops));
       });
     } on ChangedSinceException {
       rethrow;
@@ -1268,6 +1421,47 @@ class AppDatabase extends _$AppDatabase {
       throw CantCombineException();
     } finally {
       markTablesUpdated(allTables);
+    }
+  }
+
+  Future<void> _applyOps(List<RowOp> ops) async {
+    String q(String name) => '"$name"';
+    // Checked when the whole of it is in, not row by row.
+    await customStatement('PRAGMA defer_foreign_keys = ON');
+    String where(Row key) => key.keys.map((c) => '${q(c)} IS ?').join(' AND ');
+    for (final table in combineOrder.reversed) {
+      for (final op in ops) {
+        if (op.table != table || op.row != null) continue;
+        await customStatement(
+          'DELETE FROM ${q(table)} WHERE ${where(op.key)}',
+          op.key.values.toList(),
+        );
+      }
+    }
+    for (final table in combineOrder) {
+      for (final op in ops) {
+        final row = op.row;
+        if (op.table != table || row == null) continue;
+        final columns = row.keys.toList();
+        if (op.insert) {
+          await customStatement(
+            'INSERT INTO ${q(table)} (${columns.map(q).join(', ')}) '
+            'VALUES (${columns.map((_) => '?').join(', ')})',
+            row.values.toList(),
+          );
+        } else {
+          await customStatement(
+            'UPDATE ${q(table)} SET '
+            '${columns.map((c) => '${q(c)} = ?').join(', ')} '
+            'WHERE ${where(op.key)}',
+            [...row.values, ...op.key.values],
+          );
+        }
+      }
+    }
+    if ((await customSelect('PRAGMA foreign_key_check').get()).isNotEmpty ||
+        (await customSelect(unbalancedSql).get()).isNotEmpty) {
+      throw CantCombineException();
     }
   }
 
@@ -1328,10 +1522,11 @@ class AppDatabase extends _$AppDatabase {
       'payee_rule_accounts',
     ];
     // A table added to the schema must be added here, or a restore drops it.
+    // The change log is this computer's own and stays.
     assert(
       {for (final t in allTables) t.actualTableName}
               .containsAll(parentsFirst) &&
-          allTables.length == parentsFirst.length,
+          allTables.length == parentsFirst.length + 1,
       'replaceAllFrom is missing a table',
     );
     try {
@@ -1358,17 +1553,23 @@ class AppDatabase extends _$AppDatabase {
         final had = SyncComputers.parse(
           (await _syncPrefs())[SyncKeys.computers],
         );
-        for (final t in parentsFirst.reversed) {
-          await customStatement('DELETE FROM main.$t');
-        }
-        for (final t in parentsFirst) {
-          final columns = (await customSelect(
-            'PRAGMA main.table_info($t)',
-          ).get()).map((r) => '"${r.read<String>('name')}"').join(', ');
-          await customStatement(
-            'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
-          );
-        }
+        // A whole ledger put in isn't row-by-row changes of this
+        // computer's: the log is held, and one marker says what happened
+        // (the folder's own ledger taken in is nothing of this computer's).
+        await _withoutChangeLog(() async {
+          for (final t in parentsFirst.reversed) {
+            await customStatement('DELETE FROM main.$t');
+          }
+          for (final t in parentsFirst) {
+            final columns = (await customSelect(
+              'PRAGMA main.table_info($t)',
+            ).get()).map((r) => '"${r.read<String>('name')}"').join(', ');
+            await customStatement(
+              'INSERT INTO main.$t ($columns) SELECT $columns FROM src.$t',
+            );
+          }
+        });
+        if (!fromFolder) await _logMarker('restore');
         // A computer's count never goes down: the counts this ledger had
         // are folded into the ones that came, from the folder or not.
         {
@@ -3030,40 +3231,47 @@ class AppDatabase extends _$AppDatabase {
   /// payee and setting goes, in one write. With [keepCategories] the open
   /// categories stay, with no rows in them. The caller saves a copy first.
   Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
-      transaction(() async {
-        await delete(budgetAmounts).go();
-        await delete(categoryPlans).go();
-        await delete(categoryAccountsOff).go();
-        await delete(payeeRuleAccounts).go();
-        await delete(payeeRules).go();
-        await delete(entries).go();
-        await delete(reconciliations).go();
-        await delete(transactions).go();
-        await delete(paySchedules).go();
-        await delete(payees).go();
-        // The computers' counts stay: where the ledger is stored in a
-        // folder, the new one is this ledger changed, and is written there.
-        await (delete(
-          preferences,
-        )..where((p) => p.key.equals(SyncKeys.computers).not())).go();
-        await (delete(accounts)..where(
-              (a) => keepCategories
-                  ? (a.type.isIn([
-                              AccountType.income.name,
-                              AccountType.expense.name,
-                            ]) &
-                            a.archivedAt.isNull() &
-                            a.deletedAt.isNull())
-                        .not()
-                  : const Constant(true),
-            ))
-            .go();
-        await incomeCategory();
-        await setPreference(startedKey, dateKey(dateOnly(today)));
-        // Starting clean was the choice: a backup isn't offered at the next
-        // launch.
-        await setPreference(SetupKeys.backupOffer, SetupKeys.backupOfferNo);
-      });
+      transaction(
+        () => _withoutChangeLog(() async {
+          // A new ledger: a log and an id of its own, nothing of the old one's
+          // (ADR 0005, "the way chosen": computers never merge across ids).
+          await delete(changes).go();
+          await _logMarker('erase');
+          await delete(budgetAmounts).go();
+          await delete(categoryPlans).go();
+          await delete(categoryAccountsOff).go();
+          await delete(payeeRuleAccounts).go();
+          await delete(payeeRules).go();
+          await delete(entries).go();
+          await delete(reconciliations).go();
+          await delete(transactions).go();
+          await delete(paySchedules).go();
+          await delete(payees).go();
+          // The computers' counts stay: where the ledger is stored in a
+          // folder, the new one is this ledger changed, and is written there.
+          await (delete(
+            preferences,
+          )..where((p) => p.key.equals(SyncKeys.computers).not())).go();
+          await (delete(accounts)..where(
+                (a) => keepCategories
+                    ? (a.type.isIn([
+                                AccountType.income.name,
+                                AccountType.expense.name,
+                              ]) &
+                              a.archivedAt.isNull() &
+                              a.deletedAt.isNull())
+                          .not()
+                    : const Constant(true),
+              ))
+              .go();
+          await incomeCategory();
+          await setPreference(SyncKeys.ledger, newLedgerId());
+          await setPreference(startedKey, dateKey(dateOnly(today)));
+          // Starting clean was the choice: a backup isn't offered at the next
+          // launch.
+          await setPreference(SetupKeys.backupOffer, SetupKeys.backupOfferNo);
+        }),
+      );
 
   Future<void> renameAccount(int accountId, String name) async {
     await _refuseIncome(accountId);

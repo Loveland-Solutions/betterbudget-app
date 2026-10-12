@@ -6,6 +6,7 @@ import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/payee_rules.dart';
+import 'package:betterbudget/domain/sync.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -125,6 +126,40 @@ void main() {
     });
   }
 
+  test('upgrades a v19 file: the change log is made, empty, and no ledger '
+      'id is invented', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final txns = (await db.loadLedger()).txns.length;
+    await dropAddedInV20(db);
+    await db.setPreference(SyncKeys.ledger, null);
+    await db.customStatement('PRAGMA user_version = 19');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final data = await db.loadLedger();
+    expect(data.txns, hasLength(txns));
+    expect(await db.lastChangeSeq(), 0);
+    expect(
+      await db.changeTriggersPresent(),
+      hasLength(db.changeTriggerSql().length),
+    );
+    // A ledger that may already be shared takes the folder's id later.
+    expect(data.prefs[SyncKeys.ledger], isNull);
+    // From here on, a change is recorded.
+    await db.setPreference('a.setting', 'x');
+    expect(await db.lastChangeSeq(), 1);
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v20-from-v19-')),
+    );
+  });
+
   test('upgrades a v18 file: remembered payees become rows, the setting '
       'stays', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -169,7 +204,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v18-')),
+      contains(startsWith('betterbudget.before-v20-from-v18-')),
     );
   });
 
@@ -205,7 +240,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v17-')),
+      contains(startsWith('betterbudget.before-v20-from-v17-')),
     );
   });
 
@@ -267,7 +302,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v19-from-v16-')),
+        contains(startsWith('betterbudget.before-v20-from-v16-')),
       );
     },
   );
@@ -325,7 +360,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v15-')),
+      contains(startsWith('betterbudget.before-v20-from-v15-')),
     );
   });
 
@@ -356,7 +391,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v6-')),
+      contains(startsWith('betterbudget.before-v20-from-v6-')),
     );
   });
 
@@ -411,7 +446,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v19-from-v11-')),
+        contains(startsWith('betterbudget.before-v20-from-v11-')),
       );
     });
   }
@@ -493,7 +528,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v19-from-v12-')),
+        contains(startsWith('betterbudget.before-v20-from-v12-')),
       );
     },
   );
@@ -546,7 +581,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v13-')),
+      contains(startsWith('betterbudget.before-v20-from-v13-')),
     );
   });
 
@@ -585,7 +620,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v10-')),
+      contains(startsWith('betterbudget.before-v20-from-v10-')),
     );
   });
 
@@ -619,7 +654,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v19-from-v9-')),
+        contains(startsWith('betterbudget.before-v20-from-v9-')),
       );
     },
   );
@@ -655,7 +690,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v19-from-v8-')),
+      contains(startsWith('betterbudget.before-v20-from-v8-')),
     );
   });
 
@@ -759,7 +794,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v19-from-v5-')),
+        contains(startsWith('betterbudget.before-v20-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -827,27 +862,32 @@ void main() {
 /// column can't be dropped, so entries is rebuilt without it.
 /// The v11 schema: a category has no accounts unchecked.
 Future<void> dropAddedInV12(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('DROP TABLE category_accounts_off');
 }
 
 /// The v10 schema: no category plans.
 Future<void> dropAddedInV11(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('DROP TABLE category_plans');
 }
 
 /// The v9 schema: no budget amounts.
 Future<void> dropAddedInV10(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('DROP TABLE budget_amounts');
 }
 
 /// The v8 schema: a weekend payday always moved.
 /// v17: a pay's name; set amounts per pay period keep their pay.
 Future<void> dropAddedInV17(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('ALTER TABLE pay_schedules DROP COLUMN name');
 }
 
 /// v16: Custom…'s weekday patterns and an end on a category's plan.
 Future<void> dropAddedInV16(AppDatabase db) async {
+  await dropAddedInV20(db);
   for (final column in [
     'weekdays',
     'nth',
@@ -860,12 +900,14 @@ Future<void> dropAddedInV16(AppDatabase db) async {
 }
 
 Future<void> dropAddedInV9(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement(
     'ALTER TABLE pay_schedules DROP COLUMN weekend_keep',
   );
 }
 
 Future<void> dropAddedInV8(AppDatabase db) async {
+  await dropAddedInV20(db);
   final sql =
       (await db
               .customSelect(
@@ -890,6 +932,7 @@ Future<void> dropAddedInV8(AppDatabase db) async {
 }
 
 Future<void> dropAddedInV7(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement(
     'ALTER TABLE pay_schedules DROP COLUMN amount2_minor',
   );
@@ -897,12 +940,14 @@ Future<void> dropAddedInV7(AppDatabase db) async {
 
 /// The v5 schema: no account roles or preferences.
 Future<void> dropAddedInV6(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('ALTER TABLE accounts DROP COLUMN role');
   await db.customStatement('DROP TABLE preferences');
 }
 
 /// The v3 accounts table: no archived or deleted columns.
 Future<void> dropAccountColumnsAddedInV4(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('ALTER TABLE accounts DROP COLUMN archived_at');
   await db.customStatement('ALTER TABLE accounts DROP COLUMN deleted_at');
 }
@@ -910,6 +955,7 @@ Future<void> dropAccountColumnsAddedInV4(AppDatabase db) async {
 /// The v4 schema: no payday mark, pay schedules or links to them. A column in
 /// a foreign key can't be dropped, so transactions is rebuilt without it.
 Future<void> dropAddedInV5(AppDatabase db) async {
+  await dropAddedInV20(db);
   await db.customStatement('PRAGMA foreign_keys = OFF');
   // Or the rename would re-point entries' references at the old copy.
   await db.customStatement('PRAGMA legacy_alter_table = ON');
@@ -943,4 +989,14 @@ Future<void> dropAddedInV5(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN payday');
   await db.customStatement('PRAGMA legacy_alter_table = OFF');
   await db.customStatement('PRAGMA foreign_keys = ON');
+}
+
+/// v20: the change log, and this connection's triggers that fill it.
+/// Dropped first wherever a file is taken back to an older shape: a trigger
+/// that names a column stops that column being dropped.
+Future<void> dropAddedInV20(AppDatabase db) async {
+  for (final name in await db.changeTriggersPresent()) {
+    await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+  }
+  await db.customStatement('DROP TABLE IF EXISTS changes');
 }

@@ -23,7 +23,49 @@ abstract final class SyncKeys {
   /// Which computer wrote it last and when by its own clock, for saying so
   /// on screen only. JSON, `{"by": "<id>", "at": "2026-10-09T21:40:00"}`.
   static const saved = '${prefix}saved';
+
+  /// For each computer whose change file this ledger has applied, the last
+  /// change number taken from it (ADR 0005, "the way chosen 2026-10-12").
+  /// JSON, `{"<id>": 123}`. Written from step 3 on; the key is reserved here.
+  static const applied = '${prefix}applied';
+
+  /// Which ledger this is, so two computers never combine two different
+  /// ledgers. Random, given to a new ledger when it is made; a ledger
+  /// upgraded without one takes the folder's when it is first met there.
+  static const ledger = '${prefix}ledger';
 }
+
+/// The table that holds what this computer changed, row by row, filled by
+/// triggers ([AppDatabase.changeTriggerSql]). It is this computer's own:
+/// not part of the ledger's digest, never combined, not restored over.
+const changeLogTable = 'changes';
+
+/// A new ledger's id: 16 hex characters, random.
+String newLedgerId() {
+  final random = Random.secure();
+  return [
+    for (var i = 0; i < 8; i++)
+      random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
+}
+
+/// What [SyncKeys.applied] holds, parsed; a value that can't be read is an
+/// empty vector.
+Map<String, int> parseApplied(String? value) {
+  if (value == null) return const {};
+  try {
+    return {
+      for (final e in (jsonDecode(value) as Map).entries)
+        '${e.key}': (e.value as num).toInt(),
+    };
+  } catch (_) {
+    return const {};
+  }
+}
+
+String encodeApplied(Map<String, int> applied) => jsonEncode({
+  for (final id in applied.keys.toList()..sort()) id: applied[id],
+});
 
 /// How many times each computer has written the ledger, by the computer's id.
 typedef Counters = Map<String, int>;
