@@ -5953,7 +5953,7 @@ class _RestoreDialogState extends State<_RestoreDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  t.ledgerRestoreKeepOnFolder,
+                                  t.ledgerRestoreKeepOnFolder(folder),
                                   style: onest(13.5, color: Mid.ink),
                                 ),
                                 const SizedBox(height: 3),

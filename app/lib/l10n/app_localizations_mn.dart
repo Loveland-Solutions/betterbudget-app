@@ -4964,8 +4964,9 @@ class WordsMn extends Words {
       'Тэр хавтсан дахь дэвтрийг BetterBudget-ийн шинэ хувилбараар хадгалсан · эхлээд энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү';
 
   @override
-  String get ledgerRestoreKeepOnFolder =>
-      'Энэ компьютерийг энэ хавтсан дахь дэвтэр дээр байлгах';
+  String ledgerRestoreKeepOnFolder(String folder) {
+    return '$folder доторх дэвтрийг хуваалцах';
+  }
 
   @override
   String ledgerRestoreKeepOnFolderNote(String folder) {

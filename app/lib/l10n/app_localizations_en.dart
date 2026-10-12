@@ -5148,8 +5148,9 @@ class WordsEn extends Words {
       'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first';
 
   @override
-  String get ledgerRestoreKeepOnFolder =>
-      'Keep this computer on this folder’s ledger';
+  String ledgerRestoreKeepOnFolder(String folder) {
+    return 'Share the ledger in $folder';
+  }
 
   @override
   String ledgerRestoreKeepOnFolderNote(String folder) {

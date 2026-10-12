@@ -1190,7 +1190,7 @@
   "ledgerFolderUnreadableKept": "Хэрэв солих бол түүнийг эхлээд энэ компьютерт хадгална. «Нөөцөөс сэргээх…» түүнийг өөрийнх нь сэргээх түлхүүрээр нээнэ.",
   "ledgerFolderReplace": "Солих",
   "ledgerFolderNewerApp": "Тэр хавтсан дахь дэвтрийг BetterBudget-ийн шинэ хувилбараар хадгалсан · эхлээд энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү",
-  "ledgerRestoreKeepOnFolder": "Энэ компьютерийг энэ хавтсан дахь дэвтэр дээр байлгах",
+  "ledgerRestoreKeepOnFolder": "{folder} доторх дэвтрийг хуваалцах",
   "ledgerRestoreKeepOnFolderNote": "Энд өөрчилсөн зүйл тань {folder} руу очиж, өөр компьютер дээр өөрчилсөн зүйл энд ирнэ.",
   "ledgerUseThisFolder": "Энэ хавтсыг ашиглах",
   "ledgerRestoredOnFolder": "Энэ компьютер одоо {folder} доторх дэвтэр дээр байна",

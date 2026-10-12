@@ -951,7 +951,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
       }
 
-      const keepOn = 'Keep this computer on this folder’s ledger';
+      const keepOn = 'Share the ledger in My Drive/BetterBudget';
       const onFolder =
           'This computer is now on the ledger in My Drive/BetterBudget';
 

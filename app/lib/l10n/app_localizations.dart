@@ -7299,11 +7299,11 @@ abstract class Words {
   /// **'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first'**
   String get ledgerFolderNewerApp;
 
-  /// A ticked checkbox in the “Restore this backup?” dialog, shown when the file picked is the ledger another computer keeps in a synced folder. Ticked, this computer shares that ledger from now on.
+  /// A ticked checkbox in the “Restore this backup?” dialog, shown when the file picked is the ledger another computer keeps in a synced folder. Ticked, this computer shares that ledger from now on. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.
   ///
   /// In en, this message translates to:
-  /// **'Keep this computer on this folder’s ledger'**
-  String get ledgerRestoreKeepOnFolder;
+  /// **'Share the ledger in {folder}'**
+  String ledgerRestoreKeepOnFolder(String folder);
 
   /// Under the checkbox ledgerRestoreKeepOnFolder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.
   ///
@@ -7317,7 +7317,7 @@ abstract class Words {
   /// **'Use This Folder'**
   String get ledgerUseThisFolder;
 
-  /// Popup, and the undo list’s name, after Restore from… with “Keep this computer on this folder’s ledger” ticked.
+  /// Popup, and the undo list’s name, after Restore from… with “Share the ledger in …” ticked.
   ///
   /// In en, this message translates to:
   /// **'This computer is now on the ledger in {folder}'**
