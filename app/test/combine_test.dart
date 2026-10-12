@@ -703,6 +703,96 @@ void main() {
       });
     });
 
+    test('a payday both scheduled under one id is one row, its times merged, '
+        'and nothing to tell', () {
+      const id = 0x4000000000000070;
+      for (final (side, made) in [(mine, 100), (theirs, 300)]) {
+        side['transactions']!.add(
+          txn(id, '2026-10-25', scheduled: 1, pay: 1, updatedAt: made)
+            ..['created_at'] = made,
+        );
+        side['entries']!
+          ..add(entry(0x4000000000000700, id, 1, 250000))
+          ..add(entry(0x4000000000000701, id, 4, -250000));
+      }
+      final found = run();
+      expect(found.conflict, isNull);
+      expect(found.transactions, 0);
+      expect(found.others, 0);
+      final result = after(mine, found.ops);
+      expect(result['transactions']!.where((t) => t['id'] == id), hasLength(1));
+      expect(row(result, 'transactions', id)['created_at'], 100);
+      expect(row(result, 'transactions', id)['updated_at'], 300);
+      expect(
+        result['entries']!.where((e) => e['transaction_id'] == id),
+        hasLength(2),
+      );
+    });
+
+    test('a payday both scheduled under one id, confirmed on one: the '
+        'confirmed one is kept, whichever side', () {
+      const id = 0x4000000000000070;
+      for (final side in [mine, theirs]) {
+        side['transactions']!.add(txn(id, '2026-10-25', scheduled: 1, pay: 1));
+        side['entries']!
+          ..add(entry(0x4000000000000700, id, 1, 250000))
+          ..add(entry(0x4000000000000701, id, 4, -250000));
+      }
+      // Confirmed there, a day early and for a little more.
+      row(theirs, 'transactions', id)
+        ..['scheduled'] = 0
+        ..['date'] = '2026-10-24'
+        ..['updated_at'] = 400;
+      row(theirs, 'entries', 0x4000000000000700)['amount_minor'] = 260000;
+      row(theirs, 'entries', 0x4000000000000701)['amount_minor'] = -260000;
+      var result = combined();
+      expect(row(result, 'transactions', id)['scheduled'], 0);
+      expect(row(result, 'transactions', id)['date'], '2026-10-24');
+      expect(
+        row(result, 'entries', 0x4000000000000700)['amount_minor'],
+        260000,
+      );
+      // Confirmed here: nothing to do.
+      (mine, theirs) = (theirs, mine);
+      final found = run();
+      expect(found.conflict, isNull);
+      expect(found.ops, isEmpty);
+      // Confirmed on both for different amounts: asked, as a block.
+      row(theirs, 'transactions', id)
+        ..['scheduled'] = 0
+        ..['updated_at'] = 500;
+      row(theirs, 'entries', 0x4000000000000700)['amount_minor'] = 270000;
+      row(theirs, 'entries', 0x4000000000000701)['amount_minor'] = -270000;
+      final asked = run();
+      expect(asked.conflict, isNull);
+      expect(asked.asking, isTrue);
+      expect(asked.asks.single.id, 'transaction|$id');
+      result = after(
+        mine,
+        combine(
+          base: base,
+          mine: mine,
+          theirs: theirs,
+          picks: {'transaction|$id': Pick.theirs},
+        ).ops,
+      );
+      expect(
+        row(result, 'entries', 0x4000000000000700)['amount_minor'],
+        270000,
+      );
+    });
+
+    test('Income made on both under one id, named differently: this '
+        'computer’s stays', () {
+      const id = 0x4000000000000004;
+      for (final (side, name) in [(mine, 'Income'), (theirs, 'Орлого')]) {
+        side['accounts']!.add(account(id, name, type: 'income'));
+      }
+      final found = run();
+      expect(found.conflict, isNull);
+      expect(found.ops, isEmpty);
+    });
+
     test('the payday each scheduled, confirmed there on another day, edited '
         'or skipped: theirs is the one kept', () {
       void each() {
@@ -765,11 +855,14 @@ void main() {
     });
   });
 
-  test('rows of one id that aren’t one row are asked about', () {
+  test('rows of one id that aren’t one row are asked about, as a block', () {
     // Made on two computers by a build that counted ids from 1.
     spend(mine, 11, amount: 3000);
     spend(theirs, 11, amount: 9000);
-    expect(run().conflict, contains('made on both'));
+    final found = run();
+    expect(found.conflict, isNull);
+    expect(found.asking, isTrue);
+    expect(found.asks.single.id, 'transaction|11');
   });
 
   test('a table this build doesn’t know stops it', () {

@@ -780,6 +780,17 @@ typedef PlanChange = ({
   List<int> made,
 });
 
+/// What a row two computers would each make on their own is made from
+/// ([sharedRowId]): the kind of thing and what tells this one apart.
+class SharedKey {
+  const SharedKey(this.kind, this.key);
+  final String kind;
+  final String key;
+
+  /// The key of the [i]th entry of a transaction made under this key.
+  SharedKey line(int i) => SharedKey(kind, '$key|$i');
+}
+
 @DriftDatabase(
   tables: [
     Accounts,
@@ -1841,12 +1852,14 @@ class AppDatabase extends _$AppDatabase {
     int? payScheduleId,
     int? planCategoryId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
+    SharedKey? shared,
   }) {
     return transaction(() async {
       final payeeId = await _payeeId(payee);
       final now = _now;
       final txnId = await into(transactions).insert(
         TransactionsCompanion.insert(
+          id: await _freeId(transactions, shared),
           date: dateKey(date),
           payeeId: Value(payeeId),
           memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
@@ -1858,9 +1871,10 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
       final currency = await _currencyOfLines(lines.map((l) => l.accountId));
-      for (final l in lines) {
+      for (final (i, l) in lines.indexed) {
         await into(entries).insert(
           EntriesCompanion.insert(
+            id: await _freeId(entries, shared?.line(i)),
             transactionId: txnId,
             accountId: l.accountId,
             amountMinor: l.amount,
@@ -1872,6 +1886,21 @@ class AppDatabase extends _$AppDatabase {
       await _assertBalanced(txnId);
       return txnId;
     });
+  }
+
+  /// The id a new row of [table] gets: [sharedRowId] of [shared], the same
+  /// on every computer that makes this row from the same fact, unless a row
+  /// is already under it here (one skipped, or made and undone), when it is
+  /// [newRowId] as for any other row. Absent, [newRowId] through the
+  /// column's own default.
+  Future<Value<int>> _freeId(TableInfo table, SharedKey? shared) async {
+    if (shared == null) return const Value.absent();
+    final id = sharedRowId(shared.kind, shared.key);
+    final taken = await customSelect(
+      'SELECT 1 FROM "${table.actualTableName}" WHERE id = ?',
+      variables: [Variable.withInt(id)],
+    ).get();
+    return Value(taken.isEmpty ? id : newRowId());
   }
 
   /// The currency of a transaction whose accounts share one: the accounts'
@@ -1969,6 +1998,7 @@ class AppDatabase extends _$AppDatabase {
     required int counterAccountId,
     required int amount,
     String? memo,
+    SharedKey? shared,
   }) {
     return transaction(() async {
       await _assertLive(accountId);
@@ -1989,6 +2019,7 @@ class AppDatabase extends _$AppDatabase {
             cleared: Cleared.uncleared,
           ),
         ],
+        shared: shared,
       );
     });
   }
@@ -2601,8 +2632,10 @@ class AppDatabase extends _$AppDatabase {
     String? mask,
     String? group,
     int sortOrder = 0,
-  }) => into(accounts).insert(
+    SharedKey? shared,
+  }) async => into(accounts).insert(
     AccountsCompanion.insert(
+      id: await _freeId(accounts, shared),
       name: name,
       type: type,
       institution: Value(institution),
@@ -3052,6 +3085,8 @@ class AppDatabase extends _$AppDatabase {
           date: date,
           scheduled: true,
           planCategoryId: plan.categoryId,
+          // The same bill on every computer that schedules it.
+          shared: SharedKey('bill', '${plan.categoryId}|${dateKey(date)}'),
           lines: [
             (
               accountId: paidFrom,
@@ -3888,6 +3923,8 @@ class AppDatabase extends _$AppDatabase {
               payee: p.payee,
               scheduled: true,
               payScheduleId: p.id,
+              // The same payday on every computer that schedules it.
+              shared: SharedKey('payday', '${p.id}|${dateKey(date)}'),
               lines: [
                 (
                   accountId: p.accountId,
@@ -3909,14 +3946,23 @@ class AppDatabase extends _$AppDatabase {
   // ---------- categories ----------
 
   /// A spending category, in one [currency] (rule 28).
-  Future<int> createCategory(String name, {Currency currency = Currency.mnt}) =>
-      into(accounts).insert(
-        AccountsCompanion.insert(
-          name: name.trim(),
-          type: AccountType.expense,
-          currency: Value(currency.code),
-        ),
-      );
+  Future<int> createCategory(
+    String name, {
+    Currency currency = Currency.mnt,
+  }) async => into(accounts).insert(
+    AccountsCompanion.insert(
+      // A category is its name in its currency, as combine counts them: one
+      // row on every computer that makes it, by hand or for a phone or an
+      // import. (A bank account isn't: two of one name may be two accounts.)
+      id: await _freeId(
+        accounts,
+        SharedKey('category', '${currency.code}|${name.trim().toLowerCase()}'),
+      ),
+      name: name.trim(),
+      type: AccountType.expense,
+      currency: Value(currency.code),
+    ),
+  );
 
   /// The one income category (rule 30), made the first time it's wanted.
   /// Its rows are in the currency of the account the money came into.
@@ -3927,7 +3973,12 @@ class AppDatabase extends _$AppDatabase {
       readsFrom: {accounts},
     ).getSingleOrNull();
     if (existing == null) {
-      return addAccount(name: incomeAccountName, type: AccountType.income);
+      return addAccount(
+        name: incomeAccountName,
+        type: AccountType.income,
+        // One Income on every computer that makes it for itself.
+        shared: const SharedKey('category', 'income'),
+      );
     }
     return existing.read<int>('id');
   }
@@ -3967,6 +4018,11 @@ class AppDatabase extends _$AppDatabase {
     }
     return into(accounts).insert(
       AccountsCompanion.insert(
+        // One Safety net on every computer that makes it for itself.
+        id: await _freeId(
+          accounts,
+          SharedKey('category', 'safety-net|${currency.code}'),
+        ),
         name: name,
         type: AccountType.expense,
         currency: Value(currency.code),
@@ -4580,6 +4636,8 @@ class AppDatabase extends _$AppDatabase {
             payee: e.payee,
             counterAccountId: category!,
             amount: e.amountMinor,
+            // The same row on every computer that takes this entry in.
+            shared: SharedKey('phone', '${inbox.device}|${e.id}'),
           ),
         );
         entries.add(e.id);
@@ -5102,6 +5160,8 @@ class AppDatabase extends _$AppDatabase {
             date: dateOnly(p.row.date),
             payee: payee,
             memo: p.row.memo,
+            // The same row on every computer that imports this bank row.
+            shared: SharedKey('bank', p.key),
             lines: [
               (
                 accountId: accountId,
@@ -5299,8 +5359,14 @@ class AppDatabase extends _$AppDatabase {
     final existing = await (select(
       payees,
     )..where((p) => p.name.equals(n))).getSingleOrNull();
-    return existing?.id ??
-        await into(payees).insert(PayeesCompanion.insert(name: n));
+    if (existing != null) return existing.id;
+    // A payee is its name: one row on every computer that types it.
+    return into(payees).insert(
+      PayeesCompanion.insert(
+        id: await _freeId(payees, SharedKey('payee', n)),
+        name: n,
+      ),
+    );
   }
 
   /// Each currency's entries add up to zero on their own (ROADMAP E).

@@ -727,6 +727,58 @@ build; nothing in the folder changes yet.
   erase; the digest ignores the log; the write paths a person uses each leave a
   record); `migration_test.dart` "upgrades a v19 file".
 
+**Built, 2026-10-12: step 2, one id for the same thing made on both.** A row two
+computers would each make on their own from the same fact gets the same id on
+each (`sharedRowId(kind, key)`, `domain/sync.dart`: FNV-1a of the kind and key,
+in a range of its own, [2^62, 2^63), above anything `newRowId` gives for a
+century and above `carriedRuleId`'s). So the two computers hold one row, not two,
+and nothing has to be matched by what it says.
+
+- **What gets one:** the payday of a pay on a date (`payday|<pay id>|<date>`),
+  the bill of a plan on a date (`bill|<category id>|<date>`), a phone's entry
+  (`phone|<device>|<entry id>`), a bank row by its import key (`bank|<key>`), a
+  payee by its exact name (`payee|<name>`), a spending category by its name and
+  currency, lower-cased (`category|<currency>|<name>`: typed on both, made for a
+  phone's new category, or made by an import for Not categorized; a bank
+  account isn't, two of one name may be two accounts), Income
+  (`category|income`), the Safety net (`category|safety-net|<currency>`). A
+  transaction's entries take `<key>|0`, `<key>|1`, so they match too. All through
+  `postTransaction(shared:)` and `_freeId`.
+- **A row already under the id here** (a payday skipped and scheduled again
+  after the pay changed back, an import undone and run again, a category made
+  and deleted) makes the new row fall back to `newRowId`, as any other row. The
+  old matching by what a row says (`_sameScheduled`, `_samePhoneEntries`,
+  `_sameBankRows`, `_samePayees`, `_sameCategories`) stays as the backstop, for
+  rows made before this and for those fallbacks.
+- **In `combine`:** two rows under one id that neither ledger's base had are no
+  longer "made on both, not the same" and the whole-ledger question. The same
+  but for when each computer wrote them: one row, the earlier `created_at` and
+  the later `updated_at`, and not counted as a change to the person. One side
+  still the waiting payday or bill and the other the confirmed paycheck: the
+  waiting one is the base the other was made from, and the confirmed one is
+  kept, whichever side. Income or the Safety net named or ordered differently
+  on each (a label): this computer's stays. Anything else (two confirmations
+  of one payday for different amounts, two rows under one id from a build
+  that counted from 1): a block in the row window, not the whole ledger. (For
+  such a block "Neither: as it was" is today an empty base, so it reads
+  Deleted and would take the row out; step 4, which rewrites the policy, gives
+  a shared-id unit the waiting version as its base.)
+- **The digest ignores when a row was written** (`created_at`, `updated_at`;
+  `ledgerDigest`). Two computers that each scheduled the same payday wrote it at
+  different moments and hold the same ledger; without this each would find the
+  other "changed", merge the two times, write, and the first would then take the
+  folder's whole ledger in with "Opened the ledger saved on …" for nothing. A
+  person's change always changes something else as well.
+- **A merge that settled only what the two had made alike** (`CombinedIn.quiet`:
+  nothing counted, nothing alike, no block) says nothing on screen and leaves
+  the undo stack alone.
+- Tests: `two_computers_test.dart` "the same payday, phone entry and bank rows
+  get one id on both computers" (two real ledgers: the ids agree, the entries'
+  too, and the two are one ledger with nothing to write or say), "a shared id";
+  `combine_test.dart` "a payday both scheduled under one id" (merged times;
+  confirmed on one; two confirmations, a block), "Income made on both under one
+  id"; the digest test "when a row was written is no part of it".
+
 ### What a phone can and can't do
 
 | Can | Can't |

@@ -191,6 +191,12 @@ typedef CombinedIn = ({
   List<({int transaction, int account})> alike,
   LedgerLook from,
   DateTime modified,
+
+  /// Nothing the person would call a change came in: what the two had
+  /// made alike was settled (when each wrote a row, a category a phone
+  /// made that both took in) and no more. Nothing to say, and no reason to
+  /// clear the undo stack.
+  bool quiet,
 });
 
 /// The folder no longer holds what [CloudFolder.keepMine] wrote: another
@@ -938,6 +944,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           alike: plan.found.alike,
           from: seen.theirs.look,
           modified: seen.theirs.modified,
+          quiet:
+              picks == null &&
+              plan.found.transactions == 0 &&
+              plan.found.others == 0 &&
+              plan.found.alike.isEmpty,
         );
       });
 

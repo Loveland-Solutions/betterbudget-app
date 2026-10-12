@@ -242,3 +242,25 @@ int newRowId() {
   if (id <= _lastRowId) id = _lastRowId + 1;
   return _lastRowId = id;
 }
+
+/// The id of a row two computers would each make on their own from the
+/// same fact (ADR 0005, "the way chosen 2026-10-12", step 2): the payday or
+/// bill of one pay or plan on one date, a phone's entry, a bank row by its
+/// import key, Income, the Safety net. The same [kind] and [key] give the
+/// same id everywhere, so the two computers hold one row, not two. In a
+/// range of its own, [2^62, 2^63), above anything [newRowId] gives for the
+/// next century and above [carriedRuleId]'s. A row already under the id
+/// (one skipped, or made and undone) makes the caller fall back to
+/// [newRowId]: see `AppDatabase._freeId`.
+int sharedRowId(String kind, String key) {
+  // FNV-1a, as carriedRuleId.
+  var h = 0xcbf29ce484222325;
+  for (final unit in '$kind|$key'.codeUnits) {
+    h ^= unit;
+    h = (h * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+  }
+  return (h & 0x3FFFFFFFFFFFFFFF) | 0x4000000000000000;
+}
+
+/// Whether [id] is one [sharedRowId] gives.
+bool isSharedRowId(int id) => id >= 0x4000000000000000;

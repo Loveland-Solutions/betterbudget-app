@@ -12,11 +12,12 @@
 //
 // Pure: rows are plain maps as SQLite gives them, by table.
 import 'dart:convert';
+import 'dart:math';
 
 import 'forecast.dart' show ForecastSpan;
 import 'ledger.dart' show alreadyInDays;
 import 'phone.dart' show PhoneTaken, phoneTakenKey;
-import 'sync.dart' show SyncKeys;
+import 'sync.dart' show SyncKeys, isSharedRowId;
 
 typedef Row = Map<String, Object?>;
 
@@ -1124,11 +1125,11 @@ class _Combine {
     _count(table, row);
   }
 
-  void _update(String table, Row row) {
+  void _update(String table, Row row, {bool count = true}) {
     final key = {for (final c in _keys[table]!) c: row[c]};
     ops.add(RowOp.update(table, key, row));
     result[table]![_keyOf(table, row)] = row;
-    _count(table, row);
+    if (count) _count(table, row);
   }
 
   void _delete(String table, Row row) {
@@ -1158,7 +1159,29 @@ class _Combine {
         }
         continue;
       }
-      if (was == null) _stop('$table $k made on both, not the same');
+      if (was == null) {
+        // One id on both from the same fact ([sharedRowId]): a payday or
+        // bill each scheduled, a phone's entry each took in, a bank row
+        // each imported, Income. The same but for when each wrote it: one
+        // row, its times merged. One side's still the waiting payday and
+        // the other's the confirmed paycheck: the waiting one is what the
+        // other was made from, so it stands as the base.
+        final merged = _sameMade(here!, there!);
+        if (merged != null) {
+          // Only when each wrote it: not a change to the person.
+          if (!_same(merged, here)) _update(table, merged, count: false);
+          continue;
+        }
+        final base = _waitingOf(table, k, here, there);
+        if (base != null) {
+          if (_same(base, here)) _update(table, there);
+          continue;
+        }
+        // Income or the Safety net, named or ordered differently on each
+        // (a label): this computer's stays.
+        if (table == 'accounts' && isSharedRowId(here['id'] as int)) continue;
+        _askAbout(table, [here, there], '$table $k made on both, not the same');
+      }
       if (here == null || there == null) {
         _askAbout(table, [
           was,
@@ -1184,6 +1207,50 @@ class _Combine {
       }
       if (!_same(merged, here)) _update(table, merged);
     }
+  }
+
+  static const _times = {'created_at', 'updated_at'};
+
+  /// [a] and [b] as one row when they differ only in when each computer
+  /// wrote them (and both are deleted or put away, whenever): the earlier
+  /// made, the later updated, this computer's marks. Null otherwise.
+  Row? _sameMade(Row a, Row b) {
+    if (a.length != b.length) return null;
+    final out = {...a};
+    for (final c in a.keys) {
+      if (!b.containsKey(c)) return null;
+      final x = a[c], y = b[c];
+      if (x == y) continue;
+      if (_times.contains(c) && x is int && y is int) {
+        out[c] = c == 'created_at' ? min(x, y) : max(x, y);
+      } else if ((c == 'deleted_at' || c == 'archived_at') &&
+          x != null &&
+          y != null) {
+        // Agreed, whatever the time.
+      } else {
+        return null;
+      }
+    }
+    return out;
+  }
+
+  /// Of two rows under one id made on both, the one that is still the
+  /// waiting payday or bill (or its entry) where the other is the confirmed
+  /// one: the base the confirmed one was made from. Null when neither, or
+  /// both, wait.
+  Row? _waitingOf(String table, String k, Row here, Row there) {
+    bool waits(LedgerRows of, Row r) {
+      final t = table == 'transactions'
+          ? r
+          : table == 'entries'
+          ? _index('transactions', of['transactions'])['${r['transaction_id']}']
+          : null;
+      return t != null && t['scheduled'] == 1 && t['deleted_at'] == null;
+    }
+
+    final hereWaits = waits(mine, here), thereWaits = waits(theirs, there);
+    if (hereWaits == thereWaits) return null;
+    return hereWaits ? here : there;
   }
 
   /// What a category was assigned for a period is the sum of its rows for

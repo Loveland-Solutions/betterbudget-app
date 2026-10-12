@@ -490,11 +490,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       debugPrint('Scheduling after the folder’s changes failed: $e');
     }
-    // Earlier actions may point at rows the other computer changed.
-    _history.clear();
-    _redo.clear();
+    if (!done.quiet) {
+      // Earlier actions may point at rows the other computer changed.
+      _history.clear();
+      _redo.clear();
+    }
     // The two together go to the folder.
     await _cloud.check(widget.clock(), fresh: true);
+    // What the two had made alike, settled, and nothing else: nothing to
+    // say.
+    if (done.quiet) return;
     Map<Currency, int> overNow = const {};
     try {
       overNow = over(await db.loadLedger());

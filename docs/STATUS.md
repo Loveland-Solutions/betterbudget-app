@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.30.0 · schema v20 · 697 tests pass
+**Last updated: 2026-10-12** · version 0.31.0 · schema v20 · 702 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -29,12 +29,15 @@ review's findings are in (no bug that touches data; its rules are in the ADR).
 Nothing in the folder changes yet, so the owner sees nothing new on the Mac;
 **the Pixel's old build can't open a v20 `Ledger.betterbudget`** (nor a v19 one:
 every schema bump does this), so the phone wants this build at the next
-install. **Next is PR 2**
-(deterministic ids for paydays, bills, phone entries and bank rows, the old dedupe
-kept as backstop), then 3 (the folder cycle and the derived snapshot; counters,
-seal and the agreed file go), 4 (the facts-first policy and the blocks), 5
-(restore as a batch, erase as a new ledger id, the digest guard, a soak on two
-Mac accounts). The money
+install. **PR 2 of 5 is built too (version 0.31.0, stacked on PR 1): one id for
+the same thing made on both** (ADR 0005 "Built, 2026-10-12: step 2"): the same
+payday, bill, phone entry, bank row, payee, category, Income and Safety net get
+the same id on every computer, so two computers that did the same thing hold one
+row and have nothing to merge, write or say; the digest ignores when a row was
+written; the old matching by what a row says stays as the backstop. **Next is
+PR 3** (the folder cycle and the derived snapshot; counters, seal and the agreed
+file go), then 4 (the facts-first policy and the blocks), 5 (restore as a batch,
+erase as a new ledger id, the digest guard, a soak on two Mac accounts). The money
 rules were put to the owner with the choice and not objected to (ADR 0005 "The
 money rules"). **Known and left open until PR 3** (found by the review): two
 computers writing within Drive's propagation window make the loser's agreed file a

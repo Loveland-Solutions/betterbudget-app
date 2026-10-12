@@ -14,7 +14,11 @@ import '../domain/sync.dart';
 import 'encryption.dart';
 
 /// Every row of every table in what [select] reads, but for the `sync.*`
-/// preferences and the change log, as one digest. Rows and columns are put in a fixed order
+/// preferences, the change log, and when each row was written
+/// (`created_at`, `updated_at`), as one digest. Two computers that each
+/// made the same row from the same fact (a payday, a phone's entry: one id,
+/// [sharedRowId]) wrote it at different moments, and are still holding the
+/// same ledger; a person's change always changes something else too. Rows and columns are put in a fixed order
 /// first, so two files holding the same rows give the same digest however
 /// each was made (an upgraded file's columns are in another order than a new
 /// one's).
@@ -33,13 +37,14 @@ Future<String> ledgerDigest(
     final lines = [
       for (final row in rows)
         jsonEncode([
-          for (final column in row.keys.toList()..sort()) ...[
-            column,
-            switch (row[column]) {
-              final Uint8List bytes => {'blob': base64Encode(bytes)},
-              final value => value,
-            },
-          ],
+          for (final column in row.keys.toList()..sort())
+            if (!_whenWritten.contains(column)) ...[
+              column,
+              switch (row[column]) {
+                final Uint8List bytes => {'blob': base64Encode(bytes)},
+                final value => value,
+              },
+            ],
         ]),
     ]..sort();
     input.add(utf8.encode('$table ${lines.length}\n'));
@@ -50,6 +55,10 @@ Future<String> ledgerDigest(
   input.close();
   return out.value.toString();
 }
+
+/// The columns that say when a row was written here, no part of what a
+/// ledger holds.
+const _whenWritten = {'created_at', 'updated_at'};
 
 /// Every row of every table in what [select] reads, as [combine] compares
 /// them (ADR 0005, "Combine").
