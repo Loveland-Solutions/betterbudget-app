@@ -59,6 +59,11 @@ class FolderAccess {
         : (path: path, token: found?['token'] as String?);
   }
 
+  /// Whether a folder has to be picked by itself before it can be kept. A
+  /// sandboxed Mac app is given only the file picked in an open dialog,
+  /// never the folder around it.
+  bool get folderMustBePicked => Platform.isMacOS;
+
   /// What this computer is called, for telling the other one whose changes
   /// it has opened: the name its owner gave it where the system has one.
   Future<String> computerName() async {
@@ -450,6 +455,22 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       }
     });
   }
+
+  /// The folder [file] is in, when [file] is a ledger as one is stored in a
+  /// folder ([fileName]) and the folder isn't the app's own: restored from
+  /// there, this computer can be kept on that folder's ledger. Null for any
+  /// other file.
+  Future<String?> folderOfLedger(String file) async {
+    final parts = file.split(RegExp(r'[/\\]'));
+    if (parts.length < 2 || parts.last != fileName) return null;
+    final live = await backups.db.filePath();
+    if (live == null) return null;
+    final folder = File(file).parent.path;
+    return _same(File(live).parent.path, folder) ? null : folder;
+  }
+
+  /// Whether [a] and [b] are one folder, however each was reached.
+  static bool sameFolder(String a, String b) => _same(a, b);
 
   static bool _same(String a, String b) {
     String real(String p) {

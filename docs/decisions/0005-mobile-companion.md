@@ -423,6 +423,25 @@ ledger are combined without a question whenever what they did can both stand.
 - A guard: the same folder file is never brought in twice by itself; if something
   of it were still found missing afterwards, the question is asked.
 
+**Built, 2026-10-12: a second computer in one step.** Restore from… pointed at the
+folder's `Ledger.betterbudget` offers, ticked, to keep this computer on it (ADR 0004
+"A second computer set up in one step"). The file is taken in as the folder's own
+(`Backups.restore(fromFolder: true)`: its counts and seal), and `CloudFolder.keepIn`
+runs before anything is scheduled here, so the look finds the two the same and the
+which-to-keep question a restored ledger was asked on first meeting the folder
+doesn't come up. If the folder's file moved on between the pick and the look, the
+later one is taken in there and then, still before anything is scheduled (a row
+scheduled first would make the two look changed apart). Undo leaves the folder
+first (`stop`), then puts back what was here; Redo does the step again with the
+ledger the folder holds then. A sandboxed Mac is given the picked file only, so the
+folder is picked once more (`FolderAccess.folderMustBePicked`); it is known as the
+same folder by its path, or by holding the very file that was picked. **This door
+replaces what is here, on purpose** (the dialog says how much is here, and it is
+saved first), where "Move my ledger to a folder…" onto a folder with a ledger
+compares the two. If the folder can't be kept after the restore, the ledger here
+carries the folder's seal though it is stored on this computer: harmless, since a
+later move to that folder then takes, writes or asks as the counts say.
+
 Not built: a question about the one row in conflict, with the real values (decision
 1). A conflict still asks which whole ledger to keep, and still shows only counts.
 Two people who each choose "Keep this computer's ledger" replace each other's in

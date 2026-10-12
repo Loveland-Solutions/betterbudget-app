@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io' show Directory, File;
+import 'dart:io'
+    show Directory, File, FileSystemEntityType, FileSystemException;
 import 'dart:ui' show AppExitResponse;
 
 import 'package:file_selector/file_selector.dart';
@@ -4037,11 +4038,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (picked == null) return false;
     RestoreCandidate? found;
+    // Opened by this ledger's own key, as the ledger in a folder has to be
+    // for this computer to be kept on it.
+    var ownKey = true;
     try {
       found = await _backups.inspect(picked.path, now);
     } on RestoreNeedsKeyException {
       // Made under another ledger's key: its own recovery key opens it.
       if (!mounted) return false;
+      ownKey = false;
       await showBackupKeyDialog(context, (key) async {
         try {
           found = await _backups.inspect(
@@ -4068,50 +4073,184 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (!mounted) return false;
     final candidate = found!;
-    final data = _data;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      builder: (_) => _RestoreDialog(
-        candidate: candidate,
-        transactionsNow: data?.txns.length ?? 0,
-        accountsNow: data?.balanceSheetAccounts.length ?? 0,
-      ),
-    );
-    if (confirmed != true) {
-      await _backups.discard(candidate);
-      return false;
+    // The ledger another computer keeps in a folder: this computer can be
+    // kept on it in the same step (a second computer set up). Offered only
+    // while the ledger here is stored on this computer.
+    String? folder;
+    if (ownKey && _cloud.loaded.value && _cloud.value.path == null) {
+      try {
+        folder = await _cloud.folderOfLedger(picked.path);
+      } catch (e) {
+        debugPrint('The picked file’s folder couldn’t be worked out: $e');
+      }
+      if (!mounted) {
+        await _backups.discard(candidate);
+        return false;
+      }
     }
-    final RestoreRecord done;
+    final data = _data;
+    String? to;
+    // The folder chosen in the Mac's dialog is the one the file was picked
+    // in: by its path, or (where the sandbox won't resolve a path it wasn't
+    // given) by holding that very file.
+    bool holdsPicked(String chosen) {
+      if (CloudFolder.sameFolder(chosen, folder!)) return true;
+      try {
+        final there = File('$chosen/${CloudFolder.fileName}').statSync();
+        final was = File(picked!.path).statSync();
+        return there.type == FileSystemEntityType.file &&
+            there.size == was.size &&
+            there.modified == was.modified;
+      } on FileSystemException {
+        return false;
+      }
+    }
+
+    while (true) {
+      final answer = await showDialog<_RestoreAnswer>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.55),
+        builder: (_) => _RestoreDialog(
+          candidate: candidate,
+          transactionsNow: data?.txns.length ?? 0,
+          accountsNow: data?.balanceSheetAccounts.length ?? 0,
+          folder: folder == null ? null : _folderName(folder),
+          macAsks: _cloud.access.folderMustBePicked,
+        ),
+      );
+      if (answer == null || !mounted) {
+        await _backups.discard(candidate);
+        return false;
+      }
+      if (folder == null || answer == _RestoreAnswer.restore) break;
+      if (!_cloud.access.folderMustBePicked) {
+        to = folder;
+        break;
+      }
+      // The Mac gave the app the file and not its folder: its own dialog
+      // opens on the folder, to be chosen there.
+      String? chosen;
+      try {
+        chosen = await getDirectoryPath(
+          initialDirectory: folder,
+          confirmButtonText: t.ledgerUseThisFolder,
+        );
+      } catch (e) {
+        debugPrint('Folder dialog failed: $e');
+        _showToast(t.ledgerCouldntOpenSaveDialog);
+      }
+      if (!mounted) {
+        await _backups.discard(candidate);
+        return false;
+      }
+      if (chosen != null && holdsPicked(chosen)) {
+        to = chosen;
+        break;
+      }
+      // Not chosen, or another folder: back to the question, nothing done.
+    }
+    var kept = false;
+    // The folder's ledger is taken in as the folder's own, with its counts
+    // and seal, and the folder kept before anything is scheduled here: the
+    // look then finds the two the same and asks nothing.
+    Future<RestoreRecord> bringFromFolder(RestoreCandidate from) async {
+      var record = await _backups.restore(
+        from,
+        widget.clock(),
+        fromFolder: true,
+      );
+      // Earlier actions point at rows the restore replaced.
+      _history.clear();
+      _redo.clear();
+      kept = false;
+      try {
+        await _cloud.keepIn(to!, widget.clock());
+        kept = true;
+        // The folder's ledger moved on since the file was picked (the other
+        // computer wrote, or the sync service delivered a later one): that
+        // one is taken in now, before a row scheduled here would make the
+        // two look changed apart.
+        final theirs = _cloud.theirs;
+        final unchanged = _cloud.mineDigest;
+        if (_cloud.value.standing == FolderStanding.newer &&
+            theirs != null &&
+            unchanged != null) {
+          final later = await _backups.restore(
+            await _backups.inspect(theirs.copy.path, widget.clock()),
+            widget.clock(),
+            fromFolder: true,
+            onlyIfDigest: unchanged,
+          );
+          record = (before: record.before, restored: later.restored);
+          await _cloud.check(widget.clock(), fresh: true);
+        }
+      } catch (e) {
+        debugPrint('Keeping this computer on the folder failed: $e');
+      }
+      return record;
+    }
+
+    Future<void> schedule() async {
+      // A restored file's pay schedules get their next paydays, and its
+      // plans their next bills, as at launch.
+      try {
+        await db.ensurePaydays(today);
+        await db.ensurePlanBills(today);
+      } catch (e) {
+        debugPrint('Scheduling paydays after restore failed: $e');
+      }
+    }
+
+    late RestoreRecord done;
     try {
-      done = await _whileRestoring(() => _backups.restore(candidate, now));
+      done = await _whileRestoring(() async {
+        if (to != null) return bringFromFolder(candidate);
+        final record = await _backups.restore(candidate, now);
+        _history.clear();
+        _redo.clear();
+        return record;
+      });
     } catch (e) {
       debugPrint('Restore failed: $e');
       _showToast(t.ledgerCouldntRestore);
       return false;
     }
     if (!mounted) return false;
-    // A restored file's pay schedules get their next paydays, and its
-    // plans their next bills, as at launch.
-    try {
-      await db.ensurePaydays(today);
-      await db.ensurePlanBills(today);
-    } catch (e) {
-      debugPrint('Scheduling paydays after restore failed: $e');
-    }
-    // Earlier actions point at rows the restore replaced.
-    _history.clear();
-    _redo.clear();
-    final label = t.ledgerRestoredFrom(sayFullDate(t, candidate.madeAt));
+    await schedule();
+    if (!mounted) return false;
+    final label = kept
+        ? t.ledgerRestoredOnFolder(_folderName(to!))
+        : t.ledgerRestoredFrom(sayFullDate(t, candidate.madeAt));
     _did(
       label,
-      undo: () => _whileRestoring(
-        () => _backups.replaceWith(done.before, widget.clock()),
-      ),
-      redo: () => _whileRestoring(
-        () => _backups.replaceWith(done.restored, widget.clock()),
-      ),
-      message: '$label · ${t.ledgerWhatYouHadIsSaved}',
+      // Off the folder first: what was here before is this computer's own,
+      // and isn't written over the ledger the other computers share.
+      undo: () async {
+        if (to != null) await _cloud.stop();
+        await _whileRestoring(
+          () => _backups.replaceWith(done.before, widget.clock()),
+        );
+      },
+      // On the folder, the step is done again as it was the first time: the
+      // ledger there now is the one brought here.
+      redo: () async {
+        final onFolder = to;
+        if (onFolder == null) {
+          await _whileRestoring(
+            () => _backups.replaceWith(done.restored, widget.clock()),
+          );
+          return;
+        }
+        final again = await _backups.inspect(
+          '$onFolder/${CloudFolder.fileName}',
+          widget.clock(),
+        );
+        done = await _whileRestoring(() => bringFromFolder(again));
+        await schedule();
+      },
+      message: to != null && !kept
+          ? t.ledgerRestoredNotOnFolder(_folderName(to))
+          : '$label · ${t.ledgerWhatYouHadIsSaved}',
     );
     return true;
   }
@@ -5675,19 +5814,52 @@ class _TwoLedgersDialog extends StatelessWidget {
   }
 }
 
-class _RestoreDialog extends StatelessWidget {
+/// What the restore dialog was answered with; closed any other way, nothing
+/// is restored.
+enum _RestoreAnswer {
+  restore,
+
+  /// And this computer stays on the folder the file was picked in.
+  restoreAndKeep,
+}
+
+class _RestoreDialog extends StatefulWidget {
   const _RestoreDialog({
     required this.candidate,
     required this.transactionsNow,
     required this.accountsNow,
+    this.folder,
+    this.macAsks = false,
   });
   final RestoreCandidate candidate;
   final int transactionsNow;
   final int accountsNow;
 
+  /// The folder the file was picked in, as it's named on screen, when it is
+  /// the ledger another computer keeps there: the dialog then offers to
+  /// keep this computer on it, ticked.
+  final String? folder;
+
+  /// The Mac's own folder dialog follows Restore: the note says so.
+  final bool macAsks;
+
+  @override
+  State<_RestoreDialog> createState() => _RestoreDialogState();
+}
+
+class _RestoreDialogState extends State<_RestoreDialog> {
+  bool _keep = true;
+
+  _RestoreAnswer get _answer => widget.folder != null && _keep
+      ? _RestoreAnswer.restoreAndKeep
+      : _RestoreAnswer.restore;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final candidate = widget.candidate;
+    final transactionsNow = widget.transactionsNow;
+    final accountsNow = widget.accountsNow;
     final made = candidate.madeAt;
     String two(int v) => v.toString().padLeft(2, '0');
     Widget line(String label, String value, {bool strong = false}) => Padding(
@@ -5718,7 +5890,7 @@ class _RestoreDialog extends StatelessWidget {
       child: CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.enter): () =>
-              Navigator.of(context).pop(true),
+              Navigator.of(context).pop(_answer),
         },
         child: Focus(
           autofocus: true,
@@ -5731,12 +5903,16 @@ class _RestoreDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    t.ledgerRestoreTitle,
+                    widget.folder == null
+                        ? t.ledgerRestoreTitle
+                        : t.ledgerBringLedgerTitle,
                     style: onest(17, weight: 600, letterSpacing: -0.2),
                   ),
                   const SizedBox(height: 16),
                   line(
-                    t.ledgerBackupFrom,
+                    widget.folder == null
+                        ? t.ledgerBackupFrom
+                        : t.ledgerLastChanged,
                     '${fullDate(made)}  ${two(made.hour)}:${two(made.minute)}',
                     strong: true,
                   ),
@@ -5750,7 +5926,56 @@ class _RestoreDialog extends StatelessWidget {
                     t.ledgerCounts(transactionsNow, accountsNow),
                   ),
                   const SizedBox(height: 6),
-                  Text(t.ledgerRestoreNote, style: onest(13, color: Mid.ink2)),
+                  Text(
+                    widget.folder == null
+                        ? t.ledgerRestoreNote
+                        : t.ledgerBringLedgerNote,
+                    style: onest(13, color: Mid.ink2),
+                  ),
+                  if (widget.folder case final folder?) ...[
+                    const SizedBox(height: 16),
+                    Hoverable(
+                      key: const ValueKey('restore-keep-on-folder'),
+                      onTap: () => setState(() => _keep = !_keep),
+                      builder: (_) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            _keep
+                                ? Icons.check_box_rounded
+                                : Icons.check_box_outline_blank_rounded,
+                            size: 18,
+                            color: _keep ? Mid.blue : Mid.ink3,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.ledgerRestoreKeepOnFolder(folder),
+                                  style: onest(13.5, color: Mid.ink),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  !_keep
+                                      ? t.ledgerRestoreNotKeptNote(folder)
+                                      : widget.macAsks
+                                      ? '${t.ledgerRestoreKeepOnFolderNote(folder)} ${t.ledgerRestoreMacAsks}'
+                                      : t.ledgerRestoreKeepOnFolderNote(folder),
+                                  style: onest(
+                                    13,
+                                    color: Mid.ink2,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -5758,14 +5983,14 @@ class _RestoreDialog extends StatelessWidget {
                       BarButton(
                         key: const ValueKey('restore-cancel'),
                         label: t.ledgerCancel,
-                        onTap: () => Navigator.of(context).pop(false),
+                        onTap: () => Navigator.of(context).pop(),
                       ),
                       _PrimaryButton(
                         key: const ValueKey('restore-confirm'),
                         label: t.ledgerRestore,
                         icon: Icons.settings_backup_restore_rounded,
                         tooltip: 'Enter',
-                        onTap: () => Navigator.of(context).pop(true),
+                        onTap: () => Navigator.of(context).pop(_answer),
                       ),
                     ],
                   ),
