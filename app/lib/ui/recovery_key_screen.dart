@@ -396,9 +396,7 @@ class _RecoveryKeyEntryScreenState extends State<RecoveryKeyEntryScreen> {
                         key: const ValueKey('recovery-key-generate-new'),
                         onPressed: _busy ? null : _setUpNew,
                         child: Text(
-                          widget.ledgerHere
-                              ? t.startNewLedgerInstead
-                              : t.startNewToApp,
+                          t.startNewLedgerInstead,
                           style: TextStyle(
                             color: widget.ledgerHere ? Mid.coral : null,
                           ),

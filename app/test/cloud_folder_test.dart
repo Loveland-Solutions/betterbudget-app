@@ -1130,5 +1130,113 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
     });
+    testWidgets('Open ledger on a new computer: one pick of the folder brings '
+        'the ledger here and keeps this computer on it', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final dialogs = _FakeDialogs();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+
+      late AppDatabase other;
+      late CloudFolder otherCloud;
+      late List<int> theirs;
+      await tester.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('bb-open');
+        drive = await Directory('${dir.path}/My Drive/BetterBudget')
+            .create(recursive: true);
+        await Directory('${dir.path}/My Drive/Photos').create();
+        await Directory('${dir.path}/here').create();
+        await Directory('${dir.path}/other').create();
+        other = AppDatabase(
+          NativeDatabase(File('${dir.path}/other/Ledger.betterbudget')),
+        );
+        await seedDemoIfEmpty(other, today);
+        otherCloud = CloudFolder(Backups(other), access: _OtherAccess());
+        await otherCloud.keepIn(drive.path, today);
+        theirs = await copy().readAsBytes();
+        // Nothing here yet: a new computer.
+        db = AppDatabase(
+          NativeDatabase(File('${dir.path}/here/Ledger.betterbudget')),
+        );
+      });
+      final made = dir;
+      addTearDown(() => made.deleteSync(recursive: true));
+
+      // A folder with no ledger in it is picked first: nothing is written
+      // there, it says so, and asks again.
+      final photos = '${dir.path}/My Drive/Photos';
+      dialogs.folder = photos;
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: appTheme(),
+            home: LedgerScreen(
+              db: db,
+              clock: () => today,
+              folderAccess: _FakeAccess(),
+              offerRestore: true,
+              startFrom: StartFrom.folder,
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        find.textContaining('There’s no ledger in My Drive/Photos'),
+        findsOneWidget,
+      );
+      expect(find.text('Where is your ledger?'), findsOneWidget);
+      expect(Directory(photos).listSync(), isEmpty);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/where_is_your_ledger.png'),
+      );
+
+      // My Drive itself is pointed to: the one folder in it that holds a
+      // ledger is the one meant. The ledger is here, nothing was asked about
+      // what it replaced (nothing was here), and this computer is on the
+      // folder.
+      dialogs.folder = '${dir.path}/My Drive';
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('offer-restore-folder')));
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        find.text(
+          'This computer is now on the ledger in My Drive/BetterBudget',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Your ledger was changed on two computers'),
+        findsNothing,
+      );
+      await tester.runAsync(() async {
+        final here = await db.loadLedger();
+        expect(here.txns.length, (await other.loadLedger()).txns.length);
+        expect(await copy().readAsBytes(), theirs);
+      });
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.textContaining('My Drive/BetterBudget · '), findsWidgets);
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(const SizedBox());
+        otherCloud.dispose();
+        await other.close();
+        await db.close();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+    });
   });
 }

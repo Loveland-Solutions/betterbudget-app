@@ -11,6 +11,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/recovery_key_screen.dart';
+import 'package:betterbudget/ui/start_choice.dart';
 import 'package:betterbudget/ui/startup.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -58,9 +59,22 @@ class _FakeSecureStorage extends FlutterSecureStoragePlatform {
       values.clear();
 }
 
-/// The system's open dialog, cancelled every time.
+/// The system's open and folder dialogs: cancelled, unless given what was
+/// picked.
 class _CancelledDialogs extends FileSelectorPlatform {
   var opened = 0;
+  var folders = 0;
+  String? openPath;
+  String? folder;
+
+  @override
+  Future<String?> getDirectoryPath({
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async {
+    folders++;
+    return folder;
+  }
 
   @override
   Future<XFile?> openFile({
@@ -69,7 +83,7 @@ class _CancelledDialogs extends FileSelectorPlatform {
     String? confirmButtonText,
   }) async {
     opened++;
-    return null;
+    return openPath == null ? null : XFile(openPath!);
   }
 }
 
@@ -137,11 +151,11 @@ void main() {
   }
 
   /// A ledger with demo rows, encrypted with [recovery]'s key, or plain.
-  Future<void> makeLedger({RecoveryKey? recovery}) async {
+  Future<void> makeLedger({RecoveryKey? recovery, File? at}) async {
     final key = recovery == null ? null : deriveDataKey(recovery);
     final db = AppDatabase(
       NativeDatabase(
-        file,
+        at ?? file,
         setup: key == null ? null : (raw) => applyCipherKey(raw, key),
       ),
     );
@@ -183,6 +197,7 @@ void main() {
       () =>
           shown(find.byType(RecoveryKeySetupScreen)) ||
           shown(find.byType(RecoveryKeyEntryScreen)) ||
+          shown(find.byType(StartChoiceScreen)) ||
           shown(find.byType(LedgerScreen)),
     );
   }
@@ -194,6 +209,13 @@ void main() {
     });
     await tester.pump();
     await tester.pump();
+  }
+
+  /// On the first screen of a computer with no ledger: opens one of the
+  /// ways that need the key ('start-restore', 'start-open').
+  Future<void> choose(WidgetTester tester, String way) async {
+    await tapAndWait(tester, find.byKey(ValueKey(way)));
+    expect(find.byKey(ValueKey('$way-open')), findsOne);
   }
 
   Future<void> typeKey(WidgetTester tester, RecoveryKey k) async {
@@ -295,57 +317,150 @@ void main() {
     },
   );
 
-  testWidgets('a key typed on a new computer offers a backup, not the demo', (
-    tester,
-  ) async {
+  /// A backup saved elsewhere, made under [recovery]'s key.
+  Future<String> makeBackup(RecoveryKey recovery) async {
+    final saved = File('${dir.path}/usb/BetterBudget 2026.09.15.betterbudget');
+    await saved.parent.create(recursive: true);
+    await makeLedger(recovery: recovery, at: saved);
+    return saved.path;
+  }
+
+  _CancelledDialogs fakeDialogs() {
+    final dialogs = _CancelledDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    return dialogs;
+  }
+
+  testWidgets('a new computer opens on three ways to start; a key is kept '
+      'only once it opens what was picked', (tester) async {
+    final dialogs = fakeDialogs();
+    final recovery = RecoveryKey.generate();
+    final backup = await tester.runAsync(() => makeBackup(recovery));
     await launch(tester);
+    // Three ways to start, and no key asked for until one that needs it is
+    // chosen.
+    expect(find.text('How do you want to start?'), findsOne);
+    expect(find.text('My household is new to BetterBudget.'), findsOne);
+    expect(find.byKey(const ValueKey('recovery-key-field')), findsNothing);
+    // The one clicked opens where it is, with the key and its button.
+    await choose(tester, 'start-open');
+    expect(find.text('Choose the folder…'), findsOne);
+    await expectLater(
+      find.byType(StartChoiceScreen),
+      matchesGoldenFile('goldens/start_choice_open.png'),
+    );
+    // A click on its name closes it, and so does Esc.
+    await tapAndWait(tester, find.byKey(const ValueKey('start-open')));
+    expect(find.byKey(const ValueKey('recovery-key-field')), findsNothing);
+    await choose(tester, 'start-open');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('recovery-key-field')), findsNothing);
+
+    // A folder with no ledger in it: said under the key, nothing kept.
+    await choose(tester, 'start-open');
+    final empty = await tester.runAsync(
+      () => Directory('${dir.path}/My Drive/Photos').create(recursive: true),
+    );
+    dialogs.folder = empty!.path;
+    await typeKey(tester, recovery);
+    expect(dialogs.folders, 1);
     expect(
-      find.textContaining('This computer doesn’t have a ledger yet'),
+      find.textContaining('There’s no ledger in My Drive/Photos'),
       findsOne,
     );
+    expect(storage.values, isEmpty);
+    expect(file.existsSync(), isFalse);
+
+    // Another opens in its place. Its dialog closed: still here.
+    await choose(tester, 'start-restore');
+    expect(find.text('Choose the folder…'), findsNothing);
+    expect(find.text('Choose the backup…'), findsOne);
+    await typeKey(tester, recovery);
+    expect(dialogs.opened, 1);
+    expect(find.byType(StartChoiceScreen), findsOne);
+    expect(storage.values, isEmpty);
+
+    // Another ledger's key: it doesn't open the backup, and isn't kept.
+    dialogs.openPath = backup;
     await typeKey(tester, RecoveryKey.generate());
-    await until(tester, () => shown(find.text('Open your newest backup?')));
-    expect(find.text('Open your newest backup?'), findsOne);
+    expect(find.textContaining('That key doesn’t open this backup'), findsOne);
+    expect(storage.values, isEmpty);
+    expect(file.existsSync(), isFalse);
+
+    // Its own key: kept, and the backup is the one asked about.
+    await typeKey(tester, recovery);
+    await until(tester, () => shown(find.text('Restore this backup?')));
+    expect(storage.values['betterbudget.dataKey'], isNotNull);
+    expect(dialogs.opened, 3);
+    await tapAndWait(tester, find.byKey(const ValueKey('restore-confirm')));
+    await until(
+      tester,
+      () => shown(find.textContaining('Restored the copy from')),
+    );
+    final ledger = await tester.runAsync(() => opened.single.loadLedger());
+    expect(ledger!.txns, isNotEmpty);
+    expect(find.text('Where is your ledger?'), findsNothing);
+    await tidy(tester);
+  });
+
+  /// A new computer with the key typed and the backup picked, then the
+  /// restore cancelled: an empty ledger, and nothing answered.
+  Future<_CancelledDialogs> keyTypedNothingOpened(WidgetTester tester) async {
+    final dialogs = fakeDialogs();
+    final recovery = RecoveryKey.generate();
+    dialogs.openPath = await tester.runAsync(() => makeBackup(recovery));
+    await launch(tester);
+    await choose(tester, 'start-restore');
+    await typeKey(tester, recovery);
+    await until(tester, () => shown(find.text('Restore this backup?')));
+    dialogs.openPath = null;
+    await tapAndWait(tester, find.byKey(const ValueKey('restore-cancel')));
+    await until(tester, () => shown(find.text('Where is your ledger?')));
+    return dialogs;
+  }
+
+  testWidgets('with nothing opened, it asks where the ledger is, and a '
+      'dialog closed comes back to that', (tester) async {
+    final dialogs = await keyTypedNothingOpened(tester);
+    final files = dialogs.opened;
+    await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-open')));
+    await until(
+      tester,
+      () =>
+          dialogs.opened == files + 1 &&
+          shown(find.text('Where is your ledger?')),
+    );
+    // The folder's dialog, closed too, comes back the same way.
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('offer-restore-folder')),
+    );
+    await until(
+      tester,
+      () => dialogs.folders == 1 && shown(find.text('Where is your ledger?')),
+    );
     await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-empty')));
+    expect(find.text('Where is your ledger?'), findsNothing);
     final ledger = await tester.runAsync(() => opened.single.loadLedger());
     expect(ledger!.txns, isEmpty);
     expect(ledger.balanceSheetAccounts, isEmpty);
     await tidy(tester);
   });
 
-  testWidgets('Cancel in the file dialog comes back to the offer', (
-    tester,
-  ) async {
-    final dialogs = _CancelledDialogs();
-    final before = FileSelectorPlatform.instance;
-    FileSelectorPlatform.instance = dialogs;
-    addTearDown(() => FileSelectorPlatform.instance = before);
-    await launch(tester);
-    await typeKey(tester, RecoveryKey.generate());
-    await until(tester, () => shown(find.text('Open your newest backup?')));
-    await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-open')));
-    await until(
-      tester,
-      () => dialogs.opened == 1 && shown(find.text('Open your newest backup?')),
-    );
-    expect(find.text('Open your newest backup?'), findsOne);
-    await tapAndWait(tester, find.byKey(const ValueKey('offer-restore-empty')));
-    expect(find.text('Open your newest backup?'), findsNothing);
-    await tidy(tester);
-  });
-
   testWidgets(
-    'an offer left unanswered is made at the next launch, until Start empty',
+    'the question left unanswered is asked at the next launch, until Start '
+    'empty',
     (tester) async {
-      await launch(tester);
-      await typeKey(tester, RecoveryKey.generate());
-      await until(tester, () => shown(find.text('Open your newest backup?')));
+      await keyTypedNothingOpened(tester);
       // Quit without answering.
       await tidy(tester);
       opened.clear();
 
       await launch(tester);
-      await until(tester, () => shown(find.text('Open your newest backup?')));
+      await until(tester, () => shown(find.text('Where is your ledger?')));
       await tapAndWait(
         tester,
         find.byKey(const ValueKey('offer-restore-empty')),
@@ -356,7 +471,7 @@ void main() {
       await launch(tester);
       expect(find.byType(LedgerScreen), findsOne);
       await tapAndWait(tester, find.byType(LedgerScreen));
-      expect(find.text('Open your newest backup?'), findsNothing);
+      expect(find.text('Where is your ledger?'), findsNothing);
       await tidy(tester);
     },
   );
@@ -365,10 +480,7 @@ void main() {
     tester,
   ) async {
     await launch(tester);
-    await tapAndWait(
-      tester,
-      find.byKey(const ValueKey('recovery-key-generate-new')),
-    );
+    await tapAndWait(tester, find.byKey(const ValueKey('start-fresh')));
     await until(tester, () => shown(find.byType(RecoveryKeySetupScreen)));
     await tapAndWait(
       tester,
@@ -376,7 +488,7 @@ void main() {
     );
     await until(tester, () => shown(find.byType(LedgerScreen)));
     await tapAndWait(tester, find.byType(LedgerScreen));
-    expect(find.text('Open your newest backup?'), findsNothing);
+    expect(find.text('Where is your ledger?'), findsNothing);
     await tidy(tester);
   });
 

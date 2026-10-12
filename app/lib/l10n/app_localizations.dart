@@ -193,29 +193,11 @@ abstract class Words {
   /// **'Yesterday'**
   String get yesterday;
 
-  /// Dialog title shown once after the recovery key is typed on a computer with no ledger.
-  ///
-  /// In en, this message translates to:
-  /// **'Open your newest backup?'**
-  String get ledgerOfferRestoreTitle;
-
-  /// Body of the "Open your newest backup?" dialog. "Back up to…" is the Settings button (ledgerBackUpTo).
-  ///
-  /// In en, this message translates to:
-  /// **'Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.'**
-  String get ledgerOfferRestoreBody;
-
-  /// Button in the "Open your newest backup?" dialog: start with an empty ledger.
+  /// Button in the “Where is your ledger?” dialog: go on with the empty ledger.
   ///
   /// In en, this message translates to:
   /// **'Start empty'**
   String get ledgerStartEmpty;
-
-  /// Main button in the "Open your newest backup?" dialog; opens a file picker.
-  ///
-  /// In en, this message translates to:
-  /// **'Open a backup…'**
-  String get ledgerOpenABackup;
 
   /// Toast and undo-menu label after something new is added. name is a payee, account or category name.
   ///
@@ -3944,12 +3926,6 @@ abstract class Words {
   /// **'Start a new ledger instead…'**
   String get startNewLedgerInstead;
 
-  /// Recovery key entry screen, text button when no ledger is on this computer yet.
-  ///
-  /// In en, this message translates to:
-  /// **'New to BetterBudget? Set up a ledger'**
-  String get startNewToApp;
-
   /// Warning dialog before starting fresh when a ledger is on this computer, title.
   ///
   /// In en, this message translates to:
@@ -4064,23 +4040,11 @@ abstract class Words {
   /// **'There’s a ledger on this computer. Type its recovery key to open it.'**
   String get startEntryLedgerHere;
 
-  /// Recovery key entry screen, message when this computer has no key and no ledger. 'Back up to…' is the button in Settings → Backups; use the same name.
-  ///
-  /// In en, this message translates to:
-  /// **'This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….'**
-  String get startEntryNoLedger;
-
   /// Recovery key entry screen (Linux without a keychain), message when there's a ledger here.
   ///
   /// In en, this message translates to:
   /// **'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. There’s a ledger on this computer. Type its recovery key to open it.'**
   String get startEntryLedgerHereEveryLaunch;
-
-  /// Recovery key entry screen (Linux without a keychain), message when there's no ledger here. 'Back up to…' is the button in Settings → Backups.
-  ///
-  /// In en, this message translates to:
-  /// **'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….'**
-  String get startEntryNoLedgerEveryLaunch;
 
   /// Recovery key entry screen, error under the field.
   ///
@@ -7358,6 +7322,120 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.'**
   String get ledgerBringLedgerNote;
+
+  /// Asked after Yes, and in a dialog at a later launch while the ledger is still empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Where is your ledger?'**
+  String get startWhereTitle;
+
+  /// An answer to startWhereTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'In a folder, such as Google Drive'**
+  String get startWhereFolder;
+
+  /// Under startWhereFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer shares the ledger that is there.'**
+  String get startWhereFolderNote;
+
+  /// An answer to startWhereTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'In a backup'**
+  String get startWhereBackup;
+
+  /// Under startWhereBackup. “Back up to…” is the Settings button.
+  ///
+  /// In en, this message translates to:
+  /// **'A copy you saved with Back up to… in Settings.'**
+  String get startWhereBackupNote;
+
+  /// Popup after a folder was picked whose ledger was made under another recovery key.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recovery key doesn’t open the ledger in {folder}'**
+  String ledgerFolderWrongKey(String folder);
+
+  /// Popup after a folder was picked that holds no Ledger.betterbudget.
+  ///
+  /// In en, this message translates to:
+  /// **'There’s no ledger in {folder} · choose the folder that holds Ledger.betterbudget. If it is still copying to this computer, try again in a minute.'**
+  String ledgerFolderNoLedger(String folder);
+
+  /// The first screen on a computer with no ledger: heading over three choices.
+  ///
+  /// In en, this message translates to:
+  /// **'How do you want to start?'**
+  String get startHowTitle;
+
+  /// First choice: a new, empty ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Start fresh'**
+  String get startFresh;
+
+  /// Under startFresh.
+  ///
+  /// In en, this message translates to:
+  /// **'My household is new to BetterBudget.'**
+  String get startFreshNote;
+
+  /// Second choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from backup'**
+  String get startRestore;
+
+  /// Under startRestore. “Back up to…” is the Settings button.
+  ///
+  /// In en, this message translates to:
+  /// **'I have a backup file, saved with Back up to… in Settings. This computer gets its own copy.'**
+  String get startRestoreNote;
+
+  /// Third choice: the ledger stored in a synced folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open ledger'**
+  String get startOpen;
+
+  /// Under startOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'My household already uses BetterBudget on another computer, and the ledger is in a folder, such as Google Drive. This computer shares it.'**
+  String get startOpenNote;
+
+  /// Label over the key field inside an opened choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery key'**
+  String get startKeyLabel;
+
+  /// Button under the key in Open ledger: stores the key, then opens the folder dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the folder…'**
+  String get startChooseFolder;
+
+  /// Button under the key in Restore from backup: stores the key, then opens the file dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the backup…'**
+  String get startChooseBackup;
+
+  /// Under the key field in an opened choice on the first screen: which key, and where it may be. The file name is startKeyFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'It was shown when BetterBudget was first set up, and is in “BetterBudget recovery key.txt” if it was saved.'**
+  String get startKeyHint;
+
+  /// Under the key field on the first screen, after a folder was picked whose ledger the typed key doesn’t open. Nothing was stored.
+  ///
+  /// In en, this message translates to:
+  /// **'That key doesn’t open the ledger in {folder}. If the folder is still copying to this computer, try again in a minute.'**
+  String startKeyWrongFolder(String folder);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

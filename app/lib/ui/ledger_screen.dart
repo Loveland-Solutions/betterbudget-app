@@ -65,6 +65,8 @@ class LedgerScreen extends StatefulWidget {
     this.onRecoveryKeyChecked,
     this.startupNotice,
     this.offerRestore = false,
+    this.startFrom,
+    this.startPath,
     this.demo = false,
     this.folderAccess = const FolderAccess(),
   });
@@ -99,6 +101,14 @@ class LedgerScreen extends StatefulWidget {
   /// A key was just typed on a computer with no ledger: offer to open a
   /// backup before anything else.
   final bool offerRestore;
+
+  /// With [offerRestore]: where the person said their ledger is, before
+  /// the key was typed. Null asks.
+  final StartFrom? startFrom;
+
+  /// With [startFrom]: the folder or the backup file already picked on the
+  /// first screen, and found to open with this ledger's key.
+  final String? startPath;
 
   /// How a picked folder is remembered between launches; faked in tests.
   final FolderAccess folderAccess;
@@ -728,61 +738,156 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The app's version and build number from its bundle, for Settings.
   (String, String)? _version;
 
-  /// On a new computer, the ledger usually comes from a backup saved with
-  /// Back up to…: offer it first. Starting empty is one click away. Asked
-  /// again until a backup is open or the answer is to start empty: Cancel in
-  /// the file dialog comes back here, and setup has no other way to a backup.
+  /// On a new computer whose person already uses BetterBudget, the ledger
+  /// is brought from where it is: the folder it is stored in, or a backup.
+  /// [LedgerScreen.startFrom] is what they answered before the key was
+  /// typed, and goes straight to its dialog. Asked again until a ledger is
+  /// here or the answer is to start empty: Cancel in the dialog comes back
+  /// here, and setup has no other way to either.
   Future<void> _offerRestore() async {
+    var from = widget.startFrom;
+    var picked = widget.startPath;
     while (mounted) {
-      final open = await _askOpenBackup();
+      final where = switch (from) {
+        StartFrom.folder => _Where.folder,
+        StartFrom.backup => _Where.backup,
+        null => await _askWhereLedger(),
+      };
+      final path = from == null ? null : picked;
+      from = null;
+      picked = null;
       // Closed without an answer: asked at the next launch.
-      if (open == null || !mounted) return;
-      if (!open) {
-        try {
-          await db.setPreference(
-            SetupKeys.backupOffer,
-            SetupKeys.backupOfferNo,
-          );
-        } catch (e) {
-          debugPrint('Keeping "Start empty" failed: $e');
-        }
-        return;
+      if (where == null || !mounted) return;
+      switch (where) {
+        case _Where.empty:
+          try {
+            await db.setPreference(
+              SetupKeys.backupOffer,
+              SetupKeys.backupOfferNo,
+            );
+          } catch (e) {
+            debugPrint('Keeping "Start empty" failed: $e');
+          }
+          return;
+        case _Where.backup:
+          if (await _restoreFrom(picked: path)) return;
+        case _Where.folder:
+          if (await _openLedgerInFolder(picked: path)) return;
       }
-      if (await _restoreFrom()) return;
     }
   }
 
-  Future<bool?> _askOpenBackup() {
-    final t = context.t;
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
+  Future<_Where?> _askWhereLedger() => showDialog<_Where>(
+    context: context,
+    builder: (context) {
+      final t = context.t;
+      return Dialog(
         backgroundColor: Mid.panel,
-        title: Text(t.ledgerOfferRestoreTitle, style: onest(17, weight: 600)),
-        content: SizedBox(
-          width: 440,
-          child: Text(
-            t.ledgerOfferRestoreBody,
-            style: onest(13.5, color: Mid.ink2, height: 1.4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Mid.rule),
+        ),
+        child: SizedBox(
+          width: 480,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.startWhereTitle,
+                  style: onest(17, weight: 600, letterSpacing: -0.2),
+                ),
+                const SizedBox(height: 14),
+                WhereRow(
+                  key: const ValueKey('offer-restore-open'),
+                  title: t.startWhereBackup,
+                  note: t.startWhereBackupNote,
+                  onTap: () => Navigator.of(context).pop(_Where.backup),
+                ),
+                const SizedBox(height: 10),
+                WhereRow(
+                  key: const ValueKey('offer-restore-folder'),
+                  title: t.startWhereFolder,
+                  note: t.startWhereFolderNote,
+                  onTap: () => Navigator.of(context).pop(_Where.folder),
+                ),
+                const SizedBox(height: 18),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: BarButton(
+                    key: const ValueKey('offer-restore-empty'),
+                    label: t.ledgerStartEmpty,
+                    onTap: () => Navigator.of(context).pop(_Where.empty),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          BarButton(
-            key: const ValueKey('offer-restore-empty'),
-            label: t.ledgerStartEmpty,
-            onTap: () => Navigator.of(context).pop(false),
-          ),
-          FilledButton(
-            key: const ValueKey('offer-restore-open'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Mid.fill,
-              foregroundColor: Mid.onFill,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(t.ledgerOpenABackup),
-          ),
-        ],
-      ),
+      );
+    },
+  );
+
+  /// Opens the ledger stored in a folder the person points to (Google
+  /// Drive, OneDrive, Box, Dropbox), and keeps this computer on it: one
+  /// pick. Offered while the ledger here is still empty, so nothing is
+  /// asked about what it replaces. Resolves to whether a ledger was opened.
+  Future<bool> _openLedgerInFolder({String? picked}) async {
+    if (_restoring) return false;
+    final t = context.t;
+    var pointed = picked;
+    if (pointed == null) {
+      try {
+        pointed = await getDirectoryPath(
+          confirmButtonText: t.ledgerUseThisFolder,
+        );
+      } catch (e) {
+        debugPrint('Folder dialog failed: $e');
+        _showToast(t.ledgerCouldntOpenFileDialog);
+        return false;
+      }
+    }
+    if (pointed == null || !mounted) return false;
+    // Not there: the wrong folder, or one the sync service is still
+    // filling. Nothing is written into it. Nor is the app's own folder one
+    // a ledger can be shared from.
+    final folder = CloudFolder.folderWithLedger(pointed);
+    if (folder == null ||
+        await _cloud.folderOfLedger('$folder/${CloudFolder.fileName}') ==
+            null) {
+      _showToast(t.ledgerFolderNoLedger(_folderName(pointed)));
+      return false;
+    }
+    if (!mounted) return false;
+    final name = _folderName(folder);
+    final file = File('$folder/${CloudFolder.fileName}');
+    final RestoreCandidate candidate;
+    try {
+      candidate = await _backups.inspect(file.path, widget.clock());
+    } on RestoreNeedsKeyException {
+      _showToast(t.ledgerFolderWrongKey(name));
+      return false;
+    } on RestoreException catch (e) {
+      _showToast(restoreProblem(t, e.problem));
+      return false;
+    } catch (e) {
+      debugPrint('The folder’s ledger couldn’t be read: $e');
+      _showToast(t.ledgerFolderCouldntOpen(name));
+      return false;
+    }
+    if (!mounted) {
+      await _backups.discard(candidate);
+      return false;
+    }
+    final data = _data;
+    return _finishRestore(
+      candidate,
+      folder,
+      nothingHere:
+          data == null ||
+          (data.txns.isEmpty && data.balanceSheetAccounts.isEmpty),
     );
   }
 
@@ -3914,10 +4019,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A folder as it's named on screen: its last two parts, which for a Drive
   /// folder reads "My Drive/BetterBudget".
-  static String _folderName(String path) {
-    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
-    return parts.skip(parts.length > 2 ? parts.length - 2 : 0).join('/');
-  }
+  static String _folderName(String path) => CloudFolder.nameOf(path);
 
   /// Keeps the whole ledger in a folder the user picks, as an encrypted copy
   /// written again after each change: a folder Google Drive, OneDrive, Box or
@@ -4002,7 +4104,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// or one saved elsewhere. Shows what it holds against what's here, saves
   /// what's here first, and can be undone. Resolves to whether a backup was
   /// put back.
-  Future<bool> _restoreFrom() async {
+  Future<bool> _restoreFrom({String? picked}) async {
     if (_restoring) return false;
     final t = context.t;
     // A restore replaces the rows an open edit or reconcile points at.
@@ -4017,32 +4119,37 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _adding = false;
     });
     final now = widget.clock();
-    final XFile? picked;
-    try {
-      picked = await openFile(
-        acceptedTypeGroups: [
-          XTypeGroup(
-            label: t.ledgerBackupFileType,
-            // A daily copy or a "Back up to…" file, or the ledger as it is
-            // stored in a folder ([CloudFolder.fileName]).
-            extensions: const ['sqlite', Backups.extension],
-          ),
-        ],
-        initialDirectory: (await _backups.folder())?.path,
-        confirmButtonText: t.ledgerChoose,
-      );
-    } catch (e) {
-      debugPrint('Open dialog failed: $e');
-      _showToast(t.ledgerCouldntOpenFileDialog);
-      return false;
+    final String? chosen;
+    if (picked != null) {
+      chosen = picked;
+    } else {
+      try {
+        chosen = (await openFile(
+          acceptedTypeGroups: [
+            XTypeGroup(
+              label: t.ledgerBackupFileType,
+              // A daily copy or a "Back up to…" file, or the ledger as it is
+              // stored in a folder ([CloudFolder.fileName]).
+              extensions: const ['sqlite', Backups.extension],
+            ),
+          ],
+          initialDirectory: (await _backups.folder())?.path,
+          confirmButtonText: t.ledgerChoose,
+        ))?.path;
+      } catch (e) {
+        debugPrint('Open dialog failed: $e');
+        _showToast(t.ledgerCouldntOpenFileDialog);
+        return false;
+      }
     }
-    if (picked == null) return false;
+    if (chosen == null) return false;
+    final path = chosen;
     RestoreCandidate? found;
     // Opened by this ledger's own key, as the ledger in a folder has to be
     // for this computer to be kept on it.
     var ownKey = true;
     try {
-      found = await _backups.inspect(picked.path, now);
+      found = await _backups.inspect(path, now);
     } on RestoreNeedsKeyException {
       // Made under another ledger's key: its own recovery key opens it.
       if (!mounted) return false;
@@ -4050,7 +4157,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await showBackupKeyDialog(context, (key) async {
         try {
           found = await _backups.inspect(
-            picked!.path,
+            path,
             now,
             backupKey: deriveDataKey(key),
           );
@@ -4079,7 +4186,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? folder;
     if (ownKey && _cloud.loaded.value && _cloud.value.path == null) {
       try {
-        folder = await _cloud.folderOfLedger(picked.path);
+        folder = await _cloud.folderOfLedger(path);
       } catch (e) {
         debugPrint('The picked file’s folder couldn’t be worked out: $e');
       }
@@ -4097,7 +4204,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (CloudFolder.sameFolder(chosen, folder!)) return true;
       try {
         final there = File('$chosen/${CloudFolder.fileName}').statSync();
-        final was = File(picked!.path).statSync();
+        final was = File(path).statSync();
         return there.type == FileSystemEntityType.file &&
             there.size == was.size &&
             there.modified == was.modified;
@@ -4149,6 +4256,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       // Not chosen, or another folder: back to the question, nothing done.
     }
+    return _finishRestore(candidate, to);
+  }
+
+  /// Puts [candidate] in place of what's here, and when [to] is the folder
+  /// it came from, keeps this computer on that folder's ledger. One action,
+  /// with its undo. [nothingHere]: the ledger here was empty, so the popup
+  /// has nothing saved to speak of.
+  Future<bool> _finishRestore(
+    RestoreCandidate candidate,
+    String? to, {
+    bool nothingHere = false,
+  }) async {
+    final t = context.t;
+    final now = widget.clock();
     var kept = false;
     // The folder's ledger is taken in as the folder's own, with its counts
     // and seal, and the folder kept before anything is scheduled here: the
@@ -4212,6 +4333,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       });
     } catch (e) {
       debugPrint('Restore failed: $e');
+      if (!mounted) return false;
       _showToast(t.ledgerCouldntRestore);
       return false;
     }
@@ -4250,6 +4372,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       },
       message: to != null && !kept
           ? t.ledgerRestoredNotOnFolder(_folderName(to))
+          : nothingHere
+          ? label
           : '$label · ${t.ledgerWhatYouHadIsSaved}',
     );
     return true;
@@ -5821,6 +5945,47 @@ enum _RestoreAnswer {
 
   /// And this computer stays on the folder the file was picked in.
   restoreAndKeep,
+}
+
+/// Where someone who already uses BetterBudget keeps their ledger.
+enum StartFrom { folder, backup }
+
+enum _Where { folder, backup, empty }
+
+/// One answer to "Where is your ledger?": what it is, and a line on what
+/// choosing it does.
+class WhereRow extends StatelessWidget {
+  const WhereRow({
+    super.key,
+    required this.title,
+    required this.note,
+    required this.onTap,
+  });
+  final String title;
+  final String note;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Hoverable(
+    onTap: onTap,
+    builder: (hover) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: hover ? Mid.raised : Mid.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: hover ? Mid.blueEdge : Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: onest(15, weight: 600)),
+          const SizedBox(height: 3),
+          Text(note, style: onest(13.5, color: Mid.ink2, height: 1.4)),
+        ],
+      ),
+    ),
+  );
 }
 
 class _RestoreDialog extends StatefulWidget {

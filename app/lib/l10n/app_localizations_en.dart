@@ -72,17 +72,7 @@ class WordsEn extends Words {
   String get yesterday => 'Yesterday';
 
   @override
-  String get ledgerOfferRestoreTitle => 'Open your newest backup?';
-
-  @override
-  String get ledgerOfferRestoreBody =>
-      'Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.';
-
-  @override
   String get ledgerStartEmpty => 'Start empty';
-
-  @override
-  String get ledgerOpenABackup => 'Open a backup…';
 
   @override
   String ledgerAdded(String name) {
@@ -2779,9 +2769,6 @@ class WordsEn extends Words {
   String get startNewLedgerInstead => 'Start a new ledger instead…';
 
   @override
-  String get startNewToApp => 'New to BetterBudget? Set up a ledger';
-
-  @override
   String get startSetAsideTitle => 'Start a new ledger?';
 
   @override
@@ -2850,16 +2837,8 @@ class WordsEn extends Words {
       'There’s a ledger on this computer. Type its recovery key to open it.';
 
   @override
-  String get startEntryNoLedger =>
-      'This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….';
-
-  @override
   String get startEntryLedgerHereEveryLaunch =>
       'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. There’s a ledger on this computer. Type its recovery key to open it.';
-
-  @override
-  String get startEntryNoLedgerEveryLaunch =>
-      'This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….';
 
   @override
   String get startKeyWrongHere =>
@@ -5188,4 +5167,72 @@ class WordsEn extends Words {
   @override
   String get ledgerBringLedgerNote =>
       'Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.';
+
+  @override
+  String get startWhereTitle => 'Where is your ledger?';
+
+  @override
+  String get startWhereFolder => 'In a folder, such as Google Drive';
+
+  @override
+  String get startWhereFolderNote =>
+      'This computer shares the ledger that is there.';
+
+  @override
+  String get startWhereBackup => 'In a backup';
+
+  @override
+  String get startWhereBackupNote =>
+      'A copy you saved with Back up to… in Settings.';
+
+  @override
+  String ledgerFolderWrongKey(String folder) {
+    return 'Your recovery key doesn’t open the ledger in $folder';
+  }
+
+  @override
+  String ledgerFolderNoLedger(String folder) {
+    return 'There’s no ledger in $folder · choose the folder that holds Ledger.betterbudget. If it is still copying to this computer, try again in a minute.';
+  }
+
+  @override
+  String get startHowTitle => 'How do you want to start?';
+
+  @override
+  String get startFresh => 'Start fresh';
+
+  @override
+  String get startFreshNote => 'My household is new to BetterBudget.';
+
+  @override
+  String get startRestore => 'Restore from backup';
+
+  @override
+  String get startRestoreNote =>
+      'I have a backup file, saved with Back up to… in Settings. This computer gets its own copy.';
+
+  @override
+  String get startOpen => 'Open ledger';
+
+  @override
+  String get startOpenNote =>
+      'My household already uses BetterBudget on another computer, and the ledger is in a folder, such as Google Drive. This computer shares it.';
+
+  @override
+  String get startKeyLabel => 'Recovery key';
+
+  @override
+  String get startChooseFolder => 'Choose the folder…';
+
+  @override
+  String get startChooseBackup => 'Choose the backup…';
+
+  @override
+  String get startKeyHint =>
+      'It was shown when BetterBudget was first set up, and is in “BetterBudget recovery key.txt” if it was saved.';
+
+  @override
+  String startKeyWrongFolder(String folder) {
+    return 'That key doesn’t open the ledger in $folder. If the folder is still copying to this computer, try again in a minute.';
+  }
 }

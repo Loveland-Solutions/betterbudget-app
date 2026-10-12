@@ -86,21 +86,9 @@
   },
   "today": "Today",
   "yesterday": "Yesterday",
-  "ledgerOfferRestoreTitle": "Open your newest backup?",
-  "@ledgerOfferRestoreTitle": {
-    "description": "Dialog title shown once after the recovery key is typed on a computer with no ledger."
-  },
-  "ledgerOfferRestoreBody": "Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.",
-  "@ledgerOfferRestoreBody": {
-    "description": "Body of the \"Open your newest backup?\" dialog. \"Back up to…\" is the Settings button (ledgerBackUpTo)."
-  },
   "ledgerStartEmpty": "Start empty",
   "@ledgerStartEmpty": {
-    "description": "Button in the \"Open your newest backup?\" dialog: start with an empty ledger."
-  },
-  "ledgerOpenABackup": "Open a backup…",
-  "@ledgerOpenABackup": {
-    "description": "Main button in the \"Open your newest backup?\" dialog; opens a file picker."
+    "description": "Button in the “Where is your ledger?” dialog: go on with the empty ledger."
   },
   "ledgerAdded": "{name} added",
   "@ledgerAdded": {
@@ -4135,10 +4123,6 @@
   "@startNewLedgerInstead": {
     "description": "Recovery key entry screen, red text button when a ledger is already on this computer; opens a warning."
   },
-  "startNewToApp": "New to BetterBudget? Set up a ledger",
-  "@startNewToApp": {
-    "description": "Recovery key entry screen, text button when no ledger is on this computer yet."
-  },
   "startSetAsideTitle": "Start a new ledger?",
   "@startSetAsideTitle": {
     "description": "Warning dialog before starting fresh when a ledger is on this computer, title."
@@ -4228,17 +4212,9 @@
   "@startEntryLedgerHere": {
     "description": "Recovery key entry screen, message when this computer has no key but has a ledger."
   },
-  "startEntryNoLedger": "This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….",
-  "@startEntryNoLedger": {
-    "description": "Recovery key entry screen, message when this computer has no key and no ledger. 'Back up to…' is the button in Settings → Backups; use the same name."
-  },
   "startEntryLedgerHereEveryLaunch": "This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. There’s a ledger on this computer. Type its recovery key to open it.",
   "@startEntryLedgerHereEveryLaunch": {
     "description": "Recovery key entry screen (Linux without a keychain), message when there's a ledger here."
-  },
-  "startEntryNoLedgerEveryLaunch": "This computer has no keychain BetterBudget can use, so it asks for your recovery key each time it opens. This computer doesn’t have a ledger yet. If you’ve used BetterBudget before, type your recovery key, then open a backup you saved with Back up to….",
-  "@startEntryNoLedgerEveryLaunch": {
-    "description": "Recovery key entry screen (Linux without a keychain), message when there's no ledger here. 'Back up to…' is the button in Settings → Backups."
   },
   "startKeyWrongHere": "That key doesn’t open the ledger on this computer",
   "@startKeyWrongHere": {
@@ -7568,5 +7544,84 @@
   "ledgerBringLedgerNote": "Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.",
   "@ledgerBringLedgerNote": {
     "description": "Body of that dialog, in place of ledgerRestoreNote."
+  },
+  "startWhereTitle": "Where is your ledger?",
+  "@startWhereTitle": {
+    "description": "Asked after Yes, and in a dialog at a later launch while the ledger is still empty."
+  },
+  "startWhereFolder": "In a folder, such as Google Drive",
+  "@startWhereFolder": {
+    "description": "An answer to startWhereTitle."
+  },
+  "startWhereFolderNote": "This computer shares the ledger that is there.",
+  "@startWhereFolderNote": {
+    "description": "Under startWhereFolder."
+  },
+  "startWhereBackup": "In a backup",
+  "@startWhereBackup": {
+    "description": "An answer to startWhereTitle."
+  },
+  "startWhereBackupNote": "A copy you saved with Back up to… in Settings.",
+  "@startWhereBackupNote": {
+    "description": "Under startWhereBackup. “Back up to…” is the Settings button."
+  },
+  "ledgerFolderWrongKey": "Your recovery key doesn’t open the ledger in {folder}",
+  "@ledgerFolderWrongKey": {
+    "description": "Popup after a folder was picked whose ledger was made under another recovery key.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerFolderNoLedger": "There’s no ledger in {folder} · choose the folder that holds Ledger.betterbudget. If it is still copying to this computer, try again in a minute.",
+  "@ledgerFolderNoLedger": {
+    "description": "Popup after a folder was picked that holds no Ledger.betterbudget.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "startHowTitle": "How do you want to start?",
+  "@startHowTitle": {
+    "description": "The first screen on a computer with no ledger: heading over three choices."
+  },
+  "startFresh": "Start fresh",
+  "@startFresh": {
+    "description": "First choice: a new, empty ledger."
+  },
+  "startFreshNote": "My household is new to BetterBudget.",
+  "@startFreshNote": {
+    "description": "Under startFresh."
+  },
+  "startRestore": "Restore from backup",
+  "@startRestore": {
+    "description": "Second choice."
+  },
+  "startRestoreNote": "I have a backup file, saved with Back up to… in Settings. This computer gets its own copy.",
+  "@startRestoreNote": {
+    "description": "Under startRestore. “Back up to…” is the Settings button."
+  },
+  "startOpen": "Open ledger",
+  "@startOpen": {
+    "description": "Third choice: the ledger stored in a synced folder."
+  },
+  "startOpenNote": "My household already uses BetterBudget on another computer, and the ledger is in a folder, such as Google Drive. This computer shares it.",
+  "@startOpenNote": {
+    "description": "Under startOpen."
+  },
+  "startKeyLabel": "Recovery key",
+  "@startKeyLabel": {
+    "description": "Label over the key field inside an opened choice."
+  },
+  "startChooseFolder": "Choose the folder…",
+  "@startChooseFolder": {
+    "description": "Button under the key in Open ledger: stores the key, then opens the folder dialog."
+  },
+  "startChooseBackup": "Choose the backup…",
+  "@startChooseBackup": {
+    "description": "Button under the key in Restore from backup: stores the key, then opens the file dialog."
+  },
+  "startKeyHint": "It was shown when BetterBudget was first set up, and is in “BetterBudget recovery key.txt” if it was saved.",
+  "@startKeyHint": {
+    "description": "Under the key field in an opened choice on the first screen: which key, and where it may be. The file name is startKeyFileName."
+  },
+  "startKeyWrongFolder": "That key doesn’t open the ledger in {folder}. If the folder is still copying to this computer, try again in a minute.",
+  "@startKeyWrongFolder": {
+    "description": "Under the key field on the first screen, after a folder was picked whose ledger the typed key doesn’t open. Nothing was stored.",
+    "placeholders": {"folder": {"type": "String"}}
   }
 }

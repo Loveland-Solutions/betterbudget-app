@@ -469,6 +469,30 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     return _same(File(live).parent.path, folder) ? null : folder;
   }
 
+  /// A folder as it's named on screen: its last two parts, which for a Drive
+  /// folder reads "My Drive/BetterBudget".
+  static String nameOf(String path) {
+    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
+    return parts.skip(parts.length > 2 ? parts.length - 2 : 0).join('/');
+  }
+
+  /// The folder that holds the ledger when [picked] was pointed to: [picked]
+  /// itself, or the one folder directly inside it that does (My Drive
+  /// picked, for My Drive/BetterBudget). Null when none does, or more than
+  /// one.
+  static String? folderWithLedger(String picked) {
+    try {
+      if (File('$picked/$fileName').existsSync()) return picked;
+      final inside = [
+        for (final d in Directory(picked).listSync().whereType<Directory>())
+          if (File('${d.path}/$fileName').existsSync()) d.path,
+      ];
+      return inside.length == 1 ? inside.single : null;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   /// Whether [a] and [b] are one folder, however each was reached.
   static bool sameFolder(String a, String b) => _same(a, b);
 
