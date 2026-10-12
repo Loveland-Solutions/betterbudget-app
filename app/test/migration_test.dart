@@ -5,6 +5,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/payee_rules.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -124,6 +125,54 @@ void main() {
     });
   }
 
+  test('upgrades a v18 file: remembered payees become rows, the setting '
+      'stays', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final data = await db.loadLedger();
+    final checking = data.balanceSheetAccounts
+        .firstWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final groceries = data.categories.firstWhere((c) => c.name == 'Groceries');
+    // As v18 kept them: JSON in a setting per account, no table.
+    await db.customStatement('DROP TABLE payee_rule_accounts');
+    await db.customStatement('DROP TABLE payee_rules');
+    await db.setPreference(
+      AppDatabase.payeeRulesKey(checking),
+      '[{"starts":"unitel","category":${groceries.id}},'
+      '{"starts":"nomin","category":987654321}]',
+    );
+    await db.customStatement('PRAGMA user_version = 18');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final rules = await db.allPayeeRules();
+    // The one whose category is gone is left behind.
+    expect(rules, hasLength(1));
+    final rule = rules.single;
+    expect(rule.words, 'unitel');
+    // Its capitals come from the ledger's payee of that name.
+    expect(rule.name, 'Unitel');
+    expect(rule.anywhere, isFalse);
+    expect(rule.categoryId, groceries.id);
+    expect(rule.accountIds, {checking});
+    // The same id on every computer that carries this setting over.
+    expect(rule.id, carriedRuleId(checking, 'unitel'));
+    expect(
+      (await db.loadLedger()).prefs[AppDatabase.payeeRulesKey(checking)],
+      isNotNull,
+    );
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v19-from-v18-')),
+    );
+  });
+
   test('upgrades a v17 file: the cash-and-bank group becomes Bank', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
     addTearDown(() => dir.delete(recursive: true));
@@ -156,7 +205,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v17-')),
+      contains(startsWith('betterbudget.before-v19-from-v17-')),
     );
   });
 
@@ -218,7 +267,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v18-from-v16-')),
+        contains(startsWith('betterbudget.before-v19-from-v16-')),
       );
     },
   );
@@ -276,7 +325,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v15-')),
+      contains(startsWith('betterbudget.before-v19-from-v15-')),
     );
   });
 
@@ -307,7 +356,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v6-')),
+      contains(startsWith('betterbudget.before-v19-from-v6-')),
     );
   });
 
@@ -362,7 +411,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v18-from-v11-')),
+        contains(startsWith('betterbudget.before-v19-from-v11-')),
       );
     });
   }
@@ -444,7 +493,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v18-from-v12-')),
+        contains(startsWith('betterbudget.before-v19-from-v12-')),
       );
     },
   );
@@ -497,7 +546,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v13-')),
+      contains(startsWith('betterbudget.before-v19-from-v13-')),
     );
   });
 
@@ -536,7 +585,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v10-')),
+      contains(startsWith('betterbudget.before-v19-from-v10-')),
     );
   });
 
@@ -570,7 +619,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v18-from-v9-')),
+        contains(startsWith('betterbudget.before-v19-from-v9-')),
       );
     },
   );
@@ -606,7 +655,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v18-from-v8-')),
+      contains(startsWith('betterbudget.before-v19-from-v8-')),
     );
   });
 
@@ -710,7 +759,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v18-from-v5-')),
+        contains(startsWith('betterbudget.before-v19-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});

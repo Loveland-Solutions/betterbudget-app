@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../domain/budget.dart' show categoryTakes;
+import '../domain/budget.dart' show categoryTakes, isUncategorized;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
@@ -23,7 +23,13 @@ class EntryDraft {
     this.account,
     this.otherAmount,
     this.payId,
+    this.remember = false,
   });
+
+  /// The box under the row was ticked: remember the category for the payee
+  /// (owner, 2026-10-12: "a check box on the transaction for associating
+  /// the payee with the category").
+  final bool remember;
 
   /// The pay whose paycheck this is, when one was picked in Category
   /// ("Income · Loveland Solutions"). [counter] is then Income.
@@ -67,6 +73,10 @@ class EntryRowController {
   /// Set by the screen: why the row couldn't be saved, shown as a popup at
   /// the bottom. Null takes it down once the row is edited.
   void Function(String? message) onProblem = (_) {};
+
+  /// Set by the screen: whether this payee is already remembered as this
+  /// category (and pay) on the row's account, so the box isn't offered.
+  bool Function(String payee, int categoryId, int? payId)? remembered;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -290,6 +300,9 @@ class _EntryRowState extends State<EntryRow> {
   String? _error;
   bool _busy = false;
 
+  /// The box under the row: remember the category for the payee.
+  bool _remember = false;
+
   /// Confirming short money in: the rest is still owed, or it was paid in
   /// full. Null until chosen.
   bool? _keepOwedChoice;
@@ -332,6 +345,29 @@ class _EntryRowState extends State<EntryRow> {
 
   /// All accounts, adding: the row asks which account.
   bool get _picking => widget.accountChoices != null && !_editing;
+
+  /// Whether the row can offer to remember its category for its payee: a
+  /// payee, and a category (a new one too; not a transfer, not Not
+  /// categorized) that isn't already remembered for it.
+  bool get _canRemember {
+    if (!(_hasContent || _active)) return false;
+    if (_initial?.lockCategory ?? false) return false;
+    final payee = _payee.text.trim();
+    final q = _category.text.trim().toLowerCase();
+    if (payee.isEmpty || q.isEmpty) return false;
+    final counter = _counterOptions
+        .where((o) => o.label.toLowerCase() == q)
+        .firstOrNull
+        ?.account;
+    if (counter == null) return _newCategory != null;
+    if (!counter.isCategory || isUncategorized(counter)) return false;
+    return !(widget.controller.remembered?.call(
+          payee,
+          counter.id,
+          _payPicked,
+        ) ??
+        false);
+  }
 
   /// What this row's amount is in.
   Currency get _hereCurrency => _picking
@@ -681,6 +717,7 @@ class _EntryRowState extends State<EntryRow> {
       _amount.clear();
       _otherAmount.clear();
       _memo.clear();
+      _remember = false;
     });
     _problem(null);
     if (keepFocus) _payeeFocus.requestFocus();
@@ -778,6 +815,7 @@ class _EntryRowState extends State<EntryRow> {
         payId: _payPicked,
         account: _picking ? widget.controller.account : null,
         otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
+        remember: _remember && _canRemember,
       ),
     );
     if (!mounted) return;
@@ -1152,6 +1190,11 @@ class _EntryRowState extends State<EntryRow> {
                               onChanged: (v) =>
                                   setState(() => _keepOwedChoice = v),
                             ),
+                          if (_canRemember)
+                            _RememberLine(
+                              on: _remember,
+                              onChanged: (v) => setState(() => _remember = v),
+                            ),
                           if (transferLine != null)
                             _TransferLine(
                               text: transferLine,
@@ -1185,6 +1228,50 @@ class _EntryRowState extends State<EntryRow> {
       ),
     );
   }
+}
+
+/// The box under the row (owner, 2026-10-12): tick it and the category is
+/// remembered for the payee when the row is saved, as the popup's offer
+/// does. Out of Tab order, so Enter still saves.
+class _RememberLine extends StatelessWidget {
+  const _RememberLine({required this.on, required this.onChanged});
+  final bool on;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
+    height: 30,
+    margin: const EdgeInsets.only(top: 6),
+    padding: const EdgeInsets.only(left: 4),
+    alignment: Alignment.centerLeft,
+    child: InkWell(
+      key: const ValueKey('remember-line'),
+      canRequestFocus: false,
+      onTap: () => onChanged(!on),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              on
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              size: 16,
+              color: on ? Mid.blue : Mid.ink3,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              context.t.rowsRemember,
+              style: onest(12.5, color: on ? Mid.ink : Mid.ink2),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// Money in confirmed short: is the rest still owed? Under the category and

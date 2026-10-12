@@ -2766,7 +2766,7 @@
       "category": {}
     }
   },
-  "ledgerAlwaysFile": "{count, plural, =0{Always file this payee here} =1{Always file this payee here, and 1 more row now} other{Always file this payee here, and {count} more rows now}}",
+  "ledgerAlwaysFile": "{count, plural, =0{Remember this for next time} =1{Remember this for next time, and file 1 more row now} other{Remember this for next time, and file {count} more rows now}}",
   "@ledgerAlwaysFile": {
     "description": "Button in the popup card after a row's category is picked from the dropdown: remember it for this payee, and file the payee's other rows still in Not categorized now. One sentence, so \"file\" carries over to the rows. The payee and the category are on the lines above it, so it names neither. count is those other rows.",
     "placeholders": {
@@ -2775,9 +2775,9 @@
       }
     }
   },
-  "ledgerAlwaysFiled": "{count, plural, =0{Always filed under {category}} =1{Always filed under {category} · 1 more row filed} other{Always filed under {category} · {count} more rows filed}}",
+  "ledgerAlwaysFiled": "{count, plural, =0{{category} remembered for next time} =1{{category} remembered for next time · 1 more row filed} other{{category} remembered for next time · {count} more rows filed}}",
   "@ledgerAlwaysFiled": {
-    "description": "Popup card after Always file is clicked; with count 0 it is also the undo label (\"Undone · Always filed under Income\": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.",
+    "description": "Popup card after Remember is clicked; with count 0 it is also the undo label (\"Undone · Income remembered for next time\": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -3014,6 +3014,10 @@
         "type": "String"
       }
     }
+  },
+  "rowsRemember": "Remember this category for this payee",
+  "@rowsRemember": {
+    "description": "The box under the new-transaction row and a row's Edit (owner, 2026-10-12). Ticked, the category is remembered for the payee when the row is saved, as the popup's offer does."
   },
   "rowsSave": "Save",
   "@rowsSave": {
@@ -7623,5 +7627,190 @@
   "@startKeyWrongFolder": {
     "description": "Under the key field on the first screen, after a folder was picked whose ledger the typed key doesn’t open. Nothing was stored.",
     "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerSectionPayees": "Payees",
+  "@ledgerSectionPayees": {
+    "description": "Sidebar section, under Savings, and its page's heading: the payees that are always filed under one category."
+  },
+  "payeesColumnPayee": "Payee",
+  "@payeesColumnPayee": {
+    "description": "Payees page, column heading over each payee's sentence (payeesStartsWith or payeesHasAnywhere)."
+  },
+  "payeesColumnAccounts": "Accounts",
+  "@payeesColumnAccounts": {
+    "description": "Payees page: column heading, and the label of the Edit's line of accounts (a dropdown of checkboxes, as Paid from is). Shown only with more than one account."
+  },
+  "payeesDelete": "Delete",
+  "@payeesDelete": {
+    "description": "Payees page, button at the end of a line and in the Edit (owner, 2026-10-12: \"Just put delete\"): the app stops putting that payee in the category by itself."
+  },
+  "payeesDeletedMessage": "Deleted · new rows of this payee stop going to {category} by themselves",
+  "@payeesDeletedMessage": {
+    "description": "Popup card after Delete on the Payees page; the payee is on the line under it. Rows already filed stay. category may be Income, or Income and a pay's name.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesAdd": "Add a payee",
+  "@payeesAdd": {
+    "description": "Payees page, the green button at the top right: opens an empty Edit at the top of the list."
+  },
+  "payeesWordsLabel": "Payee, or a word in it",
+  "@payeesWordsLabel": {
+    "description": "Payees page, Edit: the small label over the words field."
+  },
+  "payeesWhere": "Where",
+  "@payeesWhere": {
+    "description": "Payees page, Edit: label of the line with payeesAtStart and payeesAnywhere."
+  },
+  "payeesAtStart": "At the start of the payee",
+  "@payeesAtStart": {
+    "description": "Payees page, Edit, Where: the payee's name has to begin with the words."
+  },
+  "payeesAnywhere": "Anywhere in the payee or the memo",
+  "@payeesAnywhere": {
+    "description": "Payees page, Edit, Where: the words may be anywhere in the payee or in the memo the bank wrote."
+  },
+  "payeesStartsWith": "starts with «{name}»",
+  "@payeesStartsWith": {
+    "description": "Payees page, a closed line: the payee's words, which a payee's name has to begin with. The «» stay: the words between them are drawn in ink.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesHasAnywhere": "has «{name}» anywhere",
+  "@payeesHasAnywhere": {
+    "description": "Payees page, a closed line: the words, looked for anywhere in the payee or the bank's description. The «» stay.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesFitsStarts": "{count, plural, =0{No row starts with this yet} =1{1 row starts with this} other{{count} rows start with this}}",
+  "@payeesFitsStarts": {
+    "description": "Payees page, Edit: how many rows of the chosen accounts begin with the words typed, as they are typed. May be followed by payeesWaiting and payeesElsewhere after a dot.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesFitsAnywhere": "{count, plural, =0{No row has this yet} =1{1 row has this} other{{count} rows have this}}",
+  "@payeesFitsAnywhere": {
+    "description": "Payees page, Edit: how many rows of the chosen accounts have the words anywhere in the payee or the bank's description.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesWaiting": "{count, plural, =1{1 still in Not categorized} other{{count} still in Not categorized}}",
+  "@payeesWaiting": {
+    "description": "Payees page, Edit, after payeesFitsStarts or payeesFitsAnywhere: how many of those rows have no category yet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesElsewhere": "{count, plural, =1{1 in another category} other{{count} in another category}}",
+  "@payeesElsewhere": {
+    "description": "Payees page, Edit: how many of those rows are in a category other than the one chosen. Said so a word that is too short shows itself; they are never moved.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesHowRowReads": "How a row will read",
+  "@payeesHowRowReads": {
+    "description": "Payees page, Edit: label over one real row that fits, drawn with the chosen category."
+  },
+  "payeesNeedsWords": "Type a payee, or a word in it",
+  "@payeesNeedsWords": {
+    "description": "Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty."
+  },
+  "payeesNeedsCategory": "Pick a category",
+  "@payeesNeedsCategory": {
+    "description": "Payees page, Edit: in red after Save with no category chosen."
+  },
+  "payeesNeedsAccount": "Pick an account",
+  "@payeesNeedsAccount": {
+    "description": "Payees page, Edit: in red after Save with no account ticked."
+  },
+  "payeesEmpty": "Nothing remembered yet. Pick a category on a row in the Ledger and the popup offers “Remember this for next time”, or add a payee here.",
+  "@payeesEmpty": {
+    "description": "Payees page with nothing on it. The quoted words are the popup's button (ledgerAlwaysFile with count 0); \"add a payee\" is the button payeesAdd."
+  },
+  "payeesColumnFiled": "Category",
+  "@payeesColumnFiled": {
+    "description": "Payees page, column heading over each payee's category."
+  },
+  "payeesDeleted": "Deleted",
+  "@payeesDeleted": {
+    "description": "Popup card after Delete on the Payees page; the payee is on the line under it. Also what Undo names."
+  },
+  "payeesFiled": "{count, plural, =1{1 row filed under {category}} other{{count} rows filed under {category}}}",
+  "@payeesFiled": {
+    "description": "Popup card after payeesFileWaiting is clicked; the payee's beginning is on the line under it. Also what Undo names.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesFileWaiting": "{count, plural, =1{File the 1 still in Not categorized} other{File the {count} still in Not categorized}}",
+  "@payeesFileWaiting": {
+    "description": "Button on the popup after a payee's beginning is retyped: files the rows it now fits that are still in Not categorized under the payee's category.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesAlreadyListed": "«{payee}» is already in the list, as {category}",
+  "@payeesAlreadyListed": {
+    "description": "Popup card when Save on the Payees page finds the words are another line's on one of the same accounts: that line's words and category. The Edit stays open.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesAlreadyIn": "{count, plural, =1{1 already in {category}} other{{count} already in {category}}}",
+  "@payeesAlreadyIn": {
+    "description": "Payees page, Edit, after the count: how many of the rows that fit are in the chosen category already.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesAnywhereWould": "{count, plural, =1{1 has it anywhere} other{{count} have it anywhere}}",
+  "@payeesAnywhereWould": {
+    "description": "Payees page, Edit, after \"No row starts with this yet\": how many rows would fit with Where set to anywhere.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesCategoryGone": "A deleted category",
+  "@payeesCategoryGone": {
+    "description": "Payees page, in place of a category's name once the category was deleted."
   }
 }

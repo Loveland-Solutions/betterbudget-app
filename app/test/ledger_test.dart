@@ -2212,9 +2212,12 @@ void main() {
       // "Always file LoveSol under Income · Loveland Solutions": the next
       // file's paycheck is the pay's without being asked.
       await db.softDelete(id);
-      await db.setPreference(
-        AppDatabase.payeeRulesKey(checking),
-        PayeeRule.encode([PayeeRule('lovesol', pay.categoryId, payId: pay.id)]),
+      await db.addPayeeRule(
+        name: 'LoveSol',
+        anywhere: false,
+        categoryId: pay.categoryId,
+        payId: pay.id,
+        accountIds: {checking},
       );
       final rows = [
         ImportRow(

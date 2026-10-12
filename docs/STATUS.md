@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.27.0 · schema v18 · 667 tests pass
+**Last updated: 2026-10-12** · version 0.28.0 · schema v19 · 681 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,8 +10,24 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #64 (version 0.27.0): a computer with no ledger opens on three ways to
-start** (ADR 0004 "How a new computer starts"): Start fresh, Restore from backup,
+**PR #65 (version 0.28.0): Payees is a section of its own in the sidebar, under
+Savings, and a real feature** (ADR 0004 "Payees: its own section" and "Payees: the real
+feature"; owner, 2026-10-12: "I don't want to hide this", "Let's make this a real
+feature", "B. Looks great.", "allow them to apply a payee rule to multiple
+accounts"). Every payee the app remembers a category for is a line that reads as a
+sentence and opens into its Edit: the words, at the start of the payee or anywhere
+in it or the bank's description, the accounts it holds on (several), the category or
+pay, a live count of the rows it fits, one drawn as it will read; Add a payee;
+Delete. **Schema v19**: the rules are a table; the upgrade carries the owner's
+rules over from the setting and leaves the setting in place. **Not yet seen by the
+owner in the real app**; the pictures are `app/test/goldens/payees.png` and
+`payees_edit.png`. Asked with it and answered: no moving of rows already filed
+("that would be really bad"). Not understood as worded, to ask with a picture of
+the row: the offer at the foot of a row's category dropdown. Put on the list the
+same day: splitting one transaction over categories.
+
+Before it, PR #64 (version 0.27.0): a computer with no ledger opens on three ways to
+start (ADR 0004 "How a new computer starts"): Start fresh, Restore from backup,
 Open ledger, the one clicked opening in place with the recovery key and its button.
 Open ledger is one pick of the folder: the ledger there comes over and the computer
 stays on it. The key is kept only once it opens what was picked. "Open your newest backup?" is gone; where a pick is cancelled, "Where
@@ -117,10 +133,12 @@ folder. Then, in order:
    show each step by its screenshots in `app/test/goldens/setup_*.png`, and report it
    starting from what they last saw (the Pay step's three screenshots, sent with
    PR #48).
-4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
-   the list").
-   Beside it there since 2026-10-10 (owner: "put this on a list of things to
-   do"): a plain popup for a failure.
+4. **From the list of things to do** ([ROADMAP](ROADMAP.md) "Still on the list"):
+   a search field at the top of the categories where they are picked from a list
+   (owner, 2026-10-12: "there will be a lot of categories"), splitting one
+   transaction over categories (owner, 2026-10-12: clothing and groceries on one
+   receipt), and a plain popup for a failure (owner, 2026-10-10). Each is designed
+   and shown to the owner first.
 5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
    "Gold is an accent, and the new colors come first"). **The phone is next when the
    owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
@@ -138,7 +156,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #64. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #65. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -146,6 +164,15 @@ copies) is on the owner's Mac only, not in git.
 ## Waiting on the owner
 
 Asked and not answered. Don't re-ask; bring one up when its screen comes up again.
+
+0. **Payees, answered 2026-10-12** (nothing waiting): TDB's export has no shop
+   name on a card row ("That's why it's so important for users to enter their
+   transactions rather than relying on TDB"); the popup keeps remembering the
+   whole payee by its start, the Payees page is where it is fine-tuned; instead of
+   a line in a row's category dropdown, a box on the transaction (built: "Remember
+   this category for this payee" under the entry row and a row's Edit). Also
+   answered no: moving the rows already in the old category when a payee's
+   category is changed ("that would be really bad").
 
 1. **Three from the Pay step's budget review** (2026-10-07). Payday today: with pay
    "On the 7th" set up on 10.07, the form says "Next payday 2026.10.07" though the
@@ -156,8 +183,9 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
    does nothing until there is a second pay: show it only from "Add other pay" on?
 2. **"Always file" in the category dropdown** (2026-10-07). The offer also at the foot
    of a row's category dropdown, reading "Always filed here · Stop" once the rule
-   exists. Today the popup's 12 seconds are the only chance. Recommended yes; it would
-   also be the first way to drop a rule.
+   exists. Today the popup's 12 seconds are the only chance to make one (the Payees
+   page drops one). Asked again on 2026-10-12: "I don't understand this, you'll need
+   to explain it better." Ask it with a picture of the row and its open dropdown.
 3. **The row's date and amount on the popup's second line** (2026-10-07): "09.15 ·
    −₮200 · IB-INTERBANK…", since a bank repeats payees, and the same two-line form for
    the other row popups. Recommended yes.
@@ -226,11 +254,11 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v18, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v19-from-v18-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
-| Sidebar | Sections Ledger, Budget, Savings. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
+| Storage | Drift/SQLite at schema v19, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v19-from-v18-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
+| Sidebar | Sections Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
 | Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
-| Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date |
+| Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date. A box under the row, "Remember this category for this payee", while there is one to remember: ticked, the payee is remembered with the row, one undo (also in a row's Edit) |
 | Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. Split lines can't be edited |
 | Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row, which names a row already in the account that looks to be the same bill and offers "Delete the scheduled one". Keys Enter, C, Delete |
 | Undo | ⌘Z and ⌘⇧Z (Ctrl+Y on Windows) through the session's actions; in a text field they act on typing |
@@ -243,6 +271,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
 | Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
+| Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
 | Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Restore from… pointed at the folder's `Ledger.betterbudget` offers, ticked, "Share the ledger in My Drive/BetterBudget": one step sets up a second computer. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Not built: asking about the one row in conflict |
@@ -267,8 +296,10 @@ open the archive).
 
 - **Setup after pay:** bills, everyday amounts, saved money, assigning,
   "from tomorrow", import. Settings can't be reached until setup ends.
-- **Splits** can't be created or edited (`splitNotEditable`).
-- **A list of the "Always file" rules**, with a way to drop or rename one.
+- **Splits** can't be created or edited (`splitNotEditable`). On the list of things
+  to do (owner, 2026-10-12).
+- **Payees, the rest** ([ROADMAP](ROADMAP.md) "Payees: the real feature"): a payee that is
+  a transfer, "Shown as", money in or out only, an amount floor, a second spelling.
 - **A scheduled row typed by hand doesn't repeat.** Repeating bills come only from a
   category's dated plan.
 - Matching scheduled bills and own-account transfers on import.
@@ -318,6 +349,28 @@ open the archive).
   the one to pay extra on even when it is Storepay at no interest; "pay only the
   minimums" and "employer matches" don't fit loans and pay here. Untested: that an
   account marked a student loan keeps its mark when "Debt to pay off" is picked.
+
+- **From the reviews of Payees, the real feature (2026-10-12), not fixed:** the
+  popup on a ledger row remembers the whole payee by its start, so on a TDB card
+  row ("12345678: НОМИН") it fits one terminal only, and a month of Remember
+  leaves a line per terminal to retype as «Номин» anywhere (fixed in part: a
+  second Remember changes the line rather than doubling it; the rest is a
+  question under "Waiting on the owner"); Remember is still offered when a wider
+  line gives the row another category, and the narrower one made then wins
+  without a word; the Latin and Cyrillic spellings of one shop are two lines
+  (`samePayeeName` could make them one); the count line names rows the person
+  can't see ("2 in another category") with no way to show them; "At the start of
+  the payee" is the default on the page though it misses most Mongolian rows
+  (the line says what "anywhere" would take); the red Delete on every line
+  against "red is for a shortfall" (drawn so in the layout the owner picked);
+  Mongolian for the new words is a draft; the ordering of two rules that fit
+  alike goes by when each was made, not last changed; the first look after two
+  computers both upgrade asks which ledger to keep, as any new version does, and
+  the carried rules then agree. Untested: a pay picked in the Edit, a payee on two
+  accounts filed from the page (`_fileWaiting` across accounts), a rule on both
+  computers in `combine_test.dart`, the v18 upgrade of a pay rule, a hand-filed
+  row after Delete with a memo rule, the sidebar at 1360 × 760 with the fourth
+  section.
 
 - **From the reviews of how a new computer starts (2026-10-12), not fixed:** the
   three rows can't be reached with Tab (a click opens one; Enter and Esc work

@@ -99,12 +99,20 @@ const _keys = <String, List<String>>{
   'preferences': ['key'],
   // By category and day, as a sum ([_budgetAmounts]).
   'budget_amounts': ['id'],
+  'payee_rules': ['id'],
+  'payee_rule_accounts': ['rule_id', 'account_id'],
 };
 
 /// Tables where each side may change a different column of one row: the
 /// name of an account on one computer, archived on the other. Elsewhere a
 /// row is one thing (a pay's days make no sense taken from two answers).
-const _byColumn = {'accounts', 'payees', 'transactions', 'entries'};
+const _byColumn = {
+  'accounts',
+  'payees',
+  'transactions',
+  'entries',
+  'payee_rules',
+};
 
 /// Parents before children: the order rows are put in. Taken away in the
 /// reverse.
@@ -119,6 +127,8 @@ const combineOrder = [
   'budget_amounts',
   'category_plans',
   'category_accounts_off',
+  'payee_rules',
+  'payee_rule_accounts',
 ];
 
 /// Every column that names a row of another table.
@@ -138,6 +148,10 @@ const _references = <(String, String, String)>[
   ('category_plans', 'paid_from_id', 'accounts'),
   ('category_accounts_off', 'category_id', 'accounts'),
   ('category_accounts_off', 'account_id', 'accounts'),
+  ('payee_rules', 'category_id', 'accounts'),
+  ('payee_rules', 'pay_schedule_id', 'pay_schedules'),
+  ('payee_rule_accounts', 'rule_id', 'payee_rules'),
+  ('payee_rule_accounts', 'account_id', 'accounts'),
 ];
 
 /// Settings that only change what a page shows: when both changed one,

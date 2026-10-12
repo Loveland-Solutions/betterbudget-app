@@ -191,12 +191,16 @@ class SavedMapping {
 /// per account. A payee fits when it starts with [starts], whatever the
 /// capitals: banks put a date or a number after the name.
 class PayeeRule {
-  const PayeeRule(this.starts, this.categoryId, {this.payId});
+  const PayeeRule(this.starts, this.categoryId, {this.payId, this.name});
   final String starts;
   final int categoryId;
 
   /// The pay whose paycheck money in from this payee is, when it's pay.
   final int? payId;
+
+  /// [starts] as it was written, on the row or on the Payees page, for
+  /// showing; null on a rule kept before the page was built.
+  final String? name;
 
   static String stem(String payee) => payee.trim().toLowerCase();
 
@@ -217,6 +221,7 @@ class PayeeRule {
         'starts': r.starts,
         'category': r.categoryId,
         if (r.payId != null) 'pay': r.payId,
+        if (r.name != null) 'name': r.name,
       },
   ]);
 
@@ -232,6 +237,7 @@ class PayeeRule {
               e['starts'] as String,
               e['category'] as int,
               payId: e['pay'] is int ? e['pay'] as int : null,
+              name: e['name'] is String ? e['name'] as String : null,
             ),
       ];
     } on FormatException {

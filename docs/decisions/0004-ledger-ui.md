@@ -2414,9 +2414,9 @@ offer to remember that for the future."):
     category never fills in a pay by itself. A row dated ahead is only scheduled, and
     stays plain income until it comes. Not while editing a row: there the dropdown on
     the row does it.
-- **Loose ends:** a rule is changed by picking another category and taking the offer
-  again; there is no list of rules and no way to drop one after the session's undo. The
-  offer isn't made from a row's Edit, only from the dropdown.
+- **Loose ends:** the offer isn't made from a row's Edit, only from the dropdown.
+  The list of rules, and the way to drop one, is the Payees section (below, "Payees:
+  its own section").
 
 ### Every currency (owner, 2026-10-02)
 
@@ -3220,4 +3220,148 @@ or not)."
   is (liked, but for its word "ledger"; its plain question went into C's rows).
 - A ledger already on the computer that the kept key doesn't open, or with no key
   kept, still gets "Enter your recovery key" as before.
+
+### Payees: its own section (owner, 2026-10-12)
+
+Asked where the list of "Always file" rules should be, with three sketches (on the
+account's menu, recommended; a section of Settings; a line in the category's Edit),
+the owner took none: "I don't want to hide this. For now, let's put it on its own
+Payees row under Savings. I know it's unorthodox, and I may change it later, but I
+find myself often needing to manage it, and I think it deserves its own dedicated
+section." A thing they manage often gets a place of its own in the sidebar, not a
+menu item.
+
+- **Payees is the sidebar's fourth section, under Savings.** Its page fills the
+  window and is one table, a line per rule, every open account's together, by name
+  (a shop paid from two accounts has its lines together):
+  - **Payee starts with**: the beginning the rule goes by, in the capitals it was
+    written in (the row it was made from, or as typed here; `PayeeRule.name`, kept
+    beside the lower-case beginning that is matched. A rule kept before this takes
+    its capitals from a row of that payee). Clicked, it is retyped in place: Enter or
+    a click away saves, Esc leaves it, as the account's name does. A bank puts a date
+    or a number after a name, so a rule made on "NOMIN 0412" is cut back to "Nomin"
+    here. A beginning the account already has isn't saved: the popup says "Nomin is
+    already in the list".
+  - **Account**, only while the ledger has more than one: with one there is nothing
+    for it to tell apart.
+  - **Always filed under**: the category, as the chip a row has, and a dropdown of
+    the categories in the account's currency. Once the payee is income, the pays
+    paid into the account lead the list by their names, as on a row. Picking another
+    changes what the next import does and moves no row already in the ledger.
+  - **Stop**: the payee is no longer filed by itself. Rows already filed stay.
+- **Each of the three is a saved change**: the popup says it ("No longer always
+  filed under Groceries", "Always filed under Phone & internet") with the payee on
+  its own line, and has Undo; ⌘Z and ⌘⇧Z too.
+- **A retyped beginning says what it now fits**, in real numbers: "14 rows in TDB
+  Checking start with this", or "No row in TDB Checking starts with this yet". It was
+  first "Payee changed", which read as the payee renamed through the ledger (budget
+  review, 2026-10-12); nothing in the ledger is renamed. A typo shows as no row and a
+  beginning cut too short ("IB-") as a large count: said, not prevented. Where some
+  of those rows are still in Not categorized, the popup's button files them, "File
+  the 9 still in Not categorized", as making a rule does; its own Undo takes the rows
+  back and leaves the beginning as retyped.
+- **With no rule** the page says how one is made: "No payee is always filed yet.
+  Pick a category on a row in the Ledger, and the popup offers “Always file this
+  payee here”."
+- **Rules are read and written in one step** (`changePayeeRules`), so two changes
+  made a moment apart both count (code review, 2026-10-12). A payee on an archived
+  account isn't listed until the account is back.
+- *Rejected by the owner:* the three places sketched, each of which put the list
+  behind something else. *Not built:* making a rule on this page for a payee that has
+  none; the offer from a row's Edit. *Asked again and not understood as worded*
+  (2026-10-12): the same offer at the foot of a row's category dropdown; it needs
+  asking with a picture of the row, not in words.
+- **Owner, 2026-10-12, on seeing the questions about the page:** "What is 'Stop'? I
+  don't know what you mean by this", and "You aren't using plain language. I don't
+  understand what 'always filed' is." The words "Always filed under", "Stop" and the
+  popup's "Always file this payee here" are not plain; they are to be replaced with
+  the owner's own way of saying it (2026-10-06: "the app should offer to remember
+  that for the future"). *Rejected by the owner:* an offer to move the rows already
+  filed under the old category when a payee's category is changed ("No, that would
+  be really bad").
+- **Owner, 2026-10-12, later:** "Just put delete. Why would you put stop?" The button
+  is **Delete**, the popup "Deleted" with the payee on its line. The column is
+  **Category**, and the popup's offer is in the owner's own words from 2026-10-06
+  ("remember that for the future"): "Remember this for next time", then "Groceries
+  remembered for next time · 9 more rows filed". The page is to become a real
+  feature ("Like 'contains' this text, etc."): the expert's brief and the owner's
+  choice are recorded under "Payees: the real feature" when made.
+
+### Payees: the real feature (owner, 2026-10-12)
+
+"Let's make this a real feature. Fire up an agent who is expert in this area and see
+what feature we need to add to make this really nice. Like 'contains' this text,
+etc." The expert's brief (ROADMAP "Payees: the real feature") found that "starts
+with the payee" misses most rows of a Mongolian bank file: a TDB row with no
+counterparty is the bank's own text ("POS 12345678: НОМИН"), and Khan and Golomt
+put the shop or person in the middle. Two layouts were drawn
+(<https://claude.ai/artifact/7RXhhAREPqtfxLMDrU12ac>); the owner: "B. Looks
+great." Then: "We should allow them to apply a payee rule to multiple accounts."
+
+- **A payee is a row of a table now** (`payee_rules`, schema v19), not JSON in a
+  setting: its words, where they are looked for, its category or pay, and the
+  accounts it holds on (`payee_rule_accounts`). The upgrade carries every rule the
+  setting `import.rules.<account>` held over, with an id that is the same on every
+  computer that carries the same setting (the first look after both upgrade still
+  asks, as any change of version does; from then on the two hold one rule, not
+  two), and leaves the setting in place. One whose
+  category is gone is left behind.
+- **Layout B.** A closed line reads as a sentence: "starts with «Unitel»" or "has
+  «Номин» anywhere", the words in ink and the rest quiet, whatever order the
+  language puts them in; then its accounts (one by name, "All accounts" with more
+  than one, a few by name; the column only with more than one account), its
+  category as a row's chip, and **Delete**. A click on the line, or **Add a payee**
+  (green, top right; ⌘N on this page), opens its Edit in place: the words as the
+  heading field; **Where**, two buttons, "At the start of the payee" and "Anywhere
+  in the payee or the bank's description"; **Accounts**, a dropdown of checkboxes
+  as Paid from is, nothing ticked on a new payee (owner: no autofill; with one
+  account there is no row and no choice); **Category**, the row's dropdown with the
+  accounts' pays leading by name; the count in real numbers as the words are typed,
+  "14 rows have this · 9 still in Not categorized · 2 in another category" (a word
+  too short, "QPay", shows itself as a large count: said, not prevented); **How a
+  row will read**, one real row that fits, drawn with the chosen category; Cancel
+  and Save. Enter saves, Esc closes (a dropdown first), a click on the page away
+  from it closes it. Save with something missing says what, in red: "Type a payee,
+  or a word in it · Pick an account · Pick a category".
+- **Save says what it remembered**, "Groceries remembered for next time", and
+  offers "File the 9 still in Not categorized": those rows, and only those, are
+  filed under the category (or taken as the pay's paychecks), its own Undo. Rows
+  already in a category are never moved (owner: "No, that would be really bad").
+- **Delete means the app stops putting that payee there by itself.** The popup:
+  "Deleted · new rows of this payee stop going to Groceries by themselves". An
+  import with no rule files a payee where it went last, which would put it straight
+  back, so a deleted payee is kept as deleted and that fallback is skipped for its
+  category; a row filed under another category by hand afterwards takes over. Rows
+  already filed stay.
+- **On import**, the longest words win, then the one made later (the latest
+  decision), then the id; words anywhere look in the payee and the bank's
+  description; "at the start" looks only at the payee. The same words twice on one
+  account aren't saved ("«Nomin» is already in the list"). The popup on a ledger
+  row still remembers the payee by the start of its name, on that account.
+- *Not built, on the list* (ROADMAP): a payee that is money moved to another
+  account; "Shown as" (a clean name on import); only money in or out; an amount
+  floor; a second spelling on one line; the offer from a row's Edit and at the foot
+  of its category dropdown.
+
+**The owner's answers the same day:** (1) TDB's export carries no shop name on a card
+row (the payee is the card's number, the memo the terminal's and the bank's words
+for a purchase): "Nope. That's why it's so important for users to enter their
+transactions rather than relying on TDB." Nothing to build; the app's worth is in
+what people enter themselves (the phone, the entry row), and an import is the
+check. (2) The popup on a row keeps remembering the whole payee by its start: "By
+default, yes, it should remember the whole thing, but they should have the
+ability to fine tune if needed"; the Payees page is where it is fine-tuned. (3)
+Instead of a line at the foot of a row's category dropdown: "Let's add a check box
+on the transaction for associating the payee with the category."
+
+- **A box under the row**, in the new-transaction row and a row's Edit: "Remember
+  this category for this payee", level with the lines under the category and
+  amount (where "still owed" sits), out of Tab order so Enter still saves. Shown
+  only while there is a payee and a category to remember (a new one too; not a
+  transfer, not Not categorized) and the payee isn't already remembered so on that
+  account. Unticked to start. Ticked, the category is remembered when the row is
+  saved, in the same write and the same undo as the row: the popup reads "Gobi
+  added · Clothing remembered for next time", or "Changes saved · Dining out
+  remembered for next time", with the offer to file that payee's rows still in Not
+  categorized. The popup's own offer after a category is picked stays.
 

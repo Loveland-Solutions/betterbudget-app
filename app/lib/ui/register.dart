@@ -1206,7 +1206,7 @@ class _PostedRow extends StatelessWidget {
                                         onTap: () => onSetPay?.call(p.id),
                                       ),
                                   ],
-                                  builder: (open, toggle) => _CategoryChip(
+                                  builder: (open, toggle) => CategoryChip(
                                     label: categoryShown ?? r.categoryLabel,
                                     open: open,
                                     onTap: toggle,
@@ -1603,8 +1603,11 @@ class _Amount extends StatelessWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
+/// A row's category as a pill that opens its dropdown; the Payees page
+/// shows a payee's the same way.
+class CategoryChip extends StatelessWidget {
+  const CategoryChip({
+    super.key,
     required this.label,
     required this.open,
     required this.onTap,
@@ -1665,7 +1668,12 @@ class CategoryMenu extends StatelessWidget {
     required this.builder,
     this.current,
     this.leading = const [],
+    this.controller,
   });
+
+  /// For a panel that wants to close the list itself (Esc closes a dropdown
+  /// before it closes the panel).
+  final MenuController? controller;
 
   /// Choices that aren't categories, listed first (a pay, by its name).
   final List<({String label, VoidCallback onTap})> leading;
@@ -1678,6 +1686,7 @@ class CategoryMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MenuAnchor(
+      controller: controller,
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(Mid.raised),
         shape: WidgetStatePropertyAll(

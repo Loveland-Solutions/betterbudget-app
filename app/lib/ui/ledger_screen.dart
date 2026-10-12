@@ -21,6 +21,7 @@ import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../domain/payee_rules.dart';
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
 import '../import/mapping.dart';
@@ -41,6 +42,7 @@ part 'accounts.dart';
 part 'budget.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
+part 'payees.dart';
 part 'savings.dart';
 part 'setup.dart';
 
@@ -51,7 +53,7 @@ bool get _isMac =>
 /// Top-level sections. Savings holds the steps to getting financially
 /// prepared (rule 25). Settings opens from the gear
 /// under Net worth, not from a section header.
-enum AppSection { ledger, budget, savings, settings }
+enum AppSection { ledger, budget, savings, payees, settings }
 
 class LedgerScreen extends StatefulWidget {
   const LedgerScreen({
@@ -124,6 +126,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The Budget page, for a key that reaches the screen while it has a
   /// category open in Edit.
   final _budgetKey = GlobalKey<_BudgetPageState>();
+  final _payeesKey = GlobalKey<_PayeesPageState>();
   final _setupKey = GlobalKey<_SetupPageState>();
   int? _accountId;
 
@@ -695,11 +698,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
         return AppExitResponse.exit;
       },
     );
-    _entry = EntryRowController(
-      onSubmit: _post,
-      suggestCategory: (payee) =>
-          db.lastCategoryFor(payee, _entryAccountId ?? _accountId!),
-    )..onProblem = _entryProblem;
+    _entry =
+        EntryRowController(
+            onSubmit: _post,
+            suggestCategory: (payee) =>
+                db.suggestedCategory(payee, _entryAccountId ?? _accountId!),
+          )
+          ..onProblem = _entryProblem
+          ..remembered = (payee, category, pay) => _rememberedSo(
+            _entryAccountId ?? _accountId,
+            payee,
+            category,
+            pay,
+          );
     _keySaved = widget.recoveryKeySaved;
     PackageInfo.fromPlatform().then(
       (p) {
@@ -944,6 +955,73 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Wraps an undo and redo so a category made with the row goes and comes
   /// back with it: one ⌘Z for both.
+  /// Whether [payee] is already remembered as [categoryId] (and [payId]) on
+  /// [accountId], by its own words or wider ones: then a row's box isn't
+  /// offered.
+  bool _rememberedSo(int? accountId, String payee, int categoryId, int? payId) {
+    final data = _data;
+    if (data == null || accountId == null) return false;
+    final covering = PayeeRuleInfo.pick(
+      data.payeeRules,
+      accountId,
+      payee,
+      null,
+    );
+    return covering != null &&
+        covering.categoryId == categoryId &&
+        covering.payId == payId;
+  }
+
+  /// The box under a row was ticked and the row saved: the category is
+  /// remembered for the payee in the same write. Undo and redo fold it in
+  /// with the row's own.
+  ({Future<void> Function() undo, Future<void> Function() redo}) _alsoRemember(
+    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered,
+    Future<void> Function() undo,
+    Future<void> Function() redo,
+  ) => remembered == null
+      ? (undo: undo, redo: redo)
+      : (
+          undo: () => db.transaction(() async {
+            // The rule first: it may name a category the row's undo takes.
+            if (remembered.was case final was?) {
+              await db.putPayeeRule(was);
+            } else {
+              await db.removePayeeRule(remembered.now.id);
+            }
+            await undo();
+          }),
+          redo: () => db.transaction(() async {
+            await redo();
+            await db.putPayeeRule(remembered.now);
+          }),
+        );
+
+  /// After a row was saved with its box ticked: the clause for the popup,
+  /// and the offer to file the rows of that payee still in Not categorized.
+  ({String said, ({String label, VoidCallback onTap})? more}) _rememberedWords(
+    ({PayeeRuleInfo? was, PayeeRuleInfo now}) remembered,
+  ) {
+    final t = context.t;
+    final data = _data;
+    final rule = remembered.now;
+    final label = data == null
+        ? ''
+        : _ruleLabel(t, data, rule, _payChoices(data));
+    final waiting = data == null
+        ? const <RegisterRow>[]
+        : _waitingFor(data, rule);
+    return (
+      said: t.ledgerAlwaysFiled(0, label),
+      more: waiting.isEmpty
+          ? null
+          : (
+              label: t.payeesFileWaiting(waiting.length),
+              onTap: () => _fileWaiting(rule, waiting, label),
+            ),
+    );
+  }
+
   ({Future<void> Function() undo, Future<void> Function() redo}) _alsoCategory(
     int? made,
     Future<void> Function() undo,
@@ -967,6 +1045,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     int? made;
     PayTaken? paycheck;
+    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
     try {
       late final int id;
       // One write: a crash between them can't leave an empty category.
@@ -1007,10 +1086,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
             today: today,
           );
         }
+        // The box under the row: the category remembered for the payee.
+        final category = made ?? d.counter?.id;
+        if (d.remember && category != null && d.payee.trim().isNotEmpty) {
+          remembered = await db.rememberPayee(
+            accountId: here,
+            payee: d.payee,
+            categoryId: category,
+            payId: d.payId,
+          );
+        }
       });
       _entry.payeeNames = await db.payeeNames();
       final taken = paycheck;
-      final pair = _alsoCategory(
+      final rowPair = _alsoCategory(
         made,
         () async {
           if (taken != null) await db.undoTakeAsPay(taken);
@@ -1021,6 +1110,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
           if (taken != null) await db.redoTakeAsPay(taken);
         },
       );
+      final pair = _alsoRemember(remembered, rowPair.undo, rowPair.redo);
+      final kept = remembered == null ? null : _rememberedWords(remembered!);
       // A row that won't show under the filter or search in force says where
       // it went, or it looks lost and gets typed again.
       final hidden =
@@ -1035,19 +1126,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
         t.ledgerAdded(d.payee),
         undo: pair.undo,
         redo: pair.redo,
-        toast: made != null || hidden,
+        toast: made != null || hidden || kept != null,
+        detail: kept == null ? null : d.payee,
+        more: kept?.more,
         // Whole clauses joined by " · ", as every toast is.
-        message: made != null || hidden
+        message: made != null || hidden || kept != null
             ? [
                 added,
                 if (made != null) t.ledgerNewCategory(d.newCategory!),
                 if (made != null && d.date.isAfter(today))
                   t.ledgerScheduledFor(sayFullDate(t, d.date)),
+                if (kept != null) kept.said,
                 if (hidden) t.ledgerNotInThisView,
               ].join(' · ')
             : null,
       );
-      if (made == null && !hidden && d.date.isAfter(today)) {
+      if (made == null && !hidden && kept == null && d.date.isAfter(today)) {
         _showToast(t.ledgerScheduledToast(sayFullDate(t, d.date)));
       }
       return null;
@@ -1289,6 +1383,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         (_budgetKey.currentState?.closeEdit() ?? false)) {
       return KeyEventResult.handled;
     }
+    // And a payee's Edit on the Payees page.
+    if (_section == AppSection.payees &&
+        !_typing &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        (_payeesKey.currentState?.closeEdit() ?? false)) {
+      return KeyEventResult.handled;
+    }
     // Esc closes setup's pay form, wherever the last click was.
     if (!_typing &&
         event.logicalKey == LogicalKeyboardKey.escape &&
@@ -1411,6 +1512,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // not a ledger row somewhere else (interaction review, 2026-10-05).
     if (_section == AppSection.budget) {
       _budgetKey.currentState?.addNew();
+      return;
+    }
+    // On the Payees page it adds a payee.
+    if (_section == AppSection.payees) {
+      _payeesKey.currentState?.addNew();
       return;
     }
     // One row open for typing at a time: an untouched Edit closes, one
@@ -1573,10 +1679,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         EntryRowController(
             onSubmit: (draft) => _saveEdit(row, draft, confirming: confirming),
             suggestCategory: (payee) =>
-                db.lastCategoryFor(payee, row.accountId),
+                db.suggestedCategory(payee, row.accountId),
           )
           ..payeeNames = _entry.payeeNames
-          ..onProblem = _entryProblem;
+          ..onProblem = _entryProblem
+          ..remembered = (payee, category, pay) =>
+              _rememberedSo(row.accountId, payee, category, pay);
     // The popup in the corner would lie over the Cancel and Save of a row
     // near the bottom; ⌘Z still undoes what it said.
     _closeToast();
@@ -1627,10 +1735,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final TxnSnapshot after;
     final int? owedId;
     int? made;
+    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
     try {
       owedId = await db.transaction(() async {
         made = await _makeCategory(d);
-        return db.editTransaction(
+        final owed = await db.editTransaction(
           transactionId: row.txnId,
           accountId: row.accountId,
           date: d.date,
@@ -1643,6 +1752,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
           confirm: confirming,
           keepOwed: d.keepOwed,
         );
+        // The box under the row: the category remembered for the payee.
+        final category = made ?? d.counter?.id;
+        if (d.remember && category != null && d.payee.trim().isNotEmpty) {
+          remembered = await db.rememberPayee(
+            accountId: row.accountId,
+            payee: d.payee,
+            categoryId: category,
+            payId: d.payId,
+          );
+        }
+        return owed;
       });
     } on LockedException catch (e) {
       return dbProblem(t, e);
@@ -1738,20 +1858,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return null;
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
-    final pair = _alsoCategory(
+    final rowPair = _alsoCategory(
       made,
       () => db.restoreSnapshot(before),
       () => db.restoreSnapshot(after),
     );
+    final pair = _alsoRemember(remembered, rowPair.undo, rowPair.redo);
+    final kept = remembered == null ? null : _rememberedWords(remembered!);
     _did(
       t.ledgerEdited(name),
       undo: pair.undo,
       redo: pair.redo,
-      message: nowScheduled
-          ? t.ledgerMovedToFuture(sayFullDate(t, d.date))
-          : made != null
-          ? '${t.ledgerChangesSaved} · ${t.ledgerNewCategory(d.newCategory!)}'
-          : t.ledgerChangesSaved,
+      detail: kept == null ? null : d.payee,
+      more: kept?.more,
+      // Whole clauses joined by " · ", as every toast is.
+      message: [
+        nowScheduled
+            ? t.ledgerMovedToFuture(sayFullDate(t, d.date))
+            : t.ledgerChangesSaved,
+        if (made != null) t.ledgerNewCategory(d.newCategory!),
+        if (kept != null) kept.said,
+      ].join(' · '),
     );
     return null;
   }
@@ -2672,8 +2799,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// After a row is given a category from the dropdown: the offer to file
-  /// its payee there from now on (owner, 2026-10-06: "the app should offer
+  /// After a row is given a category from the dropdown: the offer to
+  /// remember it for the payee (owner, 2026-10-06: "the app should offer
   /// to remember that for the future"; income the same as any category),
   /// with how many rows of that payee are still waiting. Null when there's
   /// no payee to go by, the category is the holding one, or it's already so.
@@ -2687,13 +2814,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final name = (r.txnPayee ?? '').trim();
     if (data == null || name.isEmpty || isUncategorized(c)) return null;
     if (r.kind != RowKind.simple) return null;
-    final key = AppDatabase.payeeRulesKey(r.accountId);
-    final before = data.prefs[key];
-    final rules = PayeeRule.decode(before);
-    final starts = PayeeRule.stem(name);
-    if (rules.any(
-      (x) => x.starts == starts && x.categoryId == c.id && x.payId == pay?.id,
-    )) {
+    final words = payeeWords(name);
+    // Already remembered so, by these words or by wider ones.
+    final covering = PayeeRuleInfo.pick(
+      data.payeeRules,
+      r.accountId,
+      name,
+      r.memo,
+    );
+    if (covering != null &&
+        covering.categoryId == c.id &&
+        covering.payId == pay?.id) {
       return null;
     }
     final holding = _uncategorizedId(data);
@@ -2704,7 +2835,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             x.categoryId == holding &&
             // A paycheck is money in.
             (pay == null || x.amount > 0) &&
-            PayeeRule.stem(x.txnPayee ?? '').startsWith(starts))
+            payeeWords(x.txnPayee ?? '').startsWith(words))
           x.txnId,
     ];
     final t = context.t;
@@ -2717,13 +2848,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         pay: pay,
         label: label ?? c.name,
         waiting: waiting,
-        rulesBefore: before,
       ),
     );
   }
 
-  /// The offer taken: the rule is kept for the next import, and the rows of
-  /// that payee still waiting move now. One undo.
+  /// The offer taken: the payee is remembered (a rule on this account, by
+  /// the start of its name; one already going by these words on this
+  /// account is changed, not doubled) and the rows of it still waiting move
+  /// now. One undo.
   Future<void> _alwaysFile({
     required int accountId,
     required String payee,
@@ -2731,19 +2863,35 @@ class _LedgerScreenState extends State<LedgerScreen> {
     required String label,
     PaySchedule? pay,
     required List<int> waiting,
-    required String? rulesBefore,
   }) async {
     final t = context.t;
-    final key = AppDatabase.payeeRulesKey(accountId);
-    final starts = PayeeRule.stem(payee);
-    final rules = PayeeRule.encode([
-      ...PayeeRule.decode(rulesBefore).where((x) => x.starts != starts),
-      PayeeRule(starts, category.id, payId: pay?.id),
-    ]);
+    final words = payeeWords(payee);
+    final was = _data?.payeeRules
+        .where((x) => x.words == words && x.accountIds.contains(accountId))
+        .firstOrNull;
+    PayeeRuleInfo? rule;
     var previous = <int, int>{};
     var paychecks = <PayTaken>[];
     Future<void> write() async {
-      await db.setPreference(key, rules);
+      final made = rule;
+      if (made != null) {
+        await db.putPayeeRule(made);
+      } else if (was != null) {
+        rule = was.copyWith(
+          categoryId: category.id,
+          payId: () => pay?.id,
+          name: payee,
+        );
+        await db.putPayeeRule(rule!);
+      } else {
+        rule = await db.addPayeeRule(
+          name: payee,
+          anywhere: false,
+          categoryId: category.id,
+          payId: pay?.id,
+          accountIds: {accountId},
+        );
+      }
       if (pay == null) {
         previous = waiting.isEmpty
             ? {}
@@ -2769,7 +2917,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await write();
     } catch (e) {
-      debugPrint('Always file failed: $e');
+      debugPrint('Remembering a payee failed: $e');
       if (mounted) _showToast(t.ledgerCouldntChangeCategory);
       return;
     }
@@ -2787,7 +2935,175 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.undoTakeAsPay(p);
         }
         await db.restoreCategories(previous, accountId);
-        await db.setPreference(key, rulesBefore);
+        if (was != null) {
+          await db.putPayeeRule(was);
+        } else if (rule case final made?) {
+          await db.removePayeeRule(made.id);
+        }
+      },
+      redo: write,
+    );
+  }
+
+  // ---------- payees ----------
+
+  /// A payee saved from its Edit on the Payees page: new ([before] null)
+  /// or changed. The popup offers to file the rows it fits that are still
+  /// in Not categorized; rows already in a category are never moved
+  /// (owner, 2026-10-12: "that would be really bad").
+  Future<bool> _savePayeeRule(
+    PayeeRuleInfo? before,
+    PayeeRuleInfo after,
+  ) async {
+    final data = _data;
+    if (data == null) return false;
+    final t = context.t;
+    // Two payees can't go by one set of words on one account: the Edit
+    // stays open, and the popup names the one that is there.
+    final twin = data.payeeRules
+        .where(
+          (x) =>
+              x.id != before?.id &&
+              x.words == after.words &&
+              x.accountIds.intersection(after.accountIds).isNotEmpty,
+        )
+        .firstOrNull;
+    if (twin != null) {
+      _showToast(
+        t.payeesAlreadyListed(
+          twin.name,
+          _ruleLabel(t, data, twin, _payChoices(data)),
+        ),
+      );
+      return false;
+    }
+    final PayeeRuleInfo saved;
+    try {
+      if (before == null) {
+        saved = await db.addPayeeRule(
+          name: after.name,
+          anywhere: after.anywhere,
+          categoryId: after.categoryId,
+          payId: after.payId,
+          accountIds: after.accountIds,
+        );
+      } else {
+        saved = after;
+        await db.putPayeeRule(after);
+      }
+    } catch (e) {
+      debugPrint('Saving a payee failed: $e');
+      if (mounted) _showToast(t.ledgerCouldntSave('$e'));
+      return false;
+    }
+    if (!mounted) return true;
+    final label = _ruleLabel(t, data, saved, _payChoices(data));
+    final waiting = _waitingFor(data, saved);
+    _did(
+      t.ledgerAlwaysFiled(0, label),
+      detail: saved.name,
+      more: waiting.isEmpty
+          ? null
+          : (
+              label: t.payeesFileWaiting(waiting.length),
+              onTap: () => _fileWaiting(saved, waiting, label),
+            ),
+      undo: () => before == null
+          ? db.removePayeeRule(saved.id)
+          : db.putPayeeRule(before),
+      redo: () => db.putPayeeRule(saved),
+    );
+    return true;
+  }
+
+  /// Delete on the Payees page: the app stops putting that payee in the
+  /// category by itself. Rows already filed stay where they are. The rule
+  /// is kept as deleted, so an import doesn't put the payee back where it
+  /// went last.
+  Future<void> _deletePayeeRule(PayeeRuleInfo rule) async {
+    final data = _data;
+    if (data == null) return;
+    final t = context.t;
+    final gone = rule.copyWith(deleted: true);
+    try {
+      await db.putPayeeRule(gone);
+    } catch (e) {
+      debugPrint('Deleting a payee failed: $e');
+      if (mounted) _showToast(t.ledgerCouldntSave('$e'));
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.payeesDeleted,
+      message: t.payeesDeletedMessage(
+        _ruleLabel(t, data, rule, _payChoices(data)),
+      ),
+      detail: rule.name,
+      undo: () => db.putPayeeRule(rule),
+      redo: () => db.putPayeeRule(gone),
+    );
+  }
+
+  /// The rows a payee fits that are still in Not categorized, filed under
+  /// its category now (as its pay's paychecks, for a pay). One undo; the
+  /// payee itself is left as it is.
+  Future<void> _fileWaiting(
+    PayeeRuleInfo rule,
+    List<RegisterRow> waiting,
+    String label,
+  ) async {
+    final t = context.t;
+    final byAccount = <int, List<int>>{};
+    // Oldest first, so each paycheck takes its own payday's place.
+    for (final r in waiting.reversed) {
+      (byAccount[r.accountId] ??= []).add(r.txnId);
+    }
+    var previous = <int, Map<int, int>>{};
+    var paychecks = <PayTaken>[];
+    Future<void> write() async {
+      previous = {};
+      paychecks = [];
+      final pay = _data?.payScheduleById(rule.payId);
+      for (final e in byAccount.entries) {
+        if (pay != null && pay.accountId == e.key) {
+          for (final id in e.value) {
+            paychecks.add(
+              await db.takeAsPay(
+                transactionId: id,
+                accountId: e.key,
+                scheduleId: pay.id,
+                today: today,
+              ),
+            );
+          }
+        } else {
+          previous[e.key] = await db.setCategoryMany(
+            transactionIds: e.value,
+            accountId: e.key,
+            categoryId: rule.categoryId,
+          );
+        }
+      }
+    }
+
+    try {
+      await write();
+    } catch (e) {
+      debugPrint('Filing a payee’s rows failed: $e');
+      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.payeesFiled(waiting.length, label),
+      detail: rule.name,
+      undo: () async {
+        for (final p in paychecks.reversed) {
+          await db.undoTakeAsPay(p);
+        }
+        for (final e in previous.entries) {
+          await db.restoreCategories(e.value, e.key);
+        }
       },
       redo: write,
     );
@@ -4714,6 +5030,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onUnarchive: (c) =>
                                       _archiveCategory(c, false),
                                 ),
+                                AppSection.payees => _PayeesPage(
+                                  key: _payeesKey,
+                                  data: data,
+                                  pays: _payChoices(data),
+                                  actions: _PayeesActions(
+                                    save: _savePayeeRule,
+                                    delete: _deletePayeeRule,
+                                  ),
+                                ),
                                 AppSection.savings => _SavingsPage(
                                   data: data,
                                   today: dateOnly(widget.clock()),
@@ -5211,6 +5536,12 @@ class _Sidebar extends StatelessWidget {
                               AppSection.savings,
                               Icons.savings_outlined,
                               t.ledgerSectionSavings,
+                            ),
+                            const SizedBox(height: 2),
+                            header(
+                              AppSection.payees,
+                              Icons.storefront_outlined,
+                              t.ledgerSectionPayees,
                             ),
                           ],
                         ],

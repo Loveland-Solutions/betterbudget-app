@@ -163,20 +163,58 @@ since phones show budget amounts.
 - [ ] TestFlight / Play internal testing, then the stores
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)
-Splits, search, sorting, cash accounts, app lock. (The better "not cleared" note,
+Search, sorting, cash accounts, app lock; splits are below, in the owner's words. (The better "not cleared" note,
 the duplicate check on Confirm, the count of overdue bills and the backup reminder
 were built on 2026-10-09: ADR 0004 rule 20 and "Backups".)
 
-**A place to see and drop the "Always file" rules** (owner, 2026-10-06: "put it on the
-list of things to do"). The rules themselves are built (ADR 0004 "Import": a payee
-always filed under a category, or as a pay's paycheck). What's missing: a list of them
-per account, a way to drop one, and a way to change the name a rule goes by (it is the
-payee of the row it was made on). Today a rule is changed by picking another category
-on a row of that payee and taking the offer again, and can't be dropped once the
-session's undo is gone. Also still to do there: the offer from a row's Edit, not only
-from its dropdown. Asked 2026-10-07, not answered: the offer at the foot of a row's
-category dropdown, reading "Always filed here · Stop" once the rule exists (STATUS
-"Waiting on the owner").
+**A search field at the top of the categories** (owner, 2026-10-12: "there will be a
+lot of categories. Let's put a search field at the top for them."). Where categories
+are picked from a list: the Category dropdown on a ledger row (Categorize, and the
+chip on the row), the Category dropdown in a payee's Edit on the Payees page, and
+the Budget page's list of categories. The entry row's Category field already
+narrows as you type; the dropdowns and the Budget page don't. Design it and show
+it to the owner first.
+
+**Splitting one transaction over categories** (owner, 2026-10-12: "we need to make
+sure there is a way to split categories on a transaction: I go to Walmart and buy
+clothing and groceries under one receipt. I'll need to be able to handle that. Put
+that in our list of things to do."). Today a split row can be shown (demo data has
+one) but can't be made or edited (`splitNotEditable`). To build: from a row, and
+while adding one, the amount divided over two or more categories, each with its own
+amount, the parts adding up to the receipt; then Edit for a split. Design it and
+show it to the owner first.
+
+**Payees: the real feature** (owner, 2026-10-12: "Let's make this a real feature…
+Like 'contains' this text, etc."). The list, Delete, retyping the words and changing
+the category were built on 2026-10-12 as the Payees section (ADR 0004 "Payees: its
+own section"). The budget-app expert's brief the same day, from the redacted
+fixtures' row shapes (ADR 0002: most TDB rows have no counterparty, so the payee is
+the bank's text, "POS 12345678: НОМИН"; Khan and Golomt put the shop or person in
+the middle; the same shop comes in three spellings a month), ranked what's missing.
+**Built the same day (version 0.28.0, schema v19; layout B, the owner's pick; a
+payee on several accounts, the owner's ask):** (1) the words may be anywhere, and the app also reads the
+bank's description (a rule made from the popup stays "starts with"; the page
+switches it); (2) the count, live, before saving: "14 rows in TDB Checking · 9 still
+in Not categorized · 2 in another category", so a short word like "QPay" shows
+itself as a large count (said, not prevented); (3) adding a payee on the page for
+one that has none; (4) after any change, the same button to file the rows still in
+Not categorized, never the filed ones (owner: moving filed rows "would be really
+bad"); (5) what Delete means: today an import with no rule files an exact payee
+where it went last, so Delete looks broken; recommended: Delete really forgets and
+the next import leaves that payee in Not categorized; (6) one line for every account,
+offered only with more than one; (7) when two fit, the longer words win, then the
+later one, said only when it happens. **Soon, each a question for the owner:**
+(8) a payee that is money moved to another account (a transfer), same currency only;
+(9) "Shown as": a clean name on import, the bank's text kept in the memo. **Later:**
+only money in or out, an amount floor; a second spelling on one line; keeping the
+counterparty's account number in the memo. Storage: a table from the start
+(`payee_rules`, `payee_rule_accounts`), since a payee holds on several accounts;
+the upgrade carries the owner's rules over and leaves the old setting in place.
+The two layouts drawn (<https://claude.ai/artifact/7RXhhAREPqtfxLMDrU12ac>) and
+the choice, B, are in ADR 0004 "Payees: the real feature".
+Also still to do: the offer from a row's Edit, and the offer at the foot of a row's
+category dropdown (asked 2026-10-07 and 2026-10-12; the owner said the question
+wasn't clear: ask it with a picture of the row).
 
 **A plain popup for a failure** (owner, 2026-10-10: "let's put this on a
 list of things to do"). "Couldn't
