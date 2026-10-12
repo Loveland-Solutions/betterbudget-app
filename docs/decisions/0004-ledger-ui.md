@@ -3118,3 +3118,42 @@ Built as step 2 of "More than one computer on one ledger"
 - The question's sentence "BetterBudget can’t put the two together yet" lost its
   "yet": it now comes up only when the two can't both stand.
 
+### A second computer set up in one step (2026-10-12)
+
+The owner set up a second account as a second computer on 2026-10-10: Restore
+from… the folder's `Ledger.betterbudget` brought the ledger over, and nothing said
+that "Move my ledger to a folder…" had to follow, so that computer went its own way
+("let's put this on a list of things to do"; taken up 2026-10-12).
+
+- **The restore dialog offers it, ticked.** When the file picked is
+  `Ledger.betterbudget` in a folder that isn't the app's own, and the ledger here
+  is stored on this computer, "Restore this backup?" has a checkbox under its note,
+  ticked: **Keep this computer on this folder's ledger**, and under it "What you
+  change here goes to My Drive/BetterBudget, and what is changed on another
+  computer comes here." Restore then does both. A default rather than a required
+  choice: unticked, it is the restore it always was. A backup under any other name,
+  or one opened with another ledger's recovery key, is offered nothing.
+- **Rejected: a second question after Restore** ("Keep this computer on this
+  folder's ledger?", Yes the main button, as the roadmap first had it). It is one
+  more dialog in a row of them, and closing it has no plain meaning: the person
+  has already pressed Restore.
+- **On a Mac the folder is chosen once more**, in the Mac's own dialog, which opens
+  on that folder with the button "Use This Folder". The Mac gives a sandboxed app
+  the file that was picked and nothing around it, and the app needs the folder
+  (the phones' files are there too). Closed without choosing, or another folder
+  chosen, the restore dialog is back and nothing was done.
+- **The popup** says "This computer is now on the ledger in My Drive/BetterBudget ·
+  what you had is saved", with Undo: this is the person's own act. Undo takes the
+  computer off the folder before putting back what it had, so that never reaches
+  the ledger the computers share.
+- The offer at first launch says where to look, first: "If your ledger is stored in
+  a folder, such as Google Drive, open Ledger.betterbudget there."
+- **It is called a ledger, not a backup** (budget review): for the folder's file the
+  dialog is titled "Bring this ledger here?", says "Last changed" where a backup
+  has "Backup from", and "Everything here is replaced by this ledger." The button
+  stays Restore. Unticked, the note under the box changes to what that leaves:
+  "This computer gets its own copy. What you change here won't reach My
+  Drive/BetterBudget." On a Mac the ticked note ends "Your Mac asks for the folder
+  next: press Use This Folder." Not taken from the review: "Share the ledger in My
+  Drive/BetterBudget" for the checkbox, and "Bring your ledger here?" as the first
+  offer's title (both are the owner's to choose; asked 2026-10-12).

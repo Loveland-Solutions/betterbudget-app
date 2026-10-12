@@ -77,7 +77,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerOfferRestoreBody =>
-      'Сэргээх түлхүүр тань энэ компьютер дээр тохирсон. Хэрэв та «Нөөцлөх…» товчоор өөр диск рүү хуулбар хадгалсан бол хамгийн сүүлийнхийг нээж дэвтрээ энд авчирна уу.';
+      'Сэргээх түлхүүр тань энэ компьютер дээр тохирсон. Хэрэв дэвтэр тань Google Drive зэрэг хавтсанд хадгалагдаж байгаа бол тэндээс Ledger.betterbudget файлыг нээнэ үү. Хэрэв та «Нөөцлөх…» товчоор өөр диск рүү хуулбар хадгалсан бол хамгийн сүүлийнхийг нээнэ үү.';
 
   @override
   String get ledgerStartEmpty => 'Хоосноос эхлэх';
@@ -4962,4 +4962,45 @@ class WordsMn extends Words {
   @override
   String get ledgerFolderNewerApp =>
       'Тэр хавтсан дахь дэвтрийг BetterBudget-ийн шинэ хувилбараар хадгалсан · эхлээд энэ компьютер дээрх BetterBudget-ээ шинэчилнэ үү';
+
+  @override
+  String get ledgerRestoreKeepOnFolder =>
+      'Энэ компьютерийг энэ хавтсан дахь дэвтэр дээр байлгах';
+
+  @override
+  String ledgerRestoreKeepOnFolderNote(String folder) {
+    return 'Энд өөрчилсөн зүйл тань $folder руу очиж, өөр компьютер дээр өөрчилсөн зүйл энд ирнэ.';
+  }
+
+  @override
+  String get ledgerUseThisFolder => 'Энэ хавтсыг ашиглах';
+
+  @override
+  String ledgerRestoredOnFolder(String folder) {
+    return 'Энэ компьютер одоо $folder доторх дэвтэр дээр байна';
+  }
+
+  @override
+  String ledgerRestoredNotOnFolder(String folder) {
+    return 'Дэвтэр тань энд байна, гэхдээ энэ компьютер $folder дээр биш · Тохиргооноос «Дэвтрээ хавтас руу зөөх…»-ийг ашиглана уу';
+  }
+
+  @override
+  String ledgerRestoreNotKeptNote(String folder) {
+    return 'Энэ компьютер өөрийн хуулбартай болно. Энд өөрчилсөн зүйл тань $folder руу очихгүй.';
+  }
+
+  @override
+  String get ledgerRestoreMacAsks =>
+      'Mac тань дараа нь хавтсыг асууна: «Энэ хавтсыг ашиглах» товчийг дарна уу.';
+
+  @override
+  String get ledgerBringLedgerTitle => 'Энэ дэвтрийг энд авчрах уу?';
+
+  @override
+  String get ledgerLastChanged => 'Сүүлд өөрчилсөн';
+
+  @override
+  String get ledgerBringLedgerNote =>
+      'Энд байгаа бүх зүйлийг энэ дэвтрээр солино. Одоо байгаа өгөгдөл тань эхлээд хадгалагдах ба Буцаах нь түүнийг эргүүлж авчирна.';
 }

@@ -202,7 +202,7 @@ abstract class Words {
   /// Body of the "Open your newest backup?" dialog. "Back up to…" is the Settings button (ledgerBackUpTo).
   ///
   /// In en, this message translates to:
-  /// **'Your recovery key is set up on this computer. If you saved a copy with Back up to… on another drive, open the newest one to bring your ledger here.'**
+  /// **'Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.'**
   String get ledgerOfferRestoreBody;
 
   /// Button in the "Open your newest backup?" dialog: start with an empty ledger.
@@ -7298,6 +7298,66 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first'**
   String get ledgerFolderNewerApp;
+
+  /// A ticked checkbox in the “Restore this backup?” dialog, shown when the file picked is the ledger another computer keeps in a synced folder. Ticked, this computer shares that ledger from now on.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this computer on this folder’s ledger'**
+  String get ledgerRestoreKeepOnFolder;
+
+  /// Under the checkbox ledgerRestoreKeepOnFolder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'What you change here goes to {folder}, and what is changed on another computer comes here.'**
+  String ledgerRestoreKeepOnFolderNote(String folder);
+
+  /// The confirm button of the Mac’s folder dialog, which opens on the folder the restored ledger is in so the app is given that folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Use This Folder'**
+  String get ledgerUseThisFolder;
+
+  /// Popup, and the undo list’s name, after Restore from… with “Keep this computer on this folder’s ledger” ticked.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer is now on the ledger in {folder}'**
+  String ledgerRestoredOnFolder(String folder);
+
+  /// Popup when the restore worked but the folder couldn’t be kept: the ledger is stored on this computer only.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is here, but this computer isn’t on {folder} · in Settings, use Move my ledger to a folder…'**
+  String ledgerRestoredNotOnFolder(String folder);
+
+  /// Under the checkbox ledgerRestoreKeepOnFolder while it is unticked: says what that means.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer gets its own copy. What you change here won’t reach {folder}.'**
+  String ledgerRestoreNotKeptNote(String folder);
+
+  /// Under the ticked checkbox ledgerRestoreKeepOnFolder, on a Mac only. “Use This Folder” is the button ledgerUseThisFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Mac asks for the folder next: press Use This Folder.'**
+  String get ledgerRestoreMacAsks;
+
+  /// Title of the restore dialog when the file picked is the ledger kept in a synced folder, not a backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring this ledger here?'**
+  String get ledgerBringLedgerTitle;
+
+  /// Label in that dialog, in place of “Backup from”: when the folder’s ledger was last saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Last changed'**
+  String get ledgerLastChanged;
+
+  /// Body of that dialog, in place of ledgerRestoreNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.'**
+  String get ledgerBringLedgerNote;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

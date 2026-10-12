@@ -90,7 +90,7 @@
   "@ledgerOfferRestoreTitle": {
     "description": "Dialog title shown once after the recovery key is typed on a computer with no ledger."
   },
-  "ledgerOfferRestoreBody": "Your recovery key is set up on this computer. If you saved a copy with Back up to… on another drive, open the newest one to bring your ledger here.",
+  "ledgerOfferRestoreBody": "Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.",
   "@ledgerOfferRestoreBody": {
     "description": "Body of the \"Open your newest backup?\" dialog. \"Back up to…\" is the Settings button (ledgerBackUpTo)."
   },
@@ -7523,5 +7523,49 @@
   "ledgerFolderNewerApp": "The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first",
   "@ledgerFolderNewerApp": {
     "description": "Popup when “Move my ledger to a folder…” picked a folder whose ledger was saved by a newer version of the app. Nothing was changed."
+  },
+  "ledgerRestoreKeepOnFolder": "Keep this computer on this folder’s ledger",
+  "@ledgerRestoreKeepOnFolder": {
+    "description": "A ticked checkbox in the “Restore this backup?” dialog, shown when the file picked is the ledger another computer keeps in a synced folder. Ticked, this computer shares that ledger from now on."
+  },
+  "ledgerRestoreKeepOnFolderNote": "What you change here goes to {folder}, and what is changed on another computer comes here.",
+  "@ledgerRestoreKeepOnFolderNote": {
+    "description": "Under the checkbox ledgerRestoreKeepOnFolder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerUseThisFolder": "Use This Folder",
+  "@ledgerUseThisFolder": {
+    "description": "The confirm button of the Mac’s folder dialog, which opens on the folder the restored ledger is in so the app is given that folder."
+  },
+  "ledgerRestoredOnFolder": "This computer is now on the ledger in {folder}",
+  "@ledgerRestoredOnFolder": {
+    "description": "Popup, and the undo list’s name, after Restore from… with “Keep this computer on this folder’s ledger” ticked.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerRestoredNotOnFolder": "Your ledger is here, but this computer isn’t on {folder} · in Settings, use Move my ledger to a folder…",
+  "@ledgerRestoredNotOnFolder": {
+    "description": "Popup when the restore worked but the folder couldn’t be kept: the ledger is stored on this computer only.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerRestoreNotKeptNote": "This computer gets its own copy. What you change here won’t reach {folder}.",
+  "@ledgerRestoreNotKeptNote": {
+    "description": "Under the checkbox ledgerRestoreKeepOnFolder while it is unticked: says what that means.",
+    "placeholders": {"folder": {"type": "String"}}
+  },
+  "ledgerRestoreMacAsks": "Your Mac asks for the folder next: press Use This Folder.",
+  "@ledgerRestoreMacAsks": {
+    "description": "Under the ticked checkbox ledgerRestoreKeepOnFolder, on a Mac only. “Use This Folder” is the button ledgerUseThisFolder."
+  },
+  "ledgerBringLedgerTitle": "Bring this ledger here?",
+  "@ledgerBringLedgerTitle": {
+    "description": "Title of the restore dialog when the file picked is the ledger kept in a synced folder, not a backup."
+  },
+  "ledgerLastChanged": "Last changed",
+  "@ledgerLastChanged": {
+    "description": "Label in that dialog, in place of “Backup from”: when the folder’s ledger was last saved."
+  },
+  "ledgerBringLedgerNote": "Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.",
+  "@ledgerBringLedgerNote": {
+    "description": "Body of that dialog, in place of ledgerRestoreNote."
   }
 }

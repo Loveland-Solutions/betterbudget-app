@@ -76,7 +76,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerOfferRestoreBody =>
-      'Your recovery key is set up on this computer. If you saved a copy with Back up to… on another drive, open the newest one to bring your ledger here.';
+      'Your recovery key is set up on this computer. If your ledger is stored in a folder, such as Google Drive, open Ledger.betterbudget there. If you saved a copy with Back up to… on another drive, open the newest one.';
 
   @override
   String get ledgerStartEmpty => 'Start empty';
@@ -5146,4 +5146,45 @@ class WordsEn extends Words {
   @override
   String get ledgerFolderNewerApp =>
       'The ledger in that folder was saved by a newer version of BetterBudget · update BetterBudget on this computer first';
+
+  @override
+  String get ledgerRestoreKeepOnFolder =>
+      'Keep this computer on this folder’s ledger';
+
+  @override
+  String ledgerRestoreKeepOnFolderNote(String folder) {
+    return 'What you change here goes to $folder, and what is changed on another computer comes here.';
+  }
+
+  @override
+  String get ledgerUseThisFolder => 'Use This Folder';
+
+  @override
+  String ledgerRestoredOnFolder(String folder) {
+    return 'This computer is now on the ledger in $folder';
+  }
+
+  @override
+  String ledgerRestoredNotOnFolder(String folder) {
+    return 'Your ledger is here, but this computer isn’t on $folder · in Settings, use Move my ledger to a folder…';
+  }
+
+  @override
+  String ledgerRestoreNotKeptNote(String folder) {
+    return 'This computer gets its own copy. What you change here won’t reach $folder.';
+  }
+
+  @override
+  String get ledgerRestoreMacAsks =>
+      'Your Mac asks for the folder next: press Use This Folder.';
+
+  @override
+  String get ledgerBringLedgerTitle => 'Bring this ledger here?';
+
+  @override
+  String get ledgerLastChanged => 'Last changed';
+
+  @override
+  String get ledgerBringLedgerNote =>
+      'Everything here is replaced by this ledger. What you have now is saved first, and Undo brings it back.';
 }

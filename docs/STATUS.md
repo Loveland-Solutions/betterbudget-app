@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-10** · version 0.25.1 · schema v18 · 664 tests pass
+**Last updated: 2026-10-12** · version 0.26.0 · schema v18 · 666 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,10 +10,18 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**After PR #62 (version 0.25.1), a fix:** on a computer where the recovery key was
+**After PR #63 (version 0.26.0): a second computer is set up in one step.** Restore
+from… pointed at `Ledger.betterbudget` in the folder (from Settings, or from "Open
+your newest backup?" on a new computer) shows a ticked "Keep this computer on this
+folder's ledger" in the restore dialog; Restore then brings the ledger over and
+keeps the computer on the folder, with nothing asked about which ledger to keep
+(ADR 0004 "A second computer set up in one step"). On a Mac the folder is chosen
+once more in the Mac's own dialog, which opens on it. **Not yet seen by the owner
+on a second account or machine**: tests only, with two ledgers and one folder.
+
+Before it, PR #62 (version 0.25.1), a fix: on a computer where the recovery key was
 typed, "Open your newest backup?" comes back after Cancel in the file dialog and
-at each launch until it is answered. Before, Cancel left the person in setup with
-no way to a backup (the owner hit it setting up a second account).
+at each launch until it is answered.
 
 **Before it, PR #61 (version 0.25.0): two computers that each changed the ledger are
 combined** without a question when what they did can both stand (item 1 below; ADR
@@ -24,10 +32,8 @@ saved on …" lost its own (owner, 2026-10-10: Undo is only for what the person 
 this computer did; ADR 0004 "Two computers: combined without a question"). No
 upgrade: nothing in the owner's file changed. **Seen working by the owner on
 2026-10-10 on two accounts of one Mac** (a second macOS user, the same Drive
-folder), not yet on two machines. A second computer takes two steps (Restore
-from…, then "Move my ledger to a folder…"), and nothing says the second is
-needed: the owner missed it. Making it one step is on the list
-([ROADMAP](ROADMAP.md) "Still on the list"), as is a plain popup for a failure.
+folder), not yet on two machines. A plain popup for a failure is on the list
+([ROADMAP](ROADMAP.md) "Still on the list").
 The app must be opened from Applications, never from inside the Drive folder:
 Drive drops the links inside it and every save fails.
 
@@ -64,7 +70,7 @@ folder. Then, in order:
    Steps 1 to 3 are built ([ADR 0005](decisions/0005-mobile-companion.md) "More than
    one computer on one ledger": never write blind, combine, look while open). What
    two computers changed apart is brought together and written to the folder; a second computer is set up by Restore from… the folder's
-   `Ledger.betterbudget`, then "Move my ledger to a folder…" and the same folder.
+   `Ledger.betterbudget`, with "Keep this computer on this folder's ledger" ticked.
    **It has not been run on two real computers**, only in tests with two ledgers and
    one folder; the first real run is the owner's to watch. **Left of the owner's
    decision 1:** when the two changed the same thing two ways (one row's amount, one
@@ -104,7 +110,7 @@ folder. Then, in order:
 4. **A place to see and drop the "Always file" rules** ([ROADMAP](ROADMAP.md) "Still on
    the list").
    Beside it there since 2026-10-10 (owner: "put this on a list of things to
-   do"): a second computer set up in one step, and a plain popup for a failure.
+   do"): a plain popup for a failure.
 5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
    "Gold is an accent, and the new colors come first"). **The phone is next when the
    owner asks**: it still always shows dark Blue eclipse (`main.dart` sets it), and
@@ -122,7 +128,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #62. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #63. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -200,6 +206,13 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     steps, "In the order of Personal Finances for Self-Reliance…", go now that the
     steps are the owner's own?
 
+18. **Two wordings for a second computer** (2026-10-12). The checkbox reads "Keep
+    this computer on this folder's ledger"; the budget review would have "Share
+    the ledger in My Drive/BetterBudget". And on a new computer the first question
+    is still titled "Open your newest backup?", though for a second computer the
+    ledger is in a folder and isn't a backup; "Bring your ledger here?" was
+    suggested.
+
 ## Phase
 
 **A working desktop ledger and budget are built** and run on macOS from
@@ -229,7 +242,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Not built: asking about the one row in conflict |
+| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Restore from… pointed at the folder's `Ledger.betterbudget` offers, ticked, "Keep this computer on this folder's ledger": one step sets up a second computer. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Not built: asking about the one row in conflict |
 | Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
 | Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
@@ -302,6 +315,17 @@ open the archive).
   the one to pay extra on even when it is Storepay at no interest; "pay only the
   minimums" and "employer matches" don't fit loans and pay here. Untested: that an
   account marked a student loan keeps its mark when "Debt to pay off" is picked.
+
+- **From the reviews of a second computer in one step (2026-10-12), not fixed:**
+  whether the Mac's folder dialog really opens on the folder, and its answer is
+  known as the same folder, hasn't been seen in the sandboxed app (tests fake the
+  dialog); any file named `Ledger.betterbudget` outside the app's folder gets the
+  offer, one downloaded into Downloads included; the checkbox has no key of its
+  own (Enter restores, Esc cancels); the first offer's file dialog still opens on
+  the app's Backups, not on Drive; untested: the folder failing to be kept after
+  the restore, another folder chosen in the Mac's dialog, a computer that isn't a
+  Mac, and the offer at first launch with a folder's ledger. The test waits about
+  20 real seconds for the 5-second write.
 
 - **From the reviews of combining (2026-10-10), not fixed:** two real
   purchases typed alike on each computer beside a phone entry both took in can be
