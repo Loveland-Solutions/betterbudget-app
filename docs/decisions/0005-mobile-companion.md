@@ -706,7 +706,21 @@ build; nothing in the folder changes yet.
 - **Ids:** `sync.ledger` is given to a ledger made here (`onCreate`) and anew by
   an erase; a ledger upgraded from v19 gets none, since it may already be shared,
   and takes the folder's in step 3. `sync.applied` is reserved, written by
-  nothing yet.
+  nothing yet. Open for step 3: a restore copies the backup's `sync.ledger` and
+  `sync.applied` in (right for the id: it is that ledger now; decide for the
+  vector).
+- **Rules from the code review (2026-10-12), kept:** each trigger names only
+  the columns the file really has, so a column an old upgrade left out can't
+  make every write fail at the trigger (the chain upgrade tests assert none is
+  missing); `recursive_triggers` is on, so an `INSERT OR REPLACE` logs delete
+  then insert, the truth; no column may be a blob; the hold nests; an erase
+  keeps the log before its marker (its undo puts the rows back, and step 3 may
+  still owe the other computer a change made just before). **From v20 on an
+  upgrade either changes no row, or is deterministic (no `newRowId`, no clock),
+  or runs with the triggers in place**: an upgrade's writes are otherwise never
+  logged (the triggers are made at its end), and one like v13's `_oneIncome`,
+  run on each computer apart, would leave two ledgers differing on rows neither
+  ever sends the other, which the digest guard of step 5 would only report.
 - Tests: `changes_test.dart` (every ledger table has its three triggers and is
   one `combine` knows; a purchase is its rows by name; before and after; a no-op
   update and the `sync.*` settings leave nothing; `applyCombined`, a restore, an

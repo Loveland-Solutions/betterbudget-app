@@ -10,6 +10,7 @@ import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/combine.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/sync.dart';
+import 'package:drift/drift.dart' show DriftSqlType;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,10 +43,16 @@ void main() {
           if (t.actualTableName != changeLogTable) t.actualTableName,
       };
       expect(logged, combineOrder.toSet());
-      expect(db.changeTriggerSql(), hasLength(3 * logged.length));
+      expect(await db.changeTriggerSql(), hasLength(3 * logged.length));
       expect(await db.changeTriggersPresent(), hasLength(3 * logged.length));
       // A new ledger has an id of its own.
       expect((await db.loadLedger()).prefs[SyncKeys.ledger], hasLength(16));
+      // json_object can't hold a blob: no column may be one.
+      for (final t in db.allTables) {
+        for (final c in t.$columns) {
+          expect(c.type, isNot(DriftSqlType.blob), reason: c.name);
+        }
+      }
     },
   );
 
@@ -71,6 +78,9 @@ void main() {
       expect(json(txn.pk), {'id': id});
       expect(json(txn.after)['date'], '2026-10-12');
       expect(json(txn.after).keys, contains('payee_id'));
+      // A bool is 0 or 1, an empty column null.
+      expect(json(txn.after)['scheduled'], 0);
+      expect(json(txn.after)['memo'], isNull);
       final entries = rows.where((r) => r.tbl == 'entries').toList();
       expect(entries, hasLength(2));
       expect(
@@ -153,6 +163,26 @@ void main() {
       // And this computer's next change is recorded again.
       await db.setPreference('a.setting', 'x');
       expect(await since(mark), hasLength(1));
+      // A batch the ledger refuses releases the hold too.
+      final after = await db.lastChangeSeq();
+      await expectLater(
+        db.applyCombined([
+          RowOp.insert('entries', {
+            'id': 5,
+            'transaction_id': 999999,
+            'account_id': 999999,
+            'amount_minor': 1,
+            'currency': 'MNT',
+            'rate': null,
+            'cleared': 0,
+            'reconciliation_id': null,
+            'import_key': null,
+          }),
+        ], onlyIfDigest: (await db.sealState()).digest),
+        throwsA(isA<CantCombineException>()),
+      );
+      await db.setPreference('a.setting', 'y');
+      expect(await since(after), hasLength(1));
     },
   );
 
@@ -172,16 +202,21 @@ void main() {
     expect(await since(rows.single.seq), isEmpty);
   });
 
-  test('erasing starts a new log and a new ledger id', () async {
-    final was = (await db.loadLedger()).prefs[SyncKeys.ledger];
-    await db.startNewLedger(today, keepCategories: true);
-    final rows = await since(0);
-    expect(rows, hasLength(1));
-    expect(rows.single.op, 'erase');
-    final now = (await db.loadLedger()).prefs[SyncKeys.ledger];
-    expect(now, hasLength(16));
-    expect(now, isNot(was));
-  });
+  test(
+    'erasing is a marker and a new ledger id; the log before it stays',
+    () async {
+      final was = (await db.loadLedger()).prefs[SyncKeys.ledger];
+      final mark = await db.lastChangeSeq();
+      await db.startNewLedger(today, keepCategories: true);
+      final rows = await since(mark);
+      expect(rows, hasLength(1));
+      expect(rows.single.op, 'erase');
+      expect(await since(0), hasLength(mark + 1));
+      final now = (await db.loadLedger()).prefs[SyncKeys.ledger];
+      expect(now, hasLength(16));
+      expect(now, isNot(was));
+    },
+  );
 
   test(
     'the log is no part of the ledger’s digest or of what is compared',

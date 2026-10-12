@@ -293,8 +293,9 @@ class PayeeRuleAccounts extends Table {
 /// What this computer changed, one row per row changed (ADR 0005, "Two
 /// computers: the way chosen, 2026-10-12"): the table, which row, and the
 /// row before and after as JSON by column name. Filled by triggers
-/// ([AppDatabase.changeTriggerSql]), never by the app's own code; read in
-/// order of [seq] to publish to the folder. It is this computer's own: not
+/// ([AppDatabase.changeTriggerSql]); the app's own code writes only a marker
+/// for a whole ledger put in or cleared. Read in order of [seq] to publish
+/// to the folder. It is this computer's own: not
 /// part of the ledger's digest, never combined, not restored over, and
 /// [seq] counts 1, 2, 3 here on purpose where every other id is
 /// [newRowId].
@@ -1019,6 +1020,9 @@ class AppDatabase extends _$AppDatabase {
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA journal_mode = WAL');
+      // So an INSERT OR REPLACE over a row fires the delete trigger too,
+      // and the log says delete then insert, which is what happened.
+      await customStatement('PRAGMA recursive_triggers = ON');
       await _ensureApplyingTable();
       await _ensureChangeTriggers();
     },
@@ -1039,13 +1043,22 @@ class AppDatabase extends _$AppDatabase {
   /// Inside a transaction, so a failure leaves neither the writes nor the
   /// hold.
   Future<T> _withoutChangeLog<T>(Future<T> Function() body) async {
-    await customStatement('INSERT INTO temp.$_applyingTable (flag) VALUES (1)');
+    // Each hold is its own row, so one inside another releases only itself.
+    final token = _holdToken++;
+    await customStatement(
+      'INSERT INTO temp.$_applyingTable (flag) VALUES (?)',
+      [token],
+    );
     try {
       return await body();
     } finally {
-      await customStatement('DELETE FROM temp.$_applyingTable');
+      await customStatement('DELETE FROM temp.$_applyingTable WHERE flag = ?', [
+        token,
+      ]);
     }
   }
+
+  var _holdToken = 0;
 
   static String _triggerName(String table, String op) =>
       'bb_change_${table}_$op';
@@ -1059,8 +1072,11 @@ class AppDatabase extends _$AppDatabase {
   /// in the file could neither read the hold, which is TEMP, nor let a
   /// later upgrade drop a column it names. Every connection the app opens
   /// gets them in `beforeOpen`; a reader that opens the file raw writes
-  /// nothing. Public for the test that checks every table has its three.
-  List<String> changeTriggerSql() {
+  /// nothing. Each names only the columns its table really has, in the
+  /// order the app declares them: a column an old upgrade left out mustn't
+  /// make every write fail at the trigger. Public for the test that checks
+  /// every table has its three.
+  Future<List<String>> changeTriggerSql() async {
     const guard = 'NOT EXISTS (SELECT 1 FROM temp.$_applyingTable)';
     // Milliseconds since 1970 by this computer's clock, for the screen.
     const at = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
@@ -1068,9 +1084,17 @@ class AppDatabase extends _$AppDatabase {
     for (final table in allTables) {
       final name = table.actualTableName;
       if (name == changeLogTable) continue;
+      final has = {
+        for (final r in await customSelect('PRAGMA table_info("$name")').get())
+          r.read<String>('name'),
+      };
+      final columns = [
+        for (final c in table.$columns)
+          if (has.contains(c.name)) c,
+      ];
       String json(Iterable<GeneratedColumn> columns, String row) =>
           'json_object(${[for (final c in columns) "'${c.name}', $row.\"${c.name}\""].join(', ')})';
-      String whole(String row) => json(table.$columns, row);
+      String whole(String row) => json(columns, row);
       String key(String row) => json(table.$primaryKey, row);
       String own(String row) => name == 'preferences'
           ? " AND $row.key NOT LIKE '${SyncKeys.prefix}%'"
@@ -1113,7 +1137,7 @@ class AppDatabase extends _$AppDatabase {
     for (final name in await changeTriggersPresent()) {
       await customStatement('DROP TRIGGER IF EXISTS temp."$name"');
     }
-    for (final sql in changeTriggerSql()) {
+    for (final sql in await changeTriggerSql()) {
       await customStatement(sql);
     }
   }
@@ -1122,7 +1146,7 @@ class AppDatabase extends _$AppDatabase {
   /// connection just opened). Only once the log's table is there to write
   /// to.
   Future<void> _ensureChangeTriggers() async {
-    final sql = changeTriggerSql();
+    final sql = await changeTriggerSql();
     if ((await changeTriggersPresent()).length == sql.length) return;
     final hasLog = await customSelect(
       "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -3233,9 +3257,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
       transaction(
         () => _withoutChangeLog(() async {
-          // A new ledger: a log and an id of its own, nothing of the old one's
-          // (ADR 0005, "the way chosen": computers never merge across ids).
-          await delete(changes).go();
+          // A new ledger, with an id of its own (ADR 0005, "the way chosen":
+          // computers never merge across ids). The log keeps what came
+          // before the marker: an undo of this puts the rows back, and step 3
+          // may still owe the other computer a change made just before.
           await _logMarker('erase');
           await delete(budgetAmounts).go();
           await delete(categoryPlans).go();

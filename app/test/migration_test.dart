@@ -76,6 +76,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       final data = await db.loadLedger();
       final checking = data.balanceSheetAccounts
           .firstWhere((a) => a.name == 'TDB Checking')
@@ -135,20 +137,25 @@ void main() {
     var db = AppDatabase(NativeDatabase(file));
     await seedDemoIfEmpty(db, today);
     final txns = (await db.loadLedger()).txns.length;
+    final digest = (await db.sealState()).digest;
     await dropAddedInV20(db);
     await db.setPreference(SyncKeys.ledger, null);
     await db.customStatement('PRAGMA user_version = 19');
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
-    addTearDown(db.close);
+
+    await expectAllColumns(db);
     final data = await db.loadLedger();
     expect(data.txns, hasLength(txns));
     expect(await db.lastChangeSeq(), 0);
     expect(
       await db.changeTriggersPresent(),
-      hasLength(db.changeTriggerSql().length),
+      hasLength((await db.changeTriggerSql()).length),
     );
+    await expectAllColumns(db);
+    // Not a row changed.
+    expect((await db.sealState()).digest, digest);
     // A ledger that may already be shared takes the folder's id later.
     expect(data.prefs[SyncKeys.ledger], isNull);
     // From here on, a change is recorded.
@@ -158,6 +165,34 @@ void main() {
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
       contains(startsWith('betterbudget.before-v20-from-v19-')),
     );
+    await db.close();
+
+    // Opened again, as every launch after the first: the triggers are made
+    // on the new connection and the log goes on.
+    db = AppDatabase(NativeDatabase(file));
+    await expectAllColumns(db);
+    expect(
+      await db.changeTriggersPresent(),
+      hasLength((await db.changeTriggerSql()).length),
+    );
+    await db.setPreference('a.setting', 'y');
+    expect(await db.lastChangeSeq(), 2);
+    // A newer build's file is refused and left as it is; this build then
+    // opens it again with everything in place.
+    await db.customStatement('PRAGMA user_version = 21');
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
+    await db.close();
+    final raw = sqlite3.open(file.path);
+    raw.execute('PRAGMA user_version = 20');
+    raw.close();
+    db = AppDatabase(NativeDatabase(file));
+    await expectAllColumns(db);
+    await db.setPreference('a.setting', 'z');
+    expect(await db.lastChangeSeq(), 3);
+    expect((await db.loadLedger()).txns, hasLength(txns));
+    await db.close();
   });
 
   test('upgrades a v18 file: remembered payees become rows, the setting '
@@ -185,6 +220,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final rules = await db.allPayeeRules();
     // The one whose category is gone is left behind.
@@ -224,6 +261,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final after = await db.loadLedger();
     final assets = after.openAccounts.where((a) => a.type == AccountType.asset);
@@ -294,6 +333,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       addTearDown(db.close);
       final after = await db.loadLedger();
       expect(after.plans[food]!.payScheduleId, pay.after.id);
@@ -334,6 +375,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     var plan = (await db.loadLedger()).plans[rent]!;
     expect(plan.everyMonths, 1);
@@ -385,6 +428,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final pay = (await db.loadLedger()).paySchedules.single;
     expect(pay.amount, 100000000);
@@ -421,6 +466,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       addTearDown(db.close);
       final data = await db.loadLedger();
       expect(data.accountsOff, isEmpty);
@@ -507,6 +554,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       addTearDown(db.close);
       final data = await db.loadLedger();
       final incomes = data.accounts.values.where((a) => a.isIncome).toList();
@@ -559,6 +608,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final plans = (await db.loadLedger()).plans;
     // Spend keeps its carry-over choice; save up always carried over.
@@ -606,6 +657,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     data = await db.loadLedger();
     expect(data.budgetAmounts.single.amount, 90000000);
@@ -640,6 +693,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       addTearDown(db.close);
       var data = await db.loadLedger();
       expect(data.budgetAmounts, isEmpty);
@@ -685,6 +740,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final pays = (await db.loadLedger()).paySchedules;
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
@@ -718,6 +775,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final rows = await db
         .customSelect(
@@ -744,6 +803,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     expect((await db.loadLedger()).txns.length, before);
     final version = await db.customSelect('PRAGMA user_version').getSingle();
@@ -787,6 +848,8 @@ void main() {
       await db.close();
 
       db = AppDatabase(NativeDatabase(file));
+
+      await expectAllColumns(db);
       addTearDown(db.close);
       final data = await db.loadLedger();
       expect(data.accounts.values.map((a) => a.role), everyElement(isNull));
@@ -817,6 +880,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final data = await db.loadLedger();
     expect(data.paySchedules, isEmpty);
@@ -842,6 +907,8 @@ void main() {
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
     addTearDown(db.close);
     final data = await db.loadLedger();
     expect(
@@ -999,4 +1066,21 @@ Future<void> dropAddedInV20(AppDatabase db) async {
     await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
   }
   await db.customStatement('DROP TABLE IF EXISTS changes');
+}
+
+/// The upgraded file has every column the app declares, so every trigger
+/// can fire and no write fails at it.
+Future<void> expectAllColumns(AppDatabase db) async {
+  for (final t in db.allTables) {
+    final have = {
+      for (final r
+          in await db
+              .customSelect('PRAGMA table_info("${t.actualTableName}")')
+              .get())
+        r.read<String>('name'),
+    };
+    for (final c in t.$columns) {
+      expect(have, contains(c.name), reason: '${t.actualTableName}.${c.name}');
+    }
+  }
 }

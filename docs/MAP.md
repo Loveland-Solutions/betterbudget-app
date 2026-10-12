@@ -105,8 +105,16 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   triggers name every column and are made afresh after every upgrade by
   themselves; a test that takes a file back to an older shape calls
   `dropAddedInV20` first, since a trigger that names a column stops `DROP
-  COLUMN`. The `sync.*` settings and the `changes` table are each computer's own:
-  never in the digest, never combined, never restored over.
+  COLUMN`; each trigger names only the columns the file really has
+  (`expectAllColumns` in that test pins that an upgraded file has them all).
+  `recursive_triggers` is on, so an `INSERT OR REPLACE` logs delete then insert;
+  `insertOnConflictUpdate` logs an update. No column may be a blob
+  (`json_object` can't hold one; `changes_test.dart` checks). The `sync.*`
+  settings and the `changes` table are each computer's own: never in the
+  digest, never combined, never restored over. From v20 on an upgrade either
+  changes no row, or is deterministic (no `newRowId`, no clock), or runs with
+  the triggers in place: its writes are otherwise never logged, and two
+  computers would differ on rows neither sends the other.
 - **Encryption** ([ADR 0001](decisions/0001-database.md)). The app opens the ledger with
   `AppDatabase.openEncrypted`; tests use `AppDatabase(NativeDatabase.memory())`, which
   is plain. Raw SQLite calls go inside `withoutKeyInErrors` (`encryption.dart`) so a key

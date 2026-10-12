@@ -24,8 +24,12 @@ five PRs. **PR 1 of 5 is built (version 0.30.0, not yet a PR of its own; on top
 of #66): schema v20**, the `changes` table filled by TEMP triggers made on every
 open, the hold that keeps another computer's changes, a restore and an erase out
 of it, `sync.ledger` for a new ledger, `sync.applied` reserved; the upgrade adds
-one table and touches no row (ADR 0005 "Built, 2026-10-12: step 1"). Nothing in
-the folder changes yet, so the owner sees nothing new. **Next is PR 2**
+one table and touches no row (ADR 0005 "Built, 2026-10-12: step 1"); the code
+review's findings are in (no bug that touches data; its rules are in the ADR).
+Nothing in the folder changes yet, so the owner sees nothing new on the Mac;
+**the Pixel's old build can't open a v20 `Ledger.betterbudget`** (nor a v19 one:
+every schema bump does this), so the phone wants this build at the next
+install. **Next is PR 2**
 (deterministic ids for paydays, bills, phone entries and bank rows, the old dedupe
 kept as backstop), then 3 (the folder cycle and the derived snapshot; counters,
 seal and the agreed file go), 4 (the facts-first policy and the blocks), 5
