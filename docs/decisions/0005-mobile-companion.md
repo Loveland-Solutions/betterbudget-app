@@ -760,9 +760,11 @@ and nothing has to be matched by what it says.
   on each (a label): this computer's stays. Anything else (two confirmations
   of one payday for different amounts, two rows under one id from a build
   that counted from 1): a block in the row window, not the whole ledger. (For
-  such a block "Neither: as it was" is today an empty base, so it reads
-  Deleted and would take the row out; step 4, which rewrites the policy, gives
-  a shared-id unit the waiting version as its base.)
+  such a block there was nothing before either computer made the row, so
+  "Neither: as it was" and the "As it was" line aren't offered, `Ask.hasBase`;
+  step 4, which rewrites the policy, may give a shared-id unit the waiting
+  version as its base.) A payee renamed on the other computer counts as a
+  change (the popup says so); a new payee comes with its row and doesn't.
 - **The digest ignores when a row was written** (`created_at`, `updated_at`;
   `ledgerDigest`). Two computers that each scheduled the same payday wrote it at
   different moments and hold the same ledger; without this each would find the

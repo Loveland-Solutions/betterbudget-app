@@ -228,6 +228,19 @@ void main() {
     expect(row(result, 'transactions', 10)['updated_at'], 300);
   });
 
+  test('a payee renamed there counts as a change; a new one comes with its '
+      'row and doesn’t', () {
+    row(theirs, 'payees', 1)['name'] = 'Nomin Supermarket';
+    expect(run().others, 1);
+    theirs = copy(base);
+    theirs['payees']!.add({'id': 2, 'name': 'Unitel'});
+    spend(theirs, 50);
+    row(theirs, 'transactions', 50)['payee_id'] = 2;
+    final found = run();
+    expect(found.transactions, 1);
+    expect(found.others, 0);
+  });
+
   test('one transaction edited on both is asked about, never doubled', () {
     // Each edit wrote its entries as new rows.
     for (final (side, first, amount) in [
@@ -767,6 +780,8 @@ void main() {
       expect(asked.conflict, isNull);
       expect(asked.asking, isTrue);
       expect(asked.asks.single.id, 'transaction|$id');
+      // Nothing was there before either: "neither" isn't offered.
+      expect(asked.asks.single.hasBase, isFalse);
       result = after(
         mine,
         combine(

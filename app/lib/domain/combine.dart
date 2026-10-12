@@ -107,11 +107,17 @@ class Ask {
     required this.mine,
     required this.theirs,
     required this.neither,
+    this.hasBase = true,
     this.transaction,
     this.category,
     this.date,
     this.currency,
   });
+
+  /// There was a version before either computer changed it. Not so for a
+  /// row both made under one id ([sharedRowId]): "neither" would then be
+  /// no row at all, and isn't offered.
+  final bool hasBase;
 
   /// Stable for the same two ledgers; what a [Pick] is given under.
   final String id;
@@ -678,6 +684,7 @@ class _Combine {
         mine: side(of(mine)),
         theirs: side(_heldTheirs),
         neither: side(_heldBase),
+        hasBase: (_heldBase['transactions'] ?? const <Row>[]).isNotEmpty,
       );
     }
     AskSide side(Map<String, List<Row>> rows) => AskSide(
@@ -1101,7 +1108,7 @@ class _Combine {
   final _arrived = <Object?>{};
   var _others = 0;
 
-  void _count(String table, Row row) {
+  void _count(String table, Row row, {bool insert = false}) {
     switch (table) {
       case 'transactions':
         _touched.add(row['id']);
@@ -1109,8 +1116,8 @@ class _Combine {
         _touched.add(row['transaction_id']);
       case 'payees':
         // A new payee comes with its transaction, and isn't a change by
-        // itself to the person.
-        break;
+        // itself to the person; one renamed is.
+        if (!insert) _others++;
       case 'preferences':
         if (row['key'] != phoneTakenKey) _others++;
       default:
@@ -1122,7 +1129,7 @@ class _Combine {
     if (table == 'transactions') _arrived.add(row['id']);
     ops.add(RowOp.insert(table, row));
     result[table]![_keyOf(table, row)] = row;
-    _count(table, row);
+    _count(table, row, insert: true);
   }
 
   void _update(String table, Row row, {bool count = true}) {

@@ -1191,6 +1191,42 @@ void main() {
       expect(isSharedRowId(newRowId()), isFalse);
       expect(isSharedRowId(carriedRuleId(3, 'unitel')), isFalse);
     });
+
+    test(
+      'a row already under the id makes the next one an ordinary id',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, DateTime(2026, 10, 9));
+        final data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        Future<int> post() => db.postTransaction(
+          date: DateTime(2026, 10, 25),
+          scheduled: true,
+          lines: [
+            (
+              accountId: id('TDB Checking'),
+              amount: 100,
+              cleared: Cleared.uncleared,
+            ),
+            (
+              accountId: id('Groceries'),
+              amount: -100,
+              cleared: Cleared.uncleared,
+            ),
+          ],
+          shared: const SharedKey('payday', '1|2026-10-25'),
+        );
+        final first = await post();
+        expect(isSharedRowId(first), isTrue);
+        // Skipped (a soft delete keeps the row), then scheduled again.
+        await db.softDelete(first);
+        final second = await post();
+        expect(second, isNot(first));
+        expect(isSharedRowId(second), isFalse);
+      },
+    );
   });
 
   group('the digest', () {
