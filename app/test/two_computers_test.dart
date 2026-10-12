@@ -325,8 +325,7 @@ void main() {
       expect(await laptop.payees(), isNot(contains('Nomin')));
       await laptop.cloud.bringIn(tuesday);
       expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      final inFolder = await lookAtLedger(folderLedger(), null);
-      expect(inFolder.savedByName, 'The laptop');
+      expect(await laptop.payees(), contains('Nomin'));
       // A ledger put back whole is a whole-ledger act: until step 5 makes
       // it a batch of its own, the Mac is asked.
       expect(await mac.cloud.check(tuesday), FolderStanding.apart);
@@ -467,19 +466,36 @@ void main() {
       expect(await folderLedger().readAsBytes(), mondays);
     });
 
-    test('a folder that holds another ledger is left alone', () async {
-      await laptop.cloud.keepIn(drive.path, monday);
-      // A new ledger here: its own id, nothing in common.
-      await laptop.db.startNewLedger(tuesday, keepCategories: false);
+    test('an erase here starts another ledger: written to the folder as '
+        'before, and the other computer is asked, never folded', () async {
       await mac.spend('Nomin', monday);
       await mac.cloud.check(monday);
-      final mondays = await folderLedger().readAsBytes();
+      await laptop.cloud.keepIn(drive.path, monday);
+      if (await laptop.cloud.check(monday, fresh: true) ==
+          FolderStanding.combine) {
+        await laptop.cloud.bringIn(monday);
+      }
+      expect(await laptop.cloud.check(monday, fresh: true), FolderStanding.ok);
+      final id = (await laptop.db.syncState()).ledger;
+      // A new ledger here: its own id, nothing in common.
+      await laptop.db.startNewLedger(tuesday, keepCategories: false);
+      expect((await laptop.db.syncState()).ledger, isNot(id));
+      // An erase falls back to the older look, whose counts the Mac's
+      // writes moved on since: asked, and "keep this computer's" writes
+      // the new ledger there (step 5 writes it without the question).
       expect(
         await laptop.cloud.check(tuesday, fresh: true),
         FolderStanding.apart,
       );
-      expect(await folderLedger().readAsBytes(), mondays);
-      expect(await laptop.payees(), isNot(contains('Nomin')));
+      await laptop.cloud.keepMine(tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await lookAtLedger(folderLedger(), null)).ledger, isNot(id));
+      final written = await folderLedger().readAsBytes();
+      // Two ledgers: the Mac is asked, and nothing of either is folded
+      // into the other.
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.apart);
+      expect(await mac.payees(), contains('Nomin'));
+      expect(await folderLedger().readAsBytes(), written);
     });
 
     test(
@@ -888,6 +904,173 @@ void main() {
       expect(
         (await laptop.db.loadLedger()).txns.where((t) => t.payee == 'Emart'),
         hasLength(1),
+      );
+    });
+
+    test('the second computer to upgrade, with changes its log never saw, '
+        'joins the first: one ledger id, nothing lost', () async {
+      // The laptop as the older build left it: no vector, no id, and a
+      // change its log never saw.
+      await laptop.db.setPreference(SyncKeys.applied, null);
+      await laptop.db.setPreference(SyncKeys.ledger, null);
+      await laptop.spend('E-Mart', monday);
+      await laptop.db.customStatement('DELETE FROM changes');
+      final id = (await lookAtLedger(folderLedger(), null)).ledger;
+      expect(id, isNotNull);
+      // Its first write: the older look, whole, which carries the folder's
+      // id and vector on and marks the file.
+      await laptop.cloud.keepIn(drive.path, tuesday);
+      expect(laptop.cloud.value.standing, FolderStanding.ok);
+      final look = await lookAtLedger(folderLedger(), null);
+      expect(look.ledger, id);
+      expect(look.applied.keys, hasLength(2));
+      expect(look.whole, isNotNull);
+      // The Mac takes it whole, as the older look would, once.
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.newer);
+      await mac.open(tuesday);
+      expect(await mac.payees(), contains('E-Mart'));
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await mac.db.syncState()).ledger, id);
+      // From here on, change files.
+      await laptop.spend('Nomin', tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await bringIn(mac)).transactions, 1);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('a folder ledger ahead on a computer whose file hasn’t come is '
+        'taken whole, once', () async {
+      await agree();
+      await laptop.spend('E-Mart', tuesday);
+      await laptop.cloud.check(tuesday, fresh: true);
+      await bringIn(mac);
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      // The Mac's file hasn't arrived.
+      final macFile = File(
+        '${drive.path}/${changeFileName(await mac.cloud.computerId())}',
+      );
+      final aside = File('${root.path}/aside.betterbudget-changes');
+      await macFile.rename(aside.path);
+      expect(
+        await laptop.cloud.check(tuesday, fresh: true),
+        FolderStanding.newer,
+      );
+      await laptop.open(tuesday);
+      expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
+      // Once: the laptop's own count didn't go down with its log.
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      await aside.rename(macFile.path);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('the same row deleted on both: the two agree to the byte, and '
+        'nobody rewrites the folder’s ledger', () async {
+      await mac.spend('Nomin', monday);
+      await agree();
+      final id = (await bought(mac, 'Nomin')).id;
+      await mac.db.softDelete(id);
+      await mac.cloud.check(tuesday, fresh: true);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await laptop.db.softDelete(id);
+      await settle(laptop, tuesday);
+      await settle(mac, tuesday);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+      final bytes = await folderLedger().readAsBytes();
+      for (var round = 0; round < 2; round++) {
+        expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+        expect(
+          await laptop.cloud.check(tuesday, fresh: true),
+          FolderStanding.ok,
+        );
+      }
+      expect(await folderLedger().readAsBytes(), bytes);
+    });
+
+    test('both asked about one row, both keep their own: the lower '
+        'computer id’s answer stands on both', () async {
+      await mac.spend('Nomin', monday);
+      await agree();
+      for (final (computer, amount) in [(mac, -900000), (laptop, -700000)]) {
+        await computer.db.editTransaction(
+          transactionId: (await bought(computer, 'Nomin')).id,
+          accountId: await computer.account('TDB Checking'),
+          date: monday,
+          today: tuesday,
+          payee: 'Nomin',
+          counterAccountId: await computer.account('Groceries'),
+          amount: amount,
+        );
+      }
+      // Each publishes, then each finds the other's: both asked.
+      await mac.cloud.check(tuesday, fresh: true);
+      expect(
+        await laptop.cloud.check(tuesday, fresh: true),
+        FolderStanding.rows,
+      );
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.rows);
+      for (final c in [mac, laptop]) {
+        final ask = c.cloud.asks.single;
+        expect(
+          await c.cloud.bringIn(tuesday, picks: {ask.id: Pick.mine}),
+          isNotNull,
+        );
+      }
+      for (var round = 0; round < 2; round++) {
+        await settle(mac, tuesday);
+        await settle(laptop, tuesday);
+      }
+      final macId = await mac.cloud.computerId();
+      final laptopId = await laptop.cloud.computerId();
+      final stands = macId.compareTo(laptopId) < 0 ? -900000 : -700000;
+      for (final c in [mac, laptop]) {
+        expect(
+          (await bought(c, 'Nomin')).entries.map((e) => e.amount),
+          containsAll([stands, -stands]),
+        );
+        expect(await c.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      }
+    });
+
+    test('a change file that starts past what was applied here: the folder’s '
+        'ledger, which holds what the file dropped, is taken whole', () async {
+      await agree();
+      final older = File('${root.path}/older.betterbudget');
+      await folderLedger().copy(older.path);
+      await laptop.spend('Shangri-La', tuesday);
+      await laptop.cloud.check(tuesday, fresh: true);
+      expect((await bringIn(mac)).transactions, 1);
+      // Published, but the Mac hasn't looked; then the laptop takes an
+      // older copy of the folder's ledger whole (its log is cleared) and
+      // spends again.
+      await laptop.spend('Emart', tuesday);
+      await laptop.cloud.check(tuesday, fresh: true);
+      await laptop.backups.restore(
+        await laptop.backups.inspect(older.path, tuesday),
+        tuesday,
+        fromFolder: true,
+      );
+      await laptop.spend('Unitel', tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.newer);
+      await mac.open(tuesday);
+      expect(await mac.payees(), contains('Unitel'));
+      expect(await mac.payees(), isNot(contains('Emart')));
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
       );
     });
 

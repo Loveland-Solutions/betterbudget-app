@@ -1250,8 +1250,14 @@ class _Combine {
           continue;
         }
         // Income or the Safety net, named or ordered differently on each
-        // (a label): this computer's stays.
-        if (table == 'accounts' && isSharedRowId(here['id'] as int)) continue;
+        // (a label): one of the two, the same one on both computers.
+        if (table == 'accounts' && isSharedRowId(here['id'] as int)) {
+          if (jsonEncode(_sorted(there)).compareTo(jsonEncode(_sorted(here))) <
+              0) {
+            _update(table, there, count: false);
+          }
+          continue;
+        }
         _askAbout(table, [here, there], '$table $k made on both, not the same');
       }
       if (here == null || there == null) {
@@ -1269,7 +1275,10 @@ class _Combine {
           merged[c] = there[c];
         } else if ((c == 'deleted_at' || c == 'archived_at') &&
             was[c] == null) {
-          // Deleted, or put away, on both: they agree, whatever the time.
+          // Deleted, or put away, on both: they agree, whatever the time;
+          // the earlier time, the same on both computers.
+          final a = here[c], o = there[c];
+          merged[c] = a is int && o is int && o < a ? o : a;
         } else if (table == 'transactions' && c == 'updated_at') {
           final a = here[c], o = there[c];
           merged[c] = a is int && o is int && o > a ? o : a;
@@ -1296,9 +1305,10 @@ class _Combine {
       if (_times.contains(c) && x is int && y is int) {
         out[c] = c == 'created_at' ? min(x, y) : max(x, y);
       } else if ((c == 'deleted_at' || c == 'archived_at') &&
-          x != null &&
-          y != null) {
-        // Agreed, whatever the time.
+          x is int &&
+          y is int) {
+        // Agreed, whatever the time: the earlier, the same on both.
+        out[c] = min(x, y);
       } else {
         return null;
       }

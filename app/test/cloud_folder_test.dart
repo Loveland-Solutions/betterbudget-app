@@ -812,18 +812,9 @@ void main() {
       });
 
       // On change files the choice went out to the other computer the
-      // moment it was made: Ctrl+Z (⌘Z on a Mac) can't take it back, and
-      // says so; the other computer takes the choice instead of being
-      // asked.
-      await tester.runAsync(() async {
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-        expect(await copy().readAsBytes(), isNot(theirs));
-      });
-      await tester.pump();
-      expect(find.textContaining('Couldn’t undo'), findsOneWidget);
+      // moment it was made: nothing to take back, so the popup has no Undo;
+      // the other computer takes the choice instead of being asked.
+      expect(find.text('Undo'), findsNothing);
       expect(find.byKey(const ValueKey('choose-ledger')), findsNothing);
       await tester.runAsync(() async {
         expect(

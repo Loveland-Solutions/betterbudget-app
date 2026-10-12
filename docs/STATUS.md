@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.32.0 · schema v20 · 717 tests pass
+**Last updated: 2026-10-12** · version 0.32.0 · schema v20 · 722 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -42,9 +42,15 @@ exists, and the shared `Ledger.betterbudget` is written only by a computer that
 holds everything; an answer to the row question, and "Keep this computer's
 ledger", travel as changes so the other computer takes the decision instead of
 being asked. The counters, seal and agreed file are still written for the
-older look, which runs until both computers carry a vector. **Not run on two
-real computers**; the first real run is the owner's to watch on the testuser
-account. **Next is PR 4** (the facts-first policy and the blocks for the cases
+older look, which runs until both computers carry a vector. The code review's
+five findings (the transition when the second computer upgrades with changes
+of its own, a cleared log's count, merges that weren't symmetric, answers
+that crossed, a gap in a change file) are fixed, each with a test (ADR 0005
+"Rules from the code review (2026-10-13)"). **Not run on two real computers**;
+the first real run is the owner's to watch on the testuser account. Rough
+edges for step 5: an erase while the folder's ledger moved on asks the erasing
+computer the whole-ledger question first; a third computer never gets changes
+a computer took in whole. **Next is PR 4** (the facts-first policy and the blocks for the cases
 still asked as a whole ledger), then 5 (restore and erase as batches,
 compaction, the catch-up take, the digest guard, a soak on two Mac accounts). The money
 rules were put to the owner with the choice and not objected to (ADR 0005 "The

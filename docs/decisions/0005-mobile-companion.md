@@ -857,9 +857,44 @@ copy of.
   holding another ledger is left alone; keep-mine travels; an answer travels,
   for mine and for neither; a restore here; the agreed file not needed; round
   after round; alike), and `cloud_folder_test.dart` through the real screen.
+- **Rules from the code review (2026-10-13), kept.** *The transition:* a
+  write by the older look carries the folder ledger's id and vector on
+  (`sealAs(applied:, ledger:)`: the vector merged by the highest of each, the
+  id taken when this ledger has none, never a second invented) and marks the
+  file as written whole (`sync.whole`, a token); a reader on change files
+  whose own ledger doesn't carry that token takes the file whole, as the older
+  look would, when it holds every change of this computer's, else asks: so
+  the second computer to upgrade, with changes its log never saw, joins the
+  first with nothing lost. *The vector's own entry never goes down:*
+  `lastChangeSeq` is the table's AUTOINCREMENT counter, which a cleared log
+  keeps, so a ledger taken whole from the folder isn't taken again on every
+  look. *Merges are symmetric:* deleted or put away on both takes the earlier
+  time on both; Income or the Safety net made on both under one id keeps the
+  same one of the two on both (the smaller row); so the two ledgers agree to
+  the byte, and the folder's ledger is rewritten only when the rows differ,
+  never for a vector alone. *Answers that crossed* (both asked before either
+  answered, each choosing over the other's version; known by that shape, not
+  by timing): the lower computer id's answer stands on both; the other takes
+  it and writes down that it did (a `resolve` of its own), so the winner
+  doesn't take the loser's earlier answer in turn. *A gap in a change file*
+  (its first change past what was applied here): passed over when the folder's
+  ledger doesn't hold the dropped changes either, else the folder's ledger is
+  taken whole. *An empty change file* still moves the reader's vector to the
+  writer's last number; another ledger's change file is passed over (the
+  question is the other computer's, whose folder ledger differs); a computer
+  never takes whole a file it wrote itself (back on a folder it left). *"Keep this computer's ledger"* on change files has
+  no Undo (the choice went out at once), passes over files from a newer build
+  or another ledger, and is written whole only on the older look. Answers are
+  logged as `resolve`, told apart from this computer's own changes.
+- **Rough edges, for step 5:** an erase while the folder's ledger moved on
+  falls back to the older look, whose counts aren't kept up on change files,
+  so the erasing computer is asked the whole-ledger question first and "keep
+  this computer's" writes the new ledger; the other computer then sees
+  another ledger id and is asked too. A third computer never gets changes a
+  computer took in whole (they are in no change file).
 - **Left for steps 4 and 5:** the facts-first provisional winner (today a
   crossed change asks on whichever computer reads it first, and the answer
-  travels, so the other is asked only if both read before either answered);
+  travels; both asked before either answered is settled by the lower id);
   a `restore` or `erase` as a batch of its own (today the whole-ledger
   question); compaction and the catch-up take; the red line's words for a file
   waited for (today the "can't be read yet" line); the digest guard at equal

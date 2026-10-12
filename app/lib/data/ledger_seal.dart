@@ -117,7 +117,11 @@ class LedgerLook {
     required this.savedAt,
     this.applied = const {},
     this.ledger,
+    this.whole,
   });
+
+  /// [SyncKeys.whole], when the file was written whole by the older look.
+  final String? whole;
 
   /// For every computer, the last of its changes this ledger holds
   /// ([SyncKeys.applied]); empty for a ledger written by a build before
@@ -183,6 +187,7 @@ Future<LedgerLook> lookAtLedger(File file, Uint8List? key) async {
       savedAt: saved.at,
       applied: parseApplied(prefs[SyncKeys.applied]),
       ledger: prefs[SyncKeys.ledger],
+      whole: prefs[SyncKeys.whole],
     );
   } finally {
     db.close();

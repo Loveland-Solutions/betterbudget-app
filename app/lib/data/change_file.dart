@@ -102,6 +102,10 @@ class ChangeRecord {
   /// A whole-ledger act, not a row's change.
   bool get isMarker => op == 'restore' || op == 'erase';
 
+  /// An answer to a question about a thing both computers changed: the
+  /// row as the other computer had it, and as chosen.
+  bool get isResolve => op == 'resolve';
+
   factory ChangeRecord.fromRow(ChangeRow r) => ChangeRecord(
     seq: r.seq,
     tbl: r.tbl,

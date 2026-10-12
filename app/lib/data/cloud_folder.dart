@@ -182,7 +182,15 @@ typedef FolderTheirs = ({File copy, LedgerLook look, DateTime modified});
 
 /// What [CloudFolder.keepMine] replaced and what it wrote, so the one can
 /// be put back while the folder still holds the other.
-typedef KeptMine = ({File? theirs, String? theirsDigest, String wrote});
+typedef KeptMine = ({
+  File? theirs,
+  String? theirsDigest,
+  String wrote,
+
+  /// Whether it can still be taken back: not on change files, where the
+  /// choice went out as this computer's changes the moment it was made.
+  bool undoable,
+});
 
 /// What [CloudFolder.bringIn] brought in. This computer's ledger as it was
 /// before is kept as [before], which Restore from… opens.
@@ -248,6 +256,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// is kept beside the ledger and never inside it: a ledger restored on
   /// another computer mustn't bring this one's id along.
   String? _computer;
+
+  /// This computer's id, as its change file is named by.
+  Future<String> computerId() => _computerId();
   String? _name;
 
   /// A write to the folder was begun and not seen to finish: a file there
@@ -279,6 +290,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// What this computer's own change file last carried: its last change and
   /// its vector, so the file is written again only when either moved.
   int _publishedSeq = -1;
+  int _publishedFirst = -1;
   String? _publishedVector;
 
   /// What the person chose for the things both computers changed, for the
@@ -385,6 +397,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       }) {
         _publishedSeq = seq;
         _publishedVector = v;
+        if (saved['published']['first'] case final int first) {
+          _publishedFirst = first;
+        }
       }
       if (saved['decided'] case {
         'theirs': final String theirs,
@@ -448,7 +463,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         if (path != null) 'askAbout': ?_askAbout,
         if (_names.isNotEmpty) 'names': _names,
         if (path != null && _publishedVector != null)
-          'published': {'seq': _publishedSeq, 'vector': _publishedVector},
+          'published': {
+            'seq': _publishedSeq,
+            'first': _publishedFirst,
+            'vector': _publishedVector,
+          },
         if (path != null && _decided != null)
           'decided': {
             'theirs': _decided!.theirs,
@@ -688,6 +707,13 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       );
       for (final f in files) {
         if (f.changes.isEmpty) continue;
+        // Not a file from a newer build, nor another ledger's.
+        if (f.header.schema > db.schemaVersion ||
+            (f.header.ledger != null &&
+                state.ledger != null &&
+                f.header.ledger != state.ledger)) {
+          continue;
+        }
         final mine = await db.sealState();
         final rows = await db.allRows();
         final folded = foldChanges(
@@ -735,12 +761,27 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       kept = await backups.keepFromFolder(found?.copy ?? file, now);
       over = found?.look.computers.counters ?? over;
     }
-    final theirsDigest = (await _read(file))?.look.digest;
+    final there = await _read(file);
+    final theirsDigest = there?.look.digest;
     _askAbout = null;
-    final wrote = await _put(path, now, over: over, expected: expected);
+    // Whole only on the older look: on change files the choice went out as
+    // this computer's changes, and the others apply those.
+    final wrote = await _put(
+      path,
+      now,
+      over: over,
+      expected: expected,
+      theirs: there?.look,
+      whole: state.applied.isEmpty,
+    );
     value = CloudFolderState(path: path, copiedAt: now);
     await _save();
-    return (theirs: kept, theirsDigest: theirsDigest, wrote: wrote);
+    return (
+      theirs: kept,
+      theirsDigest: theirsDigest,
+      wrote: wrote,
+      undoable: state.applied.isEmpty,
+    );
   });
 
   /// Takes [keepMine] back: the file it replaced is in the folder again,
@@ -785,7 +826,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     // read and being written over.
     for (var tries = 0; ; tries++) {
       if (!file.existsSync()) {
-        await _put(path, now, over: const {});
+        await _put(path, now, over: const {}, whole: true);
         return (standing: FolderStanding.ok, replaced: null);
       }
       final stat = file.statSync();
@@ -800,7 +841,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           final kept = replaceUnreadable
               ? await backups.keepFromFolder(file, now)
               : null;
-          await _put(path, now, over: const {}, expected: stat);
+          await _put(path, now, over: const {}, expected: stat, whole: true);
           return (standing: FolderStanding.ok, replaced: kept);
         }
         // A whole file is there: no write of this computer's was cut short.
@@ -891,6 +932,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
               now,
               over: theirs.computers.counters,
               expected: stat,
+              theirs: theirs,
+              whole: true,
             );
             await _forgetDecided();
             return (standing: FolderStanding.ok, replaced: null);
@@ -900,6 +943,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
               now,
               over: theirs.computers.counters,
               expected: stat,
+              theirs: theirs,
+              whole: true,
             );
             await _forgetDecided();
             return (standing: FolderStanding.ok, replaced: null);
@@ -1009,6 +1054,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             theirs: plan.theirs,
             found: found,
             file: plan.file,
+            taken: plan.taken,
           );
           _plan = plan;
         }
@@ -1027,7 +1073,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             await backups.db.applyCombined(
               plan.found.ops,
               onlyIfDigest: plan.mine,
-              resolutions: plan.found.resolutions,
+              resolutions: [...plan.found.resolutions, ...plan.taken],
               applied: plan.file == null
                   ? null
                   : (computer: plan.computer!, seq: plan.upTo!),
@@ -1123,6 +1169,21 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         theirs.ledger != ledger) {
       return (standing: FolderStanding.apart, replaced: null);
     }
+    // Written whole there by the older look (a computer's first write after
+    // upgrading, whose log never saw the changes it made before; "keep this
+    // computer's ledger"): taken whole, as the older look would, when it
+    // holds every change of this computer's; otherwise asked about, as a
+    // ledger changed on two computers.
+    if (theirs.whole != null &&
+        theirs.whole != state.whole &&
+        !theirs.whole!.startsWith('$me|')) {
+      return (
+        standing: (theirs.applied[me] ?? 0) >= state.lastSeq
+            ? FolderStanding.newer
+            : FolderStanding.apart,
+        replaced: null,
+      );
+    }
     await _publish(path, me, state, now);
     final unreadable = <String>[];
     final files = await readChangeFiles(
@@ -1134,6 +1195,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       unreadable: unreadable,
     );
     var held = false;
+    var takeWhole = false;
     var names = false;
     // What is applied, kept up as the look goes.
     final applied = {...state.applied};
@@ -1146,10 +1208,19 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       if (h.schema > db.schemaVersion) {
         return (standing: FolderStanding.newerApp, replaced: null);
       }
-      if (h.ledger != null && ledger != null && h.ledger != ledger) {
-        return (standing: FolderStanding.apart, replaced: null);
+      // Another ledger's file: nothing of it is this ledger's to take. The
+      // question is the other computer's, whose folder ledger differs.
+      if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
+      if (f.changes.isEmpty) {
+        // Nothing to take, but its numbers may have moved on (a log cleared
+        // when it took the folder's ledger whole): this ledger holds all of
+        // it, up to there.
+        if ((applied[h.computer] ?? 0) < h.lastSeq) {
+          await db.markApplied(h.computer, h.lastSeq);
+          applied[h.computer] = h.lastSeq;
+        }
+        continue;
       }
-      if (f.changes.isEmpty) continue;
       // Its changes may rest on another computer's that aren't here yet:
       // waited for, so a change never names a row that hasn't come.
       if (h.applied.entries.any(
@@ -1162,19 +1233,29 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         continue;
       }
       // What came before the file's first change was dropped by its writer
-      // (a ledger taken whole from the folder): nothing to wait for unless
-      // some of that computer's was applied here already.
-      if ((applied[h.computer] ?? 0) > 0 &&
-          (applied[h.computer] ?? 0) + 1 < h.firstSeq) {
-        held = true;
-        continue;
+      // (a ledger taken whole from the folder, or compacted away). When the
+      // folder's ledger doesn't hold those changes either, nobody does, and
+      // they are passed over; when it does, this computer is behind it and
+      // takes it whole below.
+      final have = applied[h.computer] ?? 0;
+      if (have > 0 && have + 1 < h.firstSeq) {
+        if ((theirs.applied[h.computer] ?? 0) < h.firstSeq) {
+          await db.markApplied(h.computer, h.firstSeq - 1);
+          applied[h.computer] = h.firstSeq - 1;
+        } else {
+          takeWhole = true;
+          continue;
+        }
       }
       // A whole ledger put in or cleared there: step 5 makes it a batch of
       // its own; until then the whole-ledger question.
       if (f.changes.any((c) => c.isMarker)) {
         return (standing: FolderStanding.apart, replaced: null);
       }
-      final plan = await _planFor(f, mine.digest);
+      // Null: this ledger changed while it was read; once more, then the
+      // next look.
+      final plan =
+          await _planFor(f, mine.digest) ?? await _planFor(f, mine.digest);
       if (plan == null) return (standing: FolderStanding.ok, replaced: null);
       if (plan.found.conflict != null) {
         return (standing: FolderStanding.apart, replaced: null);
@@ -1187,7 +1268,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       if (found.transactions == 0 &&
           found.others == 0 &&
           found.alike.isEmpty &&
-          found.resolutions.isEmpty) {
+          found.resolutions.isEmpty &&
+          plan.taken.isEmpty) {
         // Nothing the person would call a change: everything it changed is
         // here already, or the two made the same rows and only when each
         // wrote them differs. Settled here, with nothing to say.
@@ -1216,13 +1298,27 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     // computer whose file didn't come: waited for, unless it holds every
     // change of this computer's, when it is taken in whole.
     final vector = {...applied, me: state.lastSeq};
+    final covered = (theirs.applied[me] ?? 0) >= state.lastSeq;
+    if (takeWhole) {
+      return (
+        standing: covered ? FolderStanding.newer : FolderStanding.arriving,
+        replaced: null,
+      );
+    }
     final behind = theirs.applied.entries.where(
       (e) => e.value > (vector[e.key] ?? 0),
     );
     if (behind.isEmpty) {
-      if (!_sameVector(theirs.applied, vector) ||
-          theirs.digest != mine.digest) {
-        await _put(path, now, over: theirs.computers.counters, expected: stat);
+      // Written afresh when the rows differ; a vector alone that moved on
+      // isn't worth a whole upload (the change files carry it).
+      if (theirs.digest != mine.digest) {
+        await _put(
+          path,
+          now,
+          over: theirs.computers.counters,
+          expected: stat,
+          theirs: theirs,
+        );
       }
       return (
         standing: held || unreadable.isNotEmpty
@@ -1234,18 +1330,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     if (held || unreadable.isNotEmpty) {
       return (standing: FolderStanding.arriving, replaced: null);
     }
-    if ((theirs.applied[me] ?? 0) >= state.lastSeq) {
-      return (standing: FolderStanding.newer, replaced: null);
-    }
+    if (covered) return (standing: FolderStanding.newer, replaced: null);
     return (standing: FolderStanding.arriving, replaced: null);
-  }
-
-  static bool _sameVector(Map<String, int> a, Map<String, int> b) {
-    Map<String, int> live(Map<String, int> v) => {
-      for (final e in v.entries)
-        if (e.value > 0) e.key: e.value,
-    };
-    return encodeApplied(live(a)) == encodeApplied(live(b));
   }
 
   /// Writes this computer's change file when its log has grown or its
@@ -1258,13 +1344,15 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   ) async {
     final vector = encodeApplied({...state.applied, me: state.lastSeq});
     final file = File('$path/${changeFileName(me)}');
+    final db = backups.db;
+    final first = await db.firstChangeSeq();
     if (_publishedSeq == state.lastSeq &&
+        _publishedFirst == first &&
         _publishedVector == vector &&
         file.existsSync()) {
       return;
     }
     _name ??= await access.computerName();
-    final db = backups.db;
     await writeChangeFile(
       file,
       backups.dataKey,
@@ -1281,6 +1369,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       scratch: await _scratch(),
     );
     _publishedSeq = state.lastSeq;
+    _publishedFirst = first;
     _publishedVector = vector;
     await _save();
   }
@@ -1309,14 +1398,76 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         ChangeRecord.fromRow(c),
     ];
     if (at != _changed) return null;
+    // Both answered the same question before either saw the other's
+    // answer: each chose over the other's version (this one's answer went
+    // from theirs to its own, theirs from this one's to its own), and the
+    // lower computer id's answer stands on both. When this computer's
+    // stands, the other's changes to those rows are passed over; when the
+    // other's stands, its answer found this computer's version and is
+    // taken as any answer is, and this computer writes down that it took
+    // it, so the other doesn't take this one's earlier answer in turn.
+    String keyOf(ChangeRecord c) =>
+        '${c.tbl}|${(combineKeys[c.tbl] ?? const <String>[]).map((k) => c.pk[k]).join('|')}';
+    String rowText(Map<String, Object?>? r) => r == null
+        ? ''
+        : jsonEncode([
+            for (final k in r.keys.toList()..sort()) ...[k, r[k]],
+          ]);
+    final myAnswers = <String, List<ChangeRecord>>{};
+    for (final r in await backups.db.resolves()) {
+      final c = ChangeRecord.fromRow(r);
+      (myAnswers[keyOf(c)] ??= []).add(c);
+    }
+    final crossed = <String>{};
+    for (final c in f.changes) {
+      if (!c.isResolve) continue;
+      final k = keyOf(c);
+      if ((myAnswers[k] ?? const []).any(
+        (m) =>
+            rowText(m.before) == rowText(c.after) &&
+            rowText(m.after) == rowText(c.before),
+      )) {
+        crossed.add(k);
+      }
+    }
+    final iStand = me.compareTo(f.header.computer) < 0;
+    final theirChanges = [
+      for (final c in f.changes)
+        if (crossed.isEmpty || !iStand || !crossed.contains(keyOf(c))) c,
+    ];
+    if (crossed.isNotEmpty) {
+      debugPrint(
+        '${crossed.length} answers crossed with ${f.header.computer}: '
+        '${iStand ? 'this' : 'that'} computer’s stand',
+      );
+    }
     final folded = foldChanges(
       rows,
-      [for (final c in f.changes) _fold(c)],
+      [for (final c in theirChanges) _fold(c)],
       mineSince: [
         for (final c in since)
           if (!c.isMarker) _fold(c),
       ],
     );
+    // Taking the other's answer: written down as this computer's, from
+    // its version to the other's.
+    final taken = <Resolution>[];
+    if (crossed.isNotEmpty && !iStand) {
+      for (final c in f.changes) {
+        if (!c.isResolve || !crossed.contains(keyOf(c))) continue;
+        final keys = combineKeys[c.tbl]!;
+        Row? find(LedgerRows of) => (of[c.tbl] ?? const <Row>[])
+            .where((r) => keys.every((k) => r[k] == c.pk[k]))
+            .firstOrNull;
+        final key = {for (final k in keys) k: c.pk[k]};
+        if (taken.any(
+          (r) => r.table == c.tbl && keys.every((k) => r.key[k] == key[k]),
+        )) {
+          continue;
+        }
+        taken.add(Resolution(c.tbl, key, find(rows), find(folded.theirs)));
+      }
+    }
     final madeHere = <Object?>{
       for (final c in since)
         if (c.tbl == 'transactions' && c.op == 'insert') c.pk['id'],
@@ -1331,7 +1482,13 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     if (found.conflict case final why?) {
       debugPrint('${f.header.computer}’s changes can’t be brought in: $why');
     }
-    return _Plan(mine: mineDigest, theirs: key, found: found, file: f);
+    return _Plan(
+      mine: mineDigest,
+      theirs: key,
+      found: found,
+      file: f,
+      taken: taken,
+    );
   }
 
   static FoldChange _fold(ChangeRecord c) =>
@@ -1378,11 +1535,17 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// same file with a new version and never a second one. [expected] is the
   /// file as it was when it was read: changed since, nothing is written.
   /// Gives back the digest of what was written.
+  ///
+  /// [theirs] is the folder's ledger as last read, whose vector and id the
+  /// written file carries on; [whole] marks the file as written whole by
+  /// the older look, which readers on change files take whole.
   Future<String> _put(
     String path,
     DateTime now, {
     required Counters over,
     FileStat? expected,
+    LedgerLook? theirs,
+    bool whole = false,
   }) async {
     final db = backups.db;
     final dir = await backups.folder();
@@ -1390,6 +1553,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     await dir.create(recursive: true);
     final computer = await _computerId();
     _name ??= await access.computerName();
+    final token = whole ? '$computer|${fileStamp(now)}|${newLedgerId()}' : null;
     final made = File(
       '${dir.path}/for-folder-${fileStamp(now)}.$ledgerExtension.tmp',
     );
@@ -1400,7 +1564,15 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       // isn't what its seal says; sealed again, it is.
       for (var tries = 0; tries < 3 && !sealed; tries++) {
         if (made.existsSync()) await made.delete();
-        await db.sealAs(computer, name: _name, at: now, over: over);
+        await db.sealAs(
+          computer,
+          name: _name,
+          at: now,
+          over: over,
+          applied: theirs?.applied ?? const {},
+          ledger: theirs?.ledger,
+          wholeToken: token,
+        );
         _mine = null;
         await db.copyTo(made.path);
         final look = await lookAtLedger(made, backups.dataKey);
@@ -1483,8 +1655,13 @@ class _Plan {
     required this.theirs,
     required this.found,
     this.file,
+    this.taken = const [],
   });
   final String mine;
+
+  /// The other's answers this computer took where the two had crossed,
+  /// written down as its own changes with the rest.
+  final List<Resolution> taken;
 
   /// The folder's ledger's digest, or the change file's computer and last
   /// change: what a remembered choice is held to.

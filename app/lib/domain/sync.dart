@@ -33,6 +33,13 @@ abstract final class SyncKeys {
   /// ledgers. Random, given to a new ledger when it is made; a ledger
   /// upgraded without one takes the folder's when it is first met there.
   static const ledger = '${prefix}ledger';
+
+  /// Set on a folder ledger written whole by the older look (a computer's
+  /// first write after upgrading, whose log never saw the changes it made
+  /// before; "keep this computer's ledger"): a token the readers compare
+  /// with their own, and take the ledger whole when it differs. Cleared by
+  /// the next ordinary write.
+  static const whole = '${prefix}whole';
 }
 
 /// The table that holds what this computer changed, row by row, filled by

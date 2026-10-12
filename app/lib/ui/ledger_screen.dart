@@ -627,6 +627,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    if (!kept.undoable) {
+      // On change files the choice went out to the other computer the
+      // moment it was made: nothing to take back.
+      _showToast(t.ledgerFolderKeptMine(_folderName(path)));
+      return;
+    }
     _did(
       t.ledgerFolderKeptMine(_folderName(path)),
       undo: () => _cloud.undoKeepMine(kept, widget.clock()),
