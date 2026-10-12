@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.31.0 · schema v20 · 702 tests pass
+**Last updated: 2026-10-12** · version 0.32.0 · schema v20 · 717 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -34,15 +34,24 @@ the same thing made on both** (ADR 0005 "Built, 2026-10-12: step 2"): the same
 payday, bill, phone entry, bank row, payee, category, Income and Safety net get
 the same id on every computer, so two computers that did the same thing hold one
 row and have nothing to merge, write or say; the digest ignores when a row was
-written; the old matching by what a row says stays as the backstop. **Next is
-PR 3** (the folder cycle and the derived snapshot; counters, seal and the agreed
-file go), then 4 (the facts-first policy and the blocks), 5 (restore as a batch,
-erase as a new ledger id, the digest guard, a soak on two Mac accounts). The money
+written; the old matching by what a row says stays as the backstop. **PR 3 of 5
+is built too (version 0.32.0, stacked on PR 2): the folder cycle on change
+files** (ADR 0005 "Built, 2026-10-13: step 3"): each computer writes one file
+only it writes, reads the others', folds each into the compare that already
+exists, and the shared `Ledger.betterbudget` is written only by a computer that
+holds everything; an answer to the row question, and "Keep this computer's
+ledger", travel as changes so the other computer takes the decision instead of
+being asked. The counters, seal and agreed file are still written for the
+older look, which runs until both computers carry a vector. **Not run on two
+real computers**; the first real run is the owner's to watch on the testuser
+account. **Next is PR 4** (the facts-first policy and the blocks for the cases
+still asked as a whole ledger), then 5 (restore and erase as batches,
+compaction, the catch-up take, the digest guard, a soak on two Mac accounts). The money
 rules were put to the owner with the choice and not objected to (ADR 0005 "The
-money rules"). **Known and left open until PR 3** (found by the review): two
-computers writing within Drive's propagation window make the loser's agreed file a
-false base, so its edits to existing rows are reverted under the "changes arrived"
-popup; added rows are safe. Rare and silent.
+money rules"). The hole the review found (two
+computers writing within Drive's propagation window made the loser's agreed file
+a false base) is closed by PR 3: the base comes from the other computer's own
+file, and nobody writes over anyone's file.
 
 Before it, **the row question (version 0.29.0)**, built the same morning (ADR 0004
 "Two computers: the one row both changed"; ADR 0005 "Built, 2026-10-12: asking

@@ -660,12 +660,10 @@ void main() {
         await spendOnTheOther('Nomin');
       });
 
-      // Nothing was changed here: it comes in, and says whose it was.
+      // Nothing was changed here: the other's change comes in from its
+      // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(
-        find.text('Opened the ledger saved on The laptop'),
-        findsOneWidget,
-      );
+      expect(find.text('1 transaction from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));
@@ -736,16 +734,13 @@ void main() {
       );
       await tester.runAsync(() async {
         expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
-        // Both are in the folder now, and the other takes them in.
+        // Both are in this computer's file now, and the other brings them
+        // in.
         expect(
           await otherCloud.check(today, fresh: true),
-          FolderStanding.newer,
+          FolderStanding.combine,
         );
-        await otherBackups.restore(
-          await otherBackups.inspect(otherCloud.theirs!.copy.path, today),
-          today,
-          fromFolder: true,
-        );
+        expect(await otherCloud.bringIn(today), isNotNull);
         expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
         final data = await other.loadLedger();
         expect(data.accounts.values.map((a) => a.name), contains('Wallet'));
@@ -816,32 +811,33 @@ void main() {
         expect(await kept.readAsBytes(), theirs);
       });
 
-      // Ctrl+Z (⌘Z on a Mac) puts the other's back in the folder, and
-      // the two stand as they stood.
+      // On change files the choice went out to the other computer the
+      // moment it was made: Ctrl+Z (⌘Z on a Mac) can't take it back, and
+      // says so; the other computer takes the choice instead of being
+      // asked.
       await tester.runAsync(() async {
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await Future<void>.delayed(const Duration(milliseconds: 600));
-        expect(await copy().readAsBytes(), theirs);
+        expect(await copy().readAsBytes(), isNot(theirs));
       });
       await tester.pump();
-      expect(find.byKey(const ValueKey('choose-ledger')), findsOneWidget);
-
-      // The folder's, this time: this computer has what the other had.
-      await press(find.byKey(const ValueKey('choose-ledger')));
-      await press(find.byKey(const ValueKey('two-use-folder')));
-      await tester.runAsync(() async {
-        expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
-        // The folder's rows are the other's still. (Its counts may have
-        // been raised: this computer's own never goes down.)
-        final look = AppDatabase(
-          NativeDatabase(await copy().copy('${dir.path}/look.betterbudget')),
-        );
-        expect(await payees(look), containsAll(['Nomin', 'E-Mart']));
-        await look.close();
-      });
+      expect(find.textContaining('Couldn’t undo'), findsOneWidget);
       expect(find.byKey(const ValueKey('choose-ledger')), findsNothing);
+      await tester.runAsync(() async {
+        expect(
+          await otherCloud.check(today, fresh: true),
+          FolderStanding.combine,
+        );
+        expect(await otherCloud.bringIn(today), isNotNull);
+        expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
+        final names = (await other.loadLedger()).accounts.values.map(
+          (a) => a.name,
+        );
+        expect(names, contains('Supermarket'));
+        expect(names, isNot(contains('Food')));
+      });
 
       await tester.runAsync(() async {
         await tester.pumpWidget(const SizedBox());
@@ -973,12 +969,10 @@ void main() {
         await spendOnTheOther('Nomin');
       });
 
-      // Nothing was changed here: it comes in, and says whose it was.
+      // Nothing was changed here: the other's change comes in from its
+      // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(
-        find.text('Opened the ledger saved on The laptop'),
-        findsOneWidget,
-      );
+      expect(find.text('1 transaction from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));

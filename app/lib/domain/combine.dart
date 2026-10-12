@@ -136,6 +136,20 @@ class Ask {
   final String? currency;
 }
 
+/// What one computer chose for a thing both changed, as a change the other
+/// computers apply (ADR 0005, step 3): the row as the other computer had it
+/// and as it is now, by table and key. A row the other had and this choice
+/// took away has a null [after]; one it lacked, a null [before]. Logged on
+/// the choosing computer as its own changes, so the others take the answer
+/// instead of asking the same question.
+class Resolution {
+  const Resolution(this.table, this.key, this.before, this.after);
+  final String table;
+  final Row key;
+  final Row? before;
+  final Row? after;
+}
+
 /// What [combine] found.
 class Combined {
   const Combined(
@@ -144,6 +158,7 @@ class Combined {
     this.others = 0,
     this.alike = const [],
     this.asks = const [],
+    this.resolutions = const [],
   }) : conflict = null,
        asking = false;
   const Combined.conflict(String this.conflict)
@@ -152,6 +167,7 @@ class Combined {
       others = 0,
       alike = const [],
       asks = const [],
+      resolutions = const [],
       asking = false;
 
   /// Things both computers changed that need an answer, with nothing
@@ -161,6 +177,7 @@ class Combined {
       transactions = 0,
       others = 0,
       alike = const [],
+      resolutions = const [],
       conflict = null,
       asking = true;
 
@@ -171,6 +188,9 @@ class Combined {
   /// Some of [asks] have no [Pick] yet: nothing is to be brought in until
   /// each has one.
   final bool asking;
+
+  /// What the picks settled, as changes for the other computers.
+  final List<Resolution> resolutions;
 
   /// What to change here so this ledger also holds what the other changed.
   /// Empty: it holds all of it already.
@@ -201,7 +221,7 @@ class _Conflict implements Exception {
 
 /// The columns that say which row, by table. A table that isn't here can't
 /// be combined: one added to the schema has to be added.
-const _keys = <String, List<String>>{
+const combineKeys = <String, List<String>>{
   'accounts': ['id'],
   'pay_schedules': ['id'],
   'payees': ['id'],
@@ -294,7 +314,7 @@ bool _same(Row? a, Row? b) {
 }
 
 String _keyOf(String table, Row row) =>
-    [for (final c in _keys[table]!) '${row[c]}'].join('|');
+    [for (final c in combineKeys[table]!) '${row[c]}'].join('|');
 
 Map<String, Row> _index(String table, List<Row>? rows) => {
   for (final r in rows ?? const <Row>[]) _keyOf(table, r): r,
@@ -320,6 +340,7 @@ Combined combine({
   required LedgerRows mine,
   required LedgerRows theirs,
   Map<String, Pick> picks = const {},
+  Set<Object?>? madeHere,
 }) {
   // What was already chosen is left out of the comparison from the start:
   // this computer's ledger holds the choice, and the other's version of it
@@ -329,7 +350,7 @@ Combined combine({
   };
   while (true) {
     try {
-      final run = _Combine(base, mine, theirs, units, picks);
+      final run = _Combine(base, mine, theirs, units, picks, madeHere);
       final found = run.run();
       if (units.isEmpty) return found;
       final asks = run.asks();
@@ -342,6 +363,7 @@ Combined combine({
         others: found.others,
         alike: found.alike,
         asks: asks,
+        resolutions: run.resolutions,
       );
     } on _Ask catch (a) {
       // Asked about twice: left out of the comparison and still in the way.
@@ -389,6 +411,7 @@ class _Combine {
     LedgerRows theirs,
     this.units,
     this.picks,
+    this.madeHere,
   ) : base = {
         for (final e in base.entries) e.key: [...e.value],
       },
@@ -398,6 +421,12 @@ class _Combine {
             for (final r in e.value) {...r},
           ],
       };
+
+  /// The transactions this computer made that the other hasn't seen, by
+  /// id, when the caller knows (from this computer's own log, on change
+  /// files); else what is in [mine] and not in the other's. What a row that
+  /// came may look the same as ([Combined.alike]).
+  final Set<Object?>? madeHere;
 
   /// What was already asked about: left out of the comparison (it reads as
   /// unchanged on the other computer) until it is settled.
@@ -424,7 +453,7 @@ class _Combine {
 
   /// This computer's ledger with [ops] made, by table and key.
   late final Map<String, Map<String, Row>> result = {
-    for (final t in _keys.keys) t: {..._index(t, mine[t])},
+    for (final t in combineKeys.keys) t: {..._index(t, mine[t])},
   };
 
   Never _stop(String why) => throw _Conflict(why);
@@ -436,7 +465,9 @@ class _Combine {
   Combined run() {
     for (final rows in [base, mine, theirs]) {
       for (final t in rows.keys) {
-        if (!_keys.containsKey(t)) _stop('a table this build doesn’t know: $t');
+        if (!combineKeys.containsKey(t)) {
+          _stop('a table this build doesn’t know: $t');
+        }
       }
     }
     _oneOfEach();
@@ -482,7 +513,13 @@ class _Combine {
     DateTime? day(Row t) => DateTime.tryParse('${t['date']}');
     // What was made here since, by account and amount, each matched once.
     final here = <String, List<DateTime>>{};
-    for (final t in _onlyIn(mine, theirs).where(counts)) {
+    final since = madeHere;
+    final fresh = since == null
+        ? _onlyIn(mine, theirs)
+        : (mine['transactions'] ?? const <Row>[]).where(
+            (t) => since.contains(t['id']),
+          );
+    for (final t in fresh.where(counts)) {
       final on = day(t);
       if (on == null) continue;
       for (final e in _entriesOf(mine, t['id'])) {
@@ -613,22 +650,50 @@ class _Combine {
     }
   }
 
+  /// What the picks settled, for the other computers ([Resolution]).
+  final resolutions = <Resolution>[];
+
   /// Settles what was asked as it was chosen. This computer's way is what
-  /// is here already.
+  /// is here already. Each choice is also written down as the change from
+  /// the other computer's version to the one chosen, whatever was chosen,
+  /// so the other computer takes the answer rather than asking again.
   void _resolve() {
     for (final u in units.values) {
       final pick = picks[u.id];
-      if (pick == null || pick == Pick.mine) continue;
-      final from = pick == Pick.theirs ? _heldTheirs : _heldBase;
+      if (pick == null) continue;
+      if (pick != Pick.mine) {
+        final from = pick == Pick.theirs ? _heldTheirs : _heldBase;
+        for (final table in _tablesOf(u)) {
+          _setRows(
+            table,
+            [
+              for (final r in result[table]!.values)
+                if (_inUnit(u, table, r)) r,
+            ],
+            [for (final r in from[table] ?? const <Row>[]) r],
+          );
+        }
+      }
       for (final table in _tablesOf(u)) {
-        _setRows(
-          table,
-          [
-            for (final r in result[table]!.values)
-              if (_inUnit(u, table, r)) r,
-          ],
-          [for (final r in from[table] ?? const <Row>[]) r],
-        );
+        final theirRows = {
+          for (final r in _heldTheirs[table] ?? const <Row>[])
+            if (_inUnit(u, table, r)) _keyOf(table, r): r,
+        };
+        final finalRows = {
+          for (final r in result[table]!.values)
+            if (_inUnit(u, table, r)) _keyOf(table, r): r,
+        };
+        for (final k in {...theirRows.keys, ...finalRows.keys}) {
+          final any = theirRows[k] ?? finalRows[k]!;
+          resolutions.add(
+            Resolution(
+              table,
+              {for (final c in combineKeys[table]!) c: any[c]},
+              theirRows[k],
+              finalRows[k],
+            ),
+          );
+        }
       }
     }
   }
@@ -743,7 +808,7 @@ class _Combine {
       if (moved == null || moved.isEmpty) continue;
       // Where the column says which row it is, the row can't be moved:
       // left, and found below as naming a row that is gone.
-      if (_keys[table]!.contains(column)) continue;
+      if (combineKeys[table]!.contains(column)) continue;
       for (final r in result[table]!.values.toList()) {
         if (moved.containsKey(r[column])) {
           _update(table, {...r, column: moved[r[column]]});
@@ -1133,14 +1198,14 @@ class _Combine {
   }
 
   void _update(String table, Row row, {bool count = true}) {
-    final key = {for (final c in _keys[table]!) c: row[c]};
+    final key = {for (final c in combineKeys[table]!) c: row[c]};
     ops.add(RowOp.update(table, key, row));
     result[table]![_keyOf(table, row)] = row;
     if (count) _count(table, row);
   }
 
   void _delete(String table, Row row) {
-    final key = {for (final c in _keys[table]!) c: row[c]};
+    final key = {for (final c in combineKeys[table]!) c: row[c]};
     ops.add(RowOp.delete(table, key));
     result[table]!.remove(_keyOf(table, row));
     _count(table, row);
