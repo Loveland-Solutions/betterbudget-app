@@ -1852,9 +1852,9 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Always file this payee here, and $count more rows now',
-      one: 'Always file this payee here, and 1 more row now',
-      zero: 'Always file this payee here',
+      other: 'Remember this for next time, and file $count more rows now',
+      one: 'Remember this for next time, and file 1 more row now',
+      zero: 'Remember this for next time',
     );
     return '$_temp0';
   }
@@ -1864,9 +1864,9 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Always filed under $category · $count more rows filed',
-      one: 'Always filed under $category · 1 more row filed',
-      zero: 'Always filed under $category',
+      other: '$category remembered for next time · $count more rows filed',
+      one: '$category remembered for next time · 1 more row filed',
+      zero: '$category remembered for next time',
     );
     return '$_temp0';
   }
@@ -2016,6 +2016,9 @@ class WordsEn extends Words {
   String rowsErrorAmount(String typed) {
     return '“$typed” isn’t a valid amount';
   }
+
+  @override
+  String get rowsRemember => 'Remember this category for this payee';
 
   @override
   String get rowsSave => 'Save';
@@ -5235,4 +5238,166 @@ class WordsEn extends Words {
   String startKeyWrongFolder(String folder) {
     return 'That key doesn’t open the ledger in $folder. If the folder is still copying to this computer, try again in a minute.';
   }
+
+  @override
+  String get ledgerSectionPayees => 'Payees';
+
+  @override
+  String get payeesColumnPayee => 'Payee';
+
+  @override
+  String get payeesColumnAccounts => 'Accounts';
+
+  @override
+  String get payeesDelete => 'Delete';
+
+  @override
+  String payeesDeletedMessage(String category) {
+    return 'Deleted · new rows of this payee stop going to $category by themselves';
+  }
+
+  @override
+  String get payeesAdd => 'Add a payee';
+
+  @override
+  String get payeesWordsLabel => 'Payee, or a word in it';
+
+  @override
+  String get payeesWhere => 'Where';
+
+  @override
+  String get payeesAtStart => 'At the start of the payee';
+
+  @override
+  String get payeesAnywhere => 'Anywhere in the payee or the memo';
+
+  @override
+  String payeesStartsWith(String name) {
+    return 'starts with «$name»';
+  }
+
+  @override
+  String payeesHasAnywhere(String name) {
+    return 'has «$name» anywhere';
+  }
+
+  @override
+  String payeesFitsStarts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows start with this',
+      one: '1 row starts with this',
+      zero: 'No row starts with this yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesFitsAnywhere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows have this',
+      one: '1 row has this',
+      zero: 'No row has this yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count still in Not categorized',
+      one: '1 still in Not categorized',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesElsewhere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count in another category',
+      one: '1 in another category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payeesHowRowReads => 'How a row will read';
+
+  @override
+  String get payeesNeedsWords => 'Type a payee, or a word in it';
+
+  @override
+  String get payeesNeedsCategory => 'Pick a category';
+
+  @override
+  String get payeesNeedsAccount => 'Pick an account';
+
+  @override
+  String get payeesEmpty =>
+      'Nothing remembered yet. Pick a category on a row in the Ledger and the popup offers “Remember this for next time”, or add a payee here.';
+
+  @override
+  String get payeesColumnFiled => 'Category';
+
+  @override
+  String get payeesDeleted => 'Deleted';
+
+  @override
+  String payeesFiled(int count, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows filed under $category',
+      one: '1 row filed under $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesFileWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'File the $count still in Not categorized',
+      one: 'File the 1 still in Not categorized',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesAlreadyListed(String payee, String category) {
+    return '«$payee» is already in the list, as $category';
+  }
+
+  @override
+  String payeesAlreadyIn(int count, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count already in $category',
+      one: '1 already in $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesAnywhereWould(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count have it anywhere',
+      one: '1 has it anywhere',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payeesCategoryGone => 'A deleted category';
 }

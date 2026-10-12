@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/payee_rules.dart';
 import 'package:betterbudget/import/csv.dart';
 import 'package:betterbudget/import/mapping.dart';
 import 'package:betterbudget/import/sheet.dart';
@@ -985,8 +986,24 @@ void main() {
       );
     });
 
-    test('a payee the person said always goes somewhere does, whatever the '
-        'bank adds after the name', () async {
+    /// What each row an import added was filed under, by payee.
+    Future<Map<String, int>> filed(ImportRecord r, int account) async => {
+      for (final t in (await db.loadLedger()).txns)
+        if (r.added.containsKey(t.id))
+          t.payee ?? '': t.entries
+              .firstWhere((e) => e.accountId != account)
+              .accountId,
+    };
+
+    Future<ImportRecord> bring(List<ImportRow> rows, {int? into}) async =>
+        db.applyImport(
+          accountId: into ?? bank,
+          plan: await plan(rows, into: into),
+          uncategorizedNames: ['Not categorized'],
+        );
+
+    test('a remembered payee goes where the person said, whatever the bank '
+        'adds after the name; the longest words win, then the later', () async {
       final dining = await db.createCategory('Dining out');
       // Filed under Groceries last time; the rule says Dining out.
       await db.postSimple(
@@ -997,31 +1014,193 @@ void main() {
         counterAccountId: groceries,
         amount: -500,
       );
-      expect(
-        PayeeRule.of([
-          const PayeeRule('corner', 1),
-          const PayeeRule('corner cafe', 2),
-        ], 'CORNER CAFE 0915')!.categoryId,
-        2,
+      await db.addPayeeRule(
+        name: 'Corner',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {bank},
       );
-      expect(PayeeRule.of([const PayeeRule('corner cafe', 2)], 'Corner'), null);
-      await db.setPreference(
-        AppDatabase.payeeRulesKey(bank),
-        PayeeRule.encode([PayeeRule(PayeeRule.stem('Corner Cafe'), dining)]),
+      await db.addPayeeRule(
+        name: 'Corner Cafe',
+        anywhere: false,
+        categoryId: dining,
+        accountIds: {bank},
       );
-      final rows = [row(15, -700, 'CORNER CAFE 0915'), row(16, -900, 'Bus')];
-      final r = await db.applyImport(
-        accountId: bank,
-        plan: await plan(rows),
-        uncategorizedNames: ['Not categorized'],
+      var by = await filed(
+        await bring([
+          row(15, -700, 'CORNER CAFE 0915'),
+          row(16, -900, 'Bus'),
+          row(17, -200, 'Corner shop'),
+        ]),
+        bank,
       );
-      final by = {
-        for (final t in (await db.loadLedger()).txns)
-          if (r.added.containsKey(t.id))
-            t.payee: t.entries.firstWhere((e) => e.accountId != bank).accountId,
-      };
       expect(by['CORNER CAFE 0915'], dining);
+      expect(by['Corner shop'], groceries);
       expect(by['Bus'], isNot(dining));
+      // Two with the same words: the later decision counts.
+      for (final (id, category, at) in [(1, groceries, 10), (2, dining, 20)]) {
+        await db.putPayeeRule(
+          PayeeRuleInfo(
+            id: id,
+            words: 'bus',
+            name: 'Bus',
+            anywhere: false,
+            categoryId: category,
+            accountIds: {bank},
+            createdAt: at,
+          ),
+        );
+      }
+      by = await filed(await bring([row(18, -900, 'Bus 18')]), bank);
+      expect(by['Bus 18'], dining);
+      // The setting an older build kept still reads, for the upgrade.
+      final kept = PayeeRule.decode(
+        PayeeRule.encode([
+          const PayeeRule('corner', 1, name: 'Corner'),
+          const PayeeRule('nomin', 2, payId: 7),
+        ]),
+      );
+      expect(kept.map((r) => r.name), ['Corner', null]);
+      expect(kept.last.payId, 7);
+    });
+
+    test('words anywhere catch a payee in the middle of the bank’s text, '
+        'and in its description', () async {
+      final rule = await db.addPayeeRule(
+        name: 'Номин',
+        anywhere: true,
+        categoryId: groceries,
+        accountIds: {bank},
+      );
+      var by = await filed(
+        await bring([
+          row(3, -1000, 'POS 12345678: НОМИН'),
+          ImportRow(
+            sourceRow: 4,
+            date: DateTime(2026, 9, 4),
+            amount: -2000,
+            payee: 'QPay',
+            memo: 'QPAY*Номин 0412',
+          ),
+          row(5, -300, 'Nomin'),
+        ]),
+        bank,
+      );
+      expect(by['POS 12345678: НОМИН'], groceries);
+      expect(by['QPay'], groceries);
+      // Another spelling is another payee.
+      expect(by['Nomin'], isNot(groceries));
+      // At the start of the payee, the description isn't looked at.
+      await db.putPayeeRule(rule.copyWith(anywhere: false));
+      by = await filed(
+        await bring([
+          ImportRow(
+            sourceRow: 6,
+            date: DateTime(2026, 9, 6),
+            amount: -2000,
+            payee: 'Kiosk',
+            memo: 'QPAY*Номин 0413',
+          ),
+          row(7, -400, 'номин маркет'),
+        ]),
+        bank,
+      );
+      expect(by['Kiosk'], isNot(groceries));
+      expect(by['номин маркет'], groceries);
+    });
+
+    test('a deleted payee stops going to its category by itself, and goes '
+        'where it is next filed by hand', () async {
+      final phone = await db.createCategory('Phone');
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 1),
+        today: DateTime(2026, 9, 30),
+        payee: 'Unitel',
+        counterAccountId: groceries,
+        amount: -30000,
+      );
+      // Amounts no typed row matches, so each comes in as its own row.
+      final rule = await db.addPayeeRule(
+        name: 'Unitel',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {bank},
+      );
+      await db.putPayeeRule(rule.copyWith(deleted: true));
+      // Its last row is in Groceries; it doesn't go back there.
+      var by = await filed(await bring([row(10, -31000, 'Unitel')]), bank);
+      final holding = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Not categorized')
+          .id;
+      expect(by['Unitel'], holding);
+      // Filed under Phone by hand: the next one follows that.
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 11),
+        today: DateTime(2026, 9, 30),
+        payee: 'Unitel',
+        counterAccountId: phone,
+        amount: -32000,
+      );
+      by = await filed(await bring([row(12, -33000, 'Unitel')]), bank);
+      expect(by['Unitel'], phone);
+      // Filed under Groceries by hand after the Delete: that was decided
+      // later, so it counts again.
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 13),
+        today: DateTime(2026, 9, 30),
+        payee: 'Unitel',
+        counterAccountId: groceries,
+        amount: -34000,
+      );
+      by = await filed(await bring([row(14, -35000, 'Unitel')]), bank);
+      expect(by['Unitel'], groceries);
+      // A row typed by hand starts in the remembered category too, and not
+      // in a deleted one.
+      expect(await db.suggestedCategory('Unitel', bank), groceries);
+      final nomin = await db.addPayeeRule(
+        name: 'Номин',
+        anywhere: true,
+        categoryId: phone,
+        accountIds: {bank},
+      );
+      expect(await db.suggestedCategory('POS 123: НОМИН', bank), phone);
+      await db.putPayeeRule(nomin.copyWith(deleted: true));
+      expect(await db.suggestedCategory('POS 123: НОМИН', bank), isNull);
+    });
+
+    test('a payee on two accounts holds on both and on no other', () async {
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      final other = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      await db.addPayeeRule(
+        name: 'Nomin',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {bank, card},
+      );
+      for (final (account, expected) in [
+        (bank, groceries),
+        (card, groceries),
+        (other, null),
+      ]) {
+        final by = await filed(
+          await bring([row(3, -1000, 'NOMIN 0412')], into: account),
+          account,
+        );
+        if (expected == null) {
+          expect(by['NOMIN 0412'], isNot(groceries));
+        } else {
+          expect(by['NOMIN 0412'], expected);
+        }
+      }
     });
 
     test('a reconciled row matches but keeps its memo and its lock', () async {

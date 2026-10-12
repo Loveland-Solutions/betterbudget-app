@@ -2605,13 +2605,13 @@ abstract class Words {
   /// Button in the popup card after a row's category is picked from the dropdown: remember it for this payee, and file the payee's other rows still in Not categorized now. One sentence, so "file" carries over to the rows. The payee and the category are on the lines above it, so it names neither. count is those other rows.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{Always file this payee here} =1{Always file this payee here, and 1 more row now} other{Always file this payee here, and {count} more rows now}}'**
+  /// **'{count, plural, =0{Remember this for next time} =1{Remember this for next time, and file 1 more row now} other{Remember this for next time, and file {count} more rows now}}'**
   String ledgerAlwaysFile(int count);
 
-  /// Popup card after Always file is clicked; with count 0 it is also the undo label ("Undone · Always filed under Income": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.
+  /// Popup card after Remember is clicked; with count 0 it is also the undo label ("Undone · Income remembered for next time": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{Always filed under {category}} =1{Always filed under {category} · 1 more row filed} other{Always filed under {category} · {count} more rows filed}}'**
+  /// **'{count, plural, =0{{category} remembered for next time} =1{{category} remembered for next time · 1 more row filed} other{{category} remembered for next time · {count} more rows filed}}'**
   String ledgerAlwaysFiled(int count, Object category);
 
   /// A row's category dropdown and chip: income that is one pay's paycheck. pay is the name the person gave the pay (Loveland Solutions).
@@ -2817,6 +2817,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'“{typed}” isn’t a valid amount'**
   String rowsErrorAmount(String typed);
+
+  /// The box under the new-transaction row and a row's Edit (owner, 2026-10-12). Ticked, the category is remembered for the payee when the row is saved, as the popup's offer does.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember this category for this payee'**
+  String get rowsRemember;
 
   /// Entry row button when editing an existing transaction
   ///
@@ -7436,6 +7442,180 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'That key doesn’t open the ledger in {folder}. If the folder is still copying to this computer, try again in a minute.'**
   String startKeyWrongFolder(String folder);
+
+  /// Sidebar section, under Savings, and its page's heading: the payees that are always filed under one category.
+  ///
+  /// In en, this message translates to:
+  /// **'Payees'**
+  String get ledgerSectionPayees;
+
+  /// Payees page, column heading over each payee's sentence (payeesStartsWith or payeesHasAnywhere).
+  ///
+  /// In en, this message translates to:
+  /// **'Payee'**
+  String get payeesColumnPayee;
+
+  /// Payees page: column heading, and the label of the Edit's line of accounts (a dropdown of checkboxes, as Paid from is). Shown only with more than one account.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get payeesColumnAccounts;
+
+  /// Payees page, button at the end of a line and in the Edit (owner, 2026-10-12: "Just put delete"): the app stops putting that payee in the category by itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get payeesDelete;
+
+  /// Popup card after Delete on the Payees page; the payee is on the line under it. Rows already filed stay. category may be Income, or Income and a pay's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted · new rows of this payee stop going to {category} by themselves'**
+  String payeesDeletedMessage(String category);
+
+  /// Payees page, the green button at the top right: opens an empty Edit at the top of the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a payee'**
+  String get payeesAdd;
+
+  /// Payees page, Edit: the small label over the words field.
+  ///
+  /// In en, this message translates to:
+  /// **'Payee, or a word in it'**
+  String get payeesWordsLabel;
+
+  /// Payees page, Edit: label of the line with payeesAtStart and payeesAnywhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Where'**
+  String get payeesWhere;
+
+  /// Payees page, Edit, Where: the payee's name has to begin with the words.
+  ///
+  /// In en, this message translates to:
+  /// **'At the start of the payee'**
+  String get payeesAtStart;
+
+  /// Payees page, Edit, Where: the words may be anywhere in the payee or in the memo the bank wrote.
+  ///
+  /// In en, this message translates to:
+  /// **'Anywhere in the payee or the memo'**
+  String get payeesAnywhere;
+
+  /// Payees page, a closed line: the payee's words, which a payee's name has to begin with. The «» stay: the words between them are drawn in ink.
+  ///
+  /// In en, this message translates to:
+  /// **'starts with «{name}»'**
+  String payeesStartsWith(String name);
+
+  /// Payees page, a closed line: the words, looked for anywhere in the payee or the bank's description. The «» stay.
+  ///
+  /// In en, this message translates to:
+  /// **'has «{name}» anywhere'**
+  String payeesHasAnywhere(String name);
+
+  /// Payees page, Edit: how many rows of the chosen accounts begin with the words typed, as they are typed. May be followed by payeesWaiting and payeesElsewhere after a dot.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No row starts with this yet} =1{1 row starts with this} other{{count} rows start with this}}'**
+  String payeesFitsStarts(int count);
+
+  /// Payees page, Edit: how many rows of the chosen accounts have the words anywhere in the payee or the bank's description.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No row has this yet} =1{1 row has this} other{{count} rows have this}}'**
+  String payeesFitsAnywhere(int count);
+
+  /// Payees page, Edit, after payeesFitsStarts or payeesFitsAnywhere: how many of those rows have no category yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 still in Not categorized} other{{count} still in Not categorized}}'**
+  String payeesWaiting(int count);
+
+  /// Payees page, Edit: how many of those rows are in a category other than the one chosen. Said so a word that is too short shows itself; they are never moved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 in another category} other{{count} in another category}}'**
+  String payeesElsewhere(int count);
+
+  /// Payees page, Edit: label over one real row that fits, drawn with the chosen category.
+  ///
+  /// In en, this message translates to:
+  /// **'How a row will read'**
+  String get payeesHowRowReads;
+
+  /// Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a payee, or a word in it'**
+  String get payeesNeedsWords;
+
+  /// Payees page, Edit: in red after Save with no category chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a category'**
+  String get payeesNeedsCategory;
+
+  /// Payees page, Edit: in red after Save with no account ticked.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an account'**
+  String get payeesNeedsAccount;
+
+  /// Payees page with nothing on it. The quoted words are the popup's button (ledgerAlwaysFile with count 0); "add a payee" is the button payeesAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing remembered yet. Pick a category on a row in the Ledger and the popup offers “Remember this for next time”, or add a payee here.'**
+  String get payeesEmpty;
+
+  /// Payees page, column heading over each payee's category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get payeesColumnFiled;
+
+  /// Popup card after Delete on the Payees page; the payee is on the line under it. Also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get payeesDeleted;
+
+  /// Popup card after payeesFileWaiting is clicked; the payee's beginning is on the line under it. Also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row filed under {category}} other{{count} rows filed under {category}}}'**
+  String payeesFiled(int count, String category);
+
+  /// Button on the popup after a payee's beginning is retyped: files the rows it now fits that are still in Not categorized under the payee's category.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{File the 1 still in Not categorized} other{File the {count} still in Not categorized}}'**
+  String payeesFileWaiting(int count);
+
+  /// Popup card when Save on the Payees page finds the words are another line's on one of the same accounts: that line's words and category. The Edit stays open.
+  ///
+  /// In en, this message translates to:
+  /// **'«{payee}» is already in the list, as {category}'**
+  String payeesAlreadyListed(String payee, String category);
+
+  /// Payees page, Edit, after the count: how many of the rows that fit are in the chosen category already.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 already in {category}} other{{count} already in {category}}}'**
+  String payeesAlreadyIn(int count, String category);
+
+  /// Payees page, Edit, after "No row starts with this yet": how many rows would fit with Where set to anywhere.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 has it anywhere} other{{count} have it anywhere}}'**
+  String payeesAnywhereWould(int count);
+
+  /// Payees page, in place of a category's name once the category was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'A deleted category'**
+  String get payeesCategoryGone;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

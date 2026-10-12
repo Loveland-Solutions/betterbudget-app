@@ -1774,9 +1774,8 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          'Энэ харилцагчийг үргэлж ингэж ангилах · өөр $count мөрийг одоо ангилна',
-      zero: 'Энэ харилцагчийг үргэлж ингэж ангилах',
+      other: 'Дараагийн удаад санах · өөр $count мөрийг одоо ангилна',
+      zero: 'Дараагийн удаад санах',
     );
     return '$_temp0';
   }
@@ -1786,8 +1785,9 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Цаашид үргэлж $category гэж ангилна · өөр $count мөр ангиллаа',
-      zero: 'Цаашид үргэлж $category гэж ангилна',
+      other:
+          '$category гэдгийг дараагийн удаад санана · өөр $count мөр ангиллаа',
+      zero: '$category гэдгийг дараагийн удаад санана',
     );
     return '$_temp0';
   }
@@ -1937,6 +1937,9 @@ class WordsMn extends Words {
   String rowsErrorAmount(String typed) {
     return '“$typed” гэснийг дүн гэж уншиж чадсангүй';
   }
+
+  @override
+  String get rowsRemember => 'Энэ харилцагчид энэ ангиллыг санах';
 
   @override
   String get rowsSave => 'Хадгалах';
@@ -5050,4 +5053,159 @@ class WordsMn extends Words {
   String startKeyWrongFolder(String folder) {
     return 'Тэр түлхүүр $folder доторх дэвтрийг нээхгүй байна. Хавтас энэ компьютерт хуулагдаж дуусаагүй бол минутын дараа дахин оролдоно уу.';
   }
+
+  @override
+  String get ledgerSectionPayees => 'Харилцагчид';
+
+  @override
+  String get payeesColumnPayee => 'Харилцагч';
+
+  @override
+  String get payeesColumnAccounts => 'Данс';
+
+  @override
+  String get payeesDelete => 'Устгах';
+
+  @override
+  String payeesDeletedMessage(String category) {
+    return 'Устгалаа · энэ харилцагчийн шинэ мөр цаашид $category ангилалд өөрөө орохгүй';
+  }
+
+  @override
+  String get payeesAdd => 'Харилцагч нэмэх';
+
+  @override
+  String get payeesWordsLabel => 'Харилцагч, эсвэл нэрэнд нь орсон үг';
+
+  @override
+  String get payeesWhere => 'Хаана';
+
+  @override
+  String get payeesAtStart => 'Харилцагчийн нэрийн эхэнд';
+
+  @override
+  String get payeesAnywhere =>
+      'Харилцагчийн нэр эсвэл гүйлгээний утгын аль ч хэсэгт';
+
+  @override
+  String payeesStartsWith(String name) {
+    return '«$name» гэж эхэлсэн';
+  }
+
+  @override
+  String payeesHasAnywhere(String name) {
+    return '«$name» гэсэн үг орсон';
+  }
+
+  @override
+  String payeesFitsStarts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр ингэж эхэлж байна',
+      zero: 'Ингэж эхэлсэн мөр хараахан алга',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesFitsAnywhere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөрд энэ үг орсон байна',
+      zero: 'Энэ үг орсон мөр хараахан алга',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нь Ангилаагүй хэвээр',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesElsewhere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нь өөр ангилалд',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payeesHowRowReads => 'Мөр ингэж харагдана';
+
+  @override
+  String get payeesNeedsWords => 'Харилцагч, эсвэл нэрэнд нь орсон үг бичнэ үү';
+
+  @override
+  String get payeesNeedsCategory => 'Ангилал сонгоно уу';
+
+  @override
+  String get payeesNeedsAccount => 'Данс сонгоно уу';
+
+  @override
+  String get payeesEmpty =>
+      'Санасан зүйл хараахан алга. Дэвтрийн мөрд ангилал сонгоход доорх цонх «Дараагийн удаад санах» гэж санал болгоно; эсвэл энд харилцагч нэмнэ үү.';
+
+  @override
+  String get payeesColumnFiled => 'Ангилал';
+
+  @override
+  String get payeesDeleted => 'Устгалаа';
+
+  @override
+  String payeesFiled(int count, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөрийг $category гэж ангиллаа',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesFileWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ангилаагүй үлдсэн $count мөрийг ангилах',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesAlreadyListed(String payee, String category) {
+    return '«$payee» жагсаалтад аль хэдийн байна, $category гэж';
+  }
+
+  @override
+  String payeesAlreadyIn(int count, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нь аль хэдийн $category ангилалд',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesAnywhereWould(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөрд энэ үг орсон байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payeesCategoryGone => 'Устгасан ангилал';
 }

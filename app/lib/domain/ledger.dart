@@ -4,6 +4,7 @@ library;
 
 import 'money.dart';
 import 'pay.dart';
+import 'payee_rules.dart';
 
 enum AccountType { asset, liability, income, expense, equity }
 
@@ -920,6 +921,7 @@ class LedgerData {
     required this.txns,
     this.reconciliations = const [],
     this.paySchedules = const [],
+    this.payeeRules = const [],
     this.stoppedPaySchedules = const [],
     this.prefs = const {},
     this.budgetAmounts = const [],
@@ -952,6 +954,9 @@ class LedgerData {
   /// Active pay schedules (rule 24).
   final List<PaySchedule> paySchedules;
 
+  /// The payees the app remembers a category for, deleted ones left out.
+  final List<PayeeRuleInfo> payeeRules;
+
   /// Stopped ones: their overdue paydays are still estimates.
   final List<PaySchedule> stoppedPaySchedules;
 
@@ -969,6 +974,7 @@ class LedgerData {
     txns: txns,
     reconciliations: reconciliations,
     paySchedules: paySchedules,
+    payeeRules: payeeRules,
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,
@@ -1002,6 +1008,7 @@ class LedgerData {
     txns: txns,
     reconciliations: reconciliations,
     paySchedules: paySchedules,
+    payeeRules: payeeRules,
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,

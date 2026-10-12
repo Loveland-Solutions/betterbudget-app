@@ -1732,7 +1732,7 @@ void main() {
         find.text('Filed under Income · Loveland Solutions'),
         findsOneWidget,
       );
-      expect(find.text('Always file this payee here'), findsOneWidget);
+      expect(find.text('Remember this for next time'), findsOneWidget);
       // The row says whose paycheck it is, and the payday it was is gone.
       expect(find.text('Income · Loveland Solutions'), findsOneWidget);
       final after = (await tester.runAsync(() => db.loadLedger()))!;
@@ -1897,12 +1897,12 @@ void main() {
       await tapAndWait(tester, income);
       expect(find.text('Filed under Income'), findsOneWidget);
       expect(
-        find.text('Always file this payee here, and 2 more rows now'),
+        find.text('Remember this for next time, and file 2 more rows now'),
         findsOneWidget,
       );
       await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
       expect(
-        find.text('Always filed under Income · 2 more rows filed'),
+        find.text('Income remembered for next time · 2 more rows filed'),
         findsOneWidget,
       );
       var now = await filed();
@@ -6534,7 +6534,7 @@ void main() {
       'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
     );
     expect(
-      find.text('Always file this payee here, and 1 more row now'),
+      find.text('Remember this for next time, and file 1 more row now'),
       findsOneWidget,
     );
     await expectLater(
@@ -6656,7 +6656,7 @@ void main() {
       await settle(tester);
       await settle(tester);
       expect(
-        find.textContaining('Always filed under Groceries'),
+        find.textContaining('Groceries remembered for next time'),
         findsOneWidget,
       );
       expect(tester.getRect(popup).contains(at), isTrue);
@@ -6668,7 +6668,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await settle(tester);
       expect(
-        find.text('Undone · Always filed under Groceries'),
+        find.text('Undone · Groceries remembered for next time'),
         findsOneWidget,
       );
       await tidy(tester, db);
@@ -7168,5 +7168,578 @@ void main() {
       findsOneWidget,
     );
     await tidy(tester, db);
+  });
+
+  group('payees', () {
+    // Night, whatever an earlier test left showing.
+    setUp(() => Mid.palette = Palette.of(defaultScheme, Brightness.dark));
+
+    final popup = find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast');
+
+    Future<void> closePopup(WidgetTester tester) async {
+      await tester.tap(
+        find.descendant(of: popup, matching: find.byIcon(Icons.close_rounded)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    /// Unitel remembered under Groceries, by the popup's offer, and the
+    /// Payees page open.
+    Future<AppDatabase> withRule(WidgetTester tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Groceries'),
+        ),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      await closePopup(tester);
+      await tester.tap(find.text('Payees'));
+      await tester.pumpAndSettle();
+      return db;
+    }
+
+    Future<int> accountId(
+      WidgetTester tester,
+      AppDatabase db,
+      String name,
+    ) async {
+      final data = (await tester.runAsync(db.loadLedger))!;
+      return data.accounts.values.singleWhere((a) => a.name == name).id;
+    }
+
+    Future<List<RegisterRow>> rowsOf(
+      WidgetTester tester,
+      AppDatabase db,
+      bool Function(RegisterRow) where,
+    ) async {
+      final data = (await tester.runAsync(db.loadLedger))!;
+      return checking(data).posted.where(where).toList();
+    }
+
+    testWidgets('the section is under Savings and says how a payee gets '
+        'there', (tester) async {
+      final db = await pumpLedger(tester);
+      expect(
+        tester.getTopLeft(find.text('Payees')).dy,
+        greaterThan(tester.getTopLeft(find.text('Savings')).dy),
+      );
+      await tester.tap(find.text('Payees'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payees-empty')), findsOneWidget);
+      expect(find.byKey(const ValueKey('payee-add')), findsOneWidget);
+      expect(find.byKey(const ValueKey('payee-delete')), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a remembered payee is a line that reads as a sentence', (
+      tester,
+    ) async {
+      final db = await withRule(tester);
+      expect(find.byKey(const ValueKey('payees-empty')), findsNothing);
+      expect(find.text('Payee'), findsOneWidget);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.text('Category'), findsOneWidget);
+      // As the row wrote it, not as it is kept for matching.
+      expect(
+        find.text('starts with «Unitel»', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Groceries'), findsOneWidget);
+      final rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.words, 'unitel');
+      expect(rule.name, 'Unitel');
+      expect(rule.anywhere, isFalse);
+      expect(rule.accountIds, {await accountId(tester, db, 'TDB Checking')});
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/payees.png'),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('Delete stops it; rows already filed stay; undo and redo', (
+      tester,
+    ) async {
+      final db = await withRule(tester);
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-delete')));
+      expect(
+        find.text(
+          'Deleted · new rows of this payee stop going to Groceries by '
+          'themselves',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data,
+        'Unitel',
+      );
+      expect(find.byKey(const ValueKey('payees-empty')), findsOneWidget);
+      expect(await tester.runAsync(db.allPayeeRules), isEmpty);
+      // Kept as deleted, so an import doesn't put Unitel back by itself.
+      final gone = (await tester.runAsync(
+        () => db.allPayeeRules(deletedToo: true),
+      ))!;
+      expect(gone.single.deleted, isTrue);
+      // The row filed when it was remembered stays where it is.
+      final unitel = await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel');
+      expect(unitel.first.categoryLabel, 'Groceries');
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), hasLength(1));
+      expect(find.byKey(const ValueKey('payee-delete')), findsOneWidget);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('its Edit: words anywhere, another category, and the popup '
+        'offers to file the rows still waiting', (tester) async {
+      final db = await withRule(tester);
+      late int waiting;
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final account = data.accounts.values.singleWhere(
+          (a) => a.name == 'TDB Checking',
+        );
+        waiting = await db.createCategory('Not categorized');
+        // One with the word after a number, one with it only in the
+        // bank's description.
+        await db.postSimple(
+          accountId: account.id,
+          date: DateTime(2026, 9, 12),
+          today: DateTime(2026, 9, 16),
+          payee: 'POS 12345678: UNI SHOP',
+          counterAccountId: waiting,
+          amount: -1500,
+        );
+        await db.postSimple(
+          accountId: account.id,
+          date: DateTime(2026, 9, 13),
+          today: DateTime(2026, 9, 16),
+          payee: 'QPay',
+          memo: 'QPAY*UNI MART 0412',
+          counterAccountId: waiting,
+          amount: -2500,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      // As it is: one row starts with Unitel, in the category chosen.
+      expect(
+        find.text('1 row starts with this · 1 already in Groceries'),
+        findsOneWidget,
+      );
+      await tester.enterText(find.byKey(const ValueKey('payee-words')), 'UNI');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('1 row starts with this · 1 already in Groceries'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('payee-where-anywhere')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '3 rows have this · 2 still in Not categorized · 1 already in '
+          'Groceries',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      final phone = find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Phone & internet'),
+      );
+      await tester.ensureVisible(phone);
+      await tester.pumpAndSettle();
+      await tester.tap(phone);
+      await tester.pumpAndSettle();
+      // The Unitel row in Groceries is said, and never moved.
+      expect(
+        find.text(
+          '3 rows have this · 2 still in Not categorized · 1 in another '
+          'category',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('payee-example')), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(
+        find.text('Phone & internet remembered for next time'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('has «UNI» anywhere', findRichText: true),
+        findsOneWidget,
+      );
+      var rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.words, 'uni');
+      expect(rule.name, 'UNI');
+      expect(rule.anywhere, isTrue);
+      expect(find.text('File the 2 still in Not categorized'), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      expect(find.text('2 rows filed under Phone & internet'), findsOneWidget);
+      var filed = await rowsOf(
+        tester,
+        db,
+        (r) => r.txnPayee == 'POS 12345678: UNI SHOP' || r.txnPayee == 'QPay',
+      );
+      expect(filed.map((r) => r.categoryLabel), [
+        'Phone & internet',
+        'Phone & internet',
+      ]);
+      expect(
+        (await rowsOf(
+          tester,
+          db,
+          (r) => r.txnPayee == 'Unitel',
+        )).first.categoryLabel,
+        'Groceries',
+      );
+      // One undo takes the rows back and leaves the payee as saved.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      filed = await rowsOf(
+        tester,
+        db,
+        (r) => r.txnPayee == 'POS 12345678: UNI SHOP' || r.txnPayee == 'QPay',
+      );
+      expect(filed.every((r) => r.categoryId == waiting), isTrue);
+      rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.anywhere, isTrue);
+      // The next undo takes back the change itself.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.words, 'unitel');
+      expect(rule.anywhere, isFalse);
+      await tidy(tester, db);
+    });
+
+    testWidgets('Add a payee: Save says what is missing, then a payee on a '
+        'chosen account is listed', (tester) async {
+      final db = await withRule(tester);
+      final checkingId = await accountId(tester, db, 'TDB Checking');
+      await tester.tap(find.byKey(const ValueKey('payee-add')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      // Nothing is filled in: no account, no category.
+      expect(find.text('Pick an account'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('payee-save')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Type a payee, or a word in it · Pick an account · Pick a '
+          'category',
+        ),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words')),
+        'Sakura',
+      );
+      await tester.pumpAndSettle();
+      // Nothing counts until an account is picked, and it says so.
+      expect(find.text('Pick an account'), findsNWidgets(2));
+      await tester.tap(find.byKey(const ValueKey('payee-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('payee-account-$checkingId')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('1 row starts with this · 1 in another category'),
+        findsOneWidget,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      // Esc closed the dropdown, not the Edit.
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Dining out'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('1 row starts with this · 1 already in Dining out'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/payees_edit.png'),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(find.text('Dining out remembered for next time'), findsOneWidget);
+      // Nothing waits, so nothing is offered.
+      expect(find.byKey(const ValueKey('toast-more')), findsNothing);
+      expect(
+        find.text('starts with «Sakura»', findRichText: true),
+        findsOneWidget,
+      );
+      final rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(rules, hasLength(2));
+      final sakura = rules.singleWhere((r) => r.words == 'sakura');
+      expect(sakura.accountIds, {checkingId});
+      // The same words again on that account aren't saved.
+      await tester.tap(find.byKey(const ValueKey('payee-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words')),
+        'SAKURA',
+      );
+      await tester.tap(find.byKey(const ValueKey('payee-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('payee-account-$checkingId')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Dining out'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(
+        find.text('«Sakura» is already in the list, as Dining out'),
+        findsOneWidget,
+      );
+      // The Edit stays, with what was typed.
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      expect(find.text('SAKURA'), findsOneWidget);
+      expect(await tester.runAsync(db.allPayeeRules), hasLength(2));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+
+    testWidgets('remembered again under another category from a row, the '
+        'payee is changed, not doubled', (tester) async {
+      final db = await withRule(tester);
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final phone = find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Phone & internet'),
+      );
+      await tester.ensureVisible(phone);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, phone);
+      expect(find.byKey(const ValueKey('toast-more')), findsOneWidget);
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      var rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(rules, hasLength(1));
+      final data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.accounts[rules.single.categoryId]!.name, 'Phone & internet');
+      await closePopup(tester);
+      // Filed where a payee is already remembered: nothing to offer. (The
+      // row may still be the chosen one, with its buttons out.)
+      if (find.text('Categorize').evaluate().isEmpty) {
+        await tester.tap(find.text('Unitel'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(phone);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, phone);
+      expect(find.byKey(const ValueKey('toast-more')), findsNothing);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(data.accounts[rules.single.categoryId]!.name, 'Groceries');
+      await tidy(tester, db);
+    });
+
+    testWidgets('Enter saves after a dropdown pick; Esc closes the dropdown '
+        'first', (tester) async {
+      final db = await withRule(tester);
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsWidgets);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNothing);
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      final household = find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Household'),
+      );
+      await tester.ensureVisible(household);
+      await tester.pumpAndSettle();
+      await tester.tap(household);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(find.text('Household remembered for next time'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('the box under a new row remembers the category for the '
+        'payee, in one undo with the row', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      // No payee yet: nothing to remember.
+      expect(find.byKey(const ValueKey('remember-line')), findsNothing);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Gobi',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Clothing',
+      );
+      await tester.pumpAndSettle();
+      // Tab out of the category field: its suggestions were over the box.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('remember-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('remember-line')));
+      await tester.pumpAndSettle();
+      // The amount field is the empty one whose hint is a zero.
+      await tester.enterText(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              w.controller?.text.isEmpty == true &&
+              (w.decoration?.hintText ?? '').contains('0'),
+        ),
+        '120000',
+      );
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      await settle(tester);
+      expect(
+        find.text('Gobi added · Clothing remembered for next time'),
+        findsOneWidget,
+      );
+      var rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(rules.single.words, 'gobi');
+      expect(rules.single.accountIds, {
+        await accountId(tester, db, 'TDB Checking'),
+      });
+      expect(
+        await rowsOf(tester, db, (r) => r.txnPayee == 'Gobi'),
+        hasLength(1),
+      );
+      // Leave the row (⌘Z there undoes typing), then undo from the register:
+      // one undo for the row and what was remembered.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), isEmpty);
+      expect(await rowsOf(tester, db, (r) => r.txnPayee == 'Gobi'), isEmpty);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), hasLength(1));
+      expect(
+        await rowsOf(tester, db, (r) => r.txnPayee == 'Gobi'),
+        hasLength(1),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('the box in a row’s Edit; not offered once it is remembered '
+        'so', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Sakura Coffee'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('remember-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('remember-line')));
+      await tester.pumpAndSettle();
+      // The write starts from the click: inside real time, as a row's Enter.
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      await settle(tester);
+      expect(
+        find.text('Changes saved · Dining out remembered for next time'),
+        findsOneWidget,
+      );
+      final rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(rules.single.words, 'sakura coffee');
+      // Remembered so already: the box isn't offered again. (The row may
+      // still be the chosen one, with its buttons out.)
+      await closePopup(tester);
+      if (find.text('Edit').evaluate().isEmpty) {
+        await tester.tap(find.text('Sakura Coffee'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('remember-line')), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+
+    testWidgets('Esc and a click away close the Edit without saving', (
+      tester,
+    ) async {
+      final db = await withRule(tester);
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words')),
+        'Something else',
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(
+        find.text('starts with «Unitel»', findRichText: true),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      // Below the list, on the page.
+      await tester.tapAt(const Offset(800, 860));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect((await tester.runAsync(db.allPayeeRules))!.single.words, 'unitel');
+      await tidy(tester, db);
+    });
   });
 }

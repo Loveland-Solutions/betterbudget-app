@@ -2,7 +2,7 @@
 
 Where things are and what calls what. For what a file does, read its header comment.
 Paths are relative to `app/`. Checked against imports and class names on 2026-10-07
-(schema v18). **Update this file when a file is added, moved or renamed.**
+(schema v19 since 2026-10-12). **Update this file when a file is added, moved or renamed.**
 
 Never open or list: `test/goldens/`, `test/failures/` (PNGs), `.dart_tool/`, `build/`,
 `android/`, `ios/`, `macos/`, `windows/`.
@@ -30,12 +30,13 @@ Never open or list: `test/goldens/`, `test/failures/` (PNGs), `.dart_tool/`, `bu
    `AppSection`:
    - ledger: `BalanceHeader` (holds `ForecastPanel`) or `ReconcilePanel`, then
      `RegisterPanel`, which holds `EntryRow` for a new row and for an edit
-   - budget: `_BudgetPage`; savings: `_SavingsPage`; settings: `_SettingsPage`
+   - budget: `_BudgetPage`; savings: `_SavingsPage`; payees: `_PayeesPage`;
+     settings: `_SettingsPage`
    - dialogs: `_ImportDialog`, `_PaySetupDialog` (a frame around `_PayForm`, which
      setup's Pay step also holds), `_RestoreDialog`, `_NewLedgerDialog`
 
 **`part of ledger_screen.dart`:** `ui/accounts.dart`, `ui/budget.dart`,
-`ui/import_dialog.dart`, `ui/pay_setup.dart`, `ui/savings.dart`, `ui/setup.dart`. Their classes are
+`ui/import_dialog.dart`, `ui/pay_setup.dart`, `ui/payees.dart`, `ui/savings.dart`, `ui/setup.dart`. Their classes are
 private, their imports go in `ledger_screen.dart`, and they are tested only by pumping
 `LedgerScreen`.
 
@@ -54,6 +55,7 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Budget, categories | `domain/budget.dart`; `domain/ledger.dart` (`CategoryPlan`, `BudgetAmount`); `database.dart` "categories" | `budget.dart` | `budget_test.dart`; both ledger tests ("categories") |
 | Savings steps | `domain/readiness.dart` (`ReadyStep`: four; its names are stored, don't rename; `isSafetyNet`, the built-in category) and `database.dart` `safetyNetCategory`; `_ensureSafetyNet` in `ledger_screen.dart` makes it at launch | `savings.dart`; `SavingsPicture` in `brand.dart` draws a step's picture from `assets/brand/savings-*.svg` | `readiness_test.dart`, `ledger_screen_test.dart` ("savings:") |
 | Import | `import/sheet.dart` (`readSheet` picks `xls`, `xlsx`, `csv` or `ofx`); `import/mapping.dart` (`guessMapping`, `readRows`, `importKeys`); `database.dart` "import" (`planImport`, `applyImport`, `undoImport`) | `import_dialog.dart`; file picking in `ledger_screen.dart` | `import_test.dart`, `xls_fixture.dart` |
+| Payees (the remembered categories) | `domain/payee_rules.dart` (`PayeeRuleInfo`: words, anywhere or at the start, accounts, category or pay, deleted; `pick`, `deletedBlocks`, `payeeWords`, `carriedRuleId`); tables `PayeeRules` and `PayeeRuleAccounts` in `database.dart`, section "payee rules" (`allPayeeRules`, `putPayeeRule`, `addPayeeRule`, `removePayeeRule`); `applyImport` follows them; `_carryPayeeRules` is the v19 upgrade from the setting `import.rules.<account>` (`PayeeRule` in `import/mapping.dart` still decodes it) | `payees.dart` (`_PayeesPage`, `_PayeeLine`, `_PayeeEditor`, `_fitting`); "payees" in `ledger_screen.dart` (`_savePayeeRule`, `_deletePayeeRule`, `_fileWaiting`); made from a row by `_alwaysOffer` and `_alwaysFile` there | `ledger_screen_test.dart` ("payees", 2 goldens); `import_test.dart`; `migration_test.dart` (v18) |
 | Currencies | `domain/money.dart` + `domain/currencies.dart`; `l10n/currency_names.dart` | `theme.dart` (`Money`, `CurrencyScope`); `language.dart` (`currencyName`) | `money_test.dart`, `currency_test.dart` |
 | Keys, encryption | `data/keys.dart`, `data/encryption.dart` | `startup.dart`, `start_choice.dart`, `recovery_key_screen.dart` | `keys_test.dart`, `encryption_test.dart`, `cipher_test.dart`, `startup_test.dart`, `recovery_key_screen_test.dart` |
 | Backups, restore, new ledger | `data/backup.dart` (`Backups`; `CopiedElsewhere` and the file `copied-elsewhere` beside the ledger hold when "Back up to…" last worked, for the line under Net worth) | `_SettingsPage` in `ledger_screen.dart` | `backup_test.dart`, `encrypted_backup_test.dart`, `ledger_screen_test.dart` ("backups") |
@@ -115,7 +117,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (69), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (71), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian), `cloud_folder_test.dart` (6),
   `startup_test.dart` (1) and `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
   one, capture `find.byType(MaterialApp)`. `test/goldens/` is committed;
