@@ -212,6 +212,11 @@ const phoneNamePrefix = 'phone.name.';
 /// A row keeps the id, so a rename shows on every row.
 const computerNamePrefix = 'computer.name.';
 
+/// The Mac a computer is, as every account on it shares one:
+/// `computer.machine.<id>`. A row made under another account of this Mac
+/// reads as made here.
+const computerMachinePrefix = 'computer.machine.';
+
 /// The register's Source column is shown unless this is `0` (a view, like the
 /// forecast's span).
 const showSourceKey = 'register.source';

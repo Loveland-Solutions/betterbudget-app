@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import IOKit
 
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
@@ -97,6 +98,25 @@ class MainFlutterWindow: NSWindow {
           ).base64EncodedString()
         }
         result(["path": url.path, "token": renewed as Any])
+      case "machineId":
+        // The Mac's own id, the same for every account on it: so a row made
+        // under another account of this Mac can be told from one made on
+        // another Mac. The app hashes it; it is never stored as it is.
+        let service = IOServiceGetMatchingService(
+          kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+        defer { if service != 0 { IOObjectRelease(service) } }
+        if service != 0,
+          let uuid = IORegistryEntryCreateCFProperty(
+            service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? String
+        {
+          result(uuid)
+        } else {
+          result(nil)
+        }
+      case "accountId":
+        // This macOS account, so two accounts of one Mac are two computers.
+        result(String(getuid()))
       case "computerName":
         // What the owner called this Mac ("Tom's MacBook Air"): written in
         // the ledger so another computer can say whose changes it opened.

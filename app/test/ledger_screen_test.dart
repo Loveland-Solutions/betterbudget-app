@@ -7,7 +7,8 @@ import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
-import 'package:betterbudget/domain/phone.dart' show computerNamePrefix;
+import 'package:betterbudget/domain/phone.dart'
+    show computerMachinePrefix, computerNamePrefix;
 import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
@@ -7193,6 +7194,30 @@ void main() {
     expect(find.text('Entered locally'), findsWidgets);
     expect(find.text('Entered on Mac mini'), findsOneWidget);
     expect(find.text('From Pixel'), findsOneWidget);
+
+    // Another account of this Mac is this computer too.
+    await tester.runAsync(() async {
+      await db.postSimple(
+        accountId: account,
+        date: DateTime(2026, 9, 15),
+        today: DateTime(2026, 9, 16),
+        payee: 'Zzz other account',
+        counterAccountId: category,
+        amount: -1000,
+        on: 'cccc3333',
+      );
+    });
+    await settle(tester);
+    expect(find.text('Entered on another computer'), findsOneWidget);
+    await tester.runAsync(() async {
+      await db.setPreference('${computerMachinePrefix}cccc3333', 'one-mac');
+      await db.setPreference(
+        '$computerMachinePrefix${db.thisComputer}',
+        'one-mac',
+      );
+    });
+    await settle(tester);
+    expect(find.text('Entered on another computer'), findsNothing);
 
     // Renamed: the row keeps the id, so it reads the new name.
     await tester.tap(find.byKey(const ValueKey('settings')));

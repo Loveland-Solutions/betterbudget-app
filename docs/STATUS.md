@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-13** · version 0.33.1 · schema v21 · 731 tests pass
+**Last updated: 2026-10-13** · version 0.34.0 · schema v21 · 733 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -9,6 +9,12 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**Version 0.34.0 (PR #73; running on the owner's account, the second account not yet on it):** a row made under another account of the same Mac
+reads "Entered locally" too, by a hash of the Mac's hardware id kept as
+`computer.machine.<id>` (ADR 0005 "The same Mac is here"). A computer with no id yet
+takes a GUID worked out from its Mac and account instead of a random one; one that
+has an id keeps it (ADR 0005 "A computer's id is worked out, once").
 
 **A bug in 0.33.0, fixed in 0.33.1 (PR #72; found by the owner's second run, and the
 main account was pointed at the folder again and worked):** the launch
@@ -254,7 +260,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #72. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #73. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.

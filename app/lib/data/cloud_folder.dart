@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter/services.dart';
 
 import '../domain/combine.dart';
@@ -65,6 +66,60 @@ class FolderAccess {
   /// sandboxed Mac app is given only the file picked in an open dialog,
   /// never the folder around it.
   bool get folderMustBePicked => Platform.isMacOS;
+
+  /// A name for this Mac that every account on it shares (a hash of its
+  /// hardware id), or null where there is none: a row made under another
+  /// account of this Mac reads as made here.
+  Future<String?> machineId() async {
+    if (!Platform.isMacOS) return null;
+    try {
+      final raw = await _channel.invokeMethod<String>('machineId');
+      if (raw == null || raw.isEmpty) return null;
+      return sha256
+          .convert(utf8.encode('betterbudget|$raw'))
+          .toString()
+          .substring(0, 16);
+    } catch (e) {
+      debugPrint('The Mac’s id couldn’t be asked for: $e');
+      return null;
+    }
+  }
+
+  /// The id a computer with no id yet takes: a GUID worked out from the
+  /// Mac's hardware id and this macOS account, so the same computer is the
+  /// same id again after a reinstall or a lost settings file. Null where
+  /// there is no hardware id (a random one is made then).
+  Future<String?> derivedComputerId() async {
+    if (!Platform.isMacOS) return null;
+    try {
+      final machine = await _channel.invokeMethod<String>('machineId');
+      final account = await _channel.invokeMethod<String>('accountId');
+      if (machine == null ||
+          machine.isEmpty ||
+          account == null ||
+          account.isEmpty) {
+        return null;
+      }
+      return guidOf(machine, account);
+    } catch (e) {
+      debugPrint('The computer’s id couldn’t be worked out: $e');
+      return null;
+    }
+  }
+
+  /// A GUID (version 5 layout) that is the same for the same [machine] and
+  /// [account], and differs when either does. Public for its test.
+  static String guidOf(String machine, String account) {
+    final b = sha256
+        .convert(utf8.encode('betterbudget|computer|$machine|$account'))
+        .bytes
+        .sublist(0, 16);
+    b[6] = (b[6] & 0x0f) | 0x50;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    final h = [for (final x in b) x.toRadixString(16).padLeft(2, '0')].join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-'
+        '${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+  }
 
   /// What this computer is called, for telling the other one whose changes
   /// it has opened: the name its owner gave it where the system has one.
@@ -505,11 +560,16 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
 
   Future<String> _computerId() async {
     if (_computer case final id?) return id;
+    // One that is already kept is never changed: its change file and what
+    // the others applied of it are under it. A computer with none takes the
+    // one worked out from its Mac and account, else a random one.
     final random = Random.secure();
-    _computer = [
-      for (var i = 0; i < 8; i++)
-        random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ].join();
+    _computer =
+        await access.derivedComputerId() ??
+        [
+          for (var i = 0; i < 8; i++)
+            random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+        ].join();
     await _save();
     return _computer!;
   }

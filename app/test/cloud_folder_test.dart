@@ -42,6 +42,14 @@ class _FakeAccess extends FolderAccess {
   }
 }
 
+class _DerivedAccess extends _FakeAccess {
+  _DerivedAccess(this.id);
+  final String id;
+
+  @override
+  Future<String?> derivedComputerId() async => id;
+}
+
 class _OtherAccess extends FolderAccess {
   @override
   Future<String?> remember(String path) async => null;
@@ -147,6 +155,34 @@ void main() {
       expect(settings.readAsStringSync(), contains(drive.path));
       expect(again.value.path, drive.path);
       again.dispose();
+    });
+
+    test('a computer with no id takes the one worked out from its Mac and '
+        'account; one that has an id keeps it', () async {
+      final fixed = CloudFolder(backups, access: _DerivedAccess('guid-1'));
+      await fixed.load(today);
+      expect(await fixed.computerId(), 'guid-1');
+      await fixed.keepIn(drive.path, today);
+      fixed.dispose();
+
+      // The settings were saved with it, and a different derivation
+      // (another account) changes nothing for this computer.
+      final again = CloudFolder(backups, access: _DerivedAccess('guid-2'));
+      await again.load(today);
+      expect(await again.computerId(), 'guid-1');
+      again.dispose();
+    });
+
+    test('the worked-out id is a GUID, the same for the same Mac and '
+        'account, and differs when either does', () {
+      final a = FolderAccess.guidOf('MACHINE-1', '501');
+      expect(
+        a,
+        matches(RegExp(r'^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$')),
+      );
+      expect(FolderAccess.guidOf('MACHINE-1', '501'), a);
+      expect(FolderAccess.guidOf('MACHINE-1', '502'), isNot(a));
+      expect(FolderAccess.guidOf('MACHINE-2', '501'), isNot(a));
     });
 
     test('only the ledger in a folder that isn’t the app’s own is one a '
