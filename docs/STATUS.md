@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-12** · version 0.29.0 · schema v19 · 687 tests pass
+**Last updated: 2026-10-12** · version 0.30.0 · schema v20 · 697 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -20,13 +20,21 @@ and after the reports chose B ("Let's go with B"): each computer appends its
 changes to a file only it writes (as the phones do), every computer applies the
 others', `Ledger.betterbudget` becomes a derived snapshot the phones keep reading,
 and the lock goes (not atomic over Drive). About six weeks, give or take two, in
-five PRs. **Next is PR 1 of 5: schema v20**, the `changes` table filled by
-triggers, the echo guard, `sync.applied` and `ledger.id`, the upgrade and its test
-on a v19-shaped file, a test that every write path yields a change; nothing in the
-folder changes yet. Then 2 (deterministic ids for paydays, bills, phone entries,
-bank rows), 3 (the folder cycle and the derived snapshot; counters, seal and the
-agreed file go), 4 (the facts-first policy and the blocks), 5 (restore as a batch,
-erase as a new ledger id, the digest guard, a soak on two Mac accounts). The money
+five PRs. **PR 1 of 5 is built (version 0.30.0, not yet a PR of its own; on top
+of #66): schema v20**, the `changes` table filled by TEMP triggers made on every
+open, the hold that keeps another computer's changes, a restore and an erase out
+of it, `sync.ledger` for a new ledger, `sync.applied` reserved; the upgrade adds
+one table and touches no row (ADR 0005 "Built, 2026-10-12: step 1"); the code
+review's findings are in (no bug that touches data; its rules are in the ADR).
+Nothing in the folder changes yet, so the owner sees nothing new on the Mac;
+**the Pixel's old build can't open a v20 `Ledger.betterbudget`** (nor a v19 one:
+every schema bump does this), so the phone wants this build at the next
+install. **Next is PR 2**
+(deterministic ids for paydays, bills, phone entries and bank rows, the old dedupe
+kept as backstop), then 3 (the folder cycle and the derived snapshot; counters,
+seal and the agreed file go), 4 (the facts-first policy and the blocks), 5
+(restore as a batch, erase as a new ledger id, the digest guard, a soak on two
+Mac accounts). The money
 rules were put to the owner with the choice and not objected to (ADR 0005 "The
 money rules"). **Known and left open until PR 3** (found by the review): two
 computers writing within Drive's propagation window make the loser's agreed file a
@@ -285,7 +293,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v19, encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v19-from-v18-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
+| Storage | Drift/SQLite at schema v20 (the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v20-from-v19-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
 | Sidebar | Sections Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
 | Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |

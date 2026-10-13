@@ -14,20 +14,14 @@ import '../domain/sync.dart';
 import 'encryption.dart';
 
 /// Every row of every table in what [select] reads, but for the `sync.*`
-/// preferences, as one digest. Rows and columns are put in a fixed order
+/// preferences and the change log, as one digest. Rows and columns are put in a fixed order
 /// first, so two files holding the same rows give the same digest however
 /// each was made (an upgraded file's columns are in another order than a new
 /// one's).
 Future<String> ledgerDigest(
   Future<List<Map<String, Object?>>> Function(String sql) select,
 ) async {
-  final tables = [
-    for (final r in await select(
-      "SELECT name FROM sqlite_master WHERE type = 'table' "
-      "AND name NOT LIKE 'sqlite_%' ORDER BY name",
-    ))
-      r['name'] as String,
-  ];
+  final tables = await ledgerTables(select);
   final out = _Collected();
   final input = sha256.startChunkedConversion(out);
   for (final table in tables) {
@@ -62,12 +56,22 @@ Future<String> ledgerDigest(
 Future<LedgerRows> ledgerRows(
   Future<List<Map<String, Object?>>> Function(String sql) select,
 ) async => {
+  for (final t in await ledgerTables(select))
+    t: await select('SELECT * FROM "$t"'),
+};
+
+/// The tables that are the ledger, by name: every table in the file but
+/// SQLite's own and this computer's change log ([changeLogTable]), which is
+/// its own and would make two ledgers holding the same rows read as two.
+Future<List<String>> ledgerTables(
+  Future<List<Map<String, Object?>>> Function(String sql) select,
+) async => [
   for (final r in await select(
     "SELECT name FROM sqlite_master WHERE type = 'table' "
-    "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    "AND name NOT LIKE 'sqlite_%' AND name <> '$changeLogTable' ORDER BY name",
   ))
-    r['name'] as String: await select('SELECT * FROM "${r['name']}"'),
-};
+    r['name'] as String,
+];
 
 /// The rows of [file], a whole ledger that isn't the one the app works in,
 /// read without changing it. A null [key] reads it plain (tests).

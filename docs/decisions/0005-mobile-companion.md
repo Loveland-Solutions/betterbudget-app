@@ -675,6 +675,58 @@ knows, the last sequence number it has applied.
    old changes, cleanup of `(1)` copies, and a soak on two Mac accounts through
    Drive, then two machines.
 
+**Built, 2026-10-12: step 1, the change log (schema v20).** What this computer
+changes is recorded in the ledger, row by row, from the first launch of this
+build; nothing in the folder changes yet.
+
+- **The table** `changes` (`seq`, `tbl`, `pk`, `op`, `before`, `after`, `at_ms`,
+  `with_schema`): one row per row changed, the key and the whole row before and
+  after as JSON by column name, so an upgraded file's column order and a new
+  file's don't matter. `seq` counts 1, 2, 3 on purpose: it is this computer's own
+  order, never shared as an id. The upgrade adds the table and touches no row.
+- **The triggers** (`changeTriggerSql`) are made from the table list, three per
+  ledger table, and are **TEMP**: they live in the connection, made on every open
+  and afresh after every upgrade. A trigger in the file could not read the hold
+  below (SQLite lets a main-schema trigger name nothing in `temp`) and would stop
+  a later upgrade dropping a column it names. Every connection the app opens runs
+  `beforeOpen`; a reader that opens the file raw (the folder look, a phone)
+  writes nothing. An update that changed nothing is not recorded.
+- **The hold** (`_withoutChangeLog`): a TEMP table; a row in it, inside the
+  transaction, while another computer's changes are applied (`applyCombined`), a
+  whole ledger is put in (`replaceAllFrom`) or everything is erased
+  (`startNewLedger`). A restore then leaves one marker row (`op` `restore`) and
+  nothing else; the folder's own ledger taken in (`fromFolder`) leaves nothing;
+  an erase clears the log and leaves `erase`. Step 5 makes a restore a batch of
+  real differences.
+- **Each computer's own, never shared:** the `sync.*` settings (not recorded;
+  the preferences triggers skip the prefix) and the `changes` table itself
+  (`ledgerTables` in `ledger_seal.dart` keeps it out of the digest, the compare
+  and so of `combine`; `replaceAllFrom` neither clears nor copies it). Two
+  ledgers holding the same rows give the same digest whatever their logs.
+- **Ids:** `sync.ledger` is given to a ledger made here (`onCreate`) and anew by
+  an erase; a ledger upgraded from v19 gets none, since it may already be shared,
+  and takes the folder's in step 3. `sync.applied` is reserved, written by
+  nothing yet. Open for step 3: a restore copies the backup's `sync.ledger` and
+  `sync.applied` in (right for the id: it is that ledger now; decide for the
+  vector).
+- **Rules from the code review (2026-10-12), kept:** each trigger names only
+  the columns the file really has, so a column an old upgrade left out can't
+  make every write fail at the trigger (the chain upgrade tests assert none is
+  missing); `recursive_triggers` is on, so an `INSERT OR REPLACE` logs delete
+  then insert, the truth; no column may be a blob; the hold nests; an erase
+  keeps the log before its marker (its undo puts the rows back, and step 3 may
+  still owe the other computer a change made just before). **From v20 on an
+  upgrade either changes no row, or is deterministic (no `newRowId`, no clock),
+  or runs with the triggers in place**: an upgrade's writes are otherwise never
+  logged (the triggers are made at its end), and one like v13's `_oneIncome`,
+  run on each computer apart, would leave two ledgers differing on rows neither
+  ever sends the other, which the digest guard of step 5 would only report.
+- Tests: `changes_test.dart` (every ledger table has its three triggers and is
+  one `combine` knows; a purchase is its rows by name; before and after; a no-op
+  update and the `sync.*` settings leave nothing; `applyCombined`, a restore, an
+  erase; the digest ignores the log; the write paths a person uses each leave a
+  record); `migration_test.dart` "upgrades a v19 file".
+
 ### What a phone can and can't do
 
 | Can | Can't |

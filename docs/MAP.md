@@ -61,6 +61,7 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 | Backups, restore, new ledger | `data/backup.dart` (`Backups`; `CopiedElsewhere` and the file `copied-elsewhere` beside the ledger hold when "Back up to…" last worked, for the line under Net worth) | `_SettingsPage` in `ledger_screen.dart` | `backup_test.dart`, `encrypted_backup_test.dart`, `ledger_screen_test.dart` ("backups") |
 | Ledger kept in a folder (ADR 0005) | `data/cloud_folder.dart` (`CloudFolder`: every look and write goes through `_sync`, which never writes `Ledger.betterbudget` without reading the one there; `FolderStanding` says how the two stand; `FolderAccess` keeps the Mac's bookmark and asks the computer's name, both in `macos/Runner/MainFlutterWindow.swift`); the setting, and this computer's id, are the file `cloud-folder` beside the ledger | `_keepInFolder`, `_stopFolder` and the "Stored in" line of `_SettingsPage` in `ledger_screen.dart` | `cloud_folder_test.dart` (3 goldens) |
 | Two computers on one ledger (ADR 0005, "Never write blind") | `domain/sync.dart` (`SyncKeys`, the computers' counts, `decideFolderMove`); `data/ledger_seal.dart` (`ledgerDigest`, `lookAtLedger` for a ledger file that isn't the live one); `database.dart` (`sealState`, `sealAs`, `restoreSync`, `replaceAllFrom(fromFolder:)`); `Backups.restore(fromFolder:)`, `Backups.keepFromFolder` | `_firstLookInFolder`, `_lookInFolder`, `_openFolderLedger`, `_takeFolderLedger`, `_chooseLedger` and `_TwoLedgersDialog` in `ledger_screen.dart`; a second computer set up by `_restoreFrom` and `_RestoreDialog`'s checkbox (`CloudFolder.folderOfLedger`), or by Open ledger on the first screen (`_offerRestore`, `_openLedgerInFolder`, `_finishRestore`) | `two_computers_test.dart`; `cloud_folder_test.dart` ("two computers", through the real screen) |
+| The change log (ADR 0005, "the way chosen 2026-10-12", step 1) | `database.dart` "the change log": the `changes` table (`Changes`, one row per row changed, before and after as JSON by column name, `seq` counts 1, 2, 3 on purpose), `changeTriggerSql` (TEMP triggers on every ledger table, made on every open in `beforeOpen` and afresh after every upgrade), `_withoutChangeLog` (the hold: a TEMP table a row in which keeps the triggers from recording another computer's changes, a restore or an erase), `_logMarker`, `changesSince`, `lastChangeSeq`; `SyncKeys.applied`, `.ledger`, `changeLogTable`, `newLedgerId` in `domain/sync.dart`; `ledgerTables` in `data/ledger_seal.dart` keeps the log out of the digest and the compare | nothing yet | `changes_test.dart`; `migration_test.dart` ("upgrades a v19 file") |
 | Two computers combined (ADR 0005, "Combine") | `domain/combine.dart` (`combine`: three ledgers as row maps in, `RowOp`s or a conflict out; the tables' keys, references and order are listed at its top, and a new table has to be added there); `newRowId` in `domain/sync.dart` (every id column's `clientDefault`); `data/ledger_seal.dart` (`ledgerRows`, `readLedgerRows`); `database.dart` (`allRows`, `applyCombined`); `cloud_folder.dart` (`_keepAgreed` and the file `cloud-folder-agreed`, `_combinable`, `bringIn` with `picks`, `asks`, `_decided`, `FolderStanding.combine` and `.rows`); `Backups.keepBefore`, `keepRestored` | `_bringInFolderChanges`, `_chooseRows` in `ledger_screen.dart`; `_RowsDialog`, `_AskCard` in `ui/rows_dialog.dart` (the question for a row both changed) | `combine_test.dart` (the rules, on row maps); `two_computers_test.dart` ("combine", two real ledgers); `cloud_folder_test.dart` (the popup, the row question; 2 goldens) |
 | File names | `data/ledger_file.dart` (`ledgerExtension`, `ledgerFileName`; `ledgerFileIn` renames a ledger still called `betterbudget.sqlite`, called from `main.dart` and `AppDatabase.openEncrypted`) | none | `ledger_file_test.dart` |
 | Schema, upgrades | tables at the top of `database.dart`; `schemaVersion`, `migration` | none | `migration_test.dart` |
@@ -96,10 +97,24 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   a test or a query that expects 1, 2, 3 from rows it makes. Rows still sort by id
   in the order one computer made them.
 - **Schema.** A new table also goes in `_keys`, `combineOrder` and `_references` at
-  the top of `domain/combine.dart`, or two ledgers holding it are never combined.
-  A table change needs a new `schemaVersion`, a step in `onUpgrade` (which
-  copies the file first and runs in one transaction), a regenerated `database.g.dart`
-  and a case in `migration_test.dart`.
+  the top of `domain/combine.dart`, or two ledgers holding it are never combined,
+  and in `replaceAllFrom`'s list, or a restore drops it (`changes_test.dart`
+  checks the first). A table change needs a new `schemaVersion`, a step in
+  `onUpgrade` (which copies the file first and runs in one transaction), a
+  regenerated `database.g.dart` and a case in `migration_test.dart`. The change
+  triggers name every column and are made afresh after every upgrade by
+  themselves; a test that takes a file back to an older shape calls
+  `dropAddedInV20` first, since a trigger that names a column stops `DROP
+  COLUMN`; each trigger names only the columns the file really has
+  (`expectAllColumns` in that test pins that an upgraded file has them all).
+  `recursive_triggers` is on, so an `INSERT OR REPLACE` logs delete then insert;
+  `insertOnConflictUpdate` logs an update. No column may be a blob
+  (`json_object` can't hold one; `changes_test.dart` checks). The `sync.*`
+  settings and the `changes` table are each computer's own: never in the
+  digest, never combined, never restored over. From v20 on an upgrade either
+  changes no row, or is deterministic (no `newRowId`, no clock), or runs with
+  the triggers in place: its writes are otherwise never logged, and two
+  computers would differ on rows neither sends the other.
 - **Encryption** ([ADR 0001](decisions/0001-database.md)). The app opens the ledger with
   `AppDatabase.openEncrypted`; tests use `AppDatabase(NativeDatabase.memory())`, which
   is plain. Raw SQLite calls go inside `withoutKeyInErrors` (`encryption.dart`) so a key

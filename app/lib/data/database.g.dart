@@ -6189,6 +6189,504 @@ class PayeeRuleAccountsCompanion extends UpdateCompanion<PayeeRuleAccountRow> {
   }
 }
 
+class $ChangesTable extends Changes with TableInfo<$ChangesTable, ChangeRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChangesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _tblMeta = const VerificationMeta('tbl');
+  @override
+  late final GeneratedColumn<String> tbl = GeneratedColumn<String>(
+    'tbl',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pkMeta = const VerificationMeta('pk');
+  @override
+  late final GeneratedColumn<String> pk = GeneratedColumn<String>(
+    'pk',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _opMeta = const VerificationMeta('op');
+  @override
+  late final GeneratedColumn<String> op = GeneratedColumn<String>(
+    'op',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _beforeMeta = const VerificationMeta('before');
+  @override
+  late final GeneratedColumn<String> before = GeneratedColumn<String>(
+    'before',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _afterMeta = const VerificationMeta('after');
+  @override
+  late final GeneratedColumn<String> after = GeneratedColumn<String>(
+    'after',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _atMsMeta = const VerificationMeta('atMs');
+  @override
+  late final GeneratedColumn<int> atMs = GeneratedColumn<int>(
+    'at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _withSchemaMeta = const VerificationMeta(
+    'withSchema',
+  );
+  @override
+  late final GeneratedColumn<int> withSchema = GeneratedColumn<int>(
+    'with_schema',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    seq,
+    tbl,
+    pk,
+    op,
+    before,
+    after,
+    atMs,
+    withSchema,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'changes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChangeRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    }
+    if (data.containsKey('tbl')) {
+      context.handle(
+        _tblMeta,
+        tbl.isAcceptableOrUnknown(data['tbl']!, _tblMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tblMeta);
+    }
+    if (data.containsKey('pk')) {
+      context.handle(_pkMeta, pk.isAcceptableOrUnknown(data['pk']!, _pkMeta));
+    } else if (isInserting) {
+      context.missing(_pkMeta);
+    }
+    if (data.containsKey('op')) {
+      context.handle(_opMeta, op.isAcceptableOrUnknown(data['op']!, _opMeta));
+    } else if (isInserting) {
+      context.missing(_opMeta);
+    }
+    if (data.containsKey('before')) {
+      context.handle(
+        _beforeMeta,
+        before.isAcceptableOrUnknown(data['before']!, _beforeMeta),
+      );
+    }
+    if (data.containsKey('after')) {
+      context.handle(
+        _afterMeta,
+        after.isAcceptableOrUnknown(data['after']!, _afterMeta),
+      );
+    }
+    if (data.containsKey('at_ms')) {
+      context.handle(
+        _atMsMeta,
+        atMs.isAcceptableOrUnknown(data['at_ms']!, _atMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_atMsMeta);
+    }
+    if (data.containsKey('with_schema')) {
+      context.handle(
+        _withSchemaMeta,
+        withSchema.isAcceptableOrUnknown(data['with_schema']!, _withSchemaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_withSchemaMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {seq};
+  @override
+  ChangeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChangeRow(
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+      tbl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tbl'],
+      )!,
+      pk: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pk'],
+      )!,
+      op: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}op'],
+      )!,
+      before: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}before'],
+      ),
+      after: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}after'],
+      ),
+      atMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at_ms'],
+      )!,
+      withSchema: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}with_schema'],
+      )!,
+    );
+  }
+
+  @override
+  $ChangesTable createAlias(String alias) {
+    return $ChangesTable(attachedDatabase, alias);
+  }
+}
+
+class ChangeRow extends DataClass implements Insertable<ChangeRow> {
+  final int seq;
+
+  /// The table the row is in.
+  final String tbl;
+
+  /// The row's key columns, as a JSON object.
+  final String pk;
+
+  /// `insert`, `update` or `delete`; `restore` or `erase` for a whole ledger
+  /// put in or cleared here, with no rows (ADR 0005: made a batch of its own
+  /// in step 5).
+  final String op;
+
+  /// The whole row before, as JSON; null for an insert.
+  final String? before;
+
+  /// The whole row after, as JSON; null for a delete.
+  final String? after;
+
+  /// When, by this computer's clock, for the screen only.
+  final int atMs;
+
+  /// The tables' version the row was written under.
+  final int withSchema;
+  const ChangeRow({
+    required this.seq,
+    required this.tbl,
+    required this.pk,
+    required this.op,
+    this.before,
+    this.after,
+    required this.atMs,
+    required this.withSchema,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['seq'] = Variable<int>(seq);
+    map['tbl'] = Variable<String>(tbl);
+    map['pk'] = Variable<String>(pk);
+    map['op'] = Variable<String>(op);
+    if (!nullToAbsent || before != null) {
+      map['before'] = Variable<String>(before);
+    }
+    if (!nullToAbsent || after != null) {
+      map['after'] = Variable<String>(after);
+    }
+    map['at_ms'] = Variable<int>(atMs);
+    map['with_schema'] = Variable<int>(withSchema);
+    return map;
+  }
+
+  ChangesCompanion toCompanion(bool nullToAbsent) {
+    return ChangesCompanion(
+      seq: Value(seq),
+      tbl: Value(tbl),
+      pk: Value(pk),
+      op: Value(op),
+      before: before == null && nullToAbsent
+          ? const Value.absent()
+          : Value(before),
+      after: after == null && nullToAbsent
+          ? const Value.absent()
+          : Value(after),
+      atMs: Value(atMs),
+      withSchema: Value(withSchema),
+    );
+  }
+
+  factory ChangeRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChangeRow(
+      seq: serializer.fromJson<int>(json['seq']),
+      tbl: serializer.fromJson<String>(json['tbl']),
+      pk: serializer.fromJson<String>(json['pk']),
+      op: serializer.fromJson<String>(json['op']),
+      before: serializer.fromJson<String?>(json['before']),
+      after: serializer.fromJson<String?>(json['after']),
+      atMs: serializer.fromJson<int>(json['atMs']),
+      withSchema: serializer.fromJson<int>(json['withSchema']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'seq': serializer.toJson<int>(seq),
+      'tbl': serializer.toJson<String>(tbl),
+      'pk': serializer.toJson<String>(pk),
+      'op': serializer.toJson<String>(op),
+      'before': serializer.toJson<String?>(before),
+      'after': serializer.toJson<String?>(after),
+      'atMs': serializer.toJson<int>(atMs),
+      'withSchema': serializer.toJson<int>(withSchema),
+    };
+  }
+
+  ChangeRow copyWith({
+    int? seq,
+    String? tbl,
+    String? pk,
+    String? op,
+    Value<String?> before = const Value.absent(),
+    Value<String?> after = const Value.absent(),
+    int? atMs,
+    int? withSchema,
+  }) => ChangeRow(
+    seq: seq ?? this.seq,
+    tbl: tbl ?? this.tbl,
+    pk: pk ?? this.pk,
+    op: op ?? this.op,
+    before: before.present ? before.value : this.before,
+    after: after.present ? after.value : this.after,
+    atMs: atMs ?? this.atMs,
+    withSchema: withSchema ?? this.withSchema,
+  );
+  ChangeRow copyWithCompanion(ChangesCompanion data) {
+    return ChangeRow(
+      seq: data.seq.present ? data.seq.value : this.seq,
+      tbl: data.tbl.present ? data.tbl.value : this.tbl,
+      pk: data.pk.present ? data.pk.value : this.pk,
+      op: data.op.present ? data.op.value : this.op,
+      before: data.before.present ? data.before.value : this.before,
+      after: data.after.present ? data.after.value : this.after,
+      atMs: data.atMs.present ? data.atMs.value : this.atMs,
+      withSchema: data.withSchema.present
+          ? data.withSchema.value
+          : this.withSchema,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChangeRow(')
+          ..write('seq: $seq, ')
+          ..write('tbl: $tbl, ')
+          ..write('pk: $pk, ')
+          ..write('op: $op, ')
+          ..write('before: $before, ')
+          ..write('after: $after, ')
+          ..write('atMs: $atMs, ')
+          ..write('withSchema: $withSchema')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(seq, tbl, pk, op, before, after, atMs, withSchema);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChangeRow &&
+          other.seq == this.seq &&
+          other.tbl == this.tbl &&
+          other.pk == this.pk &&
+          other.op == this.op &&
+          other.before == this.before &&
+          other.after == this.after &&
+          other.atMs == this.atMs &&
+          other.withSchema == this.withSchema);
+}
+
+class ChangesCompanion extends UpdateCompanion<ChangeRow> {
+  final Value<int> seq;
+  final Value<String> tbl;
+  final Value<String> pk;
+  final Value<String> op;
+  final Value<String?> before;
+  final Value<String?> after;
+  final Value<int> atMs;
+  final Value<int> withSchema;
+  const ChangesCompanion({
+    this.seq = const Value.absent(),
+    this.tbl = const Value.absent(),
+    this.pk = const Value.absent(),
+    this.op = const Value.absent(),
+    this.before = const Value.absent(),
+    this.after = const Value.absent(),
+    this.atMs = const Value.absent(),
+    this.withSchema = const Value.absent(),
+  });
+  ChangesCompanion.insert({
+    this.seq = const Value.absent(),
+    required String tbl,
+    required String pk,
+    required String op,
+    this.before = const Value.absent(),
+    this.after = const Value.absent(),
+    required int atMs,
+    required int withSchema,
+  }) : tbl = Value(tbl),
+       pk = Value(pk),
+       op = Value(op),
+       atMs = Value(atMs),
+       withSchema = Value(withSchema);
+  static Insertable<ChangeRow> custom({
+    Expression<int>? seq,
+    Expression<String>? tbl,
+    Expression<String>? pk,
+    Expression<String>? op,
+    Expression<String>? before,
+    Expression<String>? after,
+    Expression<int>? atMs,
+    Expression<int>? withSchema,
+  }) {
+    return RawValuesInsertable({
+      if (seq != null) 'seq': seq,
+      if (tbl != null) 'tbl': tbl,
+      if (pk != null) 'pk': pk,
+      if (op != null) 'op': op,
+      if (before != null) 'before': before,
+      if (after != null) 'after': after,
+      if (atMs != null) 'at_ms': atMs,
+      if (withSchema != null) 'with_schema': withSchema,
+    });
+  }
+
+  ChangesCompanion copyWith({
+    Value<int>? seq,
+    Value<String>? tbl,
+    Value<String>? pk,
+    Value<String>? op,
+    Value<String?>? before,
+    Value<String?>? after,
+    Value<int>? atMs,
+    Value<int>? withSchema,
+  }) {
+    return ChangesCompanion(
+      seq: seq ?? this.seq,
+      tbl: tbl ?? this.tbl,
+      pk: pk ?? this.pk,
+      op: op ?? this.op,
+      before: before ?? this.before,
+      after: after ?? this.after,
+      atMs: atMs ?? this.atMs,
+      withSchema: withSchema ?? this.withSchema,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (tbl.present) {
+      map['tbl'] = Variable<String>(tbl.value);
+    }
+    if (pk.present) {
+      map['pk'] = Variable<String>(pk.value);
+    }
+    if (op.present) {
+      map['op'] = Variable<String>(op.value);
+    }
+    if (before.present) {
+      map['before'] = Variable<String>(before.value);
+    }
+    if (after.present) {
+      map['after'] = Variable<String>(after.value);
+    }
+    if (atMs.present) {
+      map['at_ms'] = Variable<int>(atMs.value);
+    }
+    if (withSchema.present) {
+      map['with_schema'] = Variable<int>(withSchema.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChangesCompanion(')
+          ..write('seq: $seq, ')
+          ..write('tbl: $tbl, ')
+          ..write('pk: $pk, ')
+          ..write('op: $op, ')
+          ..write('before: $before, ')
+          ..write('after: $after, ')
+          ..write('atMs: $atMs, ')
+          ..write('withSchema: $withSchema')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6208,6 +6706,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PayeeRulesTable payeeRules = $PayeeRulesTable(this);
   late final $PayeeRuleAccountsTable payeeRuleAccounts =
       $PayeeRuleAccountsTable(this);
+  late final $ChangesTable changes = $ChangesTable(this);
   late final Index entriesImportKey = Index(
     'entries_import_key',
     'CREATE UNIQUE INDEX entries_import_key ON entries (import_key)',
@@ -6229,6 +6728,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categoryAccountsOff,
     payeeRules,
     payeeRuleAccounts,
+    changes,
     entriesImportKey,
   ];
 }
@@ -12494,6 +12994,260 @@ typedef $$PayeeRuleAccountsTableProcessedTableManager =
       PayeeRuleAccountRow,
       PrefetchHooks Function({bool ruleId, bool accountId})
     >;
+typedef $$ChangesTableCreateCompanionBuilder = ChangesCompanion Function({
+  Value<int> seq,
+  required String tbl,
+  required String pk,
+  required String op,
+  Value<String?> before,
+  Value<String?> after,
+  required int atMs,
+  required int withSchema,
+});
+typedef $$ChangesTableUpdateCompanionBuilder = ChangesCompanion Function({
+  Value<int> seq,
+  Value<String> tbl,
+  Value<String> pk,
+  Value<String> op,
+  Value<String?> before,
+  Value<String?> after,
+  Value<int> atMs,
+  Value<int> withSchema,
+});
+
+class $$ChangesTableFilterComposer
+    extends Composer<_$AppDatabase, $ChangesTable> {
+  $$ChangesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tbl => $composableBuilder(
+    column: $table.tbl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pk => $composableBuilder(
+    column: $table.pk,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get op => $composableBuilder(
+    column: $table.op,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get before => $composableBuilder(
+    column: $table.before,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get after => $composableBuilder(
+    column: $table.after,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get withSchema => $composableBuilder(
+    column: $table.withSchema,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ChangesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChangesTable> {
+  $$ChangesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tbl => $composableBuilder(
+    column: $table.tbl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pk => $composableBuilder(
+    column: $table.pk,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get op => $composableBuilder(
+    column: $table.op,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get before => $composableBuilder(
+    column: $table.before,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get after => $composableBuilder(
+    column: $table.after,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get withSchema => $composableBuilder(
+    column: $table.withSchema,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ChangesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChangesTable> {
+  $$ChangesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get tbl =>
+      $composableBuilder(column: $table.tbl, builder: (column) => column);
+
+  GeneratedColumn<String> get pk =>
+      $composableBuilder(column: $table.pk, builder: (column) => column);
+
+  GeneratedColumn<String> get op =>
+      $composableBuilder(column: $table.op, builder: (column) => column);
+
+  GeneratedColumn<String> get before =>
+      $composableBuilder(column: $table.before, builder: (column) => column);
+
+  GeneratedColumn<String> get after =>
+      $composableBuilder(column: $table.after, builder: (column) => column);
+
+  GeneratedColumn<int> get atMs =>
+      $composableBuilder(column: $table.atMs, builder: (column) => column);
+
+  GeneratedColumn<int> get withSchema => $composableBuilder(
+    column: $table.withSchema,
+    builder: (column) => column,
+  );
+}
+
+class $$ChangesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChangesTable,
+          ChangeRow,
+          $$ChangesTableFilterComposer,
+          $$ChangesTableOrderingComposer,
+          $$ChangesTableAnnotationComposer,
+          $$ChangesTableCreateCompanionBuilder,
+          $$ChangesTableUpdateCompanionBuilder,
+          (ChangeRow, BaseReferences<_$AppDatabase, $ChangesTable, ChangeRow>),
+          ChangeRow,
+          PrefetchHooks Function()
+        > {
+  $$ChangesTableTableManager(_$AppDatabase db, $ChangesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChangesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChangesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ChangesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                Value<String> tbl = const Value.absent(),
+                Value<String> pk = const Value.absent(),
+                Value<String> op = const Value.absent(),
+                Value<String?> before = const Value.absent(),
+                Value<String?> after = const Value.absent(),
+                Value<int> atMs = const Value.absent(),
+                Value<int> withSchema = const Value.absent(),
+              }) => ChangesCompanion(
+                seq: seq,
+                tbl: tbl,
+                pk: pk,
+                op: op,
+                before: before,
+                after: after,
+                atMs: atMs,
+                withSchema: withSchema,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                required String tbl,
+                required String pk,
+                required String op,
+                Value<String?> before = const Value.absent(),
+                Value<String?> after = const Value.absent(),
+                required int atMs,
+                required int withSchema,
+              }) => ChangesCompanion.insert(
+                seq: seq,
+                tbl: tbl,
+                pk: pk,
+                op: op,
+                before: before,
+                after: after,
+                atMs: atMs,
+                withSchema: withSchema,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ChangesTable, ChangeRow>(table),
+                  BaseReferences<_$AppDatabase, $ChangesTable, ChangeRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ChangesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChangesTable,
+      ChangeRow,
+      $$ChangesTableFilterComposer,
+      $$ChangesTableOrderingComposer,
+      $$ChangesTableAnnotationComposer,
+      $$ChangesTableCreateCompanionBuilder,
+      $$ChangesTableUpdateCompanionBuilder,
+      (ChangeRow, BaseReferences<_$AppDatabase, $ChangesTable, ChangeRow>),
+      ChangeRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12522,4 +13276,6 @@ class $AppDatabaseManager {
       $$PayeeRulesTableTableManager(_db, _db.payeeRules);
   $$PayeeRuleAccountsTableTableManager get payeeRuleAccounts =>
       $$PayeeRuleAccountsTableTableManager(_db, _db.payeeRuleAccounts);
+  $$ChangesTableTableManager get changes =>
+      $$ChangesTableTableManager(_db, _db.changes);
 }
