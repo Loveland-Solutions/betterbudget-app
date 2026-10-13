@@ -10,12 +10,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Where to pick up (left on the evening of 2026-10-13; the owner starts in the
-morning):** four PRs are open and stack on each other, to be merged in order,
+**Where to pick up (2026-10-13):** four PRs are merged into `main`, in order,
 **#66** (the row question, 0.29.0), **#67** (step 1, schema v20, 0.30.0),
 **#68** (step 2, shared ids, 0.31.0), **#69** (step 3, change files, 0.32.0;
-its code review's five findings fixed). Branch `change-files` holds all of it;
-`main` is at PR #65. After merging, the first real run is the owner's: open the
+its code review's five findings fixed). `main` is at PR #69 and runs 0.32.0.
+The first real run is the owner's: open the
 app on their own account and on the testuser account ([a second Mac account
 stands in for a second computer](../CLAUDE.md)), spend on each, and watch for
 anything on either screen that isn't "N transactions from The other Mac", or a
@@ -35,8 +34,7 @@ and after the reports chose B ("Let's go with B"): each computer appends its
 changes to a file only it writes (as the phones do), every computer applies the
 others', `Ledger.betterbudget` becomes a derived snapshot the phones keep reading,
 and the lock goes (not atomic over Drive). About six weeks, give or take two, in
-five PRs. **PR 1 of 5 is built (version 0.30.0, not yet a PR of its own; on top
-of #66): schema v20**, the `changes` table filled by TEMP triggers made on every
+five PRs. **PR 1 of 5 is merged (#67, version 0.30.0): schema v20**, the `changes` table filled by TEMP triggers made on every
 open, the hold that keeps another computer's changes, a restore and an erase out
 of it, `sync.ledger` for a new ledger, `sync.applied` reserved; the upgrade adds
 one table and touches no row (ADR 0005 "Built, 2026-10-12: step 1"); the code
@@ -44,13 +42,13 @@ review's findings are in (no bug that touches data; its rules are in the ADR).
 Nothing in the folder changes yet, so the owner sees nothing new on the Mac;
 **the Pixel's old build can't open a v20 `Ledger.betterbudget`** (nor a v19 one:
 every schema bump does this), so the phone wants this build at the next
-install. **PR 2 of 5 is built too (version 0.31.0, stacked on PR 1): one id for
+install. **PR 2 of 5 is merged too (#68, version 0.31.0): one id for
 the same thing made on both** (ADR 0005 "Built, 2026-10-12: step 2"): the same
 payday, bill, phone entry, bank row, payee, category, Income and Safety net get
 the same id on every computer, so two computers that did the same thing hold one
 row and have nothing to merge, write or say; the digest ignores when a row was
 written; the old matching by what a row says stays as the backstop. **PR 3 of 5
-is built too (version 0.32.0, stacked on PR 2): the folder cycle on change
+is merged too (#69, version 0.32.0): the folder cycle on change
 files** (ADR 0005 "Built, 2026-10-13: step 3"): each computer writes one file
 only it writes, reads the others', folds each into the compare that already
 exists, and the shared `Ledger.betterbudget` is written only by a computer that
@@ -74,7 +72,7 @@ computers writing within Drive's propagation window made the loser's agreed file
 a false base) is closed by PR 3: the base comes from the other computer's own
 file, and nobody writes over anyone's file.
 
-Before it, **the row question (version 0.29.0)**, built the same morning (ADR 0004
+Before it, **the row question (version 0.29.0, PR #66)**, built the same morning (ADR 0004
 "Two computers: the one row both changed"; ADR 0005 "Built, 2026-10-12: asking
 about the one row"): when two computers changed one transaction two ways (or one
 deleted it and the other changed it), or one category's assigned amount for one
@@ -177,8 +175,8 @@ folder. Then, in order:
    **It has not been run on two real computers**, only in tests with two ledgers and
    one folder; the first real run is the owner's to watch. **The design was
    re-chosen on 2026-10-12** (above, and ADR 0005 "the way chosen"): five PRs,
-   starting with schema v20. Until PR 3 lands, what is built keeps running as it
-   is.
+   starting with schema v20. Steps 1 to 3 of those five are merged (#67 to #69);
+   the older look still runs alongside until both computers carry a vector.
 2. **The rest of the phone.** Its entries and new categories now reach the computer
    (ADR 0005, "Built, 2026-10-08"), seen working on the owner's Pixel and Drive folder
    on 2026-10-08. Not yet seen: whether asking Drive to refresh its listing makes the
@@ -228,7 +226,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #65. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #69. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
