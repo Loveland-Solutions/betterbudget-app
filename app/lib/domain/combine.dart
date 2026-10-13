@@ -19,6 +19,7 @@ import 'ledger.dart' show alreadyInDays;
 import 'phone.dart'
     show
         PhoneTaken,
+        computerMachinePrefix,
         computerNamePrefix,
         phoneNamePrefix,
         phoneTakenKey,
@@ -1473,7 +1474,9 @@ class _Combine {
       }
       if (_viewOnly.contains(k)) continue;
       // A phone named on both, differently: the same one on both computers.
-      if ((k.startsWith(phoneNamePrefix) || k.startsWith(computerNamePrefix)) &&
+      if ((k.startsWith(phoneNamePrefix) ||
+              k.startsWith(computerNamePrefix) ||
+              k.startsWith(computerMachinePrefix)) &&
           here != null &&
           there != null) {
         if ('${there['value']}'.compareTo('${here['value']}') < 0) {

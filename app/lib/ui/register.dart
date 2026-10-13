@@ -47,6 +47,7 @@ class SourceColumn extends InheritedWidget {
     super.key,
     required this.shown,
     this.here,
+    this.machines = const {},
     this.computers = const {},
     this.phones = const {},
     required super.child,
@@ -56,6 +57,14 @@ class SourceColumn extends InheritedWidget {
 
   /// This computer's id: a row made on it says "here".
   final String? here;
+
+  /// The Mac each computer is on, by id: a row made under another account
+  /// of the same Mac says "here" too.
+  final Map<String, String> machines;
+
+  bool _isHere(String on) =>
+      on == here ||
+      (here != null && machines[on] != null && machines[on] == machines[here]);
 
   /// The computers that made a row, by id, and the name given each ('' for
   /// none), and the same for the phones.
@@ -75,14 +84,14 @@ class SourceColumn extends InheritedWidget {
       MadeHow.typed =>
         on == null
             ? t.sourceTyped
-            : on == here
+            : _isHere(on)
             ? t.sourceTypedHere
             : _named(computers[on])?.let(t.sourceTypedOn) ??
                   t.sourceTypedElsewhere,
       MadeHow.imported =>
         on == null
             ? t.sourceImported
-            : on == here
+            : _isHere(on)
             ? t.sourceImportedHere
             : _named(computers[on])?.let(t.sourceImportedOn) ??
                   t.sourceImportedElsewhere,
@@ -110,6 +119,7 @@ class SourceColumn extends InheritedWidget {
   bool updateShouldNotify(SourceColumn old) =>
       shown != old.shown ||
       here != old.here ||
+      !mapEquals(machines, old.machines) ||
       !mapEquals(phones, old.phones) ||
       !mapEquals(computers, old.computers);
 }

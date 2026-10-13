@@ -1010,4 +1010,18 @@ source".
   after the saved folder settings are read. `cloud-folder` holds the id, the folder,
   its token and what was published in one file, and writing it before it is read
   writes it without the rest. `CloudFolder.computerId` waits for `load`.
+- **The same Mac is "here" (2026-10-13, 0.34.0).** Two accounts of one Mac are two
+  computers with two ids, but to the person they are one machine ("since it's the same
+  computer, it's local on both accounts"). Each computer writes the setting
+  `computer.machine.<id>`: a hash of the Mac's hardware id (`MainFlutterWindow.swift`
+  `machineId`, `FolderAccess.machineId`; null where there is none), shared by every
+  account on that Mac. A row made on a computer whose machine is this one's reads
+  "Entered locally". Two different Macs never share it.
+- **A computer's id is worked out, once (2026-10-13, 0.34.0).** A computer with no
+  saved id takes a GUID made from the Mac's hardware id and the macOS account
+  (`FolderAccess.derivedComputerId`, `guidOf`), so the same computer is the same id
+  after a reinstall or a lost `cloud-folder`; a random one only where there is no
+  hardware id. One already saved is never replaced (owner chose "A": no churn: its
+  change file and what the others applied of it are under it). A disk cloned to
+  another computer still gives both the same id.
 

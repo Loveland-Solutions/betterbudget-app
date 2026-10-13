@@ -3439,3 +3439,6 @@ list a given phone as a source".
   Entered locally or something"; "typed" became "Entered" throughout); and a name is kept against the id, so
   renaming a computer or a phone in Settings shows on every row ("We should have a
   rename. The name should be associated with a primary key").
+- **The same Mac reads "Entered locally" under both of its accounts** (owner,
+  2026-10-13: "since it's the same computer, it's local on both accounts").
+

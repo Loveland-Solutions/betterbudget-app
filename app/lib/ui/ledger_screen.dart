@@ -24,7 +24,11 @@ import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/payee_rules.dart';
 import '../domain/phone.dart'
-    show computerNamePrefix, phoneNamePrefix, showSourceKey;
+    show
+        computerMachinePrefix,
+        computerNamePrefix,
+        phoneNamePrefix,
+        showSourceKey;
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
 import '../domain/sync.dart' show MadeHow;
@@ -1691,6 +1695,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       final id = await _cloud.computerId();
       db.thisComputer = id;
+      // The Mac this is, so another account of it reads as "here".
+      final machine = await _cloud.access.machineId();
+      final machineKey = '$computerMachinePrefix$id';
+      if (machine != null && await db.preference(machineKey) != machine) {
+        await db.setPreference(machineKey, machine);
+      }
       final key = '$computerNamePrefix$id';
       if (await db.preference(key) != null) return;
       await db.setPreference(key, await _cloud.access.computerName());
@@ -1702,15 +1712,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Each computer and each phone that has made a transaction here, by id,
   /// with the name the person (or the system) gave it, '' for none. This
   /// computer is always among the computers.
-  ({Map<String, String> computers, Map<String, String> phones}) _sourcesOf(
-    LedgerData data,
-  ) {
+  ({
+    Map<String, String> computers,
+    Map<String, String> phones,
+    Map<String, String> machines,
+  })
+  _sourcesOf(LedgerData data) {
     final computers = <String, String>{};
     final phones = <String, String>{};
     final here = db.thisComputer;
     if (here != null) {
       computers[here] = data.prefs['$computerNamePrefix$here'] ?? '';
     }
+    final machines = <String, String>{
+      for (final e in data.prefs.entries)
+        if (e.key.startsWith(computerMachinePrefix))
+          e.key.substring(computerMachinePrefix.length): e.value,
+    };
     for (final t in data.txns) {
       final on = t.madeOn;
       if (on == null) continue;
@@ -1720,7 +1738,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         computers[on] = data.prefs['$computerNamePrefix$on'] ?? '';
       }
     }
-    return (computers: computers, phones: phones);
+    return (computers: computers, phones: phones, machines: machines);
   }
 
   Widget _withSources(LedgerData data, Widget child) {
@@ -1728,6 +1746,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return SourceColumn(
       shown: data.prefs[showSourceKey] != '0',
       here: db.thisComputer,
+      machines: s.machines,
       computers: s.computers,
       phones: s.phones,
       child: child,
