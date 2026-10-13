@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
+import 'package:betterbudget/domain/combine.dart' show AskKind, Pick;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/ledger_seal.dart';
@@ -774,7 +775,63 @@ void main() {
       );
     });
 
-    test('one transaction edited on both is asked about', () async {
+    test('one transaction edited on both is asked about, with the other '
+        'changes held until it is answered', () async {
+      await mac.spend('Nomin', monday);
+      await agree();
+      for (final (computer, amount) in [(mac, -900000), (laptop, -700000)]) {
+        await computer.db.editTransaction(
+          transactionId: (await bought(computer, 'Nomin')).id,
+          accountId: await computer.account('TDB Checking'),
+          date: monday,
+          today: tuesday,
+          payee: 'Nomin',
+          counterAccountId: await computer.account('Groceries'),
+          amount: amount,
+        );
+      }
+      // Something else the other did, which has to wait for the answer.
+      await mac.spend('E-Mart', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      final mondays = await folderLedger().readAsBytes();
+      expect(
+        await laptop.cloud.check(tuesday, fresh: true),
+        FolderStanding.rows,
+      );
+      expect(laptop.cloud.value.held, isTrue);
+      final ask = laptop.cloud.asks.single;
+      expect(ask.kind, AskKind.transaction);
+      expect(ask.mine.lines.map((l) => l.amountMinor), contains(-700000));
+      expect(ask.theirs.lines.map((l) => l.amountMinor), contains(-900000));
+      expect(
+        ask.neither.lines.map((l) => l.amountMinor),
+        isNot(contains(-900000)),
+      );
+      // Not answered: nothing comes in and nothing is written.
+      expect(await laptop.cloud.bringIn(tuesday), isNull);
+      expect(await folderLedger().readAsBytes(), mondays);
+      expect(
+        (await laptop.db.loadLedger()).txns.where((t) => t.payee == 'E-Mart'),
+        isEmpty,
+      );
+      // Answered: the other's amount, and what else came.
+      final done = await laptop.cloud.bringIn(
+        tuesday,
+        picks: {ask.id: Pick.theirs},
+      );
+      expect(done, isNotNull);
+      expect(done!.transactions, 1);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      final row = await bought(laptop, 'Nomin');
+      expect(row.entries.map((e) => e.amount), containsAll([-900000, 900000]));
+      expect(await bought(laptop, 'E-Mart'), isNotNull);
+      // The same as the first computer's now, and nobody is asked.
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await bought(mac, 'E-Mart'), isNotNull);
+    });
+
+    test('this computer’s way is kept and written, and the other computer is '
+        'not asked afterwards', () async {
       await mac.spend('Nomin', monday);
       await agree();
       for (final (computer, amount) in [(mac, -900000), (laptop, -700000)]) {
@@ -789,13 +846,55 @@ void main() {
         );
       }
       await mac.cloud.check(tuesday, fresh: true);
-      final mondays = await folderLedger().readAsBytes();
       expect(
         await laptop.cloud.check(tuesday, fresh: true),
-        FolderStanding.apart,
+        FolderStanding.rows,
       );
-      expect(await laptop.cloud.bringIn(tuesday), isNull);
-      expect(await folderLedger().readAsBytes(), mondays);
+      final ask = laptop.cloud.asks.single;
+      expect(
+        await laptop.cloud.bringIn(tuesday, picks: {ask.id: Pick.mine}),
+        isNotNull,
+      );
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await bought(laptop, 'Nomin')).entries.map((e) => e.amount),
+        containsAll([-700000, 700000]),
+      );
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.newer);
+    });
+
+    test('neither: the row goes back to what it was', () async {
+      await mac.spend('Nomin', monday);
+      await agree();
+      for (final (computer, amount) in [(mac, -900000), (laptop, -700000)]) {
+        await computer.db.editTransaction(
+          transactionId: (await bought(computer, 'Nomin')).id,
+          accountId: await computer.account('TDB Checking'),
+          date: monday,
+          today: tuesday,
+          payee: 'Nomin',
+          counterAccountId: await computer.account('Groceries'),
+          amount: amount,
+        );
+      }
+      await mac.cloud.check(tuesday, fresh: true);
+      expect(
+        await laptop.cloud.check(tuesday, fresh: true),
+        FolderStanding.rows,
+      );
+      final ask = laptop.cloud.asks.single;
+      await laptop.cloud.bringIn(tuesday, picks: {ask.id: Pick.neither});
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      final row = await bought(laptop, 'Nomin');
+      expect(row.entries.map((e) => e.amount), isNot(contains(-700000)));
+      expect(row.entries.map((e) => e.amount), isNot(contains(-900000)));
+      // Written, so the first computer takes the row back as it was.
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.newer);
+      await mac.open(tuesday);
+      expect(
+        (await bought(mac, 'Nomin')).entries.map((e) => e.amount),
+        isNot(contains(-900000)),
+      );
     });
 
     test('one category assigned on both is asked about; two aren’t', () async {
@@ -819,7 +918,24 @@ void main() {
       await laptop.db.setBudgetAmount(groceries, start, end, 50000000);
       expect(
         await laptop.cloud.check(tuesday, fresh: true),
-        FolderStanding.apart,
+        FolderStanding.rows,
+      );
+      final ask = laptop.cloud.asks.single;
+      expect(ask.kind, AskKind.assigned);
+      expect(ask.category, 'Groceries');
+      expect(ask.mine.assignedMinor, 50000000);
+      expect(ask.theirs.assignedMinor, 45000000);
+      expect(ask.neither.assignedMinor, 40000000);
+      expect(
+        await laptop.cloud.bringIn(tuesday, picks: {ask.id: Pick.theirs}),
+        isNotNull,
+      );
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await laptop.db.loadLedger()).budgetAmounts
+            .where((b) => b.categoryId == groceries)
+            .fold<int>(0, (s, b) => s + b.amount),
+        45000000,
       );
     });
 

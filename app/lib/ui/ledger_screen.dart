@@ -17,6 +17,7 @@ import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
 import '../domain/budget.dart';
+import '../domain/combine.dart' show Ask, AskKind, AskSide, Pick;
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -43,6 +44,7 @@ part 'budget.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'payees.dart';
+part 'rows_dialog.dart';
 part 'savings.dart';
 part 'setup.dart';
 
@@ -309,6 +311,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (mounted && _cloud.value.standing == FolderStanding.apart) {
           await _folderNews(justMoved: justMoved);
         }
+      case FolderStanding.rows:
+        final digest = _cloud.theirs?.look.digest;
+        if (digest == null || digest == _askedAbout || _busyForFolder) return;
+        await _chooseRows();
+        // Found not to combine after all: asked about like any other.
+        if (mounted && _cloud.value.standing == FolderStanding.apart) {
+          await _folderNews(justMoved: justMoved);
+        }
       case FolderStanding.apart:
         final digest = _cloud.theirs?.look.digest;
         if (digest == null || digest == _askedAbout || _busyForFolder) return;
@@ -428,7 +438,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// ledger as it was is saved first, in Backups. The popup says what came,
   /// and what the person would want to look at: a row that looks the same
   /// as one already here, and more assigned than there is.
-  Future<void> _bringInFolderChanges() async {
+  ///
+  /// With [picks], the person's choice for what both changed in a way that
+  /// can't both stand ([_chooseRows]).
+  Future<void> _bringInFolderChanges({Map<String, Pick>? picks}) async {
     final path = _cloud.value.path;
     if (path == null || _busyForFolder) return;
     _cancelEdit();
@@ -454,12 +467,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final overBefore = over(_data);
     final CombinedIn? done;
     try {
-      done = await _whileRestoring(() => _cloud.bringIn(widget.clock()));
+      done = await _whileRestoring(
+        () => _cloud.bringIn(widget.clock(), picks: picks),
+      );
     } catch (e) {
       debugPrint('Bringing in the folder’s changes failed: $e');
       return;
     }
-    if (done == null) return;
+    if (done == null) {
+      // Chosen for, and then not brought in: something changed here while
+      // the question was open.
+      if (picks != null && mounted) {
+        _showToast(context.t.ledgerRowsChangedMeanwhile);
+      }
+      return;
+    }
     // What the two plans and pays ask for now, as after a ledger is taken
     // in.
     try {
@@ -483,6 +505,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     final n = done.transactions;
     final label = switch (done.from.savedByName) {
+      _ when picks != null && n == 0 && done.others == 0 => t.ledgerRowsSaved(
+        picks.length,
+      ),
       final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
       final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
       final name? => t.ledgerCombinedMoreFrom(n, name),
@@ -524,9 +549,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Both computers changed some of the same things in ways that can't both
+  /// stand: lists each with both versions and what it was, and brings in the
+  /// rest with the person's choices. Nothing is written until then.
+  Future<void> _chooseRows() async {
+    final theirs = _cloud.theirs;
+    final path = _cloud.value.path;
+    final asks = _cloud.asks;
+    if (theirs == null || path == null || asks.isEmpty || _restoring) return;
+    _askedAbout = theirs.look.digest;
+    final picks = await showDialog<Map<String, Pick>>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) =>
+          _RowsDialog(asks: asks, computer: theirs.look.savedByName),
+    );
+    if (picks == null || !mounted) return;
+    await _bringInFolderChanges(picks: picks);
+  }
+
   /// Both this computer's ledger and the folder's were changed: shows what
   /// each holds and lets the person choose. Nothing is written until then.
   Future<void> _chooseLedger({bool justMoved = false}) async {
+    if (_cloud.value.standing == FolderStanding.rows) return _chooseRows();
     final theirs = _cloud.theirs;
     final path = _cloud.value.path;
     if (theirs == null || path == null || _restoring) return;
@@ -5558,7 +5603,9 @@ class _Sidebar extends StatelessWidget {
                         listenable: Listenable.merge([backupHealth, folder]),
                         builder: (context, _) => _SettingsGear(
                           active: section == AppSection.settings,
-                          alert: folder.value.standing == FolderStanding.apart
+                          alert:
+                              folder.value.standing == FolderStanding.apart ||
+                                  folder.value.standing == FolderStanding.rows
                               ? context.t.ledgerFolderApartAlert
                               : folder.value.held
                               ? context.t.ledgerFolderAlert
@@ -5935,6 +5982,7 @@ class _SettingsPage extends StatelessWidget {
                                               folderName(keptIn),
                                               when(kept.copiedAt!),
                                             ),
+                                    FolderStanding.rows ||
                                     FolderStanding.apart => t.ledgerFolderApart(
                                       folderName(keptIn),
                                     ),
@@ -6000,7 +6048,8 @@ class _SettingsPage extends StatelessWidget {
                               ),
                               // Offered only while there are two to choose
                               // between.
-                              if (kept.standing == FolderStanding.apart)
+                              if (kept.standing == FolderStanding.apart ||
+                                  kept.standing == FolderStanding.rows)
                                 BarButton(
                                   key: const ValueKey('choose-ledger'),
                                   label: t.ledgerFolderChooseWhich,

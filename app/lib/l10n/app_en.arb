@@ -7812,5 +7812,107 @@
   "payeesCategoryGone": "A deleted category",
   "@payeesCategoryGone": {
     "description": "Payees page, in place of a category's name once the category was deleted."
+  },
+  "ledgerRowsTitle": "{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}",
+  "@ledgerRowsTitle": {
+    "description": "Title of the question that lists what two computers each changed in a way that can’t both stand: a transaction’s amount or details, or what a category is assigned for a period. {count} is how many.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerRowsBody": "Choose which to keep for each. Everything else {computer} changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
+  "@ledgerRowsBody": {
+    "description": "Under ledgerRowsTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsThisComputer": "This computer",
+  "@ledgerRowsThisComputer": {
+    "description": "Heading over this computer’s version of a thing both computers changed."
+  },
+  "ledgerRowsOtherComputer": "The other computer",
+  "@ledgerRowsOtherComputer": {
+    "description": "The other computer’s name, when it isn’t known."
+  },
+  "ledgerRowsKeepHere": "Keep this computer’s",
+  "@ledgerRowsKeepHere": {
+    "description": "Button under one thing both computers changed: keep the version made on this computer."
+  },
+  "ledgerRowsKeepTheirs": "Keep {computer}’s",
+  "@ledgerRowsKeepTheirs": {
+    "description": "Button under one thing both computers changed: keep the version made on the other computer. {computer} is its name.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsKeepDeletedHere": "Keep it deleted",
+  "@ledgerRowsKeepDeletedHere": {
+    "description": "Button in the question ledgerRowsTitle when this computer deleted the transaction and the other changed it: leave it deleted."
+  },
+  "ledgerRowsKeepDeletedTheirs": "Keep it deleted ({computer}’s)",
+  "@ledgerRowsKeepDeletedTheirs": {
+    "description": "Button in the question ledgerRowsTitle when the other computer deleted the transaction and this one changed it: delete it. {computer} is the other computer’s name.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsKeepNeither": "Neither: as it was",
+  "@ledgerRowsKeepNeither": {
+    "description": "Button under one thing both computers changed: put it back as it was before either changed it."
+  },
+  "ledgerRowsSave": "Save my choices",
+  "@ledgerRowsSave": {
+    "description": "Button of the question ledgerRowsTitle: makes the choices and brings in everything else the other computer changed."
+  },
+  "ledgerRowsAssigned": "{category} · Assigned, period starting {date}",
+  "@ledgerRowsAssigned": {
+    "description": "Heading over a category’s assigned amount both computers changed for one budget period. {date} is the period’s first day.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsDeleted": "Deleted",
+  "@ledgerRowsDeleted": {
+    "description": "One version of a transaction in the question ledgerRowsTitle: it was deleted there."
+  },
+  "ledgerRowsNoPayee": "No payee",
+  "@ledgerRowsNoPayee": {
+    "description": "Heading over a transaction in the question ledgerRowsTitle that has no payee."
+  },
+  "ledgerRowsAsItWas": "As it was: {what}",
+  "@ledgerRowsAsItWas": {
+    "description": "Line under a thing both computers changed: what it said before either changed it. {what} is its amount and category.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerRowsSaved": "{count, plural, =1{Your choice is saved} other{Your {count} choices are saved}}",
+  "@ledgerRowsSaved": {
+    "description": "Popup after the question ledgerRowsTitle is answered and there was nothing else to bring in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerRowsChangedMeanwhile": "Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.",
+  "@ledgerRowsChangedMeanwhile": {
+    "description": "Popup when the ledger changed under the question ledgerRowsTitle."
   }
 }
