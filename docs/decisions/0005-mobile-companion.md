@@ -1006,4 +1006,8 @@ source".
   the forecast's span, so it is shared with the other computers.
 - Rejected: reading the source from the change log (it forgets after a restore or an
   erase and will be compacted), and a mark on the row instead of a column.
+- **A rule that came from a bug (2026-10-13):** a computer's id is made, or read, only
+  after the saved folder settings are read. `cloud-folder` holds the id, the folder,
+  its token and what was published in one file, and writing it before it is read
+  writes it without the rest. `CloudFolder.computerId` waits for `load`.
 

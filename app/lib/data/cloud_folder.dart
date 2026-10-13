@@ -257,8 +257,28 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// another computer mustn't bring this one's id along.
   String? _computer;
 
-  /// This computer's id, as its change file is named by.
-  Future<String> computerId() => _computerId();
+  /// This computer's id, as its change file is named by. Not before the
+  /// saved settings are read: an id made then would be saved over the
+  /// folder, its token and everything else the file holds. Waits while [load]
+  /// is under way, and throws when it still isn't done after a long wait.
+  Future<String> computerId() async {
+    if (_loadStarted && !loaded.value) {
+      final done = Completer<void>();
+      void ready() {
+        if (loaded.value && !done.isCompleted) done.complete();
+      }
+
+      loaded.addListener(ready);
+      try {
+        ready();
+        await done.future.timeout(const Duration(seconds: 30));
+      } finally {
+        loaded.removeListener(ready);
+      }
+    }
+    return _computerId();
+  }
+
   String? _name;
 
   /// A write to the folder was begun and not seen to finish: a file there
@@ -366,11 +386,13 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// Whether [load] has finished: until then nobody knows whether the
   /// ledger is in a folder, and nothing should be said as though it isn't.
   final loaded = ValueNotifier(false);
+  bool _loadStarted = false;
 
   /// Reads the setting at launch and looks at the folder: the ledger is
   /// written there afresh, or the one there is found to be newer. Never
   /// throws.
   Future<void> load(DateTime now) async {
+    _loadStarted = true;
     try {
       await _load(now);
     } finally {

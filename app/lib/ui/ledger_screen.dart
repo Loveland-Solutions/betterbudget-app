@@ -728,19 +728,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_keepKeys);
-    // What each row typed or imported here is stamped with (ADR 0005, "Where
-    // a row came from"): this computer's id, so a rename shows on every row.
-    final named = _cloud.computerId().then((id) {
-      if (mounted) db.thisComputer = id;
-    });
     // Each pay schedule's next payday is scheduled before the first look,
     // and after the folder has been looked at (ADR 0005): a row this
     // computer scheduled before taking in a newer ledger would be a change
     // made here, and the two would look changed apart.
+    // The system's name for this computer, asked once and early: it names
+    // the computer in Settings later ([_nameThisComputer]).
+    final named = _cloud.access.computerName();
     _ledger =
         Stream.fromFuture(
           (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
-              // Before any row is made: it is stamped with the name.
               .then((_) => named)
               .then((_) => _firstLookInFolder())
               .then((_) => _nameThisComputer())
@@ -798,10 +795,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// newer ledger there is taken in first. A folder that doesn't answer
   /// doesn't hold the app up for long.
   Future<void> _firstLookInFolder() async {
+    // Left before it began: nothing to look for, and no timer to leave.
+    if (!mounted) return;
     try {
-      await _cloud
-          .load(widget.clock())
-          .timeout(const Duration(seconds: 20), onTimeout: () {});
+      // Not waited for past 20 seconds (a folder that won't answer); the
+      // timer is ours to cancel, so a screen left early leaves none.
+      final gaveUp = Completer<void>();
+      _lookTimer = Timer(const Duration(seconds: 20), () {
+        if (!gaveUp.isCompleted) gaveUp.complete();
+      });
+      await Future.any([_cloud.load(widget.clock()), gaveUp.future]);
+      _lookTimer?.cancel();
       if (mounted && _cloud.value.standing == FolderStanding.newer) {
         await _openFolderLedger(atLaunch: true);
       } else if (mounted && _cloud.value.standing == FolderStanding.combine) {
@@ -816,6 +820,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   late bool _keySaved;
+  Timer? _lookTimer;
 
   /// The app's version and build number from its bundle, for Settings.
   (String, String)? _version;
@@ -990,6 +995,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void dispose() {
     FocusManager.instance.removeListener(_keepKeys);
+    _lookTimer?.cancel();
     _search.dispose();
     _searchFocus.dispose();
     _registerFocus.dispose();
@@ -1669,8 +1675,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// change made here). The person can rename it in Settings.
   Future<void> _nameThisComputer() async {
     try {
-      final id = db.thisComputer;
-      if (id == null) return;
+      // What each row typed or imported here is stamped with (ADR 0005,
+      // "Where a row came from"): this computer's id, so a rename shows on
+      // every row. After the first look, which reads the saved settings.
+      if (!_cloud.loaded.value) {
+        // The settings aren't read yet (a slow folder): when they are.
+        void again() {
+          if (!_cloud.loaded.value) return;
+          _cloud.loaded.removeListener(again);
+          if (mounted) _nameThisComputer();
+        }
+
+        _cloud.loaded.addListener(again);
+        return;
+      }
+      final id = await _cloud.computerId();
+      db.thisComputer = id;
       final key = '$computerNamePrefix$id';
       if (await db.preference(key) != null) return;
       await db.setPreference(key, await _cloud.access.computerName());
