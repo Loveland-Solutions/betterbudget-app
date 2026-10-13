@@ -16,7 +16,13 @@ import 'dart:math';
 
 import 'forecast.dart' show ForecastSpan;
 import 'ledger.dart' show alreadyInDays;
-import 'phone.dart' show PhoneTaken, phoneTakenKey;
+import 'phone.dart'
+    show
+        PhoneTaken,
+        computerNamePrefix,
+        phoneNamePrefix,
+        phoneTakenKey,
+        showSourceKey;
 import 'sync.dart' show SyncKeys, isSharedRowId;
 
 typedef Row = Map<String, Object?>;
@@ -290,7 +296,7 @@ const _references = <(String, String, String)>[
 
 /// Settings that only change what a page shows: when both changed one,
 /// this computer keeps its own and nobody is asked.
-const _viewOnly = {ForecastSpan.prefKey};
+const _viewOnly = {ForecastSpan.prefKey, showSourceKey};
 
 /// Settings whose key ends in a row's id.
 const _keyedById = [
@@ -335,6 +341,26 @@ const _mostAsks = 25;
 /// settled as chosen; with none for some, nothing is brought in yet
 /// ([Combined.asking]). Anything else that can't stand is a conflict, and
 /// the person chooses a whole ledger.
+/// The v21 columns, no part of what a transaction holds.
+const _madeBy = {'made_how', 'made_on'};
+
+/// [of] with the v21 columns on every transaction, empty where it had none.
+LedgerRows _withMadeBy(LedgerRows of) {
+  final rows = of['transactions'];
+  if (rows == null ||
+      rows.every(
+        (r) => r.containsKey('made_how') && r.containsKey('made_on'),
+      )) {
+    return of;
+  }
+  return {
+    ...of,
+    'transactions': [
+      for (final r in rows) {'made_how': null, 'made_on': null, ...r},
+    ],
+  };
+}
+
 Combined combine({
   required LedgerRows base,
   required LedgerRows mine,
@@ -342,6 +368,11 @@ Combined combine({
   Map<String, Pick> picks = const {},
   Set<Object?>? madeHere,
 }) {
+  // A row from a computer before v21 has no `made_how` or `made_on`: it is
+  // the same row with them empty.
+  base = _withMadeBy(base);
+  mine = _withMadeBy(mine);
+  theirs = _withMadeBy(theirs);
   // What was already chosen is left out of the comparison from the start:
   // this computer's ledger holds the choice, and the other's version of it
   // mustn't come in again over it.
@@ -1309,6 +1340,16 @@ class _Combine {
           y is int) {
         // Agreed, whatever the time: the earlier, the same on both.
         out[c] = min(x, y);
+      } else if (_madeBy.contains(c)) {
+        // Who made it (v21): each computer says itself. The smaller word
+        // wins, a missing one yields, so both computers keep the same.
+        out[c] = x == null
+            ? y
+            : y == null
+            ? x
+            : '$x'.compareTo('$y') <= 0
+            ? x
+            : y;
       } else {
         return null;
       }
@@ -1431,6 +1472,15 @@ class _Combine {
         continue;
       }
       if (_viewOnly.contains(k)) continue;
+      // A phone named on both, differently: the same one on both computers.
+      if ((k.startsWith(phoneNamePrefix) || k.startsWith(computerNamePrefix)) &&
+          here != null &&
+          there != null) {
+        if ('${there['value']}'.compareTo('${here['value']}') < 0) {
+          _update('preferences', there);
+        }
+        continue;
+      }
       _stop('the setting $k changed on both');
     }
   }
@@ -1451,7 +1501,8 @@ class _Combine {
       if (t != null)
         _sorted({
           for (final c in t.keys)
-            if (!but.contains(c)) c: t[c],
+            // Where a row came from is not what it holds (v21).
+            if (!but.contains(c) && !_madeBy.contains(c)) c: t[c],
         }),
       rows,
     ]);

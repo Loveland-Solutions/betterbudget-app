@@ -159,7 +159,14 @@ class TxnData {
     this.scheduled = false,
     this.payScheduleId,
     this.planCategoryId,
+    this.madeHow,
+    this.madeOn,
   });
+
+  /// How it came to be ([MadeHow]) and where: a computer's name, or a
+  /// phone's id. Null for a row from before this was kept.
+  final String? madeHow;
+  final String? madeOn;
 
   /// A payday a pay schedule scheduled.
   final int? payScheduleId;
@@ -228,7 +235,13 @@ class RegisterRow {
     this.otherAmount,
     this.otherCurrency,
     this.projected = false,
+    this.madeHow,
+    this.madeOn,
   });
+
+  /// Where the transaction came from, as [TxnData] holds it.
+  final String? madeHow;
+  final String? madeOn;
 
   /// Not a row in the ledger: a payday or a plan's bill the forecast
   /// expects after the scheduled one, drawn from it ([copyWith]).
@@ -360,6 +373,8 @@ class RegisterRow {
     currency: currency,
     otherAmount: otherAmount,
     otherCurrency: otherCurrency,
+    madeHow: madeHow,
+    madeOn: madeOn,
   );
 
   /// The same row on another day, or for another amount: a payday or a
@@ -397,6 +412,8 @@ class RegisterRow {
         otherAmount: otherAmount,
         otherCurrency: otherCurrency,
         projected: projected ?? this.projected,
+        madeHow: madeHow,
+        madeOn: madeOn,
       );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
@@ -429,6 +446,8 @@ class RegisterRow {
     currency: currency,
     otherAmount: otherAmount,
     otherCurrency: otherCurrency,
+    madeHow: madeHow,
+    madeOn: madeOn,
   );
 }
 
@@ -1491,6 +1510,8 @@ class LedgerData {
       accountId: e.accountId,
       payScheduleId: t.payScheduleId,
       planCategoryId: t.planCategoryId,
+      madeHow: t.madeHow,
+      madeOn: t.madeOn,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amountOn(t.date),
         _ => null,

@@ -3412,3 +3412,30 @@ to keep if they're different. Let's do it."
   same way first. Rejected with it: patching the one shared file (A) and the
   owner's master-plus-lock proposal as written (C).
 
+## Where a row came from: a Source column (2026-10-13)
+
+Owner, watching the first run on two Mac accounts, after the popup went away before
+they looked: "Let's add a small transaction that shows the original source of the
+transaction", chosen as A, "Each new transaction records which computer made it, and
+whether it was typed, imported from a bank file, or came from the phone", "this is
+optional. We should be able to turn off this column", and "we should also be able to
+list a given phone as a source".
+
+- **A column between Category and Amount**, headed Source, one line per row: "Entered
+  locally", "Entered on Mac mini", "Imported on …", "From Pixel", "Scheduled", "Opening balance",
+  "Reconcile adjustment". On, and Settings → Register → "Show where each transaction
+  came from" turns it off (the owner asked for a column they could turn off, and
+  first saw none because it had been built off). The entry row keeps the column's
+  place empty so the others line up. A row whose payee already says it (Opening
+  balance, Reconcile adjustment) says nothing in it. At the smallest window (1360 ×
+  760) it takes about 144 px from the payee, which then shortens; if that bites,
+  the answer is to hide the column on a narrow window, not to shrink it further.
+- **A phone is named in the same panel**, one box per phone that has sent a row.
+- Rows from before this say nothing in the column; it isn't guessed.
+- Rejected: an Edit-only line (the owner asked for a column), a mark on the row.
+- Wording and the Mongolian are a draft ([mongolian-review.csv](../mongolian-review.csv)).
+- **Words, settled the same day:** a row made on the computer reading it says
+  "Entered locally" (first "Typed here", which the owner found confusing: "Why not
+  Entered locally or something"; "typed" became "Entered" throughout); and a name is kept against the id, so
+  renaming a computer or a phone in Settings shows on every row ("We should have a
+  rename. The name should be associated with a primary key").

@@ -34,6 +34,8 @@ Row txn(
   'scheduled': scheduled,
   'pay_schedule_id': pay,
   'plan_category_id': plan,
+  'made_how': null,
+  'made_on': null,
   'created_at': 100,
   'updated_at': updatedAt,
   'deleted_at': deletedAt,
@@ -739,6 +741,137 @@ void main() {
       expect(
         result['entries']!.where((e) => e['transaction_id'] == id),
         hasLength(2),
+      );
+    });
+
+    test('a bank row imported on both under one id, each saying where: one '
+        'row, nothing to tell, the same word kept on either side', () {
+      const id = 0x4000000000000071;
+      for (final (side, on) in [
+        (mine, 'Tom’s MacBook Air'),
+        (theirs, 'Mac mini'),
+      ]) {
+        side['transactions']!.add(
+          txn(id, '2026-10-20')
+            ..['made_how'] = 'imported'
+            ..['made_on'] = on,
+        );
+        side['entries']!
+          ..add(entry(0x4000000000000710, id, 1, -12000))
+          ..add(entry(0x4000000000000711, id, 4, 12000));
+      }
+      var found = run();
+      expect(found.conflict, isNull);
+      expect(found.asking, isFalse);
+      expect(found.transactions, 0);
+      var result = after(mine, found.ops);
+      final kept = row(result, 'transactions', id)['made_on'];
+      expect(kept, 'Mac mini');
+      // The other computer reaches the same word.
+      (mine, theirs) = (theirs, mine);
+      found = run();
+      result = after(mine, found.ops);
+      expect(row(result, 'transactions', id)['made_on'], kept);
+      expect(row(result, 'transactions', id)['made_how'], 'imported');
+    });
+
+    test('a row from a computer before v21 (no where-it-came-from) is the same '
+        'row as one made on both, and a delete there is no question', () {
+      const id = 0x4000000000000072;
+      for (final side in [mine, theirs]) {
+        side['transactions']!.add(txn(id, '2026-10-21', scheduled: 1, pay: 1));
+        side['entries']!
+          ..add(entry(0x4000000000000720, id, 1, 250000))
+          ..add(entry(0x4000000000000721, id, 4, -250000));
+      }
+      // This computer is v21 and stamped it; the other is v20 and has no keys.
+      row(mine, 'transactions', id)
+        ..['made_how'] = 'scheduled'
+        ..['made_on'] = null;
+      row(theirs, 'transactions', id)
+        ..remove('made_how')
+        ..remove('made_on');
+      var found = run();
+      expect(found.conflict, isNull);
+      expect(found.asking, isFalse);
+
+      // The other, v20, deletes a row this computer made and left alone;
+      // its base copy has no keys either.
+      mine = copy(base);
+      theirs = copy(base);
+      base['transactions']!.add(txn(80, '2026-10-01'));
+      base['entries']!
+        ..add(entry(800, 80, 1, -1000))
+        ..add(entry(801, 80, 4, 1000));
+      mine = copy(base);
+      theirs = copy(base);
+      for (final r in base['transactions']!) {
+        r.remove('made_how');
+        r.remove('made_on');
+      }
+      row(mine, 'transactions', 80)['made_how'] = 'typed';
+      row(theirs, 'transactions', 80)
+        ..remove('made_how')
+        ..remove('made_on')
+        ..['deleted_at'] = 500;
+      found = run();
+      expect(found.conflict, isNull);
+      expect(found.asking, isFalse);
+    });
+
+    test('Source turned on on one computer and off on the other is no '
+        'question, and a phone named two ways is named the same on both', () {
+      for (final (side, on, name) in [
+        (mine, '1', 'Pixel'),
+        (theirs, null, 'Galaxy'),
+      ]) {
+        if (on != null) {
+          side['preferences']!.add({'key': showSourceKey, 'value': on});
+        }
+        side['preferences']!.add({
+          'key': '${phoneNamePrefix}7b8a',
+          'value': name,
+        });
+      }
+      final found = run();
+      expect(found.conflict, isNull);
+      expect(found.asking, isFalse);
+      var result = after(mine, found.ops);
+      final kept = result['preferences']!.singleWhere(
+        (p) => p['key'] == '${phoneNamePrefix}7b8a',
+      )['value'];
+      expect(kept, 'Galaxy');
+      (mine, theirs) = (theirs, mine);
+      result = after(mine, run().ops);
+      expect(
+        result['preferences']!.singleWhere(
+          (p) => p['key'] == '${phoneNamePrefix}7b8a',
+        )['value'],
+        kept,
+      );
+    });
+
+    test('a computer renamed two ways is named the same on both, and no '
+        'question', () {
+      const key = '${computerNamePrefix}aaaa';
+      mine['preferences']!.add({'key': key, 'value': 'Mac mini'});
+      theirs['preferences']!.add({'key': key, 'value': 'Desk'});
+      var found = run();
+      expect(found.conflict, isNull);
+      expect(found.asking, isFalse);
+      final kept = after(
+        mine,
+        found.ops,
+      )['preferences']!.singleWhere((p) => p['key'] == key)['value'];
+      expect(kept, 'Desk');
+      (mine, theirs) = (theirs, mine);
+      found = run();
+      expect(
+        after(
+          mine,
+          found.ops,
+        )['preferences']!.singleWhere((p) => p['key'] == key)['value'],
+        kept,
       );
     });
 

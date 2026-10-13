@@ -968,3 +968,42 @@ catches mistakes, as it does for any uncleared row.
   privacy forms can declare no data collected.
 - The Mac App Store is the cheapest first step: the app is already a Mac app, and needs
   sandboxing plus access to files the user picks.
+
+## Where a row came from (2026-10-13, schema v21)
+
+Asked by the owner while watching the first run on two Mac accounts, to know where a
+transaction was made ("a small transaction that shows the original source"), as an
+optional column that can be turned off, and then to be able to "list a given phone as a
+source".
+
+- **Two columns on `transactions`**, `made_how` (`typed`, `imported`, `phone`,
+  `scheduled`, `opening`, `adjustment`: `MadeHow` in `domain/sync.dart`, never
+  renamed) and `made_on` (the computer's name as it read then, for a typed or imported
+  row; the phone's own id for a phone row; null for the rest). Set when the row is made,
+  never changed. The upgrade adds both empty and touches no row: a row already in the
+  ledger says nothing about where it came from, because nobody knows.
+- **By id, with the name beside it.** `made_on` holds the computer's id (the one its
+  change file is named by). The name is a setting, `computer.name.<id>`, written once
+  after the first look at the folder as what the system calls the computer, and
+  renamed by the person in Settings → Register: every row keeps the id, so a rename
+  shows on every row (owner, 2026-10-13: "the name should be associated with a primary
+  key, so it's fine if they update the name"). A row made on the computer reading it
+  says "here". Two accounts of one Mac are two computers with two ids.
+- **A phone is named the same way.** The phone only has a random id, the same on
+  every computer that takes its entry in. Settings lists each phone that has sent a row
+  with a box to name it, kept as the setting `phone.name.<id>`; an unnamed phone reads
+  "From your phone" while it is the only one, then "From phone 7b8a". Rows from phones
+  before v21 can't be told apart and say nothing.
+- **Not part of what two ledgers hold.** The digest ignores both columns, as it does
+  `created_at`; one bank row imported on both computers is one row under one id, and
+  `combine` keeps the smaller of the two words on both so they agree (`_sameMade`). A
+  row from a computer before v21 has the columns empty (`_withMadeBy`). A name set two
+  ways on two computers is the smaller on both, and the Source setting is a view that
+  nobody is asked about.
+- **Optional, on at first.** The register's Source column is shown, and a Register panel
+  of Settings turns it off and names the computers and phones. A view choice, kept as
+  the setting `register.source` (`0` is off; on is the absence of the setting), like
+  the forecast's span, so it is shared with the other computers.
+- Rejected: reading the source from the change log (it forgets after a restore or an
+  erase and will be compacted), and a mark on the row instead of a column.
+

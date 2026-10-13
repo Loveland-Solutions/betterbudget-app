@@ -7,7 +7,9 @@ import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/phone.dart' show computerNamePrefix;
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/brand.dart';
@@ -2809,7 +2811,7 @@ void main() {
     expect(outlined(), before - 1); // the open row's outline went too
 
     // The Scheduled tab lists no rows already in: it is drawn under the line.
-    await tapAndWait(tester, find.text('Scheduled'));
+    await tapAndWait(tester, find.text('Scheduled').first);
     await tapAndWait(tester, find.text('Confirm').first);
     expect(find.text(line), findsOneWidget);
     expect(find.byKey(const ValueKey('already-in-row')), findsOneWidget);
@@ -7122,6 +7124,84 @@ void main() {
     expect(find.textContaining('opening balance now'), findsOneWidget);
     final data = (await tester.runAsync(db.loadLedger))!;
     expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Source: on until Settings turns it off; each row says '
+      'where it came from, and a computer or phone renamed shows on every '
+      'row', (tester) async {
+    final db = await pumpLedger(tester);
+    final data = await tester.runAsync(db.loadLedger);
+    final account = data!.accounts.values
+        .firstWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final category = data.accounts.values
+        .firstWhere((a) => a.type == AccountType.expense)
+        .id;
+    await tester.runAsync(() async {
+      Future<void> post(String payee, int amount, {String? how, String? on}) =>
+          db.postSimple(
+            accountId: account,
+            date: DateTime(2026, 9, 15),
+            today: DateTime(2026, 9, 16),
+            payee: payee,
+            counterAccountId: category,
+            amount: amount,
+            how: how ?? MadeHow.typed,
+            on: on,
+          );
+      // Made here, on another computer, and on a phone.
+      await post('Zzz shop', -4000);
+      await post('Zzz desk', -3000, on: 'bbbb2222');
+      await post('Zzz cab', -2000, how: MadeHow.phone, on: '7b8abfb7');
+      await db.setPreference('${computerNamePrefix}bbbb2222', 'Mac mini');
+    });
+    await settle(tester);
+    expect(find.text('Source'), findsOneWidget);
+    expect(find.text('Entered locally'), findsWidgets);
+
+    // Off in Settings, and back on.
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('show-source')));
+    await settle(tester);
+    await tester.tap(find.text('Ledger'));
+    await tester.pumpAndSettle();
+    expect(find.text('Source'), findsNothing);
+    expect(find.text('Entered locally'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('show-source')));
+    await settle(tester);
+    Future<void> name(String key, String to) async {
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byType(TextField),
+        ),
+        to,
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+    }
+
+    await name('phone-7b8abfb7', 'Pixel');
+    await tester.tap(find.text('Ledger'));
+    await tester.pumpAndSettle();
+    expect(find.text('Source'), findsOneWidget);
+    // The demo's own rows were made here too.
+    expect(find.text('Entered locally'), findsWidgets);
+    expect(find.text('Entered on Mac mini'), findsOneWidget);
+    expect(find.text('From Pixel'), findsOneWidget);
+
+    // Renamed: the row keeps the id, so it reads the new name.
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    await name('computer-bbbb2222', 'Mac Studio');
+    await tester.tap(find.text('Ledger'));
+    await tester.pumpAndSettle();
+    expect(find.text('Entered on Mac mini'), findsNothing);
+    expect(find.text('Entered on Mac Studio'), findsOneWidget);
     await tidy(tester, db);
   });
 

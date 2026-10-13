@@ -7914,5 +7914,140 @@
   "ledgerRowsChangedMeanwhile": "Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.",
   "@ledgerRowsChangedMeanwhile": {
     "description": "Popup when the ledger changed under the question ledgerRowsTitle."
-  }
+  },
+  "rowsColumnSource": "Source",
+  "@rowsColumnSource": {
+    "description": "Register column header, shown only when the person turns it on in Settings"
+  },
+  "@rowsColumnSource": {"description": "Register column header, shown only when the person turns it on in Settings"},
+  "sourceTypedOn": "Entered on {computer}",
+  "@sourceTypedOn": {
+    "description": "Where a transaction came from: typed in the register on a computer, named",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "@sourceTypedOn": {"description": "Where a transaction came from: typed in the register on a computer, named", "placeholders": {"computer": {"type": "String"}}},
+  "sourceTyped": "Entered",
+  "@sourceTyped": {
+    "description": "Where a transaction came from: typed, the computer not known"
+  },
+  "@sourceTyped": {"description": "Where a transaction came from: typed, the computer not known"},
+  "sourceImportedOn": "Imported on {computer}",
+  "@sourceImportedOn": {
+    "description": "Where a transaction came from: a bank file, imported on a computer, named",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "@sourceImportedOn": {"description": "Where a transaction came from: a bank file, imported on a computer, named", "placeholders": {"computer": {"type": "String"}}},
+  "sourceImported": "Imported",
+  "@sourceImported": {
+    "description": "Where a transaction came from: a bank file, the computer not known"
+  },
+  "@sourceImported": {"description": "Where a transaction came from: a bank file, the computer not known"},
+  "sourcePhone": "From {phone}",
+  "@sourcePhone": {
+    "description": "Where a transaction came from: saved on a phone, named by the person",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "@sourcePhone": {"description": "Where a transaction came from: saved on a phone, named by the person", "placeholders": {"phone": {"type": "String"}}},
+  "sourceYourPhone": "From your phone",
+  "@sourceYourPhone": {
+    "description": "Where a transaction came from: the only phone that has sent one"
+  },
+  "@sourceYourPhone": {"description": "Where a transaction came from: the only phone that has sent one"},
+  "sourcePhoneId": "From phone {id}",
+  "@sourcePhoneId": {
+    "description": "Where a transaction came from: one of several phones, not yet named; id is the first four characters of its id",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@sourcePhoneId": {"description": "Where a transaction came from: one of several phones, not yet named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}},
+  "sourceScheduled": "Scheduled",
+  "@sourceScheduled": {
+    "description": "Where a transaction came from: a payday or bill the app scheduled"
+  },
+  "@sourceScheduled": {"description": "Where a transaction came from: a payday or bill the app scheduled"},
+  "settingsRegisterTitle": "Register",
+  "@settingsRegisterTitle": {
+    "description": "Settings section title for the register’s own choices"
+  },
+  "@settingsRegisterTitle": {"description": "Settings section title for the register’s own choices"},
+  "settingsSourceColumn": "Show where each transaction came from",
+  "@settingsSourceColumn": {
+    "description": "Settings switch: adds the Source column to the register"
+  },
+  "@settingsSourceColumn": {"description": "Settings switch: adds the Source column to the register"},
+  "settingsPhonesTitle": "Your phones",
+  "@settingsPhonesTitle": {
+    "description": "Settings: the phones that have saved entries, to name each"
+  },
+  "@settingsPhonesTitle": {"description": "Settings: the phones that have saved entries, to name each"},
+  "settingsPhoneName": "Name for phone {id}",
+  "@settingsPhoneName": {
+    "description": "Settings: the label of the box where a phone is named; id is the first four characters of its id",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@settingsPhoneName": {"description": "Settings: the label of the box where a phone is named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}},
+  "settingsPhoneNameHint": "For example, Pixel",
+  "@settingsPhoneNameHint": {
+    "description": "Settings: example in the box where a phone is named"
+  },
+  "@settingsPhoneNameHint": {"description": "Settings: example in the box where a phone is named"},
+  "sourceTypedHere": "Entered locally",
+  "@sourceTypedHere": {
+    "description": "Where a transaction came from: typed on this computer"
+  },
+  "@sourceTypedHere": {"description": "Where a transaction came from: typed on this computer"},
+  "sourceImportedHere": "Imported locally",
+  "@sourceImportedHere": {
+    "description": "Where a transaction came from: a bank file imported on this computer"
+  },
+  "@sourceImportedHere": {"description": "Where a transaction came from: a bank file imported on this computer"},
+  "sourceTypedElsewhere": "Entered on another computer",
+  "@sourceTypedElsewhere": {
+    "description": "Where a transaction came from: typed on a computer that has no name yet"
+  },
+  "@sourceTypedElsewhere": {"description": "Where a transaction came from: typed on a computer that has no name yet"},
+  "sourceImportedElsewhere": "Imported on another computer",
+  "@sourceImportedElsewhere": {
+    "description": "Where a transaction came from: imported on a computer that has no name yet"
+  },
+  "@sourceImportedElsewhere": {"description": "Where a transaction came from: imported on a computer that has no name yet"},
+  "settingsComputersTitle": "Your computers",
+  "@settingsComputersTitle": {
+    "description": "Settings: the computers that made transactions, to name each"
+  },
+  "@settingsComputersTitle": {"description": "Settings: the computers that made transactions, to name each"},
+  "settingsComputerThis": "Name for this computer",
+  "@settingsComputerThis": {
+    "description": "Settings: the label of the box where this computer is named"
+  },
+  "@settingsComputerThis": {"description": "Settings: the label of the box where this computer is named"},
+  "settingsComputerName": "Name for computer {id}",
+  "@settingsComputerName": {
+    "description": "Settings: the label of the box where another computer is named; id is the first four characters of its id",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@settingsComputerName": {"description": "Settings: the label of the box where another computer is named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}}
 }

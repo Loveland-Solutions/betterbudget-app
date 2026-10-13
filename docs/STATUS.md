@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-13** · version 0.32.0 · schema v20 · 722 tests pass
+**Last updated: 2026-10-13** · version 0.33.0 · schema v21 · 730 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -9,6 +9,21 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**Source column (version 0.33.0, PR #71; both review passes are in and their fixes
+made; the build before it, 0.32.0, refuses a v21 ledger, so the second Mac account
+needs 0.33.0 before the folder's ledger is next written):** asked for by the
+owner after the first real run, where a quick switch to the other account missed the
+popup. Each new transaction records how it came to be and where (schema v21:
+`made_how`, `made_on`; the upgrade adds two empty columns and touches no row, so
+every row already there says nothing). An optional **Source** column in the
+register, on, and turned off in Settings → Register ("Show where each transaction came from"),
+reads "Entered locally", "Entered on Mac mini", "Imported on …", "From Pixel", "Scheduled",
+"Opening balance"; a row keeps the id of the computer or phone, and each is named
+(and renamed) in the same panel, so a rename shows on every row
+(ADR 0005 "Where a row came from"; ADR 0004 "Where a row came from: a Source
+column"). The popup that goes away unseen is still on the list; the owner was
+offered keeping it up until clicked away and hasn't answered.
 
 **Where to pick up (2026-10-13):** four PRs are merged into `main`, in order,
 **#66** (the row question, 0.29.0), **#67** (step 1, schema v20, 0.30.0),
@@ -226,7 +241,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #69. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #71. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -324,12 +339,13 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v20 (the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v20-from-v19-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
+| Storage | Drift/SQLite at schema v21 (a transaction also holds `made_how` and `made_on`, where it came from; the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v21-from-v20-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
 | Sidebar | Sections Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
 | Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
 | Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date. A box under the row, "Remember this category for this payee", while there is one to remember: ticked, the payee is remembered with the row, one undo (also in a row's Edit) |
 | Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. Split lines can't be edited |
+| Source | An optional register column, on until Settings → Register unticks "Show where each transaction came from": how a row came to be (typed, imported, from a phone, scheduled, opening balance, reconcile adjustment) and the computer's name or the phone's name; a phone is named in the same panel. Empty for rows from before v21 |
 | Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row, which names a row already in the account that looks to be the same bill and offers "Delete the scheduled one". Keys Enter, C, Delete |
 | Undo | ⌘Z and ⌘⇧Z (Ctrl+Y on Windows) through the session's actions; in a text field they act on typing |
 | Popup | A card 440 wide with Undo. After a category is picked it offers "Always file this payee here", and the next import follows the rule |

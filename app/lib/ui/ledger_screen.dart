@@ -23,8 +23,11 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/payee_rules.dart';
+import '../domain/phone.dart'
+    show computerNamePrefix, phoneNamePrefix, showSourceKey;
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
+import '../domain/sync.dart' show MadeHow;
 import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'balance_header.dart';
@@ -44,6 +47,7 @@ part 'budget.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'payees.dart';
+part 'register_settings.dart';
 part 'rows_dialog.dart';
 part 'savings.dart';
 part 'setup.dart';
@@ -724,6 +728,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_keepKeys);
+    // What each row typed or imported here is stamped with (ADR 0005, "Where
+    // a row came from"): this computer's id, so a rename shows on every row.
+    final named = _cloud.computerId().then((id) {
+      if (mounted) db.thisComputer = id;
+    });
     // Each pay schedule's next payday is scheduled before the first look,
     // and after the folder has been looked at (ADR 0005): a row this
     // computer scheduled before taking in a newer ledger would be a change
@@ -731,7 +740,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _ledger =
         Stream.fromFuture(
           (widget.demo ? seedDemoIfEmpty(db, today) : Future<void>.value())
+              // Before any row is made: it is stamped with the name.
+              .then((_) => named)
               .then((_) => _firstLookInFolder())
+              .then((_) => _nameThisComputer())
               .then((_) => db.ensurePaydays(today))
               .then((_) => db.ensurePlanBills(today)),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
@@ -1628,6 +1640,77 @@ class _LedgerScreenState extends State<LedgerScreen> {
               payById: data.payScheduleById,
               planOf: (id) => data.plans[id],
             ),
+    );
+  }
+
+  /// The Source column was turned on or off: a view, kept quietly.
+  Future<void> _setShowSource(bool on) async {
+    try {
+      // On is the ordinary state, so only off is kept.
+      await db.setPreference(showSourceKey, on ? null : '0');
+    } catch (e) {
+      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+    }
+  }
+
+  /// A computer or a phone was given a name (or had it cleared): [key] is
+  /// the setting that holds it.
+  Future<void> _nameSource(String key, String name) async {
+    try {
+      final v = name.trim();
+      await db.setPreference(key, v.isEmpty ? null : v);
+    } catch (e) {
+      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+    }
+  }
+
+  /// A computer that has no name yet is called what the system calls it,
+  /// once, after the first look at the folder (a write before it would be a
+  /// change made here). The person can rename it in Settings.
+  Future<void> _nameThisComputer() async {
+    try {
+      final id = db.thisComputer;
+      if (id == null) return;
+      final key = '$computerNamePrefix$id';
+      if (await db.preference(key) != null) return;
+      await db.setPreference(key, await _cloud.access.computerName());
+    } catch (e) {
+      debugPrint('This computer couldn’t be named: $e');
+    }
+  }
+
+  /// Each computer and each phone that has made a transaction here, by id,
+  /// with the name the person (or the system) gave it, '' for none. This
+  /// computer is always among the computers.
+  ({Map<String, String> computers, Map<String, String> phones}) _sourcesOf(
+    LedgerData data,
+  ) {
+    final computers = <String, String>{};
+    final phones = <String, String>{};
+    final here = db.thisComputer;
+    if (here != null) {
+      computers[here] = data.prefs['$computerNamePrefix$here'] ?? '';
+    }
+    for (final t in data.txns) {
+      final on = t.madeOn;
+      if (on == null) continue;
+      if (t.madeHow == MadeHow.phone) {
+        phones[on] = data.prefs['$phoneNamePrefix$on'] ?? '';
+      } else if (MadeHow.onComputer(t.madeHow ?? '')) {
+        computers[on] = data.prefs['$computerNamePrefix$on'] ?? '';
+      }
+    }
+    return (computers: computers, phones: phones);
+  }
+
+  Widget _withSources(LedgerData data, Widget child) {
+    final s = _sourcesOf(data);
+    return SourceColumn(
+      shown: data.prefs[showSourceKey] != '0',
+      here: db.thisComputer,
+      computers: s.computers,
+      phones: s.phones,
+      child: child,
     );
   }
 
@@ -5021,10 +5104,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                             () => _newAccount = false,
                                           ),
                                   ),
-                                AppSection.ledger when _all => _allBody(data),
-                                AppSection.ledger => CurrencyScope(
-                                  currency: account!.currency,
-                                  child: _body(data, account),
+                                AppSection.ledger when _all => _withSources(
+                                  data,
+                                  _allBody(data),
+                                ),
+                                AppSection.ledger => _withSources(
+                                  data,
+                                  CurrencyScope(
+                                    currency: account!.currency,
+                                    child: _body(data, account),
+                                  ),
                                 ),
                                 AppSection.settings => _SettingsPage(
                                   health: _backups.health,
@@ -5065,6 +5154,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       onChanged: (l) => _setLanguage(c, l),
                                     ),
                                   },
+                                  register: _RegisterSettings(
+                                    showSource:
+                                        data.prefs[showSourceKey] != '0',
+                                    onShowSource: _setShowSource,
+                                    here: db.thisComputer,
+                                    computers: _sourcesOf(data).computers,
+                                    phones: _sourcesOf(data).phones,
+                                    onName: _nameSource,
+                                  ),
                                   archived: data.archivedAccounts.isEmpty
                                       ? null
                                       : _ArchivedAccounts(
@@ -5832,8 +5930,12 @@ class _SettingsPage extends StatelessWidget {
     this.archived,
     this.appearance,
     this.language,
+    this.register,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// The register's own choices (the Source column, and naming phones).
+  final Widget? register;
 
   /// When "Back up to…" last worked, said beside it.
   final ValueListenable<CopiedElsewhere?> backedUp;
@@ -6114,6 +6216,10 @@ class _SettingsPage extends StatelessWidget {
                 if (language != null) ...[
                   const SizedBox(height: 16),
                   language!,
+                ],
+                if (register != null) ...[
+                  const SizedBox(height: 16),
+                  register!,
                 ],
                 if (archived != null) ...[
                   const SizedBox(height: 16),

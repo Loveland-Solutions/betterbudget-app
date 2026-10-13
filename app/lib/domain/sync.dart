@@ -271,3 +271,29 @@ int sharedRowId(String kind, String key) {
 
 /// Whether [id] is one [sharedRowId] gives.
 bool isSharedRowId(int id) => id >= 0x4000000000000000;
+
+/// How a transaction came to be, kept on the row (`made_how`). Words stored
+/// in the ledger: never rename one.
+abstract final class MadeHow {
+  /// Typed in the register, here or on another computer.
+  static const typed = 'typed';
+
+  /// Brought in from a bank's file.
+  static const imported = 'imported';
+
+  /// Saved on a phone; `made_on` is the phone's own id.
+  static const phone = 'phone';
+
+  /// A payday or a bill the app scheduled from a pay or a plan.
+  static const scheduled = 'scheduled';
+
+  /// An account's opening balance.
+  static const opening = 'opening';
+
+  /// The adjustment a reconcile adds.
+  static const adjustment = 'adjustment';
+
+  /// Whether `made_on` is a computer's name, as against a phone's id or
+  /// nothing: only what a person did at a computer is named for it.
+  static bool onComputer(String how) => how == typed || how == imported;
+}

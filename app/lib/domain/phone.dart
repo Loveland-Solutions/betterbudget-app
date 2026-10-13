@@ -203,6 +203,19 @@ class PhoneInbox {
 /// The preference the computer keeps what it has taken from the phones in.
 const phoneTakenKey = 'phone.taken';
 
+/// A phone's name, as the person gave it: `phone.name.<device>`. The phone
+/// itself only has a random id.
+const phoneNamePrefix = 'phone.name.';
+
+/// A computer's name, as the person gave it (or the system's, until then):
+/// `computer.name.<id>`, the id being the one its change file is named by.
+/// A row keeps the id, so a rename shows on every row.
+const computerNamePrefix = 'computer.name.';
+
+/// The register's Source column is shown unless this is `0` (a view, like the
+/// forecast's span).
+const showSourceKey = 'register.source';
+
 /// What the computer has taken in from one phone, kept for good: an older
 /// copy of the phone's file turning up in the folder must not bring an
 /// entry in a second time.

@@ -6,7 +6,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
 import 'language.dart';
-import 'register.dart' show Cols;
+import 'register.dart' show Cols, SourceColumn;
 import 'theme.dart';
 
 enum EditField { date, payee, memo, category, amount }
@@ -1104,6 +1104,10 @@ class _EntryRowState extends State<EntryRow> {
                                       ),
                               ),
                               const SizedBox(width: Cols.gap),
+                              if (SourceColumn.showing(context)) ...[
+                                const SizedBox(width: Cols.source),
+                                const SizedBox(width: Cols.gap),
+                              ],
                               SizedBox(
                                 width: Cols.amount,
                                 child: initial != null && initial.lockAmount

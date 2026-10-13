@@ -7712,6 +7712,132 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.'**
   String get ledgerRowsChangedMeanwhile;
+
+  /// Register column header, shown only when the person turns it on in Settings
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get rowsColumnSource;
+
+  /// Where a transaction came from: typed in the register on a computer, named
+  ///
+  /// In en, this message translates to:
+  /// **'Entered on {computer}'**
+  String sourceTypedOn(String computer);
+
+  /// Where a transaction came from: typed, the computer not known
+  ///
+  /// In en, this message translates to:
+  /// **'Entered'**
+  String get sourceTyped;
+
+  /// Where a transaction came from: a bank file, imported on a computer, named
+  ///
+  /// In en, this message translates to:
+  /// **'Imported on {computer}'**
+  String sourceImportedOn(String computer);
+
+  /// Where a transaction came from: a bank file, the computer not known
+  ///
+  /// In en, this message translates to:
+  /// **'Imported'**
+  String get sourceImported;
+
+  /// Where a transaction came from: saved on a phone, named by the person
+  ///
+  /// In en, this message translates to:
+  /// **'From {phone}'**
+  String sourcePhone(String phone);
+
+  /// Where a transaction came from: the only phone that has sent one
+  ///
+  /// In en, this message translates to:
+  /// **'From your phone'**
+  String get sourceYourPhone;
+
+  /// Where a transaction came from: one of several phones, not yet named; id is the first four characters of its id
+  ///
+  /// In en, this message translates to:
+  /// **'From phone {id}'**
+  String sourcePhoneId(String id);
+
+  /// Where a transaction came from: a payday or bill the app scheduled
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get sourceScheduled;
+
+  /// Settings section title for the register’s own choices
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get settingsRegisterTitle;
+
+  /// Settings switch: adds the Source column to the register
+  ///
+  /// In en, this message translates to:
+  /// **'Show where each transaction came from'**
+  String get settingsSourceColumn;
+
+  /// Settings: the phones that have saved entries, to name each
+  ///
+  /// In en, this message translates to:
+  /// **'Your phones'**
+  String get settingsPhonesTitle;
+
+  /// Settings: the label of the box where a phone is named; id is the first four characters of its id
+  ///
+  /// In en, this message translates to:
+  /// **'Name for phone {id}'**
+  String settingsPhoneName(String id);
+
+  /// Settings: example in the box where a phone is named
+  ///
+  /// In en, this message translates to:
+  /// **'For example, Pixel'**
+  String get settingsPhoneNameHint;
+
+  /// Where a transaction came from: typed on this computer
+  ///
+  /// In en, this message translates to:
+  /// **'Entered locally'**
+  String get sourceTypedHere;
+
+  /// Where a transaction came from: a bank file imported on this computer
+  ///
+  /// In en, this message translates to:
+  /// **'Imported locally'**
+  String get sourceImportedHere;
+
+  /// Where a transaction came from: typed on a computer that has no name yet
+  ///
+  /// In en, this message translates to:
+  /// **'Entered on another computer'**
+  String get sourceTypedElsewhere;
+
+  /// Where a transaction came from: imported on a computer that has no name yet
+  ///
+  /// In en, this message translates to:
+  /// **'Imported on another computer'**
+  String get sourceImportedElsewhere;
+
+  /// Settings: the computers that made transactions, to name each
+  ///
+  /// In en, this message translates to:
+  /// **'Your computers'**
+  String get settingsComputersTitle;
+
+  /// Settings: the label of the box where this computer is named
+  ///
+  /// In en, this message translates to:
+  /// **'Name for this computer'**
+  String get settingsComputerThis;
+
+  /// Settings: the label of the box where another computer is named; id is the first four characters of its id
+  ///
+  /// In en, this message translates to:
+  /// **'Name for computer {id}'**
+  String settingsComputerName(String id);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
