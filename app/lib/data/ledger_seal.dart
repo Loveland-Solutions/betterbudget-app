@@ -115,7 +115,21 @@ class LedgerLook {
     required this.computers,
     required this.savedBy,
     required this.savedAt,
+    this.applied = const {},
+    this.ledger,
+    this.whole,
   });
+
+  /// [SyncKeys.whole], when the file was written whole by the older look.
+  final String? whole;
+
+  /// For every computer, the last of its changes this ledger holds
+  /// ([SyncKeys.applied]); empty for a ledger written by a build before
+  /// change files.
+  final Map<String, int> applied;
+
+  /// Which ledger it is ([SyncKeys.ledger]), when it says.
+  final String? ledger;
 
   /// The version of the app's tables it was saved with.
   final int schemaVersion;
@@ -171,6 +185,9 @@ Future<LedgerLook> lookAtLedger(File file, Uint8List? key) async {
       computers: SyncComputers.parse(prefs[SyncKeys.computers]),
       savedBy: saved.by,
       savedAt: saved.at,
+      applied: parseApplied(prefs[SyncKeys.applied]),
+      ledger: prefs[SyncKeys.ledger],
+      whole: prefs[SyncKeys.whole],
     );
   } finally {
     db.close();

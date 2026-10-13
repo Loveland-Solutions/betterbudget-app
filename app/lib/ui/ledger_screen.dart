@@ -627,6 +627,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    if (!kept.undoable) {
+      // On change files the choice went out to the other computer the
+      // moment it was made: nothing to take back.
+      _showToast(t.ledgerFolderKeptMine(_folderName(path)));
+      return;
+    }
     _did(
       t.ledgerFolderKeptMine(_folderName(path)),
       undo: () => _cloud.undoKeepMine(kept, widget.clock()),
@@ -786,6 +792,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           .timeout(const Duration(seconds: 20), onTimeout: () {});
       if (mounted && _cloud.value.standing == FolderStanding.newer) {
         await _openFolderLedger(atLaunch: true);
+      } else if (mounted && _cloud.value.standing == FolderStanding.combine) {
+        // The other computer's changes, before anything is scheduled here.
+        await _bringInFolderChanges();
       }
     } catch (e) {
       debugPrint('The first look in the folder failed: $e');
@@ -4670,6 +4679,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
           );
           record = (before: record.before, restored: later.restored);
           await _cloud.check(widget.clock(), fresh: true);
+        } else if (_cloud.value.standing == FolderStanding.combine) {
+          // On change files the later changes are in the other computer's
+          // file: brought in now, the same way, before anything is
+          // scheduled here.
+          for (
+            var i = 0;
+            i < 5 && _cloud.value.standing == FolderStanding.combine;
+            i++
+          ) {
+            if (await _cloud.bringIn(widget.clock()) == null) break;
+            await _cloud.check(widget.clock(), fresh: true);
+          }
         }
       } catch (e) {
         debugPrint('Keeping this computer on the folder failed: $e');

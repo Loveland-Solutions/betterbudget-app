@@ -780,6 +780,16 @@ typedef PlanChange = ({
   List<int> made,
 });
 
+/// Where a ledger stands on change files ([AppDatabase.syncState]): for
+/// every computer the last change of theirs it holds, which ledger it is,
+/// and this computer's own last change.
+typedef SyncState = ({
+  Map<String, int> applied,
+  String? ledger,
+  int lastSeq,
+  String? whole,
+});
+
 /// What a row two computers would each make on their own is made from
 /// ([sharedRowId]): the kind of thing and what tells this one apart.
 class SharedKey {
@@ -1188,9 +1198,26 @@ class AppDatabase extends _$AppDatabase {
             ..orderBy([(c) => OrderingTerm.asc(c.seq)]))
           .get();
 
-  /// The last change recorded here; 0 when none.
+  /// The last change recorded here; 0 when none. From the table's own
+  /// counter, which a cleared log keeps (a ledger taken whole from the
+  /// folder): the numbers go on, and the vector's entry for this computer
+  /// never goes down.
   Future<int> lastChangeSeq() async => (await customSelect(
-    'SELECT COALESCE(MAX(seq), 0) AS n FROM $changeLogTable',
+    'SELECT COALESCE((SELECT seq FROM sqlite_sequence '
+    "WHERE name = '$changeLogTable'), 0) AS n",
+  ).getSingle()).read<int>('n');
+
+  /// This computer's answers to questions about things both computers
+  /// changed, oldest first ([Resolution]s as logged).
+  Future<List<ChangeRow>> resolves() =>
+      (select(changes)
+            ..where((c) => c.op.equals('resolve'))
+            ..orderBy([(c) => OrderingTerm.asc(c.seq)]))
+          .get();
+
+  /// The first change still in the log; 0 when none.
+  Future<int> firstChangeSeq() async => (await customSelect(
+    'SELECT COALESCE(MIN(seq), 0) AS n FROM $changeLogTable',
   ).getSingle()).read<int>('n');
 
   /// v13 (rule 30): every income category becomes the one Income. Their
@@ -1382,22 +1409,48 @@ class AppDatabase extends _$AppDatabase {
   /// [over] is folded in, so the file written is ahead of the one it
   /// replaces. A ledger not changed since its seal, and already level with
   /// or ahead of [over], is left as it is.
+  ///
+  /// [applied] and [ledger] are the folder ledger's, where one was there:
+  /// the vector is merged by the highest of each, and a ledger that has no
+  /// id yet takes the folder's, never inventing a second. [wholeToken] marks
+  /// the file as written whole by the older look ([SyncKeys.whole]); null
+  /// clears the mark.
   Future<void> sealAs(
     String computer, {
     String? name,
     required DateTime at,
     Counters over = const {},
+    Map<String, int> applied = const {},
+    String? ledger,
+    String? wholeToken,
   }) => transaction(() async {
     final now = await sealState();
     final standing = compareCounters(now.computers.counters, over);
+    final prefs = await _syncPrefs();
+    final merged = {...parseApplied(prefs[SyncKeys.applied])};
+    for (final e in applied.entries) {
+      if (e.value > (merged[e.key] ?? 0)) merged[e.key] = e.value;
+    }
+    merged[computer] = await lastChangeSeq();
+    final vector = encodeApplied(merged);
     if (now.seal == now.digest &&
-        (standing == Standing.same || standing == Standing.mineAhead)) {
+        (standing == Standing.same || standing == Standing.mineAhead) &&
+        vector == prefs[SyncKeys.applied] &&
+        prefs[SyncKeys.whole] == wholeToken &&
+        prefs[SyncKeys.ledger] != null) {
       return;
     }
     await setPreference(
       SyncKeys.computers,
       now.computers.writtenBy(computer, name, over).encode(),
     );
+    // What the file written holds, in change files' terms (step 3): every
+    // change of this computer's, and of the others' what was applied.
+    await setPreference(SyncKeys.applied, vector);
+    if (prefs[SyncKeys.ledger] == null) {
+      await setPreference(SyncKeys.ledger, ledger ?? newLedgerId());
+    }
+    await setPreference(SyncKeys.whole, wholeToken);
     await setPreference(SyncKeys.seal, now.digest);
     await setPreference(
       SyncKeys.saved,
@@ -1409,15 +1462,59 @@ class AppDatabase extends _$AppDatabase {
   /// counts level with or ahead of this one's: this ledger takes those
   /// counts and that seal as its own. Nothing is done unless the rows still
   /// give [digest].
-  Future<void> adoptSeal(SyncComputers theirs, String digest) =>
-      transaction(() async {
-        final now = await sealState();
-        if (now.digest != digest) return;
-        final joined = now.computers.joined(theirs).encode();
-        if (now.seal == digest && now.computers.encode() == joined) return;
-        await setPreference(SyncKeys.computers, joined);
-        await setPreference(SyncKeys.seal, digest);
-      });
+  Future<void> adoptSeal(
+    SyncComputers theirs,
+    String digest, {
+    Map<String, int> applied = const {},
+    String? ledger,
+  }) => transaction(() async {
+    final now = await sealState();
+    if (now.digest != digest) return;
+    // The same rows: where the folder's file stands on change files is
+    // where this ledger stands (step 3), and it is that ledger.
+    final prefs = await _syncPrefs();
+    final mine = parseApplied(prefs[SyncKeys.applied]);
+    final merged = {...mine};
+    for (final e in applied.entries) {
+      if (e.value > (merged[e.key] ?? 0)) merged[e.key] = e.value;
+    }
+    if (encodeApplied(merged) != encodeApplied(mine) ||
+        (merged.isNotEmpty && prefs[SyncKeys.applied] == null)) {
+      await setPreference(SyncKeys.applied, encodeApplied(merged));
+    }
+    if (ledger != null && prefs[SyncKeys.ledger] != ledger) {
+      await setPreference(SyncKeys.ledger, ledger);
+    }
+    final joined = now.computers.joined(theirs).encode();
+    if (now.seal == digest && now.computers.encode() == joined) return;
+    await setPreference(SyncKeys.computers, joined);
+    await setPreference(SyncKeys.seal, digest);
+  });
+
+  /// What the ledger holds now and where it stands on change files (ADR
+  /// 0005, step 3), read in one go: its digest, for every computer the last
+  /// change of theirs it holds, which ledger it is, and this computer's own
+  /// last change.
+  Future<SyncState> syncState() => transaction(() async {
+    final prefs = await _syncPrefs();
+    return (
+      applied: parseApplied(prefs[SyncKeys.applied]),
+      ledger: prefs[SyncKeys.ledger],
+      lastSeq: await lastChangeSeq(),
+      whole: prefs[SyncKeys.whole],
+    );
+  });
+
+  /// Records that every change of [computer]'s up to [seq] is in this
+  /// ledger. Never goes down.
+  Future<void> markApplied(String computer, int seq) => transaction(() async {
+    final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+    if ((now[computer] ?? 0) >= seq) return;
+    await setPreference(
+      SyncKeys.applied,
+      encodeApplied({...now, computer: seq}),
+    );
+  });
 
   /// Every row this ledger holds, as [combine] compares them.
   Future<LedgerRows> allRows() => transaction(
@@ -1433,9 +1530,15 @@ class AppDatabase extends _$AppDatabase {
   /// change that would leave a transaction not adding up, a row naming one
   /// that is gone, or two rows where there may be one, stops all of it with
   /// a [CantCombineException].
+  ///
+  /// [resolutions] are what the person chose for the things both changed,
+  /// written into this computer's own log so the other computers take the
+  /// answer; [applied] says whose changes, up to which, this brings in.
   Future<void> applyCombined(
     List<RowOp> ops, {
     required String onlyIfDigest,
+    List<Resolution> resolutions = const [],
+    ({String computer, int seq})? applied,
   }) async {
     try {
       await transaction(() async {
@@ -1444,6 +1547,31 @@ class AppDatabase extends _$AppDatabase {
         }
         // Another computer's changes, not this one's: kept out of the log.
         await _withoutChangeLog(() => _applyOps(ops));
+        for (final r in resolutions) {
+          await into(changes).insert(
+            ChangesCompanion.insert(
+              tbl: r.table,
+              pk: jsonEncode(r.key),
+              // Told apart from this computer's own changes: the other's
+              // fold takes it as an answer, and two answers that crossed
+              // are known as such.
+              op: 'resolve',
+              before: Value(r.before == null ? null : jsonEncode(r.before)),
+              after: Value(r.after == null ? null : jsonEncode(r.after)),
+              atMs: _now,
+              withSchema: schemaVersion,
+            ),
+          );
+        }
+        if (applied != null) {
+          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+          if ((now[applied.computer] ?? 0) < applied.seq) {
+            await setPreference(
+              SyncKeys.applied,
+              encodeApplied({...now, applied.computer: applied.seq}),
+            );
+          }
+        }
       });
     } on ChangedSinceException {
       rethrow;
@@ -1590,8 +1718,12 @@ class AppDatabase extends _$AppDatabase {
         );
         // A whole ledger put in isn't row-by-row changes of this
         // computer's: the log is held, and one marker says what happened
-        // (the folder's own ledger taken in is nothing of this computer's).
+        // (the folder's own ledger taken in is nothing of this computer's,
+        // and makes the log so far nobody's to take: the folder's ledger
+        // holds what of it was ever written there; AUTOINCREMENT keeps the
+        // numbers going on from where they were).
         await _withoutChangeLog(() async {
+          if (fromFolder) await delete(changes).go();
           for (final t in parentsFirst.reversed) {
             await customStatement('DELETE FROM main.$t');
           }
