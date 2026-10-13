@@ -5281,4 +5281,79 @@ class WordsMn extends Words {
   @override
   String get ledgerRowsChangedMeanwhile =>
       'Сонгож байх хооронд энэ компьютер дээр ямар нэг зүйл өөрчлөгдсөн тул юу ч хадгалагдсангүй. Танаас дахин асууна.';
+
+  @override
+  String get rowsColumnSource => 'Эх сурвалж';
+
+  @override
+  String sourceTypedOn(String computer) {
+    return '$computer дээр оруулсан';
+  }
+
+  @override
+  String get sourceTyped => 'Оруулсан';
+
+  @override
+  String sourceImportedOn(String computer) {
+    return '$computer дээр импортолсон';
+  }
+
+  @override
+  String get sourceImported => 'Импортолсон';
+
+  @override
+  String sourcePhone(String phone) {
+    return '$phone-оос';
+  }
+
+  @override
+  String get sourceYourPhone => 'Таны утсаас';
+
+  @override
+  String sourcePhoneId(String id) {
+    return '$id утсаас';
+  }
+
+  @override
+  String get sourceScheduled => 'Хуваарьт';
+
+  @override
+  String get settingsRegisterTitle => 'Бүртгэл';
+
+  @override
+  String get settingsSourceColumn => 'Гүйлгээ бүр хаанаас ирснийг харуулах';
+
+  @override
+  String get settingsPhonesTitle => 'Таны утаснууд';
+
+  @override
+  String settingsPhoneName(String id) {
+    return '$id утасны нэр';
+  }
+
+  @override
+  String get settingsPhoneNameHint => 'Жишээ нь, Pixel';
+
+  @override
+  String get sourceTypedHere => 'Энд оруулсан';
+
+  @override
+  String get sourceImportedHere => 'Энд импортолсон';
+
+  @override
+  String get sourceTypedElsewhere => 'Өөр компьютер дээр оруулсан';
+
+  @override
+  String get sourceImportedElsewhere => 'Өөр компьютер дээр импортолсон';
+
+  @override
+  String get settingsComputersTitle => 'Таны компьютерууд';
+
+  @override
+  String get settingsComputerThis => 'Энэ компьютерийн нэр';
+
+  @override
+  String settingsComputerName(String id) {
+    return '$id компьютерийн нэр';
+  }
 }

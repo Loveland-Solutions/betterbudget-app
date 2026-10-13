@@ -121,6 +121,14 @@ class Transactions extends Table {
   /// A bill a category's plan scheduled (rule 27), by the category.
   IntColumn get planCategoryId =>
       integer().nullable().references(Accounts, #id)();
+
+  /// How the row came to be, one of [MadeHow]'s words, and the id of the
+  /// computer it was typed or imported on, or of the phone. Both null for
+  /// a row from before v21, which nobody knows. Never changed afterwards,
+  /// and no part of what two computers compare (ADR 0005, "Where a row came
+  /// from").
+  TextColumn get madeHow => text().nullable()();
+  TextColumn get madeOn => text().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
@@ -852,8 +860,15 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// This computer's id (the one its change file is named by), put here by
+  /// the screen once it is known; stamped on each row typed or imported
+  /// here ([MadeHow.onComputer]). The name the person sees is looked up by
+  /// it (`computer.name.<id>`), so a rename shows on every row. Null before
+  /// it is known, and in tests.
+  String? thisComputer;
+
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1032,6 +1047,12 @@ class AppDatabase extends _$AppDatabase {
           // "the way chosen 2026-10-12"). Rows untouched; no ledger id yet:
           // a ledger that may already be shared takes the folder's.
           await m.createTable(changes);
+        }
+        if (from < 21) {
+          // Where a transaction came from (ADR 0005, "Where a row came
+          // from"): empty for every row already here.
+          await _addColumnOnce(m, transactions, transactions.madeHow);
+          await _addColumnOnce(m, transactions, transactions.madeOn);
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -1882,6 +1903,8 @@ class AppDatabase extends _$AppDatabase {
             scheduled: t.scheduled,
             payScheduleId: t.payScheduleId,
             planCategoryId: t.planCategoryId,
+            madeHow: t.madeHow,
+            madeOn: t.madeOn,
             entries: byTxn[t.id] ?? const [],
           ),
       ],
@@ -1985,6 +2008,8 @@ class AppDatabase extends _$AppDatabase {
     int? planCategoryId,
     required List<({int accountId, int amount, Cleared cleared})> lines,
     SharedKey? shared,
+    String how = MadeHow.typed,
+    String? on,
   }) {
     return transaction(() async {
       final payeeId = await _payeeId(payee);
@@ -1998,6 +2023,8 @@ class AppDatabase extends _$AppDatabase {
           scheduled: Value(scheduled),
           payScheduleId: Value(payScheduleId),
           planCategoryId: Value(planCategoryId),
+          madeHow: Value(how),
+          madeOn: Value(on ?? (MadeHow.onComputer(how) ? thisComputer : null)),
           createdAt: now,
           updatedAt: now,
         ),
@@ -2095,6 +2122,8 @@ class AppDatabase extends _$AppDatabase {
         payeeId: Value(await _payeeId(payee)),
         memo: Value(memo?.trim().isEmpty ?? true ? null : memo!.trim()),
         scheduled: Value(dateOnly(date).isAfter(dateOnly(today))),
+        madeHow: const Value(MadeHow.typed),
+        madeOn: Value(thisComputer),
         createdAt: now,
         updatedAt: now,
       ),
@@ -2131,6 +2160,8 @@ class AppDatabase extends _$AppDatabase {
     required int amount,
     String? memo,
     SharedKey? shared,
+    String how = MadeHow.typed,
+    String? on,
   }) {
     return transaction(() async {
       await _assertLive(accountId);
@@ -2152,6 +2183,8 @@ class AppDatabase extends _$AppDatabase {
           ),
         ],
         shared: shared,
+        how: how,
+        on: on,
       );
     });
   }
@@ -3219,6 +3252,7 @@ class AppDatabase extends _$AppDatabase {
           planCategoryId: plan.categoryId,
           // The same bill on every computer that schedules it.
           shared: SharedKey('bill', '${plan.categoryId}|${dateKey(date)}'),
+          how: MadeHow.scheduled,
           lines: [
             (
               accountId: paidFrom,
@@ -3379,6 +3413,11 @@ class AppDatabase extends _$AppDatabase {
             (b) => b.categoryId.equals(categoryId) & _dateIn(b, start, end),
           ))
           .go();
+
+  /// One preference, or null.
+  Future<String?> preference(String key) async => (await (select(
+    preferences,
+  )..where((p) => p.key.equals(key))).getSingleOrNull())?.value;
 
   /// Sets a preference; null removes it.
   Future<void> setPreference(String key, String? value) => value == null
@@ -4057,6 +4096,7 @@ class AppDatabase extends _$AppDatabase {
               payScheduleId: p.id,
               // The same payday on every computer that schedules it.
               shared: SharedKey('payday', '${p.id}|${dateKey(date)}'),
+              how: MadeHow.scheduled,
               lines: [
                 (
                   accountId: p.accountId,
@@ -4332,6 +4372,7 @@ class AppDatabase extends _$AppDatabase {
   }) => transaction(
     () async => postTransaction(
       date: dateOnly(date),
+      how: MadeHow.opening,
       lines: [
         (accountId: accountId, amount: balance, cleared: Cleared.cleared),
         (
@@ -4453,6 +4494,7 @@ class AppDatabase extends _$AppDatabase {
       adjustmentTxnId = await postTransaction(
         date: dateOnly(statementDate),
         payee: adjustmentPayee,
+        how: MadeHow.adjustment,
         lines: [
           (
             accountId: accountId,
@@ -4770,6 +4812,8 @@ class AppDatabase extends _$AppDatabase {
             amount: e.amountMinor,
             // The same row on every computer that takes this entry in.
             shared: SharedKey('phone', '${inbox.device}|${e.id}'),
+            how: MadeHow.phone,
+            on: inbox.device,
           ),
         );
         entries.add(e.id);
@@ -5294,6 +5338,7 @@ class AppDatabase extends _$AppDatabase {
             memo: p.row.memo,
             // The same row on every computer that imports this bank row.
             shared: SharedKey('bank', p.key),
+            how: MadeHow.imported,
             lines: [
               (
                 accountId: accountId,

@@ -104,7 +104,12 @@ bool _same(Row? a, Row? b) {
   if (a == null || b == null) return a == null && b == null;
   final columns = {...a.keys, ...b.keys};
   for (final c in columns) {
-    if (!a.containsKey(c) || !b.containsKey(c)) return false;
+    // A row written before v21 has no where-it-came-from: it is empty.
+    if ((!a.containsKey(c) || !b.containsKey(c)) &&
+        c != 'made_how' &&
+        c != 'made_on') {
+      return false;
+    }
     final x = a[c], y = b[c];
     if (x == y) continue;
     // JSON gives a whole number back as an int, SQLite may hold a REAL.

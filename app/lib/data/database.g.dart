@@ -2033,6 +2033,26 @@ class $TransactionsTable extends Transactions
       'REFERENCES accounts (id)',
     ),
   );
+  static const VerificationMeta _madeHowMeta = const VerificationMeta(
+    'madeHow',
+  );
+  @override
+  late final GeneratedColumn<String> madeHow = GeneratedColumn<String>(
+    'made_how',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _madeOnMeta = const VerificationMeta('madeOn');
+  @override
+  late final GeneratedColumn<String> madeOn = GeneratedColumn<String>(
+    'made_on',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2076,6 +2096,8 @@ class $TransactionsTable extends Transactions
     scheduled,
     payScheduleId,
     planCategoryId,
+    madeHow,
+    madeOn,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2145,6 +2167,18 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('made_how')) {
+      context.handle(
+        _madeHowMeta,
+        madeHow.isAcceptableOrUnknown(data['made_how']!, _madeHowMeta),
+      );
+    }
+    if (data.containsKey('made_on')) {
+      context.handle(
+        _madeOnMeta,
+        madeOn.isAcceptableOrUnknown(data['made_on']!, _madeOnMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2208,6 +2242,14 @@ class $TransactionsTable extends Transactions
         DriftSqlType.int,
         data['${effectivePrefix}plan_category_id'],
       ),
+      madeHow: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}made_how'],
+      ),
+      madeOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}made_on'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -2246,6 +2288,14 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
 
   /// A bill a category's plan scheduled (rule 27), by the category.
   final int? planCategoryId;
+
+  /// How the row came to be, one of [MadeHow]'s words, and the name of the
+  /// computer it was typed or imported on, as it read then. Both null for
+  /// a row from before v21, which nobody knows. Never changed afterwards,
+  /// and no part of what two computers compare (ADR 0005, "Where a row came
+  /// from").
+  final String? madeHow;
+  final String? madeOn;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -2258,6 +2308,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     required this.scheduled,
     this.payScheduleId,
     this.planCategoryId,
+    this.madeHow,
+    this.madeOn,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -2282,6 +2334,12 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     }
     if (!nullToAbsent || planCategoryId != null) {
       map['plan_category_id'] = Variable<int>(planCategoryId);
+    }
+    if (!nullToAbsent || madeHow != null) {
+      map['made_how'] = Variable<String>(madeHow);
+    }
+    if (!nullToAbsent || madeOn != null) {
+      map['made_on'] = Variable<String>(madeOn);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -2309,6 +2367,12 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       planCategoryId: planCategoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(planCategoryId),
+      madeHow: madeHow == null && nullToAbsent
+          ? const Value.absent()
+          : Value(madeHow),
+      madeOn: madeOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(madeOn),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2331,6 +2395,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       scheduled: serializer.fromJson<bool>(json['scheduled']),
       payScheduleId: serializer.fromJson<int?>(json['payScheduleId']),
       planCategoryId: serializer.fromJson<int?>(json['planCategoryId']),
+      madeHow: serializer.fromJson<String?>(json['madeHow']),
+      madeOn: serializer.fromJson<String?>(json['madeOn']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
@@ -2348,6 +2414,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'scheduled': serializer.toJson<bool>(scheduled),
       'payScheduleId': serializer.toJson<int?>(payScheduleId),
       'planCategoryId': serializer.toJson<int?>(planCategoryId),
+      'madeHow': serializer.toJson<String?>(madeHow),
+      'madeOn': serializer.toJson<String?>(madeOn),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
@@ -2363,6 +2431,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     bool? scheduled,
     Value<int?> payScheduleId = const Value.absent(),
     Value<int?> planCategoryId = const Value.absent(),
+    Value<String?> madeHow = const Value.absent(),
+    Value<String?> madeOn = const Value.absent(),
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -2379,6 +2449,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     planCategoryId: planCategoryId.present
         ? planCategoryId.value
         : this.planCategoryId,
+    madeHow: madeHow.present ? madeHow.value : this.madeHow,
+    madeOn: madeOn.present ? madeOn.value : this.madeOn,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2397,6 +2469,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       planCategoryId: data.planCategoryId.present
           ? data.planCategoryId.value
           : this.planCategoryId,
+      madeHow: data.madeHow.present ? data.madeHow.value : this.madeHow,
+      madeOn: data.madeOn.present ? data.madeOn.value : this.madeOn,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2414,6 +2488,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('scheduled: $scheduled, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('planCategoryId: $planCategoryId, ')
+          ..write('madeHow: $madeHow, ')
+          ..write('madeOn: $madeOn, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -2431,6 +2507,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     scheduled,
     payScheduleId,
     planCategoryId,
+    madeHow,
+    madeOn,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2447,6 +2525,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.scheduled == this.scheduled &&
           other.payScheduleId == this.payScheduleId &&
           other.planCategoryId == this.planCategoryId &&
+          other.madeHow == this.madeHow &&
+          other.madeOn == this.madeOn &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -2461,6 +2541,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<bool> scheduled;
   final Value<int?> payScheduleId;
   final Value<int?> planCategoryId;
+  final Value<String?> madeHow;
+  final Value<String?> madeOn;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -2473,6 +2555,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.scheduled = const Value.absent(),
     this.payScheduleId = const Value.absent(),
     this.planCategoryId = const Value.absent(),
+    this.madeHow = const Value.absent(),
+    this.madeOn = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2486,6 +2570,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.scheduled = const Value.absent(),
     this.payScheduleId = const Value.absent(),
     this.planCategoryId = const Value.absent(),
+    this.madeHow = const Value.absent(),
+    this.madeOn = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -2501,6 +2587,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<bool>? scheduled,
     Expression<int>? payScheduleId,
     Expression<int>? planCategoryId,
+    Expression<String>? madeHow,
+    Expression<String>? madeOn,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -2514,6 +2602,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (scheduled != null) 'scheduled': scheduled,
       if (payScheduleId != null) 'pay_schedule_id': payScheduleId,
       if (planCategoryId != null) 'plan_category_id': planCategoryId,
+      if (madeHow != null) 'made_how': madeHow,
+      if (madeOn != null) 'made_on': madeOn,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2529,6 +2619,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<bool>? scheduled,
     Value<int?>? payScheduleId,
     Value<int?>? planCategoryId,
+    Value<String?>? madeHow,
+    Value<String?>? madeOn,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -2542,6 +2634,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       scheduled: scheduled ?? this.scheduled,
       payScheduleId: payScheduleId ?? this.payScheduleId,
       planCategoryId: planCategoryId ?? this.planCategoryId,
+      madeHow: madeHow ?? this.madeHow,
+      madeOn: madeOn ?? this.madeOn,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2575,6 +2669,12 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (planCategoryId.present) {
       map['plan_category_id'] = Variable<int>(planCategoryId.value);
     }
+    if (madeHow.present) {
+      map['made_how'] = Variable<String>(madeHow.value);
+    }
+    if (madeOn.present) {
+      map['made_on'] = Variable<String>(madeOn.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -2598,6 +2698,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('scheduled: $scheduled, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('planCategoryId: $planCategoryId, ')
+          ..write('madeHow: $madeHow, ')
+          ..write('madeOn: $madeOn, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -8829,6 +8931,8 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<bool> scheduled,
       Value<int?> payScheduleId,
       Value<int?> planCategoryId,
+      Value<String?> madeHow,
+      Value<String?> madeOn,
       required int createdAt,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -8843,6 +8947,8 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<bool> scheduled,
       Value<int?> payScheduleId,
       Value<int?> planCategoryId,
+      Value<String?> madeHow,
+      Value<String?> madeOn,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -8955,6 +9061,16 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get scheduled => $composableBuilder(
     column: $table.scheduled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get madeHow => $composableBuilder(
+    column: $table.madeHow,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get madeOn => $composableBuilder(
+    column: $table.madeOn,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9102,6 +9218,16 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get madeHow => $composableBuilder(
+    column: $table.madeHow,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get madeOn => $composableBuilder(
+    column: $table.madeOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9210,6 +9336,12 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get scheduled =>
       $composableBuilder(column: $table.scheduled, builder: (column) => column);
+
+  GeneratedColumn<String> get madeHow =>
+      $composableBuilder(column: $table.madeHow, builder: (column) => column);
+
+  GeneratedColumn<String> get madeOn =>
+      $composableBuilder(column: $table.madeOn, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -9356,6 +9488,8 @@ class $$TransactionsTableTableManager
                 Value<bool> scheduled = const Value.absent(),
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int?> planCategoryId = const Value.absent(),
+                Value<String?> madeHow = const Value.absent(),
+                Value<String?> madeOn = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -9368,6 +9502,8 @@ class $$TransactionsTableTableManager
                 scheduled: scheduled,
                 payScheduleId: payScheduleId,
                 planCategoryId: planCategoryId,
+                madeHow: madeHow,
+                madeOn: madeOn,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -9382,6 +9518,8 @@ class $$TransactionsTableTableManager
                 Value<bool> scheduled = const Value.absent(),
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int?> planCategoryId = const Value.absent(),
+                Value<String?> madeHow = const Value.absent(),
+                Value<String?> madeOn = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -9394,6 +9532,8 @@ class $$TransactionsTableTableManager
                 scheduled: scheduled,
                 payScheduleId: payScheduleId,
                 planCategoryId: planCategoryId,
+                madeHow: madeHow,
+                madeOn: madeOn,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

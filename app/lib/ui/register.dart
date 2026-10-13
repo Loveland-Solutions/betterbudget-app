@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import '../domain/budget.dart' show categoryTakes;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
+import '../domain/sync.dart' show MadeHow;
 import 'data_words.dart';
 import 'entry_row.dart';
 import 'language.dart';
@@ -30,8 +32,90 @@ abstract final class Cols {
   static const amount = 156.0;
   static const balance = 156.0;
   static const gap = 16.0;
+
+  /// The Source column, when it is turned on (Settings): see [SourceColumn].
+  static const source = 128.0;
   static const inset = EdgeInsets.symmetric(horizontal: 20);
   static const outer = EdgeInsets.symmetric(horizontal: 12);
+}
+
+/// Whether the register shows where each transaction came from, and the
+/// names the person gave their phones. Set above the register so the
+/// header, the rows and the entry row all follow it.
+class SourceColumn extends InheritedWidget {
+  const SourceColumn({
+    super.key,
+    required this.shown,
+    this.here,
+    this.computers = const {},
+    this.phones = const {},
+    required super.child,
+  });
+
+  final bool shown;
+
+  /// This computer's id: a row made on it says "here".
+  final String? here;
+
+  /// The computers that made a row, by id, and the name given each ('' for
+  /// none), and the same for the phones.
+  final Map<String, String> computers;
+  final Map<String, String> phones;
+
+  static SourceColumn? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SourceColumn>();
+
+  /// True when a column is to be drawn.
+  static bool showing(BuildContext context) => maybeOf(context)?.shown ?? false;
+
+  /// The row's source in words, or an empty string when it isn't known.
+  String words(Words t, RegisterRow r) {
+    final on = r.madeOn;
+    return switch (r.madeHow) {
+      MadeHow.typed =>
+        on == null
+            ? t.sourceTyped
+            : on == here
+            ? t.sourceTypedHere
+            : _named(computers[on])?.let(t.sourceTypedOn) ??
+                  t.sourceTypedElsewhere,
+      MadeHow.imported =>
+        on == null
+            ? t.sourceImported
+            : on == here
+            ? t.sourceImportedHere
+            : _named(computers[on])?.let(t.sourceImportedOn) ??
+                  t.sourceImportedElsewhere,
+      MadeHow.phone => _phone(t, on),
+      MadeHow.scheduled => t.sourceScheduled,
+      // The payee already says it ("Opening balance"), and a blank is not
+      // a gap: nothing is said twice.
+      _ => '',
+    };
+  }
+
+  static String? _named(String? name) =>
+      name == null || name.trim().isEmpty ? null : name.trim();
+
+  /// A phone by the name it was given, else "your phone" while it is the
+  /// only one, else its first four characters.
+  String _phone(Words t, String? id) {
+    final named = _named(phones[id]);
+    if (named != null) return t.sourcePhone(named);
+    if (id == null || phones.length <= 1) return t.sourceYourPhone;
+    return t.sourcePhoneId(id.length > 4 ? id.substring(0, 4) : id);
+  }
+
+  @override
+  bool updateShouldNotify(SourceColumn old) =>
+      shown != old.shown ||
+      here != old.here ||
+      !mapEquals(phones, old.phones) ||
+      !mapEquals(computers, old.computers);
+}
+
+extension on String {
+  T let<T>(T Function(String) f) => f(this);
 }
 
 /// Everything the register can ask the screen to do.
@@ -919,6 +1003,13 @@ class _HeaderRow extends StatelessWidget {
               child: Text(t.rowsColumnCategory, style: s),
             ),
             const SizedBox(width: Cols.gap),
+            if (SourceColumn.showing(context)) ...[
+              SizedBox(
+                width: Cols.source,
+                child: Text(t.rowsColumnSource, style: s),
+              ),
+              const SizedBox(width: Cols.gap),
+            ],
             SizedBox(
               width: Cols.amount,
               child: Text(
@@ -1138,9 +1229,13 @@ class _PostedRow extends StatelessWidget {
                                 if (r.kind == RowKind.transfer &&
                                     toAfter.isNotEmpty) ...[
                                   const SizedBox(width: 6),
-                                  Text(
-                                    toAfter,
-                                    style: onest(14.5, color: Mid.ink3),
+                                  Flexible(
+                                    child: Text(
+                                      toAfter,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: onest(14.5, color: Mid.ink3),
+                                    ),
                                   ),
                                 ],
                                 if (r.kind == RowKind.transfer ||
@@ -1224,6 +1319,10 @@ class _PostedRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: Cols.gap),
+                      if (SourceColumn.showing(context)) ...[
+                        _SourceCell(r),
+                        const SizedBox(width: Cols.gap),
+                      ],
                       _Cell(
                         width: Cols.amount,
                         onTap: () => onTap(EditField.amount),
@@ -1466,12 +1565,16 @@ class _ScheduledRow extends StatelessWidget {
                             // Working, though it probably happened.
                             if (overdue != null) ...[
                               const SizedBox(width: 8),
-                              Text(
-                                '· $overdue',
-                                key: const ValueKey('overdue-note'),
-                                // Full ink and heavier: late is the one thing on this
-                                // row to notice, now that it isn't gold.
-                                style: onest(14, weight: 600, color: Mid.ink),
+                              Flexible(
+                                child: Text(
+                                  '· $overdue',
+                                  key: const ValueKey('overdue-note'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  // Full ink and heavier: late is the one thing on this
+                                  // row to notice, now that it isn't gold.
+                                  style: onest(14, weight: 600, color: Mid.ink),
+                                ),
                               ),
                             ],
                             if (overdue != null && overdueMore != null) ...[
@@ -1507,15 +1610,19 @@ class _ScheduledRow extends StatelessWidget {
                             ],
                             if (extra != null && overdue == null) ...[
                               const SizedBox(width: 8),
-                              Hoverable(
-                                onTap: onMore,
-                                builder: (h) => Text(
-                                  '· $extra',
-                                  style: onest(14, color: Mid.ink3).copyWith(
-                                    decoration: onMore != null && h
-                                        ? TextDecoration.underline
-                                        : null,
-                                    decorationColor: Mid.ink3,
+                              Flexible(
+                                child: Hoverable(
+                                  onTap: onMore,
+                                  builder: (h) => Text(
+                                    '· $extra',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: onest(14, color: Mid.ink3).copyWith(
+                                      decoration: onMore != null && h
+                                          ? TextDecoration.underline
+                                          : null,
+                                      decorationColor: Mid.ink3,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1535,6 +1642,10 @@ class _ScheduledRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: Cols.gap),
+                      if (SourceColumn.showing(context)) ...[
+                        _SourceCell(r),
+                        const SizedBox(width: Cols.gap),
+                      ],
                       SizedBox(
                         width: Cols.amount,
                         child: Align(
@@ -1574,6 +1685,27 @@ class _ScheduledRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// One row's source, kept to a line (the whole words are the tooltip).
+class _SourceCell extends StatelessWidget {
+  const _SourceCell(this.row);
+  final RegisterRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final words = SourceColumn.maybeOf(context)?.words(context.t, row) ?? '';
+    return SizedBox(
+      width: Cols.source,
+      // Two lines, so a name isn't cut: the column is narrow, the row tall.
+      child: Text(
+        words,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: onest(12.5, color: Mid.ink3),
       ),
     );
   }

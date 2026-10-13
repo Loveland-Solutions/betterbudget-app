@@ -5475,4 +5475,79 @@ class WordsEn extends Words {
   @override
   String get ledgerRowsChangedMeanwhile =>
       'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.';
+
+  @override
+  String get rowsColumnSource => 'Source';
+
+  @override
+  String sourceTypedOn(String computer) {
+    return 'Entered on $computer';
+  }
+
+  @override
+  String get sourceTyped => 'Entered';
+
+  @override
+  String sourceImportedOn(String computer) {
+    return 'Imported on $computer';
+  }
+
+  @override
+  String get sourceImported => 'Imported';
+
+  @override
+  String sourcePhone(String phone) {
+    return 'From $phone';
+  }
+
+  @override
+  String get sourceYourPhone => 'From your phone';
+
+  @override
+  String sourcePhoneId(String id) {
+    return 'From phone $id';
+  }
+
+  @override
+  String get sourceScheduled => 'Scheduled';
+
+  @override
+  String get settingsRegisterTitle => 'Register';
+
+  @override
+  String get settingsSourceColumn => 'Show where each transaction came from';
+
+  @override
+  String get settingsPhonesTitle => 'Your phones';
+
+  @override
+  String settingsPhoneName(String id) {
+    return 'Name for phone $id';
+  }
+
+  @override
+  String get settingsPhoneNameHint => 'For example, Pixel';
+
+  @override
+  String get sourceTypedHere => 'Entered locally';
+
+  @override
+  String get sourceImportedHere => 'Imported locally';
+
+  @override
+  String get sourceTypedElsewhere => 'Entered on another computer';
+
+  @override
+  String get sourceImportedElsewhere => 'Imported on another computer';
+
+  @override
+  String get settingsComputersTitle => 'Your computers';
+
+  @override
+  String get settingsComputerThis => 'Name for this computer';
+
+  @override
+  String settingsComputerName(String id) {
+    return 'Name for computer $id';
+  }
 }

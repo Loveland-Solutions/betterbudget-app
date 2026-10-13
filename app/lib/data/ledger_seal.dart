@@ -56,9 +56,10 @@ Future<String> ledgerDigest(
   return out.value.toString();
 }
 
-/// The columns that say when a row was written here, no part of what a
-/// ledger holds.
-const _whenWritten = {'created_at', 'updated_at'};
+/// The columns that say when a row was written here, or by whom (`made_how`,
+/// `made_on`: one bank row imported on two computers is one row, said to
+/// be made on each), no part of what a ledger holds.
+const _whenWritten = {'created_at', 'updated_at', 'made_how', 'made_on'};
 
 /// Every row of every table in what [select] reads, as [combine] compares
 /// them (ADR 0005, "Combine").
