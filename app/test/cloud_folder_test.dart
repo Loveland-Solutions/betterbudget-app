@@ -127,6 +127,28 @@ void main() {
       cloud.dispose();
     });
 
+    test('the computer’s id waits for the saved settings: asked for before '
+        'they are read, it doesn’t save over the folder', () async {
+      final first = CloudFolder(backups, access: _FakeAccess());
+      await first.load(today);
+      await first.keepIn(drive.path, today);
+      final id = await first.computerId();
+      first.dispose();
+      final settings = File('${dir.path}/cloud-folder');
+      final saved = settings.readAsStringSync();
+      expect(saved, contains(drive.path));
+
+      // A new start: the id is asked for at once, the settings read after.
+      final again = CloudFolder(backups, access: _FakeAccess());
+      final loading = again.load(today);
+      final asked = again.computerId();
+      await loading;
+      expect(await asked, id);
+      expect(settings.readAsStringSync(), contains(drive.path));
+      expect(again.value.path, drive.path);
+      again.dispose();
+    });
+
     test('only the ledger in a folder that isn’t the app’s own is one a '
         'computer can be kept on', () async {
       final cloud = CloudFolder(backups, access: _FakeAccess());

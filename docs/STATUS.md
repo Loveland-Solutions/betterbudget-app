@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-13** · version 0.33.0 · schema v21 · 730 tests pass
+**Last updated: 2026-10-13** · version 0.33.1 · schema v21 · 731 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -9,6 +9,19 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**A bug in 0.33.0, fixed in 0.33.1 (PR #72; found by the owner's second run, and the
+main account was pointed at the folder again and worked):** the launch
+asked for this computer's id before the saved folder settings were read, so the
+file `cloud-folder` beside the ledger was written again with only a new id and the
+folder, its token and what was published were gone: a computer opened on 0.33.0 says
+"Stored in · This computer" and writes nothing to the folder. The ledger itself was
+not touched. The id now waits for the settings (`CloudFolder.computerId`, with a
+test). **A computer that ran 0.33.0 has to be pointed at the folder again**
+(Settings → "Move my ledger to a folder…", the Drive folder; a folder that
+already holds a ledger is never written over on being picked), and it has a new
+id, so the old `Computer <id>` files stay in the folder, harmless, until
+compaction (step 5).
 
 **Source column (version 0.33.0, PR #71; both review passes are in and their fixes
 made; the build before it, 0.32.0, refuses a v21 ledger, so the second Mac account
@@ -241,7 +254,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #71. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #72. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
