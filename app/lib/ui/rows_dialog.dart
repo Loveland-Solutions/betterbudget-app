@@ -210,11 +210,13 @@ class _AskCard extends StatelessWidget {
               side(other, ask.theirs),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            t.ledgerRowsAsItWas(_summary(context, ask.neither)),
-            style: onest(12.5, color: Mid.ink3, tabular: true),
-          ),
+          if (ask.hasBase) ...[
+            const SizedBox(height: 8),
+            Text(
+              t.ledgerRowsAsItWas(_summary(context, ask.neither)),
+              style: onest(12.5, color: Mid.ink3, tabular: true),
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(
             runSpacing: 6,
@@ -235,12 +237,13 @@ class _AskCard extends StatelessWidget {
                 active: pick == Pick.theirs,
                 onTap: () => onPick(Pick.theirs),
               ),
-              BarButton(
-                key: ValueKey('rows-${ask.id}-neither'),
-                label: t.ledgerRowsKeepNeither,
-                active: pick == Pick.neither,
-                onTap: () => onPick(Pick.neither),
-              ),
+              if (ask.hasBase)
+                BarButton(
+                  key: ValueKey('rows-${ask.id}-neither'),
+                  label: t.ledgerRowsKeepNeither,
+                  active: pick == Pick.neither,
+                  onTap: () => onPick(Pick.neither),
+                ),
             ],
           ),
         ],

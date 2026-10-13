@@ -11,8 +11,11 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/ledger_seal.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/payee_rules.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart';
+import 'package:betterbudget/import/mapping.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -735,7 +738,8 @@ void main() {
       await mac.db.takePhoneEntries([inbox], today: tuesday);
       await laptop.db.takePhoneEntries([inbox], today: tuesday);
       expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      // The laptop holds everything the Mac's has: it only writes.
+      // The two made the same rows under the same ids: the ledgers are
+      // one, and the laptop has nothing to write.
       expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
       final data = await laptop.db.loadLedger();
       expect(data.txns, hasLength(before + 2));
@@ -743,7 +747,99 @@ void main() {
         data.accounts.values.where((a) => a.name == 'Coffee'),
         hasLength(1),
       );
-      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.newer);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+    });
+
+    test('the same payday, phone entry and bank rows get one id on both '
+        'computers, and the two are one ledger with nothing to tell', () async {
+      // A pay, which agree() carries to the laptop; then the next payday,
+      // scheduled on each from it.
+      await mac.db.savePaySchedule(
+        accountId: await mac.account('TDB Checking'),
+        amount: 2500000,
+        rule: PayRule.monthly,
+        today: monday,
+      );
+      await agree();
+      final mac1 = await mac.db.ensurePaydays(DateTime(2026, 12, 1));
+      final laptop1 = await laptop.db.ensurePaydays(DateTime(2026, 12, 1));
+      expect(mac1, isNotEmpty);
+      expect(mac1, laptop1);
+      expect(mac1.every(isSharedRowId), isTrue);
+      // A phone's entry, taken in on each.
+      final inbox = PhoneInbox(
+        device: 'pixel',
+        categories: const [],
+        entries: [
+          PhoneEntry(
+            id: 'e9',
+            categoryId: '${await mac.account('Groceries')}',
+            accountId: '${await mac.account('TDB Checking')}',
+            payee: 'Tom N Toms',
+            amountMinor: -850000,
+            date: DateTime(2026, 10, 6),
+            madeAt: tuesday,
+          ),
+        ],
+      );
+      final mac2 = (await mac.db.takePhoneEntries([inbox], today: tuesday))!;
+      final laptop2 = (await laptop.db.takePhoneEntries([
+        inbox,
+      ], today: tuesday))!;
+      expect(mac2.transactionIds, laptop2.transactionIds);
+      expect(mac2.transactionIds.every(isSharedRowId), isTrue);
+      // The same bank file, imported on each.
+      final checking = await mac.account('TDB Checking');
+      final rows = [
+        for (final (day, amount, payee) in [
+          (3, -1250000, 'НОМИН POS'),
+          (4, -500000, 'Emart'),
+        ])
+          ImportRow(
+            sourceRow: day,
+            date: DateTime(2026, 10, day),
+            amount: amount,
+            payee: payee,
+          ),
+      ];
+      Future<List<int>> import(_Computer on) async {
+        final plan = await on.db.planImport(
+          checking,
+          rows,
+          importKeys(checking, rows),
+        );
+        final record = await on.db.applyImport(
+          accountId: checking,
+          plan: plan.rows,
+          uncategorizedNames: ['Not categorized'],
+        );
+        return record.added.keys.toList()..sort();
+      }
+
+      final mac3 = await import(mac);
+      final laptop3 = await import(laptop);
+      expect(mac3, hasLength(2));
+      expect(mac3, laptop3);
+      expect(mac3.every(isSharedRowId), isTrue);
+      // Their entries too, so the two ledgers hold the same rows.
+      Future<Set<int>> entryIds(_Computer on) async => {
+        for (final t in (await on.db.loadLedger()).txns)
+          if ([...mac1, ...mac2.transactionIds, ...mac3].contains(t.id))
+            for (final e in t.entries) e.id,
+      };
+      expect(await entryIds(mac), await entryIds(laptop));
+
+      // Each changed its ledger, alike: the two are one, nothing is
+      // combined, written or said, and each holds one of everything.
+      await mac.cloud.check(tuesday, fresh: true);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      final before = (await mac.db.loadLedger()).txns.length;
+      expect((await laptop.db.loadLedger()).txns, hasLength(before));
+      expect(
+        (await laptop.db.loadLedger()).txns.where((t) => t.payee == 'Emart'),
+        hasLength(1),
+      );
     });
 
     test('cleared on one and filed on the other: the row is both', () async {
@@ -1083,6 +1179,56 @@ void main() {
     });
   });
 
+  group('a shared id', () {
+    test('is the same for the same fact, and in a range of its own', () {
+      final a = sharedRowId('payday', '7|2026-10-25');
+      expect(a, sharedRowId('payday', '7|2026-10-25'));
+      expect(a, isNot(sharedRowId('payday', '7|2026-11-25')));
+      expect(a, isNot(sharedRowId('bill', '7|2026-10-25')));
+      expect(isSharedRowId(a), isTrue);
+      expect(a, greaterThanOrEqualTo(0x4000000000000000));
+      expect(a, greaterThan(newRowId()));
+      expect(isSharedRowId(newRowId()), isFalse);
+      expect(isSharedRowId(carriedRuleId(3, 'unitel')), isFalse);
+    });
+
+    test(
+      'a row already under the id makes the next one an ordinary id',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, DateTime(2026, 10, 9));
+        final data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        Future<int> post() => db.postTransaction(
+          date: DateTime(2026, 10, 25),
+          scheduled: true,
+          lines: [
+            (
+              accountId: id('TDB Checking'),
+              amount: 100,
+              cleared: Cleared.uncleared,
+            ),
+            (
+              accountId: id('Groceries'),
+              amount: -100,
+              cleared: Cleared.uncleared,
+            ),
+          ],
+          shared: const SharedKey('payday', '1|2026-10-25'),
+        );
+        final first = await post();
+        expect(isSharedRowId(first), isTrue);
+        // Skipped (a soft delete keeps the row), then scheduled again.
+        await db.softDelete(first);
+        final second = await post();
+        expect(second, isNot(first));
+        expect(isSharedRowId(second), isFalse);
+      },
+    );
+  });
+
   group('the digest', () {
     late Directory root;
     late AppDatabase db;
@@ -1125,6 +1271,13 @@ void main() {
         final changed = await db.sealState();
         expect(changed.digest, isNot(sealed.digest));
         expect(changed.seal, sealed.seal);
+        // When a row was written is no part of it: two computers that each
+        // made the same payday wrote it at different moments.
+        await db.customStatement(
+          'UPDATE transactions SET updated_at = updated_at + 1, '
+          'created_at = created_at + 1',
+        );
+        expect((await db.sealState()).digest, changed.digest);
         // Unchanged, sealing again is nothing; changed, it counts.
         await db.sealAs('abc', at: today);
         expect((await db.sealState()).computers.counters, {'abc': 2});
