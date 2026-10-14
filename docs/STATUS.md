@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-13** · version 0.34.0 · schema v21 · 733 tests pass
+**Last updated: 2026-10-14** · version 0.34.1 · schema v21 · 736 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,13 +10,23 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Where to pick up (2026-10-14): the first real run on two Mac accounts is done and
-worked.** Entries made on either account arrive on the other with their category,
-the popup was seen, and the Source column reads "Entered locally" under both
-accounts (the owner, 2026-10-14: "this worked"). **Step 4 of the two-computers work
-is next** (the facts-first policy and the blocks for the cases still asked as a
-whole ledger; ADR 0005); the run changed nothing about its order. Show the owner
-what it would change on screen before building, with a recommendation.
+**Where to pick up (2026-10-14): Savings is next** (owner, 2026-10-14: "I'd like to
+move on to savings"; ROADMAP D). Four questions were put to the owner and are not
+answered yet: what they ran into using the four steps; whether each debt on
+Eliminate debt takes its interest rate and monthly payment; whether Save for the
+future becomes goals with a date and an amount (recommended) instead of its two
+questions; and whether the line "In the order of Personal Finances for
+Self-Reliance…" goes (recommended). Build from their answers, two or three options
+with sketches first. **Two computers, step 4, waits until after Savings** (the facts-first policy and
+the blocks for the cases still asked as a whole ledger; ADR 0005); the first real
+run on two Mac accounts worked (owner, 2026-10-14: "this worked"). Show the owner
+what step 4 would change on screen before building, with a recommendation.
+
+**Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
+key, a file that can't be read, a key that can't be kept, a ledger that fails to
+open) says what went wrong, with Try again and Show details, instead of a blank
+window (ADR 0001 "At launch"). Running on the owner's main account; the screen
+itself is seen only in `app/test/goldens/startup_failed.png`.
 
 **Version 0.34.0 (PR #73; both Mac accounts run it):** a row made under another account of the same Mac
 reads "Entered locally" too, by a hash of the Mac's hardware id kept as
@@ -243,7 +253,9 @@ folder. Then, in order:
    a search field at the top of the categories where they are picked from a list
    (owner, 2026-10-12: "there will be a lot of categories"), splitting one
    transaction over categories (owner, 2026-10-12: clothing and groceries on one
-   receipt), and a plain popup for a failure (owner, 2026-10-10). Each is designed
+   receipt), a plain popup for a failure (owner, 2026-10-10), and no yellow-and-black
+   overflow stripe anywhere on the computer or the phone (owner, 2026-10-14; a large
+   working balance runs past the account header's box today). Each is designed
    and shown to the owner first.
 5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
    "Gold is an accent, and the new colors come first"). **The phone is next when the
@@ -262,7 +274,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #74. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #75. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
@@ -594,22 +606,17 @@ open the archive).
   mortgage or student loan, which the computer's budget leaves out; the +/− button is
   half under the toast while it shows; the +/− button's spoken label in Mongolian
   ("Орлого болгох") uses Income's own word.
-- **`keys_test.dart` "rejects a bad checksum" failed once in a full run**
-  (2026-10-09) and passed alone and in the next two full runs; like the one below
-  it builds its input from a random key.
-- **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
-  (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
-  random key. **`budget_test.dart` "plans paid weekly, a date years ahead is still
-  quick" failed once** the same day with the Mac busy (it times itself against 200
+- **`budget_test.dart` "plans paid weekly, a date years ahead is still
+  quick" failed once** (2026-10-08) with the Mac busy (it times itself against 200
   ms) and passed three times alone.
-- **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
-  the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
-  on the startup screen until the app is quit and opened again. Seen 2026-10-01; the
-  ledger wasn't touched. **Seen again 2026-10-09 with the Mac unlocked** (the owner:
-  a blank window after a rebuild and relaunch; it opened normally the next three
-  times), so the cause isn't known. Agreed with the owner as the next small fix: the
-  startup screen says what went wrong, with a Try again button and no "unlock your
-  Mac" line.
+- **A blank window at launch** (seen 2026-10-01 with the Mac locked, the Keychain
+  refusing the key with -25308, and 2026-10-09 unlocked, cause unknown). Fixed in
+  0.34.1: anything that goes wrong between launch and the ledger opening now says
+  what, with Try again (ADR 0001 "At launch"). Not covered: a step that never
+  returns (it would still sit on the empty screen), and a failure in `main.dart`
+  before the window's first screen (reading the appearance or language files).
+  The same PR fixed `keys_test.dart`'s two tests that failed now and then: their
+  random key's typo fitted the first build's check rule about 1 time in 34.
 - **Buttons may sit wrong on a Mac while their goldens look right** (a Mac draws them
   8 shorter). Only the popup's two were looked at.
 - **From the reviews of PR #44, none fixed:** the mouse wheel does nothing over the

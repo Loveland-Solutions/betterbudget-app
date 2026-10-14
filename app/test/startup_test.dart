@@ -1,6 +1,7 @@
 // What happens at launch (ADR 0001): a key is checked against the ledger
 // before it's stored, a new key is shown before anything is stored or
 // encrypted, and a ledger already here is never opened with a new key.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:betterbudget/data/backup.dart';
@@ -24,18 +25,30 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeSecureStorage extends FlutterSecureStoragePlatform {
   final values = <String, String>{};
 
+  /// Thrown by every read while set, as the Keychain does on a locked Mac.
+  PlatformException? refuse;
+
+  /// Thrown by every write while set.
+  PlatformException? refuseWrite;
+
   @override
   Future<void> write({
     required String key,
     required String value,
     required Map<String, String> options,
-  }) async => values[key] = value;
+  }) async {
+    if (refuseWrite case final e?) throw e;
+    values[key] = value;
+  }
 
   @override
   Future<String?> read({
     required String key,
     required Map<String, String> options,
-  }) async => values[key];
+  }) async {
+    if (refuse case final e?) throw e;
+    return values[key];
+  }
 
   @override
   Future<bool> containsKey({
@@ -147,6 +160,7 @@ void main() {
       db: db,
       backups: backups,
       report: await backups.convertPlainBackups(),
+      startDaily: () {},
     );
   }
 
@@ -178,7 +192,13 @@ void main() {
 
   bool shown(Finder f) => f.evaluate().isNotEmpty;
 
-  Future<void> launch(WidgetTester tester) async {
+  final failed = find.byKey(const ValueKey('startup-failed'));
+
+  /// Launches with [opener] in place of [open], until a screen is up.
+  Future<void> launch(
+    WidgetTester tester, {
+    Future<OpenedLedger> Function(Uint8List key)? opener,
+  }) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -187,7 +207,7 @@ void main() {
         BetterBudgetStartup(
           store: KeyStore(),
           ledgerFile: file,
-          open: open,
+          open: opener ?? open,
           clock: () => now,
         ),
       );
@@ -198,7 +218,8 @@ void main() {
           shown(find.byType(RecoveryKeySetupScreen)) ||
           shown(find.byType(RecoveryKeyEntryScreen)) ||
           shown(find.byType(StartChoiceScreen)) ||
-          shown(find.byType(LedgerScreen)),
+          shown(find.byType(LedgerScreen)) ||
+          shown(failed),
     );
   }
 
@@ -290,6 +311,102 @@ void main() {
       await tidy(tester);
     },
   );
+
+  testWidgets('a key the Keychain refuses says so, with Try again, not a '
+      'blank window', (tester) async {
+    final recovery = RecoveryKey.generate();
+    await tester.runAsync(() => makeLedger(recovery: recovery));
+    await tester.runAsync(
+      () => KeyStore().writeDataKey(deriveDataKey(recovery)),
+    );
+    storage.refuse = PlatformException(
+      code: 'Unexpected security result code',
+      message: 'Code: -25308, Message: User interaction is not allowed.',
+    );
+    final before = file.readAsBytesSync();
+    await launch(tester);
+    expect(failed, findsOne);
+    expect(find.text('Couldn’t read the key kept on this computer'), findsOne);
+    expect(find.text('Your ledger hasn’t been touched.'), findsOne);
+    // The error itself waits behind a click.
+    expect(find.textContaining('-25308'), findsNothing);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/startup_failed.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('startup-show-details')));
+    await tester.pump();
+    expect(find.textContaining('-25308'), findsOne);
+    expect(find.byKey(const ValueKey('startup-show-details')), findsNothing);
+    expect(file.readAsBytesSync(), before);
+
+    // Unlocked: Try again opens the ledger without a relaunch.
+    storage.refuse = null;
+    await tapAndWait(tester, find.byKey(const ValueKey('startup-try-again')));
+    await until(tester, () => shown(find.byType(LedgerScreen)));
+    expect(find.byType(LedgerScreen), findsOne);
+    await tidy(tester);
+  });
+
+  testWidgets('a ledger that fails to open says so, and Try again opens it', (
+    tester,
+  ) async {
+    final recovery = RecoveryKey.generate();
+    await tester.runAsync(() => makeLedger(recovery: recovery));
+    await tester.runAsync(
+      () => KeyStore().writeDataKey(deriveDataKey(recovery)),
+    );
+    var tries = 0;
+    await launch(
+      tester,
+      opener: (key) async {
+        final o = await open(key);
+        // Opened, then a later step fails: the one opened is closed.
+        if (tries++ == 0) throw const FileSystemException('The disk is busy');
+        return o;
+      },
+    );
+    expect(find.text('Couldn’t open your ledger'), findsOne);
+    await tapAndWait(tester, find.byKey(const ValueKey('startup-try-again')));
+    await until(tester, () => shown(find.byType(LedgerScreen)));
+    expect(tries, 2);
+    await tidy(tester);
+  });
+
+  testWidgets('a new key that can’t be kept says nothing was encrypted, and '
+      'Try again keeps the same key', (tester) async {
+    await tester.runAsync(makeLedger);
+    await launch(tester);
+    expect(find.byType(RecoveryKeySetupScreen), findsOne);
+    storage.refuseWrite = PlatformException(code: 'write refused');
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('recovery-key-continue')),
+    );
+    await until(tester, () => shown(failed));
+    expect(find.text('Couldn’t keep the key on this computer'), findsOne);
+    expect(find.text('Nothing was encrypted.'), findsOne);
+    expect(storage.values, isEmpty);
+    expect(await tester.runAsync(() => isPlainSqliteFile(file)), isTrue);
+    await tester.tap(find.byKey(const ValueKey('startup-show-details')));
+    await tester.pump();
+    // Only the error's type, never what was being stored.
+    expect(
+      tester
+          .widget<SelectableText>(find.byKey(const ValueKey('startup-details')))
+          .data,
+      'PlatformException',
+    );
+
+    storage.refuseWrite = null;
+    await tapAndWait(tester, find.byKey(const ValueKey('startup-try-again')));
+    await until(tester, () => shown(find.byType(LedgerScreen)));
+    // The key that was shown is the one kept, and it opens the ledger.
+    final kept = storage.values['betterbudget.dataKey']!;
+    expect(keyOpens(file, Uint8List.fromList(base64Decode(kept))), isTrue);
+    expect(await tester.runAsync(() => isPlainSqliteFile(file)), isFalse);
+    await tidy(tester);
+  });
 
   testWidgets(
     'starting new with a ledger here moves it aside, never opens it',

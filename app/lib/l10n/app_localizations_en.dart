@@ -2853,14 +2853,27 @@ class WordsEn extends Words {
   }
 
   @override
-  String startCouldntKeepKeyNothingEncrypted(String error) {
-    return 'Couldn’t keep the key on this computer · $error. Nothing was encrypted.';
-  }
+  String get startCouldntKeepKeyNothingEncrypted =>
+      'Couldn’t keep the key on this computer';
 
   @override
-  String startCouldntOpen(String error) {
-    return 'Couldn’t open the ledger · $error';
-  }
+  String get startNothingEncrypted => 'Nothing was encrypted.';
+
+  @override
+  String get startCouldntOpen => 'Couldn’t open your ledger';
+
+  @override
+  String get startCouldntReadKey =>
+      'Couldn’t read the key kept on this computer';
+
+  @override
+  String get startLedgerNotTouched => 'Your ledger hasn’t been touched.';
+
+  @override
+  String get startTryAgain => 'Try again';
+
+  @override
+  String get startShowDetails => 'Show details';
 
   @override
   String startCopiesFailed(int count, String names) {

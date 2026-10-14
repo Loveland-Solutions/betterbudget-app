@@ -4064,17 +4064,47 @@ abstract class Words {
   /// **'Couldn’t keep the key on this computer · {error}'**
   String startCouldntKeepKey(String error);
 
-  /// Full-screen error at launch after the recovery key setup. error is a technical error type name, left in English.
+  /// Full-screen heading at launch, after the recovery key setup, when the key couldn't be stored.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t keep the key on this computer · {error}. Nothing was encrypted.'**
-  String startCouldntKeepKeyNothingEncrypted(String error);
+  /// **'Couldn’t keep the key on this computer'**
+  String get startCouldntKeepKeyNothingEncrypted;
 
-  /// Full-screen error at launch. error is the reason, often technical and in English.
+  /// Full-screen error at launch, the line under 'Couldn’t keep the key on this computer'.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t open the ledger · {error}'**
-  String startCouldntOpen(String error);
+  /// **'Nothing was encrypted.'**
+  String get startNothingEncrypted;
+
+  /// Full-screen heading at launch when the ledger couldn't be opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t open your ledger'**
+  String get startCouldntOpen;
+
+  /// Full-screen heading at launch when the computer's keychain wouldn't give the ledger's key.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t read the key kept on this computer'**
+  String get startCouldntReadKey;
+
+  /// Full-screen error at launch, the line under 'Couldn’t read the key kept on this computer'.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger hasn’t been touched.'**
+  String get startLedgerNotTouched;
+
+  /// Button on the full-screen error at launch: does the step that failed again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get startTryAgain;
+
+  /// Link on the full-screen error at launch: shows the technical error under it.
+  ///
+  /// In en, this message translates to:
+  /// **'Show details'**
+  String get startShowDetails;
 
   /// Toast after launch when some old backup copies couldn't be encrypted. names is a comma-separated list of file names.
   ///

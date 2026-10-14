@@ -117,8 +117,11 @@ void main() {
       expect(RecoveryKey.parse(messy)?.display, key.display);
     });
 
+    // A fixed key: with a random one, about 1 in 34 typos happen to fit
+    // the first build's check rule, which [parse] still takes, and read as
+    // another key (the test above allows for that).
     test('corrects a typed O or I to 0 or 1', () {
-      final key = RecoveryKey.generate();
+      final key = RecoveryKey.generate(random: Random(7));
       final withTypos = key.display
           .replaceFirst(RegExp('[02-9A-HJ-NP-Z]'), 'O')
           .replaceFirst(RegExp('[02-9A-HJ-NP-Z]'), 'I');
@@ -217,7 +220,8 @@ void main() {
     });
 
     test('rejects a bad checksum', () {
-      final key = RecoveryKey.generate();
+      // Fixed, for the reason given above 'corrects a typed O or I'.
+      final key = RecoveryKey.generate(random: Random(7));
       final body = key.display.replaceAll('-', '');
       final firstChar = body[0];
       // A different valid alphabet character in the first position, unless

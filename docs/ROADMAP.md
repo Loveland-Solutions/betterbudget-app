@@ -216,6 +216,17 @@ Also still to do: the offer from a row's Edit, and the offer at the foot of a ro
 category dropdown (asked 2026-10-07 and 2026-10-12; the owner said the question
 wasn't clear: ask it with a picture of the row).
 
+**No overflow stripe, ever** (owner, 2026-10-14: "that yellow and black overflow
+appears in both the phone app and the computer app. We need to constrain things so
+the user doesn't see that."). Flutter draws a yellow-and-black stripe where
+something is wider than its space. Seen on the computer in an account's header: a
+working balance of −₮118,608,768.86 runs past its box. To build: find every place a
+number or name can grow (balances, amounts, payees, account and category names,
+Mongolian words), on the computer and the phone, and make each fit its space at any
+size: shrink the number, wrap or cut the words with "…". A test that lays out each
+screen with very large amounts and long names and fails on any overflow, so it
+can't come back.
+
 **A plain popup for a failure** (owner, 2026-10-10: "let's put this on a
 list of things to do"). "Couldn't
 save: …" arrives in the gold popup that says a change was saved, and carries the
