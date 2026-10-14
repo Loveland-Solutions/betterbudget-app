@@ -2768,14 +2768,27 @@ class WordsMn extends Words {
   }
 
   @override
-  String startCouldntKeepKeyNothingEncrypted(String error) {
-    return 'Түлхүүрийг энэ компьютер дээр хадгалж чадсангүй · $error. Юу ч шифрлээгүй.';
-  }
+  String get startCouldntKeepKeyNothingEncrypted =>
+      'Түлхүүрийг энэ компьютер дээр хадгалж чадсангүй';
 
   @override
-  String startCouldntOpen(String error) {
-    return 'Дэвтрийг нээж чадсангүй · $error';
-  }
+  String get startNothingEncrypted => 'Юу ч шифрлээгүй.';
+
+  @override
+  String get startCouldntOpen => 'Дэвтрийг тань нээж чадсангүй';
+
+  @override
+  String get startCouldntReadKey =>
+      'Энэ компьютер дээр хадгалсан түлхүүрийг уншиж чадсангүй';
+
+  @override
+  String get startLedgerNotTouched => 'Дэвтэрт тань гар хүрээгүй.';
+
+  @override
+  String get startTryAgain => 'Дахин оролдох';
+
+  @override
+  String get startShowDetails => 'Дэлгэрэнгүйг харуулах';
 
   @override
   String startCopiesFailed(int count, String names) {

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-13** · version 0.34.0 · schema v21 · 733 tests pass
+**Last updated: 2026-10-14** · version 0.34.1 · schema v21 · 736 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -594,22 +594,17 @@ open the archive).
   mortgage or student loan, which the computer's budget leaves out; the +/− button is
   half under the toast while it shows; the +/− button's spoken label in Mongolian
   ("Орлого болгох") uses Income's own word.
-- **`keys_test.dart` "rejects a bad checksum" failed once in a full run**
-  (2026-10-09) and passed alone and in the next two full runs; like the one below
-  it builds its input from a random key.
-- **`keys_test.dart` "corrects a typed O or I to 0 or 1" failed once in a full run**
-  (2026-10-08) and passed in the next and in twelve reruns: it builds its input from a
-  random key. **`budget_test.dart` "plans paid weekly, a date years ahead is still
-  quick" failed once** the same day with the Mac busy (it times itself against 200
+- **`budget_test.dart` "plans paid weekly, a date years ahead is still
+  quick" failed once** (2026-10-08) with the Mac busy (it times itself against 200
   ms) and passed three times alone.
-- **Launched while the Mac is locked, the app stops at startup.** The Keychain refuses
-  the key (-25308) and `_start` in `startup.dart` doesn't catch it, so the window stays
-  on the startup screen until the app is quit and opened again. Seen 2026-10-01; the
-  ledger wasn't touched. **Seen again 2026-10-09 with the Mac unlocked** (the owner:
-  a blank window after a rebuild and relaunch; it opened normally the next three
-  times), so the cause isn't known. Agreed with the owner as the next small fix: the
-  startup screen says what went wrong, with a Try again button and no "unlock your
-  Mac" line.
+- **A blank window at launch** (seen 2026-10-01 with the Mac locked, the Keychain
+  refusing the key with -25308, and 2026-10-09 unlocked, cause unknown). Fixed in
+  0.34.1: anything that goes wrong between launch and the ledger opening now says
+  what, with Try again (ADR 0001 "At launch"). Not covered: a step that never
+  returns (it would still sit on the empty screen), and a failure in `main.dart`
+  before the window's first screen (reading the appearance or language files).
+  The same PR fixed `keys_test.dart`'s two tests that failed now and then: their
+  random key's typo fitted the first build's check rule about 1 time in 34.
 - **Buttons may sit wrong on a Mac while their goldens look right** (a Mac draws them
   8 shorter). Only the popup's two were looked at.
 - **From the reviews of PR #44, none fixed:** the mouse wheel does nothing over the

@@ -4233,23 +4233,33 @@
       }
     }
   },
-  "startCouldntKeepKeyNothingEncrypted": "Couldn’t keep the key on this computer · {error}. Nothing was encrypted.",
+  "startCouldntKeepKeyNothingEncrypted": "Couldn’t keep the key on this computer",
   "@startCouldntKeepKeyNothingEncrypted": {
-    "description": "Full-screen error at launch after the recovery key setup. error is a technical error type name, left in English.",
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
+    "description": "Full-screen heading at launch, after the recovery key setup, when the key couldn't be stored."
   },
-  "startCouldntOpen": "Couldn’t open the ledger · {error}",
+  "startNothingEncrypted": "Nothing was encrypted.",
+  "@startNothingEncrypted": {
+    "description": "Full-screen error at launch, the line under 'Couldn’t keep the key on this computer'."
+  },
+  "startCouldntOpen": "Couldn’t open your ledger",
   "@startCouldntOpen": {
-    "description": "Full-screen error at launch. error is the reason, often technical and in English.",
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
+    "description": "Full-screen heading at launch when the ledger couldn't be opened."
+  },
+  "startCouldntReadKey": "Couldn’t read the key kept on this computer",
+  "@startCouldntReadKey": {
+    "description": "Full-screen heading at launch when the computer's keychain wouldn't give the ledger's key."
+  },
+  "startLedgerNotTouched": "Your ledger hasn’t been touched.",
+  "@startLedgerNotTouched": {
+    "description": "Full-screen error at launch, the line under 'Couldn’t read the key kept on this computer'."
+  },
+  "startTryAgain": "Try again",
+  "@startTryAgain": {
+    "description": "Button on the full-screen error at launch: does the step that failed again."
+  },
+  "startShowDetails": "Show details",
+  "@startShowDetails": {
+    "description": "Link on the full-screen error at launch: shows the technical error under it."
   },
   "startCopiesFailed": "{count, plural, =1{1 old copy couldn’t be encrypted and is still readable: {names}} other{{count} old copies couldn’t be encrypted and are still readable: {names}}}",
   "@startCopiesFailed": {

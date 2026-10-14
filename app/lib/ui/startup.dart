@@ -2,11 +2,13 @@
 // against the ledger before it's stored, so a key that doesn't fit is never
 // kept, and a new key is shown before it's stored or anything is encrypted,
 // so a quit or crash never leaves data locked under a key nobody saw.
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import '../data/backup.dart';
 import '../data/cloud_folder.dart';
@@ -25,12 +27,22 @@ import 'start_choice.dart';
 import 'theme.dart';
 
 /// The ledger, opened (and converted if it was plain), with what converting
-/// its old copies did.
+/// its old copies did. [startDaily] starts the daily copies, only once the
+/// launch has finished, so a launch that fails and is tried again leaves no
+/// timer running on a ledger it closed.
 typedef OpenedLedger = ({
   AppDatabase db,
   Backups backups,
   ConversionReport report,
+  void Function() startDaily,
 });
+
+/// The key kept on this computer couldn't be read (the Keychain refused
+/// it): nothing past reading it was tried.
+class _KeyNotRead implements Exception {
+  _KeyNotRead(this.error);
+  final Object error;
+}
 
 sealed class _Step {}
 
@@ -62,12 +74,17 @@ class _Running extends _Step {
   final bool offerBackup;
 }
 
-/// A launch that couldn't finish, with what went wrong: [keyNotKept] (the
-/// key couldn't be stored, nothing encrypted) or opening failed.
+/// Which step of a launch couldn't finish: the key kept here couldn't be
+/// read, a new key couldn't be stored (nothing encrypted), or opening failed.
+enum _FailedAt { keyNotRead, keyNotKept, open }
+
+/// A launch that couldn't finish, with what went wrong and the step to do
+/// again.
 class _Failed extends _Step {
-  _Failed(this.error, {this.keyNotKept = false});
+  _Failed(this.error, this.at, {required this.retry});
   final Object error;
-  final bool keyNotKept;
+  final _FailedAt at;
+  final Future<void> Function() retry;
 }
 
 class BetterBudgetStartup extends StatefulWidget {
@@ -107,6 +124,9 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   /// The folder or backup file picked there, which the typed key opens.
   String? _startPath;
 
+  /// Whether the failure screen is showing the error itself.
+  bool _details = false;
+
   File get _file => widget.ledgerFile;
 
   @override
@@ -118,14 +138,46 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   Future<bool> _encryptedLedgerHere() async =>
       _file.existsSync() && !await isPlainSqliteFile(_file);
 
+  /// Never leaves the window blank: a Keychain that refuses the key (a
+  /// locked Mac, -25308) or a file that can't be read is said, with Try
+  /// again.
   Future<void> _start() async {
-    final result = await resolveDataKey(widget.store);
+    try {
+      await _resolve();
+    } on _KeyNotRead catch (k) {
+      debugPrint('Reading the key failed: ${_safe(k.error)}');
+      _go(_Failed(k.error, _FailedAt.keyNotRead, retry: _start));
+    } catch (e) {
+      debugPrint('Starting failed: ${_safe(e)}');
+      _go(_Failed(e, _FailedAt.open, retry: _start));
+    }
+  }
+
+  /// Only Keychain reads, so a failure here has touched nothing.
+  static Future<T> _readKey<T>(Future<T> Function() read) async {
+    try {
+      return await read();
+    } catch (e) {
+      throw _KeyNotRead(e);
+    }
+  }
+
+  /// An error as it may be logged or shown. Only errors known to carry no
+  /// key are written out; any other is named by its type (a damaged stored
+  /// key fails base64 with the key's own text in its message).
+  static String _safe(Object e) =>
+      e is PlatformException || e is FileSystemException || e is CipherException
+      ? '$e'
+      : '${e.runtimeType}';
+
+  Future<void> _resolve() async {
+    final result = await _readKey(() => resolveDataKey(widget.store));
     final plain = await isPlainSqliteFile(_file);
     final encrypted = await _encryptedLedgerHere();
     switch (result) {
       case DataKeyReady(:final dataKey):
         await widget.store.forgetStoredRecoveryKey();
-        _keySaved = await widget.store.readKeySaved() ?? false;
+        _keySaved = await _readKey(widget.store.readKeySaved) ?? false;
         if (encrypted && !keyOpens(_file, dataKey)) {
           _go(_Entry(_EntryWhy.keptKeyWrong, ledgerHere: true));
           return;
@@ -275,7 +327,13 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
         await widget.store.writeKeySaved(kept);
       }
     } catch (e) {
-      _go(_Failed(e, keyNotKept: true));
+      _go(
+        _Failed(
+          e,
+          _FailedAt.keyNotKept,
+          retry: () => _onSetupDone(recovery, kept),
+        ),
+      );
       return;
     }
     _keySaved = kept;
@@ -289,7 +347,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     bool newDevice = false,
     bool newKey = false,
   }) async {
-    final OpenedLedger opened;
+    OpenedLedger? opened;
     var offerBackup = newDevice;
     try {
       opened = await widget.open(key);
@@ -317,10 +375,21 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       // or the app was quit): the ledger is still empty, so it's asked again.
       offerBackup = offerBackup || await opened.db.backupOfferOpen();
     } catch (e) {
-      debugPrint('Opening the ledger failed: $e');
-      _go(_Failed(e));
+      debugPrint('Opening the ledger failed: ${_safe(e)}');
+      // Try again opens it afresh: this one is closed, not left beside it.
+      try {
+        await opened?.db.close();
+      } catch (_) {}
+      _go(
+        _Failed(
+          e,
+          _FailedAt.open,
+          retry: () => _open(key, newDevice: newDevice, newKey: newKey),
+        ),
+      );
       return;
     }
+    opened.startDaily();
     _go(_Running(opened, key, offerBackup: offerBackup));
   }
 
@@ -344,13 +413,97 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     return r.converted > 0 ? t.startCopiesEncrypted(r.converted) : null;
   }
 
-  static String _failure(Words t, _Failed f) {
-    if (f.keyNotKept) {
-      return t.startCouldntKeepKeyNothingEncrypted('${f.error.runtimeType}');
-    }
+  static String _failure(Words t, _Failed f) => switch (f.at) {
+    _FailedAt.keyNotRead => t.startCouldntReadKey,
+    _FailedAt.keyNotKept => t.startCouldntKeepKeyNothingEncrypted,
+    _FailedAt.open => t.startCouldntOpen,
+  };
+
+  /// What a failure means for the ledger, where that is known.
+  static String? _failureNote(Words t, _Failed f) => switch (f.at) {
+    _FailedAt.keyNotRead => t.startLedgerNotTouched,
+    _FailedAt.keyNotKept => t.startNothingEncrypted,
+    _FailedAt.open => null,
+  };
+
+  /// The error itself, shown only when asked for. Storing a key names only
+  /// the error's type, so a key never reaches the screen.
+  static String _failureDetails(Words t, _Failed f) {
     final e = f.error;
-    return t.startCouldntOpen(
-      e is CipherException ? cipherProblem(t, e) : '$e',
+    if (f.at == _FailedAt.keyNotKept) return '${e.runtimeType}';
+    return e is CipherException ? cipherProblem(t, e) : _safe(e);
+  }
+
+  void _retry(_Failed f) {
+    setState(() {
+      _details = false;
+      _step = _Loading();
+    });
+    unawaited(f.retry());
+  }
+
+  Widget _failedScreen(Words t, _Failed f) {
+    final note = _failureNote(t, f);
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _failure(t, f),
+                  key: const ValueKey('startup-failed'),
+                  style: onest(22, weight: 600),
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 8),
+                  Text(note, style: onest(15, color: Mid.ink2, height: 1.4)),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    FilledButton(
+                      key: const ValueKey('startup-try-again'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Mid.fill,
+                        foregroundColor: Mid.onFill,
+                        visualDensity: VisualDensity.standard,
+                      ),
+                      onPressed: () => _retry(f),
+                      child: Text(t.startTryAgain),
+                    ),
+                    if (!_details) ...[
+                      const SizedBox(width: 12),
+                      TextButton(
+                        key: const ValueKey('startup-show-details'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Mid.ink2,
+                          visualDensity: VisualDensity.standard,
+                        ),
+                        onPressed: () => setState(() => _details = true),
+                        child: Text(t.startShowDetails),
+                      ),
+                    ],
+                  ],
+                ),
+                if (_details) ...[
+                  const SizedBox(height: 20),
+                  SelectableText(
+                    _failureDetails(t, f),
+                    key: const ValueKey('startup-details'),
+                    style: onest(13, color: Mid.ink3, height: 1.4),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -406,18 +559,6 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       startFrom: offerBackup ? _startFrom : null,
       startPath: offerBackup ? _startPath : null,
     ),
-    final _Failed f => Scaffold(
-      backgroundColor: Mid.ground,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            _failure(t, f),
-            key: const ValueKey('startup-failed'),
-            style: onest(14, color: Mid.coral),
-          ),
-        ),
-      ),
-    ),
+    final _Failed f => _failedScreen(t, f),
   };
 }

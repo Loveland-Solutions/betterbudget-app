@@ -143,7 +143,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
 - **Goldens** come from `ledger_screen_test.dart` (71), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian), `cloud_folder_test.dart` (6),
-  `startup_test.dart` (1) and `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
+  `startup_test.dart` (2) and `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
   one, capture `find.byType(MaterialApp)`. `test/goldens/` is committed;
   `test/failures/` is ignored output. They load Onest and Manrope explicitly; border and
   fade animations need an extra `pump()` before capture.

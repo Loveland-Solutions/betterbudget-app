@@ -161,6 +161,14 @@ restores, and the result is encrypted.
   doesn't open the ledger is never kept. If a stored key stops fitting (a new Mac by
   Migration Assistant, where "this device only" keys don't move), the entry screen
   comes back instead of a blank window.
+- **A launch that can't finish says so, with Try again** (agreed with the owner,
+  2026-10-09; built 2026-10-14). A Keychain that refuses the key (a locked Mac,
+  -25308), a file that can't be read, a new key that can't be stored, or a ledger
+  that fails to open, each puts up one line in ordinary ink ("Couldn't read the key
+  kept on this computer"), what it means for the ledger where that is known ("Your
+  ledger hasn't been touched."), a Try again button that does the failed step again
+  without a relaunch, and the error itself behind Show details. No "unlock your Mac"
+  line: the cause isn't always known.
 - **A new key is shown before anything is stored or encrypted.** A quit or crash on
   the key screen leaves everything as it was, and the next launch shows a new key. A
   ledger from before encryption gets its key without being asked for one.

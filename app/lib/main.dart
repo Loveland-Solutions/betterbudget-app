@@ -52,16 +52,29 @@ Future<void> main() async {
           open: (dataKey) async {
             final db = await AppDatabase.openEncrypted(dataKey);
             final backups = Backups(db, dataKey: dataKey);
-            final report = await backups.convertPlainBackups();
-            // One copy a day beside the database (14 days, plus the first of
-            // each of 12 months). Checked hourly too, for an app left open past
-            // midnight.
-            unawaited(backups.runDaily(DateTime.now()));
-            Timer.periodic(
-              const Duration(hours: 1),
-              (_) => backups.runDaily(DateTime.now()),
+            final ConversionReport report;
+            try {
+              report = await backups.convertPlainBackups();
+            } catch (_) {
+              // Try again opens it afresh; this one mustn't stay open beside.
+              await db.close();
+              rethrow;
+            }
+            return (
+              db: db,
+              backups: backups,
+              report: report,
+              // One copy a day beside the database (14 days, plus the first
+              // of each of 12 months). Checked hourly too, for an app left
+              // open past midnight.
+              startDaily: () {
+                unawaited(backups.runDaily(DateTime.now()));
+                Timer.periodic(
+                  const Duration(hours: 1),
+                  (_) => backups.runDaily(DateTime.now()),
+                );
+              },
             );
-            return (db: db, backups: backups, report: report);
           },
         ),
       ),
