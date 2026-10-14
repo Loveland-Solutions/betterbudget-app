@@ -160,6 +160,12 @@ since phones show budget amounts.
 - [x] Entry screen and budget-left screen, on Android, reading the folder (2026-10-07)
 - [ ] The iPhone build: folder access, icon
 - [ ] Encryption on Android verified
+- [x] Android's Play name and upload key (2026-10-14): the package is
+      `mn.lls.betterbudget`, registered in Play Console's developer verification
+      with the upload key's SHA-256 fingerprint. The key is `~/betterbudget-upload.jks`
+      (alias `upload`), backed up by the owner; `app/android/key.properties`
+      (git-ignored) holds its password, and release builds sign with it. The Mac
+      keeps `com.lovelandsolutions.betterbudget`, where its ledger and key live.
 - [ ] TestFlight / Play internal testing, then the stores
 
 ## Still on the list from STATUS (not beta blockers unless the owner says so)

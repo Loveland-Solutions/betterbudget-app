@@ -669,6 +669,14 @@ session loses the statement balance.
   This Mac needed Apple's WWDR G3 intermediate installed (done 2026-09-28). If Xcode
   asks for a new provisioning profile, run once from `app/macos`: `xcodebuild -workspace
   Runner.xcworkspace -scheme Runner -configuration Debug -allowProvisioningUpdates build`.
+  Android: the package is `mn.lls.betterbudget` (registered in Play Console,
+  2026-10-14; the Mac stays `com.lovelandsolutions.betterbudget`). Release builds sign
+  with the upload key `~/betterbudget-upload.jks` (alias `upload`) when the git-ignored
+  `app/android/key.properties` holds its password, otherwise with the debug key. The
+  owner keeps the key, password and fingerprints in KeePass. `keytool` isn't on the
+  PATH: use Android Studio's, `/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool`.
+  The first build with the new package installs on the Pixel as a second app, starting
+  at setup: let the computer take in the old app's waiting entries first.
 - **macOS 27** (2026-09-28) draws text edges slightly differently: goldens were redrawn on
   it. Goldens made on another macOS version will differ by about 0.1%.
 - **If tests stall** (random widget tests time out after 10 minutes with the CPU idle,
