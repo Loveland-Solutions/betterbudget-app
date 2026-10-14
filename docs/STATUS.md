@@ -243,7 +243,9 @@ folder. Then, in order:
    a search field at the top of the categories where they are picked from a list
    (owner, 2026-10-12: "there will be a lot of categories"), splitting one
    transaction over categories (owner, 2026-10-12: clothing and groceries on one
-   receipt), and a plain popup for a failure (owner, 2026-10-10). Each is designed
+   receipt), a plain popup for a failure (owner, 2026-10-10), and no yellow-and-black
+   overflow stripe anywhere on the computer or the phone (owner, 2026-10-14; a large
+   working balance runs past the account header's box today). Each is designed
    and shown to the owner first.
 5. **The rest of the new look.** The computer is fully on the logo's colors (ADR 0004
    "Gold is an accent, and the new colors come first"). **The phone is next when the
