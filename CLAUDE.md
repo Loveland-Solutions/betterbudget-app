@@ -14,6 +14,12 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
   `afcu-bank-transaction-exports/` never get committed, and no
   values from them go into code, tests or docs.
 - Ledger first, polished, then the budget.
+- The published privacy policy is `PRIVACY.md` in the public repo
+  `Loveland-Solutions/betterbudget` (no copy here). It says what the app stores and
+  where: on the device, encrypted, a folder the user picks, files the user saves, bank
+  files read on the device, bug reports on GitHub. A change that puts data anywhere
+  new, or alters what Report a bug fills in, updates it and its "Last updated" date
+  first.
 
 ## How the owner works
 

@@ -127,8 +127,10 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
 - [ ] App Store Connect record, bundle ID `com.lovelandsolutions.betterbudget`
 - [ ] Sandbox check: release entitlements have no network. Debug has
       `network.server` for Flutter tooling only; confirm it isn't in Release.
-- [ ] Privacy label ("Data not collected"), screenshots, description, privacy policy
-      page (it can live in the public repo)
+- [x] Privacy policy (2026-10-14): `PRIVACY.md` in the public repo,
+      https://github.com/Loveland-Solutions/betterbudget/blob/main/PRIVACY.md, the address
+      for every store's listing
+- [ ] Privacy label ("Data not collected"), screenshots, description
 - [ ] Keychain and recovery key work as expected in an App Store build (ADR 0001)
 - [ ] TestFlight for Mac, then submit for review
 
