@@ -10,13 +10,23 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Where to pick up (2026-10-14): the first real run on two Mac accounts is done and
-worked.** Entries made on either account arrive on the other with their category,
-the popup was seen, and the Source column reads "Entered locally" under both
-accounts (the owner, 2026-10-14: "this worked"). **Step 4 of the two-computers work
-is next** (the facts-first policy and the blocks for the cases still asked as a
-whole ledger; ADR 0005); the run changed nothing about its order. Show the owner
-what it would change on screen before building, with a recommendation.
+**Where to pick up (2026-10-14): Savings is next** (owner, 2026-10-14: "I'd like to
+move on to savings"; ROADMAP D). Four questions were put to the owner and are not
+answered yet: what they ran into using the four steps; whether each debt on
+Eliminate debt takes its interest rate and monthly payment; whether Save for the
+future becomes goals with a date and an amount (recommended) instead of its two
+questions; and whether the line "In the order of Personal Finances for
+Self-Reliance…" goes (recommended). Build from their answers, two or three options
+with sketches first. **Two computers, step 4, waits until after Savings** (the facts-first policy and
+the blocks for the cases still asked as a whole ledger; ADR 0005); the first real
+run on two Mac accounts worked (owner, 2026-10-14: "this worked"). Show the owner
+what step 4 would change on screen before building, with a recommendation.
+
+**Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
+key, a file that can't be read, a key that can't be kept, a ledger that fails to
+open) says what went wrong, with Try again and Show details, instead of a blank
+window (ADR 0001 "At launch"). Running on the owner's main account; the screen
+itself is seen only in `app/test/goldens/startup_failed.png`.
 
 **Version 0.34.0 (PR #73; both Mac accounts run it):** a row made under another account of the same Mac
 reads "Entered locally" too, by a hash of the Mac's hardware id kept as
@@ -264,7 +274,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #74. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #75. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
