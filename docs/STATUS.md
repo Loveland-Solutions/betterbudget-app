@@ -10,7 +10,15 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Version 0.34.0 (PR #73; running on the owner's account, the second account not yet on it):** a row made under another account of the same Mac
+**Where to pick up (2026-10-14): the first real run on two Mac accounts is done and
+worked.** Entries made on either account arrive on the other with their category,
+the popup was seen, and the Source column reads "Entered locally" under both
+accounts (the owner, 2026-10-14: "this worked"). **Step 4 of the two-computers work
+is next** (the facts-first policy and the blocks for the cases still asked as a
+whole ledger; ADR 0005); the run changed nothing about its order. Show the owner
+what it would change on screen before building, with a recommendation.
+
+**Version 0.34.0 (PR #73; both Mac accounts run it):** a row made under another account of the same Mac
 reads "Entered locally" too, by a hash of the Mac's hardware id kept as
 `computer.machine.<id>` (ADR 0005 "The same Mac is here"). A computer with no id yet
 takes a GUID worked out from its Mac and account instead of a random one; one that
@@ -41,22 +49,16 @@ reads "Entered locally", "Entered on Mac mini", "Imported on …", "From Pixel",
 "Opening balance"; a row keeps the id of the computer or phone, and each is named
 (and renamed) in the same panel, so a rename shows on every row
 (ADR 0005 "Where a row came from"; ADR 0004 "Where a row came from: a Source
-column"). The popup that goes away unseen is still on the list; the owner was
-offered keeping it up until clicked away and hasn't answered.
+column"). The popup that goes away unseen was
+offered to be kept up until clicked away; the owner saw it work and didn't ask for
+the change, so it stays six seconds.
 
-**Where to pick up (2026-10-13):** four PRs are merged into `main`, in order,
-**#66** (the row question, 0.29.0), **#67** (step 1, schema v20, 0.30.0),
-**#68** (step 2, shared ids, 0.31.0), **#69** (step 3, change files, 0.32.0;
-its code review's five findings fixed). `main` is at PR #69 and runs 0.32.0.
-The first real run is the owner's: open the
-app on their own account and on the testuser account ([a second Mac account
-stands in for a second computer](../CLAUDE.md)), spend on each, and watch for
-anything on either screen that isn't "N transactions from The other Mac", or a
-question that doesn't read right. The folder will then hold `Ledger.betterbudget`
-and one `Computer <id>.betterbudget-changes` per account. **Step 4 waits for
-that run**: it changes what the blocks say and which cases get them, and the
-run may change the order. The Pixel needs this build before it can read the
-folder's ledger again (every schema bump does this).
+**Merged on 2026-10-13, in order:** #66 (the row question, 0.29.0), #67 (step 1,
+schema v20, 0.30.0), #68 (step 2, shared ids, 0.31.0), #69 (step 3, change files,
+0.32.0; its code review's five findings fixed). The folder holds `Ledger.betterbudget`
+and one `Computer <id>.betterbudget-changes` per computer. The Pixel needs a build
+at or after 0.30.0 before it can read the folder's ledger again (every schema bump
+does this).
 
 **The two-computers design was re-chosen on 2026-10-12: a change file per
 computer** (ADR 0005 "Two computers: the way chosen, 2026-10-12"; the four expert
@@ -260,7 +262,7 @@ categories were deleted on 2026-10-07. A wordless screenshot from the owner, aft
 being told something couldn't be checked in the real app, is the result being shown,
 not a complaint.
 
-**Git:** `main` has everything through PR #73. Branch, commit, PR, merge. The logo and
+**Git:** `main` has everything through PR #74. Branch, commit, PR, merge. The logo and
 the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
 vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
 copies) is on the owner's Mac only, not in git.
