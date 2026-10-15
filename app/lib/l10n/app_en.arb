@@ -5118,9 +5118,9 @@
   "@ledgerNewerLedger": {
     "description": "After “Couldn’t open the ledger · ”: an older build opened a ledger a newer one saved, and refused."
   },
-  "importBeforeOpening": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them.}}",
+  "importBeforeOpening": "{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them.}}",
   "@importBeforeOpening": {
-    "description": "Import window warning: new rows dated before the account's opening balance would count twice.",
+    "description": "Import window warning: new rows dated on or before the account's opening balance's day would count twice.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -5129,7 +5129,7 @@
       "date": {}
     }
   },
-  "importBeforeOpeningLocked": "{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}",
+  "importBeforeOpeningLocked": "{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}",
   "@importBeforeOpeningLocked": {
     "description": "Import window warning, when the opening balance is reconciled and can't move.",
     "placeholders": {

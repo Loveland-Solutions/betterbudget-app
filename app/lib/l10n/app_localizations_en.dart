@@ -3496,9 +3496,9 @@ class WordsEn extends Words {
       count,
       locale: localeName,
       other:
-          '$count rows are dated before this account’s opening balance ($amount on $date), which already counts them.',
+          '$count rows are dated on or before this account’s opening balance ($amount on $date), which already counts them.',
       one:
-          '1 row is dated before this account’s opening balance ($amount on $date), which already counts it.',
+          '1 row is dated on or before this account’s opening balance ($amount on $date), which already counts it.',
     );
     return '$_temp0';
   }
@@ -3509,9 +3509,9 @@ class WordsEn extends Words {
       count,
       locale: localeName,
       other:
-          '$count rows are dated before this account’s opening balance ($amount on $date), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.',
+          '$count rows are dated on or before this account’s opening balance ($amount on $date), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.',
       one:
-          '1 row is dated before this account’s opening balance ($amount on $date), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.',
+          '1 row is dated on or before this account’s opening balance ($amount on $date), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.',
     );
     return '$_temp0';
   }

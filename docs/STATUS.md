@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-14** · version 0.34.1 · schema v21 · 736 tests pass
+**Last updated: 2026-10-15** · version 0.34.3 · schema v21 · 737 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -21,6 +21,14 @@ with sketches first. **Two computers, step 4, waits until after Savings** (the f
 the blocks for the cases still asked as a whole ledger; ADR 0005); the first real
 run on two Mac accounts worked (owner, 2026-10-14: "this worked"). Show the owner
 what step 4 would change on screen before building, with a recommendation.
+
+**Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
+setup, then the bank's last days imported, came out off by the rows dated on the
+balance's own day: the import only held rows dated before it. Rows on that day now
+count as held by the balance ("dated on or before"), with the same default move and
+"Leave it" (ADR 0004 "Rows on its own day count too"). Running on the owner's main
+account; not yet tried on a real import. **The `savings-interest-rate` branch
+(0.35.0) needs `main` merged in** before its PR, and its STATUS kept.
 
 **Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
 key, a file that can't be read, a key that can't be kept, a ledger that fails to
