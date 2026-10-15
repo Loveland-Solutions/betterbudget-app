@@ -666,6 +666,12 @@ abstract class Words {
   /// **'Couldn’t add the account'**
   String get ledgerCouldntAddAccount;
 
+  /// Toast when a new card's interest rate couldn't be saved; the account itself was added.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t keep the interest rate. The account was added; type the rate on Savings, step 2.'**
+  String get ledgerCouldntKeepRate;
+
   /// Toast when a new account’s starting balance failed to save.
   ///
   /// In en, this message translates to:
@@ -2009,12 +2015,6 @@ abstract class Words {
   /// **'Getting prepared, one step at a time'**
   String get planOneStepAtATime;
 
-  /// Savings page: small note under the steps. Personal Finances for Self-Reliance is the Church’s course; use its official Mongolian title if it has one
-  ///
-  /// In en, this message translates to:
-  /// **'In the order of Personal Finances for Self-Reliance: each step makes the next one safer.'**
-  String get planCourseNote;
-
   /// Savings page, step title (step 1): a month of expenses set aside
   ///
   /// In en, this message translates to:
@@ -2446,6 +2446,96 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Pay extra here'**
   String get planPayExtraHere;
+
+  /// Savings page, step 2: on a debt's line with no interest rate yet; a click opens the field
+  ///
+  /// In en, this message translates to:
+  /// **'Add interest rate'**
+  String get planRateAdd;
+
+  /// Savings page, step 2: a debt's interest rate, said by the month
+  ///
+  /// In en, this message translates to:
+  /// **'{rate}% a month'**
+  String planRateMonthly(String rate);
+
+  /// Savings page, step 2: a debt's interest rate, said by the year
+  ///
+  /// In en, this message translates to:
+  /// **'{rate}% a year'**
+  String planRateYearly(String rate);
+
+  /// Tooltip on the ⓘ beside a debt's interest rate on Savings, step 2
+  ///
+  /// In en, this message translates to:
+  /// **'Step 2 uses this rate to show about how much interest each debt costs you a month.'**
+  String get planRateTip;
+
+  /// Interest rate field: the switch that reads the rate as a month's (сарын хүү)
+  ///
+  /// In en, this message translates to:
+  /// **'a month'**
+  String get planRatePerMonth;
+
+  /// Interest rate field: the switch that reads the rate as a year's (жилийн хүү)
+  ///
+  /// In en, this message translates to:
+  /// **'a year'**
+  String get planRatePerYear;
+
+  /// Savings page, step 2: under a debt, what its rate costs a month
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} a month in interest'**
+  String planInterestAMonth(String amount);
+
+  /// Savings page, step 2: under the debt whose rate costs the most a month, when two or more have a rate
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} a month in interest, the most of your debts'**
+  String planInterestCostsMost(String amount);
+
+  /// Popup and undo label after an interest rate is saved; rate is e.g. “2% a month”
+  ///
+  /// In en, this message translates to:
+  /// **'Interest rate for {name}: {rate}'**
+  String planRateSet(String name, String rate);
+
+  /// Popup and undo label after an interest rate is emptied and saved
+  ///
+  /// In en, this message translates to:
+  /// **'Interest rate for {name} taken off'**
+  String planRateRemoved(String name);
+
+  /// Beside the interest rate field while a rate is set
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the field to take the rate off'**
+  String get planRateEmptyToRemove;
+
+  /// Under the interest rate field, a warning when a month's rate is very high; nothing is refused
+  ///
+  /// In en, this message translates to:
+  /// **'{rate}% a month is {year}% a year. If your bank’s {rate}% is a year’s rate, pick a year.'**
+  String planRateLooksYearly(String rate, String year);
+
+  /// Under the interest rate field, a warning when a tugrik debt's yearly rate is very low; nothing is refused
+  ///
+  /// In en, this message translates to:
+  /// **'{rate}% a year is {month}% a month. If your bank’s {rate}% is a month’s rate, pick a month.'**
+  String planRateLooksMonthly(String rate, String month);
+
+  /// Add account form: label of the interest rate line, shown for a credit card or loan
+  ///
+  /// In en, this message translates to:
+  /// **'Interest rate'**
+  String get setupRate;
+
+  /// Add account form: under the interest rate line
+  ///
+  /// In en, this message translates to:
+  /// **'Step 2 of Savings uses it to show about how much interest this debt costs you a month.'**
+  String get setupRateHint;
 
   /// Savings page: warning under a card marked paid in full every month; date like 2026.09.16
   ///

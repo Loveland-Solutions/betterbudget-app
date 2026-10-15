@@ -71,11 +71,15 @@ class _NewAccountPage extends StatefulWidget {
     this.onCancel,
     this.currency = Currency.mnt,
   });
+
+  /// [rate] is a card's or loan's interest rate as Savings keeps it
+  /// ([DebtRateValue.value]); null when none was typed.
   final void Function(
     String name,
     AccountType type,
     Currency currency,
     bool cash,
+    String? rate,
   )
   onCreate;
 
@@ -99,15 +103,42 @@ class _NewAccountPageState extends State<_NewAccountPage> {
   var _cash = false;
   late var _currency = widget.currency;
 
+  /// A card's or loan's rate, optional (owner, 2026-10-14: recorded "when
+  /// they create the card" as well as in Savings).
+  final _rate = TextEditingController();
+
+  /// Whether the rate is a year's; until it's picked, it follows the
+  /// currency ([ratePerYearFor]).
+  bool? _perYear;
+  var _rateWrong = false;
+
   @override
   void dispose() {
     _name.dispose();
+    _rate.dispose();
     super.dispose();
   }
 
   void _create() {
     final n = _name.text.trim();
-    widget.onCreate(n.isEmpty ? _defaultName : n, _type, _currency, _cash);
+    String? rate;
+    final typed = _rate.text.trim();
+    if (_type == AccountType.liability && typed.isNotEmpty) {
+      final percent = parseRatePercent(typed);
+      if (percent == null) return setState(() => _rateWrong = true);
+      final DebtRate r = (
+        percent: percent,
+        perYear: _perYear ?? ratePerYearFor(_currency),
+      );
+      rate = r.value;
+    }
+    widget.onCreate(
+      n.isEmpty ? _defaultName : n,
+      _type,
+      _currency,
+      _cash,
+      rate,
+    );
   }
 
   Widget _choice(String label, bool on, VoidCallback onTap, String key) =>
@@ -239,6 +270,33 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                           style: onest(12.5, color: Mid.ink3),
                         ),
                       ),
+                      if (_type == AccountType.liability) ...[
+                        const SizedBox(height: 6),
+                        _FormLine(
+                          label: t.setupRate,
+                          child: _RateInput(
+                            fieldKey: const ValueKey('new-account-rate'),
+                            currency: _currency,
+                            controller: _rate,
+                            perYear: _perYear ?? ratePerYearFor(_currency),
+                            wrong: _rateWrong,
+                            onPerYear: (v) => setState(() => _perYear = v),
+                            onEdited: () {
+                              if (_rateWrong) {
+                                setState(() => _rateWrong = false);
+                              }
+                            },
+                            onSubmitted: _create,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 100, bottom: 6),
+                          child: Text(
+                            t.setupRateHint,
+                            style: onest(12.5, color: Mid.ink3),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Padding(
                         padding: const EdgeInsets.only(left: 100),

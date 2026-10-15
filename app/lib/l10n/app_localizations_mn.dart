@@ -457,6 +457,10 @@ class WordsMn extends Words {
   String get ledgerCouldntAddAccount => 'Данс нэмж чадсангүй';
 
   @override
+  String get ledgerCouldntKeepRate =>
+      'Хүүг хадгалж чадсангүй. Данс нэмэгдсэн; хүүг Хуримтлалын 2-р алхамд оруулна уу.';
+
+  @override
   String get ledgerCouldntSaveBalance => 'Үлдэгдлийг хадгалж чадсангүй';
 
   @override
@@ -1386,10 +1390,6 @@ class WordsMn extends Words {
   String get planOneStepAtATime => 'Алхам алхмаар бэлтгэлээ хангах';
 
   @override
-  String get planCourseNote =>
-      '«Өөртөө найдах чадварын төлөө хувийн санхүү» сургалтын дарааллаар: алхам бүр дараагийнхыг илүү найдвартай болгоно.';
-
-  @override
   String get planStepOneMonth => 'Аюулгүйн нөөц бүрдүүлэх';
 
   @override
@@ -1672,6 +1672,69 @@ class WordsMn extends Words {
 
   @override
   String get planPayExtraHere => 'Энд илүү төлнө';
+
+  @override
+  String get planRateAdd => 'Хүү нэмэх';
+
+  @override
+  String planRateMonthly(String rate) {
+    return 'сарын $rate%';
+  }
+
+  @override
+  String planRateYearly(String rate) {
+    return 'жилийн $rate%';
+  }
+
+  @override
+  String get planRateTip =>
+      '2-р алхам энэ хүүгээр өр бүр сард ойролцоогоор хэдэн төгрөгийн хүү төлүүлж байгааг харуулна.';
+
+  @override
+  String get planRatePerMonth => 'сарын';
+
+  @override
+  String get planRatePerYear => 'жилийн';
+
+  @override
+  String planInterestAMonth(String amount) {
+    return 'сард ойролцоогоор $amount хүү';
+  }
+
+  @override
+  String planInterestCostsMost(String amount) {
+    return 'сард ойролцоогоор $amount хүү, өрнүүдээс тань хамгийн их нь';
+  }
+
+  @override
+  String planRateSet(String name, String rate) {
+    return '$name · хүү: $rate';
+  }
+
+  @override
+  String planRateRemoved(String name) {
+    return '$name · хүүг хассан';
+  }
+
+  @override
+  String get planRateEmptyToRemove => 'Хоосолбол хүүг хасна';
+
+  @override
+  String planRateLooksYearly(String rate, String year) {
+    return 'Сарын $rate% нь жилийн $year% болно. Банкны тань $rate% жилийн хүү бол «жилийн»-г сонгоно уу.';
+  }
+
+  @override
+  String planRateLooksMonthly(String rate, String month) {
+    return 'Жилийн $rate% нь сарын $month% болно. Банкны тань $rate% сарын хүү бол «сарын»-г сонгоно уу.';
+  }
+
+  @override
+  String get setupRate => 'Хүү';
+
+  @override
+  String get setupRateHint =>
+      'Хуримтлалын 2-р алхам үүгээр энэ өр сард ойролцоогоор хэдэн төгрөгийн хүү төлүүлж байгааг харуулна.';
 
   @override
   String planCarried(String date) {

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-14** · version 0.34.1 · schema v21 · 736 tests pass
+**Last updated: 2026-10-15** · version 0.35.0 · schema v21 · 740 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,17 +10,21 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Where to pick up (2026-10-14): Savings is next** (owner, 2026-10-14: "I'd like to
-move on to savings"; ROADMAP D). Four questions were put to the owner and are not
-answered yet: what they ran into using the four steps; whether each debt on
-Eliminate debt takes its interest rate and monthly payment; whether Save for the
-future becomes goals with a date and an amount (recommended) instead of its two
-questions; and whether the line "In the order of Personal Finances for
-Self-Reliance…" goes (recommended). Build from their answers, two or three options
-with sketches first. **Two computers, step 4, waits until after Savings** (the facts-first policy and
-the blocks for the cases still asked as a whole ledger; ADR 0005); the first real
-run on two Mac accounts worked (owner, 2026-10-14: "this worked"). Show the owner
-what step 4 would change on screen before building, with a recommendation.
+**Where to pick up (2026-10-15): the owner tries a debt's interest rate on Savings,
+step 2** (version 0.35.0, branch `savings-interest-rate`; ADR 0004 "A debt's
+interest rate on step 2"). The owner's answers on 2026-10-14: a rate typed on each
+debt's line or on Add account, a month's or a year's as the person picks (tugrik
+starts at a month), with an ⓘ; no monthly payment; Save for the future stays as it
+is, goals with dates go on the roadmap (ROADMAP D); the course's line under the steps
+is gone. Both reviews are in and their fixes made. Left for the owner, not built: on
+step 2 the list runs by interest a month while "Pay extra here" stays on the smallest
+debt, and the guide's "put its payment toward the next" means the next smallest; the
+budget review offered a sentence under the tag naming the costliest, or letting the
+next pick follow cost once they've picked the costliest. **Then Two computers, step
+4** (the facts-first policy and the blocks for the cases still asked as a whole
+ledger; ADR 0005); the first real run on two Mac accounts worked (owner, 2026-10-14:
+"this worked"). Show the owner what step 4 would change on screen before building,
+with a recommendation.
 
 **Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
 key, a file that can't be read, a key that can't be kept, a ledger that fails to
@@ -352,15 +356,9 @@ Asked and not answered. Don't re-ask; bring one up when its screen comes up agai
     import that doesn't match the bank lead with the amount as its own sentence,
     "₮3,298,850.00 apart from the bank."?
 
-17. **Three about the four Savings steps** (2026-10-09). On Eliminate debt, should
-    each debt take its interest rate and its monthly payment, so the page can say
-    which costs most and about when it will be gone? What does Save for the future
-    hold: it has "Saving for retirement" (I am / Not yet) and "Paying off the
-    mortgage", and the budget review says the first means little where everyone
-    employed pays social insurance and nobody pays a 6% ипотек early; goals with
-    dates (ROADMAP D) were offered instead or as well. And should the line under the
-    steps, "In the order of Personal Finances for Self-Reliance…", go now that the
-    steps are the owner's own?
+17. **The four Savings steps: answered 2026-10-14** (nothing waiting): a rate on each
+    debt, no monthly payment; Save for the future kept as it is; the course's line
+    gone (ADR 0004 "A debt's interest rate on step 2").
 
 ## Phase
 
@@ -389,7 +387,7 @@ hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md).
 | Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
-| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
+| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest, listed most first once two have one), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |

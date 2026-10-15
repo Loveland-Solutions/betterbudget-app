@@ -275,6 +275,174 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets(
+    'savings: a debt takes its interest rate, there or on Add account',
+    (tester) async {
+      final db = await pumpLedger(tester);
+      Future<Map<String, String>> prefs() async =>
+          (await tester.runAsync(db.loadLedger))!.prefs;
+      Future<void> undo() async {
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      final visa = (await tester.runAsync(db.loadLedger))!.accounts.values
+          .firstWhere((a) => a.name == 'Golomt Visa');
+      final key = ReadyKeys.rate(visa.id);
+      await tester.tap(find.text('Savings'));
+      await tester.pumpAndSettle();
+      final rate = find.byKey(ValueKey('debt-${visa.id}-rate'));
+      final field = find.byKey(ValueKey('debt-${visa.id}-rate-field'));
+      expect(
+        find.descendant(of: rate, matching: find.text('Add interest rate')),
+        findsOneWidget,
+      );
+      expect(find.byKey(ValueKey('debt-${visa.id}-rate-tip')), findsOneWidget);
+      expect(find.byKey(ValueKey('debt-${visa.id}-interest')), findsNothing);
+      // The course's line under the steps is gone (owner, 2026-10-14).
+      expect(find.textContaining('Self-Reliance'), findsNothing);
+
+      // Esc closes it with nothing saved.
+      await tester.tap(rate);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '9');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(field, findsNothing);
+      expect((await prefs())[key], isNull);
+
+      // A year's rate typed as a month's is warned about, not refused.
+      await tester.tap(rate);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '21.6');
+      await tester.pump();
+      expect(
+        find.text(
+          '21.6% a month is 259.2% a year. If your bank’s 21.6% is a '
+          'year’s rate, pick a year.',
+        ),
+        findsOneWidget,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      // A tugrik card's rate starts as a month's.
+      await tester.tap(rate);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '2');
+      await tester.tap(find.byKey(ValueKey('debt-${visa.id}-rate-save')));
+      await settle(tester);
+      expect((await prefs())[key], '2 month');
+      expect(find.text('2% a month'), findsOneWidget);
+      expect(find.byKey(ValueKey('debt-${visa.id}-interest')), findsOneWidget);
+      expect(find.textContaining('a month in interest'), findsOneWidget);
+
+      // Switched to a year's, saved with Enter; ⌘Z puts the month's back.
+      await tester.tap(rate);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('rate-per-year')));
+      await tester.enterText(field, '24');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect((await prefs())[key], '24 year');
+      expect(find.text('24% a year'), findsOneWidget);
+      await undo();
+      expect((await prefs())[key], '2 month');
+
+      // Empty takes it off.
+      await tester.tap(rate);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '');
+      await tester.tap(find.byKey(ValueKey('debt-${visa.id}-rate-save')));
+      await settle(tester);
+      expect((await prefs())[key], isNull);
+
+      // On Add account, only for a card or loan.
+      await tester.tap(find.text('Ledger'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-account')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('new-account-rate')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('new-account-name')),
+        'Khan card',
+      );
+      await tester.tap(find.byKey(const ValueKey('kind-liability')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('new-account-rate')),
+        '1,8',
+      );
+      await tester.tap(find.byKey(const ValueKey('new-account-create')));
+      await settle(tester);
+      await settle(tester);
+      final data = (await tester.runAsync(db.loadLedger))!;
+      final card = data.accounts.values.firstWhere(
+        (a) => a.name == 'Khan card',
+      );
+      expect(data.prefs[ReadyKeys.rate(card.id)], '1.8 month');
+      await tidy(tester, db);
+    },
+  );
+
+  testWidgets('savings: an open rate field stays with its debt as lines move', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    late int visa, loan;
+    await tester.runAsync(() async {
+      visa = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+      loan = await db.createAccount(
+        name: 'Khan loan',
+        type: AccountType.liability,
+      );
+      await db.postOpeningBalance(
+        accountId: loan,
+        date: DateTime(2026, 9, 1),
+        balance: -500000000,
+      );
+      // Visa first: it costs more until the loan's rate is raised.
+      await db.setPreference(ReadyKeys.rate(visa), '5 month');
+      await db.setPreference(ReadyKeys.rate(loan), '0.1 month');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    double top(int id) =>
+        tester.getTopLeft(find.byKey(ValueKey('debt-line-$id'))).dy;
+    expect(top(visa), lessThan(top(loan)));
+
+    // Visa's field is open with 9 typed when the loan's 3% moves it up.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('debt-$visa-rate-field')), '9');
+    await tester.tap(find.byKey(ValueKey('debt-$loan-rate')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('debt-$loan-rate-field')), '3');
+    await tester.tap(find.byKey(ValueKey('debt-$loan-rate-save')));
+    await settle(tester);
+    expect(top(loan), lessThan(top(visa)));
+    final field = find.descendant(
+      of: find.byKey(ValueKey('debt-line-$visa')),
+      matching: find.byKey(ValueKey('debt-$visa-rate-field')),
+    );
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).controller!.text, '9');
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate-save')));
+    await settle(tester);
+    final prefs = (await tester.runAsync(db.loadLedger))!.prefs;
+    expect(prefs[ReadyKeys.rate(visa)], '9 month');
+    expect(prefs[ReadyKeys.rate(loan)], '3 month');
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: a month of expenses comes from the budget', (
     tester,
   ) async {

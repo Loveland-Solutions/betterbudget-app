@@ -51,7 +51,74 @@ abstract final class ReadyKeys {
 
   /// Steps set aside, by name, comma separated.
   static const setAside = 'ready.setAside';
+
+  /// A card's or loan's interest rate, as [DebtRate.value] writes it:
+  /// `2 month`, `24 year`. Kept by account id, so a rename keeps it.
+  static String rate(int accountId) => 'ready.rate.$accountId';
 }
+
+/// A card's or loan's interest rate, as the person reads it off the bank:
+/// a month's or a year's (owner, 2026-10-14: "something that works in both
+/// the US and in Mongolia").
+typedef DebtRate = ({double percent, bool perYear});
+
+extension DebtRateValue on DebtRate {
+  /// How it is stored under [ReadyKeys.rate].
+  String get value => '${ratePercent(percent)} ${perYear ? 'year' : 'month'}';
+
+  /// What it costs a month on [owed]: a year's rate is spread over twelve.
+  int interestOn(int owed) =>
+      (owed * percent / 100 / (perYear ? 12 : 1)).round();
+}
+
+/// Reads [ReadyKeys.rate]'s value; null for none or one that doesn't read.
+DebtRate? parseDebtRate(String? s) {
+  final parts = (s ?? '').trim().split(' ');
+  if (parts.length != 2) return null;
+  final percent = parseRatePercent(parts[0]);
+  if (percent == null) return null;
+  return switch (parts[1]) {
+    'month' => (percent: percent, perYear: false),
+    'year' => (percent: percent, perYear: true),
+    _ => null,
+  };
+}
+
+/// A percent as typed: `2`, `1.4`, `1,4`, with or without `%`. Null for
+/// anything else, or below zero.
+double? parseRatePercent(String s) {
+  final m = RegExp(r'^(\d+(?:[.,]\d+)?)\s*%?$').firstMatch(s.trim());
+  if (m == null) return null;
+  final v = double.tryParse(m[1]!.replaceAll(',', '.'));
+  return v == null || v < 0 || v.isNaN || v.isInfinite ? null : v;
+}
+
+/// A percent as a person writes it: `2`, `1.4`, `24.99`.
+String ratePercent(double p) {
+  final s = p.toStringAsFixed(2);
+  return s.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+/// A month's rate this high is most likely a year's typed under "a month".
+bool rateLooksYearly(DebtRate r) => !r.perYear && r.percent > 8;
+
+/// A tugrik debt's year rate this low is most likely a month's.
+bool rateLooksMonthly(DebtRate r, Currency c) =>
+    r.perYear && c == Currency.mnt && r.percent > 0 && r.percent < 3;
+
+/// Whole units said the way a person says "about": two figures, so
+/// 47,836 is 48,000 and 41 stays 41.
+int roundAbout(int units) {
+  var step = 1;
+  while (units.abs() / step >= 100) {
+    step *= 10;
+  }
+  return (units / step).round() * step;
+}
+
+/// Where a new card's or loan's rate starts: tugrik rates are said by the
+/// month ("сарын хүү"), others by the year. A switch beside it changes it.
+bool ratePerYearFor(Currency c) => c != Currency.mnt;
 
 typedef Debt = ({AccountInfo account, int owed});
 
@@ -282,6 +349,7 @@ class Readiness {
     required this.longMarked,
     required this.carriedSince,
     required this.target,
+    required this.rates,
   });
 
   factory Readiness.of(LedgerData data, DateTime today) {
@@ -339,6 +407,10 @@ class Readiness {
               data.balanceOf(a.id) < 0)
             a.id: _carriedSince(data, a.id, dateOnly(today)),
       }..removeWhere((_, since) => since == null),
+      rates: {
+        for (final a in open)
+          if (a.isOwed) a.id: ?parseDebtRate(data.prefs[ReadyKeys.rate(a.id)]),
+      },
       target:
           consumer.where((d) => d.account.id == targetId).firstOrNull ??
           consumer.firstOrNull,
@@ -453,6 +525,48 @@ class Readiness {
         ? days.first
         : lastClear.add(const Duration(days: 1));
     return today.difference(since).inDays > _carryDays ? since : null;
+  }
+
+  /// Each card's and loan's rate the person gave, by account id.
+  final Map<int, DebtRate> rates;
+
+  /// What [d] costs a month in interest; null without a rate.
+  int? interestOf(Debt d) => rates[d.account.id]?.interestOn(d.owed);
+
+  /// The debts to pay off in the order step 2 lists them: once two or more
+  /// have a rate, the one costing the most interest a month first, those
+  /// without a rate last; otherwise smallest first, as before.
+  List<Debt> get debtsByCost {
+    // One rate has nothing to rank against: smallest first, as before.
+    if (consumerDebts.where((d) => interestOf(d) != null).length < 2) {
+      return consumerDebts;
+    }
+    final order = {for (final (i, d) in consumerDebts.indexed) d.account.id: i};
+    int compare(Debt a, Debt b) {
+      final x = interestOf(a), y = interestOf(b);
+      final byCost = x == null || y == null
+          ? (x == null ? 1 : 0) - (y == null ? 1 : 0)
+          : y.compareTo(x);
+      // Equal ones keep smallest first.
+      return byCost != 0
+          ? byCost
+          : order[a.account.id]!.compareTo(order[b.account.id]!);
+    }
+
+    return [...consumerDebts]..sort(compare);
+  }
+
+  /// The debt costing the most interest a month, when two or more have a
+  /// rate to compare; otherwise there is nothing to say.
+  /// The debts with a rate that costs something, most first.
+  List<Debt> get ratedByCost => [
+    for (final d in debtsByCost)
+      if ((interestOf(d) ?? 0) > 0) d,
+  ];
+
+  Debt? get costliest {
+    final rated = ratedByCost;
+    return rated.length >= 2 ? rated.first : null;
   }
 
   int get consumerOwed => consumerDebts.fold(0, (s, d) => s + d.owed);
