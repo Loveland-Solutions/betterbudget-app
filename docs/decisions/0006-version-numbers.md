@@ -26,7 +26,7 @@ alpha "1.0".
   `Info.plist` before signing. It reads only local git; without git it keeps pubspec's
   `+1`. The number points to one commit only for tagged release builds: a local build
   with uncommitted changes, or another branch with as many commits, shows the same one
-  (it must be a plain number, so a git hash can't go in it). Other platforms use pubspec's number until they're built for real.
+  (it must be a plain number, so a git hash can't go in it). Android's Gradle build reads the same count into `versionCode` (2026-10-15), since Play refuses an upload whose number isn't higher than the last; without git it keeps pubspec's number. Other platforms use pubspec's number until they're built for real.
 - **Settings shows it** at the bottom: "Version 0.1.0 (134)" / "Хувилбар 0.1.0 (134)".
   It's selectable so it can be copied into a bug report. The app reads it from its own
   bundle (`package_info_plus`), with no network call.
