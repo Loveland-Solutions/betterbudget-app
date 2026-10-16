@@ -5,6 +5,10 @@ uncommitted work, **the next step the owner asked for**, and setup. The road fro
 beta (and the platforms after it) is tracked in **[docs/ROADMAP.md](docs/ROADMAP.md)**. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
 The phone apps' design (record and check only, synced through a cloud folder the OS
 handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-mobile-companion.md)**.
+The work is tracked as issues on the
+[BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1): Type is
+Feature, Bug or Task; Status is Later, Next, In progress or Done; the milestone is Beta
+or After beta.
 
 ## Unbreakable rules (from the README)
 
@@ -119,6 +123,9 @@ row of controls with better words (owner, 2026-10-04).
 cd app && flutter analyze && flutter test
 ```
 
+- Every PR names its issue on the board with `Closes #N` in its description (or
+  `Part of #N` when it finishes only some of it). No issue yet: make one first, with
+  its Type, milestone and Status. Set the issue to In progress when the PR opens.
 - Bump `version:` in `app/pubspec.yaml` in each feature PR (minor) or fix PR (patch);
   the build number comes from git ([ADR 0006](docs/decisions/0006-version-numbers.md)).
 - Visual changes: `flutter test --update-goldens`, then look at the PNGs you changed in
