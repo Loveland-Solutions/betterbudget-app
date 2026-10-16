@@ -6,7 +6,7 @@ beta (and the platforms after it) is tracked in **[docs/ROADMAP.md](docs/ROADMAP
 The phone apps' design (record and check only, synced through a cloud folder the OS
 handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-mobile-companion.md)**.
 
-## Unbreakable rules (from the README)
+## Unbreakable rules
 
 - Nothing leaves the user's machine: no network calls, telemetry, sync, update checks,
   or runtime font or asset fetching. Release builds declare no network entitlement.
