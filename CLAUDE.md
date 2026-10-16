@@ -125,7 +125,8 @@ cd app && flutter analyze && flutter test
 
 - Every PR names its issue on the board with `Closes #N` in its description (or
   `Part of #N` when it finishes only some of it). No issue yet: make one first, with
-  its Type, milestone and Status. Set the issue to In progress when the PR opens.
+  its Type, milestone and Status. The board moves it to In progress when the PR links
+  it and to Done when it closes; dragging an item to Done closes the issue.
 - Bump `version:` in `app/pubspec.yaml` in each feature PR (minor) or fix PR (patch);
   the build number comes from git ([ADR 0006](docs/decisions/0006-version-numbers.md)).
 - Visual changes: `flutter test --update-goldens`, then look at the PNGs you changed in
