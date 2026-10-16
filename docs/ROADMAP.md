@@ -59,13 +59,27 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
       "corrected" column); corrections go into `app/lib/l10n/app_mn.arb`
 - [ ] The official Mongolian title of the course in Savings
 
-### B. Report a bug → public repo (owner item 1)
+### B. Report a bug → lls.mn (owner item 1)
+**Moved to the website** (owner, 2026-10-15: "Yeah, let's move them"). Bug reports
+and requests (a bank whose file doesn't import right, an idea) come through the
+contact form on lls.mn, which needs no account, instead of GitHub issues. The
+public repo keeps releases and the privacy policy.
 - [x] Create the public repo (2026-09-30). It holds issues, releases and download assets; the code
       is in `betterbudget-app`, public since 2026-10-16.
-- [ ] Help → Report a bug… opens the browser at a new issue with the app version, OS
-      and platform filled in. **No ledger data, ever.** The app makes no network call
-      itself: the browser opens the link, and only when the user clicks it (unbreakable rule).
-- [ ] Issue templates in the public repo (bug, idea)
+- [ ] Help → Report a bug… opens lls.mn's contact page in the browser, with the app
+      version, OS and platform filled in. **No ledger data, ever.** The app makes no
+      network call itself: the browser opens the link, and only when the user clicks it
+      (unbreakable rule).
+- [ ] The website side (lovelandsolutions-website): the contact form takes a
+      BetterBudget report, with version, OS and platform passed in the link. Built
+      there, before the menu item points at it.
+- [ ] `PRIVACY.md` in the public repo: section 5's "Bug reports on GitHub" becomes the
+      website's contact form (what it collects is governed by the lls.mn privacy
+      policy); new "Last updated" date. Then copy it into the website's
+      `src/legal/betterbudget-privacy/en.md`, which is a word-for-word copy, and
+      update the privacy rule in this repo's CLAUDE.md.
+- [ ] The public repo's README: "Report a bug or suggest an idea" points to the
+      website; turn off its Issues once nothing links there.
 - [x] Version numbers in the app (0.1.0, shown in Settings; ADR 0006), 2026-09-30.
 - [ ] Releases: notarized macOS download attached to a GitHub release (tag-driven; see
       ADR 0006 before setting up CI). Downloads outside
