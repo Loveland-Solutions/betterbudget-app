@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-16** · version 0.34.3 · schema v21 · 737 tests pass
+**Last updated: 2026-10-16** · version 0.34.4 · schema v21 · 737 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -29,6 +29,11 @@ with sketches first. **Two computers, step 4, waits until after Savings** (the f
 the blocks for the cases still asked as a whole ledger; ADR 0005); the first real
 run on two Mac accounts worked (owner, 2026-10-14: "this worked"). Show the owner
 what step 4 would change on screen before building, with a recommendation.
+
+**Version 0.34.4 (fix):** Android's build number is the repo's commit count, as the
+Mac's is (ADR 0006), so each upload to Play is higher than the last; it was 1 on
+every build. Next on Android: the Play Console record, the forms and the first
+upload to Internal testing (ROADMAP I).
 
 **Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
 setup, then the bank's last days imported, came out off by the rows dated on the
