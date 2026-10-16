@@ -1,0 +1,56 @@
+# Builds the Windows app and keeps it as a download on the workflow run
+# (Actions → this run → Artifacts). Runs on a pushed release tag (v0.35.0), on a
+# pull request that touches the Windows code or this file, or by hand from the
+# Actions tab. Nothing is published to the releases page from
+# here: a Windows build goes there once it has been tried on a Windows PC.
+name: Windows build
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths: ['app/windows/**', 'app/pubspec.yaml', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          # The build number is the commit count (ADR 0006); a shallow
+          # checkout would make every build number 1.
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2.21.0
+        with:
+          channel: stable
+          flutter-version: 3.47.4
+          cache: true
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $build = git rev-list --count HEAD
+          flutter build windows --release --build-number $build
+
+      - name: Name
+        id: name
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
+          "name=BetterBudget-$version-windows" >> $env:GITHUB_OUTPUT
+
+      # The artifact downloads as one zip of the app folder (BetterBudget.exe
+      # and the files beside it).
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ steps.name.outputs.name }}
+          path: app/build/windows/x64/runner/Release/
+          if-no-files-found: error
