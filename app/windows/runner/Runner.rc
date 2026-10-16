@@ -89,13 +89,16 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.lovelandsolutions" "\0"
-            VALUE "FileDescription", "betterbudget" "\0"
+            // CompanyName and ProductName name the folder the ledger and its key
+            // are kept in (%APPDATA%\Loveland Solutions\BetterBudget). Changing
+            // either after someone has used the app leaves their ledger behind.
+            VALUE "CompanyName", "Loveland Solutions" "\0"
+            VALUE "FileDescription", "BetterBudget" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "betterbudget" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.lovelandsolutions. All rights reserved." "\0"
-            VALUE "OriginalFilename", "betterbudget.exe" "\0"
-            VALUE "ProductName", "betterbudget" "\0"
+            VALUE "InternalName", "BetterBudget" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Loveland Solutions. GPL-3.0 or later." "\0"
+            VALUE "OriginalFilename", "BetterBudget.exe" "\0"
+            VALUE "ProductName", "BetterBudget" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

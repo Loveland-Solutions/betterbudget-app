@@ -37,6 +37,14 @@ alpha "1.0".
   commit count, and so the build number, comes out as 1. macOS runners on a private
   repo bill at about 10× Linux minutes, and notarizing needs the Apple credentials as
   secrets.
+- **Since the repo went public (2026-10-16), Actions minutes are free**, and the
+  owner asked for Mac and Windows downloads. Windows is built on GitHub
+  (`.github/workflows/windows.yml`, on a `v*` tag), with `fetch-depth: 0` and
+  `--build-number` set to the commit count. The Mac stays local
+  (`tool/release_mac.sh`): its Developer ID certificate and notary password stay in
+  this Mac's Keychain rather than becoming repo secrets. The script tags the commit,
+  pushes the tag (which starts the Windows build) and makes a draft release on
+  `Loveland-Solutions/betterbudget` for the owner to publish.
 
 ## Rejected
 
