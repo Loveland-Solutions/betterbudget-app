@@ -176,8 +176,9 @@ class _ImportDialogState extends State<_ImportDialog> {
     return (date: date, amount: before, end: null, endDay: null);
   }
 
-  /// Rows dated before the opening balance: move it before them (the
-  /// default, owner 2026-09-30) or leave it and count them twice.
+  /// Rows dated on or before the opening balance's day: move it before them
+  /// (the default, owner 2026-09-30) or leave it and count them twice. A
+  /// balance typed today is what the bank showed after today's rows.
   bool _moveOpening = true;
 
   /// New rows the opening balance already holds, and where it would move
@@ -189,7 +190,7 @@ class _ImportDialogState extends State<_ImportDialog> {
     final rows = [
       for (final p in plan.rows)
         if (p.fate == ImportFate.add &&
-            dateOnly(p.row.date).isBefore(opening.date))
+            !dateOnly(p.row.date).isAfter(opening.date))
           p,
     ];
     if (rows.isEmpty) return null;

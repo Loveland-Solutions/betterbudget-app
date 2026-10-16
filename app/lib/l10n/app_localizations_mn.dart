@@ -3351,12 +3351,12 @@ class WordsMn extends Words {
 
   @override
   String importBeforeOpening(int count, Object amount, Object date) {
-    return '$count мөр энэ дансны эхний үлдэгдлээс ($date, $amount) өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон.';
+    return '$count мөр энэ дансны эхний үлдэгдлийн ($date, $amount) өдөр эсвэл түүнээс өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон.';
   }
 
   @override
   String importBeforeOpeningLocked(int count, Object amount, Object date) {
-    return '$count мөр энэ дансны эхний үлдэгдлээс ($date, $amount) өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон. Эхний үлдэгдэл тулгагдсан тул өөрчлөгдөхгүй; оруулбал давхар тооцогдоно.';
+    return '$count мөр энэ дансны эхний үлдэгдлийн ($date, $amount) өдөр эсвэл түүнээс өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон. Эхний үлдэгдэл тулгагдсан тул өөрчлөгдөхгүй; оруулбал давхар тооцогдоно.';
   }
 
   @override

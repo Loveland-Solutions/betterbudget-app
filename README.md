@@ -37,6 +37,25 @@ they don't get relitigated later.
 - [0003 — Ledger schema: double-entry storage, categories as accounts](docs/decisions/0003-double-entry-schema.md)
 - [0004 — Ledger UI: Midnight, and the rules the register follows](docs/decisions/0004-ledger-ui.md)
 
+## License
+
+BetterBudget is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version. It is
+distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+[LICENSE](LICENSE) for the full text.
+
+Copyright © 2026 Loveland Solutions, LLC.
+
+- **The name and logo are not covered.** The license covers the source code. The name
+  BetterBudget and the logos in [assets/logo/](assets/logo/) and
+  [app/assets/brand/](app/assets/brand/) belong to Loveland Solutions, LLC. A changed copy
+  you share needs its own name and logo.
+- **The fonts keep their own license.** The fonts in
+  [app/assets/fonts/](app/assets/fonts/) are under the SIL Open Font License; the
+  `*-OFL.txt` files beside them are its text.
+
 ## Thanks
 
 - **Cynthia G. Loveland** worked through the Budget page's layout with the owner

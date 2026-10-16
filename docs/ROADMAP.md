@@ -18,9 +18,20 @@ picks one, build it, run both reviews, merge.
   period (STATUS open question 4, closed). Rejected: targets that start fresh every month.
 - **Public repo: [`Loveland-Solutions/betterbudget`](https://github.com/Loveland-Solutions/betterbudget)**
   (created 2026-09-30, public, README only), holding issues, releases and the privacy
-  policy. The code stays private here. The earlier private Tauri project that had the
+  policy. The code is in this repo, public too since 2026-10-16. The earlier private Tauri project that had the
   name is now `Loveland-Solutions/betterbudget-tauri-archive`. Its local clone
   (`~/Repositories/BetterBudget`) was repointed, so a push from it can't reach the public repo.
+
+## Decided (owner, 2026-10-16): open source
+
+- **The code is open source, under GPL-3.0 or later**, and `betterbudget-app` is public
+  with its whole history. Rejected: MIT or Apache-2.0 (a closed fork could add tracking
+  and sell it); a fresh repo with one first commit (the owner is fine with the process
+  being seen). The license covers the code, not the BetterBudget name and logos; the
+  fonts keep the OFL.
+- **A masked card number stays in the history** (owner: "Leave it"). An early ADR 0002
+  quoted a TDB card number the way the bank masks it (first six, last four) and a
+  teller code; later commits removed both. Rewriting history was rejected.
 
 ## Before beta
 
@@ -30,6 +41,15 @@ picks one, build it, run both reviews, merge.
       annual and quarterly budget items in C build on this.
 - [ ] CI running `flutter analyze && flutter test` on pull requests. Windows and Linux
       builds need it anyway (F, H).
+
+### A1. A fine-tooth comb before release (owner, 2026-10-16)
+"Go over the ledger, budget, savings, and payees sections with a fine tooth comb."
+Every screen, control, word and figure in each section, against CLAUDE.md's rules,
+before release. Tracked as issue #161, one sub-issue per section.
+- [ ] Ledger (#162)
+- [ ] Budget (#163)
+- [ ] Savings (#164)
+- [ ] Payees (#165)
 
 ### A2. Mongolian interface (owner, 2026-09-30)
 Decided in ADR 0004 ("Language"): Settings → Language, follows the Mac; drafted here,
@@ -45,7 +65,7 @@ and requests (a bank whose file doesn't import right, an idea) come through the
 contact form on lls.mn, which needs no account, instead of GitHub issues. The
 public repo keeps releases and the privacy policy.
 - [x] Create the public repo (2026-09-30). It holds issues, releases and download assets; the code
-      stays private here.
+      is in `betterbudget-app`, public since 2026-10-16.
 - [ ] Help → Report a bug… opens lls.mn's contact page in the browser, with the app
       version, OS and platform filled in. **No ledger data, ever.** The app makes no
       network call itself: the browser opens the link, and only when the user clicks it
@@ -66,6 +86,25 @@ public repo keeps releases and the privacy policy.
       the App Store come first because they're faster to ship.
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.
+
+### B2. Free and open source (owner, 2026-10-16)
+"I've decided that I'm going release this as open source." And: "I'm going to just
+have it for free." Free on every platform and in every store; the code public.
+- [x] `PRIVACY.md` section 4 says BetterBudget is free, with nothing to buy inside it.
+- [ ] Copy `PRIVACY.md` to the website word for word (lovelandsolutions-website
+      `src/legal/betterbudget-privacy/en.md`).
+- [x] Licence: GPL-3.0 or later, `LICENSE` (PR #82; "Decided (owner, 2026-10-16): open
+      source" above). Outside contributions under GPL need a contributor agreement if
+      the owner may ever relicense.
+- [x] Checked before going public: no value from the bank statements is in the files
+      or the history but a masked card number in an early ADR 0002 (kept, owner's
+      call). Ledger figures in the docs are the demo ledger's or test amounts (owner,
+      on the overflow note's balance: "it was a test amount"). Secrets: recovery-key files, the bank statement folders and
+      `key.properties` are git-ignored and were never committed.
+- [x] This repo went public on 2026-10-16, with its whole history.
+- [ ] Everything that says the code is private: the public `betterbudget` repo's README
+      ("The app's source code is private"). This file and CLAUDE.md are done.
+- [ ] Store listings set to free.
 
 ### C. Budget page, polished (owner item 2)
 Budget types (owner, 2026-10-03, two instead of four; ADR 0004 rule 27):
@@ -242,7 +281,7 @@ wasn't clear: ask it with a picture of the row).
 appears in both the phone app and the computer app. We need to constrain things so
 the user doesn't see that."). Flutter draws a yellow-and-black stripe where
 something is wider than its space. Seen on the computer in an account's header: a
-working balance of −₮118,608,768.86 runs past its box. To build: find every place a
+working balance of more than a hundred million tugrik, with cents, runs past its box. To build: find every place a
 number or name can grow (balances, amounts, payees, account and category names,
 Mongolian words), on the computer and the phone, and make each fit its space at any
 size: shrink the number, wrap or cut the words with "…". A test that lays out each
