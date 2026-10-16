@@ -13,6 +13,9 @@ handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-m
 - Real bank statements in `tdb-bank-transaction-exports/` and
   `afcu-bank-transaction-exports/` never get committed, and no
   values from them go into code, tests or docs.
+- This repo is public, under GPL-3.0 or later (owner, 2026-10-16). Anything pushed,
+  on any branch, in any commit message or PR, is published. The name and logo are not
+  under the license.
 - Ledger first, polished, then the budget.
 - The published privacy policy is `PRIVACY.md` in the public repo
   `Loveland-Solutions/betterbudget` (no copy here). It says what the app stores and

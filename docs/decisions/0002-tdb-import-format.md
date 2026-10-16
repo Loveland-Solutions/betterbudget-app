@@ -322,7 +322,7 @@ that lists pending ones would bring them in cleared, and again when they post.
   on one day are told apart by count (one row already in answers for one bank row) and,
   first, by name (one a prefix of the other, since OFX cuts names at 32 letters). A
   deleted import counts, as it does by key. A table key's own day is used where a typed
-  row kept its typed day. On the owner's files, CSV then QFX: all 4,517 rows are
+  row kept its typed day. On the owner's files, CSV then QFX: every row is
   caught, none new.
 - **A new account started from its file** (ADR 0004 "Import"): `applyImport(start:)`
   posts the opening balance in the same write and keeps its id on the `ImportRecord`
