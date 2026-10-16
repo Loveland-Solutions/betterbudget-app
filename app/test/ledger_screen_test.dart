@@ -7270,7 +7270,7 @@ void main() {
     await run(find.byKey(const ValueKey('import')));
     expect(
       find.textContaining(
-        '3 rows are dated before this account’s opening balance',
+        '3 rows are dated on or before this account’s opening balance',
       ),
       findsOneWidget,
     );
@@ -7291,6 +7291,92 @@ void main() {
     );
     await run(find.byKey(const ValueKey('import-do')));
     expect(find.textContaining('opening balance now'), findsOneWidget);
+    final data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('import: a row on the opening balance\'s own day is counted by '
+      'it too (a balance typed in setup today, then the bank\'s last days)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-same-day'),
+    ))!;
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (1, 0): DateTime(2026, 9, 10, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 20000.0,
+          (1, 6): 980000.0,
+          (1, 7): 'Кофе',
+          (2, 0): DateTime(2026, 9, 13, 13, 30),
+          (2, 2): 50000.0,
+          (2, 3): 0.0,
+          (2, 6): 1030000.0,
+          (2, 7): 'Буцаалт',
+          (3, 0): DateTime(2026, 9, 13, 18, 0),
+          (3, 2): 0.0,
+          (3, 3): 7000.0,
+          (3, 6): 1023000.0,
+          (3, 7): 'Такси',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+    // What the bank showed on the 13th, after that day's rows.
+    final id = (await tester.runAsync(() async {
+      final id = await db.createAccount(
+        name: 'State Bank',
+        type: AccountType.asset,
+      );
+      await db.postOpeningBalance(
+        accountId: id,
+        date: DateTime(2026, 9, 13),
+        balance: 102300000,
+      );
+      return id;
+    }))!;
+    await settle(tester);
+    await tester.tap(find.text('State Bank'));
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.textContaining(
+        '3 rows are dated on or before this account’s opening balance',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Move the opening balance to 2026.09.09 at ₮1,000,000.00'),
+      findsOneWidget,
+    );
+    await run(find.byKey(const ValueKey('import-do')));
     final data = (await tester.runAsync(db.loadLedger))!;
     expect(data.balanceOf(id), 102300000);
     await tidy(tester, db);

@@ -2198,6 +2198,12 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   what its rows add, so today's balance doesn't change. "Leave it (those rows count
   twice)" is the other choice; ⌘Z undoes either. A reconciled opening balance stays,
   with Leave those rows out. *Rejected (b):* importing only rows after it by default.
+  **Rows on its own day count too (2026-10-15, version 0.34.3):** the owner typed a
+  balance in setup, which dates it today, then imported the bank's last 15 days, and
+  the balance came out off by today's rows: the line only caught rows dated *before*
+  the balance's day. A balance typed today is what the bank showed after today's
+  rows, so rows on that day are now held by it too ("dated on or before"); "Leave it"
+  still covers a balance typed before a later row that day.
 - **A match's date (owner, 2026-09-30, option a):** the typed date stays unless the
   bank's is in another month; then it takes the bank's, so the month's reconcile
   matches the statement. The preview says so ("dated 10.02, the bank's"). *Rejected:*

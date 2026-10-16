@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-15** · version 0.35.0 · schema v21 · 740 tests pass
+**Last updated: 2026-10-16** · version 0.35.0 · schema v21 · 741 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -10,8 +10,16 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
+whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
+Anything pushed is published. Left in ROADMAP B2: the policy's copy on the website,
+the public `betterbudget` README that says the code is private, store listings set
+to free.
+The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
+difference"); it gains no line about the source being public.
+
 **Where to pick up (2026-10-15): the owner tries a debt's interest rate on Savings,
-step 2** (version 0.35.0, branch `savings-interest-rate`; ADR 0004 "A debt's
+step 2** (version 0.35.0, PR #79; ADR 0004 "A debt's
 interest rate on step 2"). The owner's answers on 2026-10-14: a rate typed on each
 debt's line or on Add account, a month's or a year's as the person picks (tugrik
 starts at a month), with an ⓘ; no monthly payment; Save for the future stays as it
@@ -25,6 +33,19 @@ next pick follow cost once they've picked the costliest. **Then Two computers, s
 ledger; ADR 0005); the first real run on two Mac accounts worked (owner, 2026-10-14:
 "this worked"). Show the owner what step 4 would change on screen before building,
 with a recommendation.
+
+**Version 0.34.4 (fix):** Android's build number is the repo's commit count, as the
+Mac's is (ADR 0006), so each upload to Play is higher than the last; it was 1 on
+every build. Next on Android: the Play Console record, the forms and the first
+upload to Internal testing (ROADMAP I).
+
+**Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
+setup, then the bank's last days imported, came out off by the rows dated on the
+balance's own day: the import only held rows dated before it. Rows on that day now
+count as held by the balance ("dated on or before"), with the same default move and
+"Leave it" (ADR 0004 "Rows on its own day count too"). Running on the owner's main
+account; not yet tried on a real import. **The `savings-interest-rate` branch
+(0.35.0) needs `main` merged in** before its PR, and its STATUS kept.
 
 **Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
 key, a file that can't be read, a key that can't be kept, a ledger that fails to

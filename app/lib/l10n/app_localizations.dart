@@ -4942,16 +4942,16 @@ abstract class Words {
   /// **'it was saved by a newer version of BetterBudget. Open it with that version; nothing here was changed.'**
   String get ledgerNewerLedger;
 
-  /// Import window warning: new rows dated before the account's opening balance would count twice.
+  /// Import window warning: new rows dated on or before the account's opening balance's day would count twice.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them.}}'**
+  /// **'{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them.}}'**
   String importBeforeOpening(int count, Object amount, Object date);
 
   /// Import window warning, when the opening balance is reconciled and can't move.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 row is dated before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}'**
+  /// **'{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}'**
   String importBeforeOpeningLocked(int count, Object amount, Object date);
 
   /// Import window choice (the default): move the opening balance before the file's rows, at the amount that keeps today's balance.
