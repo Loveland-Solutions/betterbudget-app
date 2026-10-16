@@ -75,9 +75,8 @@ have it for free." Free on every platform and in every store; the code public.
       the owner may ever relicense.
 - [x] Checked before going public: no value from the bank statements is in the files
       or the history but a masked card number in an early ADR 0002 (kept, owner's
-      call). Ledger figures in the docs are the demo ledger's, but for one account
-      balance in the overflow note, now said without its figure; the history
-      keeps it. Secrets: recovery-key files, the bank statement folders and
+      call). Ledger figures in the docs are the demo ledger's or test amounts (owner,
+      on the overflow note's balance: "it was a test amount"). Secrets: recovery-key files, the bank statement folders and
       `key.properties` are git-ignored and were never committed.
 - [x] This repo went public on 2026-10-16, with its whole history.
 - [ ] Everything that says the code is private: the public `betterbudget` repo's README
