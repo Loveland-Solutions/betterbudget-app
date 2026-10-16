@@ -40,7 +40,8 @@ testing (owner, 2026-10-16). Next on Android: the stores (issue #114).
 and is now BetterBudget by Loveland Solutions, which names its data folder. The
 owner asked for it as a release (2026-10-16): 0.35.0 is on the public repo's releases
 page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35.1
-(fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe`; whether
+(fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe` and gives it the Mac's
+icon (the logo's night form on a navy tile, filling the square); whether
 it then runs on that PC is #154.
 `app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo,
 but can't run until Apple's enrollment (in process, #169) gives a Developer ID

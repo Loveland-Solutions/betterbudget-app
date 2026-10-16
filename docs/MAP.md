@@ -92,7 +92,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `savings-*.svg` (four steps, day and night) are written
   by `assets/logo/prepared/prepare.py` (repo root) from the owner's vectors in
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
-  Mac icon is drawn by `design/icon/app_icon.py`, Android's by
+  Mac and Windows icons are drawn by `design/icon/app_icon.py`, Android's by
   `tool/gen_android_icons.sh`.
 - **Downloads.** `tool/release_mac.sh` makes the Mac disk image signed with Developer
   ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft
