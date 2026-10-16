@@ -12,6 +12,7 @@ on:
     paths: ['app/windows/**', 'app/pubspec.yaml', '.github/workflows/windows.yml']
   workflow_dispatch:
 
+# Actions are pinned to commits, not tags: this build becomes a public download.
 permissions:
   contents: read
 
@@ -22,13 +23,13 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # The build number is the commit count (ADR 0006); a shallow
           # checkout would make every build number 1.
           fetch-depth: 0
 
-      - uses: subosito/flutter-action@v2.21.0
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
           channel: stable
           flutter-version: 3.47.4
@@ -49,7 +50,7 @@ jobs:
 
       # The artifact downloads as one zip of the app folder (BetterBudget.exe
       # and the files beside it).
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.name.outputs.name }}
           path: app/build/windows/x64/runner/Release/

@@ -63,7 +63,9 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
       the App Store come first because they're faster to ship. Built (2026-10-16):
       `tool/release_mac.sh` and the Windows workflow. Waiting on the paid Apple
       team in Xcode (only the free Personal Team is signed in), and on a first run
-      of the Windows build on the owner's PC before it's attached.
+      of the Windows build on the owner's PC before it's attached. Moving the Mac
+      app to the paid team changes its Keychain group, so the first build signed by
+      it asks for the recovery key once; try it on the testuser account first.
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.
 

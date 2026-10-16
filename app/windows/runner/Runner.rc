@@ -89,6 +89,9 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            // CompanyName and ProductName name the folder the ledger and its key
+            // are kept in (%APPDATA%\Loveland Solutions\BetterBudget). Changing
+            // either after someone has used the app leaves their ledger behind.
             VALUE "CompanyName", "Loveland Solutions" "\0"
             VALUE "FileDescription", "BetterBudget" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
