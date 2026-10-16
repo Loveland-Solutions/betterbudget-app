@@ -64,6 +64,26 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.
 
+### B2. Free and open source (owner, 2026-10-16)
+"I've decided that I'm going release this as open source." And: "I'm going to just
+have it for free." Free on every platform and in every store; the code public.
+- [x] `PRIVACY.md` section 4 says BetterBudget is free, with nothing to buy inside it.
+- [ ] Copy `PRIVACY.md` to the website word for word (lovelandsolutions-website
+      `src/legal/betterbudget-privacy/en.md`).
+- [x] Licence: GPL-3.0 or later, `LICENSE` (PR #82; "Decided (owner, 2026-10-16): open
+      source" above). Outside contributions under GPL need a contributor agreement if
+      the owner may ever relicense.
+- [x] Checked before going public: no value from the bank statements is in the files
+      or the history but a masked card number in an early ADR 0002 (kept, owner's
+      call). Ledger figures in the docs are the demo ledger's, but for one account
+      balance in the overflow note, now said without its figure; the history
+      keeps it. Secrets: recovery-key files, the bank statement folders and
+      `key.properties` are git-ignored and were never committed.
+- [x] This repo went public on 2026-10-16, with its whole history.
+- [ ] Everything that says the code is private: the public `betterbudget` repo's README
+      ("The app's source code is private"). This file and CLAUDE.md are done.
+- [ ] Store listings set to free.
+
 ### C. Budget page, polished (owner item 2)
 Budget types (owner, 2026-10-03, two instead of four; ADR 0004 rule 27):
 - **Any time** (groceries, car repairs): a set amount each period. What's left carries
@@ -239,7 +259,7 @@ wasn't clear: ask it with a picture of the row).
 appears in both the phone app and the computer app. We need to constrain things so
 the user doesn't see that."). Flutter draws a yellow-and-black stripe where
 something is wider than its space. Seen on the computer in an account's header: a
-working balance of −₮118,608,768.86 runs past its box. To build: find every place a
+working balance of more than a hundred million tugrik, with cents, runs past its box. To build: find every place a
 number or name can grow (balances, amounts, payees, account and category names,
 Mongolian words), on the computer and the phone, and make each fit its space at any
 size: shrink the number, wrap or cut the words with "…". A test that lays out each

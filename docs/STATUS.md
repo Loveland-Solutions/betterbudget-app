@@ -11,7 +11,10 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 ## Next step
 
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
-whole history (ROADMAP "Decided (owner, 2026-10-16)"). Anything pushed is published.
+whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
+Anything pushed is published. Left in ROADMAP B2: the policy's copy on the website,
+the public `betterbudget` README that says the code is private, store listings set
+to free.
 The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
 difference"); it gains no line about the source being public.
 
