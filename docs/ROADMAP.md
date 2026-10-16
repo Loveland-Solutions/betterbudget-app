@@ -18,9 +18,20 @@ picks one, build it, run both reviews, merge.
   period (STATUS open question 4, closed). Rejected: targets that start fresh every month.
 - **Public repo: [`Loveland-Solutions/betterbudget`](https://github.com/Loveland-Solutions/betterbudget)**
   (created 2026-09-30, public, README only), holding issues, releases and the privacy
-  policy. The code stays private here. The earlier private Tauri project that had the
+  policy. The code is in this repo, public too since 2026-10-16. The earlier private Tauri project that had the
   name is now `Loveland-Solutions/betterbudget-tauri-archive`. Its local clone
   (`~/Repositories/BetterBudget`) was repointed, so a push from it can't reach the public repo.
+
+## Decided (owner, 2026-10-16): open source
+
+- **The code is open source, under GPL-3.0 or later**, and `betterbudget-app` is public
+  with its whole history. Rejected: MIT or Apache-2.0 (a closed fork could add tracking
+  and sell it); a fresh repo with one first commit (the owner is fine with the process
+  being seen). The license covers the code, not the BetterBudget name and logos; the
+  fonts keep the OFL.
+- **A masked card number stays in the history** (owner: "Leave it"). An early ADR 0002
+  quoted a TDB card number the way the bank masks it (first six, last four) and a
+  teller code; later commits removed both. Rewriting history was rejected.
 
 ## Before beta
 
@@ -41,7 +52,7 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 
 ### B. Report a bug → public repo (owner item 1)
 - [x] Create the public repo (2026-09-30). It holds issues, releases and download assets; the code
-      stays private here.
+      is in `betterbudget-app`, public since 2026-10-16.
 - [ ] Help → Report a bug… opens the browser at a new issue with the app version, OS
       and platform filled in. **No ledger data, ever.** The app makes no network call
       itself: the browser opens the link, and only when the user clicks it (unbreakable rule).
