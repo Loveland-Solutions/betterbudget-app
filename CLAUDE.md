@@ -10,7 +10,7 @@ The work is tracked as issues on the
 Feature, Bug or Task; Status is Later, Next, In progress or Done; the milestone is Beta
 or After beta.
 
-## Unbreakable rules (from the README)
+## Unbreakable rules
 
 - Nothing leaves the user's machine: no network calls, telemetry, sync, update checks,
   or runtime font or asset fetching. Release builds declare no network entitlement.
