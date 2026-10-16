@@ -19,8 +19,9 @@ says exactly what is stored and where.
 
 ## Download
 
-Releases and bug reports are at
-[Loveland-Solutions/betterbudget](https://github.com/Loveland-Solutions/betterbudget).
+Releases are at
+[Loveland-Solutions/betterbudget](https://github.com/Loveland-Solutions/betterbudget/releases).
+To report a bug or suggest an idea, use the contact form at [lls.mn](https://lls.mn).
 BetterBudget is still in alpha: the ledger comes first, then the budget.
 
 ## Project documentation
