@@ -60,7 +60,10 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 - [x] Version numbers in the app (0.1.0, shown in Settings; ADR 0006), 2026-09-30.
 - [ ] Releases: notarized macOS download attached to a GitHub release (tag-driven; see
       ADR 0006 before setting up CI). Downloads outside
-      the App Store come first because they're faster to ship.
+      the App Store come first because they're faster to ship. Built (2026-10-16):
+      `tool/release_mac.sh` and the Windows workflow. Waiting on the paid Apple
+      team in Xcode (only the free Personal Team is signed in), and on a first run
+      of the Windows build on the owner's PC before it's attached.
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.
 
@@ -165,7 +168,7 @@ Today: one MNT account and two USD accounts. The schema already stores `currency
 - [ ] TestFlight for Mac, then submit for review
 
 ### G. Windows (owner item 6)
-- [ ] A Windows machine or CI runner (`app/windows/` is scaffolded, never built)
+- [ ] A Windows machine or CI runner (`app/windows/` is built on GitHub since 2026-10-16, never run; the owner has a Windows PC to try it)
 - [ ] Encryption on Windows verified (Credential Manager, ADR 0001)
 - [ ] Shortcuts already have Ctrl versions; check fonts, title bar, file dialogs
 - [ ] The window stops at 1360 × 760 as on the Mac (ADR 0004 "The smallest

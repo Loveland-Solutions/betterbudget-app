@@ -94,6 +94,11 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
   Mac icon is drawn by `design/icon/app_icon.py`, Android's by
   `tool/gen_android_icons.sh`.
+- **Downloads.** `tool/release_mac.sh` makes the Mac disk image signed with Developer
+  ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft
+  release on `Loveland-Solutions/betterbudget`. The Windows app is built on GitHub by
+  `.github/workflows/windows.yml` (repo root) on a `v*` tag or a pull request that
+  touches Windows, and downloads from the run's Artifacts.
 - **Words.** New text goes in both `.arb` files with the same key and placeholders, or
   `language_test.dart` fails. Terms and tone: [l10n-glossary.md](l10n-glossary.md).
 - **Ids.** A new row's id is `newRowId()`, large and not sequential: never write
