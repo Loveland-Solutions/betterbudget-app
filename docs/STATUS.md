@@ -12,8 +12,8 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
 whole history (ROADMAP "Decided (owner, 2026-10-16)"). Anything pushed is published.
-Not done yet: the privacy policy in `Loveland-Solutions/betterbudget` could say the
-source is public, so anyone can check it; offered to the owner, not answered.
+The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
+difference"); it gains no line about the source being public.
 
 **Where to pick up (2026-10-14): Savings is next** (owner, 2026-10-14: "I'd like to
 move on to savings"; ROADMAP D). Four questions were put to the owner and are not

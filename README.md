@@ -46,11 +46,11 @@ distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; withou
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
 [LICENSE](LICENSE) for the full text.
 
-Copyright © 2026 Loveland Solutions.
+Copyright © 2026 Loveland Solutions, LLC.
 
 - **The name and logo are not covered.** The license covers the source code. The name
   BetterBudget and the logos in [assets/logo/](assets/logo/) and
-  [app/assets/brand/](app/assets/brand/) belong to Loveland Solutions. A changed copy
+  [app/assets/brand/](app/assets/brand/) belong to Loveland Solutions, LLC. A changed copy
   you share needs its own name and logo.
 - **The fonts keep their own license.** The fonts in
   [app/assets/fonts/](app/assets/fonts/) are under the SIL Open Font License; the
