@@ -42,6 +42,15 @@ picks one, build it, run both reviews, merge.
 - [ ] CI running `flutter analyze && flutter test` on pull requests. Windows and Linux
       builds need it anyway (F, H).
 
+### A1. A fine-tooth comb before release (owner, 2026-10-16)
+"Go over the ledger, budget, savings, and payees sections with a fine tooth comb."
+Every screen, control, word and figure in each section, against CLAUDE.md's rules,
+before release. Tracked as issue #161, one sub-issue per section.
+- [ ] Ledger (#162)
+- [ ] Budget (#163)
+- [ ] Savings (#164)
+- [ ] Payees (#165)
+
 ### A2. Mongolian interface (owner, 2026-09-30)
 Decided in ADR 0004 ("Language"): Settings → Language, follows the Mac; drafted here,
 checked by a native speaker; dates in sentences read "9-р сарын 30".
