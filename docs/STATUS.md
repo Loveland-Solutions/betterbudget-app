@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-15** · version 0.34.3 · schema v21 · 737 tests pass
+**Last updated: 2026-10-16** · version 0.34.3 · schema v21 · 737 tests pass
 
 **This file holds the current state and the next steps, nothing else.** No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
@@ -9,6 +9,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
+whole history (ROADMAP "Decided (owner, 2026-10-16)"). Anything pushed is published.
+The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
+difference"); it gains no line about the source being public.
 
 **Where to pick up (2026-10-14): Savings is next** (owner, 2026-10-14: "I'd like to
 move on to savings"; ROADMAP D). Four questions were put to the owner and are not
