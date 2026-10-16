@@ -3433,6 +3433,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AccountType type,
     Currency currency,
     bool cash,
+    String? rate,
   ) async {
     final int id;
     try {
@@ -3446,6 +3447,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
       debugPrint('Add account failed: $e');
       if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
       return;
+    }
+    // Kept for Savings, step 2, once the account is there: a rate that
+    // can't be kept is said on its own, and the account still opens. Undo
+    // leaves it, unread, beside the account; redo brings both back.
+    if (rate != null) {
+      try {
+        await db.setPreference(ReadyKeys.rate(id), rate);
+      } catch (e) {
+        debugPrint('Interest rate not kept: $e');
+        if (mounted) _showToast(context.t.ledgerCouldntKeepRate);
+      }
     }
     if (!mounted) return;
     setState(() {

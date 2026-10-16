@@ -57,7 +57,6 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 - [x] Settings → Language, every screen translated, Mongolian screenshots in the tests
 - [ ] A native speaker goes through [the review sheet](mongolian-review.csv) (fill the
       "corrected" column); corrections go into `app/lib/l10n/app_mn.arb`
-- [ ] The official Mongolian title of the course in Savings
 
 ### B. Report a bug → lls.mn (owner item 1)
 **Moved to the website** (owner, 2026-10-15: "Yeah, let's move them"). Bug reports
@@ -149,10 +148,20 @@ Work:
 through life." Today Savings shows the owner's four steps, each with its picture
 (ADR 0004 "Four Savings steps", 2026-10-09): a safety net, no debt but the house,
 three to six months, saving for the future.
+- [x] A debt's interest rate on step 2, typed there or on Add account, a month's or
+      a year's; debts listed by what each costs a month (2026-10-14, 0.35.0; ADR 0004
+      "A debt's interest rate on step 2")
 - [ ] Sketch what Savings becomes beyond the steps: goals with dates, and life events
       (missions, weddings, school, a house, a car, retirement), showing whether each
-      is on track
+      is on track. **Save for the future stays as it is for now** (owner, 2026-10-14:
+      "We can put something on the road map, but let's keep it as is for now"); this
+      is where goals would go, in place of or beside its two questions
 - [ ] Goals are set up in Savings and paid for through budget lines (C)
+- [ ] Later, from the budget review of the interest rates (2026-10-14): a card marked
+      paid in full that is carrying a balance shows what that costs a month, under
+      its warning; the tip could say that a card paid in full each month should be
+      marked so (its interest-free days); and once a loan payment's interest is a
+      line of its own in the ledger, "charged ₮X last month" beside the estimate
 - [ ] How far each step has come, not just done or not done: "1 month set aside: ₮X of ₮Y"
 - [ ] Both reviews, plus a committee of agents if the owner wants one
 

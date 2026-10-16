@@ -117,13 +117,6 @@ class _SavingsPage extends StatelessWidget {
                               style: onest(12, color: Mid.ink3),
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                          child: Text(
-                            t.planCourseNote,
-                            style: onest(12, color: Mid.ink3),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -191,12 +184,12 @@ class _StepRow extends StatelessWidget {
           _StepMarker(number: number, state: state),
           const SizedBox(width: 12),
           Expanded(
-            // The page fills the window; a step's words stay a width that
-            // reads.
+            // The page fills the window; a step's sentences stay a width
+            // that reads ([_reads]), its debt lines a little wider.
             child: Align(
               alignment: Alignment.topLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
+                constraints: const BoxConstraints(maxWidth: _stepWidth),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -251,14 +244,20 @@ class _StepRow extends StatelessWidget {
 
   List<Widget> _body(BuildContext context, Words t, ReadyState state) {
     final current = state == ReadyState.current;
-    Widget fact(String text, {Key? key, Color? color}) => Text(
-      text,
-      key: key,
-      style: onest(13, color: color ?? Mid.ink2, tabular: true),
+    Widget fact(String text, {Key? key, Color? color}) => ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _reads),
+      child: Text(
+        text,
+        key: key,
+        style: onest(13, color: color ?? Mid.ink2, tabular: true),
+      ),
     );
     Widget guide(String text) => Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Text(text, style: onest(13, color: Mid.ink2, height: 1.4)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _reads),
+        child: Text(text, style: onest(13, color: Mid.ink2, height: 1.4)),
+      ),
     );
     Widget controls(List<Widget> children) => Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -335,13 +334,21 @@ class _StepRow extends StatelessWidget {
             color: r.consumerDebts.isEmpty ? Mid.ink2 : Mid.ink,
           ),
           if (current && r.consumerDebts.isNotEmpty) guide(t.planPayExtraGuide),
-          for (final d in r.consumerDebts)
-            _DebtLine(debt: d, r: r, actions: actions),
+          // Keyed by account: the lines reorder as rates change, and an
+          // open rate field stays with its own debt.
+          for (final d in r.debtsByCost)
+            _DebtLine(
+              key: ValueKey('debt-line-${d.account.id}'),
+              debt: d,
+              r: r,
+              actions: actions,
+            ),
           for (final a in data.openAccounts)
             if (a.isOwed &&
                 a.role == AccountRole.paidMonthly &&
                 a.currency == CurrencyScope.of(context))
               _DebtLine(
+                key: ValueKey('debt-line-${a.id}'),
                 debt: (account: a, owed: -data.balanceOf(a.id)),
                 r: r,
                 actions: actions,
@@ -410,7 +417,12 @@ class _StepRow extends StatelessWidget {
                   : t.planAmountLeft(_here(context, r.longOwed)),
             ),
             for (final d in r.longLoans)
-              _DebtLine(debt: d, r: r, actions: actions),
+              _DebtLine(
+                key: ValueKey('debt-line-${d.account.id}'),
+                debt: d,
+                r: r,
+                actions: actions,
+              ),
             if (r.longLoans.isNotEmpty)
               controls([
                 _Answer(
@@ -780,26 +792,105 @@ String _countsAs(Words t, String name, AccountRole? role) => switch (role) {
   _ => t.planCountsAsConsumer(name),
 };
 
-/// A card or loan, what's owed on it, and what it counts as.
-class _DebtLine extends StatelessWidget {
-  const _DebtLine({required this.debt, required this.r, required this.actions});
+/// A card or loan, what's owed on it, and what it counts as; a debt to pay
+/// off also its interest rate, and what that costs a month.
+class _DebtLine extends StatefulWidget {
+  const _DebtLine({
+    super.key,
+    required this.debt,
+    required this.r,
+    required this.actions,
+  });
   final Debt debt;
   final Readiness r;
   final _SavingsActions actions;
 
   @override
+  State<_DebtLine> createState() => _DebtLineState();
+}
+
+class _DebtLineState extends State<_DebtLine> {
+  /// The rate being typed, while the field is open.
+  TextEditingController? _rate;
+  final _focus = FocusNode(debugLabel: 'debt-rate');
+  var _perYear = false;
+  var _wrong = false;
+
+  @override
+  void dispose() {
+    _rate?.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _start() {
+    final had = widget.r.rates[widget.debt.account.id];
+    setState(() {
+      _wrong = false;
+      _perYear = had?.perYear ?? ratePerYearFor(widget.debt.account.currency);
+      _rate = TextEditingController(
+        text: had == null ? '' : ratePercent(had.percent),
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  void _close() {
+    // Back to the screen's keys, so ⌘Z works straight after.
+    _focus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
+    final c = _rate;
+    setState(() => _rate = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) => c?.dispose());
+  }
+
+  void _save() {
+    final t = context.t;
+    final a = widget.debt.account;
+    final had = widget.r.rates[a.id];
+    final text = _rate!.text.trim();
+    if (text.isEmpty) {
+      if (had != null) {
+        widget.actions.setPref(
+          ReadyKeys.rate(a.id),
+          null,
+          t.planRateRemoved(a.name),
+          toast: true,
+        );
+      }
+      return _close();
+    }
+    final percent = parseRatePercent(text);
+    if (percent == null) return setState(() => _wrong = true);
+    final DebtRate rate = (percent: percent, perYear: _perYear);
+    if (had?.value != rate.value) {
+      widget.actions.setPref(
+        ReadyKeys.rate(a.id),
+        rate.value,
+        t.planRateSet(a.name, _rateWords(t, rate)),
+        toast: true,
+      );
+    }
+    _close();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final debt = widget.debt;
+    final r = widget.r;
+    final actions = widget.actions;
     final a = debt.account;
     final consumer = r.consumerDebts.any((d) => d.account.id == a.id);
     final target = consumer && r.target?.account.id == a.id;
     final carried = r.carriedSince[a.id];
+    final rate = r.rates[a.id];
+    final interest = consumer ? r.interestOf(debt) : null;
     final line = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
           SizedBox(
-            width: 200,
+            width: _debtName,
             child: Text(
               a.name,
               style: onest(13, color: Mid.ink2),
@@ -807,96 +898,350 @@ class _DebtLine extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 130,
+            width: _debtOwed,
             child: Text(
               debt.owed > 0 ? _here(context, debt.owed) : t.planNothingOwed,
               style: onest(13, color: Mid.ink2, tabular: true),
             ),
           ),
-          MenuAnchor(
-            style: _menuStyle,
-            menuChildren: [
-              if (consumer && !target)
-                MenuItemButton(
-                  key: ValueKey('debt-${a.id}-target'),
-                  onPressed: () => actions.setPref(
-                    ReadyKeys.target,
-                    '${a.id}',
-                    t.planPayingExtraOn(a.name),
-                    toast: true,
+          if (consumer)
+            SizedBox(
+              width: _debtRate,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Hoverable(
+                      key: ValueKey('debt-${a.id}-rate'),
+                      onTap: _rate == null ? _start : _close,
+                      builder: (hover) => Text(
+                        rate == null ? t.planRateAdd : _rateWords(t, rate),
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            onest(
+                              12.5,
+                              color: rate == null
+                                  ? Mid.blue
+                                  : (hover ? Mid.ink2 : Mid.ink3),
+                              tabular: true,
+                            ).copyWith(
+                              decoration: hover
+                                  ? TextDecoration.underline
+                                  : null,
+                            ),
+                      ),
+                    ),
                   ),
-                  style: ButtonStyle(
-                    minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
-                    overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: t.planRateTip,
+                    waitDuration: const Duration(milliseconds: 300),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      key: ValueKey('debt-${a.id}-rate-tip'),
+                      size: 14,
+                      color: Mid.ink3,
+                    ),
                   ),
-                  child: Text(
-                    t.planPayExtraOnThis,
-                    style: onest(13, color: Mid.ink2),
+                ],
+              ),
+            ),
+          // The last two give way with "…" before the line runs out of room.
+          Flexible(
+            child: MenuAnchor(
+              style: _menuStyle,
+              menuChildren: [
+                if (consumer && !target)
+                  MenuItemButton(
+                    key: ValueKey('debt-${a.id}-target'),
+                    onPressed: () => actions.setPref(
+                      ReadyKeys.target,
+                      '${a.id}',
+                      t.planPayingExtraOn(a.name),
+                      toast: true,
+                    ),
+                    style: ButtonStyle(
+                      minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
+                      overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                    ),
+                    child: Text(
+                      t.planPayExtraOnThis,
+                      style: onest(13, color: Mid.ink2),
+                    ),
                   ),
+                for (final role in <AccountRole?>[
+                  null,
+                  AccountRole.paidMonthly,
+                  AccountRole.mortgage,
+                ])
+                  MenuItemButton(
+                    key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
+                    // An account marked a student loan under the six steps is
+                    // debt to pay off already: picking that leaves its mark.
+                    onPressed: () {
+                      if (_sameRole(a.role, role)) return;
+                      actions.setRole(a, role, _countsAs(t, a.name, role));
+                    },
+                    leadingIcon: Icon(
+                      _sameRole(a.role, role) ? Icons.check_rounded : null,
+                      size: 16,
+                      color: Mid.blue,
+                    ),
+                    style: ButtonStyle(
+                      minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
+                      overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                    ),
+                    child: Text(
+                      _roleWords(t, role),
+                      style: onest(13, color: Mid.ink2),
+                    ),
+                  ),
+              ],
+              builder: (context, menu, _) => Hoverable(
+                key: ValueKey('debt-${a.id}-role'),
+                onTap: () => menu.isOpen ? menu.close() : menu.open(),
+                builder: (hover) => Text(
+                  _roleWords(t, a.role),
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(12.5, color: hover ? Mid.ink2 : Mid.ink3)
+                      .copyWith(
+                        decoration: hover ? TextDecoration.underline : null,
+                      ),
                 ),
-              for (final role in <AccountRole?>[
-                null,
-                AccountRole.paidMonthly,
-                AccountRole.mortgage,
-              ])
-                MenuItemButton(
-                  key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
-                  // An account marked a student loan under the six steps is
-                  // debt to pay off already: picking that leaves its mark.
-                  onPressed: () {
-                    if (_sameRole(a.role, role)) return;
-                    actions.setRole(a, role, _countsAs(t, a.name, role));
-                  },
-                  leadingIcon: Icon(
-                    _sameRole(a.role, role) ? Icons.check_rounded : null,
-                    size: 16,
-                    color: Mid.blue,
-                  ),
-                  style: ButtonStyle(
-                    minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
-                    overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-                  ),
-                  child: Text(
-                    _roleWords(t, role),
-                    style: onest(13, color: Mid.ink2),
-                  ),
-                ),
-            ],
-            builder: (context, menu, _) => Hoverable(
-              key: ValueKey('debt-${a.id}-role'),
-              onTap: () => menu.isOpen ? menu.close() : menu.open(),
-              builder: (hover) => Text(
-                _roleWords(t, a.role),
-                style: onest(
-                  12.5,
-                  color: hover ? Mid.ink2 : Mid.ink3,
-                ).copyWith(decoration: hover ? TextDecoration.underline : null),
               ),
             ),
           ),
           if (target) ...[
             const SizedBox(width: 12),
-            Text(
-              t.planPayExtraHere,
-              key: ValueKey('debt-${a.id}-is-target'),
-              style: onest(12.5, color: Mid.blue),
+            Flexible(
+              child: Text(
+                t.planPayExtraHere,
+                key: ValueKey('debt-${a.id}-is-target'),
+                overflow: TextOverflow.ellipsis,
+                style: onest(12.5, color: Mid.blue),
+              ),
             ),
           ],
         ],
       ),
     );
-    if (carried == null) return line;
+    final editing = _rate;
+    if (carried == null && interest == null && editing == null) return line;
+    // Said only when what's shown differs: two that read "about ₮48,000"
+    // aren't one costing more.
+    final rated = r.ratedByCost;
+    final most =
+        r.costliest?.account.id == a.id &&
+        _interest(context, r.interestOf(rated[0])!) !=
+            _interest(context, r.interestOf(rated[1])!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         line,
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Text(
-            t.planCarried(sayFullDate(t, carried)),
-            key: ValueKey('debt-${a.id}-carried'),
-            style: onest(12.5, color: Mid.ink, height: 1.4),
+        if (interest != null)
+          Padding(
+            // Under what's owed, which it is worked out from.
+            padding: const EdgeInsets.only(left: _debtName, top: 2),
+            child: Text(
+              most
+                  ? t.planInterestCostsMost(_interest(context, interest))
+                  : t.planInterestAMonth(_interest(context, interest)),
+              key: ValueKey('debt-${a.id}-interest'),
+              style: onest(12.5, color: most ? Mid.ink : Mid.ink3),
+            ),
           ),
+        if (editing != null)
+          Padding(
+            padding: const EdgeInsets.only(left: _debtName, top: 6, bottom: 2),
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.escape): _close,
+              },
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.start,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _RateInput(
+                    fieldKey: ValueKey('debt-${a.id}-rate-field'),
+                    currency: a.currency,
+                    controller: editing,
+                    focusNode: _focus,
+                    perYear: _perYear,
+                    wrong: _wrong,
+                    onPerYear: (v) => setState(() => _perYear = v),
+                    onEdited: () {
+                      if (_wrong) setState(() => _wrong = false);
+                    },
+                    onSubmitted: _save,
+                  ),
+                  BarButton(
+                    key: ValueKey('debt-${a.id}-rate-cancel'),
+                    label: t.setupCancel,
+                    onTap: _close,
+                  ),
+                  BarButton(
+                    key: ValueKey('debt-${a.id}-rate-save'),
+                    label: t.planSave,
+                    color: Mid.blue,
+                    onTap: _save,
+                  ),
+                  if (rate != null)
+                    Text(
+                      t.planRateEmptyToRemove,
+                      style: onest(12, color: Mid.ink3),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (carried != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              t.planCarried(sayFullDate(t, carried)),
+              key: ValueKey('debt-${a.id}-carried'),
+              style: onest(12.5, color: Mid.ink, height: 1.4),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A step's sentences are held to a width that reads; the step itself is
+/// wider, for a debt line's columns.
+const double _reads = 640, _stepWidth = 760;
+
+/// A debt line's columns: the name, what's owed, the rate. What it counts
+/// as and "Pay extra here" take what's left of [_stepWidth], and give way
+/// with "…" only when even that is too little.
+const double _debtName = 170, _debtOwed = 116, _debtRate = 130;
+
+/// A rate as said: "2% a month", "24% a year".
+String _rateWords(Words t, DebtRate r) => r.perYear
+    ? t.planRateYearly(ratePercent(r.percent))
+    : t.planRateMonthly(ratePercent(r.percent));
+
+/// Interest a month, as said with "about": ₮48,000, not ₮47,836.
+String _interest(BuildContext context, int minor) {
+  final c = CurrencyScope.of(context);
+  return formatShort(
+    roundAbout((minor / c.scale).round()) * c.scale,
+    currency: c,
+  );
+}
+
+/// A rate's field, its %, and whether it is a month's or a year's: on a
+/// debt's line in Savings and on Add account for a card or loan.
+class _RateInput extends StatelessWidget {
+  const _RateInput({
+    required this.fieldKey,
+    required this.controller,
+    required this.perYear,
+    required this.onPerYear,
+    required this.currency,
+    this.focusNode,
+    this.onEdited,
+    this.wrong = false,
+    this.onSubmitted,
+  });
+  final Key fieldKey;
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final bool perYear;
+  final ValueChanged<bool> onPerYear;
+  final Currency currency;
+
+  /// Each change to the text, so a red border can clear once it's fixed.
+  final VoidCallback? onEdited;
+  final bool wrong;
+  final VoidCallback? onSubmitted;
+
+  /// A rate that looks typed under the wrong period, said with its
+  /// numbers; it is saved as typed all the same (warn, don't block).
+  String? _warning(Words t) {
+    final percent = parseRatePercent(controller.text);
+    if (percent == null) return null;
+    final DebtRate r = (percent: percent, perYear: perYear);
+    final typed = ratePercent(percent);
+    if (rateLooksYearly(r)) {
+      return t.planRateLooksYearly(typed, ratePercent(percent * 12));
+    }
+    if (rateLooksMonthly(r, currency)) {
+      return t.planRateLooksMonthly(typed, ratePercent(percent / 12));
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final warning = _warning(t);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _row(t),
+            if (warning != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Text(
+                    warning,
+                    key: const ValueKey('rate-warning'),
+                    style: onest(12.5, color: Mid.ink, height: 1.4),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _row(Words t) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 72,
+          height: 30,
+          child: TextField(
+            key: fieldKey,
+            controller: controller,
+            focusNode: focusNode,
+            style: onest(13, tabular: true),
+            textAlign: TextAlign.right,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
+            onChanged: (_) => onEdited?.call(),
+            decoration: _fieldDecoration(wrong: wrong).copyWith(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 7,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 8),
+          child: Text('%', style: onest(13, color: Mid.ink2)),
+        ),
+        _Choice(
+          key: const ValueKey('rate-per-month'),
+          label: t.planRatePerMonth,
+          on: !perYear,
+          onTap: () => onPerYear(false),
+        ),
+        _Choice(
+          key: const ValueKey('rate-per-year'),
+          label: t.planRatePerYear,
+          on: perYear,
+          onTap: () => onPerYear(true),
         ),
       ],
     );

@@ -460,6 +460,10 @@ class WordsEn extends Words {
   String get ledgerCouldntAddAccount => 'Couldn’t add the account';
 
   @override
+  String get ledgerCouldntKeepRate =>
+      'Couldn’t keep the interest rate. The account was added; type the rate on Savings, step 2.';
+
+  @override
   String get ledgerCouldntSaveBalance => 'Couldn’t save the balance';
 
   @override
@@ -1463,10 +1467,6 @@ class WordsEn extends Words {
   String get planOneStepAtATime => 'Getting prepared, one step at a time';
 
   @override
-  String get planCourseNote =>
-      'In the order of Personal Finances for Self-Reliance: each step makes the next one safer.';
-
-  @override
   String get planStepOneMonth => 'Build a safety net';
 
   @override
@@ -1750,6 +1750,69 @@ class WordsEn extends Words {
 
   @override
   String get planPayExtraHere => 'Pay extra here';
+
+  @override
+  String get planRateAdd => 'Add interest rate';
+
+  @override
+  String planRateMonthly(String rate) {
+    return '$rate% a month';
+  }
+
+  @override
+  String planRateYearly(String rate) {
+    return '$rate% a year';
+  }
+
+  @override
+  String get planRateTip =>
+      'Step 2 uses this rate to show about how much interest each debt costs you a month.';
+
+  @override
+  String get planRatePerMonth => 'a month';
+
+  @override
+  String get planRatePerYear => 'a year';
+
+  @override
+  String planInterestAMonth(String amount) {
+    return 'about $amount a month in interest';
+  }
+
+  @override
+  String planInterestCostsMost(String amount) {
+    return 'about $amount a month in interest, the most of your debts';
+  }
+
+  @override
+  String planRateSet(String name, String rate) {
+    return 'Interest rate for $name: $rate';
+  }
+
+  @override
+  String planRateRemoved(String name) {
+    return 'Interest rate for $name taken off';
+  }
+
+  @override
+  String get planRateEmptyToRemove => 'Clear the field to take the rate off';
+
+  @override
+  String planRateLooksYearly(String rate, String year) {
+    return '$rate% a month is $year% a year. If your bank’s $rate% is a year’s rate, pick a year.';
+  }
+
+  @override
+  String planRateLooksMonthly(String rate, String month) {
+    return '$rate% a year is $month% a month. If your bank’s $rate% is a month’s rate, pick a month.';
+  }
+
+  @override
+  String get setupRate => 'Interest rate';
+
+  @override
+  String get setupRateHint =>
+      'Step 2 of Savings uses it to show about how much interest this debt costs you a month.';
 
   @override
   String planCarried(String date) {

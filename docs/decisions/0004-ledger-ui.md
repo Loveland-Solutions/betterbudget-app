@@ -2858,6 +2858,63 @@ six steps; everything else in rule 25 stands.
   question again. What the budget review found and was left for the owner is in
   STATUS ("Waiting on the owner" 17, and "Known bugs").
 
+### A debt's interest rate on step 2 (owner, 2026-10-14)
+
+Asked whether each debt on Eliminate debt should take its interest rate and its
+monthly payment, the owner: "There should be a place to record the interest rate.
+They should be able to update it there in savings or when they create the card.
+There should be a tooltip or something that tells the interest rate is used in step
+2." No monthly payment was asked for.
+
+- **The rate sits on each debt's line** (layout A of three, the owner's pick): "Add
+  rate" while there is none, else "2% a month"; a click opens a field under the line
+  with %, the switch, Cancel and Save (Enter saves, Esc cancels, empty takes it off,
+  one undo). An ⓘ beside it: "Step 2 uses this rate to show which debt costs you
+  the most each month, so you know where to pay extra first." *Rejected:* B, the
+  rate behind the debt's menu (out of sight); C, a table with Owed, Rate and
+  Interest a month headings (busier).
+- **A month's rate or a year's is the person's choice** (owner: "Let them chose how
+  the interest rate works so that they have something that works in both the US and
+  in Mongolia"). A switch, "a month" / "a year", beside the field. Where it starts
+  is a default, not a question: a tugrik card or loan starts at "a month", since
+  Mongolian banks say сарын хүү; any other currency at "a year".
+- **On Add account**, a credit card or loan has an optional Interest rate line with
+  the same switch, and under it: "Not required. Step 2 of Savings uses it to show
+  which debt costs you the most each month."
+- **What it shows:** under a debt with a rate, "about ₮48,000 a month in interest"
+  (what's owed × the month's rate; a year's rate over twelve; whole tugrik).
+  Debts are listed by that, most first, those without a rate last. Once two or more
+  have a rate, the costliest reads "· costs you the most"; with one, there's
+  nothing to compare. **The debt to pay extra on is still the smallest unless one is
+  picked**: the order says what each costs, the pick stays theirs.
+- **Kept as a Savings answer, not an account column:** `ready.rate.<account id>`,
+  "2 month" or "24 year". No schema change, so the phone needs no new build; the
+  other computer gets it through the change files like any preference. An account
+  added and then undone leaves its rate unread beside it; redo brings both back.
+- **The line "In the order of Personal Finances for Self-Reliance…" is gone** (owner:
+  the steps are their own now). With it went the need for the course's Mongolian
+  title.
+- **Save for the future stays as it is** (owner: "We can put something on the road
+  map, but let's keep it as is for now"); goals with dates are in ROADMAP D.
+- A step's sentences stay 640 wide; the step is 760, so a debt line's name, amount,
+  rate, what it counts as and "Pay extra here" fit in English and Mongolian.
+- **From the reviews** (decided along the lines above):
+  - The tip and the Add account line say only what the figure is: "Step 2 uses this
+    rate to show about how much interest each debt costs you a month." The first
+    wording added "so you know where to pay extra first", which the figure doesn't
+    measure: a big loan at 1.5% a month costs more each month than a small card at
+    3%, yet extra money saves more on the card.
+  - "About" is said in two figures: ₮48,000, not ₮47,836. The costliest reads
+    "about ₮300,000 a month in interest, the most of your debts", and not when the
+    top two read the same.
+  - Debts are sorted by cost only once two or more have a rate; until then, smallest
+    first as before.
+  - A rate that looks typed under the wrong period is warned about under the field,
+    never refused: over 8% a month ("21.6% a month is 259.2% a year. If your bank's
+    21.6% is a year's rate, pick a year."), or a tugrik rate under 3% a year.
+  - "Add interest rate", not "Add rate" (the app has exchange rates too). A rate is
+    digits with one decimal point or comma, and an optional %.
+
 ### Two computers: what is said when the ledger comes from another one (2026-10-09)
 
 Built with step 1 of "More than one computer on one ledger"

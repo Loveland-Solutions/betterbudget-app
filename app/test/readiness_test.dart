@@ -453,6 +453,83 @@ void main() {
     expect(r.target!.account.name, 'Visa');
   });
 
+  test('a rate is kept as typed, a month\'s or a year\'s', () {
+    expect(parseDebtRate('2 month'), (percent: 2.0, perYear: false));
+    expect(parseDebtRate('24.5 year'), (percent: 24.5, perYear: true));
+    for (final bad in [null, '', '2', 'x month', '2 week', '-1 month']) {
+      expect(parseDebtRate(bad), isNull, reason: '$bad');
+    }
+    expect(parseRatePercent('1,4%'), 1.4);
+    for (final bad in ['1e5', '2.', '.5', '2%%', '2 3']) {
+      expect(parseRatePercent(bad), isNull, reason: bad);
+    }
+    expect(parseRatePercent(' 2 % '), 2);
+    const DebtRate monthly = (percent: 1.4, perYear: false);
+    expect(monthly.value, '1.4 month');
+    expect(parseDebtRate(monthly.value), monthly);
+    expect(ratePercent(2), '2');
+    expect(ratePercent(24.99), '24.99');
+    // A year's rate is spread over twelve months.
+    const DebtRate yearly = (percent: 24, perYear: true);
+    expect(yearly.interestOn(240000000), 4800000);
+    const DebtRate twoAMonth = (percent: 2, perYear: false);
+    expect(twoAMonth.interestOn(240000000), 4800000);
+    // "About" is said in two figures.
+    expect(roundAbout(47836), 48000);
+    expect(roundAbout(41), 41);
+    expect(roundAbout(155), 160);
+    // A rate that looks typed under the wrong period is warned about.
+    expect(rateLooksYearly((percent: 21.6, perYear: false)), isTrue);
+    expect(rateLooksYearly((percent: 2, perYear: false)), isFalse);
+    expect(
+      rateLooksMonthly((percent: 1.8, perYear: true), Currency.mnt),
+      isTrue,
+    );
+    expect(
+      rateLooksMonthly((percent: 1.8, perYear: true), Currency.usd),
+      isFalse,
+    );
+    expect(
+      rateLooksMonthly((percent: 24, perYear: true), Currency.mnt),
+      isFalse,
+    );
+    // Where a new one starts: tugrik by the month, others by the year.
+    expect(ratePerYearFor(Currency.mnt), isFalse);
+    expect(ratePerYearFor(Currency.usd), isTrue);
+  });
+
+  test('step 2 lists the debt costing the most interest first', () {
+    // Visa owes 900.00, the home loan (unmarked) 200,000.00: smallest first.
+    var r = Readiness.of(ledger(mortgageRole: null), today);
+    expect(r.debtsByCost.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.costliest, isNull);
+    // One rate has nothing to rank against: smallest first still, and
+    // nothing costs "the most".
+    r = Readiness.of(
+      ledger(mortgageRole: null, prefs: {ReadyKeys.rate(mortgage): '1 month'}),
+      today,
+    );
+    expect(r.debtsByCost.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.interestOf(r.debtsByCost.last), 200000);
+    expect(r.interestOf(r.debtsByCost.first), isNull);
+    expect(r.costliest, isNull);
+    // Both rated: the costliest a month is named, though its rate is lower.
+    r = Readiness.of(
+      ledger(
+        mortgageRole: null,
+        prefs: {
+          ReadyKeys.rate(mortgage): '12 year',
+          ReadyKeys.rate(visa): '3 month',
+        },
+      ),
+      today,
+    );
+    expect(r.debtsByCost.map((d) => d.account.name), ['Home loan', 'Visa']);
+    expect(r.costliest!.account.name, 'Home loan');
+    // The debt to pay extra on is still the smallest until one is picked.
+    expect(r.target!.account.name, 'Visa');
+  });
+
   test('a card marked paid monthly that carries a balance is flagged', () {
     LedgerData withCard(List<TxnData> card) {
       final data = ledger(owedOnVisa: 0);
