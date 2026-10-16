@@ -41,6 +41,16 @@ jobs:
           $build = git rev-list --count HEAD
           flutter build windows --release --build-number $build
 
+      # Microsoft's C++ runtime goes beside BetterBudget.exe, as Microsoft allows
+      # (app-local deployment), so a PC that has never installed it still opens
+      # the app instead of stopping at "MSVCP140.dll was not found" (#194).
+      - name: C++ runtime
+        shell: pwsh
+        run: |
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "$env:WINDIR\System32\$dll" build/windows/x64/runner/Release/ -ErrorAction Stop
+          }
+
       - name: Name
         id: name
         shell: pwsh

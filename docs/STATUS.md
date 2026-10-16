@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-16** · version 0.35.0 · schema v21 · 741 tests pass
+**Last updated: 2026-10-16** · version 0.35.1 · schema v21 · 741 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -37,8 +37,11 @@ testing (owner, 2026-10-16). Next on Android: the stores (issue #114).
 
 **Version 0.34.5 (PR #86):** downloads. The Windows app is built on GitHub
 (`.github/workflows/windows.yml`, on a `v*` tag, a PR touching Windows, or by hand)
-and is now BetterBudget by Loveland Solutions, which names its data folder; it isn't
-attached to a release until it's been tried on a Windows PC (#154).
+and is now BetterBudget by Loveland Solutions, which names its data folder. The
+owner asked for it as a release (2026-10-16): 0.35.0 is on the public repo's releases
+page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35.1
+(fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe`; whether
+it then runs on that PC is #154.
 `app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo,
 but can't run until Apple's enrollment (in process, #169) gives a Developer ID
 certificate (#152).
@@ -48,8 +51,7 @@ setup, then the bank's last days imported, came out off by the rows dated on the
 balance's own day: the import only held rows dated before it. Rows on that day now
 count as held by the balance ("dated on or before"), with the same default move and
 "Leave it" (ADR 0004 "Rows on its own day count too"). Running on the owner's main
-account; not yet tried on a real import. **The `savings-interest-rate` branch
-(0.35.0) needs `main` merged in** before its PR, and its STATUS kept.
+account; not yet tried on a real import.
 
 **Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
 key, a file that can't be read, a key that can't be kept, a ledger that fails to
