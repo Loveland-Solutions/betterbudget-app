@@ -53,6 +53,27 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 - [ ] Find updates by hand: Help → "Check for a newer version" opens the releases page
       in the browser. The app never checks on its own.
 
+### B2. Free and open source (owner, 2026-10-16)
+"I've decided that I'm going release this as open source." And: "I'm going to just
+have it for free." Free on every platform and in every store; the code public.
+- [ ] `PRIVACY.md` section 4: "You buy BetterBudget, and any in-app purchases" becomes
+      a free download from the stores; keep what each store collects when someone
+      downloads; new "Last updated" date. Then copy it to the website
+      (lovelandsolutions-website `src/legal/betterbudget-privacy/en.md`, word for word).
+- [ ] Choose a licence (permissive, MIT or Apache 2.0, or copyleft, GPL 3.0) and add
+      `LICENSE`. Outside contributions under GPL need a contributor agreement if the
+      owner may ever relicense.
+- [ ] Before the code goes public: take out of the docs, and out of the git history,
+      any figure from the owner's own ledger (the docs quote amounts such as
+      −₮118,608,768.86, ₮68,000,000 and ₮16,868,950; check each). Secrets are safe:
+      recovery-key files, the bank statement folders and `key.properties` are
+      git-ignored and were never committed (checked 2026-10-16).
+- [ ] Which repo goes public: this one, or the code moved into the public
+      `betterbudget`.
+- [ ] Everything that says the code is private: the public repo's README ("The app's
+      source code is private"), this file's "Decided" list, CLAUDE.md.
+- [ ] Store listings set to free.
+
 ### C. Budget page, polished (owner item 2)
 Budget types (owner, 2026-10-03, two instead of four; ADR 0004 rule 27):
 - **Any time** (groceries, car repairs): a set amount each period. What's left carries
