@@ -67,22 +67,21 @@ checked by a native speaker; dates in sentences read "9-р сарын 30".
 ### B2. Free and open source (owner, 2026-10-16)
 "I've decided that I'm going release this as open source." And: "I'm going to just
 have it for free." Free on every platform and in every store; the code public.
-- [ ] `PRIVACY.md` section 4: "You buy BetterBudget, and any in-app purchases" becomes
-      a free download from the stores; keep what each store collects when someone
-      downloads; new "Last updated" date. Then copy it to the website
-      (lovelandsolutions-website `src/legal/betterbudget-privacy/en.md`, word for word).
-- [ ] Choose a licence (permissive, MIT or Apache 2.0, or copyleft, GPL 3.0) and add
-      `LICENSE`. Outside contributions under GPL need a contributor agreement if the
-      owner may ever relicense.
-- [ ] Before the code goes public: take out of the docs, and out of the git history,
-      any figure from the owner's own ledger (the docs quote amounts such as
-      −₮118,608,768.86, ₮68,000,000 and ₮16,868,950; check each). Secrets are safe:
-      recovery-key files, the bank statement folders and `key.properties` are
-      git-ignored and were never committed (checked 2026-10-16).
-- [ ] Which repo goes public: this one, or the code moved into the public
-      `betterbudget`.
-- [ ] Everything that says the code is private: the public repo's README ("The app's
-      source code is private"), this file's "Decided" list, CLAUDE.md.
+- [x] `PRIVACY.md` section 4 says BetterBudget is free, with nothing to buy inside it.
+- [ ] Copy `PRIVACY.md` to the website word for word (lovelandsolutions-website
+      `src/legal/betterbudget-privacy/en.md`).
+- [x] Licence: GPL-3.0 or later, `LICENSE` (PR #82; "Decided (owner, 2026-10-16): open
+      source" above). Outside contributions under GPL need a contributor agreement if
+      the owner may ever relicense.
+- [x] Checked before going public: no value from the bank statements is in the files
+      or the history but a masked card number in an early ADR 0002 (kept, owner's
+      call). Ledger figures in the docs are the demo ledger's, but for one account
+      balance in the overflow note, now said without its figure; the history
+      keeps it. Secrets: recovery-key files, the bank statement folders and
+      `key.properties` are git-ignored and were never committed.
+- [x] This repo went public on 2026-10-16, with its whole history.
+- [ ] Everything that says the code is private: the public `betterbudget` repo's README
+      ("The app's source code is private"). This file and CLAUDE.md are done.
 - [ ] Store listings set to free.
 
 ### C. Budget page, polished (owner item 2)
@@ -260,7 +259,7 @@ wasn't clear: ask it with a picture of the row).
 appears in both the phone app and the computer app. We need to constrain things so
 the user doesn't see that."). Flutter draws a yellow-and-black stripe where
 something is wider than its space. Seen on the computer in an account's header: a
-working balance of −₮118,608,768.86 runs past its box. To build: find every place a
+working balance of more than a hundred million tugrik, with cents, runs past its box. To build: find every place a
 number or name can grow (balances, amounts, payees, account and category names,
 Mongolian words), on the computer and the phone, and make each fit its space at any
 size: shrink the number, wrap or cut the words with "…". A test that lays out each
