@@ -173,6 +173,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
 
 ## Other docs
 
-[STATUS.md](STATUS.md) (built, bugs, next step, setup), [ROADMAP.md](ROADMAP.md), and
+[STATUS.md](STATUS.md) (built, next step, setup), [ROADMAP.md](ROADMAP.md) (decisions), the
+[board](https://github.com/orgs/Loveland-Solutions/projects/1) (everything left to do), and
 [decisions/](decisions/): 0001 database and encryption, 0002 import format, 0003
 double-entry schema, 0004 UI rules and owner corrections, 0005 phones, 0006 versions.

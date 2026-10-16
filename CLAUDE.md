@@ -1,14 +1,16 @@
 # BetterBudget — working notes for Claude
 
-Read **[docs/STATUS.md](docs/STATUS.md)** first: what's built, what isn't, known bugs,
-uncommitted work, **the next step the owner asked for**, and setup. The road from alpha to
-beta (and the platforms after it) is tracked in **[docs/ROADMAP.md](docs/ROADMAP.md)**. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
+Read **[docs/STATUS.md](docs/STATUS.md)** first: what's built, **the next step the owner
+asked for**, and setup. The owner's decisions about the road from alpha to beta (and the
+platforms after it) are in **[docs/ROADMAP.md](docs/ROADMAP.md)**. UI decisions are in **[docs/decisions/0004-ledger-ui.md](docs/decisions/0004-ledger-ui.md)**.
 The phone apps' design (record and check only, synced through a cloud folder the OS
 handles) is in **[docs/decisions/0005-mobile-companion.md](docs/decisions/0005-mobile-companion.md)**.
-The work is tracked as issues on the
-[BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1): Type is
-Feature, Bug or Task; Status is Later, Next, In progress or Done; the milestone is Beta
-or After beta.
+**Everything left to do is an issue on the
+[BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1)**, and only there (owner, 2026-10-16: "We don't need to track
+todo locally anymore"): features, bugs, review findings, and questions for the owner
+(titled "Question: …"; don't re-ask one). Type is Feature, Bug or Task; Status is Later,
+Next, In progress or Done; the milestone is Beta or After beta. Don't write to-do lists
+into the docs.
 
 ## Unbreakable rules
 
@@ -90,8 +92,9 @@ or After beta.
   changed. When you add, move or rename a file under `app/lib` or `app/test`, update
   MAP.md in the same change.
 - Don't open `docs/archive/` unless the owner asks.
-- [docs/STATUS.md](docs/STATUS.md) holds the current state and next steps only: when a
-  PR merges, rewrite its "Next step" and correct its tables, and add no dated log.
+- [docs/STATUS.md](docs/STATUS.md) holds the current state only: when a PR merges,
+  rewrite its "Next step" and correct its tables, and add no dated log. Review findings
+  not fixed go on the board as issues, not into STATUS.
 - Every new action records both an undo and a redo (`_did` in `ui/ledger_screen.dart`).
 - English text is never glued from pieces: one whole message per sentence, in both
   `.arb` files (Mongolian word order differs).

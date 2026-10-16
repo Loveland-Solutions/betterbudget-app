@@ -26,8 +26,8 @@ BetterBudget is still in alpha: the ledger comes first, then the budget.
 
 ## Project documentation
 
-**[docs/STATUS.md](docs/STATUS.md) — start here.** What's built, what isn't, open
-questions, and local setup. AI sessions also read [CLAUDE.md](CLAUDE.md).
+**[docs/STATUS.md](docs/STATUS.md) — start here.** What's built and local setup.
+What's left to do is in the [issues](https://github.com/Loveland-Solutions/betterbudget-app/issues). AI sessions also read [CLAUDE.md](CLAUDE.md).
 
 - The app: [app/](app/) ([how to run and test it](app/README.md))
 - Ledger feature map, with what's built marked: [docs/ledger-features.md](docs/ledger-features.md)
