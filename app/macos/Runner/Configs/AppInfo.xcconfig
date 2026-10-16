@@ -11,4 +11,4 @@ PRODUCT_NAME = BetterBudget
 PRODUCT_BUNDLE_IDENTIFIER = com.lovelandsolutions.betterbudget
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 Loveland Solutions. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Loveland Solutions. GPL-3.0 or later.
