@@ -336,7 +336,7 @@ class _EntryRowState extends State<EntryRow> {
   /// was opened to start a split) and what Category said.
   ({List<(String, String, int?)>? lines, String category})? _splitBefore;
 
-  /// What Category said before "Split over categories…" was picked, which
+  /// What Category said before "Split" was picked, which
   /// puts its own words in the field.
   String _categoryTyped = '';
 
@@ -383,7 +383,8 @@ class _EntryRowState extends State<EntryRow> {
     account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
   );
 
-  /// The "Split over categories…" line, last in the list.
+  /// The "Split" line, at the top of the list (owner, 2026-10-17, as on
+  /// the phone). Last in the options, so the keys start on a category.
   static const _splitId = -3;
   ({String label, AccountInfo account}) get _splitOption => (
     label: context.t.rowsSplitOption,
@@ -1817,6 +1818,8 @@ class _EntryRowState extends State<EntryRow> {
                                               optionText: (o) => o.label,
                                               pinned: (o) =>
                                                   o.account.id == _splitId,
+                                              pinnedIcon:
+                                                  Icons.call_split_rounded,
                                               onSelected: (o) {
                                                 if (o.account.id == _splitId) {
                                                   _openSplit();
@@ -2630,14 +2633,19 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     this.wanted = false,
     this.optionText,
     this.pinned,
+    this.pinnedIcon,
   });
 
   /// How an option reads in the list, when not as it fills the field.
   final String Function(T)? optionText;
 
-  /// Options kept under the list, below a line, rather than scrolled to
-  /// ("Split over categories…"). They come last in [options].
+  /// Options kept above the list, over a line, rather than scrolled to
+  /// ("Split"). They come last in [options], so the highlight starts on
+  /// the first match and Up from it reaches them.
   final bool Function(T)? pinned;
+
+  /// Drawn before a pinned option's words.
+  final IconData? pinnedIcon;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -2686,18 +2694,31 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
         for (final o in all)
           if (!(pinned?.call(o) ?? false)) o,
       ];
-      final below = [
+      final above = [
         for (final o in all)
           if (pinned?.call(o) ?? false) o,
       ];
-      Widget item(T o, int i) => InkWell(
+      Widget item(T o, int i, {IconData? icon}) => InkWell(
         onTap: () => onPick(o),
         child: Container(
           color: i == highlighted ? Mid.blueWash : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            (optionText ?? label)(o),
-            style: onest(13, color: i == highlighted ? Mid.ink : Mid.ink2),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: Mid.blue),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  (optionText ?? label)(o),
+                  style: onest(
+                    13,
+                    color: i == highlighted ? Mid.ink : Mid.ink2,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -2720,6 +2741,19 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (above.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final (j, o) in above.indexed)
+                            item(o, list.length + j, icon: pinnedIcon),
+                        ],
+                      ),
+                    ),
+                    if (list.isNotEmpty) Divider(height: 1, color: Mid.rule),
+                  ],
                   if (list.isNotEmpty)
                     Flexible(
                       child: ListView.builder(
@@ -2729,19 +2763,6 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                         itemBuilder: (context, i) => item(list[i], i),
                       ),
                     ),
-                  if (below.isNotEmpty) ...[
-                    if (list.isNotEmpty) Divider(height: 1, color: Mid.rule),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (final (j, o) in below.indexed)
-                            item(o, list.length + j),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

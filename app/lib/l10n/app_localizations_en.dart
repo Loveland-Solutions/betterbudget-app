@@ -2121,7 +2121,7 @@ class WordsEn extends Words {
   String get rowsCancelEdit => 'Cancel';
 
   @override
-  String get rowsSplitOption => 'Split over categories…';
+  String get rowsSplitOption => 'Split';
 
   @override
   String rowsSplitTitle(String payee, String amount) {

@@ -3179,9 +3179,9 @@
   "@rowsCancelEdit": {
     "description": "Entry row, button beside Save while editing a transaction: closes the row without saving"
   },
-  "rowsSplitOption": "Split over categories…",
+  "rowsSplitOption": "Split",
   "@rowsSplitOption": {
-    "description": "Last entry in an entry row’s Category list: opens the card that shares the amount over several categories (one receipt for groceries and clothing)."
+    "description": "First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing)."
   },
   "rowsSplitTitle": "{payee}, {amount}",
   "@rowsSplitTitle": {
