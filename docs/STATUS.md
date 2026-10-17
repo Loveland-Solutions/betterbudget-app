@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-17** · version 0.37.0 · schema v21 · 749 tests pass
+**Last updated: 2026-10-17** · version 0.38.0 · schema v21 · 749 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,11 +23,13 @@ card under the row, and Add waits until the lines add up; a split names each cat
 once (owner's correction on trying it). Seen working by the owner in the real app.
 Left from its reviews: #197. **On the phone too** (version 0.37.0, PR #202; the
 owner's pick, a split page; ADR 0005 "A split from the phone"): a phone split comes in
-as one split row, and a computer older than 0.37.0 leaves it waiting on the phone.
-Left from its reviews: #201. The Windows download of 0.36.0 is a draft on the public
-repo's releases page for the owner to publish; the Mac download waits for a Developer
-ID certificate and notary credentials (the Xcode team on this Mac isn't in the paid
-program). A signed 0.37.0 Android bundle is built for Internal testing.
+as one split row, and a computer older than 0.37.0 leaves it waiting on the phone; a
+line whose category was deleted on the computer meanwhile comes in as Not categorized
+(0.38.0, PR #204). Left from its reviews: #201. **Downloads:** Windows 0.38.0 is the
+latest release on the public repo; 0.37.0 is on Android's Internal testing; the Mac
+download waits for Apple's approval of the paid Developer Program (owner, 2026-10-17:
+"We're still pending approval"). Actions storage: the Windows build keeps its download
+14 days and the caches of merged pull requests were deleted (#205).
 
 **Where to pick up:** the board's In progress and Next columns. **Savings step 2
 has a debt's interest rate** (version 0.35.0, PR #79; ADR 0004 "A debt's
