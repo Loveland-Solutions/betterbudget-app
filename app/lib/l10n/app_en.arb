@@ -3311,6 +3311,34 @@
   "@phoneWaitingCategoryGone": {
     "description": "Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer takes that share in as Not categorized."
   },
+  "phoneSplitReturned": "Returned",
+  "@phoneSplitReturned": {
+    "description": "Phone app, split page: a toggle on one line of a receipt that is money out, marking that line as money coming back (a shirt returned on the same receipt as groceries bought). Its share then counts the other way."
+  },
+  "phoneSplitSpent": "Spent",
+  "@phoneSplitSpent": {
+    "description": "Phone app, split page: a toggle on one line of a receipt that is money in (a refund), marking that line as money going out on the same receipt. Its share then counts the other way."
+  },
+  "phoneFixing": "Changing an entry that’s waiting",
+  "@phoneFixing": {
+    "description": "Phone app, entry screen, top left: shown while a waiting entry opened from the waiting list is being changed. Save replaces it."
+  },
+  "phoneFixingTaken": "Your computer has taken this entry in. Save will add it as a new one.",
+  "@phoneFixingTaken": {
+    "description": "Phone app, entry screen, top: the entry being changed was taken in by the computer meanwhile, so saving can no longer replace it."
+  },
+  "phoneSavedAsNew": "Your computer had already taken in the first one, so this is saved as a new entry. Fix or delete the first one on your computer.",
+  "@phoneSavedAsNew": {
+    "description": "Phone app, toast after Save of a changed waiting entry that the computer took in before Save was pressed: nothing typed is lost, but both are now in the ledger."
+  },
+  "phoneOpenWaiting": "Open this entry? What you’ve typed on the entry screen will be cleared.",
+  "@phoneOpenWaiting": {
+    "description": "Phone app, waiting list: asked when a waiting entry is tapped while something is typed on the entry screen."
+  },
+  "phoneOpen": "Open",
+  "@phoneOpen": {
+    "description": "Phone app: the button that opens a waiting entry on the entry screen to change it."
+  },
   "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
   "@ledgerDbSplitDoesntAddUp": {
     "description": "Under the row editor: a split’s lines and its total differ."

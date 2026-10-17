@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 
 import '../../domain/ledger.dart' show isIncomeName;
@@ -109,6 +110,20 @@ class PhoneStore extends ChangeNotifier {
     _waiting.removeWhere((e) => e.id == id);
     notifyListeners();
   }
+
+  /// Puts [entry] where the waiting one with its id is, so the computer
+  /// never gets both. False when there is none: taken in, or deleted.
+  bool replace(PhoneEntry entry) {
+    final at = _waiting.indexWhere((e) => e.id == entry.id);
+    if (at < 0) return false;
+    _waiting[at] = entry;
+    notifyListeners();
+    return true;
+  }
+
+  /// The computer's ledger says it has taken in the entry [id].
+  bool wasTaken(String id) =>
+      _snapshot.taken[device]?.entries.contains(id) ?? false;
 }
 
 /// The phone keeps dark Blue eclipse until its own turn at the new colors
@@ -131,6 +146,8 @@ class PhoneFrame extends StatelessWidget {
     supportedLocales: supportedLocales,
     localizationsDelegates: Words.localizationsDelegates,
     localeListResolutionCallback: (preferred, _) => resolveLocale(preferred),
+    // A line picked in a dropdown can hold off the taps that follow it.
+    builder: (context, screens) => _TapHold(child: screens!),
     home: child,
   );
 }
@@ -240,6 +257,20 @@ class _RoomMoney extends StatelessWidget {
   }
 }
 
+/// One line of a split as it is typed: its category, its share, and
+/// whether that share goes the other way from the receipt ([back]: a shirt
+/// returned on a receipt for groceries).
+typedef _Line = ({String categoryId, String typed, bool back});
+
+/// A line's share, signed as the receipt is: the other way is below zero.
+int _share(_Line l, Currency currency) =>
+    (l.back ? -1 : 1) * typedAmountMinor(l.typed, currency);
+
+/// A split line's share as it reads: a line the other way from the receipt
+/// carries its sign ("+₮37,500" for a shirt returned), the rest none.
+String _lineShown(_Line l, bool moneyIn, Currency currency) =>
+    '${l.back ? (moneyIn ? '−' : '+') : ''}${typedAmountShown(l.typed, currency)}';
+
 /// The entry being typed. Held above the two screens, so a look at Budget
 /// doesn't lose it.
 class _Draft extends ChangeNotifier {
@@ -261,7 +292,11 @@ class _Draft extends ChangeNotifier {
 
   /// One receipt over several categories: each category and what is typed
   /// for it. [categoryId] is then [phoneSplitId]. Empty for one category.
-  List<({String categoryId, String typed})> lines = [];
+  List<_Line> lines = [];
+
+  /// The waiting entry being changed, opened from the waiting list: Save
+  /// puts this in its place. Null for a new entry.
+  String? editing;
 
   bool get isSplit => lines.isNotEmpty;
 
@@ -329,6 +364,7 @@ class _Draft extends ChangeNotifier {
     accountId = null;
     date = null;
     lines = [];
+    editing = null;
   });
 }
 
@@ -427,7 +463,11 @@ class _PhoneHomeState extends State<PhoneHome> {
                             _draft.change(
                               () => _draft.lines = [
                                 ..._draft.lines,
-                                (categoryId: category.id, typed: ''),
+                                (
+                                  categoryId: category.id,
+                                  typed: '',
+                                  back: false,
+                                ),
                               ],
                             );
                           }
@@ -846,10 +886,10 @@ class _EntryState extends State<_EntryScreen> {
   Timer? _toastTimer;
   VoidCallback? _undo;
 
-  /// The card's second line: what the entry left in its category
-  /// ("Groceries · ₮135,500.00 left"), red once that is overspent.
-  String? _savedLeft;
-  var _savedOver = false;
+  /// The toast's lines under it: what the entry left in each of its
+  /// categories ("Groceries · ₮135,500.00 left"), a line red only when its
+  /// category is overspent.
+  var _savedLines = <({String text, bool over})>[];
 
   /// Save's own changes to the draft and the store, which don't take the
   /// line it is about to say away.
@@ -914,16 +954,13 @@ class _EntryState extends State<_EntryScreen> {
       });
       return;
     }
-    final random = Random.secure();
     final typed = _draft.typed;
     final date = _draft.date;
+    final fixing = _draft.editing;
     final moneyIn = _draft.moneyIn && to == null;
     final signed = moneyIn ? amount : -amount;
     final entry = PhoneEntry(
-      id: [
-        for (var i = 0; i < 16; i++)
-          random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-      ].join(),
+      id: _saveId,
       categoryId: category!.id,
       accountId: account!.id,
       payee: to == null ? payee! : '',
@@ -931,10 +968,7 @@ class _EntryState extends State<_EntryScreen> {
       date: date ?? _day(widget.now()),
       madeAt: widget.now(),
     );
-    _saving = true;
-    _store.add(entry);
-    _draft.clear();
-    _saving = false;
+    final put = _put(entry);
     // The form is empty again, so this line is what says it went in.
     // What the entry did to its category, the reason the phone is opened.
     final left = to == null ? leftNow(category, _store.waiting) : 0;
@@ -952,24 +986,32 @@ class _EntryState extends State<_EntryScreen> {
           to.name,
           formatMoney(amount, currency: to.currency),
         );
-        _savedLeft = to.owes
-            ? t.phoneTransferOwedNow(to.name, now)
-            : t.phoneTransferNow(to.name, now);
-        _savedOver = false;
+        _savedLines = [
+          (
+            text: to.owes
+                ? t.phoneTransferOwedNow(to.name, now)
+                : t.phoneTransferNow(to.name, now),
+            over: false,
+          ),
+        ];
       } else {
         _saved = t.phoneSaved(payee!, _signed(signed, category.currency));
         // Income holds no budget: there is nothing left in it to say.
-        _savedLeft = category.isIncome
-            ? null
-            : category.madeHere
-            ? t.phoneSavedNothingAssigned(category.name)
-            : left < 0
-            ? t.phoneSavedOver(category.name, had)
-            : t.phoneSavedLeft(category.name, had);
-        _savedOver = left < 0 && !category.madeHere && !category.isIncome;
+        _savedLines = [
+          if (!category.isIncome)
+            (
+              text: category.madeHere
+                  ? t.phoneSavedNothingAssigned(category.name)
+                  : left < 0
+                  ? t.phoneSavedOver(category.name, had)
+                  : t.phoneSavedLeft(category.name, had),
+              over: left < 0 && !category.madeHere,
+            ),
+        ];
       }
+      if (put.asNew) _savedLines.add((text: t.phoneSavedAsNew, over: false));
       _undo = () {
-        _store.remove(entry.id);
+        put.takeBack();
         _change(() {
           _draft
             ..typed = typed
@@ -977,15 +1019,61 @@ class _EntryState extends State<_EntryScreen> {
             ..payee = payee
             ..categoryId = category.id
             ..accountId = account.id
-            ..date = date;
+            ..date = date
+            ..editing = fixing;
         });
       };
     });
-    // Like any toast it goes by itself.
+    _toastGoes(long: put.asNew);
+  }
+
+  /// Like any toast it goes by itself; later when it has more to say.
+  void _toastGoes({bool long = false}) {
     _toastTimer?.cancel();
-    _toastTimer = Timer(const Duration(seconds: 6), () {
+    _toastTimer = Timer(Duration(seconds: long ? 12 : 6), () {
       if (mounted) _hideToast();
     });
+  }
+
+  static String _newId() {
+    final random = Random.secure();
+    return [
+      for (var i = 0; i < 16; i++)
+        random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ].join();
+  }
+
+  /// The id Save gives the entry: the waiting one's it changes, while that
+  /// is still waiting, so the computer never gets both; otherwise a new one.
+  String get _saveId {
+    final fixing = _draft.editing;
+    return fixing != null && _store.waiting.any((e) => e.id == fixing)
+        ? fixing
+        : _newId();
+  }
+
+  /// Puts [entry] in, in the place of the waiting one it changes, and
+  /// empties the form. Gives what takes it back out (bringing back the one
+  /// it replaced), and whether the one being changed had been taken in by
+  /// the computer meanwhile, so that this went in as a new entry.
+  ({VoidCallback takeBack, bool asNew}) _put(PhoneEntry entry) {
+    final fixing = _draft.editing;
+    final was = _store.waiting.where((e) => e.id == entry.id).firstOrNull;
+    final asNew = fixing != null && was == null && _store.wasTaken(fixing);
+    _saving = true;
+    if (was != null) {
+      _store.replace(entry);
+    } else {
+      _store.add(entry);
+    }
+    _draft.clear();
+    _saving = false;
+    return (
+      takeBack: () {
+        if (was == null || !_store.replace(was)) _store.remove(entry.id);
+      },
+      asNew: asNew,
+    );
   }
 
   /// Save for one receipt over several categories: waits until its lines
@@ -995,9 +1083,9 @@ class _EntryState extends State<_EntryScreen> {
     final account = _account;
     final payee = _draft.payee;
     final currency = _currency;
-    final shares = [
-      for (final l in _draft.lines) typedAmountMinor(l.typed, currency),
-    ];
+    // Signed as the receipt is: a line the other way (a return) takes
+    // its share off.
+    final shares = [for (final l in _draft.lines) _share(l, currency)];
     final sum = shares.fold(0, (s, v) => s + v);
     String money(int v) => formatMoney(v.abs(), currency: currency);
     // A line whose category has gone (deleted from the waiting list, or
@@ -1034,16 +1122,13 @@ class _EntryState extends State<_EntryScreen> {
       if (amount != 0 && payee != null && account != null) _openSplit();
       return;
     }
-    final random = Random.secure();
     final typed = _draft.typed;
     final date = _draft.date;
+    final fixing = _draft.editing;
     final moneyIn = _draft.moneyIn;
     final lines = _draft.lines;
     final entry = PhoneEntry(
-      id: [
-        for (var i = 0; i < 16; i++)
-          random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-      ].join(),
+      id: _saveId,
       categoryId: phoneSplitId,
       accountId: account!.id,
       payee: payee!,
@@ -1058,32 +1143,29 @@ class _EntryState extends State<_EntryScreen> {
           ),
       ],
     );
-    _saving = true;
-    _store.add(entry);
-    _draft.clear();
-    _saving = false;
-    // What it did to each of its categories, one line each.
-    var over = false;
-    final said = <String>[];
+    final put = _put(entry);
+    // What it did to each of its categories, one line each, red only where
+    // that category is overspent.
+    final said = <({String text, bool over})>[];
     for (final c in categories) {
       if (c.isIncome) continue;
       final left = leftNow(c, _store.waiting);
       final had = formatMoney(left.abs(), currency: c.currency);
-      said.add(
-        c.madeHere
+      said.add((
+        text: c.madeHere
             ? t.phoneSavedNothingAssigned(c.name)
             : left < 0
             ? t.phoneSavedOver(c.name, had)
             : t.phoneSavedLeft(c.name, had),
-      );
-      over = over || (left < 0 && !c.madeHere);
+        over: left < 0 && !c.madeHere,
+      ));
     }
+    if (put.asNew) said.add((text: t.phoneSavedAsNew, over: false));
     setState(() {
       _saved = t.phoneSaved(payee, _signed(entry.amountMinor, currency));
-      _savedLeft = said.isEmpty ? null : said.join('\n');
-      _savedOver = over;
+      _savedLines = said;
       _undo = () {
-        _store.remove(entry.id);
+        put.takeBack();
         _change(() {
           _draft
             ..typed = typed
@@ -1092,14 +1174,12 @@ class _EntryState extends State<_EntryScreen> {
             ..categoryId = phoneSplitId
             ..lines = lines
             ..accountId = account.id
-            ..date = date;
+            ..date = date
+            ..editing = fixing;
         });
       };
     });
-    _toastTimer?.cancel();
-    _toastTimer = Timer(const Duration(seconds: 6), () {
-      if (mounted) _hideToast();
-    });
+    _toastGoes(long: put.asNew);
   }
 
   /// The split page: on the lines there are, or on the category chosen.
@@ -1109,11 +1189,11 @@ class _EntryState extends State<_EntryScreen> {
         ? _draft.lines
         : [
             if (_category case final c? when !c.transfer)
-              (categoryId: c.id, typed: ''),
+              (categoryId: c.id, typed: '', back: false),
           ];
     final total = typedAmountMinor(_draft.typed, currency);
     final result = await Navigator.of(context).push(
-      MaterialPageRoute<List<({String categoryId, String typed})>>(
+      MaterialPageRoute<List<_Line>>(
         fullscreenDialog: true,
         builder: (_) => _SplitPage(
           store: _store,
@@ -1127,25 +1207,33 @@ class _EntryState extends State<_EntryScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    final sum = result.fold(
-      0,
-      (s, l) => s + typedAmountMinor(l.typed, currency),
-    );
-    if (result.isEmpty) {
+    var lines = result;
+    var sum = lines.fold(0, (s, l) => s + _share(l, currency));
+    // Returns that come to more than was bought: the receipt is money the
+    // other way, each line kept going the way it was marked.
+    if (sum != 0 && (total == 0 ? sum < 0 : sum == -total)) {
+      lines = [
+        for (final l in lines)
+          (categoryId: l.categoryId, typed: l.typed, back: !l.back),
+      ];
+      sum = -sum;
+      _change(() => _draft.moneyIn = !_draft.moneyIn);
+    }
+    if (lines.isEmpty) {
       _change(() {
         _draft.lines = [];
         if (_draft.categoryId == phoneSplitId) _draft.categoryId = null;
       });
-    } else if (result.length == 1 &&
+    } else if (lines.length == 1 &&
         (total == 0 ||
-            typedAmountMinor(result.single.typed, currency) == total)) {
+            typedAmountMinor(lines.single.typed, currency) == total)) {
       // One category with the whole amount: an ordinary entry.
-      final only = _categoryOf(result.single.categoryId);
+      final only = _categoryOf(lines.single.categoryId);
       if (only != null) _draft.choose(only, _store.snapshot.accounts);
-      if (total == 0) _change(() => _draft.typed = result.single.typed);
+      if (total == 0) _change(() => _draft.typed = lines.single.typed);
     } else {
       _change(() {
-        _draft.lines = result;
+        _draft.lines = lines;
         _draft.categoryId = phoneSplitId;
         // With no amount typed, the lines' sum is the amount.
         if (total == 0) _draft.typed = typedOfMinor(sum, currency);
@@ -1155,6 +1243,60 @@ class _EntryState extends State<_EntryScreen> {
         }
       });
     }
+  }
+
+  /// The waiting list. A waiting entry tapped there opens here, filled in
+  /// as it was, to be fixed (ADR 0005: a phone can "fix or delete its own
+  /// entries until the computer takes them in").
+  Future<void> _openWaiting() async {
+    final opened = await Navigator.of(context).push(
+      MaterialPageRoute<PhoneEntry>(
+        builder: (_) => _WaitingScreen(store: _store, typing: _typing),
+      ),
+    );
+    if (opened == null || !mounted) return;
+    _fix(opened);
+  }
+
+  /// What waits besides the entry being fixed: the one on the screen is
+  /// counted as it is typed, not twice.
+  Iterable<PhoneEntry> get _othersWaiting =>
+      _store.waiting.where((e) => e.id != _draft.editing);
+
+  /// Something is typed on the entry screen that opening another entry
+  /// would clear.
+  bool get _typing =>
+      _draft.typed.isNotEmpty ||
+      _draft.payee != null ||
+      _draft.categoryId != null ||
+      _draft.date != null;
+
+  /// Fills the entry screen with waiting entry [e], a split with its lines.
+  void _fix(PhoneEntry e) {
+    final accounts = _store.snapshot.accounts;
+    final currency =
+        accounts.where((a) => a.id == e.accountId).firstOrNull?.currency ??
+        _categoryOf(e.categoryId)?.currency ??
+        Currency.mnt;
+    final today = _day(widget.now());
+    _change(() {
+      _draft
+        ..editing = e.id
+        ..typed = typedOfMinor(e.amountMinor, currency)
+        ..moneyIn = e.amountMinor > 0
+        ..payee = e.payee.isEmpty ? null : e.payee
+        ..categoryId = e.categoryId
+        ..accountId = e.accountId
+        ..date = _sameDay(e.date, today) ? null : e.date
+        ..lines = [
+          for (final l in e.lines)
+            (
+              categoryId: l.categoryId,
+              typed: typedOfMinor(l.amountMinor, currency),
+              back: (l.amountMinor > 0) != (e.amountMinor > 0),
+            ),
+        ];
+    });
   }
 
   void _hideToast() {
@@ -1288,13 +1430,13 @@ class _EntryState extends State<_EntryScreen> {
       final from = to == null ? null : _account;
       final left = category == null || to != null || split
           ? 0
-          : leftNow(category, _store.waiting);
+          : leftNow(category, _othersWaiting);
       final amount = typedAmountMinor(_draft.typed, _currency);
       final moneyIn = _draft.moneyIn && to == null;
       // Moved out of [from]: what it holds once this has gone, or owes.
       final fromAfter = from == null
           ? 0
-          : balanceNow(from, _store.waiting) + (from.owes ? amount : -amount);
+          : balanceNow(from, _othersWaiting) + (from.owes ? amount : -amount);
       final after = moneyIn ? left + amount : left - amount;
       final date = _draft.date;
       final over = to != null
@@ -1302,7 +1444,9 @@ class _EntryState extends State<_EntryScreen> {
           : category != null && !category.madeHere && after < 0;
       // A category that has gone (deleted from the waiting list) isn't
       // something left to clear.
+      final editing = _draft.editing;
       final nothing =
+          editing == null &&
           _draft.typed.isEmpty &&
           !moneyIn &&
           _draft.payee == null &&
@@ -1324,21 +1468,45 @@ class _EntryState extends State<_EntryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Offered only while there is something to clear.
+                        // While a waiting entry is being changed, it says
+                        // so, and Cancel leaves that entry as it was.
                         SizedBox(
                           height: 44,
                           child: nothing
                               ? null
-                              : Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => _change(_draft.clear),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(44, 44),
-                                      foregroundColor: Mid.blue,
-                                      textStyle: onest(16),
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: editing == null
+                                          ? const SizedBox.shrink()
+                                          : Text(
+                                              _store.wasTaken(editing) &&
+                                                      !_store.waiting.any(
+                                                        (e) => e.id == editing,
+                                                      )
+                                                  ? t.phoneFixingTaken
+                                                  : t.phoneFixing,
+                                              key: const ValueKey('fixing'),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: onest(13, color: Mid.ink2),
+                                            ),
                                     ),
-                                    child: Text(t.phoneClear),
-                                  ),
+                                    TextButton(
+                                      key: const ValueKey('clear'),
+                                      onPressed: () => _change(_draft.clear),
+                                      style: TextButton.styleFrom(
+                                        minimumSize: const Size(44, 44),
+                                        foregroundColor: Mid.blue,
+                                        textStyle: onest(16),
+                                      ),
+                                      child: Text(
+                                        editing == null
+                                            ? t.phoneClear
+                                            : t.ledgerCancel,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                         ),
                         Row(
@@ -1366,13 +1534,13 @@ class _EntryState extends State<_EntryScreen> {
                                     52,
                                     weight: 600,
                                     letterSpacing: -1,
+                                    // Money out is ordinary ink with its
+                                    // minus; red is for a shortfall.
                                     color: _draft.typed.isEmpty
                                         ? Mid.ink3
-                                        : to != null
-                                        ? Mid.ink
                                         : moneyIn
                                         ? Mid.green
-                                        : Mid.coral,
+                                        : Mid.ink,
                                   ),
                                 ),
                               ),
@@ -1393,7 +1561,7 @@ class _EntryState extends State<_EntryScreen> {
                               ? Text(
                                   [
                                     for (final (i, l) in _draft.lines.indexed)
-                                      '${_splitCategories.elementAtOrNull(i)?.name ?? ''} ${typedAmountShown(l.typed, _currency)}',
+                                      '${_splitCategories.elementAtOrNull(i)?.name ?? ''} ${_lineShown(l, _draft.moneyIn, _currency)}',
                                   ].join(' · '),
                                   key: const ValueKey('split-line'),
                                   textAlign: TextAlign.center,
@@ -1527,11 +1695,7 @@ class _EntryState extends State<_EntryScreen> {
                         if (_store.waiting.isNotEmpty || _store.made.isNotEmpty)
                           TextButton(
                             key: const ValueKey('waiting-link'),
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => _WaitingScreen(store: _store),
-                              ),
-                            ),
+                            onPressed: _openWaiting,
                             style: TextButton.styleFrom(
                               minimumSize: const Size(44, 44),
                               foregroundColor: Mid.ink2,
@@ -1577,8 +1741,7 @@ class _EntryState extends State<_EntryScreen> {
                   ? const SizedBox.shrink()
                   : _SavedToast(
                       saved: _saved!,
-                      left: _savedLeft,
-                      over: _savedOver,
+                      lines: _savedLines,
                       onUndo: _undo,
                     ),
             ),
@@ -1633,17 +1796,15 @@ class _SignButton extends StatelessWidget {
 class _SavedToast extends StatelessWidget {
   const _SavedToast({
     required this.saved,
-    required this.left,
-    required this.over,
+    required this.lines,
     required this.onUndo,
   });
   final String saved;
 
-  /// Null for income, which has nothing left in it to say.
-  final String? left;
-
-  /// The category is overspent now: its line is red.
-  final bool over;
+  /// What it left in each category (none for income, which has nothing left
+  /// in it to say); a line is red when its category is overspent now, and
+  /// only that line.
+  final List<({String text, bool over})> lines;
   final VoidCallback? onUndo;
 
   @override
@@ -1668,16 +1829,17 @@ class _SavedToast extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: onest(15, weight: 500),
                 ),
-                if (left != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    left!,
-                    // A split says each of its categories on its own line.
-                    maxLines: '\n'.allMatches(left!).length + 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: onest(14, color: over ? Mid.coral : Mid.ink2),
+                // A split says each of its categories on its own line.
+                for (final (i, l) in lines.indexed)
+                  Padding(
+                    padding: EdgeInsets.only(top: i == 0 ? 2 : 0),
+                    child: Text(
+                      l.text,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: onest(14, color: l.over ? Mid.coral : Mid.ink2),
+                    ),
                   ),
-                ],
               ],
             ),
           ),
@@ -1762,6 +1924,12 @@ class _CategoryMenuState extends State<_CategoryMenu> {
     widget.onPicked(widget.store.categoryCalled(name, widget.currency));
   }
 
+  /// The list goes as soon as a line of it is tapped, so a second tap to
+  /// be sure would land on what was under it: the Date row, a key of the
+  /// pad, "+ Another category" opening the list again. For as long as a
+  /// double tap takes, a tap there does nothing.
+  void _holdTaps() => context.findAncestorStateOfType<_TapHoldState>()?.hold();
+
   Widget _heading(String text) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
     child: Text(text, style: onest(13, weight: 600, color: Mid.ink2)),
@@ -1782,7 +1950,10 @@ class _CategoryMenuState extends State<_CategoryMenu> {
     required VoidCallback onPressed,
   }) => MenuItemButton(
     key: key,
-    onPressed: onPressed,
+    onPressed: () {
+      _holdTaps();
+      onPressed();
+    },
     style: MenuItemButton.styleFrom(
       minimumSize: const Size.fromHeight(52),
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1920,6 +2091,37 @@ class _CategoryMenuState extends State<_CategoryMenu> {
   }
 }
 
+/// Around every screen of the phone: told to [_TapHoldState.hold], it takes
+/// every tap for as long as a double tap takes. Run by the frames, not a
+/// timer, so a test's settle waits for it.
+class _TapHold extends StatefulWidget {
+  const _TapHold({required this.child});
+  final Widget child;
+
+  @override
+  State<_TapHold> createState() => _TapHoldState();
+}
+
+class _TapHoldState extends State<_TapHold>
+    with SingleTickerProviderStateMixin {
+  late final _clock = AnimationController(
+    vsync: this,
+    duration: kDoubleTapTimeout,
+  )..addStatusListener((_) => setState(() {}));
+
+  void hold() => _clock.forward(from: 0);
+
+  @override
+  void dispose() {
+    _clock.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      AbsorbPointer(absorbing: _clock.isAnimating, child: widget.child);
+}
+
 /// One receipt over several categories (owner's pick, 2026-10-17, option
 /// A): the total and what's left to place, a line for each category, and
 /// the pad, which types into the line that's chosen. Done answers with the
@@ -1941,7 +2143,7 @@ class _SplitPage extends StatefulWidget {
 
   /// What was typed on the entry screen; null when nothing was.
   final int? total;
-  final List<({String categoryId, String typed})> start;
+  final List<_Line> start;
 
   /// The app's Income, a line's category only for money in.
   final PhoneCategory? income;
@@ -1951,9 +2153,7 @@ class _SplitPage extends StatefulWidget {
 }
 
 class _SplitPageState extends State<_SplitPage> {
-  late final List<({String categoryId, String typed})> _lines = [
-    ...widget.start,
-  ];
+  late final List<_Line> _lines = [...widget.start];
 
   /// The line the pad types into.
   late int _chosen = _lines.indexWhere((l) => l.typed.isEmpty) < 0
@@ -1979,8 +2179,9 @@ class _SplitPageState extends State<_SplitPage> {
     return null;
   }
 
-  int get _sum =>
-      _lines.fold(0, (s, l) => s + typedAmountMinor(l.typed, widget.currency));
+  /// What the lines come to, signed as the receipt is: a line the other
+  /// way takes its share off.
+  int get _sum => _lines.fold(0, (s, l) => s + _share(l, widget.currency));
 
   /// "+ Another category"'s dropdown, opened at once when there are no
   /// lines yet.
@@ -2009,10 +2210,11 @@ class _SplitPageState extends State<_SplitPage> {
   void _picked(int? index, PhoneCategory picked) {
     setState(() {
       if (index == null) {
-        _lines.add((categoryId: picked.id, typed: ''));
+        _lines.add((categoryId: picked.id, typed: '', back: false));
         _chosen = _lines.length - 1;
       } else {
-        _lines[index] = (categoryId: picked.id, typed: _lines[index].typed);
+        final l = _lines[index];
+        _lines[index] = (categoryId: picked.id, typed: l.typed, back: l.back);
         _chosen = index;
       }
     });
@@ -2025,6 +2227,7 @@ class _SplitPageState extends State<_SplitPage> {
       _lines[_chosen] = (
         categoryId: l.categoryId,
         typed: pressAmountKey(l.typed, key, widget.currency),
+        back: l.back,
       );
     });
   }
@@ -2044,15 +2247,19 @@ class _SplitPageState extends State<_SplitPage> {
     String money(int v) => formatShort(v.abs(), currency: currency);
     final total = widget.total;
     final sum = _sum;
-    final left = total == null ? null : total - sum;
+    // Returned more than was bought: the receipt is money the other way,
+    // and the lines add up when they come to the amount that way.
+    final flipped = total == null ? sum < 0 : sum != 0 && sum == -total;
+    final left = total == null || flipped ? null : total - sum;
     final note = switch (left) {
-      null when sum != 0 => t.rowsSplitInAll(money(sum)),
+      null when total == null && sum != 0 => t.rowsSplitInAll(money(sum)),
       null || 0 => null,
       // Not "left": on the phone that is what a budget has.
       > 0 => t.phoneSplitToPlace(money(left)),
       _ => t.rowsSplitTooMuch(money(left)),
     };
-    final shown = total ?? sum;
+    final shown = total ?? sum.abs();
+    final shownIn = widget.moneyIn != flipped;
     return Scaffold(
       backgroundColor: Mid.ground,
       body: SafeArea(
@@ -2089,15 +2296,17 @@ class _SplitPageState extends State<_SplitPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${widget.moneyIn ? '+' : '−'}${formatShort(shown, currency: currency)}',
+                      '${shownIn ? '+' : '−'}${formatShort(shown, currency: currency)}',
+                      key: const ValueKey('split-total'),
+                      // Money out is ordinary ink with its minus.
                       style: onest(
                         30,
                         weight: 600,
                         color: shown == 0
                             ? Mid.ink3
-                            : widget.moneyIn
+                            : shownIn
                             ? Mid.green
-                            : Mid.coral,
+                            : Mid.ink,
                       ),
                     ),
                   ),
@@ -2134,8 +2343,29 @@ class _SplitPageState extends State<_SplitPage> {
                                   name: _categoryOf(l.categoryId)?.name ?? '',
                                   amount: l.typed.isEmpty
                                       ? ''
-                                      : typedAmountShown(l.typed, currency),
+                                      : _lineShown(l, widget.moneyIn, currency),
                                   chosen: i == _chosen,
+                                  // The other way from the receipt: a
+                                  // return on a receipt for things bought.
+                                  // Offered on the line being typed, and
+                                  // kept in sight on one marked. Never on
+                                  // Income, which is only money in.
+                                  back:
+                                      l.categoryId == phoneIncomeId ||
+                                          !(i == _chosen || l.back)
+                                      ? null
+                                      : l.back,
+                                  backLabel: widget.moneyIn
+                                      ? t.phoneSplitSpent
+                                      : t.phoneSplitReturned,
+                                  onBack: () => setState(() {
+                                    _lines[i] = (
+                                      categoryId: l.categoryId,
+                                      typed: l.typed,
+                                      back: !l.back,
+                                    );
+                                    _chosen = i;
+                                  }),
                                   // Chosen, a tap changes its category.
                                   onTap: () => i == _chosen
                                       ? open()
@@ -2209,10 +2439,19 @@ class _SplitLineRow extends StatelessWidget {
     required this.onTap,
     required this.onRemove,
     required this.removeLabel,
+    required this.back,
+    required this.backLabel,
+    required this.onBack,
   });
   final String name;
   final String amount;
   final bool chosen;
+
+  /// Whether the line goes the other way from the receipt; null when the
+  /// toggle isn't offered on it.
+  final bool? back;
+  final String backLabel;
+  final VoidCallback onBack;
   final VoidCallback onTap;
   final VoidCallback? onRemove;
   final String removeLabel;
@@ -2237,6 +2476,10 @@ class _SplitLineRow extends StatelessWidget {
               style: onest(16, weight: 500),
             ),
           ),
+          if (back case final on?) ...[
+            _BackToggle(on: on, label: backLabel, onTap: onBack),
+            const SizedBox(width: 8),
+          ],
           Text(
             amount.isEmpty && chosen ? '|' : amount,
             style: onest(
@@ -2253,6 +2496,53 @@ class _SplitLineRow extends StatelessWidget {
               icon: Icon(Icons.close_rounded, size: 18, color: Mid.ink3),
             ),
         ],
+      ),
+    ),
+  );
+}
+
+/// A split line's "Returned" (or, on money in, "Spent"): its share counts
+/// the other way from the receipt. Lit while on.
+class _BackToggle extends StatelessWidget {
+  const _BackToggle({
+    required this.on,
+    required this.label,
+    required this.onTap,
+  });
+  final bool on;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    toggled: on,
+    button: true,
+    child: InkWell(
+      key: const ValueKey('split-back'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: on ? Mid.blue.withValues(alpha: 0.18) : null,
+              border: Border.all(color: on ? Mid.blue : Mid.rule),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (on) ...[
+                  Icon(Icons.check_rounded, size: 14, color: Mid.blue),
+                  const SizedBox(width: 4),
+                ],
+                Text(label, style: onest(13, color: on ? Mid.blue : Mid.ink2)),
+              ],
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -2593,8 +2883,40 @@ class _AccountsScreen extends StatelessWidget {
 /// What this phone has made that the Mac hasn't taken in: its entries and
 /// its new categories, still the phone's to delete.
 class _WaitingScreen extends StatelessWidget {
-  const _WaitingScreen({required this.store});
+  const _WaitingScreen({required this.store, this.typing = false});
   final PhoneStore store;
+
+  /// Something is typed on the entry screen: opening an entry says it goes.
+  final bool typing;
+
+  /// Back to the entry screen with [e] on it, to be fixed.
+  Future<void> _open(BuildContext context, PhoneEntry e) async {
+    if (typing) {
+      final t = context.t;
+      final sure = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Mid.panel,
+          content: Text(t.phoneOpenWaiting, style: onest(17, height: 1.35)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(t.ledgerCancel, style: onest(15, color: Mid.blue)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                t.phoneOpen,
+                style: onest(15, weight: 600, color: Mid.blue),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (sure != true || !context.mounted) return;
+    }
+    Navigator.of(context).pop(e);
+  }
 
   /// Deleting a category takes the entries filed in it too, so it says how
   /// many and how much first.
@@ -2662,52 +2984,59 @@ class _WaitingScreen extends StatelessWidget {
   }
 
   Widget _row({
+    Key? key,
     required String title,
     required String under,
     Widget? amount,
+    VoidCallback? onTap,
     required VoidCallback onDelete,
     required String deleteLabel,
-  }) => Container(
-    constraints: const BoxConstraints(minHeight: 64),
-    padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-    decoration: BoxDecoration(
-      color: Mid.card,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: onest(16, weight: 500),
+  }) => Material(
+    key: key,
+    color: Mid.card,
+    borderRadius: BorderRadius.circular(14),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(16, weight: 500),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    under,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: onest(12, color: Mid.ink2),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                under,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: onest(12, color: Mid.ink2),
+            ),
+            const SizedBox(width: 12),
+            ?amount,
+            TextButton(
+              onPressed: onDelete,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                foregroundColor: Mid.blue,
+                textStyle: onest(14),
               ),
-            ],
-          ),
+              child: Text(deleteLabel),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        ?amount,
-        TextButton(
-          onPressed: onDelete,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(44, 44),
-            foregroundColor: Mid.blue,
-            textStyle: onest(14),
-          ),
-          child: Text(deleteLabel),
-        ),
-      ],
+      ),
     ),
   );
 
@@ -2776,8 +3105,10 @@ class _WaitingScreen extends StatelessWidget {
                           names[l.categoryId] == null,
                     ) =>
                   t.phoneWaitingCategoryGone,
+                // A line the other way from the receipt (a return) says
+                // its sign.
                 final lines when lines.isNotEmpty =>
-                  '${[for (final l in lines) '${l.categoryId == phoneIncomeId ? t.ledgerIncome : names[l.categoryId]!.name} ${formatShort(l.amountMinor.abs(), currency: accounts[e.accountId]?.currency ?? Currency.mnt)}'].join(' · ')} · ${fullDate(e.date)}',
+                  '${[for (final l in lines) '${l.categoryId == phoneIncomeId ? t.ledgerIncome : names[l.categoryId]!.name} ${(l.amountMinor > 0) == (e.amountMinor > 0) ? '' : (l.amountMinor > 0 ? '+' : '−')}${formatShort(l.amountMinor.abs(), currency: accounts[e.accountId]?.currency ?? Currency.mnt)}'].join(' · ')} · ${fullDate(e.date)}',
                 _ => '$filed · ${fullDate(e.date)}',
               },
               amount: Text(
@@ -2801,13 +3132,12 @@ class _WaitingScreen extends StatelessWidget {
                   16,
                   weight: 600,
                   tabular: true,
-                  color: moved
-                      ? Mid.ink
-                      : e.amountMinor < 0
-                      ? Mid.coral
-                      : Mid.green,
+                  // Money out is ordinary ink with its minus.
+                  color: moved || e.amountMinor < 0 ? Mid.ink : Mid.green,
                 ),
               ),
+              key: ValueKey('waiting-${e.id}'),
+              onTap: () => _open(context, e),
               onDelete: () => store.remove(e.id),
               deleteLabel: t.rowsDelete,
             );

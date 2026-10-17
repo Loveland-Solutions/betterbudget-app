@@ -2121,6 +2121,30 @@ class WordsMn extends Words {
       'Үүний нэг ангилал компьютер дээр устгагдсан. Тэр хэсэг нь Ангилаагүй болж орно.';
 
   @override
+  String get phoneSplitReturned => 'Буцаасан';
+
+  @override
+  String get phoneSplitSpent => 'Зарцуулсан';
+
+  @override
+  String get phoneFixing => 'Хүлээгдэж буй гүйлгээг өөрчилж байна';
+
+  @override
+  String get phoneFixingTaken =>
+      'Таны компьютер энэ гүйлгээг авчихсан байна. Хадгалахад шинэ гүйлгээ болж нэмэгдэнэ.';
+
+  @override
+  String get phoneSavedAsNew =>
+      'Таны компьютер эхнийхийг нь аль хэдийн авсан тул үүнийг шинэ гүйлгээ болгож хадгаллаа. Эхнийхийг компьютер дээрээ засах эсвэл устгах боломжтой.';
+
+  @override
+  String get phoneOpenWaiting =>
+      'Энэ гүйлгээг нээх үү? Оруулж буй гүйлгээ тань арилна.';
+
+  @override
+  String get phoneOpen => 'Нээх';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна';
 

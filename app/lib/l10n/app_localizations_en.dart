@@ -2203,6 +2203,30 @@ class WordsEn extends Words {
       'A category in it was deleted on your computer. That part will come in as Not categorized.';
 
   @override
+  String get phoneSplitReturned => 'Returned';
+
+  @override
+  String get phoneSplitSpent => 'Spent';
+
+  @override
+  String get phoneFixing => 'Changing an entry that’s waiting';
+
+  @override
+  String get phoneFixingTaken =>
+      'Your computer has taken this entry in. Save will add it as a new one.';
+
+  @override
+  String get phoneSavedAsNew =>
+      'Your computer had already taken in the first one, so this is saved as a new entry. Fix or delete the first one on your computer.';
+
+  @override
+  String get phoneOpenWaiting =>
+      'Open this entry? What you’ve typed on the entry screen will be cleared.';
+
+  @override
+  String get phoneOpen => 'Open';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'The split’s lines don’t add up to its amount';
 

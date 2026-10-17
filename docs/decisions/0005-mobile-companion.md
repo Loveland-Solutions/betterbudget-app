@@ -934,6 +934,33 @@ the account's balance is right and the Not categorized tab asks about it; the ph
 waiting list says so beforehand. "Left" counts each line in its own
 category.
 
+From the reviews of the phone split, decided (2026-10-17):
+
+- **A waiting entry is opened and fixed, not only deleted.** Tapped in the waiting
+  list, it opens on the entry screen as it was (a split with its split page's lines),
+  which says "Changing an entry that's waiting"; Cancel leaves it as it was. Save
+  puts the fix in its place under the same id, so the computer never gets both;
+  Delete stays. Opening one while something is typed asks first. If the computer
+  took it in before Save, what was typed isn't lost: it is saved as a new entry and
+  the toast says so ("Fix or delete the first one on your computer"). A fix that
+  reaches the folder after the computer has read the first one is a case the phone
+  can't see: the computer keeps the first, as it never takes an id twice.
+- **A return on the same receipt** (a ₮37,500 shirt back, ₮50,000 of groceries
+  bought): a line on the split page is marked **Returned** (on money in, **Spent**),
+  offered on the line being typed, and its share counts the other way. It travels as
+  a line signed the other way, which the computer already takes in as one split row
+  (no change to either file). Returns that come to more than was bought make the
+  receipt money in, each line kept going the way it was marked. Income has no such
+  mark. A receipt whose returns equal what was bought comes to nothing and isn't
+  saved.
+- **The toast after a split** is red only on the line whose category is overspent.
+- **Money out on the phone is ordinary ink with its minus** (the entry's amount, the
+  split page's total, the waiting list), as on the computer; red is for a shortfall
+  (overspent, overdrawn).
+- **A second tap on the category just picked** only closes the list: for as long as a
+  double tap takes after a line of the dropdown is tapped, the phone takes no tap, so
+  it doesn't land on the Date row or "+ Another category" under where the list was.
+
 ### Numbers on the phone
 
 A budget's "left" = the snapshot's figure − entries not yet taken in, from every phone's

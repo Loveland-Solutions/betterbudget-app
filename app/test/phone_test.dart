@@ -487,10 +487,8 @@ void main() {
     ]);
     // The toast says what it did to each category.
     expect(find.text('Saved · Nomin −₮135,500.00'), findsOneWidget);
-    expect(
-      find.text('Groceries · ₮50,000.00 left\nClothing · ₮42,500.00 left'),
-      findsOneWidget,
-    );
+    expect(find.text('Groceries · ₮50,000.00 left'), findsOneWidget);
+    expect(find.text('Clothing · ₮42,500.00 left'), findsOneWidget);
     await _toBudget(tester);
     expect(find.text('₮50,000.00'), findsOneWidget);
     expect(find.text('₮42,500.00'), findsOneWidget);
@@ -686,6 +684,356 @@ void main() {
     expect(find.text('−₮8,000'), findsOneWidget);
     expect(find.text('UB Cab'), findsOneWidget);
     expect(find.text('Transport'), findsOneWidget);
+  });
+
+  testWidgets('a waiting entry opens on the entry screen, and Save puts '
+      'the fix in its place', (tester) async {
+    final store = await _pump(tester);
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    final first = store.waiting.single;
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('waiting-${first.id}')));
+    await tester.pumpAndSettle();
+
+    // Filled in as it was, and saying what Save will do.
+    expect(find.text('−₮8,000'), findsOneWidget);
+    expect(find.text('UB Cab'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsOneWidget);
+    expect(find.text('Changing an entry that’s waiting'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    // The entry on the screen isn't also counted as waiting.
+    expect(
+      find.text('₮61,500.00 left now · ₮53,500.00 after this'),
+      findsOneWidget,
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const ValueKey('pad-<')));
+    }
+    await _type(tester, '9500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    // The same entry, so the computer never gets both.
+    expect(store.waiting.single.id, first.id);
+    expect(store.waiting.single.amountMinor, -950000);
+    expect(find.text('Saved · UB Cab −₮9,500.00'), findsOneWidget);
+    expect(find.text('Changing an entry that’s waiting'), findsNothing);
+
+    // Undo brings the first back, and the fix to go on with.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -800000);
+    expect(find.text('−₮9,500'), findsOneWidget);
+    expect(find.text('Changing an entry that’s waiting'), findsOneWidget);
+    // Cancel leaves the waiting entry as it was.
+    await tester.tap(find.byKey(const ValueKey('clear')));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -800000);
+    expect(find.text('−₮0'), findsOneWidget);
+    expect(find.text('Changing an entry that’s waiting'), findsNothing);
+  });
+
+  testWidgets('a waiting split opens with its lines, a return among them', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    store.add(
+      PhoneEntry(
+        id: 's1',
+        categoryId: phoneSplitId,
+        accountId: 'tdb',
+        payee: 'Nomin',
+        amountMinor: -1250000,
+        date: DateTime(2026, 10, 6),
+        madeAt: _now,
+        lines: const [
+          (categoryId: 'groceries', amountMinor: -5000000),
+          (categoryId: 'clothing', amountMinor: 3750000),
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    // The return says its sign.
+    expect(
+      find.textContaining('Groceries ₮50,000 · Clothing +₮37,500'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('waiting-s1')));
+    await tester.pumpAndSettle();
+    expect(find.text('−₮12,500'), findsOneWidget);
+    expect(find.text('2 categories'), findsOneWidget);
+    expect(find.text('Groceries ₮50,000 · Clothing +₮37,500'), findsOneWidget);
+    expect(find.text('TDB Checking'), findsOneWidget);
+
+    // Its split page has the lines, the return marked.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(find.text('+₮37,500'), findsOneWidget);
+    expect(find.byKey(const ValueKey('split-left')), findsNothing);
+    // Groceries, the line the pad types into, 52,500 now: the receipt is
+    // 15,000.
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(find.byKey(const ValueKey('pad-<')));
+    }
+    await _type(tester, '52500');
+    await tester.pumpAndSettle();
+    expect(find.text('₮2,500 too much'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(find.byKey(const ValueKey('pad-<')));
+    }
+    await _type(tester, '15000');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final fixed = store.waiting.single;
+    expect(fixed.id, 's1');
+    expect(fixed.amountMinor, -1500000);
+    expect(fixed.date, DateTime(2026, 10, 6));
+    expect(fixed.lines, [
+      (categoryId: 'groceries', amountMinor: -5250000),
+      (categoryId: 'clothing', amountMinor: 3750000),
+    ]);
+  });
+
+  testWidgets('a fix the computer took in meanwhile is saved as a new '
+      'entry, and says so', (tester) async {
+    final store = await _pump(tester);
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    final first = store.waiting.single;
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('waiting-${first.id}')));
+    await tester.pumpAndSettle();
+    await _type(tester, '0');
+
+    // The computer takes the first one in while it is being fixed.
+    final s = store.snapshot;
+    store.snapshot = PhoneSnapshot(
+      madeAt: s.madeAt,
+      categories: s.categories,
+      accounts: s.accounts,
+      periodEnd: s.periodEnd,
+      payees: s.payees,
+      taken: {
+        store.device: PhoneTaken(entries: {first.id}),
+      },
+    );
+    await tester.pumpAndSettle();
+    expect(store.waiting, isEmpty);
+    expect(
+      find.text(
+        'Your computer has taken this entry in. Save will add it as a new one.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    // Nothing typed is lost.
+    final again = store.waiting.single;
+    expect(again.id, isNot(first.id));
+    expect(again.amountMinor, -8000000);
+    expect(again.payee, 'UB Cab');
+    expect(
+      find.text(
+        'Your computer had already taken in the first one, so this is saved '
+        'as a new entry. Fix or delete the first one on your computer.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('opening a waiting entry while one is typed asks first', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    await _type(tester, '500');
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    final row = find.byKey(ValueKey('waiting-${store.waiting.single.id}'));
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Open this entry? What you’ve typed on the entry screen will be '
+        'cleared.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Waiting for your computer'), findsOneWidget);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('−₮8,000'), findsOneWidget);
+  });
+
+  testWidgets('a return on the same receipt: a line marked Returned counts '
+      'the other way', (tester) async {
+    final store = await _pump(tester);
+    Color? colorOf(Finder f) => tester.widget<Text>(f).style?.color;
+    await _type(tester, '12500');
+    // Money out is ordinary ink with its minus (owner's correction).
+    expect(colorOf(find.text('−₮12,500')), Mid.ink);
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Groceries'));
+    await tester.pumpAndSettle();
+    await _type(tester, '50000');
+    await tester.pumpAndSettle();
+    expect(colorOf(find.byKey(const ValueKey('split-total'))), Mid.ink);
+    expect(find.text('₮37,500 too much'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-another')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Clothing'));
+    await tester.pumpAndSettle();
+    await _type(tester, '37500');
+    await tester.pumpAndSettle();
+    // Offered on the line being typed only.
+    expect(find.text('Returned'), findsOneWidget);
+    await tester.tap(find.text('Returned'));
+    await tester.pumpAndSettle();
+    expect(find.text('+₮37,500'), findsOneWidget);
+    expect(find.byKey(const ValueKey('split-left')), findsNothing);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_split_return.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('Groceries ₮50,000 · Clothing +₮37,500'), findsOneWidget);
+    await _account(tester, 'TDB Checking');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.amountMinor, -1250000);
+    expect(entry.lines, [
+      (categoryId: 'groceries', amountMinor: -5000000),
+      (categoryId: 'clothing', amountMinor: 3750000),
+    ]);
+    // The shirt's money is back in Clothing.
+    expect(find.text('Groceries · ₮98,000.00 left'), findsOneWidget);
+    expect(find.text('Clothing · ₮117,500.00 left'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(colorOf(find.text('−₮12,500.00')), Mid.ink);
+  });
+
+  testWidgets('returns that come to more than was bought make the receipt '
+      'money in', (tester) async {
+    final store = await _pump(tester);
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Groceries'));
+    await tester.pumpAndSettle();
+    await _type(tester, '37500');
+    await tester.tap(find.byKey(const ValueKey('split-another')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Clothing'));
+    await tester.pumpAndSettle();
+    await _type(tester, '50000');
+    await tester.tap(find.text('Returned'));
+    await tester.pumpAndSettle();
+    expect(find.text('+₮12,500'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('+₮12,500'), findsOneWidget);
+    expect(find.text('Paid into'), findsOneWidget);
+    // Each line still goes the way it was marked.
+    expect(find.text('Groceries −₮37,500 · Clothing ₮50,000'), findsOneWidget);
+    await _account(tester, 'TDB Checking');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.amountMinor, 1250000);
+    expect(entry.lines, [
+      (categoryId: 'groceries', amountMinor: -3750000),
+      (categoryId: 'clothing', amountMinor: 5000000),
+    ]);
+  });
+
+  testWidgets('after a split only the overspent category’s line is red', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await _type(tester, '2000');
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Groceries'));
+    await tester.pumpAndSettle();
+    await _type(tester, '1000');
+    await tester.tap(find.byKey(const ValueKey('split-another')));
+    await tester.pumpAndSettle();
+    await tester.tap(_inMenu('Eating out'));
+    await tester.pumpAndSettle();
+    await _type(tester, '1000');
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    await _account(tester, 'TDB Checking');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    Color? colorOf(String text) =>
+        tester.widget<Text>(find.text(text)).style?.color;
+    expect(colorOf('Saved · Nomin −₮2,000.00'), isNot(Mid.coral));
+    expect(colorOf('Groceries · ₮147,000.00 left'), Mid.ink2);
+    expect(colorOf('Eating out · overspent by ₮19,400.00'), Mid.coral);
+  });
+
+  testWidgets('a second tap on the category just picked doesn’t land on '
+      'what was under the list', (tester) async {
+    await _pump(tester);
+    await _category(tester, 'Groceries');
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    final at = tester.getCenter(_inMenu('Groceries'));
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.tapAt(at);
+    await tester.pumpAndSettle();
+    expect(find.byType(MenuItemButton), findsNothing);
+    expect(find.byType(DatePickerDialog), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.text('Groceries'), findsOneWidget);
+    // Tapping the chosen row again while the list is open only closes it.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(find.byType(MenuItemButton), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(find.byType(MenuItemButton), findsNothing);
+    expect(find.text('Groceries'), findsOneWidget);
+
+    // On the split page the list doesn't open again under the second tap.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-line-0')));
+    await tester.pumpAndSettle();
+    final line = tester.getCenter(_inMenu('Groceries'));
+    await tester.tapAt(line);
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.tapAt(line);
+    await tester.pumpAndSettle();
+    expect(find.byType(MenuItemButton), findsNothing);
+    expect(find.text('Groceries'), findsOneWidget);
   });
 
   testWidgets('a waiting entry can be deleted, and Left goes back', (
@@ -1684,6 +2032,67 @@ void main() {
       data = await db.loadLedger();
       expect(data.balanceOf(checking), before - 13550000 - 200);
     });
+
+    test(
+      'a return on the same receipt comes in as a line the other way',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        await seedDemoIfEmpty(db, today);
+        var data = await db.loadLedger();
+        int id(String name) =>
+            data.accounts.values.singleWhere((a) => a.name == name).id;
+        final checking = id('TDB Checking');
+        final groceries = id('Groceries'), clothing = id('Clothing');
+        PhoneEntry receipt(String key, List<PhoneSplitLine> lines) =>
+            PhoneEntry(
+              id: key,
+              categoryId: phoneSplitId,
+              accountId: '$checking',
+              payee: 'Nomin',
+              amountMinor: lines.fold(0, (s, l) => s + l.amountMinor),
+              date: DateTime(2026, 9, 16),
+              madeAt: today,
+              lines: lines,
+            );
+        final inbox = PhoneInbox(
+          device: 'ab12',
+          entries: [
+            // A ₮37,500 shirt returned, ₮50,000 of groceries bought.
+            receipt('r1', [
+              (categoryId: '$groceries', amountMinor: -5000000),
+              (categoryId: '$clothing', amountMinor: 3750000),
+            ]),
+            // Returned more than was bought: money in.
+            receipt('r2', [
+              (categoryId: '$groceries', amountMinor: -1000000),
+              (categoryId: '$clothing', amountMinor: 3000000),
+            ]),
+          ],
+        );
+        final before = data.balanceOf(checking);
+        final take = (await db.takePhoneEntries([inbox], today: today))!;
+        expect(take.transactionIds, hasLength(2));
+        data = await db.loadLedger();
+        expect(data.balanceOf(checking), before - 1250000 + 2000000);
+        final rows = data.registerFor(checking).posted;
+        final first = rows.singleWhere(
+          (r) => r.txnId == take.transactionIds[0],
+        );
+        expect(first.kind, RowKind.split);
+        expect(
+          first.splitLines.map((l) => (l.name, l.amount)),
+          unorderedEquals([('Groceries', -5000000), ('Clothing', 3750000)]),
+        );
+        final second = rows.singleWhere(
+          (r) => r.txnId == take.transactionIds[1],
+        );
+        expect(
+          second.splitLines.map((l) => (l.name, l.amount)),
+          unorderedEquals([('Groceries', -1000000), ('Clothing', 3000000)]),
+        );
+      },
+    );
 
     test('a transfer on the phone is a transfer on the computer', () async {
       final db = AppDatabase(NativeDatabase.memory());
