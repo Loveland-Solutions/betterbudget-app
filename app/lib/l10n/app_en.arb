@@ -3222,6 +3222,26 @@
       }
     }
   },
+  "rowsSplitIsOut": "The total is money out.",
+  "@rowsSplitIsOut": {
+    "description": "Split card, under the heading, while Amount is empty and lines have amounts: the lines' total will be saved as money out of the account. A button beside it changes it to money in."
+  },
+  "rowsSplitIsIn": "The total is money in.",
+  "@rowsSplitIsIn": {
+    "description": "Split card, under the heading, while Amount is empty: the lines' total will be saved as money into the account (a refund, or every line is Income). A button beside it changes it to money out."
+  },
+  "rowsSplitMakeIn": "Change to money in",
+  "@rowsSplitMakeIn": {
+    "description": "Split card: button beside 'The total is money out.'; one click makes the total money in."
+  },
+  "rowsSplitMakeOut": "Change to money out",
+  "@rowsSplitMakeOut": {
+    "description": "Split card: button beside 'The total is money in.'; one click makes the total money out."
+  },
+  "rowsSplitEven": "The lines even out, so the account’s balance doesn’t change.",
+  "@rowsSplitEven": {
+    "description": "Split card, under the heading: the lines go both ways and add up to 0 (a ₮37,500 shirt returned for ₮37,500 of groceries on one receipt). The row is saved with a total of 0."
+  },
   "rowsSplitAnother": "+ Another category",
   "@rowsSplitAnother": {
     "description": "Split card: adds a line for one more category."

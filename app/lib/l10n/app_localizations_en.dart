@@ -2144,6 +2144,22 @@ class WordsEn extends Words {
   }
 
   @override
+  String get rowsSplitIsOut => 'The total is money out.';
+
+  @override
+  String get rowsSplitIsIn => 'The total is money in.';
+
+  @override
+  String get rowsSplitMakeIn => 'Change to money in';
+
+  @override
+  String get rowsSplitMakeOut => 'Change to money out';
+
+  @override
+  String get rowsSplitEven =>
+      'The lines even out, so the account’s balance doesn’t change.';
+
+  @override
   String get rowsSplitAnother => '+ Another category';
 
   @override

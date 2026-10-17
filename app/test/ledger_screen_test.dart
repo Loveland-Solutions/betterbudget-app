@@ -2434,6 +2434,176 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a split line makes a new category; undo takes it away', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    Finder inCard(Finder f) => find.descendant(
+      of: find.byKey(const ValueKey('split-card')),
+      matching: f,
+    );
+    Finder lineCategory(int i) => inCard(find.byType(TextField)).at(i * 2);
+    Finder lineAmount(int i) => inCard(find.byType(TextField)).at(i * 2 + 1);
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'Nomin',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '135500');
+    await tester.tap(find.widgetWithText(TextField, 'Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Split'));
+    await tester.pumpAndSettle();
+    await tester.enterText(lineCategory(0), 'Groceries');
+    await tester.enterText(lineAmount(0), '98000');
+    await tester.enterText(lineCategory(1), 'Toys');
+    await tester.pumpAndSettle();
+    // The same line the row's own list has, in the row's currency.
+    await tester.tap(find.text('+ New category “Toys”'));
+    await tester.pumpAndSettle();
+    await tester.enterText(lineAmount(1), '37500');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    await settle(tester);
+    expect(find.textContaining('new category “Toys”'), findsOneWidget);
+    var d = (await tester.runAsync(() => db.loadLedger()))!;
+    final toys = d.categories.singleWhere((c) => c.name == 'Toys');
+    expect(toys.currency, Currency.mnt);
+    final row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
+    expect(row.splitLines.map((l) => (l.name, l.amount)), [
+      ('Groceries', -9800000),
+      ('Toys', -3750000),
+    ]);
+
+    // One ⌘Z: the row and the category it made both go; redo, both back.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await chord(tester, LogicalKeyboardKey.keyZ);
+    await settle(tester);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(d.categories.where((c) => c.name == 'Toys' && !c.deleted), isEmpty);
+    expect(checking(d).posted.where((r) => r.payee == 'Nomin'), isEmpty);
+    await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(
+      d.categories.where((c) => c.name == 'Toys' && !c.deleted),
+      hasLength(1),
+    );
+    expect(checking(d).posted.where((r) => r.payee == 'Nomin'), hasLength(1));
+    await tidy(tester, db);
+  });
+
+  testWidgets('the split card says which way the lines go; an even exchange '
+      'adds at 0', (tester) async {
+    final db = await pumpLedger(tester);
+    Finder inCard(Finder f) => find.descendant(
+      of: find.byKey(const ValueKey('split-card')),
+      matching: f,
+    );
+    Finder lineCategory(int i) => inCard(find.byType(TextField)).at(i * 2);
+    Finder lineAmount(int i) => inCard(find.byType(TextField)).at(i * 2 + 1);
+    Future<void> startSplit() async {
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin',
+      );
+      await tester.tap(find.widgetWithText(TextField, 'Category'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Split'));
+      await tester.pumpAndSettle();
+    }
+
+    // Amount empty, lines typed: money out unless switched, said before Add.
+    await startSplit();
+    await tester.enterText(lineCategory(0), 'Groceries');
+    await tester.enterText(lineAmount(0), '98000');
+    await tester.enterText(lineCategory(1), 'Clothing');
+    await tester.enterText(lineAmount(1), '37500');
+    await tester.pumpAndSettle();
+    expect(find.text('The total is money out.'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/split_card_way.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('split-switch-way')));
+    await tester.pumpAndSettle();
+    expect(find.text('The total is money in.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, '+135500'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    await settle(tester);
+    var d = (await tester.runAsync(() => db.loadLedger()))!;
+    var row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
+    expect(row.amount, 13550000);
+    await tester.runAsync(() => db.softDelete(row.txnId));
+    await settle(tester);
+    // The row stays open after an Add: closed, and opened afresh.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // A ₮37,500 shirt returned for ₮37,500 of groceries: 0, both ways.
+    await startSplit();
+    await tester.enterText(lineCategory(0), 'Groceries');
+    await tester.enterText(lineAmount(0), '37500');
+    await tester.enterText(lineCategory(1), 'Clothing');
+    await tester.enterText(lineAmount(1), '-37500');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('The lines even out, so the account’s balance doesn’t change.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('split-switch-way')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    await settle(tester);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
+    expect(row.kind, RowKind.split);
+    expect(row.amount, 0);
+    expect(row.splitLines.map((l) => (l.name, l.amount)), [
+      ('Groceries', -3750000),
+      ('Clothing', 3750000),
+    ]);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a split shows its shares unrounded, then its memo; search '
+      'finds it by a line', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final d = await db.loadLedger();
+      int id(String name) => d.categories.firstWhere((c) => c.name == name).id;
+      await db.postSplit(
+        accountId: d.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id,
+        date: DateTime(2026, 9, 16),
+        today: DateTime(2026, 9, 16),
+        payee: 'Emart',
+        memo: 'birthday',
+        splits: [
+          (categoryId: id('Groceries'), amount: -9800050),
+          (categoryId: id('Clothing'), amount: -3750000),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Groceries ₮98,000.50 · Clothing ₮37,500 · birthday'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search payee, memo, amount'),
+      'cloth',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Emart'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
   testWidgets('a transfer says which way it goes before it is added', (
     tester,
   ) async {

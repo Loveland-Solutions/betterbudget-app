@@ -332,6 +332,10 @@ class RegisterPanel extends StatelessWidget {
         r.memo.toLowerCase().contains(q) ||
         (_accountOf(r)?.toLowerCase().contains(q) ?? false) ||
         rowCategory(t, r).toLowerCase().contains(q) ||
+        // A split by any of its lines' categories.
+        r.splitLines.any(
+          (l) => splitLineName(t, l).toLowerCase().contains(q),
+        ) ||
         (digits.isNotEmpty &&
             RegExp(r'^\d+$').hasMatch(digits) &&
             formatWhole(
@@ -1112,15 +1116,16 @@ class _PostedRow extends StatelessWidget {
     final rate = r.otherAmount == null
         ? null
         : exchangeRate(r.amount, r.currency, r.otherAmount, r.otherCurrency!);
-    final memo = r.kind == RowKind.split && r.memo.isEmpty
-        ? r.splitLines
-              .map(
-                // A line the other way from the row (a return on the same
-                // receipt) carries its sign, as an amount does.
-                (l) =>
-                    '${splitLineName(t, l)} ${(l.amount > 0) != (r.amount > 0) ? (l.amount > 0 ? '+' : '−') : ''}${formatRounded(l.amount.abs(), currency: r.currency)}',
-              )
-              .join(' · ')
+    // A split's breakdown, then its memo: "Groceries ₮98,000 · Clothing
+    // ₮37,500 · birthday". Each share as money shows elsewhere, unrounded.
+    final memo = r.kind == RowKind.split
+        ? [
+            for (final l in r.splitLines)
+              // A line the other way from the row (a return on the same
+              // receipt) carries its sign, as an amount does.
+              '${splitLineName(t, l)} ${(l.amount > 0) != (r.amount > 0) ? (l.amount > 0 ? '+' : '−') : ''}${formatShort(l.amount.abs(), currency: r.currency)}',
+            if (r.memo.isNotEmpty) r.memo,
+          ].join(' · ')
         : r.otherAmount != null
         ? [
             if (r.memo.isNotEmpty) r.memo,

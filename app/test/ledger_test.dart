@@ -1153,6 +1153,7 @@ void main() {
       int account = 1,
       int category = 2,
       int? plan,
+      RowKind kind = RowKind.simple,
     }) => RegisterRow(
       txnId: id,
       entryId: id,
@@ -1162,9 +1163,9 @@ void main() {
       amount: amount,
       cleared: Cleared.uncleared,
       scheduled: scheduled,
-      kind: RowKind.simple,
+      kind: kind,
       categoryLabel: 'Y',
-      categoryId: category,
+      categoryId: kind == RowKind.split ? null : category,
       splitLines: const [],
       accountId: account,
       planCategoryId: plan,
@@ -1182,6 +1183,18 @@ void main() {
     expect(found([row(2, day(21), amount: 900000)]), isNull); // a refund
     expect(found([row(2, day(21), scheduled: true)]), isNull);
     expect(found([row(2, day(15)), row(3, day(19))]), 3); // the nearest
+    // Typed as a split (the rent and a repair on one payment): still the
+    // bill, found as an ordinary row with that payee would be.
+    expect(found([row(2, day(21), kind: RowKind.split)]), 2);
+    expect(
+      found([row(2, day(21), kind: RowKind.split, payee: 'Nomin')]),
+      isNull,
+    );
+    expect(
+      found([row(2, day(21), kind: RowKind.split, amount: 900000)]),
+      isNull,
+    );
+    expect(found([row(2, day(21), kind: RowKind.transfer)]), isNull);
     // Paid late, it is dated late: a late bill looks as far as today.
     expect(found([row(2, day(29))]), isNull);
     expect(found([row(2, day(29))], on: 30), 2);
@@ -2335,6 +2348,113 @@ void main() {
         );
       },
     );
+
+    test('a merge makes a split\'s two lines one; undo and redo', () async {
+      final groceries = await categoryId('Groceries');
+      final clothing = await categoryId('Clothing');
+      final gifts = await categoryId('Gifts');
+      final id = await db.postSplit(
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'Receipt',
+        splits: [
+          (categoryId: groceries, amount: -9800000),
+          (categoryId: clothing, amount: -3750000),
+          (categoryId: gifts, amount: -1000000),
+        ],
+      );
+      Future<Map<String, int>> lines() async => {
+        for (final l
+            in (await db.loadLedger())
+                .registerFor(checking)
+                .posted
+                .singleWhere((r) => r.txnId == id)
+                .splitLines)
+          l.name: l.amount,
+      };
+      final working = (await db.loadLedger()).summaryFor(checking).working;
+      var done = await db.deleteCategory(clothing, into: groceries);
+      // One Groceries line, the amounts added: not Groceries twice.
+      expect(await lines(), {'Groceries': -13550000, 'Gifts': -1000000});
+      expect((await db.loadLedger()).summaryFor(checking).working, working);
+      await db.undeleteCategory(done);
+      expect(await lines(), {
+        'Groceries': -9800000,
+        'Clothing': -3750000,
+        'Gifts': -1000000,
+      });
+      // Redo is the merge again.
+      done = await db.deleteCategory(clothing, into: groceries);
+      expect(await lines(), {'Groceries': -13550000, 'Gifts': -1000000});
+      await db.undeleteCategory(done);
+
+      // A return of what was bought on the same receipt: merged, the two
+      // cancel out, and the receipt is the line left.
+      final back = await db.postSplit(
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'Swap',
+        splits: [
+          (categoryId: groceries, amount: -500000),
+          (categoryId: clothing, amount: 500000),
+          (categoryId: gifts, amount: -100000),
+        ],
+      );
+      done = await db.deleteCategory(clothing, into: groceries);
+      var swap = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == back);
+      expect(swap.kind, RowKind.simple);
+      expect(swap.categoryLabel, 'Gifts');
+      await db.undeleteCategory(done);
+      swap = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == back);
+      expect(
+        {for (final l in swap.splitLines) l.name: l.amount},
+        {'Groceries': -500000, 'Clothing': 500000, 'Gifts': -100000},
+      );
+      final unbalanced = await db
+          .customSelect(
+            'SELECT transaction_id, SUM(amount_minor) s FROM entries '
+            'GROUP BY transaction_id HAVING s != 0',
+          )
+          .get();
+      expect(unbalanced, isEmpty);
+    });
+
+    test('an even exchange on one receipt is a split of 0', () async {
+      final groceries = await categoryId('Groceries');
+      final clothing = await categoryId('Clothing');
+      final working = (await db.loadLedger()).summaryFor(checking).working;
+      // A ₮37,500 shirt returned, ₮37,500 of groceries taken.
+      final id = await db.postSplit(
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'Nomin',
+        splits: [
+          (categoryId: groceries, amount: -3750000),
+          (categoryId: clothing, amount: 3750000),
+        ],
+      );
+      final data = await db.loadLedger();
+      final row = data
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == id);
+      expect(row.kind, RowKind.split);
+      expect(row.amount, 0);
+      expect(
+        {for (final l in row.splitLines) l.name: l.amount},
+        {'Groceries': -3750000, 'Clothing': 3750000},
+      );
+      expect(data.summaryFor(checking).working, working);
+    });
 
     test('without a target, only an empty category can go', () async {
       final dining = await categoryId('Dining out');

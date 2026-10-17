@@ -29,6 +29,8 @@ class EntryDraft {
 
   /// A split (one receipt for groceries and clothing): each category and
   /// its share, signed as [amount] is, adding up to it. [counter] is null.
+  /// A category with a negative id is a new one by that name, picked as
+  /// "+ New category" on its line: the screen makes it with the row.
   final List<({AccountInfo category, int amount})>? splits;
 
   /// The box under the row was ticked: remember the category for the payee
@@ -806,6 +808,7 @@ class _EntryRowState extends State<EntryRow> {
       _dropLines(_split);
       _split = null;
       _splitOpen = false;
+      _linesInChosen = null;
     });
     _problem(null);
     if (keepFocus) _payeeFocus.requestFocus();
@@ -900,12 +903,15 @@ class _EntryRowState extends State<EntryRow> {
   /// typed name still finds one), no transfers or pay. Not Not categorized:
   /// a split never shows in its tab, so money put there would be forgotten.
   /// Nor a category another line already has.
+  /// A name no category has gets "+ New category", as the row's own list
+  /// does, in the row's currency (owner's call, 2026-10-17).
   Iterable<AccountInfo> _lineOptions(_SplitLine line, String q) {
-    final taken = {
+    final others = [
       for (final o in _split ?? const <_SplitLine>[])
-        if (!identical(o, line)) ?_lineCategory(o)?.id,
-    };
-    return widget.categories.where(
+        if (!identical(o, line)) o,
+    ];
+    final taken = {for (final o in others) ?_lineCategory(o)?.id};
+    final found = widget.categories.where(
       (c) =>
           !c.archived &&
           categoryTakes(c, _hereCurrency) &&
@@ -913,7 +919,52 @@ class _EntryRowState extends State<EntryRow> {
           !taken.contains(c.id) &&
           c.name.toLowerCase().contains(q.toLowerCase()),
     );
+    final name = q.trim();
+    final lower = name.toLowerCase();
+    final fresh =
+        name.isNotEmpty &&
+        _categoryNamed(name) == null &&
+        // Not Not categorized, nor a name another line is making.
+        !widget.categories.any(
+          (c) => isUncategorized(c) && c.name.toLowerCase() == lower,
+        ) &&
+        !others.any((o) => _lineNew(o)?.toLowerCase() == lower);
+    return [
+      ...found,
+      if (fresh)
+        AccountInfo(
+          id: _createId,
+          name: name,
+          type: AccountType.expense,
+          currency: _hereCurrency,
+        ),
+    ];
   }
+
+  /// The new category a line makes: "+ New category" picked for the name
+  /// it still says, which no category has.
+  String? _lineNew(_SplitLine l) {
+    final name = l.category.text.trim();
+    final picked = l.newName;
+    if (picked == null || name.toLowerCase() != picked.toLowerCase()) {
+      return null;
+    }
+    return _lineCategory(l) == null ? name : null;
+  }
+
+  /// The category a line will be saved under: one there is, or a new one
+  /// by its name (a negative id, made by the screen with the row).
+  AccountInfo? _lineTarget(_SplitLine l) =>
+      _lineCategory(l) ??
+      switch (_lineNew(l)) {
+        final name? => AccountInfo(
+          id: _createId,
+          name: name,
+          type: AccountType.expense,
+          currency: _hereCurrency,
+        ),
+        null => null,
+      };
 
   /// The category a name means in this row's currency: a tugrik and a
   /// dollar Groceries can both exist. Archived ones last.
@@ -1018,9 +1069,12 @@ class _EntryRowState extends State<EntryRow> {
         _split = null;
         _category.text = _splitBefore?.category ?? '';
       } else if (one != null &&
-          _lineCategory(one) != null &&
+          _lineTarget(one) != null &&
           (one.amount.text.trim().isEmpty || _lineValue(one) == _splitTotal)) {
-        _category.text = _lineCategory(one)!.name;
+        final target = _lineTarget(one)!;
+        _category.text = target.name;
+        // A new one, picked on purpose: no doubt left about the name.
+        if (target.id == _createId) _chosenNew = target.name;
         _dropLines(kept);
         _split = null;
       }
@@ -1038,11 +1092,31 @@ class _EntryRowState extends State<EntryRow> {
   /// out unless the row says in.
   void _totalFromLines() {
     final sum = _splitSum;
-    if (_splitTotal != null || sum == 0 || (_initial?.lockAmount ?? false)) {
+    if (_splitTotal != null || (_initial?.lockAmount ?? false)) return;
+    if (sum == 0) {
+      // Lines that even out: a total of 0, nothing in or out.
+      if (_splitEven) _amount.text = editableAmount(0, _hereCurrency);
       return;
     }
-    final inflow = _amount.text.trim().startsWith('+') || _splitIsIncome;
-    _amount.text = editableAmount(inflow ? sum : -sum, _hereCurrency);
+    _amount.text = editableAmount(_linesIn ? sum : -sum, _hereCurrency);
+  }
+
+  /// Lines typed with Amount empty: whether their total is money in. Money
+  /// out unless the row says in (a `+`, or every line Income), or the card's
+  /// button was clicked: a default, not a question (owner, 2026-09-18).
+  bool? _linesInChosen;
+  bool get _linesIn =>
+      _linesInChosen ?? (_amount.text.trim().startsWith('+') || _splitIsIncome);
+
+  /// The lines go both ways and come to 0: an even exchange on one
+  /// receipt, a ₮37,500 shirt returned for ₮37,500 of groceries.
+  bool get _splitEven {
+    final values = [
+      for (final l in _split ?? const <_SplitLine>[]) ?_lineValue(l),
+    ];
+    return values.any((v) => v > 0) &&
+        values.any((v) => v < 0) &&
+        values.fold(0, (s, v) => s + v) == 0;
   }
 
   /// Enter in a line's amount: on to the next line still missing its
@@ -1098,7 +1172,7 @@ class _EntryRowState extends State<EntryRow> {
     final t = context.t;
     String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
     final parts = <({AccountInfo category, int amount})>[];
-    final seen = <int>{};
+    final seen = <String>{};
     var sum = 0;
     for (final l in _split!) {
       final name = l.category.text.trim();
@@ -1114,14 +1188,17 @@ class _EntryRowState extends State<EntryRow> {
           error: (t.rowsErrorSplitNoCategory(money(v!)), l.categoryFocus),
         );
       }
-      final category = _lineCategory(l);
+      final category = _lineTarget(l);
       if (category == null) {
         return (
           parts: null,
           error: (t.rowsErrorSplitUnknown(name), l.categoryFocus),
         );
       }
-      if (!seen.add(category.id)) {
+      final key = category.id == _createId
+          ? 'new ${category.name.toLowerCase()}'
+          : '${category.id}';
+      if (!seen.add(key)) {
         return (
           parts: null,
           error: (t.rowsErrorSplitTwice(category.name), l.categoryFocus),
@@ -1231,6 +1308,12 @@ class _EntryRowState extends State<EntryRow> {
       _ => t.rowsSplitTooMuch(money(left)),
     };
     final lines = _split!;
+    final even = _splitEven && (total == null || total == 0);
+    final way = even
+        ? t.rowsSplitEven
+        : total != null || sum == 0 || (_initial?.lockAmount ?? false)
+        ? null
+        : (_linesIn ? t.rowsSplitIsIn : t.rowsSplitIsOut);
     Widget label(String text, {TextAlign align = TextAlign.left}) => Padding(
       padding: const EdgeInsets.only(left: 2, right: 2, bottom: 4),
       child: Text(
@@ -1283,6 +1366,41 @@ class _EntryRowState extends State<EntryRow> {
                   ),
               ],
             ),
+            // Amount empty: which way the lines' total goes, said before
+            // Add, with the other way one click off.
+            if (way != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        way,
+                        key: const ValueKey('split-way'),
+                        style: onest(12.5, color: Mid.ink2),
+                      ),
+                    ),
+                    if (!even) ...[
+                      const SizedBox(width: 8),
+                      TextButton(
+                        key: const ValueKey('split-switch-way'),
+                        onPressed: () =>
+                            setState(() => _linesInChosen = !_linesIn),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Mid.blue,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          minimumSize: const Size(0, 26),
+                          visualDensity: VisualDensity.standard,
+                          textStyle: onest(12.5, weight: 500),
+                        ),
+                        child: Text(
+                          _linesIn ? t.rowsSplitMakeOut : t.rowsSplitMakeIn,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -1308,8 +1426,18 @@ class _EntryRowState extends State<EntryRow> {
                         hint: t.rowsHintCategory,
                         options: (q) => _lineOptions(l, q),
                         label: (c) => c.name,
+                        optionText: (c) => c.id == _createId
+                            ? t.rowsNewCategoryOption(c.name)
+                            : c.name,
                         onSelected: (c) {
-                          l.accountId = c.id;
+                          if (c.id == _createId) {
+                            l.accountId = null;
+                            l.newName = c.name;
+                          } else {
+                            l.accountId = c.id;
+                            l.newName = null;
+                          }
+                          setState(() {});
                           l.amountFocus.requestFocus();
                         },
                         onSubmit: l.amountFocus.requestFocus,
@@ -1457,7 +1585,9 @@ class _EntryRowState extends State<EntryRow> {
         counter == null &&
         _newCategoryDoubt != null) {
       (error, fix) = (_newCategoryDoubt!, _categoryFocus);
-    } else if (!lockAmount && (parsed == null || parsed == 0)) {
+    } else if (!lockAmount &&
+        (parsed == null || (parsed == 0 && !(_split != null && _splitEven)))) {
+      // 0 only for an even exchange on one receipt: lines both ways.
       (error, fix) = (t.rowsErrorAmount(raw), _amountFocus);
     } else if (_exchangeWith case final other?
         when !lockAmount && (_otherParsed ?? 0) == 0) {
@@ -1477,6 +1607,9 @@ class _EntryRowState extends State<EntryRow> {
     // A split's lines, checked; one line left that takes the whole amount
     // is saved as an ordinary row in that category.
     var splitCounter = _split == null ? counter?.account : null;
+    var newCategory = _split == null && splitCounter == null
+        ? _newCategory
+        : null;
     final wasSplit = _initial?.row.kind == RowKind.split;
     List<({AccountInfo category, int amount})>? splits;
     // A split opened and saved with its lines and total as they were (a
@@ -1499,19 +1632,35 @@ class _EntryRowState extends State<EntryRow> {
       final parts = checked.parts!;
       setState(() => _splitOpen = false);
       if (parts.length == 1 && !wasSplit) {
-        splitCounter = parts.single.category;
+        final only = parts.single.category;
+        // A new category on the one line: made with the row, as Category's
+        // own "+ New category" is.
+        if (only.id == _createId) {
+          newCategory = only.name;
+        } else {
+          splitCounter = only;
+        }
       } else {
         splits = parts;
       }
     } else if (wasSplit &&
         _split == null &&
-        splitCounter != null &&
-        splitCounter.isCategory) {
+        ((splitCounter != null && splitCounter.isCategory) ||
+            newCategory != null)) {
       // A split brought down to one category: its lines become one, as a
       // split's do, rather than the two-entry path.
       final total = parsed?.abs() ?? _initial!.amount.abs();
-      splits = [(category: splitCounter, amount: isInflow ? total : -total)];
+      final one =
+          splitCounter ??
+          AccountInfo(
+            id: _createId,
+            name: newCategory!,
+            type: AccountType.expense,
+            currency: _hereCurrency,
+          );
+      splits = [(category: one, amount: isInflow ? total : -total)];
       splitCounter = null;
+      newCategory = null;
     }
 
     setState(() => _busy = true);
@@ -1526,7 +1675,7 @@ class _EntryRowState extends State<EntryRow> {
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
-        newCategory: splitCounter == null ? _newCategory : null,
+        newCategory: newCategory,
         payId: _payPicked,
         account: _picking ? widget.controller.account : null,
         otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
@@ -2982,6 +3131,10 @@ class _SplitLine {
   /// The category picked from the list, or the one the line was opened
   /// with; kept while the line's name still says it.
   int? accountId;
+
+  /// "+ New category" was picked on this line for this name: the category
+  /// is made when the row is added.
+  String? newName;
   final categoryFocus = FocusNode(debugLabel: 'split-category');
   final amountFocus = FocusNode(debugLabel: 'split-amount');
 
