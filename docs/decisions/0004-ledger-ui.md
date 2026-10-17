@@ -3506,6 +3506,20 @@ opening by itself, saying it's done). The owner chose **A, the popup** (2026-10-
   with Show and "Delete it anyway"; one payday confirmed on both is one payday.
 - Rejected: B, a register tab that would almost always be empty; C, a window over
   the person's work for something already settled.
+- **Built 2026-10-17** (ADR 0005, "Built, 2026-10-17: step 4"). Decided along
+  the way: a rename on both can't keep each computer's own name (the two
+  ledgers would never agree), so one name is kept on both by the same rule as
+  everything else, and the computer whose name was replaced is told: "Groceries
+  was renamed on both computers. The laptop’s name, Food, is kept on both; yours
+  was Food & drink." A pay, a plan or a setting changed on both, and an account
+  deleted here and used there (it stays), are said in the popup only, with no
+  card in the window. A row whose reconciled or bank-matched money was kept
+  with the other computer's category shows a third box, "In the ledger now",
+  since neither computer's version is what the ledger holds; no button is on
+  until one is picked. The version in the ledger now is marked "in the ledger
+  now" in gold (done and safe). The popup's sentence names what differs, as a
+  person would say it: the amount, else the categories, the date, the payee or
+  the memo.
 
 ## Where a row came from: a Source column (2026-10-13)
 
