@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-17** · version 0.38.0 · schema v21 · 749 tests pass
+**Last updated: 2026-10-17** · version 0.39.0 · schema v21 · 749 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -25,8 +25,10 @@ Left from its reviews: #197. **On the phone too** (version 0.37.0, PR #202; the
 owner's pick, a split page; ADR 0005 "A split from the phone"): a phone split comes in
 as one split row, and a computer older than 0.37.0 leaves it waiting on the phone; a
 line whose category was deleted on the computer meanwhile comes in as Not categorized
-(0.38.0, PR #204). Left from its reviews: #201. **Downloads:** Windows 0.38.0 is the
-latest release on the public repo; 0.37.0 is on Android's Internal testing; the Mac
+(0.38.0, PR #204). Left from its reviews: #201. The phone's categories are now chosen
+from a dropdown on the entry screen, Split with its icon at the top (0.39.0, PR #209;
+owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing. **Downloads:** Windows 0.38.0 is the
+latest release on the public repo;  the Mac
 download waits for Apple's approval of the paid Developer Program (owner, 2026-10-17:
 "We're still pending approval"). Actions storage: the Windows build keeps its download
 14 days and the caches of merged pull requests were deleted (#205).
