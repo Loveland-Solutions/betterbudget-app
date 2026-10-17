@@ -3040,6 +3040,24 @@ abstract class Words {
   /// **'Split'**
   String get phoneSplitTitle;
 
+  /// Phone app, split page, top right: how much of the total has no category yet, e.g. '₮37,500 to place'. Not 'left': on the phone that is what a budget has.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} to place'**
+  String phoneSplitToPlace(String amount);
+
+  /// Phone app, waiting list: asked before a category made on this phone is deleted while a split entry uses it. The whole entry goes, so {amount} is the entries' whole total.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Delete {name} and the 1 entry that uses it ({amount} in all, other categories’ shares included)?} other{Delete {name} and the {count} entries that use it ({amount} in all, other categories’ shares included)?}}'**
+  String phoneDeleteCategoryWhole(int count, String name, String amount);
+
+  /// Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer won't take it in.
+  ///
+  /// In en, this message translates to:
+  /// **'A category in it was deleted on your computer. Delete this and enter it again.'**
+  String get phoneWaitingCategoryGone;
+
   /// Under the row editor: a split’s lines and its total differ.
   ///
   /// In en, this message translates to:

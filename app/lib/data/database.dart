@@ -4916,6 +4916,14 @@ class AppDatabase extends _$AppDatabase {
         // while any of its categories or its account is gone.
         if (e.isSplit) {
           final account = int.tryParse(e.accountId);
+          // What needs no lookup first, so a split left out makes nothing
+          // (Income, a phone's category) on its way.
+          if (!paidFrom.contains(account) ||
+              e.amountMinor == 0 ||
+              e.lines.any((l) => l.amountMinor == 0) ||
+              e.lines.fold(0, (s, l) => s + l.amountMinor) != e.amountMinor) {
+            continue;
+          }
           final parts = <SplitPart>[];
           for (final l in e.lines) {
             final c = await lineCategory(l.categoryId, l.amountMinor);

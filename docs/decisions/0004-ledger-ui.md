@@ -3566,3 +3566,12 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
   lines add up, and each category is on one line, as on the computer. The toast says
   what's left in each category, a line each. Rejected: B, the lines inside the entry
   screen, which crowded it and shrank the pad. How it travels: ADR 0005.
+  From the reviews (decided along those lines): the split page offers only categories
+  in the receipt's currency; it says "₮37,500 to place", not "left", which on the
+  phone is what a budget has; Save that finds the lines don't add up, or a line whose
+  category has gone, opens the split page; a category tapped on Budget while a split is
+  being typed joins its lines instead of replacing them; deleting a category made on
+  the phone says the whole amount of a split that uses it, since the split goes whole;
+  and a waiting split shows its shares, or says "A category in it was deleted on your
+  computer. Delete this and enter it again." A line the other way from the receipt (a
+  return) is typed on the computer.

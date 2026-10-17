@@ -419,7 +419,8 @@ void main() {
     expect(find.text('Groceries'), findsOneWidget);
     await _type(tester, '98000');
     await tester.pumpAndSettle();
-    expect(find.text('₮37,500.00 left'), findsOneWidget);
+    // Not "left", which on the phone is what a budget has.
+    expect(find.text('₮37,500 to place'), findsOneWidget);
     await expectLater(
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_split.png'),
@@ -1654,7 +1655,7 @@ void main() {
       int id(String name) =>
           data.accounts.values.singleWhere((a) => a.name == name).id;
       final checking = id('TDB Checking');
-      final groceries = id('Groceries'), clothing = id('Clothing');
+      final groceries = id('Groceries');
       PhoneEntry split(String key, List<PhoneSplitLine> lines) => PhoneEntry(
         id: key,
         categoryId: phoneSplitId,
@@ -1677,6 +1678,28 @@ void main() {
             (categoryId: '$groceries', amountMinor: -100),
             (categoryId: '999999', amountMinor: -100),
           ]),
+          // Lines that don't add up to the amount: left with the phone.
+          PhoneEntry(
+            id: 's3',
+            categoryId: phoneSplitId,
+            accountId: '$checking',
+            payee: 'Nomin',
+            amountMinor: -500,
+            date: DateTime(2026, 9, 15),
+            madeAt: today,
+            lines: [(categoryId: '$groceries', amountMinor: -400)],
+          ),
+          // Filed under the split word with no lines (all an older phone
+          // file could say): never filed somewhere wrong.
+          PhoneEntry(
+            id: 's4',
+            categoryId: phoneSplitId,
+            accountId: '$checking',
+            payee: 'Nomin',
+            amountMinor: -500,
+            date: DateTime(2026, 9, 15),
+            madeAt: today,
+          ),
         ],
         categories: const [
           PhoneCategory(
@@ -1706,7 +1729,16 @@ void main() {
         snapshotOf(data, today: today, madeAt: today).taken['ab12']!.entries,
         {'s1'},
       );
-      expect(clothing, isNot(groceries));
+
+      // Undo takes the split row and the category it made; redo brings
+      // both back.
+      await db.undoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), before);
+      expect(data.categories.any((c) => c.name == 'Shoes'), isFalse);
+      await db.redoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), before - 13550000);
     });
 
     test('a transfer on the phone is a transfer on the computer', () async {

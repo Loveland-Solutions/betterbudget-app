@@ -2101,6 +2101,26 @@ class WordsMn extends Words {
   String get phoneSplitTitle => 'Хуваах';
 
   @override
+  String phoneSplitToPlace(String amount) {
+    return '$amount хуваарилах';
+  }
+
+  @override
+  String phoneDeleteCategoryWhole(int count, String name, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$name ангилал болон түүнийг ашигласан $count гүйлгээг устгах уу? Нийт $amount, бусад ангиллын хэсэг орно.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneWaitingCategoryGone =>
+      'Үүний нэг ангилал компьютер дээр устгагдсан. Үүнийг устгаад дахин оруулна уу.';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна';
 

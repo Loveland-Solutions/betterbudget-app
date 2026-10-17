@@ -3283,6 +3283,34 @@
   "@phoneSplitTitle": {
     "description": "Phone app: heading of the page that shares one entry over several categories."
   },
+  "phoneSplitToPlace": "{amount} to place",
+  "@phoneSplitToPlace": {
+    "description": "Phone app, split page, top right: how much of the total has no category yet, e.g. '₮37,500 to place'. Not 'left': on the phone that is what a budget has.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneDeleteCategoryWhole": "{count, plural, =1{Delete {name} and the 1 entry that uses it ({amount} in all, other categories’ shares included)?} other{Delete {name} and the {count} entries that use it ({amount} in all, other categories’ shares included)?}}",
+  "@phoneDeleteCategoryWhole": {
+    "description": "Phone app, waiting list: asked before a category made on this phone is deleted while a split entry uses it. The whole entry goes, so {amount} is the entries' whole total.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneWaitingCategoryGone": "A category in it was deleted on your computer. Delete this and enter it again.",
+  "@phoneWaitingCategoryGone": {
+    "description": "Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer won't take it in."
+  },
   "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
   "@ledgerDbSplitDoesntAddUp": {
     "description": "Under the row editor: a split’s lines and its total differ."

@@ -418,7 +418,25 @@ class _PhoneHomeState extends State<PhoneHome> {
                       // A category here starts an entry in it; what is
                       // already typed stays.
                       onCategory: (category) {
-                        _draft.choose(category, widget.store.snapshot.accounts);
+                        if (_draft.isSplit) {
+                          // A split being typed keeps its lines: the
+                          // category joins them, once.
+                          if (_draft.lines.every(
+                            (l) => l.categoryId != category.id,
+                          )) {
+                            _draft.change(
+                              () => _draft.lines = [
+                                ..._draft.lines,
+                                (categoryId: category.id, typed: ''),
+                              ],
+                            );
+                          }
+                        } else {
+                          _draft.choose(
+                            category,
+                            widget.store.snapshot.accounts,
+                          );
+                        }
                         setState(() => _budget = false);
                       },
                     ),
@@ -759,7 +777,10 @@ class _EntryState extends State<_EntryScreen> {
   PhoneCategory? get _category {
     // A split's first category stands for it where one is asked for (its
     // currency, the accounts it can be paid from); its lines say the rest.
-    if (_draft.isSplit) return _splitCategories.firstOrNull;
+    if (_draft.isSplit) {
+      final all = _splitCategories;
+      return all.where((c) => !c.isIncome).firstOrNull ?? all.firstOrNull;
+    }
     if (_draft.categoryId == phoneIncomeId) return _income;
     if (_to case final to?) return _transferTo(to);
     for (final c in _store.categories) {
@@ -983,12 +1004,24 @@ class _EntryState extends State<_EntryScreen> {
     ];
     final sum = shares.fold(0, (s, v) => s + v);
     String money(int v) => formatMoney(v.abs(), currency: currency);
+    // A line whose category has gone (deleted from the waiting list, or
+    // from the computer's ledger) or is in another currency would never
+    // be taken in: chosen again first.
+    final categories = _splitCategories;
+    final lost =
+        categories.length != _draft.lines.length ||
+        categories.any(
+          (c) =>
+              !c.isIncome && account != null && c.currency != account.currency,
+        );
     final missing = amount == 0
         ? t.phoneEnterAmount
         : payee == null
         ? t.phoneEnterPayee
         : account == null
         ? t.phoneChooseAccount
+        : lost
+        ? t.phoneChooseCategory
         : sum < amount
         ? t.rowsErrorSplitLeft(money(amount - sum))
         : sum > amount
@@ -1000,6 +1033,9 @@ class _EntryState extends State<_EntryScreen> {
         _saved = null;
         _undo = null;
       });
+      // Not adding up, or a line to choose again: the split page opens on
+      // it, as the computer's card does.
+      if (amount != 0 && payee != null && account != null) _openSplit();
       return;
     }
     final random = Random.secure();
@@ -1007,7 +1043,6 @@ class _EntryState extends State<_EntryScreen> {
     final date = _draft.date;
     final moneyIn = _draft.moneyIn;
     final lines = _draft.lines;
-    final categories = _splitCategories;
     final entry = PhoneEntry(
       id: [
         for (var i = 0; i < 16; i++)
@@ -1678,8 +1713,12 @@ class _CategoryPage extends StatefulWidget {
     this.transfers = const [],
     this.split = false,
     this.exclude = const {},
+    this.onlyCurrency = false,
   });
   final PhoneStore store;
+
+  /// Only categories in [currency] are offered (Income has none of its own).
+  final bool onlyCurrency;
 
   /// "Split over categories…" is offered at the foot, beside "+ New
   /// category": picking it answers with a category of id [phoneSplitId].
@@ -1737,7 +1776,9 @@ class _CategoryPageState extends State<_CategoryPage> {
     final store = widget.store;
     final all = [
       for (final c in store.categories)
-        if (!widget.exclude.contains(c.id)) c,
+        if (!widget.exclude.contains(c.id) &&
+            (!widget.onlyCurrency || c.currency == widget.currency))
+          c,
     ];
     final income = widget.exclude.contains(phoneIncomeId)
         ? null
@@ -2018,6 +2059,9 @@ class _SplitPageState extends State<_SplitPage> {
           store: widget.store,
           currency: widget.currency,
           income: widget.income,
+          // A split is in one currency: a dollar Groceries isn't offered on
+          // a tugrik receipt.
+          onlyCurrency: true,
           exclude: {
             for (final (i, l) in _lines.indexed)
               if (i != index) l.categoryId,
@@ -2050,6 +2094,8 @@ class _SplitPageState extends State<_SplitPage> {
 
   void _remove(int index) => setState(() {
     _lines.removeAt(index);
+    // The pad stays on the line it was typing into.
+    if (index < _chosen) _chosen--;
     if (_chosen >= _lines.length) _chosen = _lines.length - 1;
   });
 
@@ -2057,14 +2103,16 @@ class _SplitPageState extends State<_SplitPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     final currency = widget.currency;
-    String money(int v) => formatMoney(v.abs(), currency: currency);
+    // As the lines and the total read: ₮37,500.
+    String money(int v) => formatShort(v.abs(), currency: currency);
     final total = widget.total;
     final sum = _sum;
     final left = total == null ? null : total - sum;
     final note = switch (left) {
       null when sum != 0 => t.rowsSplitInAll(money(sum)),
       null || 0 => null,
-      > 0 => t.rowsSplitLeft(money(left)),
+      // Not "left": on the phone that is what a budget has.
+      > 0 => t.phoneSplitToPlace(money(left)),
       _ => t.rowsSplitTooMuch(money(left)),
     };
     final shown = total ?? sum;
@@ -2696,11 +2744,22 @@ class _WaitingScreen extends StatelessWidget {
         builder: (context) => AlertDialog(
           backgroundColor: Mid.panel,
           content: Text(
-            t.phoneDeleteCategory(
-              inIt.length,
-              c.name,
-              formatMoney(total, currency: c.currency),
-            ),
+            // A split goes whole, its other categories' shares too: said
+            // with the whole amount.
+            inIt.any((e) => e.isSplit)
+                ? t.phoneDeleteCategoryWhole(
+                    inIt.length,
+                    c.name,
+                    formatMoney(
+                      inIt.fold<int>(0, (s, e) => s + e.amountMinor).abs(),
+                      currency: c.currency,
+                    ),
+                  )
+                : t.phoneDeleteCategory(
+                    inIt.length,
+                    c.name,
+                    formatMoney(total, currency: c.currency),
+                  ),
             style: onest(17, height: 1.35),
           ),
           actions: [
@@ -2828,7 +2887,20 @@ class _WaitingScreen extends StatelessWidget {
                   : moved
                   ? (accounts[e.accountId]?.name ?? t.startTransfer)
                   : e.payee,
-              under: '$filed · ${fullDate(e.date)}',
+              under: switch (e.lines) {
+                // A category of it is gone from the ledger: the computer
+                // won't take it in, so it says what to do.
+                final lines
+                    when lines.any(
+                      (l) =>
+                          l.categoryId != phoneIncomeId &&
+                          names[l.categoryId] == null,
+                    ) =>
+                  t.phoneWaitingCategoryGone,
+                final lines when lines.isNotEmpty =>
+                  '${[for (final l in lines) '${l.categoryId == phoneIncomeId ? t.ledgerIncome : names[l.categoryId]!.name} ${formatShort(l.amountMinor.abs(), currency: accounts[e.accountId]?.currency ?? Currency.mnt)}'].join(' · ')} · ${fullDate(e.date)}',
+                _ => '$filed · ${fullDate(e.date)}',
+              },
               amount: Text(
                 moved
                     ? formatMoney(

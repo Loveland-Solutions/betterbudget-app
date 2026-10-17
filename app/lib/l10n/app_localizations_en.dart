@@ -2181,6 +2181,28 @@ class WordsEn extends Words {
   String get phoneSplitTitle => 'Split';
 
   @override
+  String phoneSplitToPlace(String amount) {
+    return '$amount to place';
+  }
+
+  @override
+  String phoneDeleteCategoryWhole(int count, String name, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Delete $name and the $count entries that use it ($amount in all, other categories’ shares included)?',
+      one:
+          'Delete $name and the 1 entry that uses it ($amount in all, other categories’ shares included)?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneWaitingCategoryGone =>
+      'A category in it was deleted on your computer. Delete this and enter it again.';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'The split’s lines don’t add up to its amount';
 
