@@ -65,3 +65,6 @@ jobs:
           name: ${{ steps.name.outputs.name }}
           path: app/build/windows/x64/runner/Release/
           if-no-files-found: error
+          # Kept two weeks, not GitHub's 90 days: each build is 15 MB of the
+          # account's Actions storage, and a release has its own copy.
+          retention-days: 14
