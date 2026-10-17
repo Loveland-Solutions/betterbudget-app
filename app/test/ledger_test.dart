@@ -5,6 +5,7 @@ import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/import/mapping.dart';
 import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1321,6 +1322,219 @@ void main() {
         ),
         throwsA(isA<NotFoundException>()),
       );
+    });
+
+    test('a new split: one transaction over categories, checked', () async {
+      final groceries = await categoryId('Groceries');
+      final clothing = await categoryId('Clothing');
+      final id = await db.postSplit(
+        accountId: checking,
+        date: today,
+        today: today,
+        payee: 'Receipt',
+        splits: [
+          (categoryId: groceries, amount: -9000000),
+          (categoryId: clothing, amount: -2500000),
+          // Two lines for one category are one.
+          (categoryId: clothing, amount: -1250000),
+        ],
+      );
+      final made = await row('Receipt');
+      expect(made.txnId, id);
+      expect(made.kind, RowKind.split);
+      expect(made.amount, -12750000);
+      expect(
+        {for (final l in made.splitLines) l.name: l.amount},
+        {'Groceries': -9000000, 'Clothing': -3750000},
+      );
+      expect(made.splitLines.map((l) => l.accountId), [groceries, clothing]);
+
+      final savings = (await db.loadLedger()).balanceSheetAccounts
+          .firstWhere((a) => a.name == 'Khan Savings')
+          .id;
+      // An account isn't a category: that's a transfer.
+      await expectLater(
+        db.postSplit(
+          accountId: checking,
+          date: today,
+          today: today,
+          payee: 'Nope',
+          splits: [
+            (categoryId: groceries, amount: -1000),
+            (categoryId: savings, amount: -1000),
+          ],
+        ),
+        throwsA(isA<NotFoundException>()),
+      );
+    });
+
+    test(
+      'a split\'s lines change, a row becomes a split, and both undo',
+      () async {
+        final split = (await db.loadLedger())
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.kind == RowKind.split);
+        final before = await db.snapshot(split.txnId);
+        final groceries = await categoryId('Groceries');
+        final clothing = await categoryId('Clothing');
+        final gifts = await categoryId('Gifts');
+        final working = (await db.loadLedger()).summaryFor(checking).working;
+
+        // Three lines and a new total.
+        await db.editTransaction(
+          transactionId: split.txnId,
+          accountId: checking,
+          date: split.date,
+          today: today,
+          payee: 'Nomin',
+          amount: -9000000,
+          splits: [
+            (categoryId: groceries, amount: -5000000),
+            (categoryId: clothing, amount: -3000000),
+            (categoryId: gifts, amount: -1000000),
+          ],
+        );
+        var after = await row('Nomin');
+        expect(after.amount, -9000000);
+        expect(after.splitLines.map((l) => (l.name, l.amount)), [
+          ('Groceries', -5000000),
+          ('Clothing', -3000000),
+          ('Gifts', -1000000),
+        ]);
+        expect(
+          (await db.loadLedger()).summaryFor(checking).working,
+          working - 9000000 + 8640000,
+        );
+
+        // Lines that don't add up to the total are refused, nothing written.
+        await expectLater(
+          db.editTransaction(
+            transactionId: split.txnId,
+            accountId: checking,
+            date: split.date,
+            today: today,
+            payee: 'Nomin',
+            amount: -9000000,
+            splits: [(categoryId: groceries, amount: -1)],
+          ),
+          throwsA(isA<LockedException>()),
+        );
+        after = await row('Nomin');
+        expect(after.splitLines.length, 3);
+
+        // Back to two lines: the third goes.
+        await db.editTransaction(
+          transactionId: split.txnId,
+          accountId: checking,
+          date: split.date,
+          today: today,
+          payee: 'Nomin',
+          splits: [
+            (categoryId: groceries, amount: -6000000),
+            (categoryId: clothing, amount: -3000000),
+          ],
+        );
+        expect((await row('Nomin')).splitLines.length, 2);
+
+        await db.restoreSnapshot(before);
+        final restored = (await db.loadLedger())
+            .registerFor(checking)
+            .posted
+            .firstWhere((r) => r.txnId == split.txnId);
+        expect(restored.amount, split.amount);
+        expect(
+          restored.splitLines.map((l) => (l.name, l.amount)),
+          split.splitLines.map((l) => (l.name, l.amount)),
+        );
+
+        // Brought down to one category: an ordinary row again.
+        await db.editTransaction(
+          transactionId: split.txnId,
+          accountId: checking,
+          date: split.date,
+          today: today,
+          payee: 'Nomin',
+          splits: [(categoryId: groceries, amount: split.amount)],
+        );
+        final one = await row('Nomin');
+        expect(one.kind, RowKind.simple);
+        expect(one.categoryLabel, 'Groceries');
+        await db.restoreSnapshot(before);
+
+        // A one-category row shared over two.
+        final coffee = await row('Sakura Coffee');
+        final coffeeBefore = await db.snapshot(coffee.txnId);
+        await db.editTransaction(
+          transactionId: coffee.txnId,
+          accountId: checking,
+          date: coffee.date,
+          today: today,
+          payee: 'Sakura Coffee',
+          splits: [
+            (categoryId: groceries, amount: coffee.amount + 100000),
+            (categoryId: gifts, amount: -100000),
+          ],
+        );
+        final shared = await row('Sakura Coffee');
+        expect(shared.kind, RowKind.split);
+        expect(shared.amount, coffee.amount);
+        await db.restoreSnapshot(coffeeBefore);
+        final back = await row('Sakura Coffee');
+        expect(back.kind, RowKind.simple);
+        expect(back.categoryLabel, coffee.categoryLabel);
+      },
+    );
+
+    test('reconciled split: the total stays, its lines can move', () async {
+      final split = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.kind == RowKind.split);
+      await (db.update(db.entries)..where((e) => e.id.equals(split.entryId)))
+          .write(const EntriesCompanion(cleared: Value(Cleared.reconciled)));
+      final before = await db.snapshot(split.txnId);
+      final groceries = await categoryId('Groceries');
+      final gifts = await categoryId('Gifts');
+
+      await expectLater(
+        db.editTransaction(
+          transactionId: split.txnId,
+          accountId: checking,
+          date: split.date,
+          today: today,
+          amount: split.amount - 100,
+          splits: [(categoryId: groceries, amount: split.amount - 100)],
+        ),
+        throwsA(isA<LockedException>()),
+      );
+
+      await db.editTransaction(
+        transactionId: split.txnId,
+        accountId: checking,
+        date: split.date,
+        today: today,
+        splits: [
+          (categoryId: groceries, amount: split.amount + 1000000),
+          (categoryId: gifts, amount: -500000),
+          (categoryId: await categoryId('Clothing'), amount: -500000),
+        ],
+      );
+      final moved = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == split.txnId);
+      expect(moved.amount, split.amount);
+      expect(moved.splitLines.length, 3);
+      expect(moved.cleared, Cleared.reconciled);
+
+      // Undo puts the two lines back: only the bank's side is locked.
+      await db.restoreSnapshot(before);
+      final restored = (await db.loadLedger())
+          .registerFor(checking)
+          .posted
+          .firstWhere((r) => r.txnId == split.txnId);
+      expect(restored.splitLines.length, 2);
     });
 
     test(

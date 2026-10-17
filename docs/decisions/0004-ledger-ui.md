@@ -3505,3 +3505,54 @@ list a given phone as a source".
 - **The same Mac reads "Entered locally" under both of its accounts** (owner,
   2026-10-13: "since it's the same computer, it's local on both accounts").
 
+
+## One receipt over several categories: the split card (2026-10-17)
+
+Owner, 2026-10-12: "I go to Walmart and buy clothing and groceries under one receipt.
+I'll need to be able to handle that." Shown three sketches on 2026-10-17 (one
+Nomin receipt of ₮135,500: ₮98,000 groceries, ₮37,500 clothing), they chose **C, a
+card for the receipt**, and that **Add waits** while some of the total has no category.
+
+- **"Split over categories…" sits under Category's list**, below a line, so it isn't
+  scrolled past in a long list of categories. Picking it opens a card under the row:
+  "Nomin, ₮135,500.00" at the top, with what's left to place on the right
+  ("₮37,500.00 left", "₮2,000.00 too much", nothing when it adds up), a Category and
+  an Amount on each line, ✕ to take a line off (while there's more than one), "+
+  Another category", Cancel and Done. The first line takes the category Category
+  named, if it named one; amounts are never filled in for them.
+- **Done** closes the card and Category reads "2 categories"; a click on it opens the
+  card again. Empty lines go. One line left that takes the whole amount makes the row
+  an ordinary one in that category. With Amount empty, Done puts the lines' sum in it.
+  **Cancel** or Esc puts the lines back as they were when the card opened.
+- **Add waits** until the lines add up: the popup says "Place the last ₮37,500.00"
+  and the card opens on the line to fix. Rejected: saving the rest as Not
+  categorized.
+- Enter in a line's amount goes on to the next line still missing its category or
+  amount, then opens a new line while some is left, otherwise it is Done. Line
+  amounts take the calculator, as Amount does. A line the other way from the row (a
+  return on the same receipt) is typed with a minus, and the register shows it with
+  its sign ("Clothing +₮5,000" on money out).
+- The option is offered whatever Category says, and the first line starts from the
+  category named there. Category reads the count of lines while the card is open,
+  then the categories they name.
+- A split whose lines are all Income is money in, as a row filed under Income is.
+- **Editing a split**: double-click its category and the card opens on its lines.
+  A reconciled split keeps its date and total, and its lines can still move between
+  categories (only the bank's side is on a statement); undo moves them back.
+- A split saved with its lines and total untouched (a new memo) leaves its entries
+  alone, so a deleted category on one of its lines doesn't stop the save.
+- Lines take existing categories in the row's currency (a tugrik and a dollar
+  Groceries can both exist; the database refuses the wrong one); a new one is made
+  from the row's own Category or the Budget page. Two lines for one category are
+  saved as one. Not categorized isn't offered on a line: a split never shows in the
+  Not categorized tab, so money put there would be forgotten.
+- **A split names each category once** (owner, 2026-10-17, trying it: "It lets me
+  choose the same category twice in the same split. Can't think of a time that
+  would be useful"). A line's list leaves out the categories other lines have; one
+  typed anyway gets "“Groceries” is already on another line" on Add. A split saved
+  before with a category twice (after a merge) opens with those lines as one.
+- A split brought down to one category in its card is saved as an ordinary row in
+  that category, reconciled or not.
+- Rejected: A, lines straight under the row; B, a total that adds itself up and
+  is never checked against the receipt.
+- Not yet on the phone.

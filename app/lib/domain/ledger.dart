@@ -200,7 +200,7 @@ class Reconciliation {
 /// One category of a split row, in the row's sign convention. [deleted] is
 /// the account's plain name when it's been deleted ([name] then says so in
 /// English).
-typedef SplitLine = ({String name, int amount, String? deleted});
+typedef SplitLine = ({int accountId, String name, int amount, String? deleted});
 
 class RegisterRow {
   const RegisterRow({
@@ -1469,6 +1469,7 @@ class LedgerData {
       lines = [
         for (final o in others)
           (
+            accountId: o.accountId,
             name: accounts[o.accountId]!.label,
             amount: -o.amount,
             deleted: accounts[o.accountId]!.deleted

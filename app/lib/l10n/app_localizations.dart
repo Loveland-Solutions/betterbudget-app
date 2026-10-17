@@ -1329,7 +1329,7 @@ abstract class Words {
   /// Under the row editor: a split transaction’s amount or category.
   ///
   /// In en, this message translates to:
-  /// **'Split lines can’t be edited yet'**
+  /// **'Change a split’s categories in its own card'**
   String get ledgerDbSplitNotEditable;
 
   /// Toast after "Can’t move · ": the row changed meanwhile.
@@ -2956,17 +2956,95 @@ abstract class Words {
   /// **'Cancel'**
   String get rowsCancelEdit;
 
+  /// Last entry in an entry row’s Category list: opens the card that shares the amount over several categories (one receipt for groceries and clothing).
+  ///
+  /// In en, this message translates to:
+  /// **'Split over categories…'**
+  String get rowsSplitOption;
+
+  /// Heading of the split card under an entry row: the payee and the receipt’s total, e.g. 'Nomin, ₮135,500.00'.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee}, {amount}'**
+  String rowsSplitTitle(String payee, String amount);
+
+  /// Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} left'**
+  String rowsSplitLeft(String amount);
+
+  /// Split card, top right: the lines add up to more than the total, e.g. '₮2,000.00 too much'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} too much'**
+  String rowsSplitTooMuch(String amount);
+
+  /// Split card, top right, when no total was typed in Amount: what the lines add up to. Done puts it in Amount.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} in all'**
+  String rowsSplitInAll(String amount);
+
+  /// Split card: adds a line for one more category.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Another category'**
+  String get rowsSplitAnother;
+
+  /// Split card: tooltip on the ✕ beside a line.
+  ///
+  /// In en, this message translates to:
+  /// **'Take this category off'**
+  String get rowsSplitRemove;
+
+  /// Split card: closes it and keeps its lines; the row is then saved with Add or Save as usual.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get rowsSplitDone;
+
+  /// Popup at the bottom when a split row can’t be saved: part of the total has no category yet, e.g. 'Place the last ₮37,500.00'.
+  ///
+  /// In en, this message translates to:
+  /// **'Place the last {amount}'**
+  String rowsErrorSplitLeft(String amount);
+
+  /// Popup at the bottom when a split row can’t be saved: its lines add up to more than its amount.
+  ///
+  /// In en, this message translates to:
+  /// **'The lines are {amount} more than the total'**
+  String rowsErrorSplitTooMuch(String amount);
+
+  /// Popup at the bottom when a split row can’t be saved: a line has an amount but no category.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a category for {amount}'**
+  String rowsErrorSplitNoCategory(String amount);
+
+  /// Popup at the bottom when a split row can’t be saved: a line names a category that doesn’t exist. New categories are made from the row’s own Category field or the Budget page.
+  ///
+  /// In en, this message translates to:
+  /// **'There’s no category “{name}”'**
+  String rowsErrorSplitUnknown(String name);
+
+  /// Popup at the bottom when a split row can’t be saved: two lines name the same category. A split names each category once.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is already on another line'**
+  String rowsErrorSplitTwice(String name);
+
+  /// Under the row editor: a split’s lines and its total differ.
+  ///
+  /// In en, this message translates to:
+  /// **'The split’s lines don’t add up to its amount'**
+  String get ledgerDbSplitDoesntAddUp;
+
   /// Tooltip on a locked date, amount or transfer account while editing a reconciled transaction
   ///
   /// In en, this message translates to:
   /// **'Reconciled · this matches a bank statement, so it can’t change'**
   String get rowsReconciledTip;
-
-  /// Tooltip on the locked category while editing a split transaction
-  ///
-  /// In en, this message translates to:
-  /// **'Editing split lines isn’t built yet'**
-  String get rowsSplitLinesNotBuilt;
 
   /// Tooltip on the locked category while editing an account's opening balance.
   ///
@@ -2991,12 +3069,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The other account is archived'**
   String get rowsOtherAccountArchived;
-
-  /// Tooltip on the locked amount while editing a split transaction
-  ///
-  /// In en, this message translates to:
-  /// **'A split’s total follows its lines'**
-  String get rowsSplitTotalFollows;
 
   /// Entry row, placeholder in the payee field while editing
   ///
@@ -4307,7 +4379,7 @@ abstract class Words {
   /// Register row, category column of a split transaction, e.g. '3 categories'.
   ///
   /// In en, this message translates to:
-  /// **'{count} categories'**
+  /// **'{count, plural, =1{1 category} other{{count} categories}}'**
   String startSplitCategories(int count);
 
   /// How a row names an account that was deleted, e.g. 'TDB Checking (deleted)'.

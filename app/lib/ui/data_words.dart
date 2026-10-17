@@ -196,6 +196,7 @@ String dbProblem(Words t, DbException e) => switch (e.problem) {
   DbProblem.notInAccount => t.ledgerDbNotInAccount,
   DbProblem.notAnAccount => t.ledgerDbNotAnAccount,
   DbProblem.splitNotEditable => t.ledgerDbSplitNotEditable,
+  DbProblem.splitDoesntAddUp => t.ledgerDbSplitDoesntAddUp,
   DbProblem.payIsIn => t.ledgerDbPayIsIn,
   DbProblem.notCategory => t.ledgerDbNotCategory,
   DbProblem.sameCategory => t.ledgerDbSameCategory,
