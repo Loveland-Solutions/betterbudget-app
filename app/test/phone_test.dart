@@ -73,11 +73,34 @@ Future<void> _toLedger(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Picks [name] from the category list on the entry screen.
+/// [name] in the open Category dropdown.
+Finder _inMenu(String name) =>
+    find.descendant(of: find.byType(MenuItemButton), matching: find.text(name));
+
+/// Picks [name] from the Category dropdown on the entry screen.
 Future<void> _category(WidgetTester tester, String name) async {
   await tester.tap(find.byKey(const ValueKey('category-row')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(name));
+  await tester.ensureVisible(_inMenu(name));
+  await tester.tap(_inMenu(name));
+  await tester.pumpAndSettle();
+}
+
+/// Makes a category called [name] from the dropdown's "+ New category".
+Future<void> _newCategory(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(const ValueKey('category-row')));
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.byKey(const ValueKey('new-category')));
+  await tester.tap(find.byKey(const ValueKey('new-category')));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const ValueKey('new-category-name')), name);
+  await tester.tap(find.text('Add'));
+  await tester.pumpAndSettle();
+}
+
+/// Closes the open dropdown.
+Future<void> _closeMenu(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
   await tester.pumpAndSettle();
 }
 
@@ -321,7 +344,7 @@ void main() {
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_category.png'),
     );
-    await tester.tap(find.text('Groceries'));
+    await tester.tap(_inMenu('Groceries'));
     await tester.pumpAndSettle();
     expect(find.text('₮148,000.00 left now'), findsOneWidget);
 
@@ -441,9 +464,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('split-another')));
     await tester.pumpAndSettle();
-    expect(find.text('Groceries'), findsNothing);
+    expect(_inMenu('Groceries'), findsNothing);
     expect(find.byKey(const ValueKey('split-option')), findsNothing);
-    await tester.tap(find.text('Clothing'));
+    await tester.tap(_inMenu('Clothing'));
     await tester.pumpAndSettle();
     await _type(tester, '37500');
     await tester.pumpAndSettle();
@@ -473,22 +496,26 @@ void main() {
     expect(find.text('₮42,500.00'), findsOneWidget);
   });
 
-  testWidgets('typing narrows the list, and Done takes the first that fits', (
-    tester,
-  ) async {
+  testWidgets('the Category dropdown opens on the same screen, Split first '
+      'with its icon', (tester) async {
     await _pump(tester);
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('category-field')), 'e');
-    await tester.pump();
-    // Begins with it, before the names that only hold it.
+    // The entry screen stays: no page in front of it (owner, 2026-10-17).
+    expect(find.byKey(const ValueKey('payee-row')), findsOneWidget);
+    final split = find.byKey(const ValueKey('split-option'));
     expect(
-      tester.getTopLeft(find.text('Eating out')).dy,
-      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+      find.descendant(
+        of: split,
+        matching: find.byIcon(Icons.call_split_rounded),
+      ),
+      findsOneWidget,
     );
-    expect(find.text('Transport'), findsNothing);
-    expect(find.text('+ New category “e”'), findsOneWidget);
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(
+      tester.getTopLeft(split).dy,
+      lessThan(tester.getTopLeft(_inMenu('Groceries')).dy),
+    );
+    await tester.tap(_inMenu('Eating out'));
     await tester.pumpAndSettle();
     expect(find.text('Eating out'), findsOneWidget);
     expect(find.text('Overspent by ₮18,400.00'), findsOneWidget);
@@ -500,20 +527,7 @@ void main() {
     'a name that isn’t a category makes one, waiting for your computer',
     (tester) async {
       final store = await _pump(tester);
-      await tester.tap(find.byKey(const ValueKey('category-row')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('category-field')),
-        'Cof',
-      );
-      await tester.pump();
-      expect(find.text('Groceries'), findsNothing);
-      // Done makes nothing: only the row does.
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(store.made, isEmpty);
-      await tester.tap(find.text('+ New category “Cof”'));
-      await tester.pumpAndSettle();
+      await _newCategory(tester, 'Cof');
       final made = store.made.single;
       expect(made.name, 'Cof');
       expect(made.currency, Currency.mnt);
@@ -539,19 +553,6 @@ void main() {
         ),
         findsOneWidget,
       );
-
-      // A name that is already a category is listed, not offered again.
-      await tester.tap(find.byKey(const ValueKey('category-row')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('category-field')),
-        'cof',
-      );
-      await tester.pump();
-      expect(find.byKey(const ValueKey('new-category')), findsNothing);
-      expect(find.text('Cof'), findsOneWidget);
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
 
       await _toBudget(tester);
       expect(find.text('Cof'), findsOneWidget);
@@ -792,23 +793,15 @@ void main() {
     PhoneAccount account(String id) =>
         store.snapshot.accounts.singleWhere((a) => a.id == id);
     Future<void> to(String name) async {
-      await tester.tap(find.byKey(const ValueKey('category-row')));
-      await tester.pumpAndSettle();
-      // The accounts are the list's last rows.
-      await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(name));
-      await tester.pumpAndSettle();
+      // The accounts are the dropdown's last rows.
+      await _category(tester, name);
     }
 
     // The accounts are at the foot of the Category list, under a heading.
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('→ Golomt Visa'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(_inMenu('→ Golomt Visa'));
+    await tester.pumpAndSettle();
     expect(find.text('Move to an account'), findsOneWidget);
     expect(find.text('→ Cash wallet'), findsOneWidget);
     expect(find.text('Owed ₮312,000.00'), findsOneWidget);
@@ -902,51 +895,21 @@ void main() {
     await _account(tester, 'Cash wallet');
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('→ Golomt Visa'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('→ Cash wallet'), findsNothing);
-    expect(find.text('→ TDB Checking'), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    expect(_inMenu('→ Golomt Visa'), findsOneWidget);
+    expect(_inMenu('→ Cash wallet'), findsNothing);
+    expect(_inMenu('→ TDB Checking'), findsOneWidget);
+    await _closeMenu(tester);
     await tester.tap(find.byKey(const ValueKey('sign')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
-    await tester.pumpAndSettle();
+    expect(_inMenu('Move to an account'), findsNothing);
     expect(find.text('Move to an account'), findsNothing);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await _closeMenu(tester);
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
-
-    // "ATM" typed is someone looking for these, not a new category's name.
-    await tester.tap(find.byKey(const ValueKey('category-row')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('category-field')), 'ATM');
-    await tester.pump();
-    expect(find.text('Move to an account'), findsOneWidget);
-    expect(find.text('→ Cash wallet'), findsOneWidget);
-    expect(find.text('→ TDB Checking'), findsOneWidget);
-    // An account's name narrows them, and Done takes it when no category
-    // fits.
-    await tester.enterText(
-      find.byKey(const ValueKey('category-field')),
-      'cash w',
-    );
-    await tester.pump();
-    expect(find.text('→ TDB Checking'), findsNothing);
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(find.text('→ Cash wallet'), findsOneWidget);
-    expect(find.text('From'), findsOneWidget);
 
     // A payee typed before the transfer was picked isn't kept out of sight.
-    await tester.tap(find.text('Clear'));
-    await tester.pumpAndSettle();
     await _payee(tester, 'Nomin');
     await to('→ Cash wallet');
     await _category(tester, 'Groceries');
@@ -1008,37 +971,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
     expect(find.text('Income'), findsNothing);
-    await tester.enterText(
-      find.byKey(const ValueKey('category-field')),
-      'income',
-    );
-    await tester.pump();
-    expect(find.byKey(const ValueKey('new-category')), findsNothing);
-    // Not a blank page: it says how income is recorded.
-    expect(
-      find.text('To record income, tap +/− beside the amount first.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await _closeMenu(tester);
 
     // Money in: Income is the list's first line, with no figure beside it.
     await tester.tap(find.byKey(const ValueKey('sign')));
     await tester.tap(find.byKey(const ValueKey('category-row')));
     await tester.pumpAndSettle();
     expect(
-      tester.getTopLeft(find.text('Income')).dy,
-      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+      tester.getTopLeft(_inMenu('Income')).dy,
+      lessThan(tester.getTopLeft(_inMenu('Groceries')).dy),
     );
-    // Its name in the other language finds it too.
-    await tester.enterText(
-      find.byKey(const ValueKey('category-field')),
-      'орлого',
-    );
-    await tester.pump();
-    expect(find.text('Income'), findsOneWidget);
-    expect(find.byKey(const ValueKey('new-category')), findsNothing);
-    await tester.tap(find.text('Income'));
+    await tester.tap(_inMenu('Income'));
     await tester.pumpAndSettle();
     await _type(tester, '50000');
     // Income holds no budget: nothing is said about what is left.
@@ -1157,15 +1100,7 @@ void main() {
   testWidgets('deleting a category made here says what was spent in it, '
       'less what came back', (tester) async {
     final store = await _pump(tester);
-    await tester.tap(find.byKey(const ValueKey('category-row')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey('category-field')),
-      'Coffee',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('new-category')));
-    await tester.pumpAndSettle();
+    await _newCategory(tester, 'Coffee');
     await _account(tester, 'Cash wallet');
     await _type(tester, '4500');
     await _payee(tester, 'Tom N Toms');

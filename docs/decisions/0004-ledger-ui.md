@@ -3575,3 +3575,22 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
   and a waiting split shows its shares, or says "A category in it was deleted on your
   computer. Delete this and enter it again." A line the other way from the receipt (a
   return) is typed on the computer.
+
+## The phone's categories: a dropdown on the entry screen (2026-10-17)
+
+Owner, after splits came to the phone: "I don't like how you have to switch to the
+budgets page to pick stuff. Let's have users just choose from a dropdown on the same
+screen with Split (and a split icon next to it) at the top." The Category list was a
+page of its own in front of the entry screen, with every category as a card and what's
+left in it: it read as the Budget page.
+
+- **The Category row opens a dropdown under it**, as wide as the row: **Split** with
+  the split icon first, then Income (money in only), each category with what's left
+  in it, those waiting for a bill under Bills, the accounts money can be moved to under
+  "Move to an account", and "+ New category" last, which asks for the name in a box.
+  A split's Category row opens its split page, as before.
+- **On the split page**, "+ Another category" and a chosen line open the same dropdown
+  (no Split in it; only the receipt's currency; no category another line has).
+- Gone with the page: the box that narrowed the list as a name was typed, "ATM" or an
+  account's name finding the accounts, and Income found by its Mongolian name. The
+  dropdown lists everything; a long one scrolls.
