@@ -2216,6 +2216,43 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('Split is first in the Category list, with its icon; typing '
+      'and Enter still picks a category', (tester) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    await tester.tap(find.widgetWithText(TextField, 'Category'));
+    await tester.pumpAndSettle();
+    // Above every category, as on the phone (owner, 2026-10-17).
+    final split = tester.getTopLeft(find.text('Split')).dy;
+    expect(split, lessThan(tester.getTopLeft(find.text('Groceries')).dy));
+    expect(
+      find.ancestor(
+        of: find.byIcon(Icons.call_split_rounded),
+        matching: find.ancestor(
+          of: find.text('Split'),
+          matching: find.byType(Row),
+        ),
+      ),
+      findsWidgets,
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/split_at_top.png'),
+    );
+
+    // The highlight starts on the first match, not on Split.
+    await tester.enterText(find.widgetWithText(TextField, 'Category'), 'Gro');
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('split-card')), findsNothing);
+    expect(find.widgetWithText(TextField, 'Groceries'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
   testWidgets('one receipt split over categories: the card, Add waits, edit', (
     tester,
   ) async {
@@ -2239,7 +2276,7 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '135500');
     await tester.tap(find.widgetWithText(TextField, 'Category'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Split over categories…'));
+    await tester.tap(find.text('Split'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('split-card')), findsOneWidget);
     expect(find.text('Nomin, ₮135,500.00'), findsOneWidget);
@@ -2374,7 +2411,7 @@ void main() {
       'Groceries',
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Split over categories…'));
+    await tester.tap(find.text('Split'));
     await tester.pumpAndSettle();
     final fields = inCard(find.byType(TextField));
     expect(

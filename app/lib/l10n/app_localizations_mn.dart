@@ -2041,7 +2041,7 @@ class WordsMn extends Words {
   String get rowsCancelEdit => 'Болих';
 
   @override
-  String get rowsSplitOption => 'Хэд хэдэн ангилалд хуваах…';
+  String get rowsSplitOption => 'Хуваах';
 
   @override
   String rowsSplitTitle(String payee, String amount) {

@@ -467,7 +467,7 @@
   "rowsNeeds": "{field, select, when{огноо дутуу} account{данс дутуу} payee{харилцагч дутуу} category{ангилал дутуу} other{дүн дутуу}}",
   "rowsNeedsMore": "{count} зүйл дутуу",
   "rowsCancelEdit": "Болих",
-  "rowsSplitOption": "Хэд хэдэн ангилалд хуваах…",
+  "rowsSplitOption": "Хуваах",
   "rowsSplitTitle": "{payee}, {amount}",
   "rowsSplitLeft": "{amount} үлдсэн",
   "rowsSplitTooMuch": "{amount} илүү",

@@ -3594,3 +3594,9 @@ left in it: it read as the Budget page.
 - Gone with the page: the box that narrowed the list as a name was typed, "ATM" or an
   account's name finding the accounts, and Income found by its Mongolian name. The
   dropdown lists everything; a long one scrolls.
+- **On the computer too** (owner, 2026-10-17, after trying the phone: "On the computer,
+  I want it similar. The split icon next to 'Split' at the top of the category
+  dropdown"): the entry row's Category list opens with **Split** and its icon at the
+  top, over a line, then the categories. It was "Split over categories…" at the foot.
+  Typing still narrows the list and Split stays at its top; the keys start on the first
+  category, so "Gro" and Enter picks Groceries, and Up from it reaches Split.

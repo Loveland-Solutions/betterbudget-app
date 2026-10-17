@@ -2956,10 +2956,10 @@ abstract class Words {
   /// **'Cancel'**
   String get rowsCancelEdit;
 
-  /// Last entry in an entry row’s Category list: opens the card that shares the amount over several categories (one receipt for groceries and clothing).
+  /// First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing).
   ///
   /// In en, this message translates to:
-  /// **'Split over categories…'**
+  /// **'Split'**
   String get rowsSplitOption;
 
   /// Heading of the split card under an entry row: the payee and the receipt’s total, e.g. 'Nomin, ₮135,500.00'.
