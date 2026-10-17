@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-16** · version 0.35.1 · schema v21 · 741 tests pass
+**Last updated: 2026-10-17** · version 0.36.0 · schema v21 · 746 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -16,6 +16,12 @@ whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
 Anything pushed is published. Left: #96, #97, #98.
 The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
 difference"); it gains no line about the source being public.
+
+**Splitting one transaction over categories is built** (version 0.36.0, PR #198;
+ADR 0004 "One receipt over several categories: the split card"): the owner chose a
+card under the row, and Add waits until the lines add up; a split names each category
+once (owner's correction on trying it). Seen working by the owner in the real app.
+Left from its reviews: #197. Not yet on the phone.
 
 **Where to pick up:** the board's In progress and Next columns. **Savings step 2
 has a debt's interest rate** (version 0.35.0, PR #79; ADR 0004 "A debt's
