@@ -632,14 +632,10 @@ class _CategoryRow extends StatelessWidget {
     required this.category,
     required this.left,
     required this.onTap,
-    this.first = false,
   });
   final PhoneCategory category;
   final int left;
   final VoidCallback onTap;
-
-  /// The one the keyboard's Done would take.
-  final bool first;
 
   @override
   Widget build(BuildContext context) {
@@ -652,7 +648,7 @@ class _CategoryRow extends StatelessWidget {
         ? t.phoneNothingAssigned
         : null;
     return Material(
-      color: first ? Mid.raised : Mid.card,
+      color: Mid.card,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1170,35 +1166,21 @@ class _EntryState extends State<_EntryScreen> {
     });
   }
 
-  Future<void> _pickCategory() async {
-    final picked = await Navigator.of(context).push(
-      MaterialPageRoute<PhoneCategory>(
-        fullscreenDialog: true,
-        builder: (_) => _CategoryPage(
-          store: _store,
-          // A category made here is in the currency being paid in.
-          currency: _currency,
-          split: true,
-          // Money in that isn't a refund is income; money out never is.
-          income: _draft.moneyIn ? _income : null,
-          // Money out can instead be moved to another of their accounts:
-          // any but the one already chosen to pay from.
-          // Each has to have an account its money could come from; the
-          // one already paying, chosen or the only one there is, is not
-          // where its own money goes.
-          transfers: _draft.moneyIn
-              ? const []
-              : [
-                  for (final a in _store.snapshot.accounts)
-                    if (_store.snapshot.transferTargets(a).isNotEmpty &&
-                        a.id != _from?.id &&
-                        (_from == null || a.currency == _from!.currency))
-                      a,
-                ],
-        ),
-      ),
-    );
-    if (picked == null || !mounted) return;
+  /// Money out can instead be moved to another of their accounts: any but
+  /// the one already chosen to pay from. Each has to have an account its
+  /// money could come from; the one already paying, chosen or the only one
+  /// there is, is not where its own money goes. None for money in.
+  List<PhoneAccount> get _transferChoices => _draft.moneyIn
+      ? const []
+      : [
+          for (final a in _store.snapshot.accounts)
+            if (_store.snapshot.transferTargets(a).isNotEmpty &&
+                a.id != _from?.id &&
+                (_from == null || a.currency == _from!.currency))
+              a,
+        ];
+
+  Future<void> _picked(PhoneCategory picked) async {
     if (picked.id == phoneSplitId) {
       await _openSplit();
     } else {
@@ -1472,16 +1454,28 @@ class _EntryState extends State<_EntryScreen> {
                                   color: Mid.rule,
                                 ),
                               ],
-                              _FieldRow(
-                                key: const ValueKey('category-row'),
-                                label: t.rowsColumnCategory,
-                                value: split
-                                    ? t.startSplitCategories(
-                                        _draft.lines.length,
-                                      )
-                                    : category?.name ?? '',
-                                // A split opens on its lines.
-                                onTap: split ? _openSplit : _pickCategory,
+                              _CategoryMenu(
+                                store: _store,
+                                // A category made here is in the currency
+                                // being paid in.
+                                currency: _currency,
+                                split: true,
+                                // Money in that isn't a refund is income;
+                                // money out never is.
+                                income: _draft.moneyIn ? _income : null,
+                                transfers: _transferChoices,
+                                onPicked: _picked,
+                                builder: (context, open) => _FieldRow(
+                                  key: const ValueKey('category-row'),
+                                  label: t.rowsColumnCategory,
+                                  value: split
+                                      ? t.startSplitCategories(
+                                          _draft.lines.length,
+                                        )
+                                      : category?.name ?? '',
+                                  // A split opens on its lines.
+                                  onTap: split ? _openSplit : open,
+                                ),
                               ),
                               Divider(height: 1, thickness: 1, color: Mid.rule),
                               _FieldRow(
@@ -1702,62 +1696,55 @@ class _SavedToast extends StatelessWidget {
   );
 }
 
-/// The list a category is chosen from: every category with what is left in
-/// it, a box at the top that narrows the list as a name is typed, and
-/// "+ New category" at the foot (owner, 2026-10-08).
-class _CategoryPage extends StatefulWidget {
-  const _CategoryPage({
+/// The categories, chosen from a dropdown on the screen they're for
+/// (owner, 2026-10-17: "I don't like how you have to switch to the budgets
+/// page to pick stuff. Let's have users just choose from a dropdown on the
+/// same screen with Split (and a split icon next to it) at the top"). Split
+/// first, while [split] offers it; Income for money in; the categories with
+/// what's left in each, those waiting for a bill under Bills; the accounts
+/// money can be moved to; "+ New category" last.
+class _CategoryMenu extends StatefulWidget {
+  const _CategoryMenu({
     required this.store,
     required this.currency,
+    required this.onPicked,
+    required this.builder,
     this.income,
     this.transfers = const [],
     this.split = false,
     this.exclude = const {},
     this.onlyCurrency = false,
+    this.controller,
   });
   final PhoneStore store;
 
-  /// Only categories in [currency] are offered (Income has none of its own).
+  /// A category made here is in this currency; with [onlyCurrency], the
+  /// only one offered (Income has none of its own).
+  final Currency currency;
   final bool onlyCurrency;
+  final PhoneCategory? income;
+  final List<PhoneAccount> transfers;
 
-  /// "Split over categories…" is offered at the foot, beside "+ New
-  /// category": picking it answers with a category of id [phoneSplitId].
+  /// Split is offered first: picking it answers with [phoneSplitId].
   final bool split;
 
   /// Categories not offered: the ones a split's other lines have.
   final Set<String> exclude;
+  final ValueChanged<PhoneCategory> onPicked;
 
-  /// The accounts money can be moved to instead of spent, listed last
-  /// under their own heading; none when the entry is money in, or there is
-  /// no other account.
-  final List<PhoneAccount> transfers;
+  /// What opens it: given the way to open it.
+  final Widget Function(BuildContext context, VoidCallback open) builder;
 
-  /// The app's Income, the list's first line while the entry is money in;
-  /// null for money out, which is never income.
-  final PhoneCategory? income;
-
-  /// The currency a category made here is in.
-  final Currency currency;
+  /// To open it from outside (a split page with no lines yet).
+  final MenuController? controller;
 
   @override
-  State<_CategoryPage> createState() => _CategoryPageState();
+  State<_CategoryMenu> createState() => _CategoryMenuState();
 }
 
-class _CategoryPageState extends State<_CategoryPage> {
-  final _text = TextEditingController();
-  final _focus = FocusNode();
+class _CategoryMenuState extends State<_CategoryMenu> {
+  late final _controller = widget.controller ?? MenuController();
 
-  @override
-  void dispose() {
-    _text.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  String get _typed => _text.text.trim();
-
-  /// What the list answers with when an account is picked: the entry
-  /// becomes a transfer to it.
   static PhoneCategory _toAccount(Words t, PhoneAccount to) => PhoneCategory(
     id: to.id,
     name: t.phoneTransferTo(to.name),
@@ -1766,15 +1753,72 @@ class _CategoryPageState extends State<_CategoryPage> {
     transfer: true,
   );
 
-  void _make() =>
-      Navigator.of(context)
-          .pop(widget.store.categoryCalled(_typed, widget.currency));
+  Future<void> _newCategory() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _NewCategoryDialog(store: widget.store),
+    );
+    if (name == null || !mounted) return;
+    widget.onPicked(widget.store.categoryCalled(name, widget.currency));
+  }
+
+  Widget _heading(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+    child: Text(text, style: onest(13, weight: 600, color: Mid.ink2)),
+  );
+
+  /// The dropdown's width: what opens it, the screen less its 20-point
+  /// sides. A menu is as wide as its widest item, so each item is this
+  /// wide (a LayoutBuilder can't sit in the entry screen, which is measured
+  /// by its height).
+  double get _width => MediaQuery.sizeOf(context).width - 40;
+
+  Widget _item({
+    Key? key,
+    Widget? leading,
+    required String name,
+    String? under,
+    Widget? trailing,
+    required VoidCallback onPressed,
+  }) => MenuItemButton(
+    key: key,
+    onPressed: onPressed,
+    style: MenuItemButton.styleFrom(
+      minimumSize: const Size.fromHeight(52),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+    ),
+    child: SizedBox(
+      width: _width - 32,
+      child: Row(
+        children: [
+          if (leading != null) ...[leading, const SizedBox(width: 12)],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(16, weight: 500),
+                ),
+                if (under != null)
+                  Text(under, style: onest(12, color: Mid.ink2)),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 12), trailing],
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final store = widget.store;
-    final all = [
+    final categories = [
       for (final c in store.categories)
         if (!widget.exclude.contains(c.id) &&
             (!widget.onlyCurrency || c.currency == widget.currency))
@@ -1783,205 +1827,94 @@ class _CategoryPageState extends State<_CategoryPage> {
     final income = widget.exclude.contains(phoneIncomeId)
         ? null
         : widget.income;
-    final typed = _typed;
-    final listed = typed.isEmpty
-        ? [?income, ..._spendThenBills(all)]
-        : [
-            // Income by its name in the other language too: "Орлого" typed
-            // on an English screen is still Income.
-            if (income != null &&
-                isIncomeName(typed) &&
-                categoryNamed([income], typed) == null)
-              income,
-            ...categoriesMatching([?income, ...all], typed),
-          ];
-    // An account's name typed narrows these as it does the categories.
-    final want = typed.toLowerCase();
-    final named = [
-      for (final a in widget.transfers)
-        if (want.isEmpty || a.name.toLowerCase().contains(want)) a,
+    final spend = [
+      for (final c in categories)
+        if (c.due == null) c,
     ];
-    // "ATM" or "Transfer" typed is someone looking for these, and so is
-    // a word that fits no category: all of them, before "+ New category
-    // “ATM”" books cash taken out as spending.
-    final asked = [
-      t.startTransfer,
-      t.phoneMoveToAccount,
-      'atm',
-      'атм',
-    ].any((w) => want.length >= 2 && w.toLowerCase().startsWith(want));
-    final accounts = named.isNotEmpty
-        ? named
-        : (asked || listed.isEmpty ? widget.transfers : const <PhoneAccount>[]);
-    // The categories, then the heading and the accounts.
-    final rows = <Object?>[
-      ...listed,
-      if (accounts.isNotEmpty) ...[const _TransferHeading(), ...accounts],
+    final bills = [
+      for (final c in categories)
+        if (c.due != null) c,
     ];
-    return Scaffold(
-      backgroundColor: Mid.ground,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      t.rowsColumnCategory,
-                      style: onest(20, weight: 600),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(44, 44),
-                      foregroundColor: Mid.blue,
-                      textStyle: onest(16),
-                    ),
-                    child: Text(t.ledgerCancel),
-                  ),
-                ],
-              ),
-              // Not focused on open: the keyboard would cover half the
-              // list they may want to scroll instead.
-              TextField(
-                key: const ValueKey('category-field'),
-                controller: _text,
-                focusNode: _focus,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                style: onest(17),
-                cursorColor: Mid.blue,
-                decoration: InputDecoration(
-                  hintText: t.planCategoryName,
-                  hintStyle: onest(17, color: Mid.ink3),
-                  filled: true,
-                  fillColor: Mid.card,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onChanged: (_) => setState(() {}),
-                // Done takes the first that fits. With none it does nothing:
-                // a misspelt name isn't to make a category unasked.
-                onSubmitted: (_) {
-                  final first =
-                      categoryNamed([?income, ...all], typed) ??
-                      listed.firstOrNull;
-                  if (typed.isNotEmpty && first != null) {
-                    Navigator.of(context).pop(first);
-                  } else if (typed.isNotEmpty && named.isNotEmpty) {
-                    // No category fits, and an account's name does.
-                    Navigator.of(context).pop(_toAccount(t, named.first));
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              // Income typed while the entry is money out: the list has no
-              // such line, so it says how to get one.
-              if (income == null && isIncomeName(typed))
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-                  child: Text(
-                    t.phoneIncomeNeedsMoneyIn,
-                    key: const ValueKey('income-needs-money-in'),
-                    style: onest(15, color: Mid.gold),
-                  ),
-                ),
-              Expanded(
-                child: ListView.separated(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final row = rows[i];
-                    if (row == null) return const _BillsHeading();
-                    if (row is _TransferHeading) return row;
-                    if (row is PhoneAccount) {
-                      return _TransferRow(
-                        account: row,
-                        balance: balanceNow(row, store.waiting),
-                        onTap: () =>
-                            Navigator.of(context).pop(_toAccount(t, row)),
-                      );
-                    }
-                    final category = row as PhoneCategory;
-                    return _CategoryRow(
-                      category: category,
-                      left: leftNow(category, store.waiting),
-                      first: typed.isNotEmpty && i == 0,
-                      onTap: () => Navigator.of(context).pop(category),
-                    );
-                  },
-                ),
-              ),
-              // Always in the same place, above the keyboard. A name that
-              // is already a category is in the list, not offered again;
-              // nor is Income's, which is the app's own.
-              Row(
-                children: [
-                  if (typed.isEmpty ||
-                      (categoryNamed(all, typed) == null &&
-                          !isIncomeName(typed)))
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          key: const ValueKey('new-category'),
-                          // With nothing typed there is no name yet: the box
-                          // takes it.
-                          onPressed: typed.isEmpty
-                              ? _focus.requestFocus
-                              : _make,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(44, 48),
-                            foregroundColor: Mid.blue,
-                            textStyle: onest(16),
-                          ),
-                          child: Text(
-                            typed.isEmpty
-                                ? t.phoneNewCategory
-                                : t.rowsNewCategoryOption(typed),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (widget.split && typed.isEmpty)
-                    OutlinedButton(
-                      key: const ValueKey('split-option'),
-                      onPressed: () => Navigator.of(context).pop(
-                        const PhoneCategory(
-                          id: phoneSplitId,
-                          name: '',
-                          leftMinor: 0,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(44, 44),
-                        foregroundColor: Mid.ink,
-                        backgroundColor: Mid.raised,
-                        side: BorderSide(color: Mid.blue),
-                        shape: const StadiumBorder(),
-                        textStyle: onest(15, weight: 500),
-                      ),
-                      child: Text(t.rowsSplitOption),
-                    ),
-                ],
-              ),
-            ],
-          ),
+    Widget category(PhoneCategory c) => _item(
+      key: ValueKey('menu-${c.id}'),
+      name: c.name,
+      under: c.due != null
+          ? t.phoneDue(shortDate(c.due!))
+          : c.madeHere
+          ? t.phoneNothingAssigned
+          : null,
+      trailing: c.isIncome
+          ? null
+          : _RoomMoney(
+              leftNow(c, store.waiting),
+              c.currency,
+              room: 160,
+              spokenFor: c.due != null,
+            ),
+      onPressed: () => widget.onPicked(c),
+    );
+    // No taller than most of a phone.
+    final width = _width;
+    return MenuAnchor(
+      controller: _controller,
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Mid.raised),
+        minimumSize: WidgetStatePropertyAll(Size(width, 0)),
+        maximumSize: WidgetStatePropertyAll(Size(width, 440)),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
+      ),
+      menuChildren: [
+        if (widget.split)
+          _item(
+            key: const ValueKey('split-option'),
+            leading: Icon(Icons.call_split_rounded, color: Mid.blue),
+            name: t.phoneSplitTitle,
+            onPressed: () => widget.onPicked(
+              const PhoneCategory(id: phoneSplitId, name: '', leftMinor: 0),
+            ),
+          ),
+        if (widget.split) Divider(height: 1, thickness: 1, color: Mid.rule),
+        if (income != null) category(income),
+        for (final c in spend) category(c),
+        if (bills.isNotEmpty) ...[
+          _heading(t.phoneBills),
+          for (final c in bills) category(c),
+        ],
+        if (widget.transfers.isNotEmpty) ...[
+          _heading(t.phoneMoveToAccount),
+          for (final a in widget.transfers)
+            _item(
+              key: ValueKey('menu-account-${a.id}'),
+              name: t.phoneTransferTo(a.name),
+              trailing: Text(
+                a.owes
+                    ? t.phoneOwed(
+                        formatMoney(
+                          balanceNow(a, store.waiting),
+                          currency: a.currency,
+                        ),
+                      )
+                    : formatMoney(
+                        balanceNow(a, store.waiting),
+                        currency: a.currency,
+                      ),
+                style: onest(14, color: Mid.ink2, tabular: true),
+              ),
+              onPressed: () => widget.onPicked(_toAccount(t, a)),
+            ),
+        ],
+        Divider(height: 1, thickness: 1, color: Mid.rule),
+        _item(
+          key: const ValueKey('new-category'),
+          name: t.phoneNewCategory,
+          onPressed: _newCategory,
+        ),
+      ],
+      builder: (context, controller, _) => widget.builder(
+        context,
+        () => controller.isOpen ? controller.close() : controller.open(),
       ),
     );
   }
@@ -2033,7 +1966,7 @@ class _SplitPageState extends State<_SplitPage> {
     // Nothing to split yet: straight to the first category.
     if (_lines.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _pick(null);
+        if (mounted) _another.open();
       });
     }
   }
@@ -2049,27 +1982,31 @@ class _SplitPageState extends State<_SplitPage> {
   int get _sum =>
       _lines.fold(0, (s, l) => s + typedAmountMinor(l.typed, widget.currency));
 
-  /// A category for line [index], or a new line when null. The other
-  /// lines' categories aren't offered: a split names each once.
-  Future<void> _pick(int? index) async {
-    final picked = await Navigator.of(context).push(
-      MaterialPageRoute<PhoneCategory>(
-        fullscreenDialog: true,
-        builder: (_) => _CategoryPage(
-          store: widget.store,
-          currency: widget.currency,
-          income: widget.income,
-          // A split is in one currency: a dollar Groceries isn't offered on
-          // a tugrik receipt.
-          onlyCurrency: true,
-          exclude: {
-            for (final (i, l) in _lines.indexed)
-              if (i != index) l.categoryId,
-          },
-        ),
-      ),
-    );
-    if (picked == null || !mounted) return;
+  /// "+ Another category"'s dropdown, opened at once when there are no
+  /// lines yet.
+  final _another = MenuController();
+
+  /// The dropdown for line [index], or for a new line when null. The other
+  /// lines' categories aren't offered: a split names each once. Nor are
+  /// other currencies': a dollar Groceries isn't on a tugrik receipt.
+  Widget _menu(
+    int? index,
+    Widget Function(BuildContext context, VoidCallback open) builder,
+  ) => _CategoryMenu(
+    store: widget.store,
+    currency: widget.currency,
+    income: widget.income,
+    onlyCurrency: true,
+    controller: index == null ? _another : null,
+    exclude: {
+      for (final (i, l) in _lines.indexed)
+        if (i != index) l.categoryId,
+    },
+    onPicked: (picked) => _picked(index, picked),
+    builder: builder,
+  );
+
+  void _picked(int? index, PhoneCategory picked) {
     setState(() {
       if (index == null) {
         _lines.add((categoryId: picked.id, typed: ''));
@@ -2190,37 +2127,45 @@ class _SplitPageState extends State<_SplitPage> {
                                   thickness: 1,
                                   color: Mid.rule,
                                 ),
-                              _SplitLineRow(
-                                key: ValueKey('split-line-$i'),
-                                name: _categoryOf(l.categoryId)?.name ?? '',
-                                amount: l.typed.isEmpty
-                                    ? ''
-                                    : typedAmountShown(l.typed, currency),
-                                chosen: i == _chosen,
-                                onTap: () => i == _chosen
-                                    ? _pick(i)
-                                    : setState(() => _chosen = i),
-                                // Offered while there's another line to keep.
-                                onRemove: _lines.length < 2
-                                    ? null
-                                    : () => _remove(i),
-                                removeLabel: t.rowsSplitRemove,
+                              _menu(
+                                i,
+                                (context, open) => _SplitLineRow(
+                                  key: ValueKey('split-line-$i'),
+                                  name: _categoryOf(l.categoryId)?.name ?? '',
+                                  amount: l.typed.isEmpty
+                                      ? ''
+                                      : typedAmountShown(l.typed, currency),
+                                  chosen: i == _chosen,
+                                  // Chosen, a tap changes its category.
+                                  onTap: () => i == _chosen
+                                      ? open()
+                                      : setState(() => _chosen = i),
+                                  // Offered while there's another line to
+                                  // keep.
+                                  onRemove: _lines.length < 2
+                                      ? null
+                                      : () => _remove(i),
+                                  removeLabel: t.rowsSplitRemove,
+                                ),
                               ),
                             ],
                           ],
                         ),
                       ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        key: const ValueKey('split-another'),
-                        onPressed: () => _pick(null),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(44, 48),
-                          foregroundColor: Mid.blue,
-                          textStyle: onest(15, weight: 500),
+                    _menu(
+                      null,
+                      (context, open) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const ValueKey('split-another'),
+                          onPressed: open,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(44, 48),
+                            foregroundColor: Mid.blue,
+                            textStyle: onest(15, weight: 500),
+                          ),
+                          child: Text(t.rowsSplitAnother),
                         ),
-                        child: Text(t.rowsSplitAnother),
                       ),
                     ),
                   ],
@@ -2311,72 +2256,6 @@ class _SplitLineRow extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Over the accounts at the foot of the Category list.
-class _TransferHeading extends StatelessWidget {
-  const _TransferHeading();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-    child: Text(
-      context.t.phoneMoveToAccount,
-      key: const ValueKey('transfer-heading'),
-      style: onest(14, weight: 600, color: Mid.ink2),
-    ),
-  );
-}
-
-/// An account in the Category list: picking it makes the entry a transfer
-/// to it. Its balance is beside it, as what is left is beside a category.
-class _TransferRow extends StatelessWidget {
-  const _TransferRow({
-    required this.account,
-    required this.balance,
-    required this.onTap,
-  });
-  final PhoneAccount account;
-  final int balance;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final money = formatMoney(balance, currency: account.currency);
-    return Material(
-      color: Mid.card,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: ValueKey('transfer-to-${account.id}'),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    t.phoneTransferTo(account.name),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: onest(17, weight: 500),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  account.owes ? t.phoneOwed(money) : money,
-                  style: onest(15, color: Mid.ink2, tabular: true),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Budget's "+ New category": its name, on the phone's keyboard.
