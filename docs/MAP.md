@@ -147,7 +147,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (72), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (73), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian), `cloud_folder_test.dart` (6),
   `startup_test.dart` (2) and `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
   one, capture `find.byType(MaterialApp)`. `test/goldens/` is committed;
