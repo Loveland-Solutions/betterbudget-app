@@ -14,6 +14,16 @@ import 'pay.dart';
 /// read yet.
 const phoneIncomeId = 'income';
 
+/// What a phone entry shared over categories is filed under: its lines say
+/// where the money went. A word no category or account has, so a computer
+/// too old to know of splits leaves the entry with the phone rather than
+/// filing it wrong.
+const phoneSplitId = 'split';
+
+/// One category of a phone entry shared over several: signed as the entry
+/// is, the lines adding up to it.
+typedef PhoneSplitLine = ({String categoryId, int amountMinor});
+
 /// A spending category as the Mac last reported it.
 class PhoneCategory {
   const PhoneCategory({
@@ -163,7 +173,37 @@ class PhoneEntry {
     required this.amountMinor,
     required this.date,
     required this.madeAt,
+    this.lines = const [],
   });
+
+  /// One receipt over several categories (owner, 2026-10-17): each one and
+  /// its share. [categoryId] is then [phoneSplitId]. Empty otherwise.
+  final List<PhoneSplitLine> lines;
+
+  bool get isSplit => lines.isNotEmpty;
+
+  /// The categories it is filed in: its lines', or its own.
+  Iterable<String> get categoryIds =>
+      isSplit ? lines.map((l) => l.categoryId) : [categoryId];
+
+  /// The same entry with a category made on the phone named by the
+  /// ledger's id for it, now the computer has it.
+  PhoneEntry withCategory(String from, String to) => PhoneEntry(
+    id: id,
+    categoryId: categoryId == from ? to : categoryId,
+    accountId: accountId,
+    payee: payee,
+    amountMinor: amountMinor,
+    date: date,
+    madeAt: madeAt,
+    lines: [
+      for (final l in lines)
+        (
+          categoryId: l.categoryId == from ? to : l.categoryId,
+          amountMinor: l.amountMinor,
+        ),
+    ],
+  );
 
   /// Random, so the Mac never takes the same entry in twice.
   final String id;
@@ -270,6 +310,9 @@ int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
   var left = category.leftMinor;
   for (final e in waiting) {
     if (e.categoryId == category.id) left += e.amountMinor;
+    for (final l in e.lines) {
+      if (l.categoryId == category.id) left += l.amountMinor;
+    }
   }
   return left;
 }
@@ -333,6 +376,16 @@ int typedAmountMinor(String typed, Currency currency) {
       ? parts[1].padRight(currency.decimals, '0')
       : '0' * currency.decimals;
   return whole * currency.scale + (cents.isEmpty ? 0 : int.parse(cents));
+}
+
+/// [minor] as the pad would have it typed: `135500`, `12.5`. Unsigned.
+String typedOfMinor(int minor, Currency currency) {
+  final m = minor.abs();
+  final whole = m ~/ currency.scale;
+  final cents = m % currency.scale;
+  if (cents == 0) return '$whole';
+  final text = '$cents'.padLeft(currency.decimals, '0');
+  return '$whole.${text.replaceFirst(RegExp(r'0+$'), '')}';
 }
 
 /// The pad's text as it reads above the keys, grouped in thousands with the

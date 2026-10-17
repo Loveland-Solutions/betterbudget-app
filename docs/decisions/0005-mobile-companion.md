@@ -906,6 +906,7 @@ copy of.
 | Can | Can't |
 |---|---|
 | Add a transaction, money out or money in: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
+| Split one over several categories (owner, 2026-10-17) | |
 | Fix or delete its own entries until the Mac takes them in | Fix another phone's entries |
 | See what's left in each budget, and account balances | Reconcile |
 | Make a new category, by name (owner, 2026-10-08) | Change budgets, accounts, other categories or settings |
@@ -919,6 +920,16 @@ currency, with nothing assigned until that is done on the Mac. The phone's entri
 be filed in it at once. When the Mac takes it in, a category already called that
 (whatever its capitals, archived ones included, which the phone can't see) is used
 instead of making a second.
+
+**A split from the phone** (owner, 2026-10-17: "It needs to be able to split";
+option A of two sketches, the split page). An entry shared over categories is filed
+under the word `split` and its lines travel in their own table in the phone's file
+(`entry_lines`: entry, category, amount). A computer from before splits finds no
+category called `split` and leaves the entry with the phone, as it does a transfer it
+can't read, rather than filing it wrong. The computer takes it in as one split row
+when every line's category is still in the ledger, in the account's currency, and the
+lines add up; otherwise it waits on the phone. "Left" counts each line in its own
+category.
 
 ### Numbers on the phone
 

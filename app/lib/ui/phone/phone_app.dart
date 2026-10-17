@@ -49,16 +49,8 @@ class PhoneStore extends ChangeNotifier {
       if (real == null) continue;
       for (var i = 0; i < _waiting.length; i++) {
         final e = _waiting[i];
-        if (e.categoryId != c.id) continue;
-        _waiting[i] = PhoneEntry(
-          id: e.id,
-          categoryId: real,
-          accountId: e.accountId,
-          payee: e.payee,
-          amountMinor: e.amountMinor,
-          date: e.date,
-          madeAt: e.madeAt,
-        );
+        if (!e.categoryIds.contains(c.id)) continue;
+        _waiting[i] = e.withCategory(c.id, real);
       }
       _made.remove(c);
     }
@@ -98,7 +90,7 @@ class PhoneStore extends ChangeNotifier {
   /// Takes back a category made here, and the entries filed in it.
   void removeCategory(String id) {
     _made.removeWhere((c) => c.id == id);
-    _waiting.removeWhere((e) => e.categoryId == id);
+    _waiting.removeWhere((e) => e.categoryIds.contains(id));
     notifyListeners();
   }
 
@@ -267,6 +259,12 @@ class _Draft extends ChangeNotifier {
   /// Null is today.
   DateTime? date;
 
+  /// One receipt over several categories: each category and what is typed
+  /// for it. [categoryId] is then [phoneSplitId]. Empty for one category.
+  List<({String categoryId, String typed})> lines = [];
+
+  bool get isSplit => lines.isNotEmpty;
+
   void change(VoidCallback make) {
     make();
     notifyListeners();
@@ -278,6 +276,7 @@ class _Draft extends ChangeNotifier {
   void choose(PhoneCategory category, List<PhoneAccount> accounts) =>
       change(() {
         categoryId = category.id;
+        lines = [];
         // Money moved is never money in, and never to the account it left.
         // Nor is anyone paid: a payee typed before isn't kept out of sight.
         if (category.transfer) {
@@ -310,6 +309,14 @@ class _Draft extends ChangeNotifier {
   void flipSign() => change(() {
     moneyIn = !moneyIn;
     if (!moneyIn && categoryId == phoneIncomeId) categoryId = null;
+    // Income is only for money in, on a split's line too.
+    if (!moneyIn) {
+      lines = [
+        for (final l in lines)
+          if (l.categoryId != phoneIncomeId) l,
+      ];
+      if (lines.isEmpty && categoryId == phoneSplitId) categoryId = null;
+    }
   });
 
   /// Ready for the next entry, Paid from included: kept, a cash taxi would
@@ -321,6 +328,7 @@ class _Draft extends ChangeNotifier {
     categoryId = null;
     accountId = null;
     date = null;
+    lines = [];
   });
 }
 
@@ -734,7 +742,24 @@ class _EntryState extends State<_EntryScreen> {
     transfer: true,
   );
 
+  /// A category or Income by its id, as the phone knows them.
+  PhoneCategory? _categoryOf(String id) {
+    if (id == phoneIncomeId) return _income;
+    for (final c in _store.categories) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  /// A split's categories, in its lines' order.
+  List<PhoneCategory> get _splitCategories => [
+    for (final l in _draft.lines) ?_categoryOf(l.categoryId),
+  ];
+
   PhoneCategory? get _category {
+    // A split's first category stands for it where one is asked for (its
+    // currency, the accounts it can be paid from); its lines say the rest.
+    if (_draft.isSplit) return _splitCategories.firstOrNull;
     if (_draft.categoryId == phoneIncomeId) return _income;
     if (_to case final to?) return _transferTo(to);
     for (final c in _store.categories) {
@@ -853,6 +878,7 @@ class _EntryState extends State<_EntryScreen> {
     final payee = _draft.payee;
     final amount = typedAmountMinor(_draft.typed, _currency);
     final to = _to;
+    if (_draft.isSplit) return _saveSplit(amount);
     final missing = amount == 0
         ? t.phoneEnterAmount
         // Money moved between their own accounts has no one it was paid to.
@@ -945,6 +971,161 @@ class _EntryState extends State<_EntryScreen> {
     });
   }
 
+  /// Save for one receipt over several categories: waits until its lines
+  /// add up to the amount (owner, 2026-10-17), as Add does on the computer.
+  void _saveSplit(int amount) {
+    final t = context.t;
+    final account = _account;
+    final payee = _draft.payee;
+    final currency = _currency;
+    final shares = [
+      for (final l in _draft.lines) typedAmountMinor(l.typed, currency),
+    ];
+    final sum = shares.fold(0, (s, v) => s + v);
+    String money(int v) => formatMoney(v.abs(), currency: currency);
+    final missing = amount == 0
+        ? t.phoneEnterAmount
+        : payee == null
+        ? t.phoneEnterPayee
+        : account == null
+        ? t.phoneChooseAccount
+        : sum < amount
+        ? t.rowsErrorSplitLeft(money(amount - sum))
+        : sum > amount
+        ? t.rowsErrorSplitTooMuch(money(sum - amount))
+        : null;
+    if (missing != null) {
+      setState(() {
+        _missing = missing;
+        _saved = null;
+        _undo = null;
+      });
+      return;
+    }
+    final random = Random.secure();
+    final typed = _draft.typed;
+    final date = _draft.date;
+    final moneyIn = _draft.moneyIn;
+    final lines = _draft.lines;
+    final categories = _splitCategories;
+    final entry = PhoneEntry(
+      id: [
+        for (var i = 0; i < 16; i++)
+          random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ].join(),
+      categoryId: phoneSplitId,
+      accountId: account!.id,
+      payee: payee!,
+      amountMinor: moneyIn ? amount : -amount,
+      date: date ?? _day(widget.now()),
+      madeAt: widget.now(),
+      lines: [
+        for (final (i, l) in lines.indexed)
+          (
+            categoryId: l.categoryId,
+            amountMinor: moneyIn ? shares[i] : -shares[i],
+          ),
+      ],
+    );
+    _saving = true;
+    _store.add(entry);
+    _draft.clear();
+    _saving = false;
+    // What it did to each of its categories, one line each.
+    var over = false;
+    final said = <String>[];
+    for (final c in categories) {
+      if (c.isIncome) continue;
+      final left = leftNow(c, _store.waiting);
+      final had = formatMoney(left.abs(), currency: c.currency);
+      said.add(
+        c.madeHere
+            ? t.phoneSavedNothingAssigned(c.name)
+            : left < 0
+            ? t.phoneSavedOver(c.name, had)
+            : t.phoneSavedLeft(c.name, had),
+      );
+      over = over || (left < 0 && !c.madeHere);
+    }
+    setState(() {
+      _saved = t.phoneSaved(payee, _signed(entry.amountMinor, currency));
+      _savedLeft = said.isEmpty ? null : said.join('\n');
+      _savedOver = over;
+      _undo = () {
+        _store.remove(entry.id);
+        _change(() {
+          _draft
+            ..typed = typed
+            ..moneyIn = moneyIn
+            ..payee = payee
+            ..categoryId = phoneSplitId
+            ..lines = lines
+            ..accountId = account.id
+            ..date = date;
+        });
+      };
+    });
+    _toastTimer?.cancel();
+    _toastTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) _hideToast();
+    });
+  }
+
+  /// The split page: on the lines there are, or on the category chosen.
+  Future<void> _openSplit() async {
+    final currency = _currency;
+    final start = _draft.isSplit
+        ? _draft.lines
+        : [
+            if (_category case final c? when !c.transfer)
+              (categoryId: c.id, typed: ''),
+          ];
+    final total = typedAmountMinor(_draft.typed, currency);
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute<List<({String categoryId, String typed})>>(
+        fullscreenDialog: true,
+        builder: (_) => _SplitPage(
+          store: _store,
+          currency: currency,
+          moneyIn: _draft.moneyIn,
+          payee: _draft.payee,
+          total: total == 0 ? null : total,
+          start: start,
+          income: _draft.moneyIn ? _income : null,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final sum = result.fold(
+      0,
+      (s, l) => s + typedAmountMinor(l.typed, currency),
+    );
+    if (result.isEmpty) {
+      _change(() {
+        _draft.lines = [];
+        if (_draft.categoryId == phoneSplitId) _draft.categoryId = null;
+      });
+    } else if (result.length == 1 &&
+        (total == 0 ||
+            typedAmountMinor(result.single.typed, currency) == total)) {
+      // One category with the whole amount: an ordinary entry.
+      final only = _categoryOf(result.single.categoryId);
+      if (only != null) _draft.choose(only, _store.snapshot.accounts);
+      if (total == 0) _change(() => _draft.typed = result.single.typed);
+    } else {
+      _change(() {
+        _draft.lines = result;
+        _draft.categoryId = phoneSplitId;
+        // With no amount typed, the lines' sum is the amount.
+        if (total == 0) _draft.typed = typedOfMinor(sum, currency);
+        final accounts = _accounts;
+        if (!accounts.any((a) => a.id == _draft.accountId)) {
+          _draft.accountId = null;
+        }
+      });
+    }
+  }
+
   void _hideToast() {
     _toastTimer?.cancel();
     if (_saved == null) return;
@@ -962,6 +1143,7 @@ class _EntryState extends State<_EntryScreen> {
           store: _store,
           // A category made here is in the currency being paid in.
           currency: _currency,
+          split: true,
           // Money in that isn't a refund is income; money out never is.
           income: _draft.moneyIn ? _income : null,
           // Money out can instead be moved to another of their accounts:
@@ -981,7 +1163,10 @@ class _EntryState extends State<_EntryScreen> {
         ),
       ),
     );
-    if (picked != null && mounted) {
+    if (picked == null || !mounted) return;
+    if (picked.id == phoneSplitId) {
+      await _openSplit();
+    } else {
       _draft.choose(picked, _store.snapshot.accounts);
     }
   }
@@ -1081,9 +1266,10 @@ class _EntryState extends State<_EntryScreen> {
     builder: (context, _) {
       final t = context.t;
       final category = _category;
+      final split = _draft.isSplit;
       final to = _to;
       final from = to == null ? null : _account;
-      final left = category == null || to != null
+      final left = category == null || to != null || split
           ? 0
           : leftNow(category, _store.waiting);
       final amount = typedAmountMinor(_draft.typed, _currency);
@@ -1184,10 +1370,23 @@ class _EntryState extends State<_EntryScreen> {
                         // under it don't move when one is.
                         SizedBox(
                           height: 22,
-                          child:
-                              category == null ||
-                                  category.isIncome ||
-                                  (to != null && from == null)
+                          child: split
+                              // Each category's share, as the register
+                              // shows a split.
+                              ? Text(
+                                  [
+                                    for (final (i, l) in _draft.lines.indexed)
+                                      '${_splitCategories.elementAtOrNull(i)?.name ?? ''} ${typedAmountShown(l.typed, _currency)}',
+                                  ].join(' · '),
+                                  key: const ValueKey('split-line'),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: onest(15, color: Mid.ink2),
+                                )
+                              : category == null ||
+                                    category.isIncome ||
+                                    (to != null && from == null)
                               ? null
                               : Text(
                                   from != null
@@ -1241,8 +1440,13 @@ class _EntryState extends State<_EntryScreen> {
                               _FieldRow(
                                 key: const ValueKey('category-row'),
                                 label: t.rowsColumnCategory,
-                                value: category?.name ?? '',
-                                onTap: _pickCategory,
+                                value: split
+                                    ? t.startSplitCategories(
+                                        _draft.lines.length,
+                                      )
+                                    : category?.name ?? '',
+                                // A split opens on its lines.
+                                onTap: split ? _openSplit : _pickCategory,
                               ),
                               Divider(height: 1, thickness: 1, color: Mid.rule),
                               _FieldRow(
@@ -1439,7 +1643,8 @@ class _SavedToast extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     left!,
-                    maxLines: 1,
+                    // A split says each of its categories on its own line.
+                    maxLines: '\n'.allMatches(left!).length + 1,
                     overflow: TextOverflow.ellipsis,
                     style: onest(14, color: over ? Mid.coral : Mid.ink2),
                   ),
@@ -1471,8 +1676,17 @@ class _CategoryPage extends StatefulWidget {
     required this.currency,
     this.income,
     this.transfers = const [],
+    this.split = false,
+    this.exclude = const {},
   });
   final PhoneStore store;
+
+  /// "Split over categories…" is offered at the foot, beside "+ New
+  /// category": picking it answers with a category of id [phoneSplitId].
+  final bool split;
+
+  /// Categories not offered: the ones a split's other lines have.
+  final Set<String> exclude;
 
   /// The accounts money can be moved to instead of spent, listed last
   /// under their own heading; none when the entry is money in, or there is
@@ -1521,8 +1735,13 @@ class _CategoryPageState extends State<_CategoryPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     final store = widget.store;
-    final all = store.categories;
-    final income = widget.income;
+    final all = [
+      for (final c in store.categories)
+        if (!widget.exclude.contains(c.id)) c,
+    ];
+    final income = widget.exclude.contains(phoneIncomeId)
+        ? null
+        : widget.income;
     final typed = _typed;
     final listed = typed.isEmpty
         ? [?income, ..._spendThenBills(all)]
@@ -1667,35 +1886,383 @@ class _CategoryPageState extends State<_CategoryPage> {
               // Always in the same place, above the keyboard. A name that
               // is already a category is in the list, not offered again;
               // nor is Income's, which is the app's own.
-              if (typed.isEmpty ||
-                  (categoryNamed(all, typed) == null && !isIncomeName(typed)))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const ValueKey('new-category'),
-                    // With nothing typed there is no name yet: the box
-                    // takes it.
-                    onPressed: typed.isEmpty ? _focus.requestFocus : _make,
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(44, 48),
-                      foregroundColor: Mid.blue,
-                      textStyle: onest(16),
+              Row(
+                children: [
+                  if (typed.isEmpty ||
+                      (categoryNamed(all, typed) == null &&
+                          !isIncomeName(typed)))
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const ValueKey('new-category'),
+                          // With nothing typed there is no name yet: the box
+                          // takes it.
+                          onPressed: typed.isEmpty
+                              ? _focus.requestFocus
+                              : _make,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(44, 48),
+                            foregroundColor: Mid.blue,
+                            textStyle: onest(16),
+                          ),
+                          child: Text(
+                            typed.isEmpty
+                                ? t.phoneNewCategory
+                                : t.rowsNewCategoryOption(typed),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      typed.isEmpty
-                          ? t.phoneNewCategory
-                          : t.rowsNewCategoryOption(typed),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  if (widget.split && typed.isEmpty)
+                    OutlinedButton(
+                      key: const ValueKey('split-option'),
+                      onPressed: () => Navigator.of(context).pop(
+                        const PhoneCategory(
+                          id: phoneSplitId,
+                          name: '',
+                          leftMinor: 0,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                        foregroundColor: Mid.ink,
+                        backgroundColor: Mid.raised,
+                        side: BorderSide(color: Mid.blue),
+                        shape: const StadiumBorder(),
+                        textStyle: onest(15, weight: 500),
+                      ),
+                      child: Text(t.rowsSplitOption),
                     ),
-                  ),
-                ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// One receipt over several categories (owner's pick, 2026-10-17, option
+/// A): the total and what's left to place, a line for each category, and
+/// the pad, which types into the line that's chosen. Done answers with the
+/// lines that have an amount; Cancel with null.
+class _SplitPage extends StatefulWidget {
+  const _SplitPage({
+    required this.store,
+    required this.currency,
+    required this.moneyIn,
+    required this.payee,
+    required this.total,
+    required this.start,
+    this.income,
+  });
+  final PhoneStore store;
+  final Currency currency;
+  final bool moneyIn;
+  final String? payee;
+
+  /// What was typed on the entry screen; null when nothing was.
+  final int? total;
+  final List<({String categoryId, String typed})> start;
+
+  /// The app's Income, a line's category only for money in.
+  final PhoneCategory? income;
+
+  @override
+  State<_SplitPage> createState() => _SplitPageState();
+}
+
+class _SplitPageState extends State<_SplitPage> {
+  late final List<({String categoryId, String typed})> _lines = [
+    ...widget.start,
+  ];
+
+  /// The line the pad types into.
+  late int _chosen = _lines.indexWhere((l) => l.typed.isEmpty) < 0
+      ? 0
+      : _lines.indexWhere((l) => l.typed.isEmpty);
+
+  @override
+  void initState() {
+    super.initState();
+    // Nothing to split yet: straight to the first category.
+    if (_lines.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pick(null);
+      });
+    }
+  }
+
+  PhoneCategory? _categoryOf(String id) {
+    if (id == phoneIncomeId) return widget.income;
+    for (final c in widget.store.categories) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  int get _sum =>
+      _lines.fold(0, (s, l) => s + typedAmountMinor(l.typed, widget.currency));
+
+  /// A category for line [index], or a new line when null. The other
+  /// lines' categories aren't offered: a split names each once.
+  Future<void> _pick(int? index) async {
+    final picked = await Navigator.of(context).push(
+      MaterialPageRoute<PhoneCategory>(
+        fullscreenDialog: true,
+        builder: (_) => _CategoryPage(
+          store: widget.store,
+          currency: widget.currency,
+          income: widget.income,
+          exclude: {
+            for (final (i, l) in _lines.indexed)
+              if (i != index) l.categoryId,
+          },
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (index == null) {
+        _lines.add((categoryId: picked.id, typed: ''));
+        _chosen = _lines.length - 1;
+      } else {
+        _lines[index] = (categoryId: picked.id, typed: _lines[index].typed);
+        _chosen = index;
+      }
+    });
+  }
+
+  void _press(String key) {
+    if (_chosen >= _lines.length) return;
+    setState(() {
+      final l = _lines[_chosen];
+      _lines[_chosen] = (
+        categoryId: l.categoryId,
+        typed: pressAmountKey(l.typed, key, widget.currency),
+      );
+    });
+  }
+
+  void _remove(int index) => setState(() {
+    _lines.removeAt(index);
+    if (_chosen >= _lines.length) _chosen = _lines.length - 1;
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final currency = widget.currency;
+    String money(int v) => formatMoney(v.abs(), currency: currency);
+    final total = widget.total;
+    final sum = _sum;
+    final left = total == null ? null : total - sum;
+    final note = switch (left) {
+      null when sum != 0 => t.rowsSplitInAll(money(sum)),
+      null || 0 => null,
+      > 0 => t.rowsSplitLeft(money(left)),
+      _ => t.rowsSplitTooMuch(money(left)),
+    };
+    final shown = total ?? sum;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.phoneSplitTitle,
+                      style: onest(20, weight: 600),
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey('split-cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      foregroundColor: Mid.blue,
+                      textStyle: onest(16),
+                    ),
+                    child: Text(t.ledgerCancel),
+                  ),
+                ],
+              ),
+              if (widget.payee case final payee?)
+                Text(payee, style: onest(15, color: Mid.ink2)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${widget.moneyIn ? '+' : '−'}${formatShort(shown, currency: currency)}',
+                      style: onest(
+                        30,
+                        weight: 600,
+                        color: shown == 0
+                            ? Mid.ink3
+                            : widget.moneyIn
+                            ? Mid.green
+                            : Mid.coral,
+                      ),
+                    ),
+                  ),
+                  if (note != null)
+                    Text(
+                      note,
+                      key: const ValueKey('split-left'),
+                      style: onest(15, tabular: true),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: ListView(
+                  children: [
+                    if (_lines.isNotEmpty)
+                      Material(
+                        color: Mid.card,
+                        borderRadius: BorderRadius.circular(14),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            for (final (i, l) in _lines.indexed) ...[
+                              if (i > 0)
+                                Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Mid.rule,
+                                ),
+                              _SplitLineRow(
+                                key: ValueKey('split-line-$i'),
+                                name: _categoryOf(l.categoryId)?.name ?? '',
+                                amount: l.typed.isEmpty
+                                    ? ''
+                                    : typedAmountShown(l.typed, currency),
+                                chosen: i == _chosen,
+                                onTap: () => i == _chosen
+                                    ? _pick(i)
+                                    : setState(() => _chosen = i),
+                                // Offered while there's another line to keep.
+                                onRemove: _lines.length < 2
+                                    ? null
+                                    : () => _remove(i),
+                                removeLabel: t.rowsSplitRemove,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        key: const ValueKey('split-another'),
+                        onPressed: () => _pick(null),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(44, 48),
+                          foregroundColor: Mid.blue,
+                          textStyle: onest(15, weight: 500),
+                        ),
+                        child: Text(t.rowsSplitAnother),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _AmountPad(currency: currency, onKey: _press),
+              const SizedBox(height: 12),
+              FilledButton(
+                key: const ValueKey('split-done'),
+                onPressed: () => Navigator.of(context).pop([
+                  for (final l in _lines)
+                    if (typedAmountMinor(l.typed, currency) != 0) l,
+                ]),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: Mid.fill,
+                  foregroundColor: Mid.onFill,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: onest(17, weight: 600),
+                ),
+                child: Text(t.rowsSplitDone),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One line of the split page: its category and amount. Tapped, it is the
+/// line the pad types into; tapped again, its category can be changed.
+class _SplitLineRow extends StatelessWidget {
+  const _SplitLineRow({
+    super.key,
+    required this.name,
+    required this.amount,
+    required this.chosen,
+    required this.onTap,
+    required this.onRemove,
+    required this.removeLabel,
+  });
+  final String name;
+  final String amount;
+  final bool chosen;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
+  final String removeLabel;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: EdgeInsets.only(left: 16, right: onRemove == null ? 16 : 0),
+      decoration: BoxDecoration(
+        color: chosen ? Mid.raised : null,
+        border: chosen ? Border.all(color: Mid.blue, width: 2) : null,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: onest(16, weight: 500),
+            ),
+          ),
+          Text(
+            amount.isEmpty && chosen ? '|' : amount,
+            style: onest(
+              16,
+              weight: 500,
+              tabular: true,
+              color: amount.isEmpty ? Mid.blue : Mid.ink,
+            ),
+          ),
+          if (onRemove != null)
+            IconButton(
+              onPressed: onRemove,
+              tooltip: removeLabel,
+              icon: Icon(Icons.close_rounded, size: 18, color: Mid.ink3),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Over the accounts at the foot of the Category list.
@@ -2108,11 +2675,22 @@ class _WaitingScreen extends StatelessWidget {
     final t = context.t;
     final inIt = [
       for (final e in store.waiting)
-        if (e.categoryId == c.id) e,
+        if (e.categoryIds.contains(c.id)) e,
     ];
     if (inIt.isNotEmpty) {
-      // What was spent in it, less what came back.
-      final total = inIt.fold<int>(0, (sum, e) => sum + e.amountMinor).abs();
+      // What was spent in it, less what came back; a split's share in it.
+      final total = inIt
+          .fold<int>(
+            0,
+            (sum, e) =>
+                sum +
+                (e.isSplit
+                    ? e.lines
+                          .where((l) => l.categoryId == c.id)
+                          .fold(0, (s, l) => s + l.amountMinor)
+                    : e.amountMinor),
+          )
+          .abs();
       final sure = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -2234,7 +2812,9 @@ class _WaitingScreen extends StatelessWidget {
             // Only a transfer has no payee: one whose account has gone
             // from the ledger still says what it was.
             final moved = to != null || e.payee.isEmpty;
-            final filed = e.categoryId == phoneIncomeId
+            final filed = e.isSplit
+                ? t.startSplitCategories(e.lines.length)
+                : e.categoryId == phoneIncomeId
                 ? t.ledgerIncome
                 : moved
                 ? t.startTransfer

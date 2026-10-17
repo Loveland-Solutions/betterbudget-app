@@ -3034,6 +3034,12 @@ abstract class Words {
   /// **'“{name}” is already on another line'**
   String rowsErrorSplitTwice(String name);
 
+  /// Phone app: heading of the page that shares one entry over several categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get phoneSplitTitle;
+
   /// Under the row editor: a split’s lines and its total differ.
   ///
   /// In en, this message translates to:

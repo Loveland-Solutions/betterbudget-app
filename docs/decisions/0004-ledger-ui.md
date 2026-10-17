@@ -3556,3 +3556,13 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
 - Rejected: A, lines straight under the row; B, a total that adds itself up and
   is never checked against the receipt.
 - Not yet on the phone.
+- **On the phone** (owner, 2026-10-17: "It needs to be able to split"), chosen from
+  two sketches as **A, a split page**: "Split over categories…" sits at the foot of
+  the phone's Category list beside "+ New category"; it opens a page with the total
+  and what's left, a line for each category (the one already chosen first), "+ Another
+  category", and the amount pad, which types into the chosen line; tapping a chosen
+  line again changes its category. Done goes back to the entry screen, where Category
+  reads "2 categories" and each share shows under the amount. Save waits until the
+  lines add up, and each category is on one line, as on the computer. The toast says
+  what's left in each category, a line each. Rejected: B, the lines inside the entry
+  screen, which crowded it and shrank the pad. How it travels: ADR 0005.

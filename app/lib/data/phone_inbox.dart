@@ -44,6 +44,12 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         'amount_minor INTEGER NOT NULL, date TEXT NOT NULL, '
         'made_at TEXT NOT NULL)',
       );
+      // A split's lines (an entry filed under phoneSplitId). A file from
+      // before splits has no such table.
+      db.execute(
+        'CREATE TABLE entry_lines (entry_id TEXT NOT NULL, '
+        'category_id TEXT NOT NULL, amount_minor INTEGER NOT NULL)',
+      );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
       for (final c in inbox.categories) {
@@ -63,6 +69,13 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
           e.date.toIso8601String(),
           e.madeAt.toIso8601String(),
         ]);
+        for (final l in e.lines) {
+          db.execute('INSERT INTO entry_lines VALUES (?, ?, ?)', [
+            e.id,
+            l.categoryId,
+            l.amountMinor,
+          ]);
+        }
       }
       db.execute('COMMIT');
     });
@@ -78,8 +91,22 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
   final db = sqlite3.open(file.path, mode: OpenMode.readOnly);
   try {
     if (key != null) applyCipherKey(db, key);
-    return withoutKeyInErrors(
-      () => PhoneInbox(
+    return withoutKeyInErrors(() {
+      final lines = <String, List<PhoneSplitLine>>{};
+      final hasLines = db
+          .select(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'entry_lines'",
+          )
+          .isNotEmpty;
+      if (hasLines) {
+        for (final r in db.select('SELECT * FROM entry_lines ORDER BY rowid')) {
+          lines.putIfAbsent(r['entry_id'] as String, () => []).add((
+            categoryId: r['category_id'] as String,
+            amountMinor: r['amount_minor'] as int,
+          ));
+        }
+      }
+      return PhoneInbox(
         device:
             db.select('SELECT device FROM phone').single['device'] as String,
         categories: [
@@ -102,10 +129,11 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
               amountMinor: r['amount_minor'] as int,
               date: DateTime.parse(r['date'] as String),
               madeAt: DateTime.parse(r['made_at'] as String),
+              lines: lines[r['id']] ?? const [],
             ),
         ],
-      ),
-    );
+      );
+    });
   } finally {
     db.close();
   }

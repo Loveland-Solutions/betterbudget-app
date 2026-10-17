@@ -3279,6 +3279,10 @@
       }
     }
   },
+  "phoneSplitTitle": "Split",
+  "@phoneSplitTitle": {
+    "description": "Phone app: heading of the page that shares one entry over several categories."
+  },
   "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
   "@ledgerDbSplitDoesntAddUp": {
     "description": "Under the row editor: a split’s lines and its total differ."

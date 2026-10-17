@@ -480,6 +480,7 @@
   "rowsErrorSplitNoCategory": "{amount}-д ангилал сонгоно уу",
   "rowsErrorSplitUnknown": "“{name}” гэсэн ангилал алга",
   "rowsErrorSplitTwice": "“{name}” өөр мөрөнд аль хэдийн байна",
+  "phoneSplitTitle": "Хуваах",
   "ledgerDbSplitDoesntAddUp": "Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна",
   "rowsReconciledTip": "Тулгасан · банкны хуулгатай таарсан тул өөрчлөгдөхгүй",
   "rowsOpeningBalanceTip": "Эхний үлдэгдэл нь өөрийн дансандаа хамаарна",

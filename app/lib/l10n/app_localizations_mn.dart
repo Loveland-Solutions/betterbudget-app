@@ -2098,6 +2098,9 @@ class WordsMn extends Words {
   }
 
   @override
+  String get phoneSplitTitle => 'Хуваах';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна';
 

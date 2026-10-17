@@ -2178,6 +2178,9 @@ class WordsEn extends Words {
   }
 
   @override
+  String get phoneSplitTitle => 'Split';
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'The split’s lines don’t add up to its amount';
 

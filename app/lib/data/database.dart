@@ -2204,6 +2204,9 @@ class AppDatabase extends _$AppDatabase {
     required String payee,
     required List<SplitPart> splits,
     String? memo,
+    SharedKey? shared,
+    String how = MadeHow.typed,
+    String? on,
   }) {
     return transaction(() async {
       await _assertLive(accountId);
@@ -2213,6 +2216,9 @@ class AppDatabase extends _$AppDatabase {
         date: date,
         payee: payee,
         memo: memo,
+        shared: shared,
+        how: how,
+        on: on,
         scheduled: dateOnly(date).isAfter(dateOnly(today)),
         lines: [
           (accountId: accountId, amount: total, cleared: Cleared.uncleared),
@@ -4892,8 +4898,67 @@ class AppDatabase extends _$AppDatabase {
         if (!categories.containsKey(c.id)) await categoryFor(c);
       }
       final entries = {...was.entries};
+      // The ledger's category for one a phone names: its own id, one it
+      // made (taken in now if need be), or Income by the word. Null when
+      // it's gone from the ledger.
+      Future<int?> lineCategory(String id, int amount) async {
+        if (id == phoneIncomeId) return amount > 0 ? incomeCategory() : null;
+        var category = int.tryParse(categories[id] ?? id);
+        if (!spending.contains(category) && theirs[id] != null) {
+          category = await categoryFor(theirs[id]!);
+        }
+        return spending.contains(category) ? category : null;
+      }
+
       for (final e in inbox.entries) {
         if (entries.contains(e.id)) continue;
+        // One receipt over several categories: one split row, or nothing
+        // while any of its categories or its account is gone.
+        if (e.isSplit) {
+          final account = int.tryParse(e.accountId);
+          final parts = <SplitPart>[];
+          for (final l in e.lines) {
+            final c = await lineCategory(l.categoryId, l.amountMinor);
+            if (c == null) break;
+            parts.add((categoryId: c, amount: l.amountMinor));
+          }
+          // Checked here, not left to postSplit to refuse: a refusal would
+          // stop every other phone's entries coming in with it.
+          // Read now: a category the phone made was only just added.
+          final now = {for (final a in await select(accounts).get()) a.id: a};
+          final fits = parts.every(
+            (p) =>
+                now[p.categoryId]?.type == AccountType.income ||
+                uncategorizedNames.contains(now[p.categoryId]?.name) ||
+                now[p.categoryId]?.currency == now[account]?.currency,
+          );
+          if (parts.length != e.lines.length ||
+              !paidFrom.contains(account) ||
+              !fits ||
+              parts.fold(0, (s, p) => s + p.amount) != e.amountMinor) {
+            continue;
+          }
+          for (final p in parts) {
+            if (archived.remove(p.categoryId)) {
+              await setArchived(p.categoryId, false);
+              unarchived.add(p.categoryId);
+            }
+          }
+          added.add(
+            await postSplit(
+              accountId: account!,
+              date: e.date,
+              today: e.date.isAfter(today) ? e.date : today,
+              payee: e.payee,
+              splits: parts,
+              shared: SharedKey('phone', '${inbox.device}|${e.id}'),
+              how: MadeHow.phone,
+              on: inbox.device,
+            ),
+          );
+          entries.add(e.id);
+          continue;
+        }
         var category = int.tryParse(categories[e.categoryId] ?? e.categoryId);
         // One made for an earlier take and deleted since (its undo) is made
         // again only when a later entry needs it, so the undo stays undone.
