@@ -1034,8 +1034,45 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Wraps an undo and redo so a category made with the row goes and comes
-  /// back with it: one ⌘Z for both.
+  /// A split's lines as written: a line that picked "+ New category" has
+  /// its category made here, in the row's currency, in the same write as
+  /// the row. Returns the lines by id and the categories made, for undo.
+  Future<({List<SplitPart>? parts, List<({int id, String name})> made})>
+  _splitParts(EntryDraft d) async {
+    final splits = d.splits;
+    if (splits == null) {
+      return (parts: null, made: const <({int id, String name})>[]);
+    }
+    final made = <({int id, String name})>[];
+    final byName = <String, int>{};
+    final parts = <SplitPart>[];
+    for (final p in splits) {
+      var id = p.category.id;
+      if (id < 0) {
+        final name = p.category.name.trim();
+        id =
+            byName[name.toLowerCase()] ??
+            await _makeCategory(
+              EntryDraft(
+                date: d.date,
+                payee: d.payee,
+                counter: null,
+                amount: d.amount,
+                account: d.account,
+                newCategory: name,
+              ),
+            ) ??
+            id;
+        if (!byName.containsKey(name.toLowerCase()) && !isIncomeName(name)) {
+          made.add((id: id, name: name));
+        }
+        byName[name.toLowerCase()] = id;
+      }
+      parts.add((categoryId: id, amount: p.amount));
+    }
+    return (parts: parts, made: made);
+  }
+
   /// Whether [payee] is already remembered as [categoryId] (and [payId]) on
   /// [accountId], by its own words or wider ones: then a row's box isn't
   /// offered.
@@ -1103,21 +1140,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Wraps an undo and redo so the categories made with the row (one typed
+  /// in Category, or picked as new on a split's lines) go and come back
+  /// with it: one ⌘Z for all.
   ({Future<void> Function() undo, Future<void> Function() redo}) _alsoCategory(
-    int? made,
+    List<int> made,
     Future<void> Function() undo,
     Future<void> Function() redo,
-  ) => made == null
+  ) => made.isEmpty
       ? (undo: undo, redo: redo)
       : (
           // Each in one write: a half-done undo would leave the row gone and
           // the category behind, or the reverse.
           undo: () => db.transaction(() async {
             await undo();
-            _expect(await db.deleteEmptyAccount(made));
+            for (final id in made) {
+              _expect(await db.deleteEmptyAccount(id));
+            }
           }),
           redo: () => db.transaction(() async {
-            await db.undeleteAccount(DeletedAccount(made, const []));
+            for (final id in made) {
+              await db.undeleteAccount(DeletedAccount(id, const []));
+            }
             await redo();
           }),
         );
@@ -1125,6 +1169,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<String?> _post(EntryDraft d) async {
     final t = context.t;
     int? made;
+    var lineMade = const <({int id, String name})>[];
     PayTaken? paycheck;
     ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
     try {
@@ -1135,7 +1180,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         final here = d.account?.id ?? _accountId!;
         final other = d.otherAmount;
         final amount = d.amount!;
-        final splits = d.splits;
+        final split = await _splitParts(d);
+        lineMade = split.made;
+        final splits = split.parts;
         id = splits != null
             // One receipt over several categories.
             ? await db.postSplit(
@@ -1143,10 +1190,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 date: d.date,
                 today: today,
                 payee: d.payee,
-                splits: [
-                  for (final p in splits)
-                    (categoryId: p.category.id, amount: p.amount),
-                ],
+                splits: splits,
                 memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
               )
             : other != null && d.counter != null
@@ -1195,7 +1239,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _entry.payeeNames = await db.payeeNames();
       final taken = paycheck;
       final rowPair = _alsoCategory(
-        made,
+        [?made, for (final m in lineMade) m.id],
         () async {
           if (taken != null) await db.undoTakeAsPay(taken);
           _expect((await db.softDeleteMany([id])).length == 1);
@@ -1219,26 +1263,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final added = d.account == null
           ? t.ledgerAdded(d.payee)
           : t.ledgerAddedTo(d.payee, d.account!.name);
+      final madeAny = made != null || lineMade.isNotEmpty;
       _did(
         t.ledgerAdded(d.payee),
         undo: pair.undo,
         redo: pair.redo,
-        toast: made != null || hidden || kept != null,
+        toast: madeAny || hidden || kept != null,
         detail: kept == null ? null : d.payee,
         more: kept?.more,
         // Whole clauses joined by " · ", as every toast is.
-        message: made != null || hidden || kept != null
+        message: madeAny || hidden || kept != null
             ? [
                 added,
                 if (made != null) t.ledgerNewCategory(d.newCategory!),
-                if (made != null && d.date.isAfter(today))
+                for (final m in lineMade) t.ledgerNewCategory(m.name),
+                if (madeAny && d.date.isAfter(today))
                   t.ledgerScheduledFor(sayFullDate(t, d.date)),
                 if (kept != null) kept.said,
                 if (hidden) t.ledgerNotInThisView,
               ].join(' · ')
             : null,
       );
-      if (made == null && !hidden && kept == null && d.date.isAfter(today)) {
+      if (!madeAny && !hidden && kept == null && d.date.isAfter(today)) {
         _showToast(t.ledgerScheduledToast(sayFullDate(t, d.date)));
       }
       return null;
@@ -1932,10 +1978,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final TxnSnapshot after;
     final int? owedId;
     int? made;
+    var lineMade = const <({int id, String name})>[];
     ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
     try {
       owedId = await db.transaction(() async {
         made = await _makeCategory(d);
+        final split = await _splitParts(d);
+        lineMade = split.made;
         final owed = await db.editTransaction(
           transactionId: row.txnId,
           accountId: row.accountId,
@@ -1948,12 +1997,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           counterAmount: d.otherAmount,
           confirm: confirming,
           keepOwed: d.keepOwed,
-          splits: d.splits == null
-              ? null
-              : [
-                  for (final p in d.splits!)
-                    (categoryId: p.category.id, amount: p.amount),
-                ],
+          splits: split.parts,
         );
         // The box under the row: the category remembered for the payee.
         final category = made ?? d.counter?.id;
@@ -2008,7 +2052,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
       }
       final pair = _alsoCategory(
-        made,
+        [?made, for (final m in lineMade) m.id],
         // One action: the confirm, any rest still owed and the next payday
         // or bill come and go together.
         () => db.transaction(() async {
@@ -2062,7 +2106,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
     final rowPair = _alsoCategory(
-      made,
+      [?made, for (final m in lineMade) m.id],
       () => db.restoreSnapshot(before),
       () => db.restoreSnapshot(after),
     );
@@ -2080,6 +2124,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ? t.ledgerMovedToFuture(sayFullDate(t, d.date))
             : t.ledgerChangesSaved,
         if (made != null) t.ledgerNewCategory(d.newCategory!),
+        for (final m in lineMade) t.ledgerNewCategory(m.name),
         if (kept != null) kept.said,
       ].join(' · '),
     );
@@ -2296,11 +2341,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     var nextBills = const <int>[];
     final planned = r.planCategoryId;
     // A category's bill: the row in that category is the bill paid, so the
-    // plan counts it and the next bill doesn't find it again.
+    // plan counts it and the next bill doesn't find it again. A split with
+    // a line in it too.
     final tie =
         planned != null &&
         found.planCategoryId == null &&
-        found.categoryId == planned;
+        (found.categoryId == planned ||
+            found.splitLines.any((l) => l.accountId == planned));
     if (planned != null) {
       try {
         if (tie) await db.setPlanBill(found.txnId, planned);

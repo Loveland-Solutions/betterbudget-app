@@ -3542,8 +3542,8 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
 - A split saved with its lines and total untouched (a new memo) leaves its entries
   alone, so a deleted category on one of its lines doesn't stop the save.
 - Lines take existing categories in the row's currency (a tugrik and a dollar
-  Groceries can both exist; the database refuses the wrong one); a new one is made
-  from the row's own Category or the Budget page. Two lines for one category are
+  Groceries can both exist; the database refuses the wrong one); a name no category
+  has is offered as "+ New category “Toys”" on its line too (see below). Two lines for one category are
   saved as one. Not categorized isn't offered on a line: a split never shows in the
   Not categorized tab, so money put there would be forgotten.
 - **A split names each category once** (owner, 2026-10-17, trying it: "It lets me
@@ -3553,6 +3553,34 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
   before with a category twice (after a merge) opens with those lines as one.
 - A split brought down to one category in its card is saved as an ordinary row in
   that category, reconciled or not.
+- **From the reviews, decided** (2026-10-17, issue #197):
+  - A line's category list offers "+ New category “Toys”", as the row's own list
+    does, in the row's currency; picked, the category is made when the row is
+    added, and the undo of the add takes it away with the row. Only picked: a name
+    typed and left gets "There's no category “Toys”" on Add, so a typo doesn't
+    quietly become a category.
+  - A split is found as the bill already in when an ordinary row with the same
+    payee, dates and total would be. A plan's bill confirmed as a split stays that
+    bill while one of its lines is in the bill's category; once none is, it no
+    longer counts as that bill (the next bill and "already in" see it so; the tie
+    stays on the row, so a line moved back makes it the bill again). A split with a
+    line in the bill's category is tied to the plan when "Already in" picks it.
+  - Merging a category into another where one receipt has lines in both makes them
+    one line, the amounts added; the merge's undo puts the two lines back as they
+    were. Two that cancel out (a return of what was bought) leave no line when the
+    receipt has another.
+  - Search finds a split by any of its lines' categories.
+  - The row's second line shows the breakdown, then the memo ("Groceries ₮98,000 ·
+    Clothing ₮37,500 · birthday"), cut at the end as before; each share as money
+    shows elsewhere, unrounded ($45.99 stays $45.99).
+  - With Amount empty and lines typed, the card says "The total is money out." (or
+    in) under its heading, with "Change to money in" beside it: money out is the
+    default, not a question. Done or Add puts the total in Amount that way.
+  - An even exchange on one receipt (a ₮37,500 shirt returned for ₮37,500 of
+    groceries) is a split of 0 when its lines go both ways; the card says "The
+    lines even out, so the account's balance doesn't change." It is stored as any
+    split, the account's side at 0 (no schema change). Lines one way can't come to
+    0.
 - Rejected: A, lines straight under the row; B, a total that adds itself up and
   is never checked against the receipt.
 - Not yet on the phone.

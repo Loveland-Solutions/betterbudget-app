@@ -2086,6 +2086,70 @@ void main() {
       },
     );
 
+    test('a bill confirmed as a split is that bill while a line is in its category', () async {
+      final fee = await db.createCategory('СӨХ');
+      final repairs = await db.createCategory('Repairs');
+      final gifts = await db.createCategory('Gifts');
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      await db.setCategoryPlan(
+        fee,
+        CategoryPlan(
+          categoryId: fee,
+          kind: PlanKind.byDate,
+          amount: 27000000,
+          start: today,
+          due: DateTime(2027, 1, 10),
+          everyMonths: 3,
+          paidFrom: bank,
+        ),
+      );
+      await db.ensurePlanBills(today);
+      Future<List<TxnData>> coming() async => (await db.loadLedger()).txns
+          .where((x) => x.planCategoryId == fee && x.scheduled)
+          .toList();
+      final bill = (await coming()).single;
+      final jan8 = DateTime(2027, 1, 8);
+      // Confirmed as the fee and a repair on one payment.
+      await db.editTransaction(
+        transactionId: bill.id,
+        accountId: bank,
+        date: jan8,
+        today: jan8,
+        confirm: true,
+        amount: -30000000,
+        splits: [
+          (categoryId: fee, amount: -27000000),
+          (categoryId: repairs, amount: -3000000),
+        ],
+      );
+      RegisterRow row(LedgerData d) =>
+          d.registerFor(bank).posted.singleWhere((r) => r.txnId == bill.id);
+      expect(row(await db.loadLedger()).planCategoryId, fee);
+      // It counts as January's bill: the next is April's.
+      final next = await db.ensurePlanBills(jan8, only: fee);
+      expect(next, hasLength(1));
+      expect((await coming()).single.date, DateTime(2027, 4, 10));
+
+      // Its fee line moved elsewhere: it's no longer the bill.
+      await db.editTransaction(
+        transactionId: bill.id,
+        accountId: bank,
+        date: jan8,
+        today: jan8,
+        splits: [
+          (categoryId: gifts, amount: -27000000),
+          (categoryId: repairs, amount: -3000000),
+        ],
+      );
+      final d = await db.loadLedger();
+      expect(row(d).planCategoryId, isNull);
+      // So January's bill is still to pay, once April's is out of the way.
+      await db.dropPlanBills(next);
+      final again = await db.ensurePlanBills(jan8, only: fee);
+      expect(again, hasLength(1));
+      expect((await coming()).single.date, DateTime(2027, 1, 10));
+    });
+
     test('a plan change brings back the very bill undo took away', () async {
       final fee = await db.createCategory('СӨХ');
       final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);

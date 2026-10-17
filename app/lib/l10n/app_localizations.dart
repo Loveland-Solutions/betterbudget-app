@@ -2986,6 +2986,36 @@ abstract class Words {
   /// **'{amount} in all'**
   String rowsSplitInAll(String amount);
 
+  /// Split card, under the heading, while Amount is empty and lines have amounts: the lines' total will be saved as money out of the account. A button beside it changes it to money in.
+  ///
+  /// In en, this message translates to:
+  /// **'The total is money out.'**
+  String get rowsSplitIsOut;
+
+  /// Split card, under the heading, while Amount is empty: the lines' total will be saved as money into the account (a refund, or every line is Income). A button beside it changes it to money out.
+  ///
+  /// In en, this message translates to:
+  /// **'The total is money in.'**
+  String get rowsSplitIsIn;
+
+  /// Split card: button beside 'The total is money out.'; one click makes the total money in.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to money in'**
+  String get rowsSplitMakeIn;
+
+  /// Split card: button beside 'The total is money in.'; one click makes the total money out.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to money out'**
+  String get rowsSplitMakeOut;
+
+  /// Split card, under the heading: the lines go both ways and add up to 0 (a ₮37,500 shirt returned for ₮37,500 of groceries on one receipt). The row is saved with a total of 0.
+  ///
+  /// In en, this message translates to:
+  /// **'The lines even out, so the account’s balance doesn’t change.'**
+  String get rowsSplitEven;
+
   /// Split card: adds a line for one more category.
   ///
   /// In en, this message translates to:

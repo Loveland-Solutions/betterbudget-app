@@ -528,6 +528,11 @@ String? overdueNote(RegisterRow r, DateTime today) =>
 /// bill. Under a week, so a weekly bill doesn't find last week's.
 const alreadyInDays = 6;
 
+/// A split is the same kind of row as one with a single category, for
+/// telling that a bill is already in: a receipt typed over two categories
+/// is still the bill paid.
+RowKind _kindFor(RowKind k) => k == RowKind.split ? RowKind.simple : k;
+
 const _latinFor = {
   'а': 'a',
   'б': 'b',
@@ -608,6 +613,8 @@ bool samePayeeName(String a, String b) {
 /// amount. Among equals the nearest in date; null when there is none. A
 /// row already tied to the same plan is the bill before, not this one. Not
 /// for a payday: money in is made a pay's paycheck from its own row.
+/// A split (one receipt over several categories) is found as an ordinary
+/// row with the same payee, dates and total would be.
 RegisterRow? alreadyIn(
   RegisterRow scheduled,
   Iterable<RegisterRow> posted,
@@ -625,7 +632,7 @@ RegisterRow? alreadyIn(
   for (final r in posted) {
     if (r.scheduled ||
         r.accountId != scheduled.accountId ||
-        r.kind != scheduled.kind ||
+        _kindFor(r.kind) != _kindFor(scheduled.kind) ||
         (r.amount < 0) != (scheduled.amount < 0) ||
         (plan != null && r.planCategoryId == plan)) {
       continue;
@@ -1510,7 +1517,13 @@ class LedgerData {
       equity: equity,
       accountId: e.accountId,
       payScheduleId: t.payScheduleId,
-      planCategoryId: t.planCategoryId,
+      // A plan's bill confirmed as a split is still that bill while one
+      // of its lines is in the bill's category; once none is, it isn't.
+      planCategoryId:
+          kind == RowKind.split &&
+              !lines.any((l) => l.accountId == t.planCategoryId)
+          ? null
+          : t.planCategoryId,
       madeHow: t.madeHow,
       madeOn: t.madeOn,
       estimate: switch (_schedulesById[t.payScheduleId]) {

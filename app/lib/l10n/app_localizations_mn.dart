@@ -2064,6 +2064,22 @@ class WordsMn extends Words {
   }
 
   @override
+  String get rowsSplitIsOut => 'Нийт дүн зарлага.';
+
+  @override
+  String get rowsSplitIsIn => 'Нийт дүн орлого.';
+
+  @override
+  String get rowsSplitMakeIn => 'Орлого болгох';
+
+  @override
+  String get rowsSplitMakeOut => 'Зарлага болгох';
+
+  @override
+  String get rowsSplitEven =>
+      'Мөрүүд хоорондоо тэнцэж байгаа тул дансны үлдэгдэл өөрчлөгдөхгүй.';
+
+  @override
   String get rowsSplitAnother => '+ Өөр ангилал';
 
   @override

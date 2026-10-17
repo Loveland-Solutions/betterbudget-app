@@ -547,6 +547,8 @@ class DeletedCategory {
     this.into,
     this.entryIds, [
     this.budgetIds = const [],
+    this.combined = const [],
+    this.amountsBefore = const {},
   ]);
   final int categoryId;
   final int? into;
@@ -554,6 +556,12 @@ class DeletedCategory {
 
   /// Budget amounts that moved with a merge.
   final List<int> budgetIds;
+
+  /// A transaction with lines in both categories (a split of groceries and
+  /// clothing, clothing merged into groceries): the lines the merge took
+  /// out, as they were, and what the line it kept held before, by entry id.
+  final List<EntryRow> combined;
+  final Map<int, int> amountsBefore;
 }
 
 /// What [AppDatabase.deleteAccount] deleted, so undo can put it back.
@@ -3229,16 +3237,49 @@ class AppDatabase extends _$AppDatabase {
       a.paidFrom == b.paidFrom;
 
   /// The category's bills still scheduled.
-  Future<List<int>> _comingPlanBills(int categoryId) =>
-      (selectOnly(transactions)
-            ..addColumns([transactions.id])
-            ..where(
-              transactions.planCategoryId.equals(categoryId) &
-                  transactions.scheduled.equals(true) &
-                  transactions.deletedAt.isNull(),
-            ))
-          .map((r) => r.read(transactions.id)!)
-          .get();
+  Future<List<int>> _comingPlanBills(int categoryId) async {
+    final ids =
+        await (selectOnly(transactions)
+              ..addColumns([transactions.id])
+              ..where(
+                transactions.planCategoryId.equals(categoryId) &
+                    transactions.scheduled.equals(true) &
+                    transactions.deletedAt.isNull(),
+              ))
+            .map((r) => r.read(transactions.id)!)
+            .get();
+    final gone = await _splitsOffPlan(ids, categoryId);
+    return [
+      for (final id in ids)
+        if (!gone.contains(id)) id,
+    ];
+  }
+
+  /// Which of [transactionIds], tied to [categoryId]'s plan, are splits
+  /// with no line left in that category: such a split is no longer that
+  /// bill (a bill confirmed as groceries and clothing whose grocery line
+  /// moved elsewhere), though the tie stays on the row.
+  Future<Set<int>> _splitsOffPlan(
+    Iterable<int> transactionIds,
+    int categoryId,
+  ) async {
+    final ids = transactionIds.toSet();
+    if (ids.isEmpty) return const {};
+    final rows = await (select(
+      entries,
+    )..where((e) => e.transactionId.isIn(ids))).get();
+    final types = await _accountTypes();
+    final lines = <int, List<int>>{};
+    for (final e in rows) {
+      if (_isCategoryType(types[e.accountId])) {
+        (lines[e.transactionId] ??= []).add(e.accountId);
+      }
+    }
+    return {
+      for (final MapEntry(:key, :value) in lines.entries)
+        if (value.length > 1 && !value.contains(categoryId)) key,
+    };
+  }
 
   /// Bills the app takes away itself (a changed plan, an undo) are
   /// unlinked as well as deleted, like [dropPaydays]: only a bill the
@@ -3341,6 +3382,11 @@ class AppDatabase extends _$AppDatabase {
                     x.date.isBiggerOrEqualValue(dateKey(dateOnly(plan.start))),
               ))
               .get();
+      final offPlan = await _splitsOffPlan(
+        linked.map((x) => x.id),
+        plan.categoryId,
+      );
+      linked.removeWhere((x) => offPlan.contains(x.id));
       if (linked.any(
         (x) =>
             x.deletedAt == null &&
@@ -4383,66 +4429,121 @@ class AppDatabase extends _$AppDatabase {
   /// that weren't there should go). Undo runs newest first, so a deleted
   /// row can only come back after this delete has been undone, and finds
   /// its category there.
-  Future<DeletedCategory> deleteCategory(int categoryId, {int? into}) =>
-      transaction(() async {
-        await _assertOwnCategory(categoryId);
-        final moved = <int>[];
-        final budgetMoved = <int>[];
-        if (into != null) {
-          if (into == categoryId) {
-            throw NotFoundException(DbProblem.sameCategory);
-          }
-          await _assertCategory(into);
-          moved.addAll(
-            await (selectOnly(entries)
-                  ..addColumns([entries.id])
-                  ..where(entries.accountId.equals(categoryId)))
-                .map((r) => r.read(entries.id)!)
-                .get(),
+  Future<DeletedCategory> deleteCategory(
+    int categoryId, {
+    int? into,
+  }) => transaction(() async {
+    await _assertOwnCategory(categoryId);
+    final moved = <int>[];
+    final budgetMoved = <int>[];
+    final combined = <EntryRow>[];
+    final amountsBefore = <int, int>{};
+    if (into != null) {
+      if (into == categoryId) {
+        throw NotFoundException(DbProblem.sameCategory);
+      }
+      await _assertCategory(into);
+      // A transaction with lines in both becomes one line, the amounts
+      // added: a split names each category once. Kept is the line
+      // already in [into], which then needn't move.
+      final both = await (select(
+        entries,
+      )..where((e) => e.accountId.isIn([categoryId, into]))).get();
+      final types = await _accountTypes();
+      final byTxn = <int, List<EntryRow>>{};
+      for (final e in both) {
+        (byTxn[e.transactionId] ??= []).add(e);
+      }
+      for (final lines in byTxn.values) {
+        if (lines.length < 2) continue;
+        final keep =
+            lines.where((e) => e.accountId == into).firstOrNull ?? lines.first;
+        final sum = lines.fold(0, (s, e) => s + e.amountMinor);
+        // Lines that cancel out (a return of what was bought) leave
+        // nothing in the category, when the receipt has another line.
+        final rest =
+            await (select(entries)..where(
+                  (e) =>
+                      e.transactionId.equals(keep.transactionId) &
+                      e.id.isNotIn(lines.map((l) => l.id)),
+                ))
+                .get();
+        final drop =
+            sum == 0 && rest.any((e) => _isCategoryType(types[e.accountId]));
+        final gone = [
+          for (final e in lines)
+            if (drop || e.id != keep.id) e,
+        ];
+        if (!drop) {
+          amountsBefore[keep.id] = keep.amountMinor;
+          await (update(entries)..where((e) => e.id.equals(keep.id))).write(
+            EntriesCompanion(amountMinor: Value(sum)),
           );
-          await (update(entries)..where((e) => e.id.isIn(moved))).write(
-            EntriesCompanion(accountId: Value(into)),
-          );
-          final txns =
-              await (selectOnly(entries, distinct: true)
-                    ..addColumns([entries.transactionId])
-                    ..where(entries.id.isIn(moved)))
-                  .map((r) => r.read(entries.transactionId)!)
-                  .get();
-          for (final t in txns) {
-            await _touch(t);
-          }
-          // What was put in moves too, so a merge keeps the money where it
-          // was going. Not into a category in another currency: there the
-          // amounts would be read as that currency's, so they stay with
-          // the deleted one and go back to not assigned.
-          final currencies =
-              await (selectOnly(accounts)
-                    ..addColumns([accounts.currency])
-                    ..where(accounts.id.isIn([categoryId, into])))
-                  .map((r) => r.read(accounts.currency))
-                  .get();
-          final intoIncome = into == await incomeCategory();
-          // Nor into Income, which holds no budget.
-          if (currencies.toSet().length == 1 && !intoIncome) {
-            budgetMoved.addAll(
-              await (selectOnly(budgetAmounts)
-                    ..addColumns([budgetAmounts.id])
-                    ..where(budgetAmounts.categoryId.equals(categoryId)))
-                  .map((r) => r.read(budgetAmounts.id)!)
-                  .get(),
-            );
-          }
-          await (update(budgetAmounts)..where((b) => b.id.isIn(budgetMoved)))
-              .write(BudgetAmountsCompanion(categoryId: Value(into)));
-        } else if (await categoryEntryCount(categoryId) > 0) {
-          throw LockedException(DbProblem.stillHasRows);
         }
-        await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
-          AccountsCompanion(deletedAt: Value(_now)),
+        await (delete(
+          entries,
+        )..where((e) => e.id.isIn(gone.map((g) => g.id)))).go();
+        combined.addAll(gone);
+        await _touch(keep.transactionId);
+      }
+      moved.addAll(
+        await (selectOnly(entries)
+              ..addColumns([entries.id])
+              ..where(entries.accountId.equals(categoryId)))
+            .map((r) => r.read(entries.id)!)
+            .get(),
+      );
+      await (update(entries)..where((e) => e.id.isIn(moved))).write(
+        EntriesCompanion(accountId: Value(into)),
+      );
+      final txns =
+          await (selectOnly(entries, distinct: true)
+                ..addColumns([entries.transactionId])
+                ..where(entries.id.isIn(moved)))
+              .map((r) => r.read(entries.transactionId)!)
+              .get();
+      for (final t in txns) {
+        await _touch(t);
+      }
+      // What was put in moves too, so a merge keeps the money where it
+      // was going. Not into a category in another currency: there the
+      // amounts would be read as that currency's, so they stay with
+      // the deleted one and go back to not assigned.
+      final currencies =
+          await (selectOnly(accounts)
+                ..addColumns([accounts.currency])
+                ..where(accounts.id.isIn([categoryId, into])))
+              .map((r) => r.read(accounts.currency))
+              .get();
+      final intoIncome = into == await incomeCategory();
+      // Nor into Income, which holds no budget.
+      if (currencies.toSet().length == 1 && !intoIncome) {
+        budgetMoved.addAll(
+          await (selectOnly(budgetAmounts)
+                ..addColumns([budgetAmounts.id])
+                ..where(budgetAmounts.categoryId.equals(categoryId)))
+              .map((r) => r.read(budgetAmounts.id)!)
+              .get(),
         );
-        return DeletedCategory(categoryId, into, moved, budgetMoved);
-      });
+      }
+      await (update(budgetAmounts)..where((b) => b.id.isIn(budgetMoved))).write(
+        BudgetAmountsCompanion(categoryId: Value(into)),
+      );
+    } else if (await categoryEntryCount(categoryId) > 0) {
+      throw LockedException(DbProblem.stillHasRows);
+    }
+    await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+      AccountsCompanion(deletedAt: Value(_now)),
+    );
+    return DeletedCategory(
+      categoryId,
+      into,
+      moved,
+      budgetMoved,
+      combined,
+      amountsBefore,
+    );
+  });
 
   /// Undo for [deleteCategory]: the category back, and its rows back in it.
   Future<void> undeleteCategory(DeletedCategory d) => transaction(() async {
@@ -4454,6 +4555,19 @@ class AppDatabase extends _$AppDatabase {
     await (update(entries)
           ..where((e) => e.id.isIn(d.entryIds) & e.accountId.equals(into)))
         .write(EntriesCompanion(accountId: Value(d.categoryId)));
+    // Lines the merge made one: each as it was.
+    for (final MapEntry(:key, :value) in d.amountsBefore.entries) {
+      await (update(entries)..where((e) => e.id.equals(key))).write(
+        EntriesCompanion(amountMinor: Value(value)),
+      );
+    }
+    for (final e in d.combined) {
+      await this.into(entries).insert(e);
+    }
+    for (final t in {for (final e in d.combined) e.transactionId}) {
+      await _assertBalanced(t);
+      await _touch(t);
+    }
     await (update(budgetAmounts)
           ..where((b) => b.id.isIn(d.budgetIds) & b.categoryId.equals(into)))
         .write(BudgetAmountsCompanion(categoryId: Value(d.categoryId)));
