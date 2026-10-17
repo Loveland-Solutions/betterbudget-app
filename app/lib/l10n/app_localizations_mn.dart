@@ -2093,6 +2093,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String rowsErrorSplitTwice(String name) {
+    return '“$name” өөр мөрөнд аль хэдийн байна';
+  }
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна';
 

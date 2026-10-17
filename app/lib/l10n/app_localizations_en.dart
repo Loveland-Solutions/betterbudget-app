@@ -2173,6 +2173,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String rowsErrorSplitTwice(String name) {
+    return '“$name” is already on another line';
+  }
+
+  @override
   String get ledgerDbSplitDoesntAddUp =>
       'The split’s lines don’t add up to its amount';
 

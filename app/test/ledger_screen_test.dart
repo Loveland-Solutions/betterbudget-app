@@ -2387,6 +2387,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('split-card')), findsOneWidget);
     expect(focused(), tester.widget<TextField>(fields.at(2)).focusNode);
+
+    // A split names each category once (owner, 2026-10-17).
+    await tester.enterText(fields.at(2), 'Groceries');
+    await tester.enterText(fields.at(3), '37500');
+    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    await settle(tester);
+    expect(find.text('“Groceries” is already on another line'), findsOneWidget);
     await tidy(tester, db);
   });
 

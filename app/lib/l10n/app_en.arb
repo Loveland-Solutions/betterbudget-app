@@ -3270,6 +3270,15 @@
       }
     }
   },
+  "rowsErrorSplitTwice": "“{name}” is already on another line",
+  "@rowsErrorSplitTwice": {
+    "description": "Popup at the bottom when a split row can’t be saved: two lines name the same category. A split names each category once.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
   "@ledgerDbSplitDoesntAddUp": {
     "description": "Under the row editor: a split’s lines and its total differ."

@@ -3546,6 +3546,11 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
   from the row's own Category or the Budget page. Two lines for one category are
   saved as one. Not categorized isn't offered on a line: a split never shows in the
   Not categorized tab, so money put there would be forgotten.
+- **A split names each category once** (owner, 2026-10-17, trying it: "It lets me
+  choose the same category twice in the same split. Can't think of a time that
+  would be useful"). A line's list leaves out the categories other lines have; one
+  typed anyway gets "“Groceries” is already on another line" on Add. A split saved
+  before with a category twice (after a merge) opens with those lines as one.
 - A split brought down to one category in its card is saved as an ordinary row in
   that category, reconciled or not.
 - Rejected: A, lines straight under the row; B, a total that adds itself up and

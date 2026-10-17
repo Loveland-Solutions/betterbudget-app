@@ -3028,6 +3028,12 @@ abstract class Words {
   /// **'There’s no category “{name}”'**
   String rowsErrorSplitUnknown(String name);
 
+  /// Popup at the bottom when a split row can’t be saved: two lines name the same category. A split names each category once.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is already on another line'**
+  String rowsErrorSplitTwice(String name);
+
   /// Under the row editor: a split’s lines and its total differ.
   ///
   /// In en, this message translates to:

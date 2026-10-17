@@ -1093,3 +1093,4 @@ rowsErrorSplitTooMuch,Popup at the bottom when a split row can’t be saved: its
 rowsErrorSplitNoCategory,Popup at the bottom when a split row can’t be saved: a line has an amount but no category.,Pick a category for {amount},{amount}-д ангилал сонгоно уу,,
 rowsErrorSplitUnknown,Popup at the bottom when a split row can’t be saved: a line names a category that doesn’t exist. New categories are made from the row’s own Category field or the Budget page.,There’s no category “{name}”,“{name}” гэсэн ангилал алга,,
 ledgerDbSplitDoesntAddUp,Under the row editor: a split’s lines and its total differ.,The split’s lines don’t add up to its amount,Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна,,
+rowsErrorSplitTwice,Popup at the bottom when a split row can’t be saved: two lines name the same category. A split names each category once.,“{name}” is already on another line,“{name}” өөр мөрөнд аль хэдийн байна,,

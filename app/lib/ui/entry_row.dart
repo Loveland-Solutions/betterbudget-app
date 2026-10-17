@@ -306,17 +306,28 @@ class _EntryRowState extends State<EntryRow> {
 
   /// A split: the row's amount shared over these categories, one line
   /// each. Null for a row with one category.
+  /// A category on two lines (left by merging two categories) opens as one
+  /// line: a split names each category once (owner, 2026-10-17).
   late List<_SplitLine>? _split = switch (_initial?.row) {
     final r? when r.kind == RowKind.split => [
-      for (final l in r.splitLines)
+      for (final (l, share) in _onceEach(r.splitLines))
         _newLine(
           category: l.deleted ?? l.name,
-          amount: _lineText(r.amount > 0 ? l.amount : -l.amount),
+          amount: _lineText(r.amount > 0 ? share : -share),
           accountId: l.accountId,
         ),
     ],
     _ => null,
   };
+
+  static List<(SplitLine, int)> _onceEach(List<SplitLine> lines) {
+    final byId = <int, (SplitLine, int)>{};
+    for (final l in lines) {
+      final had = byId[l.accountId];
+      byId[l.accountId] = (had?.$1 ?? l, (had?.$2 ?? 0) + l.amount);
+    }
+    return byId.values.toList();
+  }
 
   /// The split card is open under the row.
   bool _splitOpen = false;
@@ -887,13 +898,21 @@ class _EntryRowState extends State<EntryRow> {
   /// The categories a line can take: the row's currency, not archived (a
   /// typed name still finds one), no transfers or pay. Not Not categorized:
   /// a split never shows in its tab, so money put there would be forgotten.
-  Iterable<AccountInfo> _lineOptions(String q) => widget.categories.where(
-    (c) =>
-        !c.archived &&
-        categoryTakes(c, _hereCurrency) &&
-        !isUncategorized(c) &&
-        c.name.toLowerCase().contains(q.toLowerCase()),
-  );
+  /// Nor a category another line already has.
+  Iterable<AccountInfo> _lineOptions(_SplitLine line, String q) {
+    final taken = {
+      for (final o in _split ?? const <_SplitLine>[])
+        if (!identical(o, line)) ?_lineCategory(o)?.id,
+    };
+    return widget.categories.where(
+      (c) =>
+          !c.archived &&
+          categoryTakes(c, _hereCurrency) &&
+          !isUncategorized(c) &&
+          !taken.contains(c.id) &&
+          c.name.toLowerCase().contains(q.toLowerCase()),
+    );
+  }
 
   /// The category a name means in this row's currency: a tugrik and a
   /// dollar Groceries can both exist. Archived ones last.
@@ -1078,6 +1097,7 @@ class _EntryRowState extends State<EntryRow> {
     final t = context.t;
     String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
     final parts = <({AccountInfo category, int amount})>[];
+    final seen = <int>{};
     var sum = 0;
     for (final l in _split!) {
       final name = l.category.text.trim();
@@ -1098,6 +1118,12 @@ class _EntryRowState extends State<EntryRow> {
         return (
           parts: null,
           error: (t.rowsErrorSplitUnknown(name), l.categoryFocus),
+        );
+      }
+      if (!seen.add(category.id)) {
+        return (
+          parts: null,
+          error: (t.rowsErrorSplitTwice(category.name), l.categoryFocus),
         );
       }
       if (v == null || v == 0) continue;
@@ -1279,7 +1305,7 @@ class _EntryRowState extends State<EntryRow> {
                         controller: l.category,
                         focusNode: l.categoryFocus,
                         hint: t.rowsHintCategory,
-                        options: _lineOptions,
+                        options: (q) => _lineOptions(l, q),
                         label: (c) => c.name,
                         onSelected: (c) {
                           l.accountId = c.id;
