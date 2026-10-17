@@ -917,7 +917,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerDbSplitNotEditable =>
-      'Хуваасан гүйлгээний мөрүүдийг одоогоор засах боломжгүй';
+      'Хуваасан гүйлгээний ангиллуудыг өөрийнх нь хэсэгт засна';
 
   @override
   String get ledgerDbChangedSince => 'Дараа нь өөрчлөгдсөн';
@@ -2041,12 +2041,64 @@ class WordsMn extends Words {
   String get rowsCancelEdit => 'Болих';
 
   @override
-  String get rowsReconciledTip =>
-      'Тулгасан · банкны хуулгатай таарсан тул өөрчлөгдөхгүй';
+  String get rowsSplitOption => 'Хэд хэдэн ангилалд хуваах…';
 
   @override
-  String get rowsSplitLinesNotBuilt =>
-      'Хуваасан гүйлгээний мөрүүдийг засах боломж одоохондоо алга';
+  String rowsSplitTitle(String payee, String amount) {
+    return '$payee, $amount';
+  }
+
+  @override
+  String rowsSplitLeft(String amount) {
+    return '$amount үлдсэн';
+  }
+
+  @override
+  String rowsSplitTooMuch(String amount) {
+    return '$amount илүү';
+  }
+
+  @override
+  String rowsSplitInAll(String amount) {
+    return 'Нийт $amount';
+  }
+
+  @override
+  String get rowsSplitAnother => '+ Өөр ангилал';
+
+  @override
+  String get rowsSplitRemove => 'Энэ ангиллыг хасах';
+
+  @override
+  String get rowsSplitDone => 'Болсон';
+
+  @override
+  String rowsErrorSplitLeft(String amount) {
+    return 'Үлдсэн $amount-г ангилалд оруулна уу';
+  }
+
+  @override
+  String rowsErrorSplitTooMuch(String amount) {
+    return 'Мөрүүдийн нийлбэр нийт дүнгээс $amount-өөр их байна';
+  }
+
+  @override
+  String rowsErrorSplitNoCategory(String amount) {
+    return '$amount-д ангилал сонгоно уу';
+  }
+
+  @override
+  String rowsErrorSplitUnknown(String name) {
+    return '“$name” гэсэн ангилал алга';
+  }
+
+  @override
+  String get ledgerDbSplitDoesntAddUp =>
+      'Хуваасан мөрүүдийн нийлбэр гүйлгээний дүнтэй таарахгүй байна';
+
+  @override
+  String get rowsReconciledTip =>
+      'Тулгасан · банкны хуулгатай таарсан тул өөрчлөгдөхгүй';
 
   @override
   String get rowsOpeningBalanceTip =>
@@ -2060,10 +2112,6 @@ class WordsMn extends Words {
 
   @override
   String get rowsOtherAccountArchived => 'Нөгөө данс нь архивлагдсан';
-
-  @override
-  String get rowsSplitTotalFollows =>
-      'Хуваасан гүйлгээний дүн нь мөрүүдийнхээ нийлбэр';
 
   @override
   String get rowsHintPayee => 'Харилцагч';
@@ -2930,7 +2978,12 @@ class WordsMn extends Words {
 
   @override
   String startSplitCategories(int count) {
-    return '$count ангилал';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангилал',
+    );
+    return '$_temp0';
   }
 
   @override

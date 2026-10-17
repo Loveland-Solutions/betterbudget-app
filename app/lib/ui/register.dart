@@ -1115,8 +1115,10 @@ class _PostedRow extends StatelessWidget {
     final memo = r.kind == RowKind.split && r.memo.isEmpty
         ? r.splitLines
               .map(
+                // A line the other way from the row (a return on the same
+                // receipt) carries its sign, as an amount does.
                 (l) =>
-                    '${splitLineName(t, l)} ${formatRounded(l.amount.abs(), currency: r.currency)}',
+                    '${splitLineName(t, l)} ${(l.amount > 0) != (r.amount > 0) ? (l.amount > 0 ? '+' : '−') : ''}${formatRounded(l.amount.abs(), currency: r.currency)}',
               )
               .join(' · ')
         : r.otherAmount != null

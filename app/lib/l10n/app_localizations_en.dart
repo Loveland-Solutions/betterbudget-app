@@ -927,7 +927,8 @@ class WordsEn extends Words {
   String get ledgerDbNotAnAccount => 'Not an account';
 
   @override
-  String get ledgerDbSplitNotEditable => 'Split lines can’t be edited yet';
+  String get ledgerDbSplitNotEditable =>
+      'Change a split’s categories in its own card';
 
   @override
   String get ledgerDbChangedSince => 'It changed since';
@@ -2120,11 +2121,64 @@ class WordsEn extends Words {
   String get rowsCancelEdit => 'Cancel';
 
   @override
-  String get rowsReconciledTip =>
-      'Reconciled · this matches a bank statement, so it can’t change';
+  String get rowsSplitOption => 'Split over categories…';
 
   @override
-  String get rowsSplitLinesNotBuilt => 'Editing split lines isn’t built yet';
+  String rowsSplitTitle(String payee, String amount) {
+    return '$payee, $amount';
+  }
+
+  @override
+  String rowsSplitLeft(String amount) {
+    return '$amount left';
+  }
+
+  @override
+  String rowsSplitTooMuch(String amount) {
+    return '$amount too much';
+  }
+
+  @override
+  String rowsSplitInAll(String amount) {
+    return '$amount in all';
+  }
+
+  @override
+  String get rowsSplitAnother => '+ Another category';
+
+  @override
+  String get rowsSplitRemove => 'Take this category off';
+
+  @override
+  String get rowsSplitDone => 'Done';
+
+  @override
+  String rowsErrorSplitLeft(String amount) {
+    return 'Place the last $amount';
+  }
+
+  @override
+  String rowsErrorSplitTooMuch(String amount) {
+    return 'The lines are $amount more than the total';
+  }
+
+  @override
+  String rowsErrorSplitNoCategory(String amount) {
+    return 'Pick a category for $amount';
+  }
+
+  @override
+  String rowsErrorSplitUnknown(String name) {
+    return 'There’s no category “$name”';
+  }
+
+  @override
+  String get ledgerDbSplitDoesntAddUp =>
+      'The split’s lines don’t add up to its amount';
+
+  @override
+  String get rowsReconciledTip =>
+      'Reconciled · this matches a bank statement, so it can’t change';
 
   @override
   String get rowsOpeningBalanceTip =>
@@ -2138,9 +2192,6 @@ class WordsEn extends Words {
 
   @override
   String get rowsOtherAccountArchived => 'The other account is archived';
-
-  @override
-  String get rowsSplitTotalFollows => 'A split’s total follows its lines';
 
   @override
   String get rowsHintPayee => 'Payee';
@@ -3016,7 +3067,13 @@ class WordsEn extends Words {
 
   @override
   String startSplitCategories(int count) {
-    return '$count categories';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count categories',
+      one: '1 category',
+    );
+    return '$_temp0';
   }
 
   @override

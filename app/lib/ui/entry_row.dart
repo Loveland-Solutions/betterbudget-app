@@ -24,7 +24,12 @@ class EntryDraft {
     this.otherAmount,
     this.payId,
     this.remember = false,
+    this.splits,
   });
+
+  /// A split (one receipt for groceries and clothing): each category and
+  /// its share, signed as [amount] is, adding up to it. [counter] is null.
+  final List<({AccountInfo category, int amount})>? splits;
 
   /// The box under the row was ticked: remember the category for the payee
   /// (owner, 2026-10-12: "a check box on the transaction for associating
@@ -53,11 +58,11 @@ class EntryDraft {
   final DateTime date;
   final String payee;
 
-  /// Null when the category can't be changed here (a split).
+  /// Null for a split, and when the category can't be changed here.
   final AccountInfo? counter;
 
   /// Signed from the register account's perspective. Null when the amount
-  /// can't be changed here (a split).
+  /// can't be changed here (reconciled).
   final int? amount;
   final String? memo;
 }
@@ -113,6 +118,8 @@ class EditInitial {
        memo = r.memo,
        category = switch (r.kind) {
          RowKind.transfer => '→ ${r.payee}',
+         // Its lines are in the split card.
+         RowKind.split => '',
          _ => r.categoryLabel,
        },
        row = r,
@@ -123,11 +130,10 @@ class EditInitial {
        // A reconciled transfer can't move to another account; a reconciled
        // simple row can still change category.
        lockCategory =
-           r.kind == RowKind.split ||
            r.kind == RowKind.opening ||
            (r.locked && r.kind == RowKind.transfer) ||
            r.otherClosed,
-       lockAmount = r.kind == RowKind.split || r.locked,
+       lockAmount = r.locked,
        payeeOptional = r.kind != RowKind.simple,
        variesPay = r.estimate != null;
 
@@ -139,8 +145,8 @@ class EditInitial {
   /// The row opened, for wording [category] when it's locked.
   final RegisterRow row;
 
-  /// [category] as shown when it can't be changed: a split's count, a
-  /// transfer to a deleted account, in the user's language.
+  /// [category] as shown when it can't be changed: a transfer to a deleted
+  /// account, an opening balance, in the user's language.
   String lockedCategory(Words t) => row.kind == RowKind.transfer
       ? '→ ${rowPayee(t, row)}'
       : rowCategory(t, row);
@@ -199,7 +205,7 @@ String _lockedCategoryTip(Words t, RegisterRow r, String reconciledTip) =>
       RowKind.opening when r.equity == AppEquity.adjustments =>
         t.rowsAdjustmentTip,
       RowKind.opening => t.rowsOpeningBalanceTip,
-      _ => t.rowsSplitLinesNotBuilt,
+      _ => reconciledTip,
     };
 
 /// How an amount reads in the field: `30000`, `214750.50`, `+2500000`.
@@ -297,6 +303,36 @@ class _EntryRowState extends State<EntryRow> {
   final _accountFocus = FocusNode(debugLabel: 'entry-account');
   final _amountFocus = FocusNode(debugLabel: 'entry-amount');
   final _otherAmountFocus = FocusNode(debugLabel: 'entry-other-amount');
+
+  /// A split: the row's amount shared over these categories, one line
+  /// each. Null for a row with one category.
+  late List<_SplitLine>? _split = switch (_initial?.row) {
+    final r? when r.kind == RowKind.split => [
+      for (final l in r.splitLines)
+        _newLine(
+          category: l.deleted ?? l.name,
+          amount: _lineText(r.amount > 0 ? l.amount : -l.amount),
+          accountId: l.accountId,
+        ),
+    ],
+    _ => null,
+  };
+
+  /// The split card is open under the row.
+  bool _splitOpen = false;
+
+  /// What the card was opened on, for its Cancel: the lines (null when it
+  /// was opened to start a split) and what Category said.
+  ({List<(String, String, int?)>? lines, String category})? _splitBefore;
+
+  /// What Category said before "Split over categories…" was picked, which
+  /// puts its own words in the field.
+  String _categoryTyped = '';
+
+  late final String? _splitStart = _splitSig;
+  String? get _splitSig => _split
+      ?.map((l) => '${l.category.text}\u0000${l.amount.text}')
+      .join('\u0001');
   String? _error;
   bool _busy = false;
 
@@ -323,6 +359,10 @@ class _EntryRowState extends State<EntryRow> {
     _categoryFocus,
     _amountFocus,
     _otherAmountFocus,
+    for (final l in _split ?? const <_SplitLine>[]) ...[
+      l.categoryFocus,
+      l.amountFocus,
+    ],
   ];
 
   /// The "+ New category" line in the list: not an account yet.
@@ -330,6 +370,17 @@ class _EntryRowState extends State<EntryRow> {
   ({String label, AccountInfo account}) _createOption(String name) => (
     label: context.t.rowsNewCategoryOption(name),
     account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
+  );
+
+  /// The "Split over categories…" line, last in the list.
+  static const _splitId = -3;
+  ({String label, AccountInfo account}) get _splitOption => (
+    label: context.t.rowsSplitOption,
+    account: AccountInfo(
+      id: _splitId,
+      name: context.t.rowsSplitOption,
+      type: AccountType.expense,
+    ),
   );
 
   /// Every name the Category field knows, archived categories included: an
@@ -351,6 +402,7 @@ class _EntryRowState extends State<EntryRow> {
   /// categorized) that isn't already remembered for it.
   bool get _canRemember {
     if (!(_hasContent || _active)) return false;
+    if (_split != null) return false;
     if (_initial?.lockCategory ?? false) return false;
     final payee = _payee.text.trim();
     final q = _category.text.trim().toLowerCase();
@@ -460,7 +512,18 @@ class _EntryRowState extends State<EntryRow> {
     for (final c in _all) {
       c.addListener(_edited);
     }
-    widget.controller.isDirty = () => _all.any((c) => c.text != _start[c]);
+    _category.addListener(_rememberTyped);
+    _splitStart; // the lines it opened with
+    widget.controller.isDirty = () =>
+        _all.any((c) => c.text != _start[c]) || _splitSig != _splitStart;
+    // A split's category double-clicked: its card opens.
+    if (_split != null && _initial!.focus == EditField.category) {
+      _splitBefore = (lines: _linesNow, category: '');
+      _splitOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _split!.first.categoryFocus.requestFocus();
+      });
+    }
     if (_editing) {
       // Open with the cursor in the field that was double-clicked.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -468,6 +531,7 @@ class _EntryRowState extends State<EntryRow> {
         final (node, ctrl) = switch (_initial!.focus) {
           EditField.date when !_initial.lockDate => (_dateFocus, _date),
           EditField.memo => (_memoFocus, _memo),
+          EditField.category when _split != null => (null, null),
           EditField.category when !_initial.lockCategory => (
             _categoryFocus,
             _category,
@@ -475,6 +539,7 @@ class _EntryRowState extends State<EntryRow> {
           EditField.amount when !_initial.lockAmount => (_amountFocus, _amount),
           _ => (_payeeFocus, _payee),
         };
+        if (node == null || ctrl == null) return;
         node.requestFocus();
         // An amount's `+` (money in) stays out of the selection, so typing
         // the real figure can't turn a refund or transfer in into money out.
@@ -514,7 +579,7 @@ class _EntryRowState extends State<EntryRow> {
 
   /// A name typed in Category that isn't one yet: saving creates it.
   String? get _newCategory {
-    if (_initial?.lockCategory ?? false) return null;
+    if (_split != null || (_initial?.lockCategory ?? false)) return null;
     final t = _category.text.trim();
     if (t.isEmpty || t.startsWith('→')) return null;
     final known = _counterOptions.any(
@@ -601,6 +666,7 @@ class _EntryRowState extends State<EntryRow> {
   int? get _shortBy {
     final initial = _initial;
     if (initial == null ||
+        _split != null ||
         !initial.confirming ||
         initial.variesPay ||
         initial.lockAmount ||
@@ -649,7 +715,9 @@ class _EntryRowState extends State<EntryRow> {
         !_isTransfer &&
         !(_initial?.payeeOptional ?? false))
       (name: 'payee', focus: _payeeFocus),
-    if (_category.text.trim().isEmpty && !(_initial?.lockCategory ?? false))
+    if (_category.text.trim().isEmpty &&
+        _split == null &&
+        !(_initial?.lockCategory ?? false))
       (name: 'category', focus: _categoryFocus),
     // A bare `+` (Swap before any amount) is still no amount.
     if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
@@ -669,8 +737,12 @@ class _EntryRowState extends State<EntryRow> {
       _categoryFocus,
       _amountFocus,
       _accountFocus,
+      _otherAmountFocus,
     ]) {
       f.dispose();
+    }
+    for (final l in _split ?? const <_SplitLine>[]) {
+      l.dispose();
     }
     _payeeFocus.removeListener(_focusChanged);
     _payeeFocus.removeListener(_prefillCategoryOnLeave);
@@ -695,6 +767,7 @@ class _EntryRowState extends State<EntryRow> {
   }
 
   Future<bool> _prefillCategory() async {
+    if (_split != null) return false;
     if (_category.text.isNotEmpty || _payee.text.trim().isEmpty) return false;
     final id = await widget.controller.suggestCategory(_payee.text.trim());
     // The category itself, never a pay that's filed under it.
@@ -718,6 +791,9 @@ class _EntryRowState extends State<EntryRow> {
       _otherAmount.clear();
       _memo.clear();
       _remember = false;
+      _dropLines(_split);
+      _split = null;
+      _splitOpen = false;
     });
     _problem(null);
     if (keepFocus) _payeeFocus.requestFocus();
@@ -733,10 +809,572 @@ class _EntryRowState extends State<EntryRow> {
     }
   }
 
+  // ---------- the split card ----------
+
+  _SplitLine _newLine({
+    String category = '',
+    String amount = '',
+    int? accountId,
+  }) {
+    final l = _SplitLine(category: category, amount: amount)
+      ..accountId = accountId;
+    l.category.addListener(_splitEdited);
+    l.amount.addListener(_splitEdited);
+    l.categoryFocus.addListener(_focusChanged);
+    l.amountFocus.addListener(_focusChanged);
+    return l;
+  }
+
+  /// Lines taken off: disposed once the card no longer shows them.
+  void _dropLines(Iterable<_SplitLine>? lines) {
+    final gone = [...?lines];
+    if (gone.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final l in gone) {
+        l.dispose();
+      }
+    });
+  }
+
+  /// A line's share as it's typed: the amount alone, with a minus when it
+  /// goes the other way from the row (a return on the same receipt).
+  String _lineText(int share) =>
+      // editableAmount marks money in with `+`; a line has no direction of
+      // its own, so it's given the amount as money out.
+      '${share < 0 ? '-' : ''}${editableAmount(-share.abs(), _hereCurrency)}';
+
+  List<(String, String, int?)>? get _linesNow => _split
+      ?.map((l) => (l.category.text, l.amount.text, l.accountId))
+      .toList();
+
+  /// The lines as last seen: a controller also speaks up when only its
+  /// selection moves, which mustn't take down why the row wasn't saved.
+  String? _splitSeen;
+
+  void _splitEdited() {
+    if (!mounted) return;
+    final now = _splitSig;
+    if (now == _splitSeen) return;
+    _splitSeen = now;
+    setState(() {});
+    _problem(null);
+  }
+
+  void _rememberTyped() {
+    final text = _category.text;
+    if (text != context.t.rowsSplitOption) _categoryTyped = text;
+  }
+
+  /// The row's total, unsigned: typed, or locked by a reconciliation.
+  /// Null while Amount is empty.
+  int? get _splitTotal {
+    final initial = _initial;
+    if (initial != null && initial.lockAmount) return initial.amount.abs();
+    final parsed = parseAmount(
+      _amount.text.trim().replaceFirst(RegExp(r'^\+'), ''),
+      _hereCurrency,
+    );
+    return parsed?.abs();
+  }
+
+  int? _lineValue(_SplitLine l) => parseAmount(l.amount.text, _hereCurrency);
+
+  int get _splitSum => (_split ?? const <_SplitLine>[]).fold(
+    0,
+    (s, l) => s + (_lineValue(l) ?? 0),
+  );
+
+  /// The categories a line can take: the row's currency, not archived (a
+  /// typed name still finds one), no transfers or pay. Not Not categorized:
+  /// a split never shows in its tab, so money put there would be forgotten.
+  Iterable<AccountInfo> _lineOptions(String q) => widget.categories.where(
+    (c) =>
+        !c.archived &&
+        categoryTakes(c, _hereCurrency) &&
+        !isUncategorized(c) &&
+        c.name.toLowerCase().contains(q.toLowerCase()),
+  );
+
+  /// The category a name means in this row's currency: a tugrik and a
+  /// dollar Groceries can both exist. Archived ones last.
+  AccountInfo? _categoryNamed(String name) {
+    final q = name.trim().toLowerCase();
+    final found = widget.categories.where(
+      (c) =>
+          c.name.toLowerCase() == q &&
+          categoryTakes(c, _hereCurrency) &&
+          !isUncategorized(c),
+    );
+    return found.where((c) => !c.archived).firstOrNull ?? found.firstOrNull;
+  }
+
+  /// A line's category: the one picked or opened with, while its name is
+  /// still what the line says; otherwise by name.
+  AccountInfo? _lineCategory(_SplitLine l) {
+    final name = l.category.text.trim().toLowerCase();
+    final kept = widget.categories
+        .where((c) => c.id == l.accountId && c.name.toLowerCase() == name)
+        .firstOrNull;
+    return kept ?? _categoryNamed(name);
+  }
+
+  /// Every named line is Income: money in, as a row filed under Income is.
+  bool get _splitIsIncome {
+    final named = [
+      for (final l in _split ?? const <_SplitLine>[])
+        if (l.category.text.trim().isNotEmpty) _lineCategory(l),
+    ];
+    return named.isNotEmpty && named.every((c) => c?.isIncome ?? false);
+  }
+
+  /// Opens the card: on the lines there are, or on two new ones, the first
+  /// taking the category Category named, if it named one.
+  void _openSplit() {
+    final fresh = _split == null;
+    setState(() {
+      _splitBefore = (lines: _linesNow, category: fresh ? _categoryTyped : '');
+      if (fresh) {
+        final named = _categoryNamed(_categoryTyped);
+        _split = [
+          _newLine(category: named?.name ?? '', accountId: named?.id),
+          _newLine(),
+        ];
+      }
+      _category.text = '';
+      _splitOpen = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _split == null) return;
+      final next = _split!
+          .where((l) => l.category.text.isEmpty || l.amount.text.isEmpty)
+          .firstOrNull;
+      (next == null
+              ? _split!.first.categoryFocus
+              : next.category.text.isEmpty
+              ? next.categoryFocus
+              : next.amountFocus)
+          .requestFocus();
+    });
+  }
+
+  /// Cancel, or Esc in the card: the lines as they were when it opened.
+  void _cancelSplit() {
+    final before = _splitBefore;
+    setState(() {
+      _dropLines(_split);
+      _split = before?.lines == null
+          ? null
+          : [
+              for (final (c, a, id) in before!.lines!)
+                _newLine(category: c, amount: a, accountId: id),
+            ];
+      if (_split == null) _category.text = before?.category ?? '';
+      _splitOpen = false;
+    });
+    _problem(null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _categoryFocus.requestFocus();
+    });
+  }
+
+  /// Done: the card closes on its lines. Empty lines go; with none left the
+  /// row has one category again, and one line that takes the whole amount
+  /// becomes the row's category. With Amount empty, it takes the lines' sum.
+  void _doneSplit({bool focus = true}) {
+    final lines = _split ?? const <_SplitLine>[];
+    final kept = lines
+        .where(
+          (l) =>
+              l.category.text.trim().isNotEmpty ||
+              l.amount.text.trim().isNotEmpty,
+        )
+        .toList();
+    setState(() {
+      _dropLines(lines.where((l) => !kept.contains(l)));
+      _split = kept;
+      _totalFromLines();
+      final one = kept.length == 1 ? kept.single : null;
+      if (kept.isEmpty) {
+        _split = null;
+        _category.text = _splitBefore?.category ?? '';
+      } else if (one != null &&
+          _lineCategory(one) != null &&
+          (one.amount.text.trim().isEmpty || _lineValue(one) == _splitTotal)) {
+        _category.text = _lineCategory(one)!.name;
+        _dropLines(kept);
+        _split = null;
+      }
+      _splitOpen = false;
+    });
+    if (!focus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final locked = _initial?.lockAmount ?? false;
+      (locked ? _categoryFocus : _amountFocus).requestFocus();
+    });
+  }
+
+  /// With Amount empty, the lines' sum goes in it, as a typed amount: money
+  /// out unless the row says in.
+  void _totalFromLines() {
+    final sum = _splitSum;
+    if (_splitTotal != null || sum == 0 || (_initial?.lockAmount ?? false)) {
+      return;
+    }
+    final inflow = _amount.text.trim().startsWith('+') || _splitIsIncome;
+    _amount.text = editableAmount(inflow ? sum : -sum, _hereCurrency);
+  }
+
+  /// Enter in a line's amount: on to the next line still missing its
+  /// category or amount; a new line while some of the total is left to
+  /// place; otherwise Done.
+  void _lineEntered(_SplitLine l) {
+    final lines = _split!;
+    final after = [
+      ...lines.skip(lines.indexOf(l) + 1),
+      ...lines.take(lines.indexOf(l)),
+    ];
+    final next = after
+        .where(
+          (o) => o.category.text.trim().isEmpty || o.amount.text.trim().isEmpty,
+        )
+        .firstOrNull;
+    final total = _splitTotal;
+    if (next != null) {
+      (next.category.text.trim().isEmpty
+              ? next.categoryFocus
+              : next.amountFocus)
+          .requestFocus();
+    } else if (total != null && total - _splitSum > 0) {
+      _addLine();
+    } else {
+      _doneSplit();
+    }
+  }
+
+  void _addLine() {
+    final l = _newLine();
+    setState(() => _split = [..._split!, l]);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) l.categoryFocus.requestFocus();
+    });
+  }
+
+  void _removeLine(_SplitLine l) {
+    setState(() {
+      _split = [..._split!]..remove(l);
+      _dropLines([l]);
+    });
+  }
+
+  /// The lines as saved, or why they can't be and where to fix it. A line
+  /// with a category and no amount counts as nothing; Add waits until the
+  /// lines add up to the total (owner, 2026-10-17).
+  ({
+    List<({AccountInfo category, int amount})>? parts,
+    (String, FocusNode)? error,
+  })
+  _checkSplit(bool inflow, int? typedTotal) {
+    final t = context.t;
+    String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
+    final parts = <({AccountInfo category, int amount})>[];
+    var sum = 0;
+    for (final l in _split!) {
+      final name = l.category.text.trim();
+      final typed = l.amount.text.trim();
+      final v = _lineValue(l);
+      if (name.isEmpty && typed.isEmpty) continue;
+      if (typed.isNotEmpty && v == null) {
+        return (parts: null, error: (t.rowsErrorAmount(typed), l.amountFocus));
+      }
+      if (name.isEmpty) {
+        return (
+          parts: null,
+          error: (t.rowsErrorSplitNoCategory(money(v!)), l.categoryFocus),
+        );
+      }
+      final category = _lineCategory(l);
+      if (category == null) {
+        return (
+          parts: null,
+          error: (t.rowsErrorSplitUnknown(name), l.categoryFocus),
+        );
+      }
+      if (v == null || v == 0) continue;
+      sum += v;
+      parts.add((category: category, amount: inflow ? v : -v));
+    }
+    final total = typedTotal ?? _splitTotal ?? sum;
+    final last = _split!.last;
+    if (total - sum > 0) {
+      final empty = _split!
+          .where((l) => l.amount.text.trim().isEmpty)
+          .firstOrNull;
+      return (
+        parts: null,
+        error: (
+          t.rowsErrorSplitLeft(money(total - sum)),
+          (empty ?? last).amountFocus,
+        ),
+      );
+    }
+    if (total - sum < 0) {
+      return (
+        parts: null,
+        error: (t.rowsErrorSplitTooMuch(money(sum - total)), last.amountFocus),
+      );
+    }
+    if (parts.isEmpty) {
+      return (
+        parts: null,
+        error: (t.rowsErrorSplitLeft(money(total)), last.amountFocus),
+      );
+    }
+    return (parts: parts, error: null);
+  }
+
+  /// How many categories: while the card is open, its lines; once Done,
+  /// the categories they name, one named twice counted once.
+  int get _splitCount {
+    if (_splitOpen) return _split!.length;
+    final names = {
+      for (final l in _split!)
+        if (l.category.text.trim().isNotEmpty)
+          l.category.text.trim().toLowerCase(),
+    };
+    return names.isEmpty ? _split!.length : names.length;
+  }
+
+  /// What Category shows for a split: how many categories, a click opening
+  /// the card.
+  Widget _splitButton(Words t) => Tooltip(
+    message: _split!
+        .map((l) => l.category.text)
+        .where((n) => n.isNotEmpty)
+        .join(' · '),
+    child: InkWell(
+      key: const ValueKey('split-categories'),
+      focusNode: _categoryFocus,
+      borderRadius: BorderRadius.circular(7),
+      onTap: _splitOpen ? null : _openSplit,
+      child: Container(
+        height: 34,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Mid.card,
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: _splitOpen ? Mid.blue : Mid.rule),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                t.startSplitCategories(_splitCount),
+                style: onest(13.5, color: Mid.ink2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.call_split_rounded, size: 14, color: Mid.ink3),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// The card under the row (owner's pick, 2026-10-17, option C): the
+  /// receipt's total at the top with what's left to place, a category and
+  /// an amount on each line, Cancel and Done.
+  Widget _splitCard(Words t, double width) {
+    final total = _splitTotal;
+    final sum = _splitSum;
+    String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
+    final payee = _payee.text.trim();
+    final title = total == null
+        ? payee
+        : payee.isEmpty
+        ? money(total)
+        : t.rowsSplitTitle(payee, money(total));
+    final left = total == null ? null : total - sum;
+    final note = switch (left) {
+      null when sum != 0 => t.rowsSplitInAll(money(sum)),
+      null || 0 => null,
+      > 0 => t.rowsSplitLeft(money(left)),
+      _ => t.rowsSplitTooMuch(money(left)),
+    };
+    final lines = _split!;
+    Widget label(String text, {TextAlign align = TextAlign.left}) => Padding(
+      padding: const EdgeInsets.only(left: 2, right: 2, bottom: 4),
+      child: Text(
+        text,
+        textAlign: align,
+        style: onest(12, color: Mid.ink3),
+      ),
+    );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): _cancelSplit,
+      },
+      child: Container(
+        key: const ValueKey('split-card'),
+        width: width,
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        decoration: BoxDecoration(
+          color: Mid.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Mid.rule),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: Mid.isLight ? 0.10 : 0.35),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: onest(15, weight: 600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (note != null)
+                  Text(
+                    note,
+                    key: const ValueKey('split-left'),
+                    style: onest(12.5, color: Mid.ink2, tabular: true),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: label(t.rowsColumnCategory)),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 150,
+                  child: label(t.rowsColumnAmount, align: TextAlign.right),
+                ),
+                const SizedBox(width: 34),
+              ],
+            ),
+            for (final l in lines)
+              Padding(
+                key: ObjectKey(l),
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _Autocomplete<AccountInfo>(
+                        controller: l.category,
+                        focusNode: l.categoryFocus,
+                        hint: t.rowsHintCategory,
+                        options: _lineOptions,
+                        label: (c) => c.name,
+                        onSelected: (c) {
+                          l.accountId = c.id;
+                          l.amountFocus.requestFocus();
+                        },
+                        onSubmit: l.amountFocus.requestFocus,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 150,
+                      child: _Field(
+                        controller: l.amount,
+                        focusNode: l.amountFocus,
+                        hint: zeroHint(_hereCurrency),
+                        tabular: true,
+                        align: TextAlign.right,
+                        onSubmitted: (_) => _lineEntered(l),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      // Offered while there's more than one line to keep.
+                      child: lines.length < 2
+                          ? null
+                          : Tooltip(
+                              message: t.rowsSplitRemove,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(6),
+                                canRequestFocus: false,
+                                onTap: () => _removeLine(l),
+                                child: Semantics(
+                                  button: true,
+                                  label: t.rowsSplitRemove,
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 14,
+                                    color: Mid.ink3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                TextButton(
+                  key: const ValueKey('split-another'),
+                  onPressed: _addLine,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Mid.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 30),
+                    textStyle: onest(12.5, weight: 500),
+                  ),
+                  child: Text(t.rowsSplitAnother),
+                ),
+                const Spacer(),
+                _AddButton(
+                  key: const ValueKey('split-cancel'),
+                  label: t.rowsCancelEdit,
+                  keyName: 'Esc',
+                  quiet: true,
+                  ready: false,
+                  onTap: _cancelSplit,
+                ),
+                const SizedBox(width: 6),
+                _AddButton(
+                  key: const ValueKey('split-done'),
+                  label: t.rowsSplitDone,
+                  ready: true,
+                  onTap: _doneSplit,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Enter in any field, or the Add/Save button, lands here.
   Future<void> _submit() async {
     if (_busy) return;
-    if (_category.text.trim().isEmpty) await _prefillCategory();
+    // Add with the card open: its lines as they stand, an empty Amount
+    // taking their sum as Done would.
+    if (_splitOpen) _totalFromLines();
+    if (_category.text.trim().isEmpty && _split == null) {
+      await _prefillCategory();
+    }
     if (!mounted) return;
     final t = context.t;
 
@@ -760,7 +1398,10 @@ class _EntryRowState extends State<EntryRow> {
               .firstOrNull;
     final raw = _amount.text.trim();
     final isInflow =
-        raw.startsWith('+') || counter?.account.type == AccountType.income;
+        raw.startsWith('+') ||
+        (_split == null
+            ? counter?.account.type == AccountType.income
+            : _splitIsIncome);
     final parsed = lockAmount
         ? null
         : parseAmount(
@@ -776,12 +1417,18 @@ class _EntryRowState extends State<EntryRow> {
         _category.text.trim().toLowerCase() ==
             '→ ${widget.controller.account?.name}'.toLowerCase()) {
       (error, fix) = (t.rowsErrorSameAccount, _categoryFocus);
-    } else if (!lockCategory && counter == null && _newCategory == null) {
+    } else if (_split == null &&
+        !lockCategory &&
+        counter == null &&
+        _newCategory == null) {
       (error, fix) = (
         t.rowsErrorNoAccount(_category.text.trim()),
         _categoryFocus,
       );
-    } else if (!lockCategory && counter == null && _newCategoryDoubt != null) {
+    } else if (_split == null &&
+        !lockCategory &&
+        counter == null &&
+        _newCategoryDoubt != null) {
       (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount && (parsed == null || parsed == 0)) {
       (error, fix) = (t.rowsErrorAmount(raw), _amountFocus);
@@ -800,22 +1447,63 @@ class _EntryRowState extends State<EntryRow> {
       return;
     }
 
+    // A split's lines, checked; one line left that takes the whole amount
+    // is saved as an ordinary row in that category.
+    var splitCounter = _split == null ? counter?.account : null;
+    final wasSplit = _initial?.row.kind == RowKind.split;
+    List<({AccountInfo category, int amount})>? splits;
+    // A split opened and saved with its lines and total as they were (a
+    // new memo): its entries stay as they are, a deleted category too.
+    final splitUntouched =
+        _editing &&
+        _split != null &&
+        _splitSig == _splitStart &&
+        _amount.text == _start[_amount];
+    if (_split != null && !splitUntouched) {
+      final checked = _checkSplit(isInflow, parsed?.abs());
+      if (checked.error case (final message, final node)) {
+        if (!_splitOpen) _openSplit();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) node.requestFocus();
+        });
+        _problem(message);
+        return;
+      }
+      final parts = checked.parts!;
+      setState(() => _splitOpen = false);
+      if (parts.length == 1 && !wasSplit) {
+        splitCounter = parts.single.category;
+      } else {
+        splits = parts;
+      }
+    } else if (wasSplit &&
+        _split == null &&
+        splitCounter != null &&
+        splitCounter.isCategory) {
+      // A split brought down to one category: its lines become one, as a
+      // split's do, rather than the two-entry path.
+      final total = parsed?.abs() ?? _initial!.amount.abs();
+      splits = [(category: splitCounter, amount: isInflow ? total : -total)];
+      splitCounter = null;
+    }
+
     setState(() => _busy = true);
     final result = await widget.controller.onSubmit(
       EntryDraft(
         date: date!,
         payee: _payee.text.trim(),
-        counter: counter?.account,
-        amount: parsed == null
+        counter: splitCounter,
+        splits: splits,
+        amount: parsed == null || splitUntouched
             ? null
             : (isInflow ? parsed.abs() : -parsed.abs()),
         memo: _memo.text,
         keepOwed: _shortBy != null && _keepOwedFor(_shortBy!),
-        newCategory: counter == null ? _newCategory : null,
+        newCategory: splitCounter == null ? _newCategory : null,
         payId: _payPicked,
         account: _picking ? widget.controller.account : null,
         otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
-        remember: _remember && _canRemember,
+        remember: _remember && _canRemember && splits == null,
       ),
     );
     if (!mounted) return;
@@ -851,6 +1539,7 @@ class _EntryRowState extends State<EntryRow> {
       if (_hasContent || _active) ...[
         SizedBox(width: _editing ? 4 : 10),
         _AddButton(
+          key: const ValueKey('entry-submit'),
           label: _initial?.confirming ?? false
               ? context.t.rowsConfirm
               : (_editing ? context.t.rowsSave : context.t.rowsAdd),
@@ -1063,6 +1752,11 @@ class _EntryRowState extends State<EntryRow> {
                                           reconciledTip,
                                         ),
                                       )
+                                    : _split != null
+                                    ? FocusTraversalOrder(
+                                        order: const NumericFocusOrder(3),
+                                        child: _splitButton(t),
+                                      )
                                     : FocusTraversalOrder(
                                         order: const NumericFocusOrder(3),
                                         child:
@@ -1086,13 +1780,22 @@ class _EntryRowState extends State<EntryRow> {
                                                 ),
                                                 if (_newCategory case final n?)
                                                   _createOption(n),
+                                                // Whatever's typed: it starts
+                                                // from the category named.
+                                                if (!_isTransfer) _splitOption,
                                               ],
                                               label: (o) =>
                                                   o.account.id == _createId
                                                   ? o.account.name
                                                   : o.label,
                                               optionText: (o) => o.label,
+                                              pinned: (o) =>
+                                                  o.account.id == _splitId,
                                               onSelected: (o) {
+                                                if (o.account.id == _splitId) {
+                                                  _openSplit();
+                                                  return;
+                                                }
                                                 // Picked on purpose: no doubt left.
                                                 if (o.account.id == _createId) {
                                                   _chosenNew = o.account.name;
@@ -1121,9 +1824,7 @@ class _EntryRowState extends State<EntryRow> {
                                                   initial.amount.abs(),
                                                   currency: _hereCurrency,
                                                 ),
-                                          tip: initial.locked
-                                              ? reconciledTip
-                                              : t.rowsSplitTotalFollows,
+                                          tip: reconciledTip,
                                         ),
                                       )
                                     : FocusTraversalOrder(
@@ -1183,6 +1884,23 @@ class _EntryRowState extends State<EntryRow> {
                                     2 * Cols.gap,
                                 height: 30,
                                 child: _submitLine(preview, showsMath),
+                              ),
+                            ),
+                          if (_splitOpen && _split != null)
+                            FocusTraversalOrder(
+                              // Under Category, before Amount.
+                              order: const NumericFocusOrder(3.5),
+                              child: FocusTraversalGroup(
+                                child: _splitCard(
+                                  t,
+                                  Cols.category +
+                                      Cols.amount +
+                                      Cols.balance +
+                                      2 * Cols.gap +
+                                      (SourceColumn.showing(context)
+                                          ? Cols.source + Cols.gap
+                                          : 0),
+                                ),
                               ),
                             ),
                           if (shortBy != null)
@@ -1885,10 +2603,15 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     required this.onSubmit,
     this.wanted = false,
     this.optionText,
+    this.pinned,
   });
 
   /// How an option reads in the list, when not as it fills the field.
   final String Function(T)? optionText;
+
+  /// Options kept under the list, below a line, rather than scrolled to
+  /// ("Split over categories…"). They come last in [options].
+  final bool Function(T)? pinned;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -1932,7 +2655,26 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     ),
     optionsViewBuilder: (context, onPick, opts) {
       final highlighted = AutocompleteHighlightedOption.of(context);
-      final list = opts.toList();
+      final all = opts.toList();
+      final list = [
+        for (final o in all)
+          if (!(pinned?.call(o) ?? false)) o,
+      ];
+      final below = [
+        for (final o in all)
+          if (pinned?.call(o) ?? false) o,
+      ];
+      Widget item(T o, int i) => InkWell(
+        onTap: () => onPick(o),
+        child: Container(
+          color: i == highlighted ? Mid.blueWash : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            (optionText ?? label)(o),
+            style: onest(13, color: i == highlighted ? Mid.ink : Mid.ink2),
+          ),
+        ),
+      );
       return Align(
         alignment: Alignment.topLeft,
         child: Padding(
@@ -1948,27 +2690,33 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                 maxWidth: 320,
                 minWidth: 220,
               ),
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shrinkWrap: true,
-                itemCount: list.length,
-                itemBuilder: (context, i) => InkWell(
-                  onTap: () => onPick(list[i]),
-                  child: Container(
-                    color: i == highlighted ? Mid.blueWash : Colors.transparent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      (optionText ?? label)(list[i]),
-                      style: onest(
-                        13,
-                        color: i == highlighted ? Mid.ink : Mid.ink2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (list.isNotEmpty)
+                    Flexible(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        shrinkWrap: true,
+                        itemCount: list.length,
+                        itemBuilder: (context, i) => item(list[i], i),
                       ),
                     ),
-                  ),
-                ),
+                  if (below.isNotEmpty) ...[
+                    if (list.isNotEmpty) Divider(height: 1, color: Mid.rule),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final (j, o) in below.indexed)
+                            item(o, list.length + j),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -2173,4 +2921,27 @@ class _AccountPicker extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// One line of the split card: a category and its share of the total.
+class _SplitLine {
+  _SplitLine({String category = '', String amount = ''})
+    : category = TextEditingController(text: category),
+      amount = TextEditingController(text: amount);
+
+  final TextEditingController category;
+  final TextEditingController amount;
+
+  /// The category picked from the list, or the one the line was opened
+  /// with; kept while the line's name still says it.
+  int? accountId;
+  final categoryFocus = FocusNode(debugLabel: 'split-category');
+  final amountFocus = FocusNode(debugLabel: 'split-amount');
+
+  void dispose() {
+    category.dispose();
+    amount.dispose();
+    categoryFocus.dispose();
+    amountFocus.dispose();
+  }
 }

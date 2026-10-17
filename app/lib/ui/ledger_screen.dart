@@ -1135,7 +1135,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
         final here = d.account?.id ?? _accountId!;
         final other = d.otherAmount;
         final amount = d.amount!;
-        id = other != null && d.counter != null
+        final splits = d.splits;
+        id = splits != null
+            // One receipt over several categories.
+            ? await db.postSplit(
+                accountId: here,
+                date: d.date,
+                today: today,
+                payee: d.payee,
+                splits: [
+                  for (final p in splits)
+                    (categoryId: p.category.id, amount: p.amount),
+                ],
+                memo: (d.memo?.trim().isEmpty ?? true) ? null : d.memo!.trim(),
+              )
+            : other != null && d.counter != null
             // Between currencies: both sides, from the side money leaves.
             ? await db.postExchange(
                 fromAccountId: amount < 0 ? here : d.counter!.id,
@@ -1199,7 +1213,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           _search.text.trim().isNotEmpty ||
           (_all &&
               _categoryFilter != null &&
-              (made ?? d.counter?.id) != _categoryFilter);
+              (made ?? d.counter?.id) != _categoryFilter &&
+              !(d.splits?.any((p) => p.category.id == _categoryFilter) ??
+                  false));
       final added = d.account == null
           ? t.ledgerAdded(d.payee)
           : t.ledgerAddedTo(d.payee, d.account!.name);
@@ -1932,6 +1948,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
           counterAmount: d.otherAmount,
           confirm: confirming,
           keepOwed: d.keepOwed,
+          splits: d.splits == null
+              ? null
+              : [
+                  for (final p in d.splits!)
+                    (categoryId: p.category.id, amount: p.amount),
+                ],
         );
         // The box under the row: the category remembered for the payee.
         final category = made ?? d.counter?.id;

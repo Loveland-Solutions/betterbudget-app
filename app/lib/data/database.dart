@@ -5,7 +5,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
-import '../domain/budget.dart' show Budget;
+import '../domain/budget.dart' show Budget, uncategorizedNames;
 import '../domain/combine.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -372,7 +372,8 @@ enum DbProblem {
   notSingleCategory('Not a single-category transaction'),
   notInAccount('Not in this account'),
   notAnAccount('Not an account'),
-  splitNotEditable('Split lines can’t be edited yet'),
+  splitNotEditable('Change a split’s categories in its own card'),
+  splitDoesntAddUp('The split’s lines don’t add up to its amount'),
   payIsIn('Pay is money in'),
   notCategory('Not a category'),
   sameCategory('Same category'),
@@ -454,6 +455,10 @@ class ReconcileRecord {
 
   DateTime get date => parseDateKey(statements.first.date);
 }
+
+/// One line of a split: a category and its share, signed as the account
+/// the transaction is in sees it.
+typedef SplitPart = ({int categoryId, int amount});
 
 /// Everything needed to put a transaction back exactly as it was (undo).
 class TxnSnapshot {
@@ -2189,6 +2194,77 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// A transaction from [accountId] shared over categories (a receipt for
+  /// groceries and clothing): each of [splits] in [accountId]'s sign, the
+  /// whole of them adding up to what left or came into it.
+  Future<int> postSplit({
+    required int accountId,
+    required DateTime date,
+    required DateTime today,
+    required String payee,
+    required List<SplitPart> splits,
+    String? memo,
+  }) {
+    return transaction(() async {
+      await _assertLive(accountId);
+      final total = splits.fold(0, (s, p) => s + p.amount);
+      final parts = await _splitEntries(splits, total, accountId);
+      return postTransaction(
+        date: date,
+        payee: payee,
+        memo: memo,
+        scheduled: dateOnly(date).isAfter(dateOnly(today)),
+        lines: [
+          (accountId: accountId, amount: total, cleared: Cleared.uncleared),
+          for (final p in parts)
+            (
+              accountId: p.categoryId,
+              amount: -p.amount,
+              cleared: Cleared.uncleared,
+            ),
+        ],
+      );
+    });
+  }
+
+  /// [splits] checked and ready to write: live categories only, in the
+  /// currency of [accountId] (Income and Not categorized take any), one line
+  /// per category (two lines for one category become one), none at zero,
+  /// adding up to [total].
+  Future<List<SplitPart>> _splitEntries(
+    List<SplitPart> splits,
+    int total,
+    int accountId,
+  ) async {
+    final all = {for (final a in await select(accounts).get()) a.id: a};
+    final here = all[accountId]?.currency;
+    final byCategory = <int, int>{};
+    for (final p in splits) {
+      await _assertLive(p.categoryId);
+      final c = all[p.categoryId];
+      if (c == null || !_isCategoryType(c.type)) {
+        throw NotFoundException(DbProblem.notCategory);
+      }
+      final anyCurrency =
+          c.type == AccountType.income || uncategorizedNames.contains(c.name);
+      if (!anyCurrency && c.currency != here) {
+        throw LockedException(DbProblem.otherCurrency);
+      }
+      byCategory[p.categoryId] = (byCategory[p.categoryId] ?? 0) + p.amount;
+    }
+    final parts = [
+      for (final MapEntry(:key, :value) in byCategory.entries)
+        if (value != 0) (categoryId: key, amount: value),
+    ];
+    if (parts.isEmpty || parts.fold(0, (s, p) => s + p.amount) != total) {
+      throw LockedException(DbProblem.splitDoesntAddUp);
+    }
+    return parts;
+  }
+
+  static bool _isCategoryType(AccountType? t) =>
+      t == AccountType.expense || t == AccountType.income;
+
   /// Moves the category side of a two-entry transaction to [categoryId].
   Future<void> setCategory({
     required int transactionId,
@@ -2363,17 +2439,20 @@ class AppDatabase extends _$AppDatabase {
     if ((await _reconciledAmong([s.header.id])).isNotEmpty) {
       final now = await snapshot(s.header.id);
       final types = await _accountTypes();
+      // Categories may change, a split's lines with them (how many, and
+      // how the total is shared); every other entry stays as it is.
       bool same(List<EntryRow> a, List<EntryRow> b) {
-        final byId = {for (final e in b) e.id: e};
-        return a.length == b.length &&
-            a.every((e) {
-              final o = byId[e.id];
-              if (o == null || o.amountMinor != e.amountMinor) return false;
-              // A category may change; a balance-sheet account may not.
-              final sheet =
-                  _reconcilable.contains(types[e.accountId]) ||
-                  _reconcilable.contains(types[o.accountId]);
-              return !sheet || o.accountId == e.accountId;
+        final fixedA = a.where((e) => !_isCategoryType(types[e.accountId]));
+        final fixedB = {
+          for (final e in b)
+            if (!_isCategoryType(types[e.accountId])) e.id: e,
+        };
+        return fixedA.length == fixedB.length &&
+            fixedA.every((e) {
+              final o = fixedB[e.id];
+              return o != null &&
+                  o.amountMinor == e.amountMinor &&
+                  o.accountId == e.accountId;
             });
       }
 
@@ -2555,6 +2634,7 @@ class AppDatabase extends _$AppDatabase {
     int? counterAmount,
     bool confirm = false,
     bool keepOwed = false,
+    List<SplitPart>? splits,
   }) {
     return transaction(() async {
       if (confirm && dateOnly(date).isAfter(dateOnly(today))) {
@@ -2618,7 +2698,54 @@ class AppDatabase extends _$AppDatabase {
       if (counterAccountId == accountId) {
         throw LockedException(DbProblem.ownAccount);
       }
-      if (amount != null || counterAccountId != null || counterAmount != null) {
+      if (splits != null) {
+        // A transfer or opening balance isn't shared over categories.
+        final types = await _accountTypes();
+        if (isExchange ||
+            rows.any(
+              (e) => e.id != mine.id && !_isCategoryType(types[e.accountId]),
+            )) {
+          throw NotFoundException(DbProblem.notCategory);
+        }
+        final total = amount ?? mine.amountMinor;
+        final parts = await _splitEntries(splits, total, accountId);
+        await (update(entries)..where((e) => e.id.equals(mine.id))).write(
+          EntriesCompanion(amountMinor: Value(total)),
+        );
+        // The lines keep their rows where they can, so the other computers
+        // see a line changed rather than one gone and one new.
+        final others = rows.where((e) => e.id != mine.id).toList();
+        for (final (i, p) in parts.indexed) {
+          if (i < others.length) {
+            await (update(
+              entries,
+            )..where((e) => e.id.equals(others[i].id))).write(
+              EntriesCompanion(
+                accountId: Value(p.categoryId),
+                amountMinor: Value(-p.amount),
+              ),
+            );
+          } else {
+            await into(entries).insert(
+              EntriesCompanion.insert(
+                transactionId: transactionId,
+                accountId: p.categoryId,
+                amountMinor: -p.amount,
+                cleared: others.firstOrNull?.cleared ?? Cleared.uncleared,
+                currency: Value(mine.currency),
+              ),
+            );
+          }
+        }
+        if (others.length > parts.length) {
+          await (delete(entries)..where(
+                (e) => e.id.isIn(others.skip(parts.length).map((o) => o.id)),
+              ))
+              .go();
+        }
+      } else if (amount != null ||
+          counterAccountId != null ||
+          counterAmount != null) {
         if (await _editAcrossCurrencies(
           transactionId: transactionId,
           rows: rows,

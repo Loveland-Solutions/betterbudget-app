@@ -1328,7 +1328,7 @@
   "@ledgerDbNotAnAccount": {
     "description": "Toast after \"Can’t move · \": the target isn’t an account."
   },
-  "ledgerDbSplitNotEditable": "Split lines can’t be edited yet",
+  "ledgerDbSplitNotEditable": "Change a split’s categories in its own card",
   "@ledgerDbSplitNotEditable": {
     "description": "Under the row editor: a split transaction’s amount or category."
   },
@@ -3179,13 +3179,104 @@
   "@rowsCancelEdit": {
     "description": "Entry row, button beside Save while editing a transaction: closes the row without saving"
   },
+  "rowsSplitOption": "Split over categories…",
+  "@rowsSplitOption": {
+    "description": "Last entry in an entry row’s Category list: opens the card that shares the amount over several categories (one receipt for groceries and clothing)."
+  },
+  "rowsSplitTitle": "{payee}, {amount}",
+  "@rowsSplitTitle": {
+    "description": "Heading of the split card under an entry row: the payee and the receipt’s total, e.g. 'Nomin, ₮135,500.00'.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitLeft": "{amount} left",
+  "@rowsSplitLeft": {
+    "description": "Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitTooMuch": "{amount} too much",
+  "@rowsSplitTooMuch": {
+    "description": "Split card, top right: the lines add up to more than the total, e.g. '₮2,000.00 too much'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitInAll": "{amount} in all",
+  "@rowsSplitInAll": {
+    "description": "Split card, top right, when no total was typed in Amount: what the lines add up to. Done puts it in Amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitAnother": "+ Another category",
+  "@rowsSplitAnother": {
+    "description": "Split card: adds a line for one more category."
+  },
+  "rowsSplitRemove": "Take this category off",
+  "@rowsSplitRemove": {
+    "description": "Split card: tooltip on the ✕ beside a line."
+  },
+  "rowsSplitDone": "Done",
+  "@rowsSplitDone": {
+    "description": "Split card: closes it and keeps its lines; the row is then saved with Add or Save as usual."
+  },
+  "rowsErrorSplitLeft": "Place the last {amount}",
+  "@rowsErrorSplitLeft": {
+    "description": "Popup at the bottom when a split row can’t be saved: part of the total has no category yet, e.g. 'Place the last ₮37,500.00'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsErrorSplitTooMuch": "The lines are {amount} more than the total",
+  "@rowsErrorSplitTooMuch": {
+    "description": "Popup at the bottom when a split row can’t be saved: its lines add up to more than its amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsErrorSplitNoCategory": "Pick a category for {amount}",
+  "@rowsErrorSplitNoCategory": {
+    "description": "Popup at the bottom when a split row can’t be saved: a line has an amount but no category.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsErrorSplitUnknown": "There’s no category “{name}”",
+  "@rowsErrorSplitUnknown": {
+    "description": "Popup at the bottom when a split row can’t be saved: a line names a category that doesn’t exist. New categories are made from the row’s own Category field or the Budget page.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
+  "@ledgerDbSplitDoesntAddUp": {
+    "description": "Under the row editor: a split’s lines and its total differ."
+  },
   "rowsReconciledTip": "Reconciled · this matches a bank statement, so it can’t change",
   "@rowsReconciledTip": {
     "description": "Tooltip on a locked date, amount or transfer account while editing a reconciled transaction"
-  },
-  "rowsSplitLinesNotBuilt": "Editing split lines isn’t built yet",
-  "@rowsSplitLinesNotBuilt": {
-    "description": "Tooltip on the locked category while editing a split transaction"
   },
   "rowsOpeningBalanceTip": "An opening balance belongs to its account",
   "@rowsOpeningBalanceTip": {
@@ -3202,10 +3293,6 @@
   "rowsOtherAccountArchived": "The other account is archived",
   "@rowsOtherAccountArchived": {
     "description": "Tooltip on the locked category while editing a transfer whose other account is archived."
-  },
-  "rowsSplitTotalFollows": "A split’s total follows its lines",
-  "@rowsSplitTotalFollows": {
-    "description": "Tooltip on the locked amount while editing a split transaction"
   },
   "rowsHintPayee": "Payee",
   "@rowsHintPayee": {
@@ -4460,7 +4547,7 @@
   "@startTransfer": {
     "description": "Register row, category column of a transfer between two accounts."
   },
-  "startSplitCategories": "{count} categories",
+  "startSplitCategories": "{count, plural, =1{1 category} other{{count} categories}}",
   "@startSplitCategories": {
     "description": "Register row, category column of a split transaction, e.g. '3 categories'.",
     "placeholders": {
@@ -7200,7 +7287,11 @@
   "phoneTransferTo": "→ {account}",
   "@phoneTransferTo": {
     "description": "Phone: an account as the destination of a transfer, in the Category list and in the Category row once picked, as the computer writes it: '→ Cash wallet'.",
-    "placeholders": {"account": {"type": "String"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
   },
   "phoneFrom": "From",
   "@phoneFrom": {
@@ -7209,32 +7300,77 @@
   "phoneTransferAfter": "{account} · {amount} after this",
   "@phoneTransferAfter": {
     "description": "Phone, Ledger, line under the amount of a transfer: what the account the money leaves will hold once it has gone, e.g. 'TDB Checking · ₮3,812,450.00 after this'.",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "phoneTransferOwedAfter": "{account} · {amount} owed after this",
   "@phoneTransferOwedAfter": {
     "description": "As phoneTransferAfter, when the money leaves a credit card or loan: what will be owed on it.",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "phoneSavedTransfer": "Saved · {from} → {to} {amount}",
   "@phoneSavedTransfer": {
     "description": "Phone toast after a transfer is saved, e.g. 'Saved · TDB Checking → Cash wallet ₮100,000.00'.",
-    "placeholders": {"from": {"type": "String"}, "to": {"type": "String"}, "amount": {"type": "String"}}
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "phoneTransferNow": "{account} · {amount} now",
   "@phoneTransferNow": {
     "description": "Phone toast, second line after a transfer: what the account the money went to holds now, e.g. 'Cash wallet · ₮186,500.00 now'.",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "phoneTransferOwedNow": "{account} · {amount} owed now",
   "@phoneTransferOwedNow": {
     "description": "As phoneTransferNow, when the money went to a credit card or loan: what is still owed on it.",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "phoneTransferTitle": "{from} → {to}",
   "@phoneTransferTitle": {
     "description": "Phone, waiting list: the name of a transfer, the two accounts, e.g. 'TDB Checking → Cash wallet'.",
-    "placeholders": {"from": {"type": "String"}, "to": {"type": "String"}}
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
   },
   "phoneInCredit": "{amount} in credit",
   "@phoneInCredit": {
@@ -7626,12 +7762,20 @@
   "ledgerRestoreKeepOnFolder": "Share the ledger in {folder}",
   "@ledgerRestoreKeepOnFolder": {
     "description": "A ticked checkbox in the “Restore this backup?” dialog, shown when the file picked is the ledger another computer keeps in a synced folder. Ticked, this computer shares that ledger from now on. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRestoreKeepOnFolderNote": "What you change here goes to {folder}, and what is changed on another computer comes here.",
   "@ledgerRestoreKeepOnFolderNote": {
     "description": "Under the checkbox ledgerRestoreKeepOnFolder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerUseThisFolder": "Use This Folder",
   "@ledgerUseThisFolder": {
@@ -7640,17 +7784,29 @@
   "ledgerRestoredOnFolder": "This computer is now on the ledger in {folder}",
   "@ledgerRestoredOnFolder": {
     "description": "Popup, and the undo list’s name, after Restore from… with “Share the ledger in …” ticked.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRestoredNotOnFolder": "Your ledger is here, but this computer isn’t on {folder} · in Settings, use Move my ledger to a folder…",
   "@ledgerRestoredNotOnFolder": {
     "description": "Popup when the restore worked but the folder couldn’t be kept: the ledger is stored on this computer only.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRestoreNotKeptNote": "This computer gets its own copy. What you change here won’t reach {folder}.",
   "@ledgerRestoreNotKeptNote": {
     "description": "Under the checkbox ledgerRestoreKeepOnFolder while it is unticked: says what that means.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRestoreMacAsks": "Your Mac asks for the folder next: press Use This Folder.",
   "@ledgerRestoreMacAsks": {
@@ -7691,12 +7847,20 @@
   "ledgerFolderWrongKey": "Your recovery key doesn’t open the ledger in {folder}",
   "@ledgerFolderWrongKey": {
     "description": "Popup after a folder was picked whose ledger was made under another recovery key.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerFolderNoLedger": "There’s no ledger in {folder} · choose the folder that holds Ledger.betterbudget. If it is still copying to this computer, try again in a minute.",
   "@ledgerFolderNoLedger": {
     "description": "Popup after a folder was picked that holds no Ledger.betterbudget.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "startHowTitle": "How do you want to start?",
   "@startHowTitle": {
@@ -7745,7 +7909,11 @@
   "startKeyWrongFolder": "That key doesn’t open the ledger in {folder}. If the folder is still copying to this computer, try again in a minute.",
   "@startKeyWrongFolder": {
     "description": "Under the key field on the first screen, after a folder was picked whose ledger the typed key doesn’t open. Nothing was stored.",
-    "placeholders": {"folder": {"type": "String"}}
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
   },
   "ledgerSectionPayees": "Payees",
   "@ledgerSectionPayees": {
@@ -8038,7 +8206,6 @@
   "@rowsColumnSource": {
     "description": "Register column header, shown only when the person turns it on in Settings"
   },
-  "@rowsColumnSource": {"description": "Register column header, shown only when the person turns it on in Settings"},
   "sourceTypedOn": "Entered on {computer}",
   "@sourceTypedOn": {
     "description": "Where a transaction came from: typed in the register on a computer, named",
@@ -8048,12 +8215,10 @@
       }
     }
   },
-  "@sourceTypedOn": {"description": "Where a transaction came from: typed in the register on a computer, named", "placeholders": {"computer": {"type": "String"}}},
   "sourceTyped": "Entered",
   "@sourceTyped": {
     "description": "Where a transaction came from: typed, the computer not known"
   },
-  "@sourceTyped": {"description": "Where a transaction came from: typed, the computer not known"},
   "sourceImportedOn": "Imported on {computer}",
   "@sourceImportedOn": {
     "description": "Where a transaction came from: a bank file, imported on a computer, named",
@@ -8063,12 +8228,10 @@
       }
     }
   },
-  "@sourceImportedOn": {"description": "Where a transaction came from: a bank file, imported on a computer, named", "placeholders": {"computer": {"type": "String"}}},
   "sourceImported": "Imported",
   "@sourceImported": {
     "description": "Where a transaction came from: a bank file, the computer not known"
   },
-  "@sourceImported": {"description": "Where a transaction came from: a bank file, the computer not known"},
   "sourcePhone": "From {phone}",
   "@sourcePhone": {
     "description": "Where a transaction came from: saved on a phone, named by the person",
@@ -8078,12 +8241,10 @@
       }
     }
   },
-  "@sourcePhone": {"description": "Where a transaction came from: saved on a phone, named by the person", "placeholders": {"phone": {"type": "String"}}},
   "sourceYourPhone": "From your phone",
   "@sourceYourPhone": {
     "description": "Where a transaction came from: the only phone that has sent one"
   },
-  "@sourceYourPhone": {"description": "Where a transaction came from: the only phone that has sent one"},
   "sourcePhoneId": "From phone {id}",
   "@sourcePhoneId": {
     "description": "Where a transaction came from: one of several phones, not yet named; id is the first four characters of its id",
@@ -8093,27 +8254,22 @@
       }
     }
   },
-  "@sourcePhoneId": {"description": "Where a transaction came from: one of several phones, not yet named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}},
   "sourceScheduled": "Scheduled",
   "@sourceScheduled": {
     "description": "Where a transaction came from: a payday or bill the app scheduled"
   },
-  "@sourceScheduled": {"description": "Where a transaction came from: a payday or bill the app scheduled"},
   "settingsRegisterTitle": "Register",
   "@settingsRegisterTitle": {
     "description": "Settings section title for the register’s own choices"
   },
-  "@settingsRegisterTitle": {"description": "Settings section title for the register’s own choices"},
   "settingsSourceColumn": "Show where each transaction came from",
   "@settingsSourceColumn": {
     "description": "Settings switch: adds the Source column to the register"
   },
-  "@settingsSourceColumn": {"description": "Settings switch: adds the Source column to the register"},
   "settingsPhonesTitle": "Your phones",
   "@settingsPhonesTitle": {
     "description": "Settings: the phones that have saved entries, to name each"
   },
-  "@settingsPhonesTitle": {"description": "Settings: the phones that have saved entries, to name each"},
   "settingsPhoneName": "Name for phone {id}",
   "@settingsPhoneName": {
     "description": "Settings: the label of the box where a phone is named; id is the first four characters of its id",
@@ -8123,42 +8279,34 @@
       }
     }
   },
-  "@settingsPhoneName": {"description": "Settings: the label of the box where a phone is named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}},
   "settingsPhoneNameHint": "For example, Pixel",
   "@settingsPhoneNameHint": {
     "description": "Settings: example in the box where a phone is named"
   },
-  "@settingsPhoneNameHint": {"description": "Settings: example in the box where a phone is named"},
   "sourceTypedHere": "Entered locally",
   "@sourceTypedHere": {
     "description": "Where a transaction came from: typed on this computer"
   },
-  "@sourceTypedHere": {"description": "Where a transaction came from: typed on this computer"},
   "sourceImportedHere": "Imported locally",
   "@sourceImportedHere": {
     "description": "Where a transaction came from: a bank file imported on this computer"
   },
-  "@sourceImportedHere": {"description": "Where a transaction came from: a bank file imported on this computer"},
   "sourceTypedElsewhere": "Entered on another computer",
   "@sourceTypedElsewhere": {
     "description": "Where a transaction came from: typed on a computer that has no name yet"
   },
-  "@sourceTypedElsewhere": {"description": "Where a transaction came from: typed on a computer that has no name yet"},
   "sourceImportedElsewhere": "Imported on another computer",
   "@sourceImportedElsewhere": {
     "description": "Where a transaction came from: imported on a computer that has no name yet"
   },
-  "@sourceImportedElsewhere": {"description": "Where a transaction came from: imported on a computer that has no name yet"},
   "settingsComputersTitle": "Your computers",
   "@settingsComputersTitle": {
     "description": "Settings: the computers that made transactions, to name each"
   },
-  "@settingsComputersTitle": {"description": "Settings: the computers that made transactions, to name each"},
   "settingsComputerThis": "Name for this computer",
   "@settingsComputerThis": {
     "description": "Settings: the label of the box where this computer is named"
   },
-  "@settingsComputerThis": {"description": "Settings: the label of the box where this computer is named"},
   "settingsComputerName": "Name for computer {id}",
   "@settingsComputerName": {
     "description": "Settings: the label of the box where another computer is named; id is the first four characters of its id",
@@ -8167,6 +8315,5 @@
         "type": "String"
       }
     }
-  },
-  "@settingsComputerName": {"description": "Settings: the label of the box where another computer is named; id is the first four characters of its id", "placeholders": {"id": {"type": "String"}}}
+  }
 }
