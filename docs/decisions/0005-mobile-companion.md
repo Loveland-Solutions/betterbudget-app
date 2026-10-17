@@ -670,7 +670,9 @@ knows, the last sequence number it has applied.
    above.
 4. The policy and the blocks: the facts-first rule, the window as "already done,
    change it", the new block kinds (bank row filed two ways, pay or plan), the
-   resolution travelling as a change, the money rules above.
+   resolution travelling as a change, the money rules above. *Built
+   2026-10-17, below; nothing reaches a person as a block any more: each is
+   settled by the rule and told after (ADR 0004).*
 5. Restore as a batch, erase as a new ledger id, the digest guard, compaction of
    old changes, cleanup of `(1)` copies, and a soak on two Mac accounts through
    Drive, then two machines.
@@ -892,7 +894,8 @@ copy of.
   this computer's" writes the new ledger; the other computer then sees
   another ledger id and is asked too. A third computer never gets changes a
   computer took in whole (they are in no change file).
-- **Left for steps 4 and 5:** the facts-first provisional winner (today a
+- **Left for steps 4 and 5** (as written at step 3; step 4 below took the
+  first): the facts-first provisional winner (today a
   crossed change asks on whichever computer reads it first, and the answer
   travels; both asked before either answered is settled by the lower id);
   a `restore` or `erase` as a batch of its own (today the whole-ledger
@@ -900,6 +903,114 @@ copy of.
   waited for (today the "can't be read yet" line); the digest guard at equal
   vectors; `cloud-folder-agreed`, the counters and the seal still written for
   the older look.
+
+**Built, 2026-10-17: step 4, settled the same way on both, told after.** A
+change crossed with another computer's (the row here is neither what the
+other found nor what it made) is no longer held for a question. Every
+computer settles it the same way the moment it reads it, with no clock, and
+the person whose change was replaced is told in the popup for the other
+computer's changes (ADR 0004, "Two computers, step 4: told after, not asked
+before"). No schema change: every row already in a ledger file stays as it
+is.
+
+- **The rule** (`combine(mineFirst:)`, `_settle` and `_settleRow` in
+  `domain/combine.dart`), for a transaction with its entries, an amount
+  assigned for one period, or one row of anything else: first a fact, then
+  the order. *Deleted on one and changed on the other stays*, with the
+  change. *A reconciled row keeps its money* (its date, and its lines in bank,
+  cash and credit accounts as reconciled), with the other's payee, memo and
+  categories where it changed them; *a row matched to the bank* (an
+  `import_key` on one side only) *beats a typed one* the same way (`_merge`).
+  The categories come along only when they still add up to the kept money:
+  one category line in a currency takes the amount, a split that doesn't
+  add up stays as the fact's side has it. Otherwise *the lower computer id's
+  version* (`mineFirst` is `me < them`). "The batch with more knowledge"
+  needs no rule of its own: a change made after seeing the other's version
+  finds that version (`foldChanges`' "saw this"), so it is never a crossed
+  change at all; and where the order kept a computer's own version, it writes
+  that down (below), so its later edits are found that way too. "Later edit
+  wins" is never a rule, and two amounts assigned for one period are never
+  added and never "the larger".
+- **What each kind does.** An amount, date, payee, memo or category changed
+  two ways; a payday confirmed on both for two amounts (one id, one row);
+  a bank row both have, filed two ways; an amount assigned two ways: the
+  rule above, told. A pay (`pay_schedules`) or a plan (`category_plans`)
+  changed on both: the whole row of the one the rule keeps (a pay's days
+  make no sense taken from two answers), told. An account, category or payee
+  renamed on both: **one name on both, by the rule, told to the computer
+  whose name was replaced.** The decision of 2026-10-12 said "keeps this
+  computer's name": that can't converge (each would keep its own and the two
+  ledgers would never agree), so it is settled like everything else and
+  said. A setting changed on both (not one that only changes a view): the
+  rule, told. An account or category deleted on one and used on the other:
+  it stays, on both, and the computer that deleted it is told. Two rows of
+  one bank row or one payday made before step 2 under two ids (the
+  backstops `_sameBankRows`, `_sameScheduled`): one of the two, by the rule.
+- **Written down, both ways** (`_keptOver`). Whatever this computer settled,
+  it writes, as a `resolve` in its own log, every row of the thing as the
+  other had it and as it is now, the rows only it had as gone. Two reasons,
+  both found by the property tests: the other computer, reading it, takes it
+  as an answer instead of settling again from what it had; and this
+  computer's own earlier change of the thing, made before it saw the
+  other's (a delete, say), is passed over instead of arriving on its own
+  afterwards and undoing the settlement (the vector in a change file's
+  header is the writer's now, not as it was at each change).
+- **Told on the computer whose change was replaced.** Settled on this
+  computer, each thing says whether something this computer changed (from
+  what it was) isn't in what both keep now (`Ask.replaced`, `_lost`): its
+  amount, its categories, its date, payee or memo, whether it is deleted, or
+  the amount assigned. Its own filing put beside the other's kept money is
+  not a replacement. Settled on the other computer first, the other's
+  `resolve` that found this computer's own version and made it something else
+  is an *answer over mine* (`foldChanges` gives it back in `answered`, with
+  the base taken from this computer's own change, read from its whole log):
+  the other's version is taken whole, and this computer is told. A `resolve`
+  that only says what was already here, or one whose row the other's own
+  change found as it is here (an ordinary edit), is no answer over anything.
+  The computer whose change stood is told nothing beyond today's popup.
+- **On screen** (ADR 0004): the popup for the other computer's changes, gold,
+  with one whole sentence, or a count for more, stays until it is closed or
+  Show is clicked; Show opens the row window as a thing already done
+  (`_RowsDialog`, `_showSettled` in `ledger_screen.dart`). A button changed
+  there and Done is this person's own act: an ordinary change
+  (`AppDatabase.applyChangesHere`, logged as any edit, `rowOpsBetween` from
+  the rows as they are now to the version picked, `rowsOf`), which the other
+  computer takes in and isn't told about, with undo and redo through `_did`.
+  For a name only the name is set (`Ask.columns`). What was replaced is in
+  Backups (`Backups.keepBefore`, as before every bring-in).
+- **Nothing is held back.** `FolderStanding.rows`, `CloudFolder.asks`, the
+  person's picks kept for a folder ledger (`_decided`, the `decided` entry of
+  `cloud-folder`, no longer read or written) and `bringIn(picks:)` are gone;
+  so are "Not now", "Save my choices", and the red "changed on another
+  computer too" line in Settings with its Choose… for this case.
+  `combine` without `mineFirst` still asks (`Combined.asking`, `Pick`), for
+  its tests; the folder never calls it so. The older look (`_combinable`,
+  until both computers carry a vector) settles the same way, with the folder
+  ledger's writer as the other computer.
+- **Still the whole-ledger question:** a `restore` or `erase` marker, a file
+  from a newer build or another ledger (step 5), and what `combine` can't put
+  together at all: one account reconciled on both, a row added cleared inside
+  a statement the other reconciled (the ADR's "arrives uncleared with a
+  note" is not built), a folder ledger that lacks a transaction both had (a
+  ledger replaced whole), a setting that names a category both made, and a
+  phone's entry taken in on both and changed on one before step 2's ids.
+- Tests: `two_computers_test.dart` "settled the same on both", for each of
+  ten kinds and three orders (the Mac settling first, the laptop first, both
+  looking before either brings the other's in), asserting equal digests,
+  who was told, and what stands; "nothing is held"; a version picked
+  afterwards, for "this computer's" and "neither"; `cloud_folder_test.dart`
+  through the real screen (the sentence, the window, Esc, Done, undo and
+  redo; goldens `two_rows_told.png`, `two_rows.png`).
+
+**Left for step 5:** a `restore` or `erase` as a batch of its own (today the
+whole-ledger question); compaction of old changes and the catch-up take;
+cleanup of `(1)` copies; the red line's words for a file waited for (today the
+"can't be read yet" line); the digest guard at equal vectors;
+`cloud-folder-agreed`, the counters and the seal still written for the older
+look; and a soak on two Mac accounts through Drive, then two machines. Also
+open from step 4: a third computer's version is attributed to the computer
+that holds it (the rule reads "this computer's" and "the other's"), which is
+exact for two computers.
 
 ### What a phone can and can't do
 

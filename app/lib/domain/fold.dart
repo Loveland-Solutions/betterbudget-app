@@ -24,11 +24,24 @@ typedef FoldChange = ({String tbl, Row pk, String op, Row? before, Row? after});
 /// is here now (the other saw this version, perhaps brought in from here,
 /// and chose over it: then this row is the base). Rows neither touched are
 /// the same in all three, so `combine` passes over them.
-({LedgerRows base, LedgerRows theirs}) foldChanges(
+///
+/// One exception (ADR 0005 step 4): the other's change found the row as it
+/// is here by an answer (`resolve`) that settled it over this computer's
+/// own version, which [mineAll], this computer's whole log, says it made.
+/// Then the base is that version's before, so `combine` sees the two
+/// changes, and the row is in [answered] (`table|key`): the other's version
+/// is taken, and the person here is told theirs was replaced.
+({LedgerRows base, LedgerRows theirs, Set<String> answered}) foldChanges(
   LedgerRows mine,
   List<FoldChange> changes, {
   List<FoldChange> mineSince = const [],
+  List<FoldChange> mineAll = const [],
 }) {
+  final own = _byKey([
+    for (final c in mineAll)
+      if (c.op != 'resolve') c,
+  ]);
+  final answered = <String>{};
   final common = _copy(mine);
   for (final e in _byKey(mineSince).entries) {
     final keys = combineKeys[e.key]!;
@@ -47,8 +60,25 @@ typedef FoldChange = ({String tbl, Row pk, String op, Row? before, Row? after});
       final here = mineRows[run.key];
       final seq = run.value;
       final sawThis = seq.any((c) => _same(c.before, here));
+      // Settled over this computer's own version by the other.
+      FoldChange? overMine;
+      if (sawThis &&
+          !_same(seq.last.after, here) &&
+          seq.any((c) => c.op == 'resolve' && _same(c.before, here))) {
+        for (final c in own[table]?[run.key] ?? const <FoldChange>[]) {
+          if (_same(c.after, here)) overMine = c;
+        }
+        // Not when one of the other's own changes found this version: it
+        // was seen, and changed, as any edit is.
+        if (seq.any((c) => c.op != 'resolve' && _same(c.before, here))) {
+          overMine = null;
+        }
+      }
       final Row? wasBefore;
-      if (sawThis) {
+      if (overMine != null) {
+        wasBefore = overMine.before;
+        answered.add('$table|${run.key}');
+      } else if (sawThis) {
         wasBefore = here;
       } else if (_same(seq.first.before, commonRows[run.key])) {
         wasBefore = commonRows[run.key];
@@ -59,7 +89,7 @@ typedef FoldChange = ({String tbl, Row pk, String op, Row? before, Row? after});
       _set(theirs, table, keys, run.key, seq.last.after);
     }
   }
-  return (base: base, theirs: theirs);
+  return (base: base, theirs: theirs, answered: answered);
 }
 
 /// [changes] by table and key, each key's in the order given.

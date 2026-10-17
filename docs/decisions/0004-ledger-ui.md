@@ -3475,6 +3475,52 @@ to keep if they're different. Let's do it."
   same way first. Rejected with it: patching the one shared file (A) and the
   owner's master-plus-lock proposal as written (C).
 
+### Two computers, step 4: told after, not asked before (2026-10-17)
+
+Step 4 of ADR 0005's change files: both computers settle a change made two ways the
+same way at once (a fact first, then the computer that had seen more, then a fixed
+order), so the ledgers agree and nothing waits for an answer. Only the person whose
+change was replaced is told. Three sketches were offered for how (a popup in the
+corner with Show; the popup plus a "Changed on both" tab in the register; the window
+opening by itself, saying it's done). The owner chose **A, the popup** (2026-10-17:
+"let's go with A").
+
+- **The popup is the one for another computer's changes** (gold, in the corner), with
+  a whole sentence per thing replaced: "Nomin on 2026.10.07 was changed on both
+  computers. The laptop's ₮21,000 is kept on both; yours was ₮17,000." More than
+  one: a count and Show. It **stays until closed or Show is clicked** (the first run
+  on two Mac accounts: a popup went away before the owner looked).
+- **Show opens the row window as a thing already done**: titled "Changed on both
+  computers", "Both computers now show the same, so nothing waits on you. Change any
+  you want, and The laptop gets your change too. What was replaced is saved in
+  Backups." Each card keeps its three buttons, with the version in the ledger
+  marked "in the ledger now" and its button on; **Done** closes it, saving any
+  button changed. An answer is an ordinary change the other computer takes in.
+  There's no Undo on the popup (another computer's doing); a button changed in the
+  window is this person's own act, with undo and redo.
+- **Nothing is held back any more**: this computer's changes and the phones'
+  entries go to the folder at once. "Not now", the red "changed on another computer
+  too" line in Settings and its Choose… go.
+- Settled with no card at all (the money rules agreed 2026-10-12): a rename on both
+  keeps this computer's name; deleted on one and changed on the other stays, said
+  with Show and "Delete it anyway"; one payday confirmed on both is one payday.
+- Rejected: B, a register tab that would almost always be empty; C, a window over
+  the person's work for something already settled.
+- **Built 2026-10-17** (ADR 0005, "Built, 2026-10-17: step 4"). Decided along
+  the way: a rename on both can't keep each computer's own name (the two
+  ledgers would never agree), so one name is kept on both by the same rule as
+  everything else, and the computer whose name was replaced is told: "Groceries
+  was renamed on both computers. The laptop’s name, Food, is kept on both; yours
+  was Food & drink." A pay, a plan or a setting changed on both, and an account
+  deleted here and used there (it stays), are said in the popup only, with no
+  card in the window. A row whose reconciled or bank-matched money was kept
+  with the other computer's category shows a third box, "In the ledger now",
+  since neither computer's version is what the ledger holds; no button is on
+  until one is picked. The version in the ledger now is marked "in the ledger
+  now" in gold (done and safe). The popup's sentence names what differs, as a
+  person would say it: the amount, else the categories, the date, the payee or
+  the memo.
+
 ## Where a row came from: a Source column (2026-10-13)
 
 Owner, watching the first run on two Mac accounts, after the popup went away before

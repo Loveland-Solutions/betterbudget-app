@@ -17,7 +17,8 @@ import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
 import '../domain/budget.dart';
-import '../domain/combine.dart' show Ask, AskKind, AskSide, Pick;
+import '../domain/combine.dart'
+    show Ask, AskKind, AskSide, Pick, RowOp, rowOpsBetween, rowsOf;
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -192,6 +193,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    bool stay,
   })?
   _toast;
 
@@ -319,14 +321,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (mounted && _cloud.value.standing == FolderStanding.apart) {
           await _folderNews(justMoved: justMoved);
         }
-      case FolderStanding.rows:
-        final digest = _cloud.theirs?.look.digest;
-        if (digest == null || digest == _askedAbout || _busyForFolder) return;
-        await _chooseRows();
-        // Found not to combine after all: asked about like any other.
-        if (mounted && _cloud.value.standing == FolderStanding.apart) {
-          await _folderNews(justMoved: justMoved);
-        }
       case FolderStanding.apart:
         final digest = _cloud.theirs?.look.digest;
         if (digest == null || digest == _askedAbout || _busyForFolder) return;
@@ -445,11 +439,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// here, and the two together are written to the folder. This computer's
   /// ledger as it was is saved first, in Backups. The popup says what came,
   /// and what the person would want to look at: a row that looks the same
-  /// as one already here, and more assigned than there is.
-  ///
-  /// With [picks], the person's choice for what both changed in a way that
-  /// can't both stand ([_chooseRows]).
-  Future<void> _bringInFolderChanges({Map<String, Pick>? picks}) async {
+  /// as one already here, more assigned than there is, and what both
+  /// changed two ways that was settled over this computer's version (ADR
+  /// 0004, "Two computers, step 4"), a whole sentence for one and a count
+  /// for more, with Show; that popup stays until it is closed.
+  Future<void> _bringInFolderChanges() async {
     final path = _cloud.value.path;
     if (path == null || _busyForFolder) return;
     _cancelEdit();
@@ -475,21 +469,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final overBefore = over(_data);
     final CombinedIn? done;
     try {
-      done = await _whileRestoring(
-        () => _cloud.bringIn(widget.clock(), picks: picks),
-      );
+      done = await _whileRestoring(() => _cloud.bringIn(widget.clock()));
     } catch (e) {
       debugPrint('Bringing in the folder’s changes failed: $e');
       return;
     }
-    if (done == null) {
-      // Chosen for, and then not brought in: something changed here while
-      // the question was open.
-      if (picks != null && mounted) {
-        _showToast(context.t.ledgerRowsChangedMeanwhile);
-      }
-      return;
-    }
+    if (done == null) return;
     // What the two plans and pays ask for now, as after a ledger is taken
     // in.
     try {
@@ -518,9 +503,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     final n = done.transactions;
     final label = switch (done.from.savedByName) {
-      _ when picks != null && n == 0 && done.others == 0 => t.ledgerRowsSaved(
-        picks.length,
-      ),
       final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
       final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
       final name? => t.ledgerCombinedMoreFrom(n, name),
@@ -532,7 +514,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final short = overNow.entries
         .where((e) => e.value > (overBefore[e.key] ?? 0))
         .firstOrNull;
+    // What of this computer's was replaced, settled as the other computer
+    // settles it: a whole sentence for one, a count for more.
+    final other = done.from.savedByName ?? t.ledgerRowsOtherComputer;
+    final replaced = done.replaced;
+    final cards = [
+      for (final a in replaced)
+        if (_hasCard(a)) a,
+    ];
     final lines = [
+      if (replaced.length == 1) _toldSentence(context, replaced.single, other),
+      if (replaced.length > 1) t.ledgerBothSeveral(replaced.length, other),
       if (done.alike.isNotEmpty) t.ledgerCombinedAlike(done.alike.length),
       if (short != null)
         t.ledgerCombinedOverAssigned(
@@ -550,7 +542,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
               _sayWhen(t, done.from.savedAt ?? done.modified, widget.clock()),
             )
           : lines.join('\n'),
-      more: done.alike.isEmpty
+      // Something of theirs was replaced: it stays until they close it or
+      // look (the first run on two Mac accounts: a popup went away before
+      // the owner looked).
+      stay: replaced.isNotEmpty,
+      more: cards.isNotEmpty
+          ? (
+              label: t.ledgerShowMoved,
+              onTap: () => _showSettled(cards, done!.from.savedByName),
+            )
+          : done.alike.isEmpty
           ? null
           : (
               label: t.ledgerShowMoved,
@@ -562,29 +563,46 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Both computers changed some of the same things in ways that can't both
-  /// stand: lists each with both versions and what it was, and brings in the
-  /// rest with the person's choices. Nothing is written until then.
-  Future<void> _chooseRows() async {
-    final theirs = _cloud.theirs;
-    final path = _cloud.value.path;
-    final asks = _cloud.asks;
-    if (theirs == null || path == null || asks.isEmpty || _restoring) return;
-    _askedAbout = theirs.look.digest;
+  /// The window for what both computers changed two ways, already settled:
+  /// each with the version in the ledger now, and the buttons to change it.
+  /// A button changed and Done is the person's own act: an ordinary change,
+  /// which the other computer takes in, with undo and redo.
+  Future<void> _showSettled(List<Ask> asks, String? computer) async {
     final picks = await showDialog<Map<String, Pick>>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.55),
-      builder: (_) =>
-          _RowsDialog(asks: asks, computer: theirs.look.savedByName),
+      builder: (_) => _RowsDialog(asks: asks, computer: computer),
     );
-    if (picks == null || !mounted) return;
-    await _bringInFolderChanges(picks: picks);
+    if (picks == null || picks.isEmpty || !mounted) return;
+    final t = context.t;
+    final forward = <RowOp>[], back = <RowOp>[];
+    try {
+      final rows = await db.allRows();
+      for (final a in asks) {
+        final pick = picks[a.id];
+        final wanted = pick == null ? null : a.rows[pick];
+        if (wanted == null) continue;
+        final current = rowsOf(a, rows);
+        forward.addAll(rowOpsBetween(current, wanted, columns: a.columns));
+        back.addAll(rowOpsBetween(wanted, current, columns: a.columns));
+      }
+      await db.applyChangesHere(forward);
+    } catch (e) {
+      debugPrint('The version picked couldn’t be put in: $e');
+      if (mounted) _showToast(t.ledgerBothCouldnt);
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.ledgerRowsSaved(picks.length),
+      undo: () => db.applyChangesHere(back),
+      redo: () => db.applyChangesHere(forward),
+    );
   }
 
   /// Both this computer's ledger and the folder's were changed: shows what
   /// each holds and lets the person choose. Nothing is written until then.
   Future<void> _chooseLedger({bool justMoved = false}) async {
-    if (_cloud.value.standing == FolderStanding.rows) return _chooseRows();
     final theirs = _cloud.theirs;
     final path = _cloud.value.path;
     if (theirs == null || path == null || _restoring) return;
@@ -1394,6 +1412,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     Future<void> Function()? undo,
     ({String label, VoidCallback onTap})? more,
+    bool stay = false,
   }) {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
@@ -1402,6 +1421,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     setState(
       () => _toast = (
         message: message,
+        stay: stay,
         // A row with no payee has no line of its own.
         detail: detail == null || detail.trim().isEmpty ? null : detail,
         more: more == null
@@ -1421,11 +1441,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
               },
       ),
     );
-    // An offer takes longer to read than a report.
-    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
-      _toastDue = true;
-      _toastMayLeave();
-    });
+    // An offer takes longer to read than a report. One that tells the
+    // person something of theirs was replaced stays until it is closed.
+    if (!stay) {
+      _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
+        _toastDue = true;
+        _toastMayLeave();
+      });
+    }
     // It took the place of a popup the pointer was on (its Undo or its
     // offer was clicked, or ⌘Z pressed): it stays if the pointer is on it
     // too, so the next click can't land on the row beneath.
@@ -5847,9 +5870,7 @@ class _Sidebar extends StatelessWidget {
                         listenable: Listenable.merge([backupHealth, folder]),
                         builder: (context, _) => _SettingsGear(
                           active: section == AppSection.settings,
-                          alert:
-                              folder.value.standing == FolderStanding.apart ||
-                                  folder.value.standing == FolderStanding.rows
+                          alert: folder.value.standing == FolderStanding.apart
                               ? context.t.ledgerFolderApartAlert
                               : folder.value.held
                               ? context.t.ledgerFolderAlert
@@ -6230,7 +6251,6 @@ class _SettingsPage extends StatelessWidget {
                                               folderName(keptIn),
                                               when(kept.copiedAt!),
                                             ),
-                                    FolderStanding.rows ||
                                     FolderStanding.apart => t.ledgerFolderApart(
                                       folderName(keptIn),
                                     ),
@@ -6296,8 +6316,7 @@ class _SettingsPage extends StatelessWidget {
                               ),
                               // Offered only while there are two to choose
                               // between.
-                              if (kept.standing == FolderStanding.apart ||
-                                  kept.standing == FolderStanding.rows)
+                              if (kept.standing == FolderStanding.apart)
                                 BarButton(
                                   key: const ValueKey('choose-ledger'),
                                   label: t.ledgerFolderChooseWhich,
@@ -7417,6 +7436,7 @@ class _Toast extends StatelessWidget {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    bool stay,
   })
   toast;
   final VoidCallback onClose;
@@ -7523,9 +7543,16 @@ class _Toast extends StatelessWidget {
                         child: Text(
                           detail,
                           key: const ValueKey('toast-detail'),
-                          // Two things to say are a line each.
-                          maxLines: detail.contains('\n') ? 2 : 1,
-                          overflow: TextOverflow.ellipsis,
+                          // Two things to say are a line each; a whole
+                          // sentence about something replaced is never cut.
+                          maxLines: toast.stay
+                              ? null
+                              : detail.contains('\n')
+                              ? 2
+                              : 1,
+                          overflow: toast.stay
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                           style: onest(
                             12.5,
                             weight: 500,
