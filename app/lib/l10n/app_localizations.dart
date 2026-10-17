@@ -7905,18 +7905,6 @@ abstract class Words {
   /// **'A deleted category'**
   String get payeesCategoryGone;
 
-  /// Title of the question that lists what two computers each changed in a way that can’t both stand: a transaction’s amount or details, or what a category is assigned for a period. {count} is how many.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}'**
-  String ledgerRowsTitle(int count);
-
-  /// Under ledgerRowsTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose which to keep for each. Everything else {computer} changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
-  String ledgerRowsBody(String computer);
-
   /// Heading over this computer’s version of a thing both computers changed.
   ///
   /// In en, this message translates to:
@@ -7941,12 +7929,6 @@ abstract class Words {
   /// **'Keep {computer}’s'**
   String ledgerRowsKeepTheirs(String computer);
 
-  /// Button in the question ledgerRowsTitle when this computer deleted the transaction and the other changed it: leave it deleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep it deleted'**
-  String get ledgerRowsKeepDeletedHere;
-
   /// Button in the question ledgerRowsTitle when the other computer deleted the transaction and this one changed it: delete it. {computer} is the other computer’s name.
   ///
   /// In en, this message translates to:
@@ -7958,12 +7940,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Neither: as it was'**
   String get ledgerRowsKeepNeither;
-
-  /// Button of the question ledgerRowsTitle: makes the choices and brings in everything else the other computer changed.
-  ///
-  /// In en, this message translates to:
-  /// **'Save my choices'**
-  String get ledgerRowsSave;
 
   /// Heading over a category’s assigned amount both computers changed for one budget period. {date} is the period’s first day.
   ///
@@ -7989,17 +7965,136 @@ abstract class Words {
   /// **'As it was: {what}'**
   String ledgerRowsAsItWas(String what);
 
+  /// Title of the window opened by Show on the popup that says something both computers changed was settled (ADR 0004, step 4). It lists each thing, already settled the same way on both computers, with buttons to change it.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed on both computers'**
+  String get ledgerBothTitle;
+
+  /// Under ledgerBothTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.
+  ///
+  /// In en, this message translates to:
+  /// **'Both computers now show the same, so nothing waits on you. Change any you want, and {computer} gets your change too. What was replaced is saved in Backups.'**
+  String ledgerBothBody(String computer);
+
+  /// Small mark beside the version of a thing both computers changed that the ledger holds now, in the window ledgerBothTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'in the ledger now'**
+  String get ledgerBothInLedger;
+
+  /// Heading over what the ledger holds now, in the window ledgerBothTitle, when it was put together from both versions (a reconciled row’s amount with the other computer’s category).
+  ///
+  /// In en, this message translates to:
+  /// **'In the ledger now'**
+  String get ledgerBothLedgerNow;
+
+  /// Button that closes the window ledgerBothTitle, saving any version picked there. Esc and a click away close it without changing anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get ledgerBothDone;
+
+  /// Button on a transaction this computer deleted and the other changed, which stays in the ledger with the change: deletes it after all, on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete it anyway'**
+  String get ledgerBothDeleteAnyway;
+
+  /// Popup line when a transaction was changed two ways on two computers and the other computer’s version was kept on both. {kept} and {yours} are what differs between the two: an amount like ₮21,000, a category, a date, a payee or a memo.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} on {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
+  String ledgerBothRow(
+    String payee,
+    String date,
+    String computer,
+    String kept,
+    String yours,
+  );
+
+  /// As ledgerBothRow, when what differs isn’t an amount, category, date, payee or memo (whether it is cleared, say).
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} on {date} was changed on both computers. {computer}’s is kept on both.'**
+  String ledgerBothRowPlain(String payee, String date, String computer);
+
+  /// Popup line when a transaction deleted on this computer was changed on the other: it stays. The window has “Delete it anyway”.
+  ///
+  /// In en, this message translates to:
+  /// **'You deleted {payee} on {date}, and {computer} changed it. It stays, with {computer}’s change.'**
+  String ledgerBothDeletedHere(String payee, String date, String computer);
+
+  /// Popup line when one category was assigned two amounts for one budget period on two computers. The amounts are never added together.
+  ///
+  /// In en, this message translates to:
+  /// **'{category}’s Assigned for the period starting {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
+  String ledgerBothAssigned(
+    String category,
+    String date,
+    String computer,
+    String kept,
+    String yours,
+  );
+
+  /// Popup line when an account, category or payee was renamed two ways on two computers. {was} is the name before either renamed it.
+  ///
+  /// In en, this message translates to:
+  /// **'{was} was renamed on both computers. {computer}’s name, {kept}, is kept on both; yours was {yours}.'**
+  String ledgerBothRenamed(
+    String was,
+    String computer,
+    String kept,
+    String yours,
+  );
+
+  /// Popup line when a pay was changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'The pay {name} was set up differently on both computers. {computer}’s way is kept on both.'**
+  String ledgerBothPay(String name, String computer);
+
+  /// Popup line when how a budget category is planned (its amount, when it comes, which account pays it) was changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} was set up differently on both computers. {computer}’s way is kept on both.'**
+  String ledgerBothPlan(String category, String computer);
+
+  /// Popup line when a setting was changed two ways on two computers.
+  ///
+  /// In en, this message translates to:
+  /// **'A setting was changed on both computers. {computer}’s is kept on both.'**
+  String ledgerBothSetting(String computer);
+
+  /// Popup line for anything else changed two ways on two computers (a remembered payee’s category, say).
+  ///
+  /// In en, this message translates to:
+  /// **'Something was changed two ways on both computers. {computer}’s is kept on both.'**
+  String ledgerBothOther(String computer);
+
+  /// Popup line when an account or category deleted on this computer was used on the other: it stays, on both.
+  ///
+  /// In en, this message translates to:
+  /// **'You deleted {name}, and {computer} put a transaction in it. It stays.'**
+  String ledgerBothStays(String name, String computer);
+
+  /// Popup line when more than one thing both computers changed was settled the other computer’s way; Show opens the window ledgerBothTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 thing was changed on both computers. {computer}’s is kept on both, and yours is saved in Backups.} other{{count} things were changed on both computers. {computer}’s are kept on both, and yours are saved in Backups.}}'**
+  String ledgerBothSeveral(int count, String computer);
+
+  /// Popup when a version picked in the window ledgerBothTitle couldn’t be put in the ledger (a row it names is gone).
+  ///
+  /// In en, this message translates to:
+  /// **'That couldn’t be changed, so nothing was saved.'**
+  String get ledgerBothCouldnt;
+
   /// Popup after the question ledgerRowsTitle is answered and there was nothing else to bring in.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{Your choice is saved} other{Your {count} choices are saved}}'**
   String ledgerRowsSaved(int count);
-
-  /// Popup when the ledger changed under the question ledgerRowsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.'**
-  String get ledgerRowsChangedMeanwhile;
 
   /// Register column header, shown only when the person turns it on in Settings
   ///

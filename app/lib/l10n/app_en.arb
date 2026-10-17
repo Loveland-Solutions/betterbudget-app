@@ -8189,24 +8189,6 @@
   "@payeesCategoryGone": {
     "description": "Payees page, in place of a category's name once the category was deleted."
   },
-  "ledgerRowsTitle": "{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}",
-  "@ledgerRowsTitle": {
-    "description": "Title of the question that lists what two computers each changed in a way that can’t both stand: a transaction’s amount or details, or what a category is assigned for a period. {count} is how many.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "ledgerRowsBody": "Choose which to keep for each. Everything else {computer} changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
-  "@ledgerRowsBody": {
-    "description": "Under ledgerRowsTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.",
-    "placeholders": {
-      "computer": {
-        "type": "String"
-      }
-    }
-  },
   "ledgerRowsThisComputer": "This computer",
   "@ledgerRowsThisComputer": {
     "description": "Heading over this computer’s version of a thing both computers changed."
@@ -8228,10 +8210,6 @@
       }
     }
   },
-  "ledgerRowsKeepDeletedHere": "Keep it deleted",
-  "@ledgerRowsKeepDeletedHere": {
-    "description": "Button in the question ledgerRowsTitle when this computer deleted the transaction and the other changed it: leave it deleted."
-  },
   "ledgerRowsKeepDeletedTheirs": "Keep it deleted ({computer}’s)",
   "@ledgerRowsKeepDeletedTheirs": {
     "description": "Button in the question ledgerRowsTitle when the other computer deleted the transaction and this one changed it: delete it. {computer} is the other computer’s name.",
@@ -8244,10 +8222,6 @@
   "ledgerRowsKeepNeither": "Neither: as it was",
   "@ledgerRowsKeepNeither": {
     "description": "Button under one thing both computers changed: put it back as it was before either changed it."
-  },
-  "ledgerRowsSave": "Save my choices",
-  "@ledgerRowsSave": {
-    "description": "Button of the question ledgerRowsTitle: makes the choices and brings in everything else the other computer changed."
   },
   "ledgerRowsAssigned": "{category} · Assigned, period starting {date}",
   "@ledgerRowsAssigned": {
@@ -8278,6 +8252,195 @@
       }
     }
   },
+  "ledgerBothTitle": "Changed on both computers",
+  "@ledgerBothTitle": {
+    "description": "Title of the window opened by Show on the popup that says something both computers changed was settled (ADR 0004, step 4). It lists each thing, already settled the same way on both computers, with buttons to change it."
+  },
+  "ledgerBothBody": "Both computers now show the same, so nothing waits on you. Change any you want, and {computer} gets your change too. What was replaced is saved in Backups.",
+  "@ledgerBothBody": {
+    "description": "Under ledgerBothTitle. {computer} is the other computer’s name, or ledgerRowsOtherComputer.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothInLedger": "in the ledger now",
+  "@ledgerBothInLedger": {
+    "description": "Small mark beside the version of a thing both computers changed that the ledger holds now, in the window ledgerBothTitle."
+  },
+  "ledgerBothLedgerNow": "In the ledger now",
+  "@ledgerBothLedgerNow": {
+    "description": "Heading over what the ledger holds now, in the window ledgerBothTitle, when it was put together from both versions (a reconciled row’s amount with the other computer’s category)."
+  },
+  "ledgerBothDone": "Done",
+  "@ledgerBothDone": {
+    "description": "Button that closes the window ledgerBothTitle, saving any version picked there. Esc and a click away close it without changing anything."
+  },
+  "ledgerBothDeleteAnyway": "Delete it anyway",
+  "@ledgerBothDeleteAnyway": {
+    "description": "Button on a transaction this computer deleted and the other changed, which stays in the ledger with the change: deletes it after all, on both computers."
+  },
+  "ledgerBothRow": "{payee} on {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
+  "@ledgerBothRow": {
+    "description": "Popup line when a transaction was changed two ways on two computers and the other computer’s version was kept on both. {kept} and {yours} are what differs between the two: an amount like ₮21,000, a category, a date, a payee or a memo.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothRowPlain": "{payee} on {date} was changed on both computers. {computer}’s is kept on both.",
+  "@ledgerBothRowPlain": {
+    "description": "As ledgerBothRow, when what differs isn’t an amount, category, date, payee or memo (whether it is cleared, say).",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothDeletedHere": "You deleted {payee} on {date}, and {computer} changed it. It stays, with {computer}’s change.",
+  "@ledgerBothDeletedHere": {
+    "description": "Popup line when a transaction deleted on this computer was changed on the other: it stays. The window has “Delete it anyway”.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothAssigned": "{category}’s Assigned for the period starting {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
+  "@ledgerBothAssigned": {
+    "description": "Popup line when one category was assigned two amounts for one budget period on two computers. The amounts are never added together.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothRenamed": "{was} was renamed on both computers. {computer}’s name, {kept}, is kept on both; yours was {yours}.",
+  "@ledgerBothRenamed": {
+    "description": "Popup line when an account, category or payee was renamed two ways on two computers. {was} is the name before either renamed it.",
+    "placeholders": {
+      "was": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothPay": "The pay {name} was set up differently on both computers. {computer}’s way is kept on both.",
+  "@ledgerBothPay": {
+    "description": "Popup line when a pay was changed on both computers.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothPlan": "{category} was set up differently on both computers. {computer}’s way is kept on both.",
+  "@ledgerBothPlan": {
+    "description": "Popup line when how a budget category is planned (its amount, when it comes, which account pays it) was changed on both computers.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothSetting": "A setting was changed on both computers. {computer}’s is kept on both.",
+  "@ledgerBothSetting": {
+    "description": "Popup line when a setting was changed two ways on two computers.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothOther": "Something was changed two ways on both computers. {computer}’s is kept on both.",
+  "@ledgerBothOther": {
+    "description": "Popup line for anything else changed two ways on two computers (a remembered payee’s category, say).",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothStays": "You deleted {name}, and {computer} put a transaction in it. It stays.",
+  "@ledgerBothStays": {
+    "description": "Popup line when an account or category deleted on this computer was used on the other: it stays, on both.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothSeveral": "{count, plural, =1{1 thing was changed on both computers. {computer}’s is kept on both, and yours is saved in Backups.} other{{count} things were changed on both computers. {computer}’s are kept on both, and yours are saved in Backups.}}",
+  "@ledgerBothSeveral": {
+    "description": "Popup line when more than one thing both computers changed was settled the other computer’s way; Show opens the window ledgerBothTitle.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothCouldnt": "That couldn’t be changed, so nothing was saved.",
+  "@ledgerBothCouldnt": {
+    "description": "Popup when a version picked in the window ledgerBothTitle couldn’t be put in the ledger (a row it names is gone)."
+  },
   "ledgerRowsSaved": "{count, plural, =1{Your choice is saved} other{Your {count} choices are saved}}",
   "@ledgerRowsSaved": {
     "description": "Popup after the question ledgerRowsTitle is answered and there was nothing else to bring in.",
@@ -8286,10 +8449,6 @@
         "type": "int"
       }
     }
-  },
-  "ledgerRowsChangedMeanwhile": "Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.",
-  "@ledgerRowsChangedMeanwhile": {
-    "description": "Popup when the ledger changed under the question ledgerRowsTitle."
   },
   "rowsColumnSource": "Source",
   "@rowsColumnSource": {

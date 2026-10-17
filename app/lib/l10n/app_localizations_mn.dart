@@ -5407,21 +5407,6 @@ class WordsMn extends Words {
   String get payeesCategoryGone => 'Устгасан ангилал';
 
   @override
-  String ledgerRowsTitle(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count зүйл хоёр компьютер дээр өөрчлөгдсөн',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String ledgerRowsBody(String computer) {
-    return 'Тус бүрээс аль нэгийг нь сонгоно уу. $computer-ийн бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.';
-  }
-
-  @override
   String get ledgerRowsThisComputer => 'Энэ компьютер';
 
   @override
@@ -5436,18 +5421,12 @@ class WordsMn extends Words {
   }
 
   @override
-  String get ledgerRowsKeepDeletedHere => 'Устгасан хэвээр нь үлдээх';
-
-  @override
   String ledgerRowsKeepDeletedTheirs(String computer) {
     return 'Устгасан хэвээр нь үлдээх ($computer-ийнх)';
   }
 
   @override
   String get ledgerRowsKeepNeither => 'Аль нь ч биш, урьдынхаар';
-
-  @override
-  String get ledgerRowsSave => 'Сонголтоо хадгалах';
 
   @override
   String ledgerRowsAssigned(String category, String date) {
@@ -5466,6 +5445,108 @@ class WordsMn extends Words {
   }
 
   @override
+  String get ledgerBothTitle => 'Хоёр компьютер дээр хоёулаа өөрчлөгдсөн';
+
+  @override
+  String ledgerBothBody(String computer) {
+    return 'Хоёр компьютер одоо адилхан харагдаж байгаа тул таныг юу ч хүлээхгүй. Хүссэнээ өөрчилбөл $computer ч таны өөрчлөлтийг авна. Солигдсон хувилбар нь Нөөцөд хадгалагдсан.';
+  }
+
+  @override
+  String get ledgerBothInLedger => 'одоо дэвтэрт байгаа';
+
+  @override
+  String get ledgerBothLedgerNow => 'Одоо дэвтэрт';
+
+  @override
+  String get ledgerBothDone => 'Болсон';
+
+  @override
+  String get ledgerBothDeleteAnyway => 'Ямартай ч устгах';
+
+  @override
+  String ledgerBothRow(
+    String payee,
+    String date,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$date-ны $payee хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothRowPlain(String payee, String date, String computer) {
+    return '$date-ны $payee хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothDeletedHere(String payee, String date, String computer) {
+    return 'Та $date-ны $payee-г устгасан, харин $computer түүнийг өөрчилсөн. Тэр нь $computer-ийн өөрчлөлттэйгөөр үлдсэн.';
+  }
+
+  @override
+  String ledgerBothAssigned(
+    String category,
+    String date,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$category-ийн $date-аас эхлэх үеийн Оноосон дүн хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothRenamed(
+    String was,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$was-ийн нэрийг хоёр компьютер дээр хоёулаа өөрчилсөн. $computer-ийн өгсөн нэр $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothPay(String name, String computer) {
+    return '$name цалингийн тохиргоог хоёр компьютер дээр өөр өөрөөр өөрчилсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothPlan(String category, String computer) {
+    return '$category-ийн тохиргоог хоёр компьютер дээр өөр өөрөөр өөрчилсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothSetting(String computer) {
+    return 'Нэг тохиргоо хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothOther(String computer) {
+    return 'Нэг зүйл хоёр компьютер дээр өөр өөрөөр өөрчлөгдсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothStays(String name, String computer) {
+    return 'Та $name-г устгасан, харин $computer түүнд гүйлгээ нэмсэн. Тэр нь үлдсэн.';
+  }
+
+  @override
+  String ledgerBothSeveral(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count зүйл хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийнх хоёуланд нь үлдсэн, таных Нөөцөд хадгалагдсан.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerBothCouldnt =>
+      'Үүнийг өөрчилж чадсангүй, тиймээс юу ч хадгалагдсангүй.';
+
+  @override
   String ledgerRowsSaved(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5474,10 +5555,6 @@ class WordsMn extends Words {
     );
     return '$_temp0';
   }
-
-  @override
-  String get ledgerRowsChangedMeanwhile =>
-      'Сонгож байх хооронд энэ компьютер дээр ямар нэг зүйл өөрчлөгдсөн тул юу ч хадгалагдсангүй. Танаас дахин асууна.';
 
   @override
   String get rowsColumnSource => 'Эх сурвалж';
