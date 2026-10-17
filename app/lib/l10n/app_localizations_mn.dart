@@ -2118,7 +2118,7 @@ class WordsMn extends Words {
 
   @override
   String get phoneWaitingCategoryGone =>
-      'Үүний нэг ангилал компьютер дээр устгагдсан. Үүнийг устгаад дахин оруулна уу.';
+      'Үүний нэг ангилал компьютер дээр устгагдсан. Тэр хэсэг нь Ангилаагүй болж орно.';
 
   @override
   String get ledgerDbSplitDoesntAddUp =>

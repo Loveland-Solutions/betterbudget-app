@@ -3052,10 +3052,10 @@ abstract class Words {
   /// **'{count, plural, =1{Delete {name} and the 1 entry that uses it ({amount} in all, other categories’ shares included)?} other{Delete {name} and the {count} entries that use it ({amount} in all, other categories’ shares included)?}}'**
   String phoneDeleteCategoryWhole(int count, String name, String amount);
 
-  /// Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer won't take it in.
+  /// Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer takes that share in as Not categorized.
   ///
   /// In en, this message translates to:
-  /// **'A category in it was deleted on your computer. Delete this and enter it again.'**
+  /// **'A category in it was deleted on your computer. That part will come in as Not categorized.'**
   String get phoneWaitingCategoryGone;
 
   /// Under the row editor: a split’s lines and its total differ.
