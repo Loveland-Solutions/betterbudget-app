@@ -14,6 +14,7 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart' show AccountType, RowKind;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/phone.dart';
+import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_start.dart';
@@ -24,6 +25,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 Future<void> _loadFont(String family, String path) async {
   final bytes = await File(path).readAsBytes();
@@ -400,6 +402,75 @@ void main() {
     expect(find.text('Undo'), findsNothing);
     await _toBudget(tester);
     expect(find.text('₮135,500.00'), findsOneWidget);
+  });
+
+  testWidgets('one receipt split over categories: the split page, Save '
+      'waits, one entry with its lines', (tester) async {
+    final store = await _pump(tester);
+    await _type(tester, '135500');
+    await _payee(tester, 'Nomin');
+    await _category(tester, 'Groceries');
+    // The category list offers to split; Groceries starts the first line.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    expect(find.text('Split'), findsOneWidget);
+    expect(find.text('Groceries'), findsOneWidget);
+    await _type(tester, '98000');
+    await tester.pumpAndSettle();
+    // Not "left", which on the phone is what a budget has.
+    expect(find.text('₮37,500 to place'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_split.png'),
+    );
+
+    // Done with some left: Save waits, and says how much (owner, 2026-10-17).
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('1 category'), findsOneWidget);
+    await _account(tester, 'TDB Checking');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.text('Place the last ₮37,500.00'), findsOneWidget);
+    expect(store.waiting, isEmpty);
+
+    // Back to the split page from Category; Groceries isn't offered twice.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-another')));
+    await tester.pumpAndSettle();
+    expect(find.text('Groceries'), findsNothing);
+    expect(find.byKey(const ValueKey('split-option')), findsNothing);
+    await tester.tap(find.text('Clothing'));
+    await tester.pumpAndSettle();
+    await _type(tester, '37500');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('split-left')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('2 categories'), findsOneWidget);
+    expect(find.text('Groceries ₮98,000 · Clothing ₮37,500'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.categoryId, phoneSplitId);
+    expect(entry.amountMinor, -13550000);
+    expect(entry.lines, [
+      (categoryId: 'groceries', amountMinor: -9800000),
+      (categoryId: 'clothing', amountMinor: -3750000),
+    ]);
+    // The toast says what it did to each category.
+    expect(find.text('Saved · Nomin −₮135,500.00'), findsOneWidget);
+    expect(
+      find.text('Groceries · ₮50,000.00 left\nClothing · ₮42,500.00 left'),
+      findsOneWidget,
+    );
+    await _toBudget(tester);
+    expect(find.text('₮50,000.00'), findsOneWidget);
+    expect(find.text('₮42,500.00'), findsOneWidget);
   });
 
   testWidgets('typing narrows the list, and Done takes the first that fits', (
@@ -1540,6 +1611,134 @@ void main() {
         () => readPhoneInbox(file, deriveDataKey(RecoveryKey.generate())),
         throwsA(anything),
       );
+    });
+
+    test('a split travels with its lines; an older file has none', () {
+      final dir = _phoneDir();
+      final file = File('${dir.path}/${phoneInboxName('ab12')}');
+      final split = PhoneEntry(
+        id: 's1',
+        categoryId: phoneSplitId,
+        accountId: '3',
+        payee: 'Nomin',
+        amountMinor: -13550000,
+        date: DateTime(2026, 9, 15),
+        madeAt: today,
+        lines: const [
+          (categoryId: '7', amountMinor: -9800000),
+          (categoryId: 'new-1', amountMinor: -3750000),
+        ],
+      );
+      writePhoneInbox(
+        file,
+        null,
+        PhoneInbox(device: 'ab12', entries: [split, entry('e1', '7', '3', -1)]),
+      );
+      final back = readPhoneInbox(file, null);
+      expect(back.entries.first.lines, split.lines);
+      expect(back.entries.last.lines, isEmpty);
+      // A category made here, then taken in: the line follows it.
+      expect(split.withCategory('new-1', '9').lines.last.categoryId, '9');
+
+      // A file written before splits.
+      final db = sqlite3.open(file.path);
+      db.execute('DROP TABLE entry_lines');
+      db.close();
+      expect(readPhoneInbox(file, null).entries.first.lines, isEmpty);
+    });
+
+    test('a split on the phone is one split row on the computer', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final checking = id('TDB Checking');
+      final groceries = id('Groceries');
+      PhoneEntry split(String key, List<PhoneSplitLine> lines) => PhoneEntry(
+        id: key,
+        categoryId: phoneSplitId,
+        accountId: '$checking',
+        payee: 'Nomin',
+        amountMinor: lines.fold(0, (s, l) => s + l.amountMinor),
+        date: DateTime(2026, 9, 15),
+        madeAt: today,
+        lines: lines,
+      );
+      final inbox = PhoneInbox(
+        device: 'ab12',
+        entries: [
+          split('s1', [
+            (categoryId: '$groceries', amountMinor: -9800000),
+            (categoryId: 'new-1', amountMinor: -3750000),
+          ]),
+          // A category gone from the ledger: left with the phone.
+          split('s2', [
+            (categoryId: '$groceries', amountMinor: -100),
+            (categoryId: '999999', amountMinor: -100),
+          ]),
+          // Lines that don't add up to the amount: left with the phone.
+          PhoneEntry(
+            id: 's3',
+            categoryId: phoneSplitId,
+            accountId: '$checking',
+            payee: 'Nomin',
+            amountMinor: -500,
+            date: DateTime(2026, 9, 15),
+            madeAt: today,
+            lines: [(categoryId: '$groceries', amountMinor: -400)],
+          ),
+          // Filed under the split word with no lines (all an older phone
+          // file could say): never filed somewhere wrong.
+          PhoneEntry(
+            id: 's4',
+            categoryId: phoneSplitId,
+            accountId: '$checking',
+            payee: 'Nomin',
+            amountMinor: -500,
+            date: DateTime(2026, 9, 15),
+            madeAt: today,
+          ),
+        ],
+        categories: const [
+          PhoneCategory(
+            id: 'new-1',
+            name: 'Shoes',
+            leftMinor: 0,
+            madeHere: true,
+          ),
+        ],
+      );
+      final before = data.balanceOf(checking);
+      final take = (await db.takePhoneEntries([inbox], today: today))!;
+      expect(take.transactionIds, hasLength(1));
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), before - 13550000);
+      final row = data
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == take.transactionIds.single);
+      expect(row.kind, RowKind.split);
+      expect(row.madeHow, MadeHow.phone);
+      expect(row.splitLines.map((l) => (l.name, l.amount)), [
+        ('Groceries', -9800000),
+        ('Shoes', -3750000),
+      ]);
+      expect(
+        snapshotOf(data, today: today, madeAt: today).taken['ab12']!.entries,
+        {'s1'},
+      );
+
+      // Undo takes the split row and the category it made; redo brings
+      // both back.
+      await db.undoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), before);
+      expect(data.categories.any((c) => c.name == 'Shoes'), isFalse);
+      await db.redoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(data.balanceOf(checking), before - 13550000);
     });
 
     test('a transfer on the phone is a transfer on the computer', () async {
