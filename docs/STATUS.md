@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-17** · version 0.39.0 · schema v21 · 749 tests pass
+**Last updated: 2026-10-17** · version 0.39.3 · schema v21 · 765 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -13,7 +13,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
 whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
-Anything pushed is published. Left: #96, #97, #98.
+Anything pushed is published. The public repo's README and the website's copy of
+PRIVACY.md were already right (#96, #97 closed). Left: #98, the store listings set to
+free: Google Play now, the Microsoft Store and the App Store once registered.
 The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
 difference"); it gains no line about the source being public.
 
@@ -21,13 +23,21 @@ difference"); it gains no line about the source being public.
 ADR 0004 "One receipt over several categories: the split card"): the owner chose a
 card under the row, and Add waits until the lines add up; a split names each category
 once (owner's correction on trying it). Seen working by the owner in the real app.
-Left from its reviews: #197. **On the phone too** (version 0.37.0, PR #202; the
+Its reviews' leftovers are built (0.39.3, PR #214): a new category from a line, a split
+known as a scheduled bill already in, lines merged with their categories, search by a
+line's category, the memo after the breakdown, shares unrounded, the card saying which
+way the total goes, and a split that evens out to ₮0. **On the phone too** (version 0.37.0, PR #202; the
 owner's pick, a split page; ADR 0005 "A split from the phone"): a phone split comes in
 as one split row, and a computer older than 0.37.0 leaves it waiting on the phone; a
 line whose category was deleted on the computer meanwhile comes in as Not categorized
-(0.38.0, PR #204). Left from its reviews: #201. The phone's categories are now chosen
+(0.38.0, PR #204). Its reviews' leftovers are built (0.39.2, PR #213): a waiting entry
+opens to be fixed, a line can be marked Returned, only an overspent line in the toast
+is red, money out is ordinary ink on the phone, and a quick second tap no longer lands
+under the closed list. The phone's categories are now chosen
 from a dropdown on the entry screen, Split with its icon at the top (0.39.0, PR #209;
-owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing. **Downloads:** Windows 0.38.0 is the
+owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing.
+The computer's Category list has Split with its icon at the top too (0.39.1, PR #212;
+owner's correction). The Pixel has 0.39.0; the phone fixes go on it next. **Downloads:** Windows 0.38.0 is the
 latest release on the public repo;  the Mac
 download waits for Apple's approval of the paid Developer Program (owner, 2026-10-17:
 "We're still pending approval"). Actions storage: the Windows build keeps its download
