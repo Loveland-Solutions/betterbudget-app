@@ -1621,6 +1621,26 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Makes [ops] as a change of this computer's own, recorded in its log
+  /// like any edit, so the other computers take it in: a version picked in
+  /// the window for what both changed two ways (ADR 0005 step 4), and its
+  /// undo and redo. All of it or none: a change that would leave a
+  /// transaction not adding up or a row naming one that is gone throws
+  /// [CantCombineException].
+  Future<void> applyChangesHere(List<RowOp> ops) async {
+    if (ops.isEmpty) return;
+    try {
+      await transaction(() => _applyOps(ops));
+    } on CantCombineException {
+      rethrow;
+    } on Object catch (e) {
+      debugPrint('The change was refused by the ledger: ${e.runtimeType}');
+      throw CantCombineException();
+    } finally {
+      markTablesUpdated(allTables);
+    }
+  }
+
   Future<void> _applyOps(List<RowOp> ops) async {
     String q(String name) => '"$name"';
     // Checked when the whole of it is in, not row by row.

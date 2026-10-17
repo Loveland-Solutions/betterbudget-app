@@ -12,9 +12,11 @@
 // to take in, and when both were changed neither is touched until the person
 // has chosen.
 //
-// Changed on both ("Combine"): this computer keeps the file both last agreed
-// on, and what the other changed since is worked out against it and brought
-// in. The person is asked only when the two can't both stand.
+// Changed on both ("Combine"): what the other changed since is worked out
+// and brought in. A thing both changed two ways is settled the same way on
+// both computers at once (ADR 0005 step 4), and the person whose change was
+// replaced is told; only what can't be put together at all (a ledger put
+// back whole, another ledger) is still the question of which to keep.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -161,14 +163,10 @@ enum FolderStanding {
   newer,
 
   /// Both were changed apart, and what the folder's has that this
-  /// computer's lacks can be brought in: the screen does it.
+  /// computer's lacks can be brought in: the screen does it. What both
+  /// changed two ways is settled as both computers settle it (ADR 0005
+  /// step 4), and the person whose change was replaced is told.
   combine,
-
-  /// Both were changed apart, and some things in the two can't both stand:
-  /// one row's amount, what a category is assigned for a month. The person
-  /// chooses for each ([CloudFolder.asks]) and the rest comes in with the
-  /// answer. Nothing is written until then.
-  rows,
 
   /// Both were changed apart in a way that can't be combined. Nothing is
   /// written until the person chooses.
@@ -204,7 +202,6 @@ class CloudFolderState {
   bool get held =>
       standing == FolderStanding.failing ||
       standing == FolderStanding.apart ||
-      standing == FolderStanding.rows ||
       standing == FolderStanding.newerApp ||
       (standing == FolderStanding.arriving && stuck);
 
@@ -262,6 +259,11 @@ typedef CombinedIn = ({
   /// made that both took in) and no more. Nothing to say, and no reason to
   /// clear the undo stack.
   bool quiet,
+
+  /// What both computers changed two ways and was settled over this
+  /// computer's version (ADR 0005 step 4): the person here is told, and
+  /// may change it back.
+  List<Ask> replaced,
 });
 
 /// The folder no longer holds what [CloudFolder.keepMine] wrote: another
@@ -368,11 +370,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   int _publishedFirst = -1;
   String? _publishedVector;
 
-  /// What the person chose for the things both computers changed, for the
-  /// folder's ledger of this digest: held to until the folder's ledger is
-  /// another, so the choice isn't asked again over what it wrote.
-  ({String theirs, Map<String, Pick> picks})? _decided;
-
   /// Two ledgers that couldn't be combined after all, by their digests:
   /// asked about, not tried again.
   String? _cantCombine;
@@ -411,14 +408,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// The ledger found in the folder at the last look, when one could be
   /// read: what the screen takes in or asks about.
   FolderTheirs? get theirs => _seen?.theirs;
-
-  /// What both computers changed that needs the person's choice, found at
-  /// the last look ([FolderStanding.rows]); empty otherwise.
-  List<Ask> get asks {
-    final plan = _plan;
-    if (plan == null || !plan.found.asking) return const [];
-    return plan.found.asks;
-  }
 
   Future<T> _queued<T>(Future<T> Function() work) {
     final done = _queue.then((_) => work());
@@ -478,21 +467,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           _publishedFirst = first;
         }
       }
-      if (saved['decided'] case {
-        'theirs': final String theirs,
-        'picks': final Map picks,
-      }) {
-        _decided = (
-          theirs: theirs,
-          picks: {
-            for (final e in picks.entries)
-              '${e.key}': Pick.values.firstWhere(
-                (p) => p.name == e.value,
-                orElse: () => Pick.mine,
-              ),
-          },
-        );
-      }
       _agreed = saved['agreed'] as String?;
       _token = saved['token'] as String?;
       var path = saved['path'] as String?;
@@ -544,13 +518,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             'seq': _publishedSeq,
             'first': _publishedFirst,
             'vector': _publishedVector,
-          },
-        if (path != null && _decided != null)
-          'decided': {
-            'theirs': _decided!.theirs,
-            'picks': {
-              for (final e in _decided!.picks.entries) e.key: e.value.name,
-            },
           },
       }),
       flush: true,
@@ -962,10 +929,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         final copied = value.copiedAt;
         final move = decideFolderMove(
           identical: mine.digest == theirs.digest,
-          // A choice made for this folder's ledger is a change made here,
-          // even where it put every row back as it was.
-          changedHere:
-              mine.seal != mine.digest || _decided?.theirs == theirs.digest,
+          changedHere: mine.seal != mine.digest,
           theirsSealed: theirs.sealed,
           mine: mine.computers.counters,
           theirs: theirs.computers.counters,
@@ -995,10 +959,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             if (plan == null) {
               return (standing: FolderStanding.apart, replaced: null);
             }
-            if (plan.asking) {
-              return (standing: FolderStanding.rows, replaced: null);
-            }
-            if (plan.ops.isNotEmpty) {
+            if (plan.ops.isNotEmpty || plan.asks.any((a) => a.replaced)) {
               // Brought in once already and still not all here: never
               // again by itself.
               return (
@@ -1017,7 +978,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
               theirs: theirs,
               whole: true,
             );
-            await _forgetDecided();
             return (standing: FolderStanding.ok, replaced: null);
           case FolderMove.write:
             await _put(
@@ -1028,7 +988,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
               theirs: theirs,
               whole: true,
             );
-            await _forgetDecided();
             return (standing: FolderStanding.ok, replaced: null);
         }
       } on _FolderFileMoved {
@@ -1077,11 +1036,13 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       final rows = await db.allRows();
       // Changed while it was read: the next look works it out.
       if (at != _changed) return null;
+      // Settled as both computers settle it: on a tie, the lower id's.
+      final me = await _computerId();
       final combined = combine(
         base: await readLedgerRows(agreed, backups.dataKey),
         mine: rows,
         theirs: await readLedgerRows(found.copy, backups.dataKey),
-        picks: _decided?.theirs == theirs.digest ? _decided!.picks : const {},
+        mineFirst: me.compareTo(theirs.savedBy ?? '') < 0,
       );
       if (combined.conflict case final why?) {
         debugPrint('The two ledgers can’t be combined: $why');
@@ -1102,123 +1063,100 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// look works it out again) or can't be combined after all (then the
   /// person is asked).
   ///
-  /// With [picks], the person's choice for each of [asks]: the two are
-  /// compared again with them, and what was chosen is made here with the
-  /// rest. Nothing is chosen for, or brought in, until each has a pick.
-  Future<CombinedIn?> bringIn(DateTime now, {Map<String, Pick>? picks}) =>
-      _queued(() async {
-        final path = value.path;
-        var plan = _plan;
-        final seen = _seen;
-        if (path == null ||
-            plan == null ||
-            seen == null ||
-            (plan.file == null && plan.theirs != seen.theirs.look.digest)) {
-          return null;
-        }
-        if (picks != null) {
-          final mine = _mine;
-          if (mine == null ||
-              mine.digest != plan.mine ||
-              plan.found.asks.any((a) => !picks.containsKey(a.id))) {
-            return null;
-          }
-          _decided = (theirs: plan.theirs, picks: {...picks});
-          final found = plan.file != null
-              ? (await _planFor(plan.file!, mine.digest))?.found
-              : await _combinable(mine, seen.theirs, again: true);
-          if (found == null || found.asking || found.conflict != null) {
-            _decided = null;
-            return null;
-          }
-          plan = _Plan(
-            mine: plan.mine,
-            theirs: plan.theirs,
-            found: found,
-            file: plan.file,
-            taken: plan.taken,
-          );
-          _plan = plan;
-        }
-        if (plan.found.conflict != null ||
-            plan.found.asking ||
-            (plan.found.ops.isEmpty && picks == null)) {
-          return null;
-        }
-        final dir = (await backups.folder())!;
-        await dir.create(recursive: true);
-        final before = await backups.keepBefore(now);
-        try {
-          if (plan.found.ops.isNotEmpty ||
-              plan.found.resolutions.isNotEmpty ||
-              plan.file != null) {
-            await backups.db.applyCombined(
-              plan.found.ops,
-              onlyIfDigest: plan.mine,
-              resolutions: [...plan.found.resolutions, ...plan.taken],
-              applied: plan.file == null
-                  ? null
-                  : (computer: plan.computer!, seq: plan.upTo!),
-            );
-          }
-        } on ChangedSinceException {
-          if (before.existsSync()) await before.delete();
-          return null;
-        } on CantCombineException {
-          if (before.existsSync()) await before.delete();
-          _cantCombine = '${plan.mine}|${plan.theirs}';
-          _plan = null;
-          value = CloudFolderState(
-            path: path,
-            copiedAt: value.copiedAt,
-            standing: FolderStanding.apart,
-          );
-          return null;
-        }
-        _mine = null;
-        _plan = null;
-        if (plan.file == null) _broughtIn = plan.theirs;
-        final header = plan.file?.header;
-        return (
-          before: before,
-          transactions: plan.found.transactions,
-          others: plan.found.others,
-          alike: plan.found.alike,
-          from: header == null
-              ? seen.theirs.look
-              : LedgerLook(
-                  schemaVersion: header.schema,
-                  digest: '',
-                  seal: null,
-                  computers: SyncComputers(const {}, {
-                    header.computer: ?header.name,
-                  }),
-                  savedBy: header.computer,
-                  savedAt: header.writtenAt,
-                ),
-          modified: header?.writtenAt ?? seen.theirs.modified,
-          quiet:
-              picks == null &&
-              plan.found.transactions == 0 &&
-              plan.found.others == 0 &&
-              plan.found.alike.isEmpty,
+  /// What both changed two ways was settled when it was worked out, the
+  /// same way the other computer settles it (ADR 0005 step 4): nothing
+  /// waits for an answer. What of this computer's was replaced comes back
+  /// in [CombinedIn.replaced], for the person to be told.
+  Future<CombinedIn?> bringIn(DateTime now) => _queued(() async {
+    final path = value.path;
+    final plan = _plan;
+    final seen = _seen;
+    if (path == null ||
+        plan == null ||
+        seen == null ||
+        (plan.file == null && plan.theirs != seen.theirs.look.digest)) {
+      return null;
+    }
+    if (plan.found.conflict != null ||
+        plan.found.asking ||
+        (plan.found.ops.isEmpty &&
+            plan.found.resolutions.isEmpty &&
+            plan.taken.isEmpty &&
+            plan.file == null)) {
+      return null;
+    }
+    final dir = (await backups.folder())!;
+    await dir.create(recursive: true);
+    final before = await backups.keepBefore(now);
+    try {
+      if (plan.found.ops.isNotEmpty ||
+          plan.found.resolutions.isNotEmpty ||
+          plan.file != null) {
+        await backups.db.applyCombined(
+          plan.found.ops,
+          onlyIfDigest: plan.mine,
+          resolutions: [...plan.found.resolutions, ...plan.taken],
+          applied: plan.file == null
+              ? null
+              : (computer: plan.computer!, seq: plan.upTo!),
         );
-      });
-
-  /// The choices made were used, or not applied: they are not held to again.
-  Future<void> _forgetDecided() async {
-    if (_decided == null) return;
-    _decided = null;
-    await _save();
-  }
+      }
+    } on ChangedSinceException {
+      if (before.existsSync()) await before.delete();
+      return null;
+    } on CantCombineException {
+      if (before.existsSync()) await before.delete();
+      _cantCombine = '${plan.mine}|${plan.theirs}';
+      _plan = null;
+      value = CloudFolderState(
+        path: path,
+        copiedAt: value.copiedAt,
+        standing: FolderStanding.apart,
+      );
+      return null;
+    }
+    _mine = null;
+    _plan = null;
+    if (plan.file == null) _broughtIn = plan.theirs;
+    final header = plan.file?.header;
+    return (
+      before: before,
+      transactions: plan.found.transactions,
+      others: plan.found.others,
+      alike: plan.found.alike,
+      from: header == null
+          ? seen.theirs.look
+          : LedgerLook(
+              schemaVersion: header.schema,
+              digest: '',
+              seal: null,
+              computers: SyncComputers(const {}, {
+                header.computer: ?header.name,
+              }),
+              savedBy: header.computer,
+              savedAt: header.writtenAt,
+            ),
+      modified: header?.writtenAt ?? seen.theirs.modified,
+      quiet:
+          plan.found.transactions == 0 &&
+          plan.found.others == 0 &&
+          plan.found.alike.isEmpty &&
+          !plan.found.asks.any((a) => a.replaced),
+      replaced: [
+        for (final a in plan.found.asks)
+          if (a.replaced) a,
+      ],
+    );
+  });
 
   // ---------- change files (step 3) ----------
 
   /// One look, on change files: this computer's own file is written when
   /// its log has grown; every other computer's file is read, and the first
   /// with changes not yet here is folded into what [combine] compares and
-  /// left for the screen to bring in ([FolderStanding.combine]) or ask about
-  /// ([FolderStanding.rows]); with nothing pending, the folder's ledger is
+  /// left for the screen to bring in ([FolderStanding.combine]), what both
+  /// changed two ways settled as both settle it; with nothing pending, the
+  /// folder's ledger is
   /// written afresh when this one holds everything it holds and more. Nothing
   /// is ever written over another computer's file.
   Future<({FolderStanding standing, File? replaced})> _syncLogs(
@@ -1342,16 +1280,13 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       if (plan.found.conflict != null) {
         return (standing: FolderStanding.apart, replaced: null);
       }
-      if (plan.found.asking) {
-        _plan = plan;
-        return (standing: FolderStanding.rows, replaced: null);
-      }
       final found = plan.found;
       if (found.transactions == 0 &&
           found.others == 0 &&
           found.alike.isEmpty &&
           found.resolutions.isEmpty &&
-          plan.taken.isEmpty) {
+          plan.taken.isEmpty &&
+          !found.asks.any((a) => a.replaced)) {
         // Nothing the person would call a change: everything it changed is
         // here already, or the two made the same rows and only when each
         // wrote them differs. Settled here, with nothing to say.
@@ -1457,7 +1392,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   }
 
   /// Another computer's changes, folded into what [combine] compares with
-  /// this ledger's rows, and compared, with the picks remembered for them.
+  /// this ledger's rows, and compared.
   /// Null when this ledger changed while it was read (the next look works
   /// it out again).
   Future<_Plan?> _planFor(ChangeFile f, String mineDigest) async {
@@ -1530,6 +1465,12 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         for (final c in since)
           if (!c.isMarker) _fold(c),
       ],
+      // To know a row the other settled over this computer's own version.
+      mineAll: [
+        for (final c in await backups.db.changesSince(0))
+          if (c.op != 'restore' && c.op != 'erase')
+            _fold(ChangeRecord.fromRow(c)),
+      ],
     );
     // Taking the other's answer: written down as this computer's, from
     // its version to the other's.
@@ -1558,8 +1499,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       base: folded.base,
       mine: rows,
       theirs: folded.theirs,
-      picks: _decided?.theirs == key ? _decided!.picks : const {},
       madeHere: madeHere,
+      // Settled as the other settles it (ADR 0005 step 4): on a tie, the
+      // lower computer id's version.
+      mineFirst: iStand,
+      answered: folded.answered,
     );
     if (found.conflict case final why?) {
       debugPrint('${f.header.computer}’s changes can’t be brought in: $why');
