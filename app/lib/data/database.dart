@@ -4910,6 +4910,26 @@ class AppDatabase extends _$AppDatabase {
         return spending.contains(category) ? category : null;
       }
 
+      // Not categorized, found or made once (undo takes a made one away).
+      int? uncategorized;
+      Future<int> notCategorized() async {
+        if (uncategorized != null) return uncategorized!;
+        final existing = live
+            .where(
+              (a) =>
+                  a.type == AccountType.expense &&
+                  uncategorizedNames.contains(a.name) &&
+                  a.archivedAt == null,
+            )
+            .firstOrNull;
+        if (existing != null) return uncategorized = existing.id;
+        final id = await createCategory(uncategorizedNames.first);
+        made.add(id);
+        madeNames.add(uncategorizedNames.first);
+        spending.add(id);
+        return uncategorized = id;
+      }
+
       for (final e in inbox.entries) {
         if (entries.contains(e.id)) continue;
         // One receipt over several categories: one split row, or nothing
@@ -4926,7 +4946,14 @@ class AppDatabase extends _$AppDatabase {
           }
           final parts = <SplitPart>[];
           for (final l in e.lines) {
-            final c = await lineCategory(l.categoryId, l.amountMinor);
+            var c = await lineCategory(l.categoryId, l.amountMinor);
+            // A category deleted on the computer while the entry waited:
+            // its share comes in as Not categorized, so the account's
+            // balance is right and the Not categorized tab asks about it
+            // (owner, 2026-10-17).
+            if (c == null && l.categoryId != phoneIncomeId) {
+              c = await notCategorized();
+            }
             if (c == null) break;
             parts.add((categoryId: c, amount: l.amountMinor));
           }

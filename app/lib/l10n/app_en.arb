@@ -3307,9 +3307,9 @@
       }
     }
   },
-  "phoneWaitingCategoryGone": "A category in it was deleted on your computer. Delete this and enter it again.",
+  "phoneWaitingCategoryGone": "A category in it was deleted on your computer. That part will come in as Not categorized.",
   "@phoneWaitingCategoryGone": {
-    "description": "Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer won't take it in."
+    "description": "Phone app, waiting list, under a split entry one of whose categories no longer exists in the ledger: the computer takes that share in as Not categorized."
   },
   "ledgerDbSplitDoesntAddUp": "The split’s lines don’t add up to its amount",
   "@ledgerDbSplitDoesntAddUp": {

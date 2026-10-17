@@ -1673,7 +1673,8 @@ void main() {
             (categoryId: '$groceries', amountMinor: -9800000),
             (categoryId: 'new-1', amountMinor: -3750000),
           ]),
-          // A category gone from the ledger: left with the phone.
+          // A category deleted on the computer meanwhile: that share comes
+          // in as Not categorized (owner, 2026-10-17).
           split('s2', [
             (categoryId: '$groceries', amountMinor: -100),
             (categoryId: '999999', amountMinor: -100),
@@ -1712,13 +1713,21 @@ void main() {
       );
       final before = data.balanceOf(checking);
       final take = (await db.takePhoneEntries([inbox], today: today))!;
-      expect(take.transactionIds, hasLength(1));
+      expect(take.transactionIds, hasLength(2));
       data = await db.loadLedger();
-      expect(data.balanceOf(checking), before - 13550000);
+      expect(data.balanceOf(checking), before - 13550000 - 200);
       final row = data
           .registerFor(checking)
           .posted
-          .singleWhere((r) => r.txnId == take.transactionIds.single);
+          .singleWhere((r) => r.txnId == take.transactionIds.first);
+      final gone = data
+          .registerFor(checking)
+          .posted
+          .singleWhere((r) => r.txnId == take.transactionIds.last);
+      expect(
+        gone.splitLines.map((l) => (l.name, l.amount)),
+        unorderedEquals([('Groceries', -100), ('Not categorized', -100)]),
+      );
       expect(row.kind, RowKind.split);
       expect(row.madeHow, MadeHow.phone);
       expect(row.splitLines.map((l) => (l.name, l.amount)), [
@@ -1727,7 +1736,7 @@ void main() {
       ]);
       expect(
         snapshotOf(data, today: today, madeAt: today).taken['ab12']!.entries,
-        {'s1'},
+        {'s1', 's2'},
       );
 
       // Undo takes the split row and the category it made; redo brings
@@ -1738,7 +1747,7 @@ void main() {
       expect(data.categories.any((c) => c.name == 'Shoes'), isFalse);
       await db.redoPhoneTake(take);
       data = await db.loadLedger();
-      expect(data.balanceOf(checking), before - 13550000);
+      expect(data.balanceOf(checking), before - 13550000 - 200);
     });
 
     test('a transfer on the phone is a transfer on the computer', () async {

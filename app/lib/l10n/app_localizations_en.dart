@@ -2200,7 +2200,7 @@ class WordsEn extends Words {
 
   @override
   String get phoneWaitingCategoryGone =>
-      'A category in it was deleted on your computer. Delete this and enter it again.';
+      'A category in it was deleted on your computer. That part will come in as Not categorized.';
 
   @override
   String get ledgerDbSplitDoesntAddUp =>

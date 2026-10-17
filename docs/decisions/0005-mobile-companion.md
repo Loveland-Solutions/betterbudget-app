@@ -927,8 +927,11 @@ under the word `split` and its lines travel in their own table in the phone's fi
 (`entry_lines`: entry, category, amount). A computer from before splits finds no
 category called `split` and leaves the entry with the phone, as it does a transfer it
 can't read, rather than filing it wrong. The computer takes it in as one split row
-when every line's category is still in the ledger, in the account's currency, and the
-lines add up; otherwise it waits on the phone. "Left" counts each line in its own
+when its lines are in the account's currency and add up; otherwise it waits on the
+phone. A line whose category was deleted on the computer while the entry waited comes
+in as Not categorized (owner, 2026-10-17: asked whether it should, "Yes, do that"), so
+the account's balance is right and the Not categorized tab asks about it; the phone's
+waiting list says so beforehand. "Left" counts each line in its own
 category.
 
 ### Numbers on the phone
