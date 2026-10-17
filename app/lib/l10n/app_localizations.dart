@@ -3058,6 +3058,48 @@ abstract class Words {
   /// **'A category in it was deleted on your computer. That part will come in as Not categorized.'**
   String get phoneWaitingCategoryGone;
 
+  /// Phone app, split page: a toggle on one line of a receipt that is money out, marking that line as money coming back (a shirt returned on the same receipt as groceries bought). Its share then counts the other way.
+  ///
+  /// In en, this message translates to:
+  /// **'Returned'**
+  String get phoneSplitReturned;
+
+  /// Phone app, split page: a toggle on one line of a receipt that is money in (a refund), marking that line as money going out on the same receipt. Its share then counts the other way.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get phoneSplitSpent;
+
+  /// Phone app, entry screen, top left: shown while a waiting entry opened from the waiting list is being changed. Save replaces it.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing an entry that’s waiting'**
+  String get phoneFixing;
+
+  /// Phone app, entry screen, top: the entry being changed was taken in by the computer meanwhile, so saving can no longer replace it.
+  ///
+  /// In en, this message translates to:
+  /// **'Your computer has taken this entry in. Save will add it as a new one.'**
+  String get phoneFixingTaken;
+
+  /// Phone app, toast after Save of a changed waiting entry that the computer took in before Save was pressed: nothing typed is lost, but both are now in the ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'Your computer had already taken in the first one, so this is saved as a new entry. Fix or delete the first one on your computer.'**
+  String get phoneSavedAsNew;
+
+  /// Phone app, waiting list: asked when a waiting entry is tapped while something is typed on the entry screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this entry? What you’ve typed on the entry screen will be cleared.'**
+  String get phoneOpenWaiting;
+
+  /// Phone app: the button that opens a waiting entry on the entry screen to change it.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get phoneOpen;
+
   /// Under the row editor: a split’s lines and its total differ.
   ///
   /// In en, this message translates to:

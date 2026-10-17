@@ -3574,7 +3574,8 @@ card for the receipt**, and that **Add waits** while some of the total has no ca
   the phone says the whole amount of a split that uses it, since the split goes whole;
   and a waiting split shows its shares, or says "A category in it was deleted on your
   computer. Delete this and enter it again." A line the other way from the receipt (a
-  return) is typed on the computer.
+  return) is marked **Returned** on the split page (ADR 0005, "From the reviews of the
+  phone split").
 
 ## The phone's categories: a dropdown on the entry screen (2026-10-17)
 
