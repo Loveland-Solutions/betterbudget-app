@@ -1660,7 +1660,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> applyChangesHere(List<RowOp> ops) async {
     if (ops.isEmpty) return;
     try {
-      await transaction(() => _applyOps(ops));
+      await transaction(() async => _applyOps(await _keepingLocks(ops)));
     } on CantCombineException {
       rethrow;
     } on Object catch (e) {
@@ -1669,6 +1669,65 @@ class AppDatabase extends _$AppDatabase {
     } finally {
       markTablesUpdated(allTables);
     }
+  }
+
+  /// [ops] with every reconciled line's money and reconciliation as the
+  /// ledger holds it, and its transaction's date and whether it is
+  /// deleted: a lock the owner chose, which no version picked afterwards
+  /// takes away. A reconciled line taken away refuses the lot.
+  Future<List<RowOp>> _keepingLocks(List<RowOp> ops) async {
+    final locked = <Object?, Map<String, Object?>>{};
+    final lockedTxns = <Object?, Map<String, Object?>>{};
+    for (final r in await customSelect(
+      'SELECT * FROM entries WHERE reconciliation_id IS NOT NULL',
+    ).get()) {
+      locked[r.data['id']] = r.data;
+    }
+    final txnIds = {for (final e in locked.values) e['transaction_id']};
+    if (txnIds.isNotEmpty) {
+      for (final r in await customSelect(
+        'SELECT * FROM transactions WHERE id IN '
+        '(${[for (final _ in txnIds) '?'].join(', ')})',
+        variables: [for (final id in txnIds) Variable.withInt(id as int)],
+      ).get()) {
+        lockedTxns[r.data['id']] = r.data;
+      }
+    }
+    const money = [
+      'transaction_id',
+      'account_id',
+      'amount_minor',
+      'currency',
+      'rate',
+      'cleared',
+      'reconciliation_id',
+      'import_key',
+    ];
+    return [
+      for (final op in ops)
+        if (op.table == 'entries' && locked.containsKey(op.key['id']))
+          op.row == null
+              ? throw CantCombineException()
+              : RowOp.update('entries', op.key, {
+                  ...op.row!,
+                  for (final c in money)
+                    if (locked[op.key['id']]!.containsKey(c))
+                      c: locked[op.key['id']]![c],
+                })
+        else if (op.table == 'transactions' &&
+            lockedTxns.containsKey(op.key['id']) &&
+            op.row != null)
+          RowOp.update('transactions', op.key, {
+            ...op.row!,
+            'date': lockedTxns[op.key['id']]!['date'],
+            'deleted_at': lockedTxns[op.key['id']]!['deleted_at'],
+          })
+        else if (op.table == 'transactions' &&
+            lockedTxns.containsKey(op.key['id']))
+          throw CantCombineException()
+        else
+          op,
+    ];
   }
 
   Future<void> _applyOps(List<RowOp> ops) async {
@@ -1821,6 +1880,11 @@ class AppDatabase extends _$AppDatabase {
           }
         });
         if (!fromFolder) await _logMarker('restore');
+        // What a popup said of the ledger that was here, or of the one put
+        // in, is no part of this one.
+        await customStatement('DELETE FROM main.preferences WHERE key = ?', [
+          SyncKeys.told,
+        ]);
         // The folder's ledger holds the others' changes it says it has:
         // written down, so what this computer changes from here is known
         // to have seen them (step 4).

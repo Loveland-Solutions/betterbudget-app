@@ -1,9 +1,12 @@
 // The ledger kept in a folder the user picked (ADR 0005, "All of the data lives
 // in the cloud folder"): the copy, when it is written again, and the Settings
 // line that says where it is.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:betterbudget/data/phone_inbox.dart';
+import 'package:betterbudget/domain/combine.dart' show Ask, AskKind, AskSide;
+import 'package:betterbudget/domain/sync.dart' show SyncKeys;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
@@ -1425,6 +1428,97 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         otherCloud.dispose();
         await other.close();
+        await db.close();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+    });
+
+    testWidgets('the popup that stays is kept in the ledger, for this ledger '
+        'only, and goes when the folder is stopped; an old plain file goes', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final dialogs = _FakeDialogs();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      late File plain;
+      await tester.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('bb-told');
+        drive = await Directory('${dir.path}/My Drive/BetterBudget')
+            .create(recursive: true);
+        await Directory('${dir.path}/here').create();
+        db = AppDatabase(
+          NativeDatabase(File('${dir.path}/here/Ledger.betterbudget')),
+        );
+        await seedDemoIfEmpty(db, today);
+        final ledger = (await db.loadLedger()).prefs[SyncKeys.ledger];
+        String told(String? of) => jsonEncode({
+          'ledger': of,
+          'message': 'Nomin from The laptop',
+          'extra': <String>[],
+          'from': 'The laptop',
+          'asks': [
+            const Ask(
+              id: 'row|preferences|budget.view',
+              kind: AskKind.setting,
+              mine: AskSide(),
+              theirs: AskSide(),
+              neither: AskSide(),
+              now: AskSide(),
+              replaced: true,
+              setting: 'budget.view',
+            ).toJson(),
+          ],
+        });
+        // Kept for another ledger: not said.
+        await db.setPreference(SyncKeys.told, told('another'));
+        plain = File('${dir.path}/here/settled-told');
+        await plain.writeAsString('{}');
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              clock: () => today,
+              folderAccess: _FakeAccess(),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        expect(plain.existsSync(), isFalse);
+        await db.setPreference(SyncKeys.told, told(ledger));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      final made = dir;
+      addTearDown(() => made.deleteSync(recursive: true));
+      dialogs.folder = drive.path;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+
+      Future<void> press(Finder f) async {
+        await tester.runAsync(() async {
+          await tester.tap(f);
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+        });
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      await press(find.byKey(const ValueKey('keep-in-folder')));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      await press(find.byKey(const ValueKey('stop-folder')));
+      expect(find.byKey(const ValueKey('told-more')), findsNothing);
+      await tester.runAsync(() async {
+        expect((await db.loadLedger()).prefs[SyncKeys.told], isNull);
+        await tester.pumpWidget(const SizedBox());
         await db.close();
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });

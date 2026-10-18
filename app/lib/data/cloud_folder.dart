@@ -1268,15 +1268,16 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     var names = false;
     // Three or more computers: the rule that settles a row changed two ways
     // is exact for two, so with more it is asked (ADR 0005 step 4, from the
-    // reviews).
+    // reviews). Only computers whose file is in the folder now, of this
+    // ledger, count: an id met only in an old vector (a computer gone, or a
+    // cloned disk that took a new id) is no third computer.
     final others = <String>{
-      for (final f in files) ...[
-        f.header.computer,
-        for (final e in f.header.applied.entries)
-          if (e.value > 0) e.key,
-      ],
-      for (final e in state.applied.entries)
-        if (e.value > 0) e.key,
+      for (final f in files)
+        if (f.header.ledger == null ||
+            ledger == null ||
+            f.header.ledger == ledger)
+          f.header.computer,
+      ...unreadable,
     }..remove(me);
     final many = others.length > 1;
     // What is applied, kept up as the look goes.

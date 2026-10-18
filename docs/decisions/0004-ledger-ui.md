@@ -3523,10 +3523,14 @@ opening by itself, saying it's done). The owner chose **A, the popup** (2026-10-
 - **From the reviews, decided (2026-10-18).**
   - *The popup that says something was replaced is never replaced.* Any other
     popup shows above it; bringing in the other computer's changes and the
-    phones' entries goes on while it is up. What it says is kept in a small file
-    beside the ledger (`settled-told`, nothing but what redraws it) until the
-    window is opened or it is closed with ×, so after a quit it is back at
-    launch. Show reads each thing again from the ledger as it is now.
+    phones' entries goes on while it is up. What it says is kept in the
+    encrypted ledger as this computer's own setting (`sync.told`, with the
+    ledger's id) until the window is opened or it is closed with ×, so after a
+    quit it is back at launch; it goes with a restore, an erase, a ledger taken
+    whole from the folder, and when the folder is stopped, and is never shown
+    on another ledger. Show reads each thing again from the ledger as it is
+    now, the lock with it: a row reconciled or matched to the bank since keeps
+    that money whatever is picked.
   - *The window lists everything the popup counts.* A pay, a plan, a setting or
     something that stays is its whole sentence, with no buttons.
   - *The title keeps the payee* when one transaction came: "E-Mart from The

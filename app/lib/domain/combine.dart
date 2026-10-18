@@ -324,6 +324,22 @@ class Ask {
       default:
         side = now;
     }
+    // The lock as the ledger holds it now: a row reconciled, or matched to
+    // the bank, since it was settled keeps that money whatever is picked.
+    var versions = rows;
+    var lockNow = lock, lockDateNow = lockDate;
+    if (kind == AskKind.transaction && rows.isNotEmpty) {
+      final locked = {
+        for (final e in rows.entries)
+          e.key: lockedVersion(e.value, rowsNow, ledger),
+      };
+      final any = locked.values.firstOrNull;
+      if (any?.lock != null) {
+        versions = {for (final e in locked.entries) e.key: e.value.rows};
+        lockNow = any!.lock;
+        lockDateNow = any.lockDate;
+      }
+    }
     return Ask(
       id: id,
       kind: kind,
@@ -337,12 +353,12 @@ class Ask {
       currency: currency,
       now: side,
       replaced: replaced,
-      rows: rows,
+      rows: versions,
       columns: columns,
       name: name,
       nowRows: rowsNow,
-      lock: lock,
-      lockDate: lockDate,
+      lock: lockNow,
+      lockDate: lockDateNow,
       setting: setting,
       also: also,
     );
@@ -419,6 +435,148 @@ class Ask {
       ],
     );
   }
+}
+
+/// A transaction made of the parts of several versions: [txn]'s columns,
+/// with the date of [money] and the payee and memo of [payee]; the lines
+/// in bank, cash and credit accounts from [money], cleared as [cleared]
+/// has them; the categories from [filing] when they add up to the money
+/// (one category in a currency takes the amount; a split that doesn't
+/// add up stays as [money] has it).
+Map<String, List<Row>> composeTransaction(
+  Row txn, {
+  required Map<String, List<Row>> money,
+  required Map<String, List<Row>> cleared,
+  required Map<String, List<Row>> payee,
+  required Map<String, List<Row>> filing,
+  required bool Function(Row) real,
+}) {
+  final out = {...txn};
+  final mt = money['transactions']!.firstOrNull;
+  final pt = payee['transactions']!.firstOrNull;
+  if (mt != null) out['date'] = mt['date'];
+  if (pt != null) {
+    out['payee_id'] = pt['payee_id'];
+    out['memo'] = pt['memo'];
+  }
+  final clearedLines = [
+    for (final e in cleared['entries']!)
+      if (real(e)) e,
+  ];
+  Row withCleared(Row e) {
+    final c =
+        clearedLines.where((x) => x['id'] == e['id']).firstOrNull ??
+        clearedLines
+            .where((x) => x['account_id'] == e['account_id'])
+            .firstOrNull;
+    return c == null
+        ? {...e}
+        : {
+            ...e,
+            'cleared': c['cleared'],
+            'reconciliation_id': c['reconciliation_id'],
+            'import_key': c['import_key'],
+          };
+  }
+
+  final lines = [
+    for (final e in money['entries']!)
+      if (real(e)) withCleared(e),
+  ];
+  List<Row> categories(Map<String, List<Row>> x) => [
+    for (final e in x['entries']!)
+      if (!real(e)) e,
+  ];
+  var filed = categories(money);
+  final want = categories(filing);
+  if (!identical(filing, money) && want.isNotEmpty) {
+    final need = <Object?, int>{};
+    for (final e in lines) {
+      need[e['currency']] =
+          (need[e['currency']] ?? 0) - (e['amount_minor'] as int);
+    }
+    final have = <Object?, int>{};
+    final count = <Object?, int>{};
+    for (final e in want) {
+      have[e['currency']] =
+          (have[e['currency']] ?? 0) + (e['amount_minor'] as int);
+      count[e['currency']] = (count[e['currency']] ?? 0) + 1;
+    }
+    final sameCurrencies =
+        need.length == have.length && need.keys.every(have.containsKey);
+    if (sameCurrencies && need.keys.every((c) => need[c] == have[c])) {
+      filed = want;
+    } else if (sameCurrencies && count.values.every((n) => n == 1)) {
+      filed = [
+        for (final e in want) {...e, 'amount_minor': need[e['currency']]},
+      ];
+    }
+  }
+  final ids = {for (final e in lines) e['id']};
+  return {
+    'transactions': [out],
+    'entries': [
+      ...lines,
+      for (final e in filed)
+        if (!ids.contains(e['id'])) {...e},
+    ],
+  };
+}
+
+/// [version] of a transaction with the money of [now] kept where [now]'s
+/// is a fact: its lines in bank, cash and credit accounts reconciled or
+/// matched to the bank, their cleared state and what they were reconciled
+/// or matched as, its date and whether it is deleted. Only the payee, memo
+/// and categories come from [version] then. [accounts] names the accounts'
+/// types. With nothing locked in [now], [version] as it is, and a null
+/// lock.
+({Map<String, List<Row>> rows, String? lock, String? lockDate}) lockedVersion(
+  Map<String, List<Row>> version,
+  Map<String, List<Row>> now,
+  LedgerRows ledger,
+) {
+  final types = {
+    for (final a in ledger['accounts'] ?? const <Row>[]) a['id']: a['type'],
+  };
+  bool real(Row e) =>
+      const {'asset', 'liability'}.contains(types[e['account_id']]);
+  final lines = [
+    for (final e in now['entries'] ?? const <Row>[])
+      if (real(e)) e,
+  ];
+  final rec = lines.where((e) => e['reconciliation_id'] != null).firstOrNull;
+  final String? lock = rec != null
+      ? 'reconciled'
+      : lines.any((e) => e['import_key'] != null)
+      ? 'bank'
+      : null;
+  if (lock == null ||
+      (version['transactions'] ?? const <Row>[]).isEmpty ||
+      (now['transactions'] ?? const <Row>[]).isEmpty) {
+    return (rows: version, lock: lock, lockDate: null);
+  }
+  final lockDate = rec == null
+      ? null
+      : (ledger['reconciliations'] ?? const <Row>[])
+                .where((r) => r['id'] == rec['reconciliation_id'])
+                .firstOrNull?['statement_date']
+            as String?;
+  final txn = {
+    ...version['transactions']!.first,
+    'deleted_at': now['transactions']!.first['deleted_at'],
+  };
+  return (
+    rows: composeTransaction(
+      txn,
+      money: now,
+      cleared: now,
+      payee: version,
+      filing: version,
+      real: real,
+    ),
+    lock: lock,
+    lockDate: lockDate,
+  );
 }
 
 /// What a transaction's rows (by table) say, as the person reads them,
@@ -1463,90 +1621,22 @@ class _Combine {
     );
   }
 
-  /// A transaction made of the parts of several versions: [txn]'s columns,
-  /// with the date of [money] and the payee and memo of [payee]; the lines
-  /// in bank, cash and credit accounts from [money], cleared as [cleared]
-  /// has them; the categories from [filing] when they add up to the money
-  /// (one category in a currency takes the amount; a split that doesn't
-  /// add up stays as [money] has it).
+  /// A transaction made of the parts of several versions
+  /// ([composeTransaction]).
   Map<String, List<Row>> _compose(
     Row txn, {
     required Map<String, List<Row>> money,
     required Map<String, List<Row>> cleared,
     required Map<String, List<Row>> payee,
     required Map<String, List<Row>> filing,
-  }) {
-    final out = {...txn};
-    final mt = money['transactions']!.firstOrNull;
-    final pt = payee['transactions']!.firstOrNull;
-    if (mt != null) out['date'] = mt['date'];
-    if (pt != null) {
-      out['payee_id'] = pt['payee_id'];
-      out['memo'] = pt['memo'];
-    }
-    final clearedLines = [
-      for (final e in cleared['entries']!)
-        if (_real(e)) e,
-    ];
-    Row withCleared(Row e) {
-      final c =
-          clearedLines.where((x) => x['id'] == e['id']).firstOrNull ??
-          clearedLines
-              .where((x) => x['account_id'] == e['account_id'])
-              .firstOrNull;
-      return c == null
-          ? {...e}
-          : {
-              ...e,
-              'cleared': c['cleared'],
-              'reconciliation_id': c['reconciliation_id'],
-              'import_key': c['import_key'],
-            };
-    }
-
-    final lines = [
-      for (final e in money['entries']!)
-        if (_real(e)) withCleared(e),
-    ];
-    List<Row> categories(Map<String, List<Row>> x) => [
-      for (final e in x['entries']!)
-        if (!_real(e)) e,
-    ];
-    var filed = categories(money);
-    final want = categories(filing);
-    if (!identical(filing, money) && want.isNotEmpty) {
-      final need = <Object?, int>{};
-      for (final e in lines) {
-        need[e['currency']] =
-            (need[e['currency']] ?? 0) - (e['amount_minor'] as int);
-      }
-      final have = <Object?, int>{};
-      final count = <Object?, int>{};
-      for (final e in want) {
-        have[e['currency']] =
-            (have[e['currency']] ?? 0) + (e['amount_minor'] as int);
-        count[e['currency']] = (count[e['currency']] ?? 0) + 1;
-      }
-      final sameCurrencies =
-          need.length == have.length && need.keys.every(have.containsKey);
-      if (sameCurrencies && need.keys.every((c) => need[c] == have[c])) {
-        filed = want;
-      } else if (sameCurrencies && count.values.every((n) => n == 1)) {
-        filed = [
-          for (final e in want) {...e, 'amount_minor': need[e['currency']]},
-        ];
-      }
-    }
-    final ids = {for (final e in lines) e['id']};
-    return {
-      'transactions': [out],
-      'entries': [
-        ...lines,
-        for (final e in filed)
-          if (!ids.contains(e['id'])) {...e},
-      ],
-    };
-  }
+  }) => composeTransaction(
+    txn,
+    money: money,
+    cleared: cleared,
+    payee: payee,
+    filing: filing,
+    real: _real,
+  );
 
   /// One row both changed, settled whole: the other's when it settled it
   /// already over this one's, or when the order says so; else this

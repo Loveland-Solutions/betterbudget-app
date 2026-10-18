@@ -9,7 +9,7 @@ import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/change_file.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
 import 'package:betterbudget/domain/combine.dart'
-    show Ask, AskKind, Pick, rowOpsBetween, rowsOf;
+    show Ask, AskKind, Pick, RowOp, rowOpsBetween, rowsOf;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/ledger_seal.dart';
@@ -744,6 +744,49 @@ void main() {
 
     Future<TxnData> bought(_Computer on, String payee) async =>
         (await on.db.loadLedger()).txns.singleWhere((t) => t.payee == payee);
+
+    // ---------- the popup that says something was replaced (step 4) ----------
+
+    Future<String?> told(_Computer c) async =>
+        (await c.db.loadLedger()).prefs[SyncKeys.told];
+
+    test('what the popup says is kept in the encrypted ledger as this '
+        'computer’s own: not in the digest, not a change, not sent', () async {
+      await agree();
+      final digest = (await mac.db.sealState()).digest;
+      final seq = await mac.db.lastChangeSeq();
+      await mac.db.setPreference(SyncKeys.told, '{"ledger":"x","asks":[]}');
+      expect((await mac.db.sealState()).digest, digest);
+      expect(await mac.db.lastChangeSeq(), seq);
+      expect(await told(mac), isNotNull);
+      // The folder's ledger the Mac writes holds it, and the laptop taking
+      // that ledger whole doesn't.
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      await laptop.cloud.check(tuesday, fresh: true);
+      await laptop.open(tuesday);
+      expect(await told(laptop), isNull);
+    });
+
+    test('a restore, an erase and a ledger taken whole each drop it', () async {
+      await agree();
+      // Kept in a backup, then put back: not this ledger's any more.
+      await laptop.db.setPreference(SyncKeys.told, '{"ledger":"x"}');
+      final old = await laptop.backups.keepBefore(monday);
+      await laptop.backups.replaceWith(old, tuesday);
+      expect(await told(laptop), isNull);
+      // Erased: a new ledger, nothing said of the old.
+      await laptop.db.setPreference(SyncKeys.told, '{"ledger":"x"}');
+      await laptop.db.startNewLedger(tuesday, keepCategories: true);
+      expect(await told(laptop), isNull);
+      // The folder's ledger taken whole.
+      await mac.db.setPreference(SyncKeys.told, '{"ledger":"y"}');
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      await mac.cloud.check(tuesday, fresh: true);
+      await mac.open(tuesday);
+      expect(await told(mac), isNull);
+    });
 
     test('a new row’s id is one no other computer gives', () async {
       await agree();
@@ -2133,7 +2176,9 @@ void main() {
 
       Future<void> reconcile(_Computer c) async {
         final checking = await c.account('TDB Checking');
-        await c.db.toggleCleared((await bankLine(c)).id);
+        if ((await bankLine(c)).cleared == Cleared.uncleared) {
+          await c.db.toggleCleared((await bankLine(c)).id);
+        }
         final cleared = await c.db
             .customSelect(
               'SELECT COALESCE(SUM(e.amount_minor), 0) AS n FROM entries e '
@@ -2199,6 +2244,103 @@ void main() {
         }
       }
 
+      /// As Show and Done do: the thing read again from the ledger as it is
+      /// now, and the version picked put in as this computer's change.
+      Future<void> pickNow(_Computer c, Ask a, Pick p) async {
+        final rows = await c.db.allRows();
+        final fresh = a.refreshed(rows);
+        final wanted = fresh.rows[p];
+        if (wanted == null) return;
+        await c.db.applyChangesHere(
+          rowOpsBetween(rowsOf(fresh, rows), wanted, columns: fresh.columns),
+        );
+      }
+
+      for (final pick in Pick.values) {
+        test('told, then reconciled here, then ${pick.name} picked: the '
+            'reconciled line stays on both', () async {
+          await mac.spend('Nomin', monday);
+          await agree();
+          await edit(mac, -900000);
+          await edit(laptop, -700000);
+          await mac.cloud.check(tuesday, fresh: true);
+          await laptop.cloud.check(tuesday, fresh: true);
+          await converge();
+          final loser = (told['The desk Mac'] ?? const []).isNotEmpty
+              ? mac
+              : laptop;
+          final ask = told[loser.name]!.single;
+          await reconcile(loser);
+          final kept = await bankLine(loser);
+          final refreshed = ask.refreshed(await loser.db.allRows());
+          expect(refreshed.lock, 'reconciled');
+          await pickNow(loser, ask, pick);
+          await converge();
+          await expectSame();
+          for (final c in [mac, laptop]) {
+            final line = await bankLine(c);
+            expect(line.cleared, Cleared.reconciled);
+            expect(line.amount, kept.amount);
+          }
+        });
+      }
+
+      test(
+        'a version put in by hand never changes a reconciled line',
+        () async {
+          await mac.spend('Nomin', monday);
+          await agree();
+          await reconcile(mac);
+          final line = await bankLine(mac);
+          final rows = await mac.db.allRows();
+          final entry = rows['entries']!.singleWhere((e) => e['id'] == line.id);
+          await mac.db
+              .applyChangesHere([
+                RowOp.update(
+                  'entries',
+                  {'id': line.id},
+                  {...entry, 'amount_minor': -1, 'reconciliation_id': null},
+                ),
+              ])
+              .catchError((_) {});
+          final after = await bankLine(mac);
+          expect(after.amount, line.amount);
+          expect(after.cleared, Cleared.reconciled);
+          await expectLater(
+            mac.db.applyChangesHere([
+              RowOp.delete('entries', {'id': line.id}),
+            ]),
+            throwsA(isA<CantCombineException>()),
+          );
+        },
+      );
+
+      test('a computer met only in an old vector is no third computer: '
+          'settled by the rule, not asked', () async {
+        await mac.spend('Nomin', monday);
+        await agree();
+        for (final c in [mac, laptop]) {
+          final state = await c.db.syncState();
+          await c.db.setPreference(
+            SyncKeys.applied,
+            encodeApplied({...state.applied, 'a-clone-gone': 7}),
+          );
+        }
+        await edit(mac, -900000);
+        await edit(laptop, -700000);
+        await mac.cloud.check(tuesday, fresh: true);
+        await laptop.cloud.check(tuesday, fresh: true);
+        await converge();
+        await expectSame();
+        for (final c in [mac, laptop]) {
+          expect(c.cloud.value.held, isFalse);
+        }
+        expect([
+          ...?told['The desk Mac'],
+          ...?told['The laptop'],
+        ], hasLength(1));
+      });
+
       test(
         'three computers: a row changed two ways among them is asked, not '
         'settled by the rule, and nothing is taken as ok until it is',
@@ -2241,6 +2383,16 @@ void main() {
           }
           expect(await bank(mac), -900000);
           expect(await bank(laptop), -700000);
+          // The third computer leaves the folder (its file goes): two again,
+          // settled by the rule, and nothing held.
+          File(
+            '${drive.path}/${changeFileName(await third.cloud.computerId())}',
+          ).deleteSync();
+          await converge();
+          for (final c in [mac, laptop]) {
+            expect(c.cloud.value.held, isFalse);
+          }
+          await expectSame();
         },
       );
 

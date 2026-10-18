@@ -40,6 +40,12 @@ abstract final class SyncKeys {
   /// with their own, and take the ledger whole when it differs. Cleared by
   /// the next ordinary write.
   static const whole = '${prefix}whole';
+
+  /// What the popup that says something of this computer's was replaced
+  /// needs to be drawn again, JSON with the ledger's id (ADR 0005 step 4):
+  /// this computer's own, gone with a restore, an erase or a ledger taken
+  /// whole.
+  static const told = '${prefix}told';
 }
 
 /// The table that holds what this computer changed, row by row, filled by

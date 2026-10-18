@@ -1055,6 +1055,18 @@ owner gave, and is tested.
   side's money and tick are a lock, the other's payee, memo and categories
   come in) or else the lower id. When a row was written is never a change. A
   transaction's lines changed apart a line at a time are settled as one thing.
+- **From the re-check (2026-10-18).** The lock is worked out again from the
+  rows as the ledger holds them when the window is opened and when a pick is
+  put in (`lockedVersion`), so a row reconciled after it was settled keeps
+  that money; and `applyChangesHere` never changes a reconciled line's money
+  or reconciliation, nor its transaction's date (a pick that would take one
+  away is refused whole). What the popup says is kept in the encrypted
+  ledger as `sync.told` (each computer's own: not in the digest, never
+  combined, not logged, removed by a restore, an erase or a ledger taken
+  whole, and by stopping the folder), with the ledger's id; a plain file a
+  build before kept beside the ledger is deleted at launch. A third computer
+  is one whose change file is in the folder now, of this ledger; an id met
+  only in a vector is none.
 - **Tests:** `two_computers_test.dart` "settled the same on both, under
   stress", run with the Mac's id the lower and then the higher: crossed twice
   in three orders, renamed and put away, changed in different parts in three

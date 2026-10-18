@@ -33,7 +33,7 @@ import '../domain/phone.dart'
         showSourceKey;
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
-import '../domain/sync.dart' show MadeHow;
+import '../domain/sync.dart' show MadeHow, SyncKeys;
 import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'balance_header.dart';
@@ -575,73 +575,93 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// The popup that says what of this computer's another computer's change
   /// replaced (ADR 0004, "Two computers, step 4"): it stays until it is
-  /// closed or Show is clicked, is never replaced by another popup (those
-  /// show above it), and is kept in a small file beside the ledger
-  /// ([_toldFile]: only what redraws it) so it comes back after a quit.
-  ({String message, List<String> extra, String? from, List<Ask> asks})? _told;
+  /// closed or Show is clicked, and is never replaced by another popup
+  /// (those show above it). What redraws it is kept in the encrypted ledger
+  /// as this computer's own setting ([SyncKeys.told]: never in the digest,
+  /// never combined, never logged, gone with a restore, an erase or a
+  /// ledger taken whole from the folder), with the ledger's id, so it comes
+  /// back after a quit and never on another ledger.
+  ({String message, List<String> extra, String? from, List<Ask> asks})?
+  get _told {
+    final stored = _loaded?.prefs[SyncKeys.told];
+    // Written and not yet read back: what was written.
+    if (_toldPendingSet && stored == _toldPending) _toldPendingSet = false;
+    final json = _toldPendingSet ? _toldPending : stored;
+    if (json != _toldJson) {
+      _toldJson = json;
+      _toldParsed = _parseTold(json);
+    }
+    return _toldParsed;
+  }
 
-  /// Beside the ledger, where the folder's settings are: found when the
-  /// folder was first looked at, so keeping the popup asks nothing of the
-  /// ledger.
-  File? get _toldFile => _cloud.ledgerDir == null
-      ? null
-      : File('${_cloud.ledgerDir}/settled-told');
+  String? _toldPending;
+  bool _toldPendingSet = false;
+  String? _toldJson;
+  ({String message, List<String> extra, String? from, List<Ask> asks})?
+  _toldParsed;
+
+  ({String message, List<String> extra, String? from, List<Ask> asks})?
+  _parseTold(String? json) {
+    if (json == null) return null;
+    try {
+      final j = jsonDecode(json) as Map;
+      // Kept for another ledger (one put back or begun since): not this one's.
+      if (j['ledger'] != _loaded?.prefs[SyncKeys.ledger]) return null;
+      final asks = [
+        for (final a in (j['asks'] as List?) ?? const [])
+          Ask.fromJson((a as Map).cast<String, Object?>()),
+      ];
+      if (asks.isEmpty) return null;
+      return (
+        message: '${j['message'] ?? ''}',
+        extra: [for (final e in (j['extra'] as List?) ?? const []) '$e'],
+        from: j['from'] as String?,
+        asks: asks,
+      );
+    } catch (e) {
+      debugPrint('What was replaced couldn’t be read back: $e');
+      return null;
+    }
+  }
 
   void _setTold(
     ({String message, List<String> extra, String? from, List<Ask> asks})? told,
   ) {
     if (!mounted) return;
-    setState(() => _told = told);
-    _keepTold(told);
+    final json = told == null
+        ? null
+        : jsonEncode({
+            'ledger': _loaded?.prefs[SyncKeys.ledger],
+            'message': told.message,
+            'extra': told.extra,
+            'from': told.from,
+            'asks': [for (final a in told.asks) a.toJson()],
+          });
+    setState(() {
+      _toldPending = json;
+      _toldPendingSet = true;
+    });
+    unawaited(
+      db
+          .setPreference(SyncKeys.told, json)
+          .catchError(
+            (Object e) => debugPrint('What was replaced couldn’t be kept: $e'),
+          ),
+    );
   }
 
-  void _keepTold(
-    ({String message, List<String> extra, String? from, List<Ask> asks})? told,
-  ) {
-    try {
-      final file = _toldFile;
-      if (file == null) return;
-      if (told == null) {
-        if (file.existsSync()) file.deleteSync();
-        return;
+  /// A plain file a build before this kept the popup in, beside the ledger:
+  /// nothing of the ledger stays on the disk unencrypted.
+  void _dropPlainTold() {
+    final dir = _cloud.ledgerDir;
+    if (dir == null) return;
+    for (final name in const ['settled-told', 'settled-told.tmp']) {
+      try {
+        final f = File('$dir/$name');
+        if (f.existsSync()) f.deleteSync();
+      } catch (e) {
+        debugPrint('An old popup file couldn’t be removed: $e');
       }
-      final temp = File('${file.path}.tmp');
-      temp.writeAsStringSync(
-        jsonEncode({
-          'message': told.message,
-          'extra': told.extra,
-          'from': told.from,
-          'asks': [for (final a in told.asks) a.toJson()],
-        }),
-        flush: true,
-      );
-      temp.renameSync(file.path);
-    } catch (e) {
-      debugPrint('What was replaced couldn’t be kept: $e');
-    }
-  }
-
-  /// The popup kept at the last quit, back at launch.
-  void _loadTold() {
-    try {
-      final file = _toldFile;
-      if (file == null || !file.existsSync()) return;
-      final j = jsonDecode(file.readAsStringSync()) as Map;
-      final asks = [
-        for (final a in (j['asks'] as List?) ?? const [])
-          Ask.fromJson((a as Map).cast<String, Object?>()),
-      ];
-      if (asks.isEmpty || !mounted) return;
-      setState(
-        () => _told = (
-          message: '${j['message'] ?? ''}',
-          extra: [for (final e in (j['extra'] as List?) ?? const []) '$e'],
-          from: j['from'] as String?,
-          asks: asks,
-        ),
-      );
-    } catch (e) {
-      debugPrint('What was replaced couldn’t be read back: $e');
     }
   }
 
@@ -692,7 +712,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final forward = <RowOp>[], back = <RowOp>[];
     try {
       final rows = await db.allRows();
-      for (final a in asks) {
+      for (final asked in asks) {
+        // Read again as the ledger is now: a row reconciled or matched to
+        // the bank meanwhile keeps that money whatever was picked.
+        final a = asked.refreshed(rows);
         final pick = picks[a.id];
         final wanted = pick == null ? null : a.rows[pick];
         if (wanted == null) continue;
@@ -959,9 +982,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (!gaveUp.isCompleted) gaveUp.complete();
       });
       await Future.any([_cloud.load(widget.clock()), gaveUp.future]);
-      // What of this computer's was replaced, told before the last quit
-      // and not yet looked at: the popup comes back.
-      _loadTold();
+      // A plain file of the popup from a build before this goes.
+      _dropPlainTold();
       _lookTimer?.cancel();
       if (mounted && _cloud.value.standing == FolderStanding.newer) {
         await _openFolderLedger(atLaunch: true);
@@ -4829,6 +4851,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (before == null) return;
     await _cloud.stop();
     if (!mounted) return;
+    // Off the folder: what another computer replaced is no longer said.
+    if (_told != null) _setTold(null);
     _did(
       context.t.ledgerFolderStopped(_folderName(before)),
       undo: () => _cloud.keepIn(before, widget.clock()),
