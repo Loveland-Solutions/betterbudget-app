@@ -3,6 +3,7 @@
 // already in the ledger of the computer writing.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/change_file.dart';
@@ -24,8 +25,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' show sqlite3;
 
 class _Access extends FolderAccess {
-  _Access(this.name);
+  _Access(this.name, {this.id});
   final String name;
+
+  /// The computer's id, fixed for a test that says which is the lower;
+  /// random otherwise.
+  final String? id;
+
+  @override
+  Future<String?> derivedComputerId() async => id;
 
   @override
   Future<String?> remember(String path) async => null;
@@ -36,14 +44,16 @@ class _Access extends FolderAccess {
 
 /// One computer: its own ledger file, backups and folder setting.
 class _Computer {
-  _Computer(this.dir, this.name)
+  _Computer(this.dir, this.name, {this.id})
     : db = AppDatabase(NativeDatabase(File('${dir.path}/Ledger.betterbudget')));
+
+  final String? id;
 
   final Directory dir;
   final String name;
   final AppDatabase db;
   late final backups = Backups(db);
-  late final cloud = CloudFolder(backups, access: _Access(name));
+  late final cloud = CloudFolder(backups, access: _Access(name, id: id));
 
   Future<int> account(String name) async => (await db.loadLedger())
       .accounts
@@ -531,7 +541,7 @@ void main() {
         // and isn't asked.
         expect(await mac.cloud.check(tuesday), FolderStanding.combine);
         final took = (await mac.cloud.bringIn(tuesday))!;
-        expect(took.others, 1);
+        expect(took.quiet, isFalse);
         await mac.account('Wallet');
         expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
 
@@ -591,15 +601,17 @@ void main() {
         }
       }
       expect(writes, 0);
-      // And each knows where the other stands.
-      Map<String, int> live(Map<String, int> v) => {
-        for (final e in v.entries)
-          if (e.value > 0) e.key: e.value,
-      };
-      expect(
-        live((await mac.db.syncState()).applied),
-        live((await laptop.db.syncState()).applied),
-      );
+      // And each knows where the other stands: what it has of the other's
+      // is the other's log, up to the change that says what that one has
+      // applied in turn (written down after it, step 4).
+      final macId = await mac.cloud.computerId();
+      final laptopId = await laptop.cloud.computerId();
+      for (final (c, other) in [(mac, laptopId), (laptop, macId)]) {
+        final had = (await c.db.syncState()).applied[other] ?? 0;
+        final theirs = identical(c, mac) ? laptop : mac;
+        expect(had, greaterThan(0));
+        expect(had, lessThanOrEqualTo(await theirs.db.lastChangeSeq()));
+      }
     });
 
     test('a write nobody announced to the folder code is still seen', () async {
@@ -1822,4 +1834,472 @@ void main() {
       },
     );
   });
+
+  // ---------- settled the same on both, under stress (step 4 reviews) ----------
+  //
+  // From the code review's adversarial tests: what a computer had seen of
+  // the other's when it made a change, not equal values, says whether it
+  // crossed; an amount assigned on both is one row; the locks stay when a
+  // version is picked afterwards; three computers are asked; and a seeded
+  // random interleaving of edits, looks and bring-ins always ends with the
+  // two ledgers the same, across many seeds.
+  for (final macIsLower in [true, false]) {
+    group('settled the same on both, under stress, the Mac '
+        '${macIsLower ? 'lower' : 'higher'}', () {
+      final monday = DateTime(2026, 10, 5, 21, 40);
+      final tuesday = DateTime(2026, 10, 6, 8, 15);
+      late Directory root;
+      late Directory drive;
+      late _Computer mac;
+      late _Computer laptop;
+      final told = <String, List<Ask>>{};
+
+      File folderLedger() => File('${drive.path}/${CloudFolder.fileName}');
+
+      setUp(() async {
+        told.clear();
+        root = await Directory.systemTemp.createTemp('bb-stress');
+        drive = await Directory('${root.path}/My Drive/BetterBudget')
+            .create(recursive: true);
+        mac = _Computer(
+          await Directory('${root.path}/mac').create(),
+          'The desk Mac',
+          id: macIsLower ? 'aaaaaaaa-mac' : 'zzzzzzzz-mac',
+        );
+        await seedDemoIfEmpty(mac.db, monday);
+        await mac.cloud.keepIn(drive.path, monday);
+        laptop = _Computer(
+          await Directory('${root.path}/laptop').create(),
+          'The laptop',
+          id: macIsLower ? 'zzzzzzzz-laptop' : 'aaaaaaaa-laptop',
+        );
+        await seedDemoIfEmpty(laptop.db, monday);
+        await laptop.backups.restore(
+          await laptop.backups.inspect(folderLedger().path, monday),
+          monday,
+          fromFolder: true,
+        );
+      });
+
+      tearDown(() async {
+        await mac.close();
+        await laptop.close();
+        await root.delete(recursive: true);
+      });
+
+      Future<void> settle(_Computer on) async {
+        for (var i = 0; i < 6; i++) {
+          final s = await on.cloud.check(monday, fresh: true);
+          if (s == FolderStanding.newer) {
+            await on.open(monday);
+          } else if (s == FolderStanding.combine) {
+            await on.cloud.bringIn(monday);
+          } else {
+            return;
+          }
+        }
+      }
+
+      Future<void> agree() async {
+        expect(await mac.cloud.check(monday, fresh: true), FolderStanding.ok);
+        await laptop.cloud.keepIn(drive.path, monday);
+        await settle(laptop);
+      }
+
+      Future<FolderStanding> step(_Computer c) async {
+        var s = FolderStanding.ok;
+        for (var i = 0; i < 6; i++) {
+          s = await c.cloud.check(tuesday, fresh: true);
+          if (s == FolderStanding.newer) {
+            await c.open(tuesday);
+            continue;
+          }
+          if (s != FolderStanding.combine) break;
+          final done = await c.cloud.bringIn(tuesday);
+          if (done == null) break;
+          (told[c.name] ??= []).addAll(done.replaced);
+        }
+        return s;
+      }
+
+      /// Five rounds of both looking; what each round left, to see that the
+      /// two stopped moving.
+      Future<List<String>> converge([List<_Computer>? order]) async {
+        final out = <String>[];
+        for (var r = 0; r < 5; r++) {
+          for (final c in order ?? [mac, laptop]) {
+            await step(c);
+          }
+          out.add(
+            '${(await mac.db.sealState()).digest} '
+            '${(await laptop.db.sealState()).digest} '
+            '${await mac.db.lastChangeSeq()} ${await laptop.db.lastChangeSeq()}',
+          );
+        }
+        return out;
+      }
+
+      Future<void> expectSame() async {
+        expect(
+          (await mac.db.sealState()).digest,
+          (await laptop.db.sealState()).digest,
+        );
+      }
+
+      Future<TxnData> bought(_Computer on, String payee) async =>
+          (await on.db.loadLedger()).txns.singleWhere((t) => t.payee == payee);
+
+      Future<void> edit(
+        _Computer c,
+        int amount, {
+        String? memo,
+        String category = 'Groceries',
+      }) async => c.db.editTransaction(
+        transactionId: (await bought(c, 'Nomin')).id,
+        accountId: await c.account('TDB Checking'),
+        date: monday,
+        today: tuesday,
+        payee: 'Nomin',
+        memo: memo,
+        counterAccountId: await c.account(category),
+        amount: amount,
+      );
+
+      Future<EntryData> bankLine(_Computer c) async {
+        final checking = await c.account('TDB Checking');
+        return (await bought(
+          c,
+          'Nomin',
+        )).entries.singleWhere((e) => e.accountId == checking);
+      }
+
+      Future<int> bank(_Computer c) async => (await bankLine(c)).amount;
+
+      Future<bool> macLower() async =>
+          (await mac.cloud.computerId()).compareTo(
+            await laptop.cloud.computerId(),
+          ) <
+          0;
+
+      Future<int> assigned(_Computer c) async {
+        final g = await c.account('Groceries');
+        return (await c.db.loadLedger()).budgetAmounts
+            .where((b) => b.categoryId == g)
+            .fold<int>(0, (s, b) => s + b.amount);
+      }
+
+      Future<void> assign(_Computer c, int amount) async =>
+          c.db.setBudgetAmount(
+            await c.account('Groceries'),
+            DateTime(2026, 10),
+            DateTime(2026, 10, 31),
+            amount,
+          );
+
+      for (final order in ['the Mac first', 'the laptop first', 'at once']) {
+        test('crossed twice, each editing again before seeing the other '
+            '($order)', () async {
+          await mac.spend('Nomin', monday);
+          await agree();
+          await edit(mac, -900000);
+          await edit(laptop, -700000);
+          await mac.cloud.check(tuesday, fresh: true);
+          await laptop.cloud.check(tuesday, fresh: true);
+          if (order == 'the Mac first') await step(mac);
+          if (order == 'the laptop first') await step(laptop);
+          await edit(mac, -910000, memo: 'm2');
+          await edit(laptop, -710000, memo: 'l2');
+          final d = await converge();
+          await expectSame();
+          expect(d.last, d[d.length - 2]);
+        });
+
+        test('renamed two ways, and put away on one ($order)', () async {
+          await agree();
+          await mac.db.renameAccount(
+            await mac.account('Cash wallet'),
+            'Wallet',
+          );
+          await laptop.db.renameAccount(
+            await laptop.account('Cash wallet'),
+            'Purse',
+          );
+          await laptop.db.customStatement(
+            "UPDATE accounts SET archived_at = '2026-10-06' WHERE name = 'Purse'",
+          );
+          await mac.cloud.check(tuesday, fresh: true);
+          await laptop.cloud.check(tuesday, fresh: true);
+          if (order == 'the Mac first') await step(mac);
+          if (order == 'the laptop first') await step(laptop);
+          final d = await converge();
+          await expectSame();
+          expect(d.last, d[d.length - 2]);
+        });
+
+        test('changed in different parts on the two: each part kept, only the '
+            'part changed both ways by the rule ($order)', () async {
+          await mac.spend('Nomin', monday);
+          await agree();
+          final other = (await laptop.db.loadLedger()).accounts.values
+              .where(
+                (a) => a.type == AccountType.expense && a.name != 'Groceries',
+              )
+              .map((a) => a.name)
+              .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
+          // The amount both ways; the memo only on the Mac, the category only
+          // on the laptop.
+          await edit(mac, -900000, memo: 'lunch');
+          await edit(laptop, -700000, category: other);
+          await mac.cloud.check(tuesday, fresh: true);
+          await laptop.cloud.check(tuesday, fresh: true);
+          if (order == 'the Mac first') await step(mac);
+          if (order == 'the laptop first') await step(laptop);
+          await converge();
+          await expectSame();
+          final stands = await macLower() ? -900000 : -700000;
+          for (final c in [mac, laptop]) {
+            final row = await bought(c, 'Nomin');
+            expect(await bank(c), stands);
+            expect(row.memo, 'lunch');
+            expect(
+              row.entries.map((e) => e.accountId),
+              contains(await c.account(other)),
+            );
+          }
+        });
+      }
+
+      test('an independent edit to the same amount as an older version is '
+          'not seeing it', () async {
+        for (var k = 0; k < 3; k++) {
+          await mac.spend('Nomin $k', monday);
+        }
+        await mac.spend('Nomin', monday);
+        await agree();
+        final lo = await macLower() ? mac : laptop;
+        final hi = identical(lo, mac) ? laptop : mac;
+        await edit(lo, -1250000, memo: 'memo0');
+        await edit(hi, -1250000, memo: 'memo1');
+        await lo.cloud.check(tuesday, fresh: true);
+        await edit(hi, -600000);
+        await edit(hi, -900000);
+        await hi.cloud.check(tuesday, fresh: true);
+        await step(hi);
+        await edit(lo, -1250000, memo: 'memo2');
+        await edit(lo, -600000);
+        final d = await converge();
+        expect(await bank(mac), await bank(laptop));
+        await expectSame();
+        expect(d.last, d[d.length - 2]);
+      });
+
+      for (final first in ['the Mac', 'the laptop']) {
+        test('the same amount assigned on both is one row, and a later change '
+            'on one is the amount ($first first)', () async {
+          await agree();
+          await assign(mac, 3000000);
+          await assign(laptop, 3000000);
+          await mac.cloud.check(tuesday, fresh: true);
+          await laptop.cloud.check(tuesday, fresh: true);
+          final order = first == 'the Mac' ? [mac, laptop] : [laptop, mac];
+          await converge(order);
+          expect(await assigned(mac), 3000000);
+          expect(await assigned(laptop), 3000000);
+          await assign(mac, 2000000);
+          await converge(order);
+          expect(await assigned(mac), 2000000);
+          expect(await assigned(laptop), 2000000);
+          await expectSame();
+        });
+      }
+
+      test('rows of one amount assigned made before one id was shared: one '
+          'set on both, never added together', () async {
+        await agree();
+        for (final c in [mac, laptop]) {
+          await c.db.customStatement(
+            'INSERT INTO budget_amounts (id, category_id, date, amount_minor) '
+            "VALUES (${newRowId()}, ${await c.account('Groceries')}, "
+            "'2026-10-01', 3000000)",
+          );
+        }
+        await mac.cloud.check(tuesday, fresh: true);
+        await laptop.cloud.check(tuesday, fresh: true);
+        await converge();
+        expect(await assigned(mac), 3000000);
+        expect(await assigned(laptop), 3000000);
+        await expectSame();
+      });
+
+      Future<void> reconcile(_Computer c) async {
+        final checking = await c.account('TDB Checking');
+        await c.db.toggleCleared((await bankLine(c)).id);
+        final cleared = await c.db
+            .customSelect(
+              'SELECT COALESCE(SUM(e.amount_minor), 0) AS n FROM entries e '
+              'JOIN transactions t ON t.id = e.transaction_id '
+              'WHERE e.account_id = ? AND e.cleared != 0 '
+              'AND t.deleted_at IS NULL AND t.date <= ?',
+              variables: [
+                Variable.withInt(checking),
+                Variable.withString('2026-10-05'),
+              ],
+            )
+            .getSingle();
+        await c.db.reconcile(
+          accountId: checking,
+          statementDate: monday,
+          today: tuesday,
+          balance: cleared.read<int>('n'),
+        );
+      }
+
+      Future<void> match(_Computer c) async {
+        final checking = await c.account('TDB Checking');
+        await c.db.customStatement(
+          "UPDATE entries SET import_key = 'a$checking|stress' "
+          'WHERE id = ${(await bankLine(c)).id}',
+        );
+      }
+
+      for (final (fact, make) in [
+        ('reconciled', reconcile),
+        ('matched to the bank', match),
+      ]) {
+        for (final pick in Pick.values) {
+          test('picked afterwards on a row $fact: the money stays ('
+              '${pick.name})', () async {
+            await mac.spend('Nomin', monday);
+            await agree();
+            final before = await bankLine(mac);
+            await make(mac);
+            final locked = await bankLine(mac);
+            await edit(laptop, -700000, memo: 'typed');
+            await mac.cloud.check(tuesday, fresh: true);
+            await laptop.cloud.check(tuesday, fresh: true);
+            await converge();
+            final ask = told['The laptop']!.single;
+            expect(ask.lock, fact == 'reconciled' ? 'reconciled' : 'bank');
+            await laptop.db.applyChangesHere(
+              rowOpsBetween(
+                rowsOf(ask, await laptop.db.allRows()),
+                ask.rows[pick]!,
+              ),
+            );
+            await converge();
+            await expectSame();
+            for (final c in [mac, laptop]) {
+              final line = await bankLine(c);
+              expect(line.amount, before.amount);
+              expect(line.cleared, locked.cleared);
+            }
+            final row = await bought(laptop, 'Nomin');
+            expect(row.memo, pick == Pick.mine ? 'typed' : null);
+          });
+        }
+      }
+
+      test(
+        'three computers: a row changed two ways among them is asked, not '
+        'settled by the rule, and nothing is taken as ok until it is',
+        () async {
+          final third = _Computer(
+            await Directory('${root.path}/third').create(),
+            'The third',
+          );
+          addTearDown(third.close);
+          await seedDemoIfEmpty(third.db, monday);
+          await mac.spend('Nomin', monday);
+          await agree();
+          await mac.cloud.check(monday, fresh: true);
+          await third.backups.restore(
+            await third.backups.inspect(folderLedger().path, monday),
+            monday,
+            fromFolder: true,
+          );
+          await third.cloud.keepIn(drive.path, monday);
+          await settle(third);
+          for (final c in [mac, laptop, third]) {
+            await c.cloud.check(monday, fresh: true);
+          }
+          for (final c in [mac, laptop, third]) {
+            await settle(c);
+          }
+          await edit(mac, -900000);
+          await edit(laptop, -700000);
+          for (final c in [mac, laptop]) {
+            await c.cloud.check(tuesday, fresh: true);
+          }
+          final standings = [
+            for (final c in [mac, laptop]) await step(c),
+          ];
+          // Asked, and held: the red line, never a quiet ok on two amounts.
+          expect(standings, everyElement(FolderStanding.rows));
+          for (final c in [mac, laptop]) {
+            expect(c.cloud.value.held, isTrue);
+            expect(c.cloud.asks, hasLength(1));
+          }
+          expect(await bank(mac), -900000);
+          expect(await bank(laptop), -700000);
+        },
+      );
+
+      for (var seed = 0; seed < 40; seed++) {
+        test('a random run of edits, looks and bring-ins ends the same on '
+            'both (seed $seed)', () async {
+          final rnd = Random(seed);
+          await mac.spend('Nomin', monday);
+          await agree();
+          final cs = [mac, laptop];
+          for (var i = 0; i < 14; i++) {
+            final c = cs[rnd.nextInt(2)];
+            try {
+              switch (rnd.nextInt(8)) {
+                case 0:
+                  await edit(c, -100000 * (1 + rnd.nextInt(9)));
+                case 1:
+                  await edit(c, await bank(c), memo: 'memo${rnd.nextInt(5)}');
+                case 2:
+                  final id =
+                      (await c.db.allRows())['accounts']!.firstWhere(
+                            (a) =>
+                                a['type'] == 'asset' &&
+                                a['currency'] == 'MNT' &&
+                                a['name'] != 'TDB Checking' &&
+                                a['name'] != 'Khan Savings',
+                          )['id']
+                          as int;
+                  await c.db.renameAccount(id, 'Name${rnd.nextInt(4)}');
+                case 3:
+                  await assign(c, 1000000 * (1 + rnd.nextInt(5)));
+                case 4:
+                  await c.cloud.check(tuesday, fresh: true);
+                case 5:
+                  await step(c);
+                case 6:
+                  if (await c.cloud.check(tuesday, fresh: true) ==
+                      FolderStanding.combine) {
+                    final done = await c.cloud.bringIn(tuesday);
+                    (told[c.name] ??= []).addAll(done?.replaced ?? const []);
+                  }
+                case 7:
+                  await c.db.toggleCleared((await bankLine(c)).id);
+              }
+            } on LockedException {
+              // A reconciled row refuses an edit, as on screen.
+            }
+          }
+          final d = await converge();
+          for (final c in cs) {
+            expect(
+              await c.cloud.check(tuesday, fresh: true),
+              FolderStanding.ok,
+            );
+          }
+          await expectSame();
+          expect(d.last, d[d.length - 2]);
+        });
+      }
+    });
+  }
 }

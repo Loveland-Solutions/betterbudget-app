@@ -47,6 +47,13 @@ abstract final class SyncKeys {
 /// not part of the ledger's digest, never combined, not restored over.
 const changeLogTable = 'changes';
 
+/// A row of the change log that records what the computer had applied of
+/// the others from then on (its vector, as `after`), not a row's change:
+/// its `op` and `tbl`. No ledger table is called this, so the fold and
+/// `combine` pass over it.
+const appliedMarkerOp = 'applied';
+const appliedMarkerTable = 'sync';
+
 /// A new ledger's id: 16 hex characters, random.
 String newLedgerId() {
   final random = Random.secure();

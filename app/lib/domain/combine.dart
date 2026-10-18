@@ -97,6 +97,7 @@ class AskLine {
     required this.amountMinor,
     required this.currency,
     required this.isCategory,
+    this.cleared = 0,
   });
   final String account;
   final int amountMinor;
@@ -104,6 +105,25 @@ class AskLine {
 
   /// A category rather than a bank, cash or credit account.
   final bool isCategory;
+
+  /// 0 uncleared, 1 cleared, 2 reconciled, as the entries table holds it.
+  final int cleared;
+
+  Map<String, Object?> toJson() => {
+    'account': account,
+    'amount': amountMinor,
+    'currency': currency,
+    'category': isCategory,
+    'cleared': cleared,
+  };
+
+  factory AskLine.fromJson(Map<String, Object?> j) => AskLine(
+    account: '${j['account'] ?? ''}',
+    amountMinor: (j['amount'] as num?)?.toInt() ?? 0,
+    currency: '${j['currency'] ?? ''}',
+    isCategory: j['category'] == true,
+    cleared: (j['cleared'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// What one version of a thing says.
@@ -116,6 +136,8 @@ class AskSide {
     this.lines = const [],
     this.assignedMinor,
     this.name,
+    this.amountMinor,
+    this.day,
   });
 
   /// For [AskKind.renamed]: the name in this version.
@@ -130,6 +152,38 @@ class AskSide {
 
   /// For [AskKind.assigned]: what the category is assigned for the period.
   final int? assignedMinor;
+
+  /// For [AskKind.pay]: its amount, and the day of the month it comes on
+  /// when it comes monthly.
+  final int? amountMinor;
+  final int? day;
+
+  Map<String, Object?> toJson() => {
+    'deleted': deleted,
+    'date': ?date,
+    'payee': ?payee,
+    'memo': ?memo,
+    'lines': [for (final l in lines) l.toJson()],
+    'assigned': ?assignedMinor,
+    'name': ?name,
+    'amount': ?amountMinor,
+    'day': ?day,
+  };
+
+  factory AskSide.fromJson(Map<String, Object?> j) => AskSide(
+    deleted: j['deleted'] == true,
+    date: j['date'] as String?,
+    payee: j['payee'] as String?,
+    memo: j['memo'] as String?,
+    lines: [
+      for (final l in (j['lines'] as List?) ?? const [])
+        AskLine.fromJson((l as Map).cast<String, Object?>()),
+    ],
+    assignedMinor: (j['assigned'] as num?)?.toInt(),
+    name: j['name'] as String?,
+    amountMinor: (j['amount'] as num?)?.toInt(),
+    day: (j['day'] as num?)?.toInt(),
+  );
 }
 
 /// One thing both computers changed in ways that can't both stand: the
@@ -153,6 +207,10 @@ class Ask {
     this.columns,
     this.name,
     this.nowRows,
+    this.lock,
+    this.lockDate,
+    this.setting,
+    this.also = const [],
   });
 
   /// The rows the ledger holds now, by table, as [rows] has them.
@@ -168,7 +226,9 @@ class Ask {
 
   /// The rows of each version, by table: what the ledger is set to when the
   /// person picks one afterwards ([rowOpsBetween]). Empty for a thing that
-  /// can't be changed back from the window.
+  /// can't be changed back from the window. For a row whose money is a
+  /// fact ([lock]), every version keeps that money and cleared state; only
+  /// the payee, memo and categories differ.
   final Map<Pick, Map<String, List<Row>>> rows;
 
   /// Only these columns are set from a version, for one row ([rowsOf]): a
@@ -178,6 +238,20 @@ class Ask {
   /// For [AskKind.renamed], [AskKind.pay], [AskKind.plan] and
   /// [AskKind.stays]: what the thing is called as it was, or now.
   final String? name;
+
+  /// The money kept is a fact, and stays whatever is picked: `reconciled`
+  /// (on [lockDate], the statement's date) or `bank` (matched to the
+  /// bank's file).
+  final String? lock;
+  final String? lockDate;
+
+  /// For [AskKind.setting]: which setting, by its key.
+  final String? setting;
+
+  /// For [AskKind.assigned]: other categories this computer changed for the
+  /// same period that the other didn't (an amount moved from one to
+  /// another), with what they keep.
+  final List<({String category, int amountMinor})> also;
 
   /// Which version the ledger holds now, when it is one of them whole; null
   /// when it was put together from two (a reconciled row's money and the
@@ -202,7 +276,7 @@ class Ask {
 
     for (final p in Pick.values) {
       final r = rows[p];
-      if (r != null && _sameRowsByTable(only(r), only(now))) return p;
+      if (r != null && _sameRowsButWhen(only(r), only(now))) return p;
     }
     return null;
   }
@@ -227,6 +301,152 @@ class Ask {
   final String? category;
   final String? date;
   final String? currency;
+
+  /// The same thing with what the ledger holds now read again from
+  /// [ledger] (the window opened some time after it was settled).
+  Ask refreshed(LedgerRows ledger) {
+    if (nowRows == null) return this;
+    final rowsNow = rowsOf(this, ledger);
+    AskSide? side;
+    switch (kind) {
+      case AskKind.transaction:
+        side = describeTransaction(rowsNow, ledger);
+      case AskKind.assigned:
+        side = AskSide(
+          assignedMinor: (rowsNow['budget_amounts'] ?? const <Row>[]).fold<int>(
+            0,
+            (s, r) => s + (r['amount_minor'] as int),
+          ),
+        );
+      case AskKind.renamed:
+        final r = rowsNow.values.expand((x) => x).firstOrNull;
+        side = AskSide(name: r?['name'] as String?, deleted: r == null);
+      default:
+        side = now;
+    }
+    return Ask(
+      id: id,
+      kind: kind,
+      mine: mine,
+      theirs: theirs,
+      neither: neither,
+      hasBase: hasBase,
+      transaction: transaction,
+      category: category,
+      date: date,
+      currency: currency,
+      now: side,
+      replaced: replaced,
+      rows: rows,
+      columns: columns,
+      name: name,
+      nowRows: rowsNow,
+      lock: lock,
+      lockDate: lockDate,
+      setting: setting,
+      also: also,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'kind': kind.name,
+    'mine': mine.toJson(),
+    'theirs': theirs.toJson(),
+    'neither': neither.toJson(),
+    'hasBase': hasBase,
+    'transaction': ?transaction,
+    'category': ?category,
+    'date': ?date,
+    'currency': ?currency,
+    'now': ?now?.toJson(),
+    'replaced': replaced,
+    'rows': {for (final e in rows.entries) e.key.name: e.value},
+    'columns': ?columns?.toList(),
+    'name': ?name,
+    'nowRows': ?nowRows,
+    'lock': ?lock,
+    'lockDate': ?lockDate,
+    'setting': ?setting,
+    'also': [
+      for (final a in also) {'category': a.category, 'amount': a.amountMinor},
+    ],
+  };
+
+  factory Ask.fromJson(Map<String, Object?> j) {
+    Map<String, List<Row>> tables(Object? o) => {
+      for (final e in ((o as Map?) ?? const {}).entries)
+        '${e.key}': [
+          for (final r in (e.value as List?) ?? const [])
+            (r as Map).cast<String, Object?>(),
+        ],
+    };
+    AskSide side(Object? o) =>
+        AskSide.fromJson(((o as Map?) ?? const {}).cast<String, Object?>());
+    return Ask(
+      id: '${j['id']}',
+      kind: AskKind.values.firstWhere(
+        (k) => k.name == j['kind'],
+        orElse: () => AskKind.other,
+      ),
+      mine: side(j['mine']),
+      theirs: side(j['theirs']),
+      neither: side(j['neither']),
+      hasBase: j['hasBase'] != false,
+      transaction: (j['transaction'] as num?)?.toInt(),
+      category: j['category'] as String?,
+      date: j['date'] as String?,
+      currency: j['currency'] as String?,
+      now: j['now'] == null ? null : side(j['now']),
+      replaced: j['replaced'] == true,
+      rows: {
+        for (final e in ((j['rows'] as Map?) ?? const {}).entries)
+          for (final p in Pick.values)
+            if (p.name == e.key) p: tables(e.value),
+      },
+      columns: (j['columns'] as List?)?.map((c) => '$c').toSet(),
+      name: j['name'] as String?,
+      nowRows: j['nowRows'] == null ? null : tables(j['nowRows']),
+      lock: j['lock'] as String?,
+      lockDate: j['lockDate'] as String?,
+      setting: j['setting'] as String?,
+      also: [
+        for (final a in (j['also'] as List?) ?? const [])
+          (
+            category: '${(a as Map)['category']}',
+            amountMinor: (a['amount'] as num?)?.toInt() ?? 0,
+          ),
+      ],
+    );
+  }
+}
+
+/// What a transaction's rows (by table) say, as the person reads them,
+/// with names from [names].
+AskSide describeTransaction(Map<String, List<Row>> rows, LedgerRows names) {
+  Row? find(String table, Object? id) =>
+      (names[table] ?? const <Row>[]).where((r) => r['id'] == id).firstOrNull;
+  final t = (rows['transactions'] ?? const <Row>[]).firstOrNull;
+  return AskSide(
+    deleted: t == null || t['deleted_at'] != null,
+    date: t?['date'] as String?,
+    payee: t == null ? null : find('payees', t['payee_id'])?['name'] as String?,
+    memo: t?['memo'] as String?,
+    lines: [
+      for (final e in rows['entries'] ?? const <Row>[])
+        AskLine(
+          account: find('accounts', e['account_id'])?['name'] as String? ?? '',
+          amountMinor: e['amount_minor'] as int,
+          currency: '${e['currency']}',
+          isCategory: const {
+            'income',
+            'expense',
+            'equity',
+          }.contains(find('accounts', e['account_id'])?['type']),
+          cleared: (e['cleared'] as num?)?.toInt() ?? 0,
+        ),
+    ],
+  );
 }
 
 /// What one computer chose for a thing both changed, as a change the other
@@ -252,6 +472,7 @@ class Combined {
     this.alike = const [],
     this.asks = const [],
     this.resolutions = const [],
+    this.payee,
   }) : conflict = null,
        asking = false;
   const Combined.conflict(String this.conflict)
@@ -261,6 +482,7 @@ class Combined {
       alike = const [],
       asks = const [],
       resolutions = const [],
+      payee = null,
       asking = false;
 
   /// Things both computers changed that need an answer, with nothing
@@ -271,6 +493,7 @@ class Combined {
       others = 0,
       alike = const [],
       resolutions = const [],
+      payee = null,
       conflict = null,
       asking = true;
 
@@ -301,6 +524,9 @@ class Combined {
   /// imported. Both are in; the person is told, and shown. Each with the
   /// account it is alike in.
   final List<({int transaction, int account})> alike;
+
+  /// When one transaction came: its payee, for the popup's title.
+  final String? payee;
 
   /// Why the two can't be combined without asking; for the log, not the
   /// screen. Null when they can.
@@ -397,23 +623,32 @@ const _keyedById = [
 bool _valueIsId(String key) =>
     key == 'ready.fundCategories' || key.startsWith('budget.loan.');
 
+/// [a] and [b] the same but for when each computer wrote them.
+bool _sameButWhen(Row? a, Row? b) {
+  if (a == null || b == null) return a == null && b == null;
+  Row bare(Row r) => {
+    for (final e in r.entries)
+      if (e.key != 'created_at' && e.key != 'updated_at') e.key: e.value,
+  };
+  return _same(bare(a), bare(b));
+}
+
+bool _sameRowsButWhen(Map<String, List<Row>> a, Map<String, List<Row>> b) {
+  for (final t in {...a.keys, ...b.keys}) {
+    final x = _index(t, a[t]), y = _index(t, b[t]);
+    if (x.length != y.length) return false;
+    for (final e in x.entries) {
+      if (!_sameButWhen(e.value, y[e.key])) return false;
+    }
+  }
+  return true;
+}
+
 bool _same(Row? a, Row? b) {
   if (a == null || b == null) return a == null && b == null;
   if (a.length != b.length) return false;
   for (final e in a.entries) {
     if (!b.containsKey(e.key) || b[e.key] != e.value) return false;
-  }
-  return true;
-}
-
-/// [a] and [b] hold the same rows, table by table, in any order.
-bool _sameRowsByTable(Map<String, List<Row>> a, Map<String, List<Row>> b) {
-  for (final t in {...a.keys, ...b.keys}) {
-    final x = _index(t, a[t]), y = _index(t, b[t]);
-    if (x.length != y.length) return false;
-    for (final e in x.entries) {
-      if (!_same(e.value, y[e.key])) return false;
-    }
   }
   return true;
 }
@@ -549,6 +784,9 @@ Combined combine({
   Set<Object?>? madeHere,
   bool? mineFirst,
   Set<String> answered = const {},
+  LedgerRows? answeredBase,
+  LedgerRows? answeredTheirs,
+  Set<String> madeUp = const {},
 }) {
   // A row from a computer before v21 has no `made_how` or `made_on`: it is
   // the same row with them empty.
@@ -572,6 +810,9 @@ Combined combine({
         madeHere,
         mineFirst,
         answered,
+        answeredBase,
+        answeredTheirs,
+        madeUp,
       );
       final found = run.run();
       if (units.isEmpty && run.told.isEmpty && run.resolutions.isEmpty) {
@@ -581,13 +822,17 @@ Combined combine({
       if (mineFirst == null && units.keys.any((id) => !picks.containsKey(id))) {
         return Combined.asking(asks);
       }
+      // What was settled is said by itself, not as one of "other
+      // changes".
+      final settled = asks.where((a) => a.now != null).length;
       return Combined(
         found.ops,
         transactions: found.transactions,
-        others: found.others,
+        others: max(0, found.others - settled),
         alike: found.alike,
         asks: asks,
         resolutions: run.resolutions,
+        payee: found.payee,
       );
     } on _Ask catch (a) {
       // Asked about twice: left out of the comparison and still in the way.
@@ -639,6 +884,9 @@ class _Combine {
     this.madeHere,
     this.mineFirst,
     this.answered,
+    this.answeredBase,
+    this.answeredTheirs,
+    this.madeUp,
   ) : base = {
         for (final e in base.entries) e.key: [...e.value],
       },
@@ -663,6 +911,15 @@ class _Combine {
   /// Rows the other computer already settled over this one's version, by
   /// `table|key`: its version is taken.
   final Set<String> answered;
+
+  /// For a thing [answered], how the person reads it ([foldChanges]): as
+  /// it was before this computer's own change, and the other's own version.
+  final LedgerRows? answeredBase;
+  final LedgerRows? answeredTheirs;
+
+  /// Rows, by `table|key`, whose base the fold made up for a column both
+  /// changed apart: nothing to offer as it was.
+  final Set<String> madeUp;
 
   /// What was settled of one row that is neither a transaction nor an
   /// amount assigned, for the screen ([AskKind.renamed] and the rest).
@@ -744,6 +1001,13 @@ class _Combine {
       transactions: _arrived.length,
       others: _others + _touched.difference(_arrived).length,
       alike: _alike(),
+      payee: _arrived.length == 1
+          ? _nameIn(
+              'payees',
+              result['transactions']!['${_arrived.single}']?['payee_id'],
+              'name',
+            )
+          : null,
     );
   }
 
@@ -1023,10 +1287,15 @@ class _Combine {
     Map<String, List<Row>> t,
     Map<String, List<Row>> b,
   ) {
-    // The other computer settled it already, over this computer's version.
-    for (final table in _tablesOf(u)) {
-      if (_answeredAny(table, [...?m[table], ...?t[table], ...?b[table]])) {
-        return t;
+    // The other computer settled it already, over this computer's version:
+    // the same rule gives the same, part by part, so it is worked out again
+    // (what the other changed since, apart from this computer, is crossed
+    // as any change is). An amount assigned is the other's.
+    if (u.transaction == null) {
+      for (final table in _tablesOf(u)) {
+        if (_answeredAny(table, [...?m[table], ...?t[table], ...?b[table]])) {
+          return t;
+        }
       }
     }
     if (u.transaction != null) {
@@ -1037,88 +1306,244 @@ class _Combine {
 
       // Deleted on one and changed on the other: it stays, with the change.
       if (deleted(m) != deleted(t)) return deleted(m) ? t : m;
-      // A reconciled row keeps its money.
-      bool reconciled(Map<String, List<Row>> x) =>
-          x['entries']!.any((e) => e['reconciliation_id'] != null);
-      if (reconciled(m) != reconciled(t)) {
-        return reconciled(m) ? _merge(m, t, b) : _merge(t, m, b);
+      final parts = _byPart(m, t, b);
+      // What the other computer already settled over this one's version
+      // is as it settled it, row by row; the rest by part.
+      for (final table in _tablesOf(u)) {
+        final settled = {
+          for (final r in [...?m[table], ...?t[table], ...?b[table]])
+            if (answered.contains('$table|${_keyOf(table, r)}'))
+              _keyOf(table, r),
+        };
+        if (settled.isEmpty) continue;
+        final theirs = _index(table, t[table]);
+        parts[table] = [
+          for (final r in parts[table] ?? const <Row>[])
+            if (!settled.contains(_keyOf(table, r))) r,
+          for (final k in settled)
+            if (theirs[k] case final r?) {...r},
+        ];
       }
-      // A row matched to the bank beats one typed, on its money.
-      bool bank(Map<String, List<Row>> x) =>
-          x['entries']!.any((e) => e['import_key'] != null);
-      if (bank(m) != bank(t)) {
-        return bank(m) ? _merge(m, t, b) : _merge(t, m, b);
+      // A line settled there beside one worked out here that don't add up:
+      // the lines as the other settled them.
+      final sums = <Object?, int>{};
+      for (final e in parts['entries'] ?? const <Row>[]) {
+        sums[e['currency']] =
+            (sums[e['currency']] ?? 0) + (e['amount_minor'] as int);
       }
+      if (sums.values.any((v) => v != 0)) {
+        parts['entries'] = [
+          for (final e in t['entries'] ?? const <Row>[]) {...e},
+        ];
+      }
+      return parts;
     }
     return mineFirst! ? m : t;
   }
 
-  /// [f]'s money (its date, and the lines in bank, cash and credit
-  /// accounts, with what they were reconciled or matched as) with [o]'s
-  /// filing where [o] changed it from [b]: its payee, memo and categories.
-  /// The categories come only when they still add up to [f]'s money: one
-  /// category in a currency takes the amount; a split that doesn't add up
-  /// stays as [f] has it.
-  Map<String, List<Row>> _merge(
-    Map<String, List<Row>> f,
-    Map<String, List<Row>> o,
+  bool _real(Row e) => const {
+    'asset',
+    'liability',
+  }.contains(_nameIn('accounts', e['account_id'], 'type'));
+
+  /// The side whose money is a fact: reconciled, else matched to the bank.
+  /// True for [m], false for [t], null when neither or both.
+  bool? _factSide(Map<String, List<Row>> m, Map<String, List<Row>> t) {
+    bool reconciled(Map<String, List<Row>> x) =>
+        x['entries']!.any((e) => _real(e) && e['reconciliation_id'] != null);
+    bool bank(Map<String, List<Row>> x) =>
+        x['entries']!.any((e) => _real(e) && e['import_key'] != null);
+    if (reconciled(m) != reconciled(t)) return reconciled(m);
+    if (bank(m) != bank(t)) return bank(m);
+    return null;
+  }
+
+  /// The four parts of a transaction a person changes apart (ADR 0005 step
+  /// 4, from the reviews): its money (amount, account, date), whether it
+  /// is cleared (with what it was reconciled or matched as), its payee and
+  /// memo, and its filing (the categories). When it was changed is none.
+  static const _parts = ['money', 'cleared', 'payee', 'filing'];
+
+  String _part(String part, Map<String, List<Row>> x) {
+    final t = x['transactions']!.firstOrNull;
+    final entries = x['entries'] ?? const <Row>[];
+    String lines(bool real, List<Object?> Function(Row) of) => jsonEncode(
+      [
+        for (final e in entries)
+          if (_real(e) == real) jsonEncode(of(e)),
+      ]..sort(),
+    );
+    return switch (part) {
+      'money' => jsonEncode([
+        t?['date'],
+        lines(
+          true,
+          (e) => [e['account_id'], e['amount_minor'], e['currency'], e['rate']],
+        ),
+      ]),
+      'cleared' => lines(
+        true,
+        (e) => [
+          e['account_id'],
+          e['cleared'],
+          e['reconciliation_id'],
+          e['import_key'],
+        ],
+      ),
+      'payee' => jsonEncode([t?['payee_id'], t?['memo']]),
+      // One category is its name: its amount follows the money. A split is
+      // its categories with what each holds.
+      _ when entries.where((e) => !_real(e)).length <= 1 => lines(
+        false,
+        (e) => [e['account_id']],
+      ),
+      _ => lines(
+        false,
+        (e) => [e['account_id'], e['amount_minor'], e['currency']],
+      ),
+    };
+  }
+
+  /// Settled part by part: what only one computer changed of a part is
+  /// kept; a part both changed goes by a fact (a reconciled or bank-matched
+  /// side keeps its money and cleared state, and the other's payee, memo
+  /// and categories come in), else by the lower computer id. The same
+  /// whichever computer works it out.
+  Map<String, List<Row>> _byPart(
+    Map<String, List<Row>> m,
+    Map<String, List<Row>> t,
     Map<String, List<Row>> b,
   ) {
-    final ft = f['transactions']!.firstOrNull;
-    final ot = o['transactions']!.firstOrNull;
-    final bt = b['transactions']!.firstOrNull;
-    if (ft == null || ot == null || bt == null) return f;
-    final txn = {...ft};
-    for (final c in const ['payee_id', 'memo']) {
-      if (ot[c] != bt[c]) txn[c] = ot[c];
+    final fact = _factSide(m, t);
+    if (b['transactions']!.isEmpty) {
+      // Made on both, nothing before: whole, by the fact or the order.
+      return (fact ?? mineFirst!) ? m : t;
     }
-    bool real(Row e) => const {
-      'asset',
-      'liability',
-    }.contains(_nameIn('accounts', e['account_id'], 'type'));
-    final money = [
-      for (final e in f['entries']!)
-        if (real(e)) e,
+    final from = <String, Map<String, List<Row>>>{};
+    for (final p in _parts) {
+      final pm = _part(p, m), pt = _part(p, t), pb = _part(p, b);
+      // A reconciled or bank-matched row's money and cleared state are a
+      // lock: they stay, whoever changed them.
+      if (fact != null && (p == 'money' || p == 'cleared')) {
+        from[p] = fact ? m : t;
+      } else if (pm == pt || pt == pb) {
+        from[p] = m;
+      } else if (pm == pb) {
+        from[p] = t;
+      } else if (fact != null) {
+        // Both changed the payee or the categories: the other's typed
+        // filing comes in over the fact's.
+        from[p] = fact ? t : m;
+      } else {
+        from[p] = mineFirst! ? m : t;
+      }
+    }
+    // The row's own columns, each kept where only one changed it.
+    final mt = m['transactions']!.first, tt = t['transactions']!.first;
+    final bt = b['transactions']!.first;
+    final txn = <String, Object?>{};
+    for (final c in {...mt.keys, ...tt.keys}) {
+      final x = mt[c], y = tt[c], w = bt[c];
+      if (x == y || y == w) {
+        txn[c] = x;
+      } else if (x == w) {
+        txn[c] = y;
+      } else if (c == 'updated_at') {
+        txn[c] = x is int && y is int && y > x ? y : x;
+      } else {
+        txn[c] = (mineFirst! ? mt : tt)[c];
+      }
+    }
+    return _compose(
+      txn,
+      money: from['money']!,
+      cleared: from['cleared']!,
+      payee: from['payee']!,
+      filing: from['filing']!,
+    );
+  }
+
+  /// A transaction made of the parts of several versions: [txn]'s columns,
+  /// with the date of [money] and the payee and memo of [payee]; the lines
+  /// in bank, cash and credit accounts from [money], cleared as [cleared]
+  /// has them; the categories from [filing] when they add up to the money
+  /// (one category in a currency takes the amount; a split that doesn't
+  /// add up stays as [money] has it).
+  Map<String, List<Row>> _compose(
+    Row txn, {
+    required Map<String, List<Row>> money,
+    required Map<String, List<Row>> cleared,
+    required Map<String, List<Row>> payee,
+    required Map<String, List<Row>> filing,
+  }) {
+    final out = {...txn};
+    final mt = money['transactions']!.firstOrNull;
+    final pt = payee['transactions']!.firstOrNull;
+    if (mt != null) out['date'] = mt['date'];
+    if (pt != null) {
+      out['payee_id'] = pt['payee_id'];
+      out['memo'] = pt['memo'];
+    }
+    final clearedLines = [
+      for (final e in cleared['entries']!)
+        if (_real(e)) e,
+    ];
+    Row withCleared(Row e) {
+      final c =
+          clearedLines.where((x) => x['id'] == e['id']).firstOrNull ??
+          clearedLines
+              .where((x) => x['account_id'] == e['account_id'])
+              .firstOrNull;
+      return c == null
+          ? {...e}
+          : {
+              ...e,
+              'cleared': c['cleared'],
+              'reconciliation_id': c['reconciliation_id'],
+              'import_key': c['import_key'],
+            };
+    }
+
+    final lines = [
+      for (final e in money['entries']!)
+        if (_real(e)) withCleared(e),
     ];
     List<Row> categories(Map<String, List<Row>> x) => [
       for (final e in x['entries']!)
-        if (!real(e)) e,
+        if (!_real(e)) e,
     ];
-    String filing(List<Row> rows) => jsonEncode(
-      [
-        for (final e in rows)
-          jsonEncode([e['account_id'], e['amount_minor'], e['currency']]),
-      ]..sort(),
-    );
-    var filed = categories(f);
-    final theirs = categories(o);
-    if (theirs.isNotEmpty && filing(theirs) != filing(categories(b))) {
+    var filed = categories(money);
+    final want = categories(filing);
+    if (!identical(filing, money) && want.isNotEmpty) {
       final need = <Object?, int>{};
-      for (final e in money) {
+      for (final e in lines) {
         need[e['currency']] =
             (need[e['currency']] ?? 0) - (e['amount_minor'] as int);
       }
       final have = <Object?, int>{};
-      final lines = <Object?, int>{};
-      for (final e in theirs) {
+      final count = <Object?, int>{};
+      for (final e in want) {
         have[e['currency']] =
             (have[e['currency']] ?? 0) + (e['amount_minor'] as int);
-        lines[e['currency']] = (lines[e['currency']] ?? 0) + 1;
+        count[e['currency']] = (count[e['currency']] ?? 0) + 1;
       }
       final sameCurrencies =
           need.length == have.length && need.keys.every(have.containsKey);
       if (sameCurrencies && need.keys.every((c) => need[c] == have[c])) {
-        filed = theirs;
-      } else if (sameCurrencies && lines.values.every((n) => n == 1)) {
+        filed = want;
+      } else if (sameCurrencies && count.values.every((n) => n == 1)) {
         filed = [
-          for (final e in theirs) {...e, 'amount_minor': need[e['currency']]},
+          for (final e in want) {...e, 'amount_minor': need[e['currency']]},
         ];
       }
     }
+    final ids = {for (final e in lines) e['id']};
     return {
-      'transactions': [txn],
+      'transactions': [out],
       'entries': [
-        for (final e in [...money, ...filed]) {...e},
+        ...lines,
+        for (final e in filed)
+          if (!ids.contains(e['id'])) {...e},
       ],
     };
   }
@@ -1182,6 +1607,12 @@ class _Combine {
     AskSide side(Row? r) => AskSide(
       deleted: r == null,
       name: renamed ? (r?['name'] as String?) : null,
+      amountMinor: kind == AskKind.pay || kind == AskKind.plan
+          ? (r?['amount_minor'] as num?)?.toInt()
+          : null,
+      day: kind == AskKind.pay && r?['rule'] == 'monthly'
+          ? (r?['day1'] as num?)?.toInt()
+          : null,
     );
     told.add(
       Ask(
@@ -1194,6 +1625,12 @@ class _Combine {
         now: side(now),
         replaced: true,
         name: name,
+        setting: table == 'preferences' ? k : null,
+        currency: switch (kind) {
+          AskKind.pay => _nameIn('accounts', any?['account_id'], 'currency'),
+          AskKind.plan => _nameIn('accounts', any?['category_id'], 'currency'),
+          _ => null,
+        },
         // A name is set back from the window; nothing else of one row is.
         rows: renamed
             ? {
@@ -1240,7 +1677,7 @@ class _Combine {
     Map<String, List<Row>>? b,
     Map<String, List<Row>> chosen,
   ) {
-    if (b == null) return !_sameRowsByTable(chosen, m);
+    if (b == null) return !_sameRowsButWhen(chosen, m);
     List<String> says(Map<String, List<Row>> x) {
       if (u.transaction == null) {
         return [
@@ -1287,43 +1724,88 @@ class _Combine {
     }
     // What this computer changed is none of those: lost when the row isn't
     // as it is here.
-    return !changed && !_sameRowsByTable(chosen, m);
+    return !changed && !_sameRowsButWhen(chosen, m);
   }
+
+  /// Every row of [table] the three ledgers hold, for names.
+  late final LedgerRows _names = {
+    for (final t in const ['payees', 'accounts', 'reconciliations'])
+      t: [...?mine[t], ...?theirs[t], ...?base[t]],
+  };
 
   Ask _describe(_Unit u) {
     final m = _unitRows(u, mine);
-    final t = _unitRows(u, _heldTheirs);
-    final b = _unitRows(u, _heldBase);
+    var t = _unitRows(u, _heldTheirs);
+    var b = _unitRows(u, _heldBase);
+    // Settled already on the other computer, over this one's: the versions
+    // as each made them, not the answer.
+    if (answeredBase != null &&
+        answeredTheirs != null &&
+        _tablesOf(
+          u,
+        ).any((table) => _answeredAny(table, [...?m[table], ...?t[table]]))) {
+      b = _unitRows(u, answeredBase!);
+      t = _unitRows(u, answeredTheirs!);
+    }
     final chosen = _chosen[u.id];
-    final hasBase = b.values.any((rows) => rows.isNotEmpty);
-    final rows = chosen == null
-        ? const <Pick, Map<String, List<Row>>>{}
-        : {Pick.mine: m, Pick.theirs: t, if (hasBase) Pick.neither: b};
+    final hasBase =
+        b.values.any((rows) => rows.isNotEmpty) &&
+        !_tablesOf(u).any(
+          (table) => (b[table] ?? const <Row>[]).any(
+            (r) => madeUp.contains('$table|${_keyOf(table, r)}'),
+          ),
+        );
     final replaced = chosen != null && _lost(u, m, hasBase ? b : null, chosen);
     if (u.transaction != null) {
-      AskSide side(Map<String, List<Row>> rows) {
-        final t = (rows['transactions'] ?? const <Row>[]).firstOrNull;
-        return AskSide(
-          deleted: t == null || t['deleted_at'] != null,
-          date: t?['date'] as String?,
-          payee: t == null ? null : _nameIn('payees', t['payee_id'], 'name'),
-          memo: t?['memo'] as String?,
-          lines: [
-            for (final e in rows['entries'] ?? const <Row>[])
-              AskLine(
-                account: _nameIn('accounts', e['account_id'], 'name') ?? '',
-                amountMinor: e['amount_minor'] as int,
-                currency: '${e['currency']}',
-                isCategory: const {
-                  'income',
-                  'expense',
-                  'equity',
-                }.contains(_nameIn('accounts', e['account_id'], 'type')),
-              ),
-          ],
+      // The money kept is a fact: every version picked afterwards keeps
+      // it, and only the payee, memo and categories change.
+      String? lock;
+      String? lockDate;
+      if (chosen != null) {
+        final real = [
+          for (final e in chosen['entries'] ?? const <Row>[])
+            if (_real(e)) e,
+        ];
+        final rec = real
+            .where((e) => e['reconciliation_id'] != null)
+            .firstOrNull;
+        if (rec != null) {
+          lock = 'reconciled';
+          lockDate =
+              _names['reconciliations']!
+                      .where((r) => r['id'] == rec['reconciliation_id'])
+                      .firstOrNull?['statement_date']
+                  as String?;
+        } else if (real.any((e) => e['import_key'] != null)) {
+          lock = 'bank';
+        }
+      }
+      Map<String, List<Row>> locked(Map<String, List<Row>> v) {
+        if (lock == null || chosen == null || v['transactions']!.isEmpty) {
+          return v;
+        }
+        final txn = {
+          ...v['transactions']!.first,
+          'deleted_at': chosen['transactions']!.first['deleted_at'],
+        };
+        return _compose(
+          txn,
+          money: chosen,
+          cleared: chosen,
+          payee: v,
+          filing: v,
         );
       }
 
+      final rows = chosen == null
+          ? const <Pick, Map<String, List<Row>>>{}
+          : {
+              Pick.mine: locked(m),
+              Pick.theirs: locked(t),
+              if (hasBase) Pick.neither: locked(b),
+            };
+      AskSide side(Map<String, List<Row>> rows) =>
+          describeTransaction(rows, _names);
       return Ask(
         id: u.id,
         kind: AskKind.transaction,
@@ -1331,22 +1813,52 @@ class _Combine {
         mine: side(m),
         theirs: side(t),
         neither: side(b),
-        hasBase: (b['transactions'] ?? const <Row>[]).isNotEmpty,
+        hasBase: hasBase && (b['transactions'] ?? const <Row>[]).isNotEmpty,
         now: chosen == null ? null : side(chosen),
         replaced: replaced,
         rows: rows,
         nowRows: chosen,
+        lock: lock,
+        lockDate: lockDate,
       );
     }
+    final rows = chosen == null
+        ? const <Pick, Map<String, List<Row>>>{}
+        : {Pick.mine: m, Pick.theirs: t, if (hasBase) Pick.neither: b};
     AskSide side(Map<String, List<Row>> rows) => AskSide(
       assignedMinor: (rows['budget_amounts'] ?? const <Row>[]).fold<int>(
         0,
         (sum, r) => sum + (r['amount_minor'] as int),
       ),
     );
+    // Other categories this computer alone changed for the same period: an
+    // amount moved from one to another, crossed with a change to one.
+    final also = <({String category, int amountMinor})>[];
+    if (replaced) {
+      Map<Object?, int> sums(LedgerRows of) {
+        final out = <Object?, int>{};
+        for (final r in of['budget_amounts'] ?? const <Row>[]) {
+          if (r['date'] != u.date || r['category_id'] == u.category) continue;
+          out[r['category_id']] =
+              (out[r['category_id']] ?? 0) + (r['amount_minor'] as int);
+        }
+        return out;
+      }
+
+      final sm = sums(mine), st = sums(theirs), sb = sums(base);
+      for (final c in {...sm.keys, ...sb.keys}) {
+        if ((sm[c] ?? 0) != (sb[c] ?? 0) && (st[c] ?? 0) == (sb[c] ?? 0)) {
+          also.add((
+            category: _nameIn('accounts', c, 'name') ?? '',
+            amountMinor: sm[c] ?? 0,
+          ));
+        }
+      }
+    }
     return Ask(
       id: u.id,
       kind: AskKind.assigned,
+      hasBase: hasBase,
       category: _nameIn('accounts', u.category, 'name'),
       currency: _nameIn('accounts', u.category, 'currency'),
       date: u.date,
@@ -1357,9 +1869,9 @@ class _Combine {
       replaced: replaced,
       rows: rows,
       nowRows: chosen,
+      also: also,
     );
   }
-
   // ---------- the same thing made on both computers ----------
 
   void _oneOfEach() {
@@ -1826,7 +2338,9 @@ class _Combine {
       final was = b[k], here = m[k], there = t[k];
       // The other computer settled it already, over this computer's own
       // version: its version is taken whole, and the person here is told.
-      if (_settling && answered.contains('$table|$k') && !_same(here, there)) {
+      if (_settling &&
+          answered.contains('$table|$k') &&
+          !_sameButWhen(here, there)) {
         if (_transactionTables.contains(table)) {
           _askAbout(table, [
             was,
@@ -1907,7 +2421,10 @@ class _Combine {
           there,
         ], '$table $k changed on one and deleted on the other');
       }
-      if (!_byColumn.contains(table)) {
+      // A pay is settled column by column too, once settled at all: its
+      // amount from one and its day from the other each stand.
+      if (!_byColumn.contains(table) &&
+          !(_settling && table == 'pay_schedules')) {
         if (_settling) {
           _settleRow(table, k, was, here, there);
           continue;
@@ -2048,6 +2565,40 @@ class _Combine {
           'assigned, settled on the other computer: $k',
         );
       }
+      // Both made it the same amount, in rows of their own (made before one
+      // id was shared): one set of rows, the same on both, by the rule, and
+      // written down for the other.
+      if (_settling && there == here && here != was) {
+        Set<Object?> ids(List<Row>? rows) => {
+          for (final r in rows ?? const <Row>[]) r['id'],
+        };
+        if (!_sameSet(ids(m[k]), ids(t[k]))) {
+          final keep = mineFirst!
+              ? (m[k] ?? const <Row>[])
+              : (t[k] ?? const <Row>[]);
+          if (!mineFirst!) {
+            final keepIds = ids(keep);
+            for (final r in m[k] ?? const <Row>[]) {
+              if (!keepIds.contains(r['id'])) _delete('budget_amounts', r);
+            }
+            final hereIds = ids(m[k]);
+            for (final r in keep) {
+              if (hereIds.contains(r['id'])) continue;
+              if (result['budget_amounts']!.containsKey('${r['id']}')) {
+                _stop('an assigned amount’s id is taken: ${r['id']}');
+              }
+              _insert('budget_amounts', r);
+            }
+          }
+          _keptOver(
+            ['budget_amounts'],
+            {'budget_amounts': t[k] ?? const <Row>[]},
+            {'budget_amounts': keep},
+            mine: {'budget_amounts': m[k] ?? const <Row>[]},
+          );
+        }
+        continue;
+      }
       if (there == was || there == here) continue;
       if (here != was) {
         final any = [...?t[k], ...?m[k], ...?b[k]].first;
@@ -2099,7 +2650,7 @@ class _Combine {
           k != phoneTakenKey &&
           !_viewOnly.contains(k) &&
           answered.contains('preferences|$k') &&
-          !_same(here, there)) {
+          !_sameButWhen(here, there)) {
         _settleRow('preferences', k, was, here, there);
         continue;
       }
@@ -2210,6 +2761,11 @@ class _Combine {
             (sums[e['currency']] ?? 0) + (e['amount_minor'] as int);
       }
       if (entries.length < 2 || sums.values.any((s) => s != 0)) {
+        // Its lines changed apart on the two, a line at a time: settled, it
+        // is one thing both changed, settled part by part.
+        if (_settling) {
+          _ask(_Unit.transaction(id), 'transaction $id wouldn’t add up');
+        }
         _stop('transaction $id wouldn’t add up');
       }
       // Deleted on one computer and changed on the other: the change would
@@ -2356,12 +2912,36 @@ class _Combine {
           },
         );
         if (deletedHere) {
+          // The transaction the other put in it, to name.
+          final put = theirs['entries']
+              ?.where(
+                (e) =>
+                    e['account_id'] == id &&
+                    !(base['entries'] ?? const <Row>[]).any(
+                      (o) => o['id'] == e['id'] && o['account_id'] == id,
+                    ),
+              )
+              .firstOrNull;
+          final putRows = put == null
+              ? const <String, List<Row>>{}
+              : {
+                  'transactions': [
+                    for (final r in theirs['transactions'] ?? const <Row>[])
+                      if (r['id'] == put['transaction_id']) r,
+                  ],
+                  'entries': [
+                    for (final r in theirs['entries'] ?? const <Row>[])
+                      if (r['transaction_id'] == put['transaction_id']) r,
+                  ],
+                };
           told.add(
             Ask(
               id: 'row|accounts|$k',
               kind: AskKind.stays,
               mine: const AskSide(deleted: true),
-              theirs: const AskSide(),
+              theirs: put == null
+                  ? const AskSide()
+                  : describeTransaction(putRows, _names),
               neither: const AskSide(),
               now: const AskSide(),
               replaced: true,

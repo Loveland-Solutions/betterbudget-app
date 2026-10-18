@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io'
     show Directory, File, FileSystemEntityType, FileSystemException;
 import 'dart:ui' show AppExitResponse;
@@ -18,7 +19,7 @@ import '../data/keys.dart';
 import '../data/phone_inbox.dart';
 import '../domain/budget.dart';
 import '../domain/combine.dart'
-    show Ask, AskKind, AskSide, Pick, RowOp, rowOpsBetween, rowsOf;
+    show Ask, AskKind, AskLine, AskSide, Pick, RowOp, rowOpsBetween, rowsOf;
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -321,6 +322,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (mounted && _cloud.value.standing == FolderStanding.apart) {
           await _folderNews(justMoved: justMoved);
         }
+      case FolderStanding.rows:
+        final digest = _cloud.theirs?.look.digest;
+        if (digest == null || digest == _askedAbout || _busyForFolder) return;
+        await _chooseRows();
       case FolderStanding.apart:
         final digest = _cloud.theirs?.look.digest;
         if (digest == null || digest == _askedAbout || _busyForFolder) return;
@@ -443,7 +448,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// changed two ways that was settled over this computer's version (ADR
   /// 0004, "Two computers, step 4"), a whole sentence for one and a count
   /// for more, with Show; that popup stays until it is closed.
-  Future<void> _bringInFolderChanges() async {
+  Future<void> _bringInFolderChanges({Map<String, Pick>? picks}) async {
     final path = _cloud.value.path;
     if (path == null || _busyForFolder) return;
     _cancelEdit();
@@ -469,7 +474,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final overBefore = over(_data);
     final CombinedIn? done;
     try {
-      done = await _whileRestoring(() => _cloud.bringIn(widget.clock()));
+      done = await _whileRestoring(
+        () => _cloud.bringIn(widget.clock(), picks: picks),
+      );
     } catch (e) {
       debugPrint('Bringing in the folder’s changes failed: $e');
       return;
@@ -502,7 +509,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     final t = context.t;
     final n = done.transactions;
+    final from = done.from.savedByName ?? t.ledgerRowsOtherComputer;
     final label = switch (done.from.savedByName) {
+      // One transaction came: by its payee.
+      _ when n == 1 && done.payee != null && done.others == 0 =>
+        t.ledgerCombinedPayeeFrom(done.payee!, from),
+      _ when n == 1 && done.payee != null => t.ledgerCombinedPayeeMoreFrom(
+        done.payee!,
+        done.others,
+        from,
+      ),
       final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
       final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
       final name? => t.ledgerCombinedMoreFrom(n, name),
@@ -514,44 +530,38 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final short = overNow.entries
         .where((e) => e.value > (overBefore[e.key] ?? 0))
         .firstOrNull;
-    // What of this computer's was replaced, settled as the other computer
-    // settles it: a whole sentence for one, a count for more.
-    final other = done.from.savedByName ?? t.ledgerRowsOtherComputer;
-    final replaced = done.replaced;
-    final cards = [
-      for (final a in replaced)
-        if (_hasCard(a)) a,
-    ];
-    final lines = [
-      if (replaced.length == 1) _toldSentence(context, replaced.single, other),
-      if (replaced.length > 1) t.ledgerBothSeveral(replaced.length, other),
+    final extra = [
       if (done.alike.isNotEmpty) t.ledgerCombinedAlike(done.alike.length),
       if (short != null)
         t.ledgerCombinedOverAssigned(
           formatShort(short.value, currency: short.key),
         ),
     ];
+    // Something of this computer's was replaced, settled as the other
+    // computer settles it: said in the popup that stays (ADR 0004, step 4).
+    if (done.replaced.isNotEmpty) {
+      final was = _told;
+      _setTold((
+        message: label,
+        extra: extra,
+        from: done.from.savedByName,
+        // One that was still up keeps what it said, the new beside it.
+        asks: [...?was?.asks, ...done.replaced],
+      ));
+      return;
+    }
     // No Undo (owner, 2026-10-10: "Only undo what the user in front of the
     // computer did or decided. Nothing else"). ⌘Z undoes what is done here
     // from now on; this computer's ledger as it was is in Backups.
     _showToast(
       label,
-      detail: lines.isEmpty
+      detail: extra.isEmpty
           ? t.ledgerFolderCopied(
               _folderName(path),
               _sayWhen(t, done.from.savedAt ?? done.modified, widget.clock()),
             )
-          : lines.join('\n'),
-      // Something of theirs was replaced: it stays until they close it or
-      // look (the first run on two Mac accounts: a popup went away before
-      // the owner looked).
-      stay: replaced.isNotEmpty,
-      more: cards.isNotEmpty
-          ? (
-              label: t.ledgerShowMoved,
-              onTap: () => _showSettled(cards, done!.from.savedByName),
-            )
-          : done.alike.isEmpty
+          : extra.join('\n'),
+      more: done.alike.isEmpty
           ? null
           : (
               label: t.ledgerShowMoved,
@@ -561,6 +571,110 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
             ),
     );
+  }
+
+  /// The popup that says what of this computer's another computer's change
+  /// replaced (ADR 0004, "Two computers, step 4"): it stays until it is
+  /// closed or Show is clicked, is never replaced by another popup (those
+  /// show above it), and is kept in a small file beside the ledger
+  /// ([_toldFile]: only what redraws it) so it comes back after a quit.
+  ({String message, List<String> extra, String? from, List<Ask> asks})? _told;
+
+  /// Beside the ledger, where the folder's settings are: found when the
+  /// folder was first looked at, so keeping the popup asks nothing of the
+  /// ledger.
+  File? get _toldFile => _cloud.ledgerDir == null
+      ? null
+      : File('${_cloud.ledgerDir}/settled-told');
+
+  void _setTold(
+    ({String message, List<String> extra, String? from, List<Ask> asks})? told,
+  ) {
+    if (!mounted) return;
+    setState(() => _told = told);
+    _keepTold(told);
+  }
+
+  void _keepTold(
+    ({String message, List<String> extra, String? from, List<Ask> asks})? told,
+  ) {
+    try {
+      final file = _toldFile;
+      if (file == null) return;
+      if (told == null) {
+        if (file.existsSync()) file.deleteSync();
+        return;
+      }
+      final temp = File('${file.path}.tmp');
+      temp.writeAsStringSync(
+        jsonEncode({
+          'message': told.message,
+          'extra': told.extra,
+          'from': told.from,
+          'asks': [for (final a in told.asks) a.toJson()],
+        }),
+        flush: true,
+      );
+      temp.renameSync(file.path);
+    } catch (e) {
+      debugPrint('What was replaced couldn’t be kept: $e');
+    }
+  }
+
+  /// The popup kept at the last quit, back at launch.
+  void _loadTold() {
+    try {
+      final file = _toldFile;
+      if (file == null || !file.existsSync()) return;
+      final j = jsonDecode(file.readAsStringSync()) as Map;
+      final asks = [
+        for (final a in (j['asks'] as List?) ?? const [])
+          Ask.fromJson((a as Map).cast<String, Object?>()),
+      ];
+      if (asks.isEmpty || !mounted) return;
+      setState(
+        () => _told = (
+          message: '${j['message'] ?? ''}',
+          extra: [for (final e in (j['extra'] as List?) ?? const []) '$e'],
+          from: j['from'] as String?,
+          asks: asks,
+        ),
+      );
+    } catch (e) {
+      debugPrint('What was replaced couldn’t be read back: $e');
+    }
+  }
+
+  /// What the popup that stays says under its title: a whole sentence for
+  /// one thing replaced, a count for more.
+  String _toldDetail(
+    ({String message, List<String> extra, String? from, List<Ask> asks}) told,
+  ) {
+    final t = context.t;
+    final other = told.from ?? t.ledgerRowsOtherComputer;
+    return [
+      if (told.asks.length == 1)
+        _toldSentence(context, told.asks.single, other),
+      if (told.asks.length > 1) t.ledgerBothSeveral(told.asks.length, other),
+      ...told.extra,
+    ].join('\n');
+  }
+
+  /// Show on the popup that stays: the window, with each thing read again
+  /// from the ledger as it is now; the popup goes once it is open.
+  Future<void> _showTold() async {
+    final told = _told;
+    if (told == null) return;
+    var asks = told.asks;
+    try {
+      final rows = await db.allRows();
+      asks = [for (final a in asks) a.refreshed(rows)];
+    } catch (e) {
+      debugPrint('The ledger couldn’t be read for the window: $e');
+    }
+    if (!mounted) return;
+    _setTold(null);
+    await _showSettled(asks, told.from);
   }
 
   /// The window for what both computers changed two ways, already settled:
@@ -600,9 +714,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Three or more computers, and something changed two ways among them
+  /// (ADR 0005 step 4, from the reviews): not settled by the rule, which is
+  /// exact for two, but asked, as step 3 did. Nothing is written until then.
+  Future<void> _chooseRows() async {
+    final theirs = _cloud.theirs;
+    final asks = _cloud.asks;
+    if (theirs == null || asks.isEmpty || _restoring) return;
+    _askedAbout = theirs.look.digest;
+    final picks = await showDialog<Map<String, Pick>>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => _RowsDialog(asks: asks, computer: null, asking: true),
+    );
+    if (picks == null || !mounted) return;
+    await _bringInFolderChanges(picks: picks);
+  }
+
   /// Both this computer's ledger and the folder's were changed: shows what
   /// each holds and lets the person choose. Nothing is written until then.
   Future<void> _chooseLedger({bool justMoved = false}) async {
+    if (_cloud.value.standing == FolderStanding.rows) return _chooseRows();
     final theirs = _cloud.theirs;
     final path = _cloud.value.path;
     if (theirs == null || path == null || _restoring) return;
@@ -827,6 +959,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (!gaveUp.isCompleted) gaveUp.complete();
       });
       await Future.any([_cloud.load(widget.clock()), gaveUp.future]);
+      // What of this computer's was replaced, told before the last quit
+      // and not yet looked at: the popup comes back.
+      _loadTold();
       _lookTimer?.cancel();
       if (mounted && _cloud.value.standing == FolderStanding.newer) {
         await _openFolderLedger(atLaunch: true);
@@ -5398,7 +5533,47 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         color: Color(0x66000000),
                       ),
                     ),
-                  if (_toast != null)
+                  // The popup that stays (something of this computer's was
+                  // replaced) keeps the corner; any other shows above it.
+                  if (_told case final told?)
+                    Positioned(
+                      bottom: 36,
+                      right: 40,
+                      width: _Toast.width,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_toast != null) ...[
+                            _Toast(
+                              key: _toastKey,
+                              toast: _toast!,
+                              onPointer: _toastPointerAt,
+                              onClose: _closeToast,
+                              positioned: false,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          _Toast(
+                            key: const ValueKey('told'),
+                            keyPrefix: 'told',
+                            positioned: false,
+                            toast: (
+                              message: told.message,
+                              detail: _toldDetail(told),
+                              undo: null,
+                              more: (
+                                label: context.t.ledgerShowMoved,
+                                onTap: _showTold,
+                              ),
+                              stay: true,
+                            ),
+                            onPointer: (_) {},
+                            onClose: () => _setTold(null),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_toast != null)
                     _Toast(
                       key: _toastKey,
                       toast: _toast!,
@@ -5870,7 +6045,9 @@ class _Sidebar extends StatelessWidget {
                         listenable: Listenable.merge([backupHealth, folder]),
                         builder: (context, _) => _SettingsGear(
                           active: section == AppSection.settings,
-                          alert: folder.value.standing == FolderStanding.apart
+                          alert:
+                              folder.value.standing == FolderStanding.apart ||
+                                  folder.value.standing == FolderStanding.rows
                               ? context.t.ledgerFolderApartAlert
                               : folder.value.held
                               ? context.t.ledgerFolderAlert
@@ -6251,6 +6428,7 @@ class _SettingsPage extends StatelessWidget {
                                               folderName(keptIn),
                                               when(kept.copiedAt!),
                                             ),
+                                    FolderStanding.rows ||
                                     FolderStanding.apart => t.ledgerFolderApart(
                                       folderName(keptIn),
                                     ),
@@ -6316,7 +6494,8 @@ class _SettingsPage extends StatelessWidget {
                               ),
                               // Offered only while there are two to choose
                               // between.
-                              if (kept.standing == FolderStanding.apart)
+                              if (kept.standing == FolderStanding.apart ||
+                                  kept.standing == FolderStanding.rows)
                                 BarButton(
                                   key: const ValueKey('choose-ledger'),
                                   label: t.ledgerFolderChooseWhich,
@@ -7430,7 +7609,16 @@ class _Toast extends StatelessWidget {
     required this.toast,
     required this.onClose,
     required this.onPointer,
+    this.positioned = true,
+    this.keyPrefix = 'toast',
   });
+
+  /// What its parts' keys start with: `told` for the popup that stays.
+  final String keyPrefix;
+
+  /// In the page's corner by itself; false when it is stacked with the
+  /// popup that says what of this computer's was replaced.
+  final bool positioned;
   final ({
     String message,
     String? detail,
@@ -7450,9 +7638,13 @@ class _Toast extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = Mid.onToast;
     final light = Mid.isLight;
-    return Positioned(
-      bottom: 36,
-      right: 40,
+    final card = _card(ink, light, context);
+    if (!positioned) return card;
+    return Positioned(bottom: 36, right: 40, width: width, child: card);
+  }
+
+  Widget _card(Color ink, bool light, BuildContext context) {
+    return SizedBox(
       width: width,
       // A click on it isn't a click away from a row open for typing.
       child: TextFieldTapRegion(
@@ -7494,7 +7686,7 @@ class _Toast extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Text(
                               toast.message,
-                              key: const ValueKey('toast-message'),
+                              key: ValueKey('$keyPrefix-message'),
                               style: onest(14, weight: 600, color: ink),
                             ),
                           ),
@@ -7542,7 +7734,7 @@ class _Toast extends StatelessWidget {
                         padding: const EdgeInsets.only(right: 8, bottom: 2),
                         child: Text(
                           detail,
-                          key: const ValueKey('toast-detail'),
+                          key: ValueKey('$keyPrefix-detail'),
                           // Two things to say are a line each; a whole
                           // sentence about something replaced is never cut.
                           maxLines: toast.stay
@@ -7568,7 +7760,7 @@ class _Toast extends StatelessWidget {
                           bottom: 4,
                         ),
                         child: OutlinedButton(
-                          key: const ValueKey('toast-more'),
+                          key: ValueKey('$keyPrefix-more'),
                           onPressed: more.onTap,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ink,

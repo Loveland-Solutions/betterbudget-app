@@ -13,7 +13,7 @@ void main() {
     'created_at': 100,
     'updated_at': 100,
   };
-  FoldChange change(String op, Row? before, Row? after) => (
+  FoldChange change(String op, Row? before, Row? after) => FoldChange(
     tbl: 'transactions',
     pk: {'id': (before ?? after)!['id']},
     op: op,
@@ -94,7 +94,7 @@ void main() {
       'date': '2026-10-01',
       'amount_minor': 400,
     };
-    FoldChange b(String op, Row? before, Row? after) => (
+    FoldChange b(String op, Row? before, Row? after) => FoldChange(
       tbl: 'budget_amounts',
       pk: {'id': (before ?? after)!['id']},
       op: op,
@@ -160,7 +160,7 @@ void main() {
       'transactions': [txn(1, 'a')],
     };
     final out = foldChanges(mine, [
-      (
+      FoldChange(
         tbl: 'goals',
         pk: {'id': 1},
         op: 'insert',
@@ -242,7 +242,7 @@ void main() {
     // The other cleared the row.
     final cleared = {...base['entries']![0], 'cleared': 1};
     var folded = foldChanges(base, [
-      (
+      FoldChange(
         tbl: 'entries',
         pk: {'id': 20},
         op: 'update',
@@ -262,14 +262,14 @@ void main() {
       ],
     };
     folded = foldChanges(mine, [
-      (
+      FoldChange(
         tbl: 'entries',
         pk: {'id': 20},
         op: 'update',
         before: base['entries']![0],
         after: {...base['entries']![0], 'amount_minor': -7000},
       ),
-      (
+      FoldChange(
         tbl: 'entries',
         pk: {'id': 21},
         op: 'update',

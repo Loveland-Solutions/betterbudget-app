@@ -5488,12 +5488,12 @@ class WordsMn extends Words {
   @override
   String ledgerBothAssigned(
     String category,
-    String date,
+    String when,
     String computer,
     String kept,
     String yours,
   ) {
-    return '$category-ийн $date-аас эхлэх үеийн Оноосон дүн хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+    return '$when $category хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
   }
 
   @override
@@ -5545,6 +5545,218 @@ class WordsMn extends Words {
   @override
   String get ledgerBothCouldnt =>
       'Үүнийг өөрчилж чадсангүй, тиймээс юу ч хадгалагдсангүй.';
+
+  @override
+  String ledgerRowsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count зүйл хоёр компьютер дээр өөрчлөгдсөн',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerRowsBody =>
+      'Энэ дэвтрийг гурав ба түүнээс олон компьютер хуваалцдаг тул BetterBudget өөрөө шийдэхгүй, танаас асууна. Тус бүрээс аль нэгийг нь сонгоно уу. Бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.';
+
+  @override
+  String get ledgerRowsSave => 'Сонголтоо хадгалах';
+
+  @override
+  String ledgerRowsAsItWasNow(String what) {
+    return 'Урьд нь: $what · одоо дэвтэрт байгаа';
+  }
+
+  @override
+  String ledgerBothLockReconciled(String date) {
+    return 'Дүн нь $date-нд тулгасан дүн тул хэвээр үлдэнэ.';
+  }
+
+  @override
+  String get ledgerBothLockBank =>
+      'Дүн нь банкны харуулж буй дүн тул хэвээр үлдэнэ.';
+
+  @override
+  String ledgerBothRowBank(
+    String payee,
+    String date,
+    String kept,
+    String yours,
+  ) {
+    return '$date-ны $payee хоёр компьютер дээр хоёулаа өөрчлөгдсөн. Банкны харуулж буй $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothRowReconciled(
+    String payee,
+    String date,
+    String on,
+    String kept,
+    String yours,
+  ) {
+    return '$date-ны $payee хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $on-нд тулгасан $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothClearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  ) {
+    return '$date-ны $payee $amount-д тавьсан таны тэмдэг арилсан; $computer яг тэр үед түүнийг өөрчилсөн.';
+  }
+
+  @override
+  String ledgerBothUnclearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  ) {
+    return '$date-ны $payee $amount-ийн тэмдгийг арилгасан тань буцсан; $computer яг тэр үед түүнийг өөрчилсөн.';
+  }
+
+  @override
+  String ledgerBothDeletedLower(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  ) {
+    return 'Та $date-ны $payee $amount-г ($account) устгасан; $computer түүнийг өөрчилсөн тул буцаж ирсэн, $account таны орхисноос $change-өөр бага байна.';
+  }
+
+  @override
+  String ledgerBothDeletedHigher(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  ) {
+    return 'Та $date-ны $payee $amount-г ($account) устгасан; $computer түүнийг өөрчилсөн тул буцаж ирсэн, $account таны орхисноос $change-өөр их байна.';
+  }
+
+  @override
+  String ledgerBothAmountIn(String amount, String account) {
+    return '$account-д $amount';
+  }
+
+  @override
+  String ledgerBothMemo(String memo) {
+    return '“$memo” тэмдэглэл';
+  }
+
+  @override
+  String get ledgerBothNoMemo => 'тэмдэглэлгүй';
+
+  @override
+  String get ledgerBothNoPayee => 'хүлээн авагчгүй';
+
+  @override
+  String ledgerBothWhenMonth(String month) {
+    return '$month-ын';
+  }
+
+  @override
+  String ledgerBothWhenPay(String date) {
+    return '$date-аас эхлэх цалингийн үеийн';
+  }
+
+  @override
+  String ledgerBothAssignedMoved(
+    String category,
+    String other,
+    String when,
+    String computer,
+    String kept,
+    String otherAmount,
+    String yours,
+  ) {
+    return 'Таныг $when $category болон $other-г өөрчлөх үед $computer $category-г өөрчилсөн. $category-д $computer-ийн $kept хоёуланд нь үлдсэн, $other-д таны $otherAmount үлдсэн; $category-д таных $yours байсан.';
+  }
+
+  @override
+  String ledgerDayOrdinal(int day, String ending) {
+    String _temp0 = intl.Intl.selectLogic(ending, {'other': ''});
+    return '$day$_temp0';
+  }
+
+  @override
+  String ledgerBothPayOn(String amount, String day) {
+    return 'сарын $day-нд $amount';
+  }
+
+  @override
+  String ledgerBothPayKept(
+    String name,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$name цалин хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothPlanKept(
+    String category,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$category-ийн төлөвлөгөө хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийн $kept хоёуланд нь үлдсэн; таных $yours байсан.';
+  }
+
+  @override
+  String ledgerBothSettingNamed(String setting, String computer) {
+    return '$setting хоёр компьютер дээр хоёулаа өөрчлөгдсөн. $computer-ийнх хоёуланд нь үлдсэн.';
+  }
+
+  @override
+  String get ledgerSettingNameNoPay => '“Надад тогтмол цалин байхгүй”';
+
+  @override
+  String get ledgerSettingNameImport => 'Банкны файлыг унших тохиргоо';
+
+  @override
+  String get ledgerSettingNameBudget => 'Төсвийн нэг тохиргоо';
+
+  @override
+  String get ledgerSettingNameSavings => 'Хадгаламжийн нэг тохиргоо';
+
+  @override
+  String get ledgerSettingNamePhone => 'Утасны нэр';
+
+  @override
+  String ledgerBothStaysWith(
+    String name,
+    String computer,
+    String payee,
+    String amount,
+    String date,
+  ) {
+    return 'Та $name-г устгасан, харин $computer түүнд $date-ны $payee $amount-г нэмсэн. Тэр нь үлдсэн.';
+  }
+
+  @override
+  String ledgerCombinedPayeeFrom(String payee, String computer) {
+    return '$computer компьютерээс $payee';
+  }
+
+  @override
+  String ledgerCombinedPayeeMoreFrom(String payee, int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$computer компьютерээс $payee болон $count өөрчлөлт',
+    );
+    return '$_temp0';
+  }
 
   @override
   String ledgerRowsSaved(int count) {

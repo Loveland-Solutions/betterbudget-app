@@ -8332,14 +8332,14 @@
       }
     }
   },
-  "ledgerBothAssigned": "{category}’s Assigned for the period starting {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
+  "ledgerBothAssigned": "{category} {when} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
   "@ledgerBothAssigned": {
-    "description": "Popup line when one category was assigned two amounts for one budget period on two computers. The amounts are never added together.",
+    "description": "Popup line when one category was assigned two amounts for one budget period. {when} is ledgerBothWhenMonth or ledgerBothWhenPay. The amounts are never added together.",
     "placeholders": {
       "category": {
         "type": "String"
       },
-      "date": {
+      "when": {
         "type": "String"
       },
       "computer": {
@@ -8440,6 +8440,382 @@
   "ledgerBothCouldnt": "That couldn’t be changed, so nothing was saved.",
   "@ledgerBothCouldnt": {
     "description": "Popup when a version picked in the window ledgerBothTitle couldn’t be put in the ledger (a row it names is gone)."
+  },
+  "ledgerRowsTitle": "{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}",
+  "@ledgerRowsTitle": {
+    "description": "Title of the question asked, with three or more computers on one ledger, about what two of them changed in a way that can’t both stand. {count} is how many.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerRowsBody": "Three or more computers share this ledger, so BetterBudget asks rather than settling it by itself. Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
+  "@ledgerRowsBody": {
+    "description": "Under ledgerRowsTitle."
+  },
+  "ledgerRowsSave": "Save my choices",
+  "@ledgerRowsSave": {
+    "description": "Button of the question ledgerRowsTitle: makes the choices and brings in everything else."
+  },
+  "ledgerRowsAsItWasNow": "As it was: {what} · in the ledger now",
+  "@ledgerRowsAsItWasNow": {
+    "description": "As ledgerRowsAsItWas, when the ledger holds the version as it was before either computer changed it.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothLockReconciled": "The amount is the one reconciled on {date} and stays.",
+  "@ledgerBothLockReconciled": {
+    "description": "On a card in the window ledgerBothTitle whose row is reconciled: the buttons change only its payee, memo and categories. {date} is the statement’s date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothLockBank": "The amount is the one the bank shows and stays.",
+  "@ledgerBothLockBank": {
+    "description": "On a card in the window ledgerBothTitle whose row is matched to the bank’s file: the buttons change only its payee, memo and categories."
+  },
+  "ledgerBothRowBank": "{payee} on {date} was changed on both computers. {kept}, the amount the bank shows, is kept on both; yours was {yours}.",
+  "@ledgerBothRowBank": {
+    "description": "As ledgerBothRow, when the amount kept is the one matched to the bank’s file.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothRowReconciled": "{payee} on {date} was changed on both computers. {kept}, the amount reconciled on {on}, is kept on both; yours was {yours}.",
+  "@ledgerBothRowReconciled": {
+    "description": "As ledgerBothRow, when the amount kept is the reconciled one. {on} is the statement’s date.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "on": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothClearedLost": "Your cleared tick on {payee} {amount} ({date}) was undone; {computer} changed it at the same time.",
+  "@ledgerBothClearedLost": {
+    "description": "Popup line when this computer ticked a row cleared and the other computer’s change to it was kept.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothUnclearedLost": "Your untick on {payee} {amount} ({date}) was undone; {computer} changed it at the same time.",
+  "@ledgerBothUnclearedLost": {
+    "description": "As ledgerBothClearedLost, when this computer took the tick off.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothDeletedLower": "You deleted {payee} {amount} ({account}) on {date}; {computer} changed it, so it’s back, and {account} is {change} lower than you left it.",
+  "@ledgerBothDeletedLower": {
+    "description": "Popup line when a transaction deleted here was changed on the other computer, so it stays. {amount} is what was deleted, {change} what the account is lower by now.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothDeletedHigher": "You deleted {payee} {amount} ({account}) on {date}; {computer} changed it, so it’s back, and {account} is {change} higher than you left it.",
+  "@ledgerBothDeletedHigher": {
+    "description": "As ledgerBothDeletedLower, for money in.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothAmountIn": "{amount} in {account}",
+  "@ledgerBothAmountIn": {
+    "description": "An amount and the account it is in, in a popup line about a row changed on both computers, when the account differs.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothMemo": "memo “{memo}”",
+  "@ledgerBothMemo": {
+    "description": "A memo, in a popup line about a row changed on both computers.",
+    "placeholders": {
+      "memo": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothNoMemo": "no memo",
+  "@ledgerBothNoMemo": {
+    "description": "No memo, in a popup line about a row changed on both computers."
+  },
+  "ledgerBothNoPayee": "no payee",
+  "@ledgerBothNoPayee": {
+    "description": "No payee, in a popup line about a row changed on both computers."
+  },
+  "ledgerBothWhenMonth": "in {month}",
+  "@ledgerBothWhenMonth": {
+    "description": "When an amount was assigned, in a popup line: a month’s name, as the Budget page says it.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothWhenPay": "for the pay period starting {date}",
+  "@ledgerBothWhenPay": {
+    "description": "When an amount was assigned, in a popup line: a pay period, by its first day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothAssignedMoved": "You changed {category} and {other} {when} while {computer} changed {category}. {computer}’s {kept} for {category} is kept on both, and {other} keeps your {otherAmount}; yours for {category} was {yours}.",
+  "@ledgerBothAssignedMoved": {
+    "description": "Popup line when an amount was moved here between two categories while the other computer changed one of them.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "other": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "otherAmount": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerDayOrdinal": "{day}{ending, select, st{st} nd{nd} rd{rd} other{th}}",
+  "@ledgerDayOrdinal": {
+    "description": "A day of the month as an ordinal, in ledgerBothPayOn. {ending} is the ending English uses for {day} (st, nd, rd or th); another language may leave it out.",
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "ending": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothPayOn": "{amount} on the {day}",
+  "@ledgerBothPayOn": {
+    "description": "A pay’s amount and day of the month, in a popup line. {day} is ledgerDayOrdinal.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothPayKept": "The pay {name} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
+  "@ledgerBothPayKept": {
+    "description": "Popup line when a pay’s amount or day was changed on both computers.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothPlanKept": "{category}’s plan was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.",
+  "@ledgerBothPlanKept": {
+    "description": "Popup line when a category’s planned amount was changed on both computers.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "kept": {
+        "type": "String"
+      },
+      "yours": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBothSettingNamed": "{setting} was changed on both computers. {computer}’s is kept on both.",
+  "@ledgerBothSettingNamed": {
+    "description": "Popup line when a named setting was changed two ways. {setting} is one of the ledgerSettingName… words.",
+    "placeholders": {
+      "setting": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerSettingNameNoPay": "“I don’t have regular pay”",
+  "@ledgerSettingNameNoPay": {
+    "description": "A setting’s name in ledgerBothSettingNamed."
+  },
+  "ledgerSettingNameImport": "How a bank file is read",
+  "@ledgerSettingNameImport": {
+    "description": "A setting’s name in ledgerBothSettingNamed."
+  },
+  "ledgerSettingNameBudget": "A Budget setting",
+  "@ledgerSettingNameBudget": {
+    "description": "A setting’s name in ledgerBothSettingNamed."
+  },
+  "ledgerSettingNameSavings": "A Savings setting",
+  "@ledgerSettingNameSavings": {
+    "description": "A setting’s name in ledgerBothSettingNamed."
+  },
+  "ledgerSettingNamePhone": "A phone’s name",
+  "@ledgerSettingNamePhone": {
+    "description": "A setting’s name in ledgerBothSettingNamed."
+  },
+  "ledgerBothStaysWith": "You deleted {name}, and {computer} put {payee} {amount} ({date}) in it. It stays.",
+  "@ledgerBothStaysWith": {
+    "description": "Popup line when an account or category deleted here was used on the other computer, naming the transaction.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedPayeeFrom": "{payee} from {computer}",
+  "@ledgerCombinedPayeeFrom": {
+    "description": "Popup title when one transaction came from another computer and nothing else did. {payee} is its payee.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedPayeeMoreFrom": "{count, plural, =1{{payee} and 1 change from {computer}} other{{payee} and {count} changes from {computer}}}",
+  "@ledgerCombinedPayeeMoreFrom": {
+    "description": "Popup title when one transaction and other changes came from another computer.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "computer": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRowsSaved": "{count, plural, =1{Your choice is saved} other{Your {count} choices are saved}}",
   "@ledgerRowsSaved": {

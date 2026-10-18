@@ -8025,13 +8025,13 @@ abstract class Words {
   /// **'You deleted {payee} on {date}, and {computer} changed it. It stays, with {computer}’s change.'**
   String ledgerBothDeletedHere(String payee, String date, String computer);
 
-  /// Popup line when one category was assigned two amounts for one budget period on two computers. The amounts are never added together.
+  /// Popup line when one category was assigned two amounts for one budget period. {when} is ledgerBothWhenMonth or ledgerBothWhenPay. The amounts are never added together.
   ///
   /// In en, this message translates to:
-  /// **'{category}’s Assigned for the period starting {date} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
+  /// **'{category} {when} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
   String ledgerBothAssigned(
     String category,
-    String date,
+    String when,
     String computer,
     String kept,
     String yours,
@@ -8089,6 +8089,257 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'That couldn’t be changed, so nothing was saved.'**
   String get ledgerBothCouldnt;
+
+  /// Title of the question asked, with three or more computers on one ledger, about what two of them changed in a way that can’t both stand. {count} is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One thing was changed on both computers} other{{count} things were changed on both computers}}'**
+  String ledgerRowsTitle(int count);
+
+  /// Under ledgerRowsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Three or more computers share this ledger, so BetterBudget asks rather than settling it by itself. Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  String get ledgerRowsBody;
+
+  /// Button of the question ledgerRowsTitle: makes the choices and brings in everything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Save my choices'**
+  String get ledgerRowsSave;
+
+  /// As ledgerRowsAsItWas, when the ledger holds the version as it was before either computer changed it.
+  ///
+  /// In en, this message translates to:
+  /// **'As it was: {what} · in the ledger now'**
+  String ledgerRowsAsItWasNow(String what);
+
+  /// On a card in the window ledgerBothTitle whose row is reconciled: the buttons change only its payee, memo and categories. {date} is the statement’s date.
+  ///
+  /// In en, this message translates to:
+  /// **'The amount is the one reconciled on {date} and stays.'**
+  String ledgerBothLockReconciled(String date);
+
+  /// On a card in the window ledgerBothTitle whose row is matched to the bank’s file: the buttons change only its payee, memo and categories.
+  ///
+  /// In en, this message translates to:
+  /// **'The amount is the one the bank shows and stays.'**
+  String get ledgerBothLockBank;
+
+  /// As ledgerBothRow, when the amount kept is the one matched to the bank’s file.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} on {date} was changed on both computers. {kept}, the amount the bank shows, is kept on both; yours was {yours}.'**
+  String ledgerBothRowBank(
+    String payee,
+    String date,
+    String kept,
+    String yours,
+  );
+
+  /// As ledgerBothRow, when the amount kept is the reconciled one. {on} is the statement’s date.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} on {date} was changed on both computers. {kept}, the amount reconciled on {on}, is kept on both; yours was {yours}.'**
+  String ledgerBothRowReconciled(
+    String payee,
+    String date,
+    String on,
+    String kept,
+    String yours,
+  );
+
+  /// Popup line when this computer ticked a row cleared and the other computer’s change to it was kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cleared tick on {payee} {amount} ({date}) was undone; {computer} changed it at the same time.'**
+  String ledgerBothClearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  );
+
+  /// As ledgerBothClearedLost, when this computer took the tick off.
+  ///
+  /// In en, this message translates to:
+  /// **'Your untick on {payee} {amount} ({date}) was undone; {computer} changed it at the same time.'**
+  String ledgerBothUnclearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  );
+
+  /// Popup line when a transaction deleted here was changed on the other computer, so it stays. {amount} is what was deleted, {change} what the account is lower by now.
+  ///
+  /// In en, this message translates to:
+  /// **'You deleted {payee} {amount} ({account}) on {date}; {computer} changed it, so it’s back, and {account} is {change} lower than you left it.'**
+  String ledgerBothDeletedLower(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  );
+
+  /// As ledgerBothDeletedLower, for money in.
+  ///
+  /// In en, this message translates to:
+  /// **'You deleted {payee} {amount} ({account}) on {date}; {computer} changed it, so it’s back, and {account} is {change} higher than you left it.'**
+  String ledgerBothDeletedHigher(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  );
+
+  /// An amount and the account it is in, in a popup line about a row changed on both computers, when the account differs.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} in {account}'**
+  String ledgerBothAmountIn(String amount, String account);
+
+  /// A memo, in a popup line about a row changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'memo “{memo}”'**
+  String ledgerBothMemo(String memo);
+
+  /// No memo, in a popup line about a row changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'no memo'**
+  String get ledgerBothNoMemo;
+
+  /// No payee, in a popup line about a row changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'no payee'**
+  String get ledgerBothNoPayee;
+
+  /// When an amount was assigned, in a popup line: a month’s name, as the Budget page says it.
+  ///
+  /// In en, this message translates to:
+  /// **'in {month}'**
+  String ledgerBothWhenMonth(String month);
+
+  /// When an amount was assigned, in a popup line: a pay period, by its first day.
+  ///
+  /// In en, this message translates to:
+  /// **'for the pay period starting {date}'**
+  String ledgerBothWhenPay(String date);
+
+  /// Popup line when an amount was moved here between two categories while the other computer changed one of them.
+  ///
+  /// In en, this message translates to:
+  /// **'You changed {category} and {other} {when} while {computer} changed {category}. {computer}’s {kept} for {category} is kept on both, and {other} keeps your {otherAmount}; yours for {category} was {yours}.'**
+  String ledgerBothAssignedMoved(
+    String category,
+    String other,
+    String when,
+    String computer,
+    String kept,
+    String otherAmount,
+    String yours,
+  );
+
+  /// A day of the month as an ordinal, in ledgerBothPayOn. {ending} is the ending English uses for {day} (st, nd, rd or th); another language may leave it out.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}{ending, select, st{st} nd{nd} rd{rd} other{th}}'**
+  String ledgerDayOrdinal(int day, String ending);
+
+  /// A pay’s amount and day of the month, in a popup line. {day} is ledgerDayOrdinal.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} on the {day}'**
+  String ledgerBothPayOn(String amount, String day);
+
+  /// Popup line when a pay’s amount or day was changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'The pay {name} was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
+  String ledgerBothPayKept(
+    String name,
+    String computer,
+    String kept,
+    String yours,
+  );
+
+  /// Popup line when a category’s planned amount was changed on both computers.
+  ///
+  /// In en, this message translates to:
+  /// **'{category}’s plan was changed on both computers. {computer}’s {kept} is kept on both; yours was {yours}.'**
+  String ledgerBothPlanKept(
+    String category,
+    String computer,
+    String kept,
+    String yours,
+  );
+
+  /// Popup line when a named setting was changed two ways. {setting} is one of the ledgerSettingName… words.
+  ///
+  /// In en, this message translates to:
+  /// **'{setting} was changed on both computers. {computer}’s is kept on both.'**
+  String ledgerBothSettingNamed(String setting, String computer);
+
+  /// A setting’s name in ledgerBothSettingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'“I don’t have regular pay”'**
+  String get ledgerSettingNameNoPay;
+
+  /// A setting’s name in ledgerBothSettingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'How a bank file is read'**
+  String get ledgerSettingNameImport;
+
+  /// A setting’s name in ledgerBothSettingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'A Budget setting'**
+  String get ledgerSettingNameBudget;
+
+  /// A setting’s name in ledgerBothSettingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'A Savings setting'**
+  String get ledgerSettingNameSavings;
+
+  /// A setting’s name in ledgerBothSettingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'A phone’s name'**
+  String get ledgerSettingNamePhone;
+
+  /// Popup line when an account or category deleted here was used on the other computer, naming the transaction.
+  ///
+  /// In en, this message translates to:
+  /// **'You deleted {name}, and {computer} put {payee} {amount} ({date}) in it. It stays.'**
+  String ledgerBothStaysWith(
+    String name,
+    String computer,
+    String payee,
+    String amount,
+    String date,
+  );
+
+  /// Popup title when one transaction came from another computer and nothing else did. {payee} is its payee.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} from {computer}'**
+  String ledgerCombinedPayeeFrom(String payee, String computer);
+
+  /// Popup title when one transaction and other changes came from another computer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{payee} and 1 change from {computer}} other{{payee} and {count} changes from {computer}}}'**
+  String ledgerCombinedPayeeMoreFrom(String payee, int count, String computer);
 
   /// Popup after the question ledgerRowsTitle is answered and there was nothing else to bring in.
   ///

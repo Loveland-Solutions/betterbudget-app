@@ -1461,9 +1461,12 @@ class AppDatabase extends _$AppDatabase {
     final now = await sealState();
     final standing = compareCounters(now.computers.counters, over);
     final prefs = await _syncPrefs();
-    final merged = {...parseApplied(prefs[SyncKeys.applied])};
+    final was = parseApplied(prefs[SyncKeys.applied]);
+    final merged = {...was};
     for (final e in applied.entries) {
-      if (e.value > (merged[e.key] ?? 0)) merged[e.key] = e.value;
+      if (e.key != computer && e.value > (merged[e.key] ?? 0)) {
+        merged[e.key] = e.value;
+      }
     }
     merged[computer] = await lastChangeSeq();
     final vector = encodeApplied(merged);
@@ -1515,6 +1518,7 @@ class AppDatabase extends _$AppDatabase {
     if (encodeApplied(merged) != encodeApplied(mine) ||
         (merged.isNotEmpty && prefs[SyncKeys.applied] == null)) {
       await setPreference(SyncKeys.applied, encodeApplied(merged));
+      await _noteApplied(merged);
     }
     if (ledger != null && prefs[SyncKeys.ledger] != ledger) {
       await setPreference(SyncKeys.ledger, ledger);
@@ -1550,6 +1554,23 @@ class AppDatabase extends _$AppDatabase {
     );
   });
 
+  /// Writes down in this computer's log what it has applied of the others
+  /// from here on (op `applied`, the vector as `after`; ADR 0005 step 4,
+  /// from the reviews): a reader of its change file then knows, for each
+  /// change, which of the reader's own versions the writer had seen when
+  /// it made it, rather than guessing from equal values. No row of the
+  /// ledger is touched; `combine` and the fold pass over it.
+  Future<void> _noteApplied(Map<String, int> vector) => into(changes).insert(
+    ChangesCompanion.insert(
+      tbl: appliedMarkerTable,
+      pk: '{}',
+      op: appliedMarkerOp,
+      after: Value(encodeApplied(vector)),
+      atMs: _now,
+      withSchema: schemaVersion,
+    ),
+  );
+
   /// Every row this ledger holds, as [combine] compares them.
   Future<LedgerRows> allRows() => transaction(
     () => ledgerRows(
@@ -1573,6 +1594,7 @@ class AppDatabase extends _$AppDatabase {
     required String onlyIfDigest,
     List<Resolution> resolutions = const [],
     ({String computer, int seq})? applied,
+    bool rowsCame = true,
   }) async {
     try {
       await transaction(() async {
@@ -1581,6 +1603,23 @@ class AppDatabase extends _$AppDatabase {
         }
         // Another computer's changes, not this one's: kept out of the log.
         await _withoutChangeLog(() => _applyOps(ops));
+        // What is applied, written down before the answers: they were
+        // made knowing it.
+        if (applied != null) {
+          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+          if ((now[applied.computer] ?? 0) < applied.seq) {
+            await setPreference(
+              SyncKeys.applied,
+              encodeApplied({...now, applied.computer: applied.seq}),
+            );
+            // Only when rows came: a batch of nothing but these notes
+            // tells nothing more, and the two would note each other's
+            // notes for ever.
+            if (rowsCame) {
+              await _noteApplied({...now, applied.computer: applied.seq});
+            }
+          }
+        }
         for (final r in resolutions) {
           await into(changes).insert(
             ChangesCompanion.insert(
@@ -1596,15 +1635,6 @@ class AppDatabase extends _$AppDatabase {
               withSchema: schemaVersion,
             ),
           );
-        }
-        if (applied != null) {
-          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
-          if ((now[applied.computer] ?? 0) < applied.seq) {
-            await setPreference(
-              SyncKeys.applied,
-              encodeApplied({...now, applied.computer: applied.seq}),
-            );
-          }
         }
       });
     } on ChangedSinceException {
@@ -1791,6 +1821,13 @@ class AppDatabase extends _$AppDatabase {
           }
         });
         if (!fromFolder) await _logMarker('restore');
+        // The folder's ledger holds the others' changes it says it has:
+        // written down, so what this computer changes from here is known
+        // to have seen them (step 4).
+        if (fromFolder) {
+          final v = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+          if (v.isNotEmpty) await _noteApplied(v);
+        }
         // A computer's count never goes down: the counts this ledger had
         // are folded into the ones that came, from the folder or not.
         {
@@ -3053,6 +3090,14 @@ class AppDatabase extends _$AppDatabase {
       }
       await into(budgetAmounts).insert(
         BudgetAmountsCompanion.insert(
+          // One id for what a category is assigned on a day, the same on
+          // every computer (ADR 0005 step 4, from the reviews): two
+          // computers assigning it are one row changed two ways, never two
+          // rows added together. Rows made before keep theirs.
+          id: await _freeId(
+            budgetAmounts,
+            SharedKey('budget', '$categoryId|${dateKey(d)}'),
+          ),
           categoryId: categoryId,
           date: dateKey(d),
           amountMinor: r.amount,
