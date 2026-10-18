@@ -686,6 +686,14 @@ void main() {
         });
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        // What the look began finishes on both clocks before the test
+        // reads the ledger: a write left waiting on pumps would hold it.
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pump();
+        }
       }
 
       Future<List<String?>> payees(AppDatabase of) async => [
@@ -731,7 +739,7 @@ void main() {
       // Nothing was changed here: the other's change comes in from its
       // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(find.text('1 transaction from The laptop'), findsOneWidget);
+      expect(find.text('Nomin from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));
@@ -776,10 +784,7 @@ void main() {
       });
       await tester.pump();
       await comeBackToTheFront();
-      expect(
-        find.text('1 transaction and other changes from The laptop'),
-        findsOneWidget,
-      );
+      expect(find.text('E-Mart and 1 change from The laptop'), findsOneWidget);
       // Both rows are in; the popup says one looks the same, and that the
       // two together assign more than there is. The other computer's
       // changes aren't this person's to undo.
@@ -990,6 +995,14 @@ void main() {
         });
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        // What the look began finishes on both clocks before the test
+        // reads the ledger: a write left waiting on pumps would hold it.
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pump();
+        }
       }
 
       Future<List<String?>> payees(AppDatabase of) async => [
@@ -1035,7 +1048,7 @@ void main() {
       // Nothing was changed here: the other's change comes in from its
       // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(find.text('1 transaction from The laptop'), findsOneWidget);
+      expect(find.text('Nomin from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));
@@ -1072,10 +1085,7 @@ void main() {
       // Settled at once, as the laptop settles it (its id is the lower):
       // nothing is asked, and the rest came in with it.
       expect(find.text('Changed on both computers'), findsNothing);
-      expect(
-        find.text('1 transaction and other changes from The laptop'),
-        findsOneWidget,
-      );
+      expect(find.text('E-Mart from The laptop'), findsOneWidget);
       expect(
         find.text(
           'Nomin on 2026.10.07 was changed on both computers. The laptop’s '
@@ -1098,7 +1108,53 @@ void main() {
       );
       // It stays until it is closed or looked at.
       await tester.pump(const Duration(seconds: 30));
-      expect(find.byKey(const ValueKey('toast-more')), findsOneWidget);
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      // And after a quit, it is back at launch.
+      await tester.runAsync(() async {
+        await tester.pumpWidget(const SizedBox());
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              clock: () => today,
+              folderAccess: _FakeAccess(),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      expect(
+        find.text(
+          'Nomin on 2026.10.07 was changed on both computers. The laptop’s '
+          '₮21,000 is kept on both; yours was ₮17,000.',
+        ),
+        findsOneWidget,
+      );
+      // Another popup shows above it, and it stays when that one goes.
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      expect(find.text('Nothing to undo'), findsOneWidget);
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Nothing to undo')).dy,
+        lessThan(tester.getTopLeft(find.byKey(const ValueKey('told'))).dy),
+      );
+      await tester.pump(const Duration(seconds: 20));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
       // Nothing is held back, and Settings has nothing to say in red.
       expect(
         find.text(
@@ -1124,7 +1180,11 @@ void main() {
       });
 
       // Show: the window, as a thing already done.
-      await tester.tap(find.byKey(const ValueKey('toast-more')));
+      // Show reads the ledger as it is now, then opens the window.
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('told-more')));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
       await tester.pumpAndSettle();
       expect(find.text('Changed on both computers'), findsOneWidget);
       expect(
@@ -1226,6 +1286,14 @@ void main() {
         });
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        // What the look began finishes on both clocks before the test
+        // reads the ledger: a write left waiting on pumps would hold it.
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pump();
+        }
       }
 
       Future<int> amountOf(AppDatabase of) async {
@@ -1295,10 +1363,14 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await look();
-      expect(find.byKey(const ValueKey('toast-more')), findsOneWidget);
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
 
       // Show, keep this computer's, Done: a change of this computer's.
-      await tester.tap(find.byKey(const ValueKey('toast-more')));
+      // Show reads the ledger as it is now, then opens the window.
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('told-more')));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('Keep this computer'));
       await tester.pump();

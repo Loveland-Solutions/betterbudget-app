@@ -1002,15 +1002,75 @@ is.
   through the real screen (the sentence, the window, Esc, Done, undo and
   redo; goldens `two_rows_told.png`, `two_rows.png`).
 
+**From the reviews, decided (2026-10-18).** The code review's adversarial
+tests and the budget review found these; each was decided along the lines the
+owner gave, and is tested.
+
+- **What the other had seen, not equal values.** A change of the other's
+  "found this version" only when its writer had applied this computer's change
+  that made it. Each computer now writes down in its own log, as a row of op
+  `applied` (table `sync`, the vector as `after`), what it has applied of the
+  others whenever rows came in (`AppDatabase._noteApplied`; not for a batch of
+  nothing but such notes, or two computers would note each other's notes for
+  ever), and when it takes the folder's ledger whole. The change file carries
+  them like any row, says that it does (`notes_applied` in its `computer`
+  table), and gives the reader, per change, what its writer had of the reader
+  (`ChangeFile.knewOf`, `FoldChange.knew`). An older file without them is read
+  as before. **No schema change**: the `changes` table is unchanged, the note
+  is a row of it with a new `op`, and the fold and `combine` pass over it.
+  Where the other changed a row this computer also changed after what the
+  other had of it, the two are compared column by column by which each
+  changed (`_apart` in `fold.dart`), not by values: an amount, memo or tick
+  both came to apart, or changed and changed back, is no common ground. A
+  column both changed with no earlier value that differs from both gets a
+  made-up base (`madeUp`), and such a thing is never offered "Neither: as it
+  was". An answer of the other's is "the other settled over mine" only when it
+  is its last word on the row; a change it made after is crossed as any change.
+  The other's answer that only says what this computer already started from
+  is nothing new. Answers that changed nothing never count as answers that
+  crossed.
+- **An amount assigned is one row.** A category's amount for a day gets a
+  shared id, `sharedRowId('budget', '<category>|<date>')`, like a payday, so
+  two computers assigning it are one row changed two ways, never two rows
+  added together. Rows already in a ledger keep their ids; two sets of rows of
+  one (category, day) holding the same amount are settled to one set by the
+  rule and written down for the other, and nothing is said (the amount is the
+  same). The same shape (each computer's own row for the same amount, then a
+  later change counted twice) is in the code on main, where step 3 asked
+  instead of settling; it was not run there.
+- **Three or more computers are asked.** The rule is exact for two. When the
+  folder or the vectors show a third computer, a row changed two ways is
+  asked about as step 3 did (`FolderStanding.rows`, held, the red line and
+  Choose… in Settings, the window with Not now and Save my choices), never
+  taken as ok.
+- **The locks stay when a version is picked afterwards.** On a row whose kept
+  money is reconciled or matched to the bank, every version in the window
+  keeps that money, cleared state, `reconciliation_id` and `import_key`; the
+  buttons change only the payee, memo and categories, and the card says so.
+- **By part.** A transaction is four parts: its money (amount, account,
+  date), whether it is cleared (with its reconciliation or bank match), its
+  payee and memo, and its filing (the categories; one category is its name,
+  a split its categories with their amounts). A part only one computer changed
+  is kept; a part both changed goes by a fact (the reconciled or bank-matched
+  side's money and tick are a lock, the other's payee, memo and categories
+  come in) or else the lower id. When a row was written is never a change. A
+  transaction's lines changed apart a line at a time are settled as one thing.
+- **Tests:** `two_computers_test.dart` "settled the same on both, under
+  stress", run with the Mac's id the lower and then the higher: crossed twice
+  in three orders, renamed and put away, changed in different parts in three
+  orders, an independent edit to an older amount, one amount assigned on both,
+  old rows of one amount, a version picked on a reconciled and a bank-matched
+  row for each button, three computers, and a seeded random run of edits,
+  looks, bring-ins, renames, amounts assigned and ticks over 40 seeds (1,000
+  runs passed once while building it).
+
 **Left for step 5:** a `restore` or `erase` as a batch of its own (today the
 whole-ledger question); compaction of old changes and the catch-up take;
 cleanup of `(1)` copies; the red line's words for a file waited for (today the
 "can't be read yet" line); the digest guard at equal vectors;
 `cloud-folder-agreed`, the counters and the seal still written for the older
-look; and a soak on two Mac accounts through Drive, then two machines. Also
-open from step 4: a third computer's version is attributed to the computer
-that holds it (the rule reads "this computer's" and "the other's"), which is
-exact for two computers.
+look; settling by the rule with three or more computers (today asked, as step
+3 did); and a soak on two Mac accounts through Drive, then two machines.
 
 ### What a phone can and can't do
 

@@ -3520,6 +3520,43 @@ opening by itself, saying it's done). The owner chose **A, the popup** (2026-10-
   now" in gold (done and safe). The popup's sentence names what differs, as a
   person would say it: the amount, else the categories, the date, the payee or
   the memo.
+- **From the reviews, decided (2026-10-18).**
+  - *The popup that says something was replaced is never replaced.* Any other
+    popup shows above it; bringing in the other computer's changes and the
+    phones' entries goes on while it is up. What it says is kept in a small file
+    beside the ledger (`settled-told`, nothing but what redraws it) until the
+    window is opened or it is closed with ×, so after a quit it is back at
+    launch. Show reads each thing again from the ledger as it is now.
+  - *The window lists everything the popup counts.* A pay, a plan, a setting or
+    something that stays is its whole sentence, with no buttons.
+  - *The title keeps the payee* when one transaction came: "E-Mart from The
+    laptop", "E-Mart and 1 change from The laptop"; the thing settled isn't
+    counted among "other changes".
+  - *The sentence is about what this computer changed*: "Your cleared tick on
+    Nomin ₮17,000 (2026.10.07) was undone; The desk Mac changed it at the same
+    time." A row deleted here that stays gives its amount, account and what
+    that does to the balance: "You deleted Nomin ₮17,000 (TDB Checking) on
+    2026.10.07; The laptop changed it, so it’s back, and TDB Checking is
+    ₮17,000 lower than you left it." The account is named when it differs, a
+    transfer's amount is said once, a split gives each category's amount, the
+    sign is kept when the two go opposite ways, and an empty memo or payee is
+    said ("no memo"). A pay gives its amount and day ("The laptop’s ₮2,500,000
+    on the 15th is kept on both; yours was ₮2,450,000 on the 10th"); a pay is
+    settled column by column. A setting is named where it can be; "stays" names
+    the transaction put in it.
+  - *When a fact decided, the fact is said*, not the computer: "₮21,000, the
+    amount the bank shows, is kept on both; yours was ₮17,000", "…the amount
+    reconciled on 2026.10.05…".
+  - *Assigned as a person says it*: "Groceries in October", or "for the pay
+    period starting …"; an amount moved between two categories while the
+    other changed one of them names both in one sentence.
+  - *A locked row in the window*: on a row whose amount is reconciled or the
+    bank's, the buttons change only the payee, memo and categories, and the
+    card says "The amount is the one reconciled on 2026.10.05 and stays." (or
+    "…the one the bank shows and stays.").
+  - *Three or more computers*: a row changed two ways is asked in the window
+    before anything comes in, as before step 4 (Not now, Save my choices, the
+    red line in Settings), since the rule is exact for two.
 
 ## Where a row came from: a Source column (2026-10-13)
 
