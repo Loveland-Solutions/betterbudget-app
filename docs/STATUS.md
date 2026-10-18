@@ -11,6 +11,15 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**First, when the owner asks what's next: their test of Two computers, step 4** (#111;
+PR #216, 0.40.0, not merged). Built to the owner's pick A (ADR 0004 "Two computers,
+step 4: told after, not asked before"), both reviews and a re-check done and fixed,
+927 tests pass, no schema change. The steps for the test on the two Mac accounts are
+in #111's last comment; the build for testuser is
+`/Users/Shared/BetterBudget-0.40.0-step4.zip`. If it works, the owner merges #216 and
+this paragraph is rewritten for 0.40.0; if not, fix only what the test shows, with no
+more review rounds (owner, 2026-10-18, on token use). Step 5 waits until after beta.
+
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
 whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
 Anything pushed is published. The public repo's README and the website's copy of
@@ -50,11 +59,7 @@ debt's line or on Add account, a month's or a year's as the person picks (tugrik
 starts at a month), with an ⓘ; no monthly payment; Save for the future stays as it
 is, goals with dates go on the roadmap (ROADMAP D); the course's line under the steps
 is gone. Both reviews are in and their fixes made. Whether "Pay extra here" should
-follow the costliest debt waits for the owner's look at Savings in depth (#174). **Then
-Two computers, step 4** (#111) (the facts-first policy and the blocks for the cases still asked as a whole
-ledger; ADR 0005); the first real run on two Mac accounts worked (owner, 2026-10-14:
-"this worked"). Show the owner what step 4 would change on screen before building,
-with a recommendation.
+follow the costliest debt waits for the owner's look at Savings in depth (#174). Two computers, step 4 (#111): see the top of this section.
 
 **Version 0.34.4 (fix):** Android's build number is the repo's commit count, as the
 Mac's is (ADR 0006), so each upload to Play is higher than the last; it was 1 on
