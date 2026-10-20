@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-20** · version 0.41.0 · schema v21 · 771 tests pass
+**Last updated: 2026-10-20** · version 0.41.1 · schema v21 · 769 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -16,8 +16,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 accounts, saw the asking window instead of the popup, and chose it: a row changed two
 ways is asked in the window before anything comes in, with two computers as with more.
 Answered on one, the other isn't asked again (seen in the real app). Step 4's change
-files, applied markers, shared ids and locks stay; the told-after code is no longer
-reached, and removing it is #218. Step 5 waits until after beta. Test builds signed
+files, applied markers, shared ids and locks stay; the told-after code (the settling
+rule, the popup that stayed, a version picked afterwards) is gone (0.41.1, #218), and
+the popup's saved setting is cleared at launch. A folder file from a build before
+change files can't be asked about: a crossing there is the whole-ledger question.
+Step 5 waits until after beta. Test builds signed
 "Apple Development" carry a provisioning profile that lasts 7 days: a build that
 "can't be opened", with no Open Anyway in Privacy & Security, has an expired profile,
 and a rebuild renews it.

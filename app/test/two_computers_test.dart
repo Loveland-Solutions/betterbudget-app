@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/change_file.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
-import 'package:betterbudget/domain/combine.dart' show Ask, Pick, RowOp;
+import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/ledger_seal.dart';
@@ -17,7 +17,7 @@ import 'package:betterbudget/domain/payee_rules.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart';
 import 'package:betterbudget/import/mapping.dart';
-import 'package:drift/drift.dart' show Variable, driftRuntimeOptions;
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' show sqlite3;
@@ -743,7 +743,7 @@ void main() {
     Future<TxnData> bought(_Computer on, String payee) async =>
         (await on.db.loadLedger()).txns.singleWhere((t) => t.payee == payee);
 
-    // ---------- the popup that says something was replaced (step 4) ----------
+    // ---------- where an older build kept the popup that stayed (step 4) ----------
 
     Future<String?> told(_Computer c) async =>
         (await c.db.loadLedger()).prefs[SyncKeys.told];
@@ -1408,12 +1408,10 @@ void main() {
       late Directory drive;
       late _Computer mac;
       late _Computer laptop;
-      final told = <String, List<Ask>>{};
 
       File folderLedger() => File('${drive.path}/${CloudFolder.fileName}');
 
       setUp(() async {
-        told.clear();
         root = await Directory.systemTemp.createTemp('bb-stress');
         drive = await Directory('${root.path}/My Drive/BetterBudget')
             .create(recursive: true);
@@ -1473,7 +1471,6 @@ void main() {
           if (s != FolderStanding.combine) break;
           final done = await c.cloud.bringIn(tuesday);
           if (done == null) break;
-          (told[c.name] ??= []).addAll(done.replaced);
         }
         return s;
       }
@@ -1565,61 +1562,6 @@ void main() {
           await expectSame();
         });
       }
-
-      Future<void> reconcile(_Computer c) async {
-        final checking = await c.account('TDB Checking');
-        if ((await bankLine(c)).cleared == Cleared.uncleared) {
-          await c.db.toggleCleared((await bankLine(c)).id);
-        }
-        final cleared = await c.db
-            .customSelect(
-              'SELECT COALESCE(SUM(e.amount_minor), 0) AS n FROM entries e '
-              'JOIN transactions t ON t.id = e.transaction_id '
-              'WHERE e.account_id = ? AND e.cleared != 0 '
-              'AND t.deleted_at IS NULL AND t.date <= ?',
-              variables: [
-                Variable.withInt(checking),
-                Variable.withString('2026-10-05'),
-              ],
-            )
-            .getSingle();
-        await c.db.reconcile(
-          accountId: checking,
-          statementDate: monday,
-          today: tuesday,
-          balance: cleared.read<int>('n'),
-        );
-      }
-
-      test(
-        'a version put in by hand never changes a reconciled line',
-        () async {
-          await mac.spend('Nomin', monday);
-          await agree();
-          await reconcile(mac);
-          final line = await bankLine(mac);
-          final rows = await mac.db.allRows();
-          final entry = rows['entries']!.singleWhere((e) => e['id'] == line.id);
-          await mac.db
-              .applyChangesHere([
-                RowOp.update(
-                  'entries',
-                  {'id': line.id},
-                  {...entry, 'amount_minor': -1, 'reconciliation_id': null},
-                ),
-              ])
-              .catchError((_) {});
-          final after = await bankLine(mac);
-          expect(after.amount, line.amount);
-          expect(after.cleared, Cleared.reconciled);
-          await expectLater(
-            mac.db.applyChangesHere([
-              RowOp.delete('entries', {'id': line.id}),
-            ]),
-            throwsA(isA<CantCombineException>()),
-          );
-        },
-      );
 
       test('a row changed two ways is asked on both and held; answered on one, '
           'the other takes the answer in without being asked', () async {

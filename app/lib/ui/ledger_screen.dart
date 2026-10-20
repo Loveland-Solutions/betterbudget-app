@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io'
     show Directory, File, FileSystemEntityType, FileSystemException;
 import 'dart:ui' show AppExitResponse;
@@ -18,8 +17,7 @@ import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
 import '../domain/budget.dart';
-import '../domain/combine.dart'
-    show Ask, AskKind, AskLine, AskSide, Pick, RowOp, rowOpsBetween, rowsOf;
+import '../domain/combine.dart' show Ask, AskKind, AskSide, Pick;
 import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -194,7 +192,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
-    bool stay,
   })?
   _toast;
 
@@ -537,19 +534,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
           formatShort(short.value, currency: short.key),
         ),
     ];
-    // Something of this computer's was replaced, settled as the other
-    // computer settles it: said in the popup that stays (ADR 0004, step 4).
-    if (done.replaced.isNotEmpty) {
-      final was = _told;
-      _setTold((
-        message: label,
-        extra: extra,
-        from: done.from.savedByName,
-        // One that was still up keeps what it said, the new beside it.
-        asks: [...?was?.asks, ...done.replaced],
-      ));
-      return;
-    }
     // No Undo (owner, 2026-10-10: "Only undo what the user in front of the
     // computer did or decided. Nothing else"). ⌘Z undoes what is done here
     // from now on; this computer's ledger as it was is in Backups.
@@ -573,86 +557,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// The popup that says what of this computer's another computer's change
-  /// replaced (ADR 0004, "Two computers, step 4"): it stays until it is
-  /// closed or Show is clicked, and is never replaced by another popup
-  /// (those show above it). What redraws it is kept in the encrypted ledger
-  /// as this computer's own setting ([SyncKeys.told]: never in the digest,
-  /// never combined, never logged, gone with a restore, an erase or a
-  /// ledger taken whole from the folder), with the ledger's id, so it comes
-  /// back after a quit and never on another ledger.
-  ({String message, List<String> extra, String? from, List<Ask> asks})?
-  get _told {
-    final stored = _loaded?.prefs[SyncKeys.told];
-    // Written and not yet read back: what was written.
-    if (_toldPendingSet && stored == _toldPending) _toldPendingSet = false;
-    final json = _toldPendingSet ? _toldPending : stored;
-    if (json != _toldJson) {
-      _toldJson = json;
-      _toldParsed = _parseTold(json);
-    }
-    return _toldParsed;
-  }
-
-  String? _toldPending;
-  bool _toldPendingSet = false;
-  String? _toldJson;
-  ({String message, List<String> extra, String? from, List<Ask> asks})?
-  _toldParsed;
-
-  ({String message, List<String> extra, String? from, List<Ask> asks})?
-  _parseTold(String? json) {
-    if (json == null) return null;
-    try {
-      final j = jsonDecode(json) as Map;
-      // Kept for another ledger (one put back or begun since): not this one's.
-      if (j['ledger'] != _loaded?.prefs[SyncKeys.ledger]) return null;
-      final asks = [
-        for (final a in (j['asks'] as List?) ?? const [])
-          Ask.fromJson((a as Map).cast<String, Object?>()),
-      ];
-      if (asks.isEmpty) return null;
-      return (
-        message: '${j['message'] ?? ''}',
-        extra: [for (final e in (j['extra'] as List?) ?? const []) '$e'],
-        from: j['from'] as String?,
-        asks: asks,
-      );
-    } catch (e) {
-      debugPrint('What was replaced couldn’t be read back: $e');
-      return null;
-    }
-  }
-
-  void _setTold(
-    ({String message, List<String> extra, String? from, List<Ask> asks})? told,
-  ) {
-    if (!mounted) return;
-    final json = told == null
-        ? null
-        : jsonEncode({
-            'ledger': _loaded?.prefs[SyncKeys.ledger],
-            'message': told.message,
-            'extra': told.extra,
-            'from': told.from,
-            'asks': [for (final a in told.asks) a.toJson()],
-          });
-    setState(() {
-      _toldPending = json;
-      _toldPendingSet = true;
-    });
+  /// What a build before this kept the popup that said something was
+  /// replaced in (ADR 0005 step 4, no longer reached since 2026-10-20): a
+  /// plain file beside the ledger (nothing of the ledger stays on the disk
+  /// unencrypted), and later this computer's own setting in the ledger.
+  void _dropOldTold() {
+    // Read or not yet, it goes; where there is none, nothing changes.
     unawaited(
       db
-          .setPreference(SyncKeys.told, json)
+          .setPreference(SyncKeys.told, null)
           .catchError(
-            (Object e) => debugPrint('What was replaced couldn’t be kept: $e'),
+            (Object e) => debugPrint('The old popup couldn’t be cleared: $e'),
           ),
     );
-  }
-
-  /// A plain file a build before this kept the popup in, beside the ledger:
-  /// nothing of the ledger stays on the disk unencrypted.
-  void _dropPlainTold() {
     final dir = _cloud.ledgerDir;
     if (dir == null) return;
     for (final name in const ['settled-told', 'settled-told.tmp']) {
@@ -663,78 +580,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         debugPrint('An old popup file couldn’t be removed: $e');
       }
     }
-  }
-
-  /// What the popup that stays says under its title: a whole sentence for
-  /// one thing replaced, a count for more.
-  String _toldDetail(
-    ({String message, List<String> extra, String? from, List<Ask> asks}) told,
-  ) {
-    final t = context.t;
-    final other = told.from ?? t.ledgerRowsOtherComputer;
-    return [
-      if (told.asks.length == 1)
-        _toldSentence(context, told.asks.single, other),
-      if (told.asks.length > 1) t.ledgerBothSeveral(told.asks.length, other),
-      ...told.extra,
-    ].join('\n');
-  }
-
-  /// Show on the popup that stays: the window, with each thing read again
-  /// from the ledger as it is now; the popup goes once it is open.
-  Future<void> _showTold() async {
-    final told = _told;
-    if (told == null) return;
-    var asks = told.asks;
-    try {
-      final rows = await db.allRows();
-      asks = [for (final a in asks) a.refreshed(rows)];
-    } catch (e) {
-      debugPrint('The ledger couldn’t be read for the window: $e');
-    }
-    if (!mounted) return;
-    _setTold(null);
-    await _showSettled(asks, told.from);
-  }
-
-  /// The window for what both computers changed two ways, already settled:
-  /// each with the version in the ledger now, and the buttons to change it.
-  /// A button changed and Done is the person's own act: an ordinary change,
-  /// which the other computer takes in, with undo and redo.
-  Future<void> _showSettled(List<Ask> asks, String? computer) async {
-    final picks = await showDialog<Map<String, Pick>>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      builder: (_) => _RowsDialog(asks: asks, computer: computer),
-    );
-    if (picks == null || picks.isEmpty || !mounted) return;
-    final t = context.t;
-    final forward = <RowOp>[], back = <RowOp>[];
-    try {
-      final rows = await db.allRows();
-      for (final asked in asks) {
-        // Read again as the ledger is now: a row reconciled or matched to
-        // the bank meanwhile keeps that money whatever was picked.
-        final a = asked.refreshed(rows);
-        final pick = picks[a.id];
-        final wanted = pick == null ? null : a.rows[pick];
-        if (wanted == null) continue;
-        final current = rowsOf(a, rows);
-        forward.addAll(rowOpsBetween(current, wanted, columns: a.columns));
-        back.addAll(rowOpsBetween(wanted, current, columns: a.columns));
-      }
-      await db.applyChangesHere(forward);
-    } catch (e) {
-      debugPrint('The version picked couldn’t be put in: $e');
-      if (mounted) _showToast(t.ledgerBothCouldnt);
-      return;
-    }
-    if (!mounted) return;
-    _did(
-      t.ledgerRowsSaved(picks.length),
-      undo: () => db.applyChangesHere(back),
-      redo: () => db.applyChangesHere(forward),
-    );
   }
 
   /// Something changed two ways on two computers or more: asked, as step 3
@@ -748,7 +593,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final picks = await showDialog<Map<String, Pick>>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.55),
-      builder: (_) => _RowsDialog(asks: asks, computer: null, asking: true),
+      builder: (_) => _RowsDialog(asks: asks, computer: null),
     );
     if (picks == null || !mounted) return;
     await _bringInFolderChanges(picks: picks);
@@ -982,8 +827,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (!gaveUp.isCompleted) gaveUp.complete();
       });
       await Future.any([_cloud.load(widget.clock()), gaveUp.future]);
-      // A plain file of the popup from a build before this goes.
-      _dropPlainTold();
+      // What a build before this kept the popup in goes.
+      _dropOldTold();
       _lookTimer?.cancel();
       if (mounted && _cloud.value.standing == FolderStanding.newer) {
         await _openFolderLedger(atLaunch: true);
@@ -1569,7 +1414,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     Future<void> Function()? undo,
     ({String label, VoidCallback onTap})? more,
-    bool stay = false,
   }) {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
@@ -1578,7 +1422,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     setState(
       () => _toast = (
         message: message,
-        stay: stay,
         // A row with no payee has no line of its own.
         detail: detail == null || detail.trim().isEmpty ? null : detail,
         more: more == null
@@ -1598,14 +1441,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
               },
       ),
     );
-    // An offer takes longer to read than a report. One that tells the
-    // person something of theirs was replaced stays until it is closed.
-    if (!stay) {
-      _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
-        _toastDue = true;
-        _toastMayLeave();
-      });
-    }
+    // An offer takes longer to read than a report.
+    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
+      _toastDue = true;
+      _toastMayLeave();
+    });
     // It took the place of a popup the pointer was on (its Undo or its
     // offer was clicked, or ⌘Z pressed): it stays if the pointer is on it
     // too, so the next click can't land on the row beneath.
@@ -4851,8 +4691,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (before == null) return;
     await _cloud.stop();
     if (!mounted) return;
-    // Off the folder: what another computer replaced is no longer said.
-    if (_told != null) _setTold(null);
     _did(
       context.t.ledgerFolderStopped(_folderName(before)),
       undo: () => _cloud.keepIn(before, widget.clock()),
@@ -5557,47 +5395,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         color: Color(0x66000000),
                       ),
                     ),
-                  // The popup that stays (something of this computer's was
-                  // replaced) keeps the corner; any other shows above it.
-                  if (_told case final told?)
-                    Positioned(
-                      bottom: 36,
-                      right: 40,
-                      width: _Toast.width,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_toast != null) ...[
-                            _Toast(
-                              key: _toastKey,
-                              toast: _toast!,
-                              onPointer: _toastPointerAt,
-                              onClose: _closeToast,
-                              positioned: false,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          _Toast(
-                            key: const ValueKey('told'),
-                            keyPrefix: 'told',
-                            positioned: false,
-                            toast: (
-                              message: told.message,
-                              detail: _toldDetail(told),
-                              undo: null,
-                              more: (
-                                label: context.t.ledgerShowMoved,
-                                onTap: _showTold,
-                              ),
-                              stay: true,
-                            ),
-                            onPointer: (_) {},
-                            onClose: () => _setTold(null),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_toast != null)
+                  if (_toast != null)
                     _Toast(
                       key: _toastKey,
                       toast: _toast!,
@@ -7633,22 +7431,13 @@ class _Toast extends StatelessWidget {
     required this.toast,
     required this.onClose,
     required this.onPointer,
-    this.positioned = true,
-    this.keyPrefix = 'toast',
   });
 
-  /// What its parts' keys start with: `told` for the popup that stays.
-  final String keyPrefix;
-
-  /// In the page's corner by itself; false when it is stacked with the
-  /// popup that says what of this computer's was replaced.
-  final bool positioned;
   final ({
     String message,
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
-    bool stay,
   })
   toast;
   final VoidCallback onClose;
@@ -7662,9 +7451,12 @@ class _Toast extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = Mid.onToast;
     final light = Mid.isLight;
-    final card = _card(ink, light, context);
-    if (!positioned) return card;
-    return Positioned(bottom: 36, right: 40, width: width, child: card);
+    return Positioned(
+      bottom: 36,
+      right: 40,
+      width: width,
+      child: _card(ink, light, context),
+    );
   }
 
   Widget _card(Color ink, bool light, BuildContext context) {
@@ -7710,7 +7502,7 @@ class _Toast extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Text(
                               toast.message,
-                              key: ValueKey('$keyPrefix-message'),
+                              key: const ValueKey('toast-message'),
                               style: onest(14, weight: 600, color: ink),
                             ),
                           ),
@@ -7758,17 +7550,10 @@ class _Toast extends StatelessWidget {
                         padding: const EdgeInsets.only(right: 8, bottom: 2),
                         child: Text(
                           detail,
-                          key: ValueKey('$keyPrefix-detail'),
-                          // Two things to say are a line each; a whole
-                          // sentence about something replaced is never cut.
-                          maxLines: toast.stay
-                              ? null
-                              : detail.contains('\n')
-                              ? 2
-                              : 1,
-                          overflow: toast.stay
-                              ? TextOverflow.visible
-                              : TextOverflow.ellipsis,
+                          key: const ValueKey('toast-detail'),
+                          // Two things to say are a line each.
+                          maxLines: detail.contains('\n') ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
                           style: onest(
                             12.5,
                             weight: 500,
@@ -7784,7 +7569,7 @@ class _Toast extends StatelessWidget {
                           bottom: 4,
                         ),
                         child: OutlinedButton(
-                          key: ValueKey('$keyPrefix-more'),
+                          key: const ValueKey('toast-more'),
                           onPressed: more.onTap,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ink,

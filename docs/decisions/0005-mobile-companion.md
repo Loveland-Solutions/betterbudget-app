@@ -907,8 +907,9 @@ copy of.
 **Reversed, 2026-10-20 (0.41.0): asked before, with two computers too.**
 The owner chose the asking window over told-after on seeing it (ADR 0004,
 "Two computers: asked before, after all"). `many` is always true in
-`_look`, so a crossing is asked as with three or more computers; the
-settling described below is no longer reached (#218 removes it).
+`_look`, so a crossing is asked as with three or more computers. The
+settling described below, the popup that stayed and a version picked
+afterwards were removed in 0.41.1 (#218); the names below are history.
 
 **Built, 2026-10-17: step 4, settled the same way on both, told after.** A
 change crossed with another computer's (the row here is neither what the

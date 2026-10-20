@@ -41,9 +41,9 @@ abstract final class SyncKeys {
   /// the next ordinary write.
   static const whole = '${prefix}whole';
 
-  /// What the popup that says something of this computer's was replaced
-  /// needs to be drawn again, JSON with the ledger's id (ADR 0005 step 4):
-  /// this computer's own, gone with a restore, an erase or a ledger taken
+  /// Where a build before 0.42 kept the popup that said something of this
+  /// computer's was replaced (ADR 0005 step 4): no longer written, and
+  /// cleared at launch; gone too with a restore, an erase or a ledger taken
   /// whole.
   static const told = '${prefix}told';
 }

@@ -13,10 +13,10 @@
 // has chosen.
 //
 // Changed on both ("Combine"): what the other changed since is worked out
-// and brought in. A thing both changed two ways is settled the same way on
-// both computers at once (ADR 0005 step 4), and the person whose change was
-// replaced is told; only what can't be put together at all (a ledger put
-// back whole, another ledger) is still the question of which to keep.
+// and brought in. A thing both changed two ways is asked in a window before
+// anything comes in (ADR 0004 "Two computers: asked before, after all");
+// only what can't be put together at all (a ledger put back whole, another
+// ledger) is still the question of which to keep.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -163,15 +163,13 @@ enum FolderStanding {
   newer,
 
   /// Both were changed apart, and what the folder's has that this
-  /// computer's lacks can be brought in: the screen does it. What both
-  /// changed two ways is settled as both computers settle it (ADR 0005
-  /// step 4), and the person whose change was replaced is told.
+  /// computer's lacks can be brought in: the screen does it.
   combine,
 
-  /// Three or more computers on the ledger, and one row changed two ways
-  /// among them: not settled by the rule, which is exact for two (ADR 0005
-  /// step 4, from the reviews), but asked, as step 3 did ([CloudFolder.asks]).
-  /// Nothing is written until then.
+  /// A row changed two ways on two computers: asked in the window
+  /// ([CloudFolder.asks]) before anything comes in, with two computers as
+  /// with more (ADR 0004 "Two computers: asked before, after all"). Nothing
+  /// is written until then.
   rows,
 
   /// Both were changed apart in a way that can't be combined. Nothing is
@@ -266,11 +264,6 @@ typedef CombinedIn = ({
   /// made that both took in) and no more. Nothing to say, and no reason to
   /// clear the undo stack.
   bool quiet,
-
-  /// What both computers changed two ways and was settled over this
-  /// computer's version (ADR 0005 step 4): the person here is told, and
-  /// may change it back.
-  List<Ask> replaced,
 
   /// When one transaction came: its payee, for the popup's title.
   String? payee,
@@ -991,7 +984,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             if (plan == null) {
               return (standing: FolderStanding.apart, replaced: null);
             }
-            if (plan.ops.isNotEmpty || plan.asks.any((a) => a.replaced)) {
+            if (plan.ops.isNotEmpty) {
               // Brought in once already and still not all here: never
               // again by itself.
               return (
@@ -1048,7 +1041,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         cached != null &&
         cached.mine == mine.digest &&
         cached.theirs == theirs.digest) {
-      return cached.found.conflict == null ? cached.found : null;
+      return cached.found.conflict == null && !cached.found.asking
+          ? cached.found
+          : null;
     }
     _plan = null;
     final db = backups.db;
@@ -1068,19 +1063,18 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       final rows = await db.allRows();
       // Changed while it was read: the next look works it out.
       if (at != _changed) return null;
-      // Settled as both computers settle it: on a tie, the lower id's.
-      final me = await _computerId();
       final combined = combine(
         base: await readLedgerRows(agreed, backups.dataKey),
         mine: rows,
         theirs: await readLedgerRows(found.copy, backups.dataKey),
-        mineFirst: me.compareTo(theirs.savedBy ?? '') < 0,
       );
       if (combined.conflict case final why?) {
         debugPrint('The two ledgers can’t be combined: $why');
       }
       _plan = _Plan(mine: mine.digest, theirs: theirs.digest, found: combined);
-      return combined.conflict == null ? combined : null;
+      // A row changed two ways can't be asked about from a whole file (a
+      // build before change files): the person chooses a ledger.
+      return combined.conflict == null && !combined.asking ? combined : null;
     } catch (e) {
       debugPrint('The two ledgers couldn’t be compared: $e');
       return null;
@@ -1116,7 +1110,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             return null;
           }
           _picks[plan.theirs] = {...picks};
-          final again = await _planFor(file, plan.mine, many: true);
+          final again = await _planFor(file, plan.mine);
           if (again == null ||
               again.found.asking ||
               again.found.conflict != null) {
@@ -1190,12 +1184,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           quiet:
               plan.found.transactions == 0 &&
               plan.found.others == 0 &&
-              plan.found.alike.isEmpty &&
-              !plan.found.asks.any((a) => a.replaced),
-          replaced: [
-            for (final a in plan.found.asks)
-              if (a.replaced) a,
-          ],
+              plan.found.alike.isEmpty,
           payee: plan.found.payee,
         );
       });
@@ -1205,11 +1194,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// One look, on change files: this computer's own file is written when
   /// its log has grown; every other computer's file is read, and the first
   /// with changes not yet here is folded into what [combine] compares and
-  /// left for the screen to bring in ([FolderStanding.combine]), what both
-  /// changed two ways settled as both settle it; with nothing pending, the
-  /// folder's ledger is
-  /// written afresh when this one holds everything it holds and more. Nothing
-  /// is ever written over another computer's file.
+  /// left for the screen to bring in ([FolderStanding.combine]), or what
+  /// both changed two ways asked first ([FolderStanding.rows]); with nothing
+  /// pending, the folder's ledger is written afresh when this one holds
+  /// everything it holds and more. Nothing is ever written over another
+  /// computer's file.
   Future<({FolderStanding standing, File? replaced})> _syncLogs(
     DateTime now,
     String path,
@@ -1268,10 +1257,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     var held = false;
     var takeWhole = false;
     var names = false;
-    // A row changed two ways is asked in the window before anything comes
-    // in, with two computers as with more (owner, 2026-10-20, reversing
-    // step 4's told-after: ADR 0004 "Two computers: asked before, after all").
-    const many = true;
     // What is applied, kept up as the look goes.
     final applied = {...state.applied};
     for (final f in files) {
@@ -1330,8 +1315,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       // Null: this ledger changed while it was read; once more, then the
       // next look.
       final plan =
-          await _planFor(f, mine.digest, many: many) ??
-          await _planFor(f, mine.digest, many: many);
+          await _planFor(f, mine.digest) ?? await _planFor(f, mine.digest);
       if (plan == null) return (standing: FolderStanding.ok, replaced: null);
       if (plan.found.conflict != null) {
         return (standing: FolderStanding.apart, replaced: null);
@@ -1345,8 +1329,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           found.others == 0 &&
           found.alike.isEmpty &&
           found.resolutions.isEmpty &&
-          plan.taken.isEmpty &&
-          !found.asks.any((a) => a.replaced)) {
+          plan.taken.isEmpty) {
         // Nothing the person would call a change: everything it changed is
         // here already, or the two made the same rows and only when each
         // wrote them differs. Settled here, with nothing to say.
@@ -1460,11 +1443,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// this ledger's rows, and compared.
   /// Null when this ledger changed while it was read (the next look works
   /// it out again).
-  Future<_Plan?> _planFor(
-    ChangeFile f,
-    String mineDigest, {
-    bool many = false,
-  }) async {
+  Future<_Plan?> _planFor(ChangeFile f, String mineDigest) async {
     final key = '${f.header.computer}|${f.changes.last.seq}';
     if ('$mineDigest|$key' == _cantCombine) {
       return _Plan(
@@ -1575,14 +1554,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       mine: rows,
       theirs: folded.theirs,
       madeHere: madeHere,
-      // Settled as the other settles it (ADR 0005 step 4): on a tie, the
-      // lower computer id's version. With three or more computers, asked.
-      mineFirst: many ? null : iStand,
-      answered: many ? const {} : folded.answered,
-      answeredBase: folded.asItWas,
-      answeredTheirs: folded.theirsOwn,
       madeUp: folded.madeUp,
-      picks: many ? (_picks[key] ?? const {}) : const {},
+      picks: _picks[key] ?? const {},
     );
     if (found.conflict case final why?) {
       debugPrint('${f.header.computer}’s changes can’t be brought in: $why');
