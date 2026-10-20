@@ -101,7 +101,15 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // The demo ledger loads in about 300 ms here; a slower machine (GitHub's
+      // check) takes longer, so wait until its accounts show.
+      for (var waited = 0; waited < 10000; waited += 100) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await tester.pump();
+        if (waited >= 200 && find.text('TDB Checking').evaluate().isNotEmpty) {
+          break;
+        }
+      }
     });
     await tester.pumpAndSettle();
     return db;
