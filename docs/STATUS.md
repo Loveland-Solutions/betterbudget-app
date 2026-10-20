@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-20** · version 0.41.1 · schema v21 · 769 tests pass
+**Last updated: 2026-10-20** · version 0.41.2 · schema v21 · 778 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -10,6 +10,14 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**No overflow stripe** (0.41.2, PR #227, merged 2026-10-20; ADR 0004 "No overflow
+stripe"): an amount or date too wide for its box is drawn smaller (`Shrink`, which
+every `Money` uses), a name ends in "…", and a sentence with an amount wraps. New
+account fits its Types in Mongolian. `test/overflow_test.dart` walks every page and the
+phone screens with huge amounts and long names in both languages. Names that cut to
+the same text stay (owner, #225). Screens the test doesn't open yet: #226. The phone's
+part reaches the Pixel with the next upload to Play.
 
 **Two computers: asked before, after all** (0.41.0, merged 2026-10-20; ADR 0004
 "Two computers: asked before, after all"). The owner tested step 4 on the two Mac
