@@ -94,7 +94,8 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `assets/logo/Images/`; change those and run it again, don't edit the copies. The
   Mac and Windows icons are drawn by `design/icon/app_icon.py`, Android's by
   `tool/gen_android_icons.sh`.
-- **Downloads.** `tool/release_mac.sh` makes the Mac disk image signed with Developer
+- **Downloads** (unused since 2026-10-20: stores only, no GitHub downloads; ROADMAP).
+  `tool/release_mac.sh` makes the Mac disk image signed with Developer
   ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft
   release on `Loveland-Solutions/betterbudget`. The Windows app is built on GitHub by
   `.github/workflows/windows.yml` (repo root) on a `v*` tag or a pull request that
