@@ -3587,7 +3587,12 @@ before" above.
   applied, shared ids, the locks on reconciled and bank-matched money, the
   title that names the payee.
 - The settling rule, the popup that stays and the window opened as a thing
-  already done are no longer reached; removing them is #218.
+  already done are removed (0.41.1, #218), with their sentences. The popup's
+  setting a 0.41.0 ledger may hold is cleared at launch. A folder file from a
+  build before change files with anything changed on both (a row, a setting,
+  a payee or account, one deleted on one and used on the other) now gets the
+  whole-ledger question: step 4 had settled it, and there is no window to ask
+  from a whole file.
 - Rejected: sketch A, told after (2026-10-17), now that the owner has seen
   both.
 

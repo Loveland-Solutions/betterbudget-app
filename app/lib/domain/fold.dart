@@ -52,22 +52,8 @@ class FoldChange {
 /// is here by an answer (`resolve`) that settled it over this computer's
 /// own version, which [mineAll], this computer's whole log, says it made.
 /// Then the base is that version's before, so `combine` sees the two
-/// changes, and the row is in [answered] (`table|key`): the other's version
-/// is taken, and the person here is told theirs was replaced.
-///
-/// For what is [answered], how the person reads it: [asItWas], the base
-/// with each row this computer had made as it is taken back to before its
-/// own change, where the other's answer found it; [theirsOwn], that with
-/// the other's own last change of each row, not its answer.
-({
-  LedgerRows base,
-  LedgerRows theirs,
-  Set<String> answered,
-  LedgerRows asItWas,
-  LedgerRows theirsOwn,
-  Set<String> madeUp,
-})
-foldChanges(
+/// changes.
+({LedgerRows base, LedgerRows theirs, Set<String> madeUp}) foldChanges(
   LedgerRows mine,
   List<FoldChange> changes, {
   List<FoldChange> mineSince = const [],
@@ -77,7 +63,6 @@ foldChanges(
     for (final c in mineAll)
       if (c.op != 'resolve') c,
   ]);
-  final answered = <String>{};
   final madeUp = <String>{};
   final common = _copy(mine);
   for (final e in _byKey(mineSince).entries) {
@@ -88,8 +73,6 @@ foldChanges(
   }
   final base = _copy(common);
   final theirs = _copy(common);
-  final ownBefore = <(String, String), Row?>{};
-  final theirLast = <(String, String), Row?>{};
   for (final e in _byKey(changes).entries) {
     final table = e.key;
     final keys = combineKeys[table]!;
@@ -122,8 +105,6 @@ foldChanges(
           !seq.any((c) => c.op != 'resolve' && seen(c))) {
         overMine = made;
       }
-      final ordinary = seq.where((c) => c.op != 'resolve').lastOrNull;
-      if (ordinary != null) theirLast[(table, run.key)] = ordinary.after;
       // This computer's first change of the row the other hadn't seen when
       // it first changed it, where its file says.
       final firstKnew = seq.first.knew;
@@ -132,14 +113,10 @@ foldChanges(
           : (own[table]?[run.key] ?? const <FoldChange>[])
                 .where((c) => c.seq > firstKnew)
                 .firstOrNull;
-      if (made != null && seq.any((c) => c.op == 'resolve' && seen(c))) {
-        ownBefore[(table, run.key)] = (unseen ?? made).before;
-      }
       final Row? wasBefore;
       if (overMine != null) {
         // From before this computer's first change the other hadn't seen.
         wasBefore = (unseen ?? overMine).before;
-        answered.add('$table|${run.key}');
       } else if (sawThis) {
         wasBefore = here;
       } else if (unseen != null &&
@@ -178,22 +155,7 @@ foldChanges(
       _set(theirs, table, keys, run.key, seq.last.after);
     }
   }
-  final asItWas = _copy(base);
-  for (final e in ownBefore.entries) {
-    _set(asItWas, e.key.$1, combineKeys[e.key.$1]!, e.key.$2, e.value);
-  }
-  final theirsOwn = _copy(asItWas);
-  for (final e in theirLast.entries) {
-    _set(theirsOwn, e.key.$1, combineKeys[e.key.$1]!, e.key.$2, e.value);
-  }
-  return (
-    base: base,
-    theirs: theirs,
-    answered: answered,
-    asItWas: asItWas,
-    theirsOwn: theirsOwn,
-    madeUp: madeUp,
-  );
+  return (base: base, theirs: theirs, madeUp: madeUp);
 }
 
 /// What `combine` reads as an ancestor for a row both changed apart, by
