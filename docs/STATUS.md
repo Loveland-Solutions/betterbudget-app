@@ -16,8 +16,7 @@ stripe"): an amount or date too wide for its box is drawn smaller (`Shrink`, whi
 every `Money` uses), a name ends in "…", and a sentence with an amount wraps. New
 account fits its Types in Mongolian. `test/overflow_test.dart` walks every page and the
 phone screens with huge amounts and long names in both languages. Names that cut to
-the same text stay (owner, #225). Screens the test doesn't open yet: #226. The phone's
-part reaches the Pixel with the next upload to Play.
+the same text stay (owner, #225). Screens the test doesn't open yet: #226.
 
 **Two computers: asked before, after all** (0.41.0, merged 2026-10-20; ADR 0004
 "Two computers: asked before, after all"). The owner tested step 4 on the two Mac
@@ -59,7 +58,7 @@ under the closed list. The phone's categories are now chosen
 from a dropdown on the entry screen, Split with its icon at the top (0.39.0, PR #209;
 owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing.
 The computer's Category list has Split with its icon at the top too (0.39.1, PR #212;
-owner's correction). The Pixel has 0.39.0; the phone fixes go on it next. **Downloads: none from
+owner's correction). Play's Internal testing has 0.41.2 (uploaded 2026-10-20). **Downloads: none from
 GitHub** (owner, 2026-10-20: stores only; ROADMAP). Windows 0.35.1, 0.36.0 and 0.38.0
 are still published on the public repo's releases page; whether to take them down is
 the owner's call. Apple's paid Developer Program was still pending on 2026-10-17; it is
