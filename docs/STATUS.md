@@ -11,6 +11,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**The forecast's "Nothing has been budgeted" goes by the budget** (0.41.4, closes
+#129): it shows only while no category in use has a plan or an amount assigned. With
+a budget but no bills in the account, the line above already says there are none and
+nothing is added. `budgeted` on `BalanceHeader`, worked out in `ledger_screen.dart`.
+
 **A failure has its own popup** (0.41.3, closes #128; ADR 0004 rule 9, "A failure
 has its own plain popup"): gold is only for a saved change. Anything that didn't
 happen (a failure, a refusal, a nudge such as "Nothing to undo") is the page's own
