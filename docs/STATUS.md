@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-21** · version 0.41.2 · schema v21 · 778 tests pass
+**Last updated: 2026-10-21** · version 0.41.3 · schema v21 · 779 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -10,6 +10,14 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**A failure has its own popup** (0.41.3, closes #128; ADR 0004 rule 9, "A failure
+has its own plain popup"): gold is only for a saved change. Anything that didn't
+happen (a failure, a refusal, a nudge such as "Nothing to undo") is the page's own
+card with a coral edge and mark (the owner's pick, option A of three), says what in
+one line, and keeps the technical reason behind Show details, which holds the popup
+until it's closed. A damaged file of a kind the import reads says the file may be
+damaged. Seen by the owner in the real app. `_showFailure` in `ledger_screen.dart`.
 
 **Checks on every pull request** (PR #230, merged 2026-10-21; closes #89):
 `.github/workflows/check.yml` runs `flutter analyze` and `flutter test` on each pull
