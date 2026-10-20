@@ -98,9 +98,17 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `tool/release_mac.sh` makes the Mac disk image signed with Developer
   ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft
   release on `Loveland-Solutions/betterbudget`. The Windows app is built on GitHub by
-  `.github/workflows/windows.yml` (repo root) on a `v*` tag or a pull request that
-  touches Windows, and downloads from the run's Artifacts. Microsoft's C++ runtime DLLs
+  `.github/workflows/windows.yml` (repo root) on a `v*` tag or by hand from the
+  Actions tab, and downloads from the run's Artifacts. Microsoft's C++ runtime DLLs
   are copied in beside `BetterBudget.exe`.
+- **Checks on GitHub.** `.github/workflows/check.yml` runs `flutter analyze` and
+  `flutter test` on each pull request that touches `app/`, on an arm64 Mac with the
+  Flutter version pinned there (the goldens are drawn on one). A new Flutter version
+  goes in it and in `windows.yml` together. GitHub's macOS is older than the one
+  the goldens are drawn on and smooths letters differently, so there a golden may
+  differ by 0.5% of its pixels (`GOLDEN_TOLERANCE`, read by
+  `test/flutter_test_config.dart`); here it must match exactly. A golden that
+  fails there leaves its pictures in the run's Artifacts.
 - **Words.** New text goes in both `.arb` files with the same key and placeholders, or
   `language_test.dart` fails. Terms and tone: [l10n-glossary.md](l10n-glossary.md).
 - **Ids.** A new row's id is `newRowId()`, large and not sequential: never write
