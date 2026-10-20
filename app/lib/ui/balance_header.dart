@@ -28,6 +28,7 @@ class BalanceHeader extends StatelessWidget {
     this.onSpan,
     this.shortAhead,
     this.onShowShort,
+    this.budgeted = false,
   });
 
   /// No payday ahead: the forecast offers to put pay in.
@@ -47,6 +48,9 @@ class BalanceHeader extends StatelessWidget {
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
+
+  /// Some category has a plan or an amount assigned.
+  final bool budgeted;
 
   /// Shown in place of the balance sum while reconciling.
   final Widget? reconcile;
@@ -106,6 +110,7 @@ class BalanceHeader extends StatelessWidget {
                 onSpan: onSpan,
                 shortAhead: shortAhead,
                 onShowShort: onShowShort,
+                budgeted: budgeted,
               ),
             ),
           ],
@@ -490,10 +495,16 @@ class ForecastPanel extends StatelessWidget {
     this.onSpan,
     this.shortAhead,
     this.onShowShort,
+    this.budgeted = false,
   });
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
   final VoidCallback? onAddPay;
+
+  /// Some category has a plan or an amount assigned: with no bills here
+  /// even so, "Nothing has been budgeted" would be wrong, and the line
+  /// above already says there are none.
+  final bool budgeted;
 
   /// Past this view, the balance goes to zero or below: said in coral above
   /// the title, and a click looks that far (owner, 2026-10-05: "if at any
@@ -697,7 +708,7 @@ class ForecastPanel extends StatelessWidget {
         if (knownOnly) ...[
           const SizedBox(height: 8),
           Expanded(
-            child: _KnownList(f: f, onOpen: onOpen),
+            child: _KnownList(f: f, onOpen: onOpen, budgeted: budgeted),
           ),
         ] else ...[
           const SizedBox(height: 4),
@@ -839,9 +850,14 @@ class _SpanChoiceState extends State<_SpanChoice> {
 }
 
 class _KnownList extends StatelessWidget {
-  const _KnownList({required this.f, required this.onOpen});
+  const _KnownList({
+    required this.f,
+    required this.onOpen,
+    required this.budgeted,
+  });
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
+  final bool budgeted;
 
   @override
   Widget build(BuildContext context) {
@@ -940,8 +956,10 @@ class _KnownList extends StatelessWidget {
             plus(payday.amount),
             row: payday,
           ),
-        const SizedBox(height: 8),
-        Text(t.planNothingBudgeted, style: onest(12.5, color: Mid.ink3)),
+        if (!budgeted) ...[
+          const SizedBox(height: 8),
+          Text(t.planNothingBudgeted, style: onest(12.5, color: Mid.ink3)),
+        ],
       ],
     );
   }

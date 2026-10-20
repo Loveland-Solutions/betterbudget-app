@@ -5885,6 +5885,26 @@ void main() {
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_pay_period.png'),
       );
+      // With an amount assigned, that would be wrong; the line above
+      // already says there are no bills (#129).
+      final withCategories = await tester.runAsync(db.loadLedger);
+      final food = withCategories!.categories.first.id;
+      final today = DateTime.now();
+      final month = (
+        start: DateTime(today.year, today.month),
+        end: DateTime(today.year, today.month + 1, 0),
+      );
+      await tester.runAsync(
+        () => db.setBudgetAmount(food, month.start, month.end, 50000000),
+      );
+      await settle(tester);
+      expect(find.byKey(const ValueKey('forecast-known')), findsOneWidget);
+      expect(find.textContaining('Nothing has been budgeted'), findsNothing);
+      await tester.runAsync(
+        () => db.setBudgetAmount(food, month.start, month.end, 0),
+      );
+      await settle(tester);
+      expect(find.textContaining('Nothing has been budgeted'), findsOneWidget);
 
       // The pay is listed on the Budget page's Income tab, with its next
       // payday; Settings keeps only Budget by.

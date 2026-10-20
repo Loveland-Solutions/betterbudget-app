@@ -1003,7 +1003,9 @@ What's known so far:
     pay" were wrong, since the first one is the next pay), then "Nothing has been
     budgeted. Once you fill out your budget, this area will show you a forecast."
     (owner's wording, 2026-09-30; it replaced a hint and an "Add a bill" link they
-    called AI-speak). Every state has the "Forecast" title. With bills, the chart names its amounts beside their points:
+    called AI-speak). That sentence shows only while no category in use has a
+    plan or an amount assigned; with a budget but no bills in this account, the
+    line above already says there are none, and nothing is added (#129). Every state has the "Forecast" title. With bills, the chart names its amounts beside their points:
     where it starts, the lowest point, and "+₮Y pay" on the paycheck's step (one
     that would cover another is left off). Rejected: a labeled chart even with no
     bills (B), and always a list, no chart (C). **From the reviews:** the headline
