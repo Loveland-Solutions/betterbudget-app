@@ -6499,6 +6499,67 @@ void main() {
     });
   });
 
+  testWidgets('a failure is the plain popup, its reason behind Show details', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-failure'),
+    ))!;
+    // Starts as a spreadsheet does and breaks off: reading it fails.
+    final file = '${dir.path}/ST_BROKEN.xlsx';
+    await tester.runAsync(
+      () => File(file).writeAsBytes([0x50, 0x4B, 0x03, 0x04, 1, 2, 3, 4, 5]),
+    );
+    dialogs.openPath = file;
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('import')));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await settle(tester);
+
+    expect(
+      find.text(
+        'Couldn’t read ST_BROKEN.xlsx. The file may be damaged; download it from your bank again.',
+      ),
+      findsOneWidget,
+    );
+    // Not the gold of a saved change.
+    final box = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.byKey(const ValueKey('toast-message')),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((box.decoration as BoxDecoration).color, Mid.raised);
+    // The technical reason is put away until asked for.
+    expect(find.byKey(const ValueKey('toast-why-text')), findsNothing);
+    await tester.tap(find.text('Show details'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('toast-why-text')), findsOneWidget);
+    expect(find.text('Hide details'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/failure_popup.png'),
+    );
+    // Open, it stays to be read, however long that takes.
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.byKey(const ValueKey('toast-why-text')), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close_rounded).last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('toast-message')), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('import: pick a bank file, check its columns, import, undo; '
       'the next file skips the columns', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);

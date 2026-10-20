@@ -192,8 +192,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    bool failed,
+    String? why,
   })?
   _toast;
+
+  /// The failure popup's Details are showing: it stays until closed.
+  var _whyOpen = false;
+
+  /// What went wrong saving the entry row, for the popup's Details: the row
+  /// reports only its message.
+  Object? _entryError;
 
   /// Everything undoable done this session, oldest first. ⌘Z / Ctrl+Z undoes
   /// the newest; a toast's Undo works only while its action is the newest.
@@ -369,7 +378,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _couldntOpenFolderLedger() {
     final path = _cloud.value.path;
     if (!mounted || path == null) return;
-    _showToast(context.t.ledgerFolderCouldntOpen(_folderName(path)));
+    _showFailure(context.t.ledgerFolderCouldntOpen(_folderName(path)));
   }
 
   /// Replaces what's here with [candidate], the folder's ledger, as it is.
@@ -649,7 +658,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       kept = await _cloud.keepMine(widget.clock());
     } catch (e) {
       debugPrint('Writing this computer’s ledger to the folder failed: $e');
-      _showToast(t.ledgerFolderCouldnt);
+      _showFailure(t.ledgerFolderCouldnt, error: e);
       return;
     }
     if (!mounted) return;
@@ -723,7 +732,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
           try {
             await action.undo();
           } catch (e) {
-            if (mounted) _showToast(context.t.ledgerCouldntUndo(label));
+            if (mounted) {
+              _showFailure(
+                context.t.ledgerCouldntUndo(label),
+                error: _undoError(e),
+              );
+            }
             return;
           }
           _redo.add(action);
@@ -956,7 +970,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
       } catch (e) {
         debugPrint('Folder dialog failed: $e');
-        _showToast(t.ledgerCouldntOpenFileDialog);
+        _showFailure(t.ledgerCouldntOpenFileDialog, error: e);
         return false;
       }
     }
@@ -968,7 +982,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (folder == null ||
         await _cloud.folderOfLedger('$folder/${CloudFolder.fileName}') ==
             null) {
-      _showToast(t.ledgerFolderNoLedger(_folderName(pointed)));
+      _showFailure(t.ledgerFolderNoLedger(_folderName(pointed)));
       return false;
     }
     if (!mounted) return false;
@@ -978,14 +992,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       candidate = await _backups.inspect(file.path, widget.clock());
     } on RestoreNeedsKeyException {
-      _showToast(t.ledgerFolderWrongKey(name));
+      _showFailure(t.ledgerFolderWrongKey(name));
       return false;
     } on RestoreException catch (e) {
-      _showToast(restoreProblem(t, e.problem));
+      _showFailure(restoreProblem(t, e.problem));
       return false;
     } catch (e) {
       debugPrint('The folder’s ledger couldn’t be read: $e');
-      _showToast(t.ledgerFolderCouldntOpen(name));
+      _showFailure(t.ledgerFolderCouldntOpen(name), error: e);
       return false;
     }
     if (!mounted) {
@@ -1309,9 +1323,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       return null;
     } on DbException catch (e) {
-      return t.ledgerCouldntSave(dbProblem(t, e));
+      return t.ledgerCouldntSaveBecause(dbProblem(t, e));
     } catch (e) {
-      return t.ledgerCouldntSave('$e');
+      _entryError = e;
+      return t.ledgerCouldntSave;
     }
   }
 
@@ -1338,7 +1353,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           // Undo runs newest first, so an older toast can't jump the queue:
           // restoring its state would silently wipe the newer changes.
           if (!identical(_history.lastOrNull, action)) {
-            _showToast(
+            _showFailure(
               context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'),
             );
             return;
@@ -1352,15 +1367,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Throws when a database write changed less than undo or redo expected,
   /// usually because the row was locked or changed since.
   void _expect(bool ok) {
-    if (!ok) throw StateError('changed since');
+    if (!ok) throw const _ChangedSince();
   }
+
+  /// What went wrong undoing or redoing, for Details: nothing when the
+  /// message already says it ("it changed since").
+  static Object? _undoError(Object e) => e is _ChangedSince ? null : e;
 
   /// Undoes the newest action.
   Future<void> _undo() async {
     if (_restoring) return;
     final a = _history.lastOrNull;
     if (a == null) {
-      _showToast(context.t.ledgerNothingToUndo);
+      _showFailure(context.t.ledgerNothingToUndo);
       return;
     }
     _history.removeLast();
@@ -1368,7 +1387,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await a.undo();
     } catch (e) {
       if (mounted) {
-        _showToast(context.t.ledgerCouldntUndo(a.label), detail: a.detail);
+        _showFailure(
+          context.t.ledgerCouldntUndo(a.label),
+          detail: a.detail,
+          error: _undoError(e),
+        );
       }
       return;
     }
@@ -1380,7 +1403,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final a = _redo.lastOrNull;
     if (a == null) {
-      _showToast(context.t.ledgerNothingToRedo);
+      _showFailure(context.t.ledgerNothingToRedo);
       return;
     }
     _redo.removeLast();
@@ -1388,7 +1411,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await a.redo();
     } catch (e) {
       if (mounted) {
-        _showToast(context.t.ledgerCouldntRedo(a.label), detail: a.detail);
+        _showFailure(
+          context.t.ledgerCouldntRedo(a.label),
+          detail: a.detail,
+          error: _undoError(e),
+        );
       }
       return;
     }
@@ -1399,9 +1426,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Why an entry row couldn't be saved, as a popup; gone once the row is
   /// edited, unless another popup has taken its place.
   void _entryProblem(String? message) {
+    final error = _entryError;
+    _entryError = null;
     if (!mounted) return;
     if (message != null) {
-      _showToast(message);
+      _showFailure(message, error: error);
     } else if (_entryProblemShown != null &&
         _toast?.message == _entryProblemShown) {
       _closeToast();
@@ -1409,19 +1438,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _entryProblemShown = message;
   }
 
+  /// Something didn't happen (a failure, a refusal, a nudge): the plain
+  /// popup with coral's mark, not the gold one that reports a saved change. [message] says what in one line; [error], the technical
+  /// reason, waits behind Details (owner, 2026-10-10).
+  void _showFailure(String message, {String? detail, Object? error}) =>
+      _showToast(message, detail: detail, failed: true, why: error);
+
   void _showToast(
     String message, {
     String? detail,
     Future<void> Function()? undo,
     ({String label, VoidCallback onTap})? more,
+    bool failed = false,
+    Object? why,
   }) {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
     _toastGrace = null;
     _toastDue = false;
+    _whyOpen = false;
+    final whyText = why?.toString().trim();
     setState(
       () => _toast = (
         message: message,
+        failed: failed,
+        why: whyText == null || whyText.isEmpty ? null : whyText,
         // A row with no payee has no line of its own.
         detail: detail == null || detail.trim().isEmpty ? null : detail,
         more: more == null
@@ -1441,11 +1482,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
               },
       ),
     );
-    // An offer takes longer to read than a report.
-    _toastTimer = Timer(Duration(seconds: more == null ? 6 : 12), () {
-      _toastDue = true;
-      _toastMayLeave();
-    });
+    // An offer, or what went wrong, takes longer to read than a report.
+    _toastTimer = Timer(
+      Duration(seconds: more == null && !failed ? 6 : 12),
+      () {
+        _toastDue = true;
+        _toastMayLeave();
+      },
+    );
     // It took the place of a popup the pointer was on (its Undo or its
     // offer was clicked, or ⌘Z pressed): it stays if the pointer is on it
     // too, so the next click can't land on the row beneath.
@@ -1460,10 +1504,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
   }
 
+  /// Details on the failure popup: open, it holds the popup; closed, the
+  /// popup leaves in its own time again.
+  void _toggleWhy() {
+    setState(() => _whyOpen = !_whyOpen);
+    _toastMayLeave();
+  }
+
   /// The popup leaves when its time is up, the pointer is off it and has
   /// been for a little while.
   void _toastMayLeave() {
-    if (!mounted || _toast == null) return;
+    if (!mounted || _toast == null || _whyOpen) return;
     if (_toastDue && _toastPointer == null && _toastGrace == null) {
       _closeToast();
     }
@@ -1475,6 +1526,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _toastGrace = null;
     _toastPointer = null;
     _toastDue = false;
+    _whyOpen = false;
     if (_toast != null) setState(() => _toast = null);
   }
 
@@ -1608,7 +1660,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _tapRow(int id, EditField field) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1638,12 +1690,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The register hides scheduled rows while reconciling, and keys would act
     // on a row nobody can see.
     if (_reconcile != null) {
-      _showToast(context.t.ledgerFinishReconcileFirst);
+      _showFailure(context.t.ledgerFinishReconcileFirst);
       return;
     }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1686,7 +1738,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // with changes keeps the floor.
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1741,7 +1793,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // On is the ordinary state, so only off is kept.
       await db.setPreference(showSourceKey, on ? null : '0');
     } catch (e) {
-      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+      if (mounted) _showFailure(context.t.ledgerCouldntSave, error: e);
     }
   }
 
@@ -1752,7 +1804,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final v = name.trim();
       await db.setPreference(key, v.isEmpty ? null : v);
     } catch (e) {
-      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+      if (mounted) _showFailure(context.t.ledgerCouldntSave, error: e);
     }
   }
 
@@ -1842,7 +1894,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await db.setPreference(ForecastSpan.prefKey, span.name);
     } catch (e) {
-      if (mounted) _showToast(context.t.ledgerCouldntSave('$e'));
+      if (mounted) _showFailure(context.t.ledgerCouldntSave, error: e);
     }
     _keysBack();
   }
@@ -1934,7 +1986,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The new-transaction row gives way the same way: closed when empty,
     // kept when it holds typing.
     if (_adding && _entry.isDirty()) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return;
     }
     // Reconciled rows open too: payee, memo and category can still change.
@@ -1966,7 +2018,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startConfirm(RegisterRow r) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -2034,9 +2086,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } on LockedException catch (e) {
       return dbProblem(t, e);
     } on DbException catch (e) {
-      return t.ledgerCouldntSave(dbProblem(t, e));
+      return t.ledgerCouldntSaveBecause(dbProblem(t, e));
     } catch (e) {
-      return t.ledgerCouldntSave('$e');
+      _entryError = e;
+      return t.ledgerCouldntSave;
     }
     // Saved: from here a failure mustn't read as "couldn't save".
     after = await db.snapshot(row.txnId);
@@ -2156,7 +2209,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startReconcile(LedgerData data, AccountInfo account) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -2240,10 +2293,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         adjust: adjust,
       );
     } on ReconcileMismatchException {
-      _showToast(t.ledgerClearedRowsChanged);
+      _showFailure(t.ledgerClearedRowsChanged);
       return;
     } on ReconcileDateException catch (e) {
-      _showToast(dbProblem(t, e));
+      _showFailure(dbProblem(t, e));
       return;
     } finally {
       _locking = false;
@@ -2299,7 +2352,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final deleted = await db.softDeleteMany([r.txnId]);
     if (!mounted) return;
     if (deleted.isEmpty) {
-      _showToast(_lockMessage(r));
+      _showFailure(_lockMessage(r));
       return;
     }
     _clearSelection();
@@ -2353,7 +2406,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final deleted = await db.softDeleteMany([r.txnId]);
     if (!mounted) return;
     if (deleted.isEmpty) {
-      _showToast(_lockMessage(r));
+      _showFailure(_lockMessage(r));
       return;
     }
     _cancelEdit();
@@ -2414,14 +2467,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         toAccountId: to.id,
       );
     } on LockedException catch (e) {
-      _showToast(t.ledgerCantMove(dbProblem(t, e)));
+      _showFailure(t.ledgerCantMove(dbProblem(t, e)));
       return;
     } on NotFoundException catch (e) {
-      _showToast(t.ledgerCantMove(dbProblem(t, e)));
+      _showFailure(t.ledgerCantMove(dbProblem(t, e)));
       return;
     } catch (e) {
       debugPrint('Move failed: $e');
-      _showToast(t.ledgerCouldntMove);
+      _showFailure(t.ledgerCouldntMove, error: e);
       return;
     }
     _clearSelection();
@@ -2452,7 +2505,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final e = _editing;
     if (e == null) return true;
     if (e.controller.isDirty()) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return false;
     }
     _cancelEdit();
@@ -2510,7 +2563,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final into = data.openAccounts.where((a) => !a.isOwed).toList();
     // Income may not be there yet: a new ledger makes it with the first pay.
     if (into.isEmpty) {
-      _showToast(t.ledgerAddBankAccountFirst);
+      _showFailure(t.ledgerAddBankAccountFirst);
       return;
     }
     AccountInfo? byId(List<AccountInfo> from, int? id) =>
@@ -2685,7 +2738,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await db.setPreference(noRegularPayKey, value);
     } catch (e) {
-      _showToast(t.ledgerCouldntSave('$e'));
+      _showFailure(t.ledgerCouldntSave, error: e);
       return;
     }
     _did(
@@ -3055,7 +3108,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Paycheck failed: $e');
-      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      if (mounted) _showFailure(t.ledgerCouldntChangeCategory, error: e);
       return;
     }
     if (!mounted) return;
@@ -3188,7 +3241,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await write();
     } catch (e) {
       debugPrint('Remembering a payee failed: $e');
-      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      if (mounted) _showFailure(t.ledgerCouldntChangeCategory, error: e);
       return;
     }
     if (!mounted) return;
@@ -3239,7 +3292,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )
         .firstOrNull;
     if (twin != null) {
-      _showToast(
+      _showFailure(
         t.payeesAlreadyListed(
           twin.name,
           _ruleLabel(t, data, twin, _payChoices(data)),
@@ -3263,7 +3316,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
     } catch (e) {
       debugPrint('Saving a payee failed: $e');
-      if (mounted) _showToast(t.ledgerCouldntSave('$e'));
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
       return false;
     }
     if (!mounted) return true;
@@ -3299,7 +3352,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await db.putPayeeRule(gone);
     } catch (e) {
       debugPrint('Deleting a payee failed: $e');
-      if (mounted) _showToast(t.ledgerCouldntSave('$e'));
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
       return;
     }
     if (!mounted) return;
@@ -3360,7 +3413,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await write();
     } catch (e) {
       debugPrint('Filing a payee’s rows failed: $e');
-      if (mounted) _showToast(t.ledgerCouldntChangeCategory);
+      if (mounted) _showFailure(t.ledgerCouldntChangeCategory, error: e);
       return;
     }
     if (!mounted) return;
@@ -3436,7 +3489,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       });
     } catch (e) {
       debugPrint('Add account failed: $e');
-      if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
+      if (mounted) _showFailure(context.t.ledgerCouldntAddAccount, error: e);
       return;
     }
     if (!mounted) return;
@@ -3534,7 +3587,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Add account failed: $e');
-      if (mounted) _showToast(context.t.ledgerCouldntAddAccount);
+      if (mounted) _showFailure(context.t.ledgerCouldntAddAccount, error: e);
       return;
     }
     // Kept for Savings, step 2, once the account is there: a rate that
@@ -3545,7 +3598,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await db.setPreference(ReadyKeys.rate(id), rate);
       } catch (e) {
         debugPrint('Interest rate not kept: $e');
-        if (mounted) _showToast(context.t.ledgerCouldntKeepRate);
+        if (mounted) _showFailure(context.t.ledgerCouldntKeepRate, error: e);
       }
     }
     if (!mounted) return;
@@ -3589,7 +3642,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Opening balance failed: $e');
-      _showToast(t.ledgerCouldntSaveBalance);
+      _showFailure(t.ledgerCouldntSaveBalance, error: e);
       return;
     }
     // The bank's number already holds everything cleared, so what's left to
@@ -3616,7 +3669,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       debugPrint('Change to $what failed: $e');
       if (mounted) {
         final t = context.t;
-        _showToast(switch (what) {
+        _showFailure(error: e, switch (what) {
           'pay' => t.ledgerCouldntChangePay,
           'budget period' => t.ledgerCouldntChangeBudgetPeriod,
           'category' => t.ledgerCouldntChangeCategory,
@@ -4047,7 +4100,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await _archiveCategory(existing, false);
         return existing.id;
       }
-      _showToast(t.ledgerAlreadyCategory(existing.name));
+      _showFailure(t.ledgerAlreadyCategory(existing.name));
       return null;
     }
     late int id;
@@ -4124,7 +4177,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       anyRows = await db.categoryEntryCount(c.id);
     } catch (e) {
       debugPrint('Counting rows failed: $e');
-      _showToast(t.ledgerCouldntChangeCategory);
+      _showFailure(t.ledgerCouldntChangeCategory, error: e);
       return;
     }
     if (!mounted) return;
@@ -4254,7 +4307,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Open dialog failed: $e');
-      _showToast(t.ledgerCouldntOpenFileDialog);
+      _showFailure(t.ledgerCouldntOpenFileDialog, error: e);
       return;
     }
     if (picked == null || !mounted) return;
@@ -4276,11 +4329,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
       mapping = fits ? saved.mapping : guessMapping(sheet);
     } catch (e) {
       debugPrint('Import read failed: $e');
-      if (mounted) _showToast(t.importCouldntRead(picked.name));
+      // A kind of file it reads, that didn't read: the file is the problem,
+      // and the list of kinds would only repeat what it is.
+      final readable = RegExp(
+        r'\.(xlsx?|csv|txt|tsv|ofx|qfx|qbo)$',
+        caseSensitive: false,
+      ).hasMatch(picked.name);
+      if (mounted) {
+        _showFailure(
+          readable
+              ? t.importCouldntReadDamaged(picked.name)
+              : t.importCouldntRead(picked.name),
+          error: e,
+        );
+      }
       return;
     }
     if (!fits && !mapping.hasDate) {
-      _showToast(t.importNoDates(picked.name));
+      _showFailure(t.importNoDates(picked.name));
       return;
     }
     if (!mounted) return;
@@ -4322,12 +4388,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       debugPrint('Import failed: $e');
       if (mounted) {
-        _showToast(
-          t.importCouldntImport(switch (e) {
-            final DbException d => dbProblem(t, d),
-            _ => '$e',
-          }),
-        );
+        switch (e) {
+          case final DbException d:
+            _showFailure(t.importCouldntImport(dbProblem(t, d)));
+          default:
+            _showFailure(t.importCouldntImportRows, error: e);
+        }
       }
       return;
     }
@@ -4461,7 +4527,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       await db.setPreference(key, value);
     } catch (e) {
-      _showToast(t.ledgerCouldntSave('$e'));
+      _showFailure(t.ledgerCouldntSave, error: e);
       return;
     }
     _did(
@@ -4598,7 +4664,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Save dialog failed: $e');
-      _showToast(t.ledgerCouldntOpenSaveDialog);
+      _showFailure(t.ledgerCouldntOpenSaveDialog, error: e);
       return;
     }
     if (location == null) return;
@@ -4606,7 +4672,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await _backups.saveTo(location.path, now);
     } catch (e) {
       debugPrint('Back up failed: $e');
-      _showToast(t.ledgerCouldntBackUp);
+      _showFailure(t.ledgerCouldntBackUp, error: e);
       return;
     }
     await _backups.copiedElsewhere(now);
@@ -4631,7 +4697,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
     } catch (e) {
       debugPrint('Folder dialog failed: $e');
-      _showToast(t.ledgerCouldntOpenSaveDialog);
+      _showFailure(t.ledgerCouldntOpenSaveDialog, error: e);
       return;
     }
     if (picked == null) return;
@@ -4663,11 +4729,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await _cloud.keepIn(to, widget.clock(), replaceUnreadable: true);
       }
     } on FolderLedgerNewer {
-      _showToast(t.ledgerFolderNewerApp);
+      _showFailure(t.ledgerFolderNewerApp);
       return;
     } catch (e) {
       debugPrint('Keeping the ledger in a folder failed: $e');
-      _showToast(t.ledgerFolderCouldnt);
+      _showFailure(t.ledgerFolderCouldnt, error: e);
       return;
     }
     if (!mounted) return;
@@ -4707,7 +4773,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     // A restore replaces the rows an open edit or reconcile points at.
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return false;
     }
     _cancelEdit();
@@ -4736,7 +4802,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ))?.path;
       } catch (e) {
         debugPrint('Open dialog failed: $e');
-        _showToast(t.ledgerCouldntOpenFileDialog);
+        _showFailure(t.ledgerCouldntOpenFileDialog, error: e);
         return false;
       }
     }
@@ -4769,11 +4835,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       });
       if (found == null) return false;
     } on RestoreException catch (e) {
-      _showToast(restoreProblem(t, e.problem));
+      _showFailure(restoreProblem(t, e.problem));
       return false;
     } catch (e) {
       debugPrint('Restore check failed: $e');
-      _showToast(t.ledgerCouldntReadBackup);
+      _showFailure(t.ledgerCouldntReadBackup, error: e);
       return false;
     }
     if (!mounted) return false;
@@ -4842,7 +4908,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
       } catch (e) {
         debugPrint('Folder dialog failed: $e');
-        _showToast(t.ledgerCouldntOpenSaveDialog);
+        _showFailure(t.ledgerCouldntOpenSaveDialog, error: e);
       }
       if (!mounted) {
         await _backups.discard(candidate);
@@ -4944,7 +5010,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       debugPrint('Restore failed: $e');
       if (!mounted) return false;
-      _showToast(t.ledgerCouldntRestore);
+      _showFailure(t.ledgerCouldntRestore, error: e);
       return false;
     }
     if (!mounted) return false;
@@ -4995,7 +5061,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final t = context.t;
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return;
     }
     final data = _data;
@@ -5046,7 +5112,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       });
     } catch (e) {
       debugPrint('New ledger failed: $e');
-      _showToast(t.ledgerCouldntStartNewLedger);
+      _showFailure(t.ledgerCouldntStartNewLedger, error: e);
       return;
     }
     if (!mounted) return;
@@ -5401,6 +5467,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       toast: _toast!,
                       onPointer: _toastPointerAt,
                       onClose: _closeToast,
+                      whyOpen: _whyOpen,
+                      onWhy: _toggleWhy,
                     ),
                 ],
               );
@@ -7428,12 +7496,19 @@ class _PrimaryButton extends StatelessWidget {
 /// happened, then the row it happened to on a line of its own (a bank's
 /// payee is data, not part of the sentence), then the one further thing on
 /// offer as a button.
+/// An undo or redo found its rows changed since; the popup says so.
+class _ChangedSince implements Exception {
+  const _ChangedSince();
+}
+
 class _Toast extends StatelessWidget {
   const _Toast({
     super.key,
     required this.toast,
     required this.onClose,
     required this.onPointer,
+    required this.whyOpen,
+    required this.onWhy,
   });
 
   final ({
@@ -7441,9 +7516,15 @@ class _Toast extends StatelessWidget {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    bool failed,
+    String? why,
   })
   toast;
   final VoidCallback onClose;
+
+  /// The technical reason is showing, under the failure's line.
+  final bool whyOpen;
+  final VoidCallback onWhy;
 
   /// Where the pointer moved or clicked on the card; null when it left.
   final ValueChanged<Offset?> onPointer;
@@ -7452,7 +7533,9 @@ class _Toast extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ink = Mid.onToast;
+    // Gold only for a saved change: what didn't happen is ordinary ink on
+    // the page's own card, marked in coral.
+    final ink = toast.failed ? Mid.ink : Mid.onToast;
     final light = Mid.isLight;
     return Positioned(
       bottom: 36,
@@ -7477,9 +7560,15 @@ class _Toast extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   // Gold so it gets noticed: it reports something that changed.
-                  color: Mid.toast,
+                  color: toast.failed ? Mid.raised : Mid.toast,
                   borderRadius: BorderRadius.circular(12),
-                  border: light ? Border.all(color: Mid.gold) : null,
+                  // Coral's job is errors (owner, 2026-10-21, option A of
+                  // three): an edge and a mark, the words in ordinary ink.
+                  border: toast.failed
+                      ? Border.all(color: Mid.coral, width: 1.5)
+                      : light
+                      ? Border.all(color: Mid.gold)
+                      : null,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(
@@ -7498,6 +7587,15 @@ class _Toast extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (toast.failed)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 7, right: 10),
+                            child: Icon(
+                              Icons.error_outline_rounded,
+                              size: 18,
+                              color: Mid.coral,
+                            ),
+                          ),
                         Expanded(
                           child: Padding(
                             // Every line of it: the last clause is often the
@@ -7511,6 +7609,26 @@ class _Toast extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        if (toast.why != null)
+                          TextButton(
+                            key: const ValueKey('toast-why'),
+                            onPressed: onWhy,
+                            style: TextButton.styleFrom(
+                              foregroundColor: ink,
+                              visualDensity: VisualDensity.standard,
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              whyOpen
+                                  ? context.t.ledgerHideDetails
+                                  : context.t.ledgerShowDetails,
+                              style: onest(13, weight: 600, color: ink),
+                            ),
+                          ),
                         if (toast.undo != null)
                           TextButton(
                             onPressed: toast.undo,
@@ -7561,6 +7679,25 @@ class _Toast extends StatelessWidget {
                             12.5,
                             weight: 500,
                             color: ink.withValues(alpha: 0.72),
+                          ),
+                        ),
+                      ),
+                    if (toast.why case final why? when whyOpen)
+                      Container(
+                        key: const ValueKey('toast-why-text'),
+                        margin: const EdgeInsets.only(top: 6, right: 8),
+                        padding: const EdgeInsets.all(10),
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        decoration: BoxDecoration(
+                          color: Mid.chip,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        // The owner's was a screen of library paths: it
+                        // scrolls, and can be selected to paste in a report.
+                        child: SingleChildScrollView(
+                          child: SelectableText(
+                            why,
+                            style: onest(12, color: Mid.ink2),
                           ),
                         ),
                       ),

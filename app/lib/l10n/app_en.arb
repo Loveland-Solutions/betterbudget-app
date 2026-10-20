@@ -142,14 +142,26 @@
       }
     }
   },
-  "ledgerCouldntSave": "Couldn’t save: {error}",
+  "ledgerCouldntSave": "Couldn’t save that change",
   "@ledgerCouldntSave": {
-    "description": "Error under the entry row or as a toast; error is the technical reason.",
+    "description": "Plain popup when a setting or a payee couldn't be written. The technical reason is behind Show details, not in this line."
+  },
+  "ledgerCouldntSaveBecause": "Couldn’t save: {reason}",
+  "@ledgerCouldntSaveBecause": {
+    "description": "Plain popup when the entry row couldn't be saved; reason is one of the app's own sentences, e.g. that the row is reconciled.",
     "placeholders": {
-      "error": {
+      "reason": {
         "type": "String"
       }
     }
+  },
+  "ledgerShowDetails": "Show details",
+  "@ledgerShowDetails": {
+    "description": "Button on the plain popup that says something didn't happen: shows the technical reason under it."
+  },
+  "ledgerHideDetails": "Hide details",
+  "@ledgerHideDetails": {
+    "description": "The same button once the technical reason is showing: puts it away again."
   },
   "ledgerUndoNewerFirst": "Undo the newer changes first · {shortcut}",
   "@ledgerUndoNewerFirst": {
@@ -4859,6 +4871,13 @@
       "file": {}
     }
   },
+  "importCouldntReadDamaged": "Couldn’t read {file}. The file may be damaged; download it from your bank again.",
+  "@importCouldntReadDamaged": {
+    "description": "Plain popup when a file of a kind BetterBudget reads (Excel, CSV, OFX) couldn't be read.",
+    "placeholders": {
+      "file": {}
+    }
+  },
   "importNoDates": "{file} has no rows with a date in them.",
   "@importNoDates": {
     "description": "Toast when a file has nothing that looks like a transaction.",
@@ -5181,6 +5200,10 @@
   "importUncategorized": "Not categorized",
   "@importUncategorized": {
     "description": "Name of the category the app makes for imported rows whose payee has no earlier category. Saved in the language showing when it's made."
+  },
+  "importCouldntImportRows": "Couldn’t import those rows",
+  "@importCouldntImportRows": {
+    "description": "Plain popup when importing failed for a reason the app has no words for; the technical reason is behind Show details."
   },
   "importCouldntImport": "Couldn’t import: {problem}",
   "@importCouldntImport": {

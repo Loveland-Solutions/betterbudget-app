@@ -503,6 +503,19 @@ What's known so far:
    text** (owner's call) so they get noticed; the dark toast they replaced was easy to
    miss. **The popup is a card in the page's bottom-right corner** (owner, 2026-10-06,
    "Not loving the way this looks", option A of two; see "The popup is a card" below).
+   **A failure has its own plain popup** (owner, 2026-10-10; #128): "Couldn't
+   save: …" came in the gold popup with the error's whole text, a screen of library
+   paths. Gold now means only that something was saved. Anything that didn't happen
+   (a failure, a refusal, a row that can't be saved yet, a nudge such as "Save or
+   discard the open row first" or "Nothing to undo") is the page's own card with
+   ordinary ink, a coral edge and a coral mark before the sentence (owner,
+   2026-10-21: "the color should stand out in some way"; option A of three, since
+   coral's job is errors. *Rejected:* a coral card, as loud as an alarm for a
+   nudge, and a light card, which stands out without saying anything is wrong). It says what
+   didn't happen in one line. The technical reason waits behind **Show details**,
+   which reveals it, selectable, and holds the popup until it's closed. It stays 12
+   seconds instead of 6. "Couldn't undo … it changed since" has no Details, since
+   the line already says all of it.
    **A row that can't be saved says why in the same popup** (owner, 2026-10-03):
    beside Add there was room for "Say how muc…" and no more. It goes away once the row
    is edited. The wording is an instruction in plain office English ("Enter the amount
