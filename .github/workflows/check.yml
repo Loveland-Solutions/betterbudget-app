@@ -1,8 +1,11 @@
 # Runs `flutter analyze` and `flutter test` on every pull request that touches the
 # app, and by hand from the Actions tab. On an arm64 Mac, as the goldens in
-# app/test/goldens/ are drawn: another machine draws text a pixel differently and
-# they would fail. No Flutter cache: each pull request's ref kept its own 1.8 GB
-# copy when the Windows build ran here (#205), and the download takes about a minute.
+# app/test/goldens/ are drawn. GitHub's macOS is older than the one they were drawn
+# on and smooths the edges of letters differently (0.30% of a picture at most), so
+# here a golden may differ by 0.5% of its pixels (test/flutter_test_config.dart);
+# that catches a page that moved or lost a panel, not one word changed. No Flutter
+# cache: each pull request's ref kept its own 1.8 GB copy when the Windows build
+# ran here (#205), and the download takes about a minute.
 name: Check
 
 on:
@@ -42,6 +45,8 @@ jobs:
       # A golden that fails leaves its picture and the difference in
       # test/failures/; they are kept with the run for a week.
       - run: flutter test
+        env:
+          GOLDEN_TOLERANCE: '0.005'
 
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
