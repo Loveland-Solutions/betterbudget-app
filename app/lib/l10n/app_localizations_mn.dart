@@ -103,9 +103,18 @@ class WordsMn extends Words {
   }
 
   @override
-  String ledgerCouldntSave(String error) {
-    return 'Хадгалж чадсангүй: $error';
+  String get ledgerCouldntSave => 'Тэр өөрчлөлтийг хадгалж чадсангүй';
+
+  @override
+  String ledgerCouldntSaveBecause(String reason) {
+    return 'Хадгалж чадсангүй: $reason';
   }
+
+  @override
+  String get ledgerShowDetails => 'Дэлгэрэнгүйг харуулах';
+
+  @override
+  String get ledgerHideDetails => 'Дэлгэрэнгүйг нуух';
 
   @override
   String ledgerUndoNewerFirst(String shortcut) {
@@ -3398,6 +3407,9 @@ class WordsMn extends Words {
 
   @override
   String get importUncategorized => 'Ангилаагүй';
+
+  @override
+  String get importCouldntImportRows => 'Тэр мөрүүдийг оруулж чадсангүй';
 
   @override
   String importCouldntImport(Object problem) {

@@ -235,11 +235,29 @@ abstract class Words {
   /// **'Scheduled for {date} · not in balances until confirmed'**
   String ledgerScheduledToast(String date);
 
-  /// Error under the entry row or as a toast; error is the technical reason.
+  /// Plain popup when a setting or a payee couldn't be written. The technical reason is behind Show details, not in this line.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t save: {error}'**
-  String ledgerCouldntSave(String error);
+  /// **'Couldn’t save that change'**
+  String get ledgerCouldntSave;
+
+  /// Plain popup when the entry row couldn't be saved; reason is one of the app's own sentences, e.g. that the row is reconciled.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save: {reason}'**
+  String ledgerCouldntSaveBecause(String reason);
+
+  /// Button on the plain popup that says something didn't happen: shows the technical reason under it.
+  ///
+  /// In en, this message translates to:
+  /// **'Show details'**
+  String get ledgerShowDetails;
+
+  /// The same button once the technical reason is showing: puts it away again.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide details'**
+  String get ledgerHideDetails;
 
   /// Toast when Undo is pressed on an older toast. shortcut is ⌘Z or Ctrl+Z.
   ///
@@ -4936,6 +4954,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Not categorized'**
   String get importUncategorized;
+
+  /// Plain popup when importing failed for a reason the app has no words for; the technical reason is behind Show details.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import those rows'**
+  String get importCouldntImportRows;
 
   /// Toast when an import fails; nothing was written.
   ///

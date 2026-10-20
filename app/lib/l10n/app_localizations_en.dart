@@ -103,9 +103,18 @@ class WordsEn extends Words {
   }
 
   @override
-  String ledgerCouldntSave(String error) {
-    return 'Couldn’t save: $error';
+  String get ledgerCouldntSave => 'Couldn’t save that change';
+
+  @override
+  String ledgerCouldntSaveBecause(String reason) {
+    return 'Couldn’t save: $reason';
   }
+
+  @override
+  String get ledgerShowDetails => 'Show details';
+
+  @override
+  String get ledgerHideDetails => 'Hide details';
 
   @override
   String ledgerUndoNewerFirst(String shortcut) {
@@ -3517,6 +3526,9 @@ class WordsEn extends Words {
 
   @override
   String get importUncategorized => 'Not categorized';
+
+  @override
+  String get importCouldntImportRows => 'Couldn’t import those rows';
 
   @override
   String importCouldntImport(Object problem) {
