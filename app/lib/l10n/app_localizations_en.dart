@@ -3270,6 +3270,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String importCouldntReadDamaged(Object file) {
+    return 'Couldn’t read $file. The file may be damaged; download it from your bank again.';
+  }
+
+  @override
   String importNoDates(Object file) {
     return '$file has no rows with a date in them.';
   }

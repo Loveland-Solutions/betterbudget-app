@@ -4329,7 +4329,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       mapping = fits ? saved.mapping : guessMapping(sheet);
     } catch (e) {
       debugPrint('Import read failed: $e');
-      if (mounted) _showFailure(t.importCouldntRead(picked.name), error: e);
+      // A kind of file it reads, that didn't read: the file is the problem,
+      // and the list of kinds would only repeat what it is.
+      final readable = RegExp(
+        r'\.(xlsx?|csv|txt|tsv|ofx|qfx|qbo)$',
+        caseSensitive: false,
+      ).hasMatch(picked.name);
+      if (mounted) {
+        _showFailure(
+          readable
+              ? t.importCouldntReadDamaged(picked.name)
+              : t.importCouldntRead(picked.name),
+          error: e,
+        );
+      }
       return;
     }
     if (!fits && !mapping.hasDate) {

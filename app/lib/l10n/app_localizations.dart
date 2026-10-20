@@ -4650,6 +4650,12 @@ abstract class Words {
   /// **'Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.'**
   String importCouldntRead(Object file);
 
+  /// Plain popup when a file of a kind BetterBudget reads (Excel, CSV, OFX) couldn't be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t read {file}. The file may be damaged; download it from your bank again.'**
+  String importCouldntReadDamaged(Object file);
+
   /// Toast when a file has nothing that looks like a transaction.
   ///
   /// In en, this message translates to:

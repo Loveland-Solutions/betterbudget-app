@@ -3182,6 +3182,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String importCouldntReadDamaged(Object file) {
+    return '$file файлыг уншиж чадсангүй. Файл гэмтсэн байж магадгүй; банкнаасаа дахин татаж авна уу.';
+  }
+
+  @override
   String importNoDates(Object file) {
     return '$file файлд огноотой мөр алга.';
   }

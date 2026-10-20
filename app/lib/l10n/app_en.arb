@@ -4871,6 +4871,13 @@
       "file": {}
     }
   },
+  "importCouldntReadDamaged": "Couldn’t read {file}. The file may be damaged; download it from your bank again.",
+  "@importCouldntReadDamaged": {
+    "description": "Plain popup when a file of a kind BetterBudget reads (Excel, CSV, OFX) couldn't be read.",
+    "placeholders": {
+      "file": {}
+    }
+  },
   "importNoDates": "{file} has no rows with a date in them.",
   "@importNoDates": {
     "description": "Toast when a file has nothing that looks like a transaction.",

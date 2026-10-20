@@ -6527,7 +6527,7 @@ void main() {
 
     expect(
       find.text(
-        'Couldn’t read ST_BROKEN.xlsx. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.',
+        'Couldn’t read ST_BROKEN.xlsx. The file may be damaged; download it from your bank again.',
       ),
       findsOneWidget,
     );

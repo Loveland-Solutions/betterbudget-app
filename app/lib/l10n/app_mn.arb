@@ -752,6 +752,7 @@
   "importTextFiles": "Текст файл (CSV)",
   "importOfxFiles": "Банкны татсан файл (OFX, QFX, QBO)",
   "importCouldntRead": "{file} файлыг уншиж чадсангүй. BetterBudget нь Excel (.xls, .xlsx), CSV болон OFX файл уншдаг.",
+  "importCouldntReadDamaged": "{file} файлыг уншиж чадсангүй. Файл гэмтсэн байж магадгүй; банкнаасаа дахин татаж авна уу.",
   "importNoDates": "{file} файлд огноотой мөр алга.",
   "importSavedColumns": "Энэ дансанд өмнө тохируулсан баганаар уншлаа.",
   "importChangeColumns": "Багана өөрчлөх",
