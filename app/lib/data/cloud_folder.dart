@@ -391,10 +391,16 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// computers ([FolderStanding.rows]), by the plan they were asked for.
   final _picks = <String, Map<String, Pick>>{};
 
-  /// What was asked with three or more computers, at the last look.
+  /// What is asked about a row changed two ways, while it is: none once
+  /// the folder stands otherwise (answered here, or the other's answer
+  /// came in).
   List<Ask> get asks {
     final plan = _plan;
-    if (plan == null || !plan.found.asking) return const [];
+    if (plan == null ||
+        !plan.found.asking ||
+        value.standing != FolderStanding.rows) {
+      return const [];
+    }
     return plan.found.asks;
   }
 
@@ -1089,13 +1095,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// look works it out again) or can't be combined after all (then the
   /// person is asked).
   ///
-  /// What both changed two ways was settled when it was worked out, the
-  /// same way the other computer settles it (ADR 0005 step 4): nothing
-  /// waits for an answer. What of this computer's was replaced comes back
-  /// in [CombinedIn.replaced], for the person to be told.
-  ///
-  /// With [picks], the person's choice for each of [asks] (three or more
-  /// computers): worked out again with them, and made with the rest.
+  /// What both changed two ways is asked first ([FolderStanding.rows]);
+  /// with [picks], the person's choice for each of [asks], it is worked out
+  /// again with them and made with the rest.
   Future<CombinedIn?> bringIn(DateTime now, {Map<String, Pick>? picks}) =>
       _queued(() async {
         final path = value.path;

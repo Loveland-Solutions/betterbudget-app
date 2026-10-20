@@ -737,9 +737,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Three or more computers, and something changed two ways among them
-  /// (ADR 0005 step 4, from the reviews): not settled by the rule, which is
-  /// exact for two, but asked, as step 3 did. Nothing is written until then.
+  /// Something changed two ways on two computers or more: asked, as step 3
+  /// did (owner, 2026-10-20, ADR 0004 "Two computers: asked before, after
+  /// all"). Nothing is written until then.
   Future<void> _chooseRows() async {
     final theirs = _cloud.theirs;
     final asks = _cloud.asks;

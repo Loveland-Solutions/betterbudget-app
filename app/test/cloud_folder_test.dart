@@ -1085,343 +1085,51 @@ void main() {
       });
       await tester.pump();
       await comeBackToTheFront();
-      // Settled at once, as the laptop settles it (its id is the lower):
-      // nothing is asked, and the rest came in with it.
-      expect(find.text('Changed on both computers'), findsNothing);
-      expect(find.text('E-Mart from The laptop'), findsOneWidget);
       expect(
-        find.text(
-          'Nomin on 2026.10.07 was changed on both computers. The laptop’s '
-          '₮21,000 is kept on both; yours was ₮17,000.',
-        ),
+        find.text('2 things were changed on both computers'),
+        findsNothing,
+      );
+      expect(
+        find.text('One thing was changed on both computers'),
         findsOneWidget,
       );
-      expect(find.text('Undo'), findsNothing);
+      expect(find.text('Nomin'), findsWidgets);
+      expect(find.textContaining('17,000'), findsWidgets);
+      expect(find.textContaining('21,000'), findsWidgets);
       await tester.runAsync(() async {
-        expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
-        final nomin = (await db.loadLedger()).txns.singleWhere(
-          (t) => t.payee == 'Nomin',
-        );
-        expect(nomin.entries.map((e) => e.amount), contains(-2100000));
+        // Nothing has come in, and nothing is written over the other's.
+        expect(await payees(db), isNot(contains('E-Mart')));
       });
-      await tester.pump(const Duration(milliseconds: 300));
       await expectLater(
         find.byType(MaterialApp),
-        matchesGoldenFile('goldens/two_rows_told.png'),
+        matchesGoldenFile('goldens/two_rows.png'),
       );
-      // It stays until it is closed or looked at.
-      await tester.pump(const Duration(seconds: 30));
-      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
-      // And after a quit, it is back at launch.
-      await tester.runAsync(() async {
-        await tester.pumpWidget(const SizedBox());
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        await tester.pumpWidget(
-          MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: appTheme(),
-            home: LedgerScreen(
-              demo: true,
-              db: db,
-              clock: () => today,
-              folderAccess: _FakeAccess(),
-            ),
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 900));
-      });
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
-      expect(
-        find.text(
-          'Nomin on 2026.10.07 was changed on both computers. The laptop’s '
-          '₮21,000 is kept on both; yours was ₮17,000.',
-        ),
-        findsOneWidget,
-      );
-      // Another popup shows above it, and it stays when that one goes.
-      await tester.runAsync(() async {
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      });
-      await tester.pump();
-      expect(find.text('Nothing to undo'), findsOneWidget);
-      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
-      expect(
-        tester.getTopLeft(find.text('Nothing to undo')).dy,
-        lessThan(tester.getTopLeft(find.byKey(const ValueKey('told'))).dy),
-      );
-      await tester.pump(const Duration(seconds: 20));
-      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('settings')));
+
+      // Put off, and the Settings line says so.
+      await tester.tap(find.byKey(const ValueKey('rows-not-now')));
       await tester.pumpAndSettle();
-      // Nothing is held back, and Settings has nothing to say in red.
       expect(
         find.text(
           'My Drive/BetterBudget · changed on another computer too · '
           'this computer’s changes aren’t in the folder',
         ),
-        findsNothing,
-      );
-      expect(find.byKey(const ValueKey('choose-ledger')), findsNothing);
-      // The laptop, whose version stands, takes this computer's other
-      // changes in and is told nothing.
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 6000));
-        for (var i = 0; i < 3; i++) {
-          if (await otherCloud.check(today, fresh: true) !=
-              FolderStanding.combine) {
-            break;
-          }
-          expect((await otherCloud.bringIn(today))!.replaced, isEmpty);
-        }
-        expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
-        expect((await other.sealState()).digest, (await db.sealState()).digest);
-      });
-
-      // Show: the window, as a thing already done.
-      // Show reads the ledger as it is now, then opens the window.
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('told-more')));
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-      });
-      await tester.pumpAndSettle();
-      expect(find.text('Changed on both computers'), findsOneWidget);
-      expect(
-        find.text(
-          'Both computers now show the same, so nothing waits on you. Change '
-          'any you want, and The laptop gets your change too. What was '
-          'replaced is saved in Backups.',
-        ),
         findsOneWidget,
       );
-      expect(find.byKey(ValueKey('rows-transaction|$id-now')), findsOneWidget);
-      await expectLater(
-        find.byType(MaterialApp),
-        matchesGoldenFile('goldens/two_rows.png'),
-      );
-      // Esc closes it, changing nothing.
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(find.text('Changed on both computers'), findsNothing);
+
+      // The other's amount, as chosen; the rest comes in with it.
+      await press(find.byKey(const ValueKey('choose-ledger')));
+      await press(find.byKey(ValueKey('rows-transaction|$id-theirs')));
+      await press(find.byKey(const ValueKey('rows-save')));
+      // The amount chosen came from there too.
+      expect(find.text('E-Mart and 1 change from The laptop'), findsOneWidget);
+      expect(find.text('Undo'), findsNothing);
       await tester.runAsync(() async {
-        final nomin = (await db.loadLedger()).txns.singleWhere(
-          (t) => t.payee == 'Nomin',
-        );
-        expect(nomin.entries.map((e) => e.amount), contains(-2100000));
-      });
-
-      await tester.runAsync(() async {
-        await tester.pumpWidget(const SizedBox());
-        otherCloud.dispose();
-        await other.close();
-        await db.close();
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
-    });
-
-    testWidgets('a version picked in the window afterwards is this '
-        'computer’s own change: it goes to the other, with undo and redo', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1440, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final dialogs = _FakeDialogs();
-      final before = FileSelectorPlatform.instance;
-      FileSelectorPlatform.instance = dialogs;
-      addTearDown(() => FileSelectorPlatform.instance = before);
-
-      late AppDatabase other;
-      late CloudFolder otherCloud;
-      await tester.runAsync(() async {
-        dir = await Directory.systemTemp.createTemp('bb-two-ui');
-        drive = await Directory('${dir.path}/My Drive/BetterBudget')
-            .create(recursive: true);
-        await Directory('${dir.path}/here').create();
-        await Directory('${dir.path}/other').create();
-        db = AppDatabase(
-          NativeDatabase(File('${dir.path}/here/Ledger.betterbudget')),
-        );
-      });
-      final made = dir;
-      addTearDown(() => made.deleteSync(recursive: true));
-      dialogs.folder = drive.path;
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: appTheme(),
-            home: LedgerScreen(
-              demo: true,
-              db: db,
-              clock: () => today,
-              folderAccess: _FakeAccess(),
-            ),
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-      });
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('settings')));
-      await tester.pumpAndSettle();
-
-      Future<void> look() async {
-        await tester.runAsync(() async {
-          await Future<void>.delayed(const Duration(milliseconds: 6500));
-        });
-        await tester.pump();
-        await tester.runAsync(() async {
-          for (final state in [
-            AppLifecycleState.inactive,
-            AppLifecycleState.hidden,
-            AppLifecycleState.paused,
-            AppLifecycleState.hidden,
-            AppLifecycleState.inactive,
-            AppLifecycleState.resumed,
-          ]) {
-            tester.binding.handleAppLifecycleStateChanged(state);
-          }
-          await Future<void>.delayed(const Duration(milliseconds: 900));
-        });
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-        // What the look began finishes on both clocks before the test
-        // reads the ledger: a write left waiting on pumps would hold it.
-        for (var i = 0; i < 4; i++) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 150)),
-          );
-          await tester.pump();
-        }
-      }
-
-      Future<int> amountOf(AppDatabase of) async {
-        final data = await of.loadLedger();
-        final checking = data.accounts.values
-            .singleWhere((a) => a.name == 'TDB Checking')
-            .id;
-        return data.txns
-            .singleWhere((t) => t.payee == 'Nomin')
-            .entries
-            .singleWhere((e) => e.accountId == checking)
-            .amount;
-      }
-
-      Future<void> edit(AppDatabase of, int amount) async {
-        final data = await of.loadLedger();
-        final t = data.txns.singleWhere((t) => t.payee == 'Nomin');
-        int account(String name) =>
-            data.accounts.values.singleWhere((a) => a.name == name).id;
-        await of.editTransaction(
-          transactionId: t.id,
-          accountId: account('TDB Checking'),
-          date: today,
-          today: today,
-          payee: 'Nomin',
-          counterAccountId: account('Groceries'),
-          amount: amount,
-        );
-      }
-
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('keep-in-folder')));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-      });
-      await tester.pump();
-      await tester.runAsync(() async {
+        expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
         final data = await db.loadLedger();
-        int id(String name) =>
-            data.accounts.values.singleWhere((a) => a.name == name).id;
-        await db.postSimple(
-          accountId: id('TDB Checking'),
-          date: today,
-          today: today,
-          payee: 'Nomin',
-          counterAccountId: id('Groceries'),
-          amount: -1250000,
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      });
-      await look();
-      await tester.runAsync(() async {
-        other = AppDatabase(
-          NativeDatabase(File('${dir.path}/other/Ledger.betterbudget')),
-        );
-        await seedDemoIfEmpty(other, today);
-        final otherBackups = Backups(other);
-        otherCloud = CloudFolder(otherBackups, access: _OtherAccess());
-        await otherBackups.restore(
-          await otherBackups.inspect(copy().path, today),
-          today,
-          fromFolder: true,
-        );
-        await otherCloud.keepIn(drive.path, today);
-        await edit(other, -2100000);
+        final nomin = data.txns.singleWhere((t) => t.payee == 'Nomin');
+        expect(nomin.entries.map((e) => e.amount), contains(-2100000));
+        // Written to the folder, and the other computer has it as it is.
         expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
-        await edit(db, -1700000);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      });
-      await look();
-      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
-
-      // Show, keep this computer's, Done: a change of this computer's.
-      // Show reads the ledger as it is now, then opens the window.
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('told-more')));
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-      });
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Keep this computer'));
-      await tester.pump();
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey('rows-done')));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-      });
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Your choice is saved'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
-      await tester.runAsync(() async {
-        expect(await amountOf(db), -1700000);
-        // The laptop takes it in as an ordinary change, and is told nothing.
-        await Future<void>.delayed(const Duration(milliseconds: 6000));
-      });
-      await look();
-      await tester.runAsync(() async {
-        for (var i = 0; i < 3; i++) {
-          if (await otherCloud.check(today, fresh: true) !=
-              FolderStanding.combine) {
-            break;
-          }
-          expect((await otherCloud.bringIn(today))!.replaced, isEmpty);
-        }
-        expect(await amountOf(other), -1700000);
-      });
-
-      // Ctrl+Z (⌘Z on a Mac) takes it back; Ctrl+Shift+Z makes it again.
-      await tester.runAsync(() async {
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-      });
-      await tester.pump();
-      await tester.runAsync(() async {
-        expect(await amountOf(db), -2100000);
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-      });
-      await tester.pump();
-      await tester.runAsync(() async {
-        expect(await amountOf(db), -1700000);
       });
 
       await tester.runAsync(() async {
