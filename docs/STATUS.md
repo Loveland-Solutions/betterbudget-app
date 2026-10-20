@@ -73,7 +73,7 @@ every build. Play is set up and the app is on the owner's phone through Internal
 testing (owner, 2026-10-16). Next on Android: the stores (issue #114).
 
 **Version 0.34.5 (PR #86):** downloads. The Windows app is built on GitHub
-(`.github/workflows/windows.yml`, on a `v*` tag, a PR touching Windows, or by hand)
+(`.github/workflows/windows.yml`, on a `v*` tag or by hand; not on pull requests)
 and is now BetterBudget by Loveland Solutions, which names its data folder. The
 owner asked for it as a release (2026-10-16): 0.35.0 is on the public repo's releases
 page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35.1
