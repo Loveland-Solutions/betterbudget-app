@@ -5560,6 +5560,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
               owed: account.isOwed,
               summary: summary,
               forecast: forecast,
+              // A category in use with a plan or an amount assigned; one
+              // archived or deleted isn't the budget any more.
+              budgeted: data.categories.any(
+                (c) =>
+                    data.plans.containsKey(c.id) ||
+                    data.budgetAmounts.any(
+                      (b) => b.categoryId == c.id && b.amount != 0,
+                    ),
+              ),
               span: span,
               payPeriodEnd: payPeriodEnd,
               onSpan: _setSpan,
