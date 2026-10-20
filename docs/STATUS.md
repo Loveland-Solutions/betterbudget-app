@@ -76,9 +76,9 @@ page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35
 (fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe` and gives it the Mac's
 icon (the logo's night form on a navy tile, filling the square); whether
 it then runs on that PC is #154.
-`app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo,
-but can't run until Apple's enrollment (in process, #169) gives a Developer ID
-certificate (#152).
+`app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo;
+it is unused since the owner chose stores only, with no GitHub downloads
+(2026-10-20, ROADMAP; #152 closed).
 
 **Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
 setup, then the bank's last days imported, came out off by the rows dated on the
