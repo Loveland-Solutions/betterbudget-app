@@ -48,10 +48,11 @@ under the closed list. The phone's categories are now chosen
 from a dropdown on the entry screen, Split with its icon at the top (0.39.0, PR #209;
 owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing.
 The computer's Category list has Split with its icon at the top too (0.39.1, PR #212;
-owner's correction). The Pixel has 0.39.0; the phone fixes go on it next. **Downloads:** Windows 0.38.0 is the
-latest release on the public repo;  the Mac
-download waits for Apple's approval of the paid Developer Program (owner, 2026-10-17:
-"We're still pending approval"). Actions storage: the Windows build keeps its download
+owner's correction). The Pixel has 0.39.0; the phone fixes go on it next. **Downloads: none from
+GitHub** (owner, 2026-10-20: stores only; ROADMAP). Windows 0.35.1, 0.36.0 and 0.38.0
+are still published on the public repo's releases page; whether to take them down is
+the owner's call. Apple's paid Developer Program was still pending on 2026-10-17; it is
+now needed for the App Store, not for a download. Actions storage: the Windows build keeps its download
 14 days and the caches of merged pull requests were deleted (#205).
 
 **Where to pick up:** the board's In progress and Next columns. **Savings step 2
@@ -76,9 +77,9 @@ page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35
 (fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe` and gives it the Mac's
 icon (the logo's night form on a navy tile, filling the square); whether
 it then runs on that PC is #154.
-`app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo,
-but can't run until Apple's enrollment (in process, #169) gives a Developer ID
-certificate (#152).
+`app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo;
+it is unused since the owner chose stores only, with no GitHub downloads
+(2026-10-20, ROADMAP; #94 and #152 closed).
 
 **Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
 setup, then the bank's last days imported, came out off by the rows dated on the

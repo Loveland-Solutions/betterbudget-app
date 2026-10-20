@@ -45,6 +45,9 @@ alpha "1.0".
   this Mac's Keychain rather than becoming repo secrets. The script tags the commit,
   pushes the tag (which starts the Windows build) and makes a draft release on
   `Loveland-Solutions/betterbudget` for the owner to publish.
+- **Superseded for distribution (owner, 2026-10-20): stores only**, no GitHub
+  downloads, so the Mac script and the Windows workflow's releases are unused. Version
+  numbers, build numbers and tags stand; the stores need them too.
 
 ## Rejected
 

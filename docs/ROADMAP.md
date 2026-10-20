@@ -11,16 +11,16 @@ picks one, build it, run both reviews, merge.
 
 ## Decided (owner, 2026-09-30)
 
-- **Beta means other people download it** from the public repo's releases. So the bug
-  link and signed downloads (B) block beta, along with the budget, Savings and USD.
+- ~~**Beta means other people download it** from the public repo's releases.~~
+  Superseded 2026-10-20; see below.
 - **Totals across currencies are shown separately**: net worth shows ₮X and $Y on
   their own lines. No rate is stored. Rejected: one MNT total at a rate typed by hand
   (it drifts).
 - **Budget model: envelopes.** Each category keeps its own balance from period to
   period (STATUS open question 4, closed). Rejected: targets that start fresh every month.
 - **Public repo: [`Loveland-Solutions/betterbudget`](https://github.com/Loveland-Solutions/betterbudget)**
-  (created 2026-09-30, public, README only), holding issues, releases and the privacy
-  policy. The code is in this repo, public too since 2026-10-16. The earlier private Tauri project that had the
+  (created 2026-09-30, public, README only), holding issues and the privacy policy
+  (no releases since 2026-10-20). The code is in this repo, public too since 2026-10-16. The earlier private Tauri project that had the
   name is now `Loveland-Solutions/betterbudget-tauri-archive`. Its local clone
   (`~/Repositories/BetterBudget`) was repointed, so a push from it can't reach the public repo.
 
@@ -34,6 +34,21 @@ picks one, build it, run both reviews, merge.
 - **A masked card number stays in the history** (owner: "Leave it"). An early ADR 0002
   quoted a TDB card number the way the bank masks it (first six, last four) and a
   teller code; later commits removed both. Rewriting history was rejected.
+
+## Decided (owner, 2026-10-20): stores only
+
+- **Beta is a fully functioning, fully featured app.** It is a measure of the app,
+  not of how people get it.
+- **No downloads from GitHub.** BetterBudget is distributed only through the Apple
+  App Store, Google Play and the Microsoft Store, which also handle updates. Owner:
+  "I would be constantly fighting signatures." So no Developer ID signing, no
+  notarized downloads (#94, #152 closed as not planned) and no update check.
+- **Done the same day:** the public repo's `PRIVACY.md` lost its "download from our
+  GitHub page" paragraph (last updated October 20, 2026; `0f501a8`), and its README
+  no longer links to Releases; lls.mn's copy of the policy matches and is live. This
+  repo's README says the same (PR #220).
+- **Owner to decide:** 0.35.1, 0.36.0 and 0.38.0 are still published on the public
+  repo's releases page.
 
 ## Before beta
 
@@ -60,12 +75,12 @@ Open: #90.
 **Moved to the website** (owner, 2026-10-15: "Yeah, let's move them"). Bug reports
 and requests (a bank whose file doesn't import right, an idea) come through the
 contact form on lls.mn, which needs no account, instead of GitHub issues. The
-public repo keeps releases and the privacy policy.
-- [x] Create the public repo (2026-09-30). It holds issues, releases and download assets; the code
+public repo keeps the privacy policy.
+- [x] Create the public repo (2026-09-30). It holds issues and the privacy policy; the code
       is in `betterbudget-app`, public since 2026-10-16.
 - [x] Version numbers in the app (0.1.0, shown in Settings; ADR 0006), 2026-09-30.
 
-Open: #92, #93, #95, #152, #158, #159.
+Open: #92, #93, #95, #158, #159.
 
 ### B2. Free and open source (owner, 2026-10-16)
 "I've decided that I'm going release this as open source." And: "I'm going to just
