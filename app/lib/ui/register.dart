@@ -966,13 +966,18 @@ class BarButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (leading != null) ...[leading!, const SizedBox(width: 6)],
-            Text(
-              label,
-              style: onest(
-                13,
-                color: hover || active
-                    ? (color ?? Mid.ink)
-                    : (color ?? Mid.ink2),
+            // A name chosen in it (an account's) can be any length.
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: onest(
+                  13,
+                  color: hover || active
+                      ? (color ?? Mid.ink)
+                      : (color ?? Mid.ink2),
+                ),
               ),
             ),
             if (trailing != null) ...[
@@ -1276,8 +1281,12 @@ class _PostedRow extends StatelessWidget {
                                     Flexible(
                                       child: GestureDetector(
                                         onTap: () => onTap(EditField.memo),
+                                        // Cut with "…" in the row, a split's
+                                        // shares too: the row opens to them
+                                        // whole.
                                         child: Text(
                                           memo,
+                                          key: const ValueKey('row-memo'),
                                           style: onest(12.5, color: Mid.ink3),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -1655,6 +1664,8 @@ class _ScheduledRow extends StatelessWidget {
                           child: Text(
                             rowCategory(t, r),
                             style: onest(12.5, color: Mid.ink3),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

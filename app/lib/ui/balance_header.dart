@@ -311,14 +311,19 @@ class _TotalLine extends StatelessWidget {
           owed ? context.t.planOwed : context.t.planWorking,
           style: onest(13, weight: 500),
         ),
-        const Spacer(),
-        Money(
-          amount,
-          size: 30,
-          weight: 500,
-          letterSpacing: -0.6,
-          centsScale: 0.55,
-          color: !owed && amount < 0 ? Mid.coral : Mid.ink,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Money(
+              amount,
+              size: 30,
+              weight: 500,
+              letterSpacing: -0.6,
+              centsScale: 0.55,
+              color: !owed && amount < 0 ? Mid.coral : Mid.ink,
+            ),
+          ),
         ),
       ],
     ),
@@ -637,8 +642,7 @@ class ForecastPanel extends StatelessWidget {
                         sayDate(t, s.date),
                         money(s.low),
                       ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                // Wraps rather than cut the amount short.
                 style: onest(12.5, color: Mid.coral, tabular: true).copyWith(
                   decoration: hover ? TextDecoration.underline : null,
                   decorationColor: Mid.coral,
@@ -697,16 +701,18 @@ class ForecastPanel extends StatelessWidget {
           ),
         ] else ...[
           const SizedBox(height: 4),
-          Text(
-            headline,
-            style: onest(
-              18,
-              weight: 500,
-              color: f.isShort ? Mid.coral : Mid.ink,
-              tabular: true,
+          // An amount and a date: smaller rather than cut.
+          Shrink(
+            Text(
+              headline,
+              style: onest(
+                18,
+                weight: 500,
+                color: f.isShort ? Mid.coral : Mid.ink,
+                tabular: true,
+              ),
+              maxLines: 1,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           if (f.steps.isEmpty)
@@ -1035,19 +1041,25 @@ class _BillsLinkState extends State<_BillsLink> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.label,
-                    style:
-                        onest(
-                          13,
-                          color: lit
-                              ? Mid.ink
-                              : (widget.f.isShort ? Mid.ink2 : Mid.ink3),
-                          tabular: true,
-                        ).copyWith(
-                          decoration: TextDecoration.underline,
-                          decorationColor: Mid.ink3.withValues(alpha: 0.6),
-                        ),
+                  // Amounts and dates: smaller rather than cut.
+                  Flexible(
+                    child: Shrink(
+                      Text(
+                        widget.label,
+                        maxLines: 1,
+                        style:
+                            onest(
+                              13,
+                              color: lit
+                                  ? Mid.ink
+                                  : (widget.f.isShort ? Mid.ink2 : Mid.ink3),
+                              tabular: true,
+                            ).copyWith(
+                              decoration: TextDecoration.underline,
+                              decorationColor: Mid.ink3.withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 2),
                   Icon(
