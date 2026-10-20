@@ -509,7 +509,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     final t = context.t;
     final n = done.transactions;
-    final from = done.from.savedByName ?? t.ledgerRowsOtherComputer;
+    final from = done.from.savedByName ?? t.ledgerRowsOtherComputerInSentence;
     final label = switch (done.from.savedByName) {
       // One transaction came: by its payee.
       _ when n == 1 && done.payee != null && done.others == 0 =>

@@ -7917,6 +7917,12 @@ abstract class Words {
   /// **'The other computer'**
   String get ledgerRowsOtherComputer;
 
+  /// The other computer’s name, when it isn’t known, inside a sentence or on a button (Keep the other computer’s).
+  ///
+  /// In en, this message translates to:
+  /// **'the other computer'**
+  String get ledgerRowsOtherComputerInSentence;
+
   /// Button under one thing both computers changed: keep the version made on this computer.
   ///
   /// In en, this message translates to:
@@ -8099,7 +8105,7 @@ abstract class Words {
   /// Under ledgerRowsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Three or more computers share this ledger, so BetterBudget asks rather than settling it by itself. Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
+  /// **'Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.'**
   String get ledgerRowsBody;
 
   /// Button of the question ledgerRowsTitle: makes the choices and brings in everything else.

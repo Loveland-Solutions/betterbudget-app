@@ -5611,6 +5611,9 @@ class WordsEn extends Words {
   String get ledgerRowsOtherComputer => 'The other computer';
 
   @override
+  String get ledgerRowsOtherComputerInSentence => 'the other computer';
+
+  @override
   String get ledgerRowsKeepHere => 'Keep this computer’s';
 
   @override
@@ -5759,7 +5762,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerRowsBody =>
-      'Three or more computers share this ledger, so BetterBudget asks rather than settling it by itself. Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
+      'Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
 
   @override
   String get ledgerRowsSave => 'Save my choices';

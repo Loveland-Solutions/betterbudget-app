@@ -365,6 +365,9 @@ class _RowsDialogState extends State<_RowsDialog> {
                           _AskCard(
                             ask: a,
                             other: other,
+                            inSentence:
+                                widget.computer ??
+                                t.ledgerRowsOtherComputerInSentence,
                             pick: _picks[a.id],
                             asking: widget.asking,
                             onPick: (p) => setState(() => _picks[a.id] = p),
@@ -444,12 +447,16 @@ class _AskCard extends StatelessWidget {
   const _AskCard({
     required this.ask,
     required this.other,
+    required this.inSentence,
     required this.pick,
     required this.onPick,
     this.asking = false,
   });
   final Ask ask;
   final String other;
+
+  /// [other] inside a sentence: "Keep the other computer’s".
+  final String inSentence;
   final Pick? pick;
   final ValueChanged<Pick> onPick;
   final bool asking;
@@ -630,8 +637,8 @@ class _AskCard extends StatelessWidget {
               BarButton(
                 key: ValueKey('rows-${ask.id}-theirs'),
                 label: ask.theirs.deleted && lock == null
-                    ? t.ledgerRowsKeepDeletedTheirs(other)
-                    : t.ledgerRowsKeepTheirs(other),
+                    ? t.ledgerRowsKeepDeletedTheirs(inSentence)
+                    : t.ledgerRowsKeepTheirs(inSentence),
                 active: pick == Pick.theirs,
                 onTap: () => onPick(Pick.theirs),
               ),

@@ -5413,6 +5413,9 @@ class WordsMn extends Words {
   String get ledgerRowsOtherComputer => 'Нөгөө компьютер';
 
   @override
+  String get ledgerRowsOtherComputerInSentence => 'Нөгөө компьютер';
+
+  @override
   String get ledgerRowsKeepHere => 'Энэ компьютерийнхийг үлдээх';
 
   @override
@@ -5558,7 +5561,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerRowsBody =>
-      'Энэ дэвтрийг гурав ба түүнээс олон компьютер хуваалцдаг тул BetterBudget өөрөө шийдэхгүй, танаас асууна. Тус бүрээс аль нэгийг нь сонгоно уу. Бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.';
+      'Тус бүрээс аль нэгийг нь сонгоно уу. Бусад өөрчлөлт таны сонголтын хамт орно. Үлдээгээгүй нь Нөөцөд хадгалагдана. Сонгох хүртэл энэ компьютерийн өөрчлөлт болон утасны бичилтүүд хавтсанд орохгүй.';
 
   @override
   String get ledgerRowsSave => 'Сонголтоо хадгалах';

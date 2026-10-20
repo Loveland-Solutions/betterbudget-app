@@ -1266,20 +1266,10 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     var held = false;
     var takeWhole = false;
     var names = false;
-    // Three or more computers: the rule that settles a row changed two ways
-    // is exact for two, so with more it is asked (ADR 0005 step 4, from the
-    // reviews). Only computers whose file is in the folder now, of this
-    // ledger, count: an id met only in an old vector (a computer gone, or a
-    // cloned disk that took a new id) is no third computer.
-    final others = <String>{
-      for (final f in files)
-        if (f.header.ledger == null ||
-            ledger == null ||
-            f.header.ledger == ledger)
-          f.header.computer,
-      ...unreadable,
-    }..remove(me);
-    final many = others.length > 1;
+    // A row changed two ways is asked in the window before anything comes
+    // in, with two computers as with more (owner, 2026-10-20, reversing
+    // step 4's told-after: ADR 0004 "Two computers: asked before, after all").
+    const many = true;
     // What is applied, kept up as the look goes.
     final applied = {...state.applied};
     for (final f in files) {

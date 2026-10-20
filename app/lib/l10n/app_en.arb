@@ -8197,6 +8197,10 @@
   "@ledgerRowsOtherComputer": {
     "description": "The other computer’s name, when it isn’t known."
   },
+  "ledgerRowsOtherComputerInSentence": "the other computer",
+  "@ledgerRowsOtherComputerInSentence": {
+    "description": "The other computer’s name, when it isn’t known, inside a sentence or on a button (Keep the other computer’s)."
+  },
   "ledgerRowsKeepHere": "Keep this computer’s",
   "@ledgerRowsKeepHere": {
     "description": "Button under one thing both computers changed: keep the version made on this computer."
@@ -8450,7 +8454,7 @@
       }
     }
   },
-  "ledgerRowsBody": "Three or more computers share this ledger, so BetterBudget asks rather than settling it by itself. Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
+  "ledgerRowsBody": "Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.",
   "@ledgerRowsBody": {
     "description": "Under ledgerRowsTitle."
   },
