@@ -3562,6 +3562,35 @@ opening by itself, saying it's done). The owner chose **A, the popup** (2026-10-
     before anything comes in, as before step 4 (Not now, Save my choices, the
     red line in Settings), since the rule is exact for two.
 
+### Two computers: asked before, after all (2026-10-20)
+
+Testing step 4 on the two Mac accounts, the owner met the asking window
+instead of the popup: the folder still held change files from three earlier
+test installs, so the app counted more than two computers and asked. They
+chose it over sketch A ("I actually like how that showed me"; "Yes, let's
+reverse it"). This reverses "Two computers, step 4: told after, not asked
+before" above.
+
+- **A row changed two ways is asked before anything comes in, with two
+  computers as with more**: the window with both versions, the three buttons
+  on each card, **Not now** and **Save my choices**, and the red line in
+  Settings while it waits. Until then this computer's changes and the phones'
+  entries stay out of the folder, as the window says. Answered on one
+  computer, the other takes the answer in and is not asked again (seen in the
+  real app, and in `two_computers_test.dart`).
+- **The window's first sentence goes**: "Three or more computers share this
+  ledger, so BetterBudget asks rather than settling it by itself." It opens on
+  "Choose which to keep for each.", in Mongolian too, so no new Mongolian.
+- **"the other computer" inside a sentence is lowercase**: "Keep the other
+  computer’s" (it was "Keep The other computer’s").
+- What else step 4 built stays: the change files, what each computer had
+  applied, shared ids, the locks on reconciled and bank-matched money, the
+  title that names the payee.
+- The settling rule, the popup that stays and the window opened as a thing
+  already done are no longer reached; removing them is #218.
+- Rejected: sketch A, told after (2026-10-17), now that the owner has seen
+  both.
+
 ## Where a row came from: a Source column (2026-10-13)
 
 Owner, watching the first run on two Mac accounts, after the popup went away before
