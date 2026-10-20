@@ -19,8 +19,8 @@ says exactly what is stored and where.
 
 ## Download
 
-Releases are at
-[Loveland-Solutions/betterbudget](https://github.com/Loveland-Solutions/betterbudget/releases).
+BetterBudget will be free on the Apple App Store, Google Play and the Microsoft
+Store, which also keep it up to date. It isn't released yet.
 To report a bug or suggest an idea, use the contact form at [lls.mn](https://lls.mn).
 BetterBudget is still in alpha: the ledger comes first, then the budget.
 
