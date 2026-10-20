@@ -79,7 +79,7 @@ icon (the logo's night form on a navy tile, filling the square); whether
 it then runs on that PC is #154.
 `app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo;
 it is unused since the owner chose stores only, with no GitHub downloads
-(2026-10-20, ROADMAP; #94 and #152 to be closed).
+(2026-10-20, ROADMAP; #94 and #152 closed).
 
 **Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
 setup, then the bank's last days imported, came out off by the rows dated on the

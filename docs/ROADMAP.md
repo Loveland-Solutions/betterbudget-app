@@ -42,7 +42,7 @@ picks one, build it, run both reviews, merge.
 - **No downloads from GitHub.** BetterBudget is distributed only through the Apple
   App Store, Google Play and the Microsoft Store, which also handle updates. Owner:
   "I would be constantly fighting signatures." So no Developer ID signing, no
-  notarized downloads (#94 and #152 to be closed as not planned) and no update check.
+  notarized downloads (#94, #152 closed as not planned) and no update check.
 - **Done the same day:** the public repo's `PRIVACY.md` lost its "download from our
   GitHub page" paragraph (last updated October 20, 2026; `0f501a8`), and its README
   no longer links to Releases; lls.mn's copy of the policy matches and is live. This
