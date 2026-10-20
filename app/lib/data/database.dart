@@ -1461,9 +1461,12 @@ class AppDatabase extends _$AppDatabase {
     final now = await sealState();
     final standing = compareCounters(now.computers.counters, over);
     final prefs = await _syncPrefs();
-    final merged = {...parseApplied(prefs[SyncKeys.applied])};
+    final was = parseApplied(prefs[SyncKeys.applied]);
+    final merged = {...was};
     for (final e in applied.entries) {
-      if (e.value > (merged[e.key] ?? 0)) merged[e.key] = e.value;
+      if (e.key != computer && e.value > (merged[e.key] ?? 0)) {
+        merged[e.key] = e.value;
+      }
     }
     merged[computer] = await lastChangeSeq();
     final vector = encodeApplied(merged);
@@ -1515,6 +1518,7 @@ class AppDatabase extends _$AppDatabase {
     if (encodeApplied(merged) != encodeApplied(mine) ||
         (merged.isNotEmpty && prefs[SyncKeys.applied] == null)) {
       await setPreference(SyncKeys.applied, encodeApplied(merged));
+      await _noteApplied(merged);
     }
     if (ledger != null && prefs[SyncKeys.ledger] != ledger) {
       await setPreference(SyncKeys.ledger, ledger);
@@ -1550,6 +1554,23 @@ class AppDatabase extends _$AppDatabase {
     );
   });
 
+  /// Writes down in this computer's log what it has applied of the others
+  /// from here on (op `applied`, the vector as `after`; ADR 0005 step 4,
+  /// from the reviews): a reader of its change file then knows, for each
+  /// change, which of the reader's own versions the writer had seen when
+  /// it made it, rather than guessing from equal values. No row of the
+  /// ledger is touched; `combine` and the fold pass over it.
+  Future<void> _noteApplied(Map<String, int> vector) => into(changes).insert(
+    ChangesCompanion.insert(
+      tbl: appliedMarkerTable,
+      pk: '{}',
+      op: appliedMarkerOp,
+      after: Value(encodeApplied(vector)),
+      atMs: _now,
+      withSchema: schemaVersion,
+    ),
+  );
+
   /// Every row this ledger holds, as [combine] compares them.
   Future<LedgerRows> allRows() => transaction(
     () => ledgerRows(
@@ -1573,6 +1594,7 @@ class AppDatabase extends _$AppDatabase {
     required String onlyIfDigest,
     List<Resolution> resolutions = const [],
     ({String computer, int seq})? applied,
+    bool rowsCame = true,
   }) async {
     try {
       await transaction(() async {
@@ -1581,6 +1603,23 @@ class AppDatabase extends _$AppDatabase {
         }
         // Another computer's changes, not this one's: kept out of the log.
         await _withoutChangeLog(() => _applyOps(ops));
+        // What is applied, written down before the answers: they were
+        // made knowing it.
+        if (applied != null) {
+          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+          if ((now[applied.computer] ?? 0) < applied.seq) {
+            await setPreference(
+              SyncKeys.applied,
+              encodeApplied({...now, applied.computer: applied.seq}),
+            );
+            // Only when rows came: a batch of nothing but these notes
+            // tells nothing more, and the two would note each other's
+            // notes for ever.
+            if (rowsCame) {
+              await _noteApplied({...now, applied.computer: applied.seq});
+            }
+          }
+        }
         for (final r in resolutions) {
           await into(changes).insert(
             ChangesCompanion.insert(
@@ -1597,15 +1636,6 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         }
-        if (applied != null) {
-          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
-          if ((now[applied.computer] ?? 0) < applied.seq) {
-            await setPreference(
-              SyncKeys.applied,
-              encodeApplied({...now, applied.computer: applied.seq}),
-            );
-          }
-        }
       });
     } on ChangedSinceException {
       rethrow;
@@ -1619,6 +1649,85 @@ class AppDatabase extends _$AppDatabase {
     } finally {
       markTablesUpdated(allTables);
     }
+  }
+
+  /// Makes [ops] as a change of this computer's own, recorded in its log
+  /// like any edit, so the other computers take it in: a version picked in
+  /// the window for what both changed two ways (ADR 0005 step 4), and its
+  /// undo and redo. All of it or none: a change that would leave a
+  /// transaction not adding up or a row naming one that is gone throws
+  /// [CantCombineException].
+  Future<void> applyChangesHere(List<RowOp> ops) async {
+    if (ops.isEmpty) return;
+    try {
+      await transaction(() async => _applyOps(await _keepingLocks(ops)));
+    } on CantCombineException {
+      rethrow;
+    } on Object catch (e) {
+      debugPrint('The change was refused by the ledger: ${e.runtimeType}');
+      throw CantCombineException();
+    } finally {
+      markTablesUpdated(allTables);
+    }
+  }
+
+  /// [ops] with every reconciled line's money and reconciliation as the
+  /// ledger holds it, and its transaction's date and whether it is
+  /// deleted: a lock the owner chose, which no version picked afterwards
+  /// takes away. A reconciled line taken away refuses the lot.
+  Future<List<RowOp>> _keepingLocks(List<RowOp> ops) async {
+    final locked = <Object?, Map<String, Object?>>{};
+    final lockedTxns = <Object?, Map<String, Object?>>{};
+    for (final r in await customSelect(
+      'SELECT * FROM entries WHERE reconciliation_id IS NOT NULL',
+    ).get()) {
+      locked[r.data['id']] = r.data;
+    }
+    final txnIds = {for (final e in locked.values) e['transaction_id']};
+    if (txnIds.isNotEmpty) {
+      for (final r in await customSelect(
+        'SELECT * FROM transactions WHERE id IN '
+        '(${[for (final _ in txnIds) '?'].join(', ')})',
+        variables: [for (final id in txnIds) Variable.withInt(id as int)],
+      ).get()) {
+        lockedTxns[r.data['id']] = r.data;
+      }
+    }
+    const money = [
+      'transaction_id',
+      'account_id',
+      'amount_minor',
+      'currency',
+      'rate',
+      'cleared',
+      'reconciliation_id',
+      'import_key',
+    ];
+    return [
+      for (final op in ops)
+        if (op.table == 'entries' && locked.containsKey(op.key['id']))
+          op.row == null
+              ? throw CantCombineException()
+              : RowOp.update('entries', op.key, {
+                  ...op.row!,
+                  for (final c in money)
+                    if (locked[op.key['id']]!.containsKey(c))
+                      c: locked[op.key['id']]![c],
+                })
+        else if (op.table == 'transactions' &&
+            lockedTxns.containsKey(op.key['id']) &&
+            op.row != null)
+          RowOp.update('transactions', op.key, {
+            ...op.row!,
+            'date': lockedTxns[op.key['id']]!['date'],
+            'deleted_at': lockedTxns[op.key['id']]!['deleted_at'],
+          })
+        else if (op.table == 'transactions' &&
+            lockedTxns.containsKey(op.key['id']))
+          throw CantCombineException()
+        else
+          op,
+    ];
   }
 
   Future<void> _applyOps(List<RowOp> ops) async {
@@ -1771,6 +1880,18 @@ class AppDatabase extends _$AppDatabase {
           }
         });
         if (!fromFolder) await _logMarker('restore');
+        // What a popup said of the ledger that was here, or of the one put
+        // in, is no part of this one.
+        await customStatement('DELETE FROM main.preferences WHERE key = ?', [
+          SyncKeys.told,
+        ]);
+        // The folder's ledger holds the others' changes it says it has:
+        // written down, so what this computer changes from here is known
+        // to have seen them (step 4).
+        if (fromFolder) {
+          final v = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+          if (v.isNotEmpty) await _noteApplied(v);
+        }
         // A computer's count never goes down: the counts this ledger had
         // are folded into the ones that came, from the folder or not.
         {
@@ -3033,6 +3154,14 @@ class AppDatabase extends _$AppDatabase {
       }
       await into(budgetAmounts).insert(
         BudgetAmountsCompanion.insert(
+          // One id for what a category is assigned on a day, the same on
+          // every computer (ADR 0005 step 4, from the reviews): two
+          // computers assigning it are one row changed two ways, never two
+          // rows added together. Rows made before keep theirs.
+          id: await _freeId(
+            budgetAmounts,
+            SharedKey('budget', '$categoryId|${dateKey(d)}'),
+          ),
           categoryId: categoryId,
           date: dateKey(d),
           amountMinor: r.amount,

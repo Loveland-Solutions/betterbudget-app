@@ -1,9 +1,12 @@
 // The ledger kept in a folder the user picked (ADR 0005, "All of the data lives
 // in the cloud folder"): the copy, when it is written again, and the Settings
 // line that says where it is.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:betterbudget/data/phone_inbox.dart';
+import 'package:betterbudget/domain/combine.dart' show Ask, AskKind, AskSide;
+import 'package:betterbudget/domain/sync.dart' show SyncKeys;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
@@ -36,6 +39,10 @@ class _FakeAccess extends FolderAccess {
   Future<String> computerName() async => 'The desk Mac';
 
   @override
+  Future<String?> derivedComputerId() async =>
+      'ffffffff-ffff-5fff-bfff-ffffffffffff';
+
+  @override
   Future<({String path, String? token})?> open(String token) async {
     if (broken) throw StateError('the bookmark is no good');
     return (path: movedTo ?? token.substring('token:'.length), token: null);
@@ -56,6 +63,12 @@ class _OtherAccess extends FolderAccess {
 
   @override
   Future<String> computerName() async => 'The laptop';
+
+  /// Lower than this computer's ([_FakeAccess]): where nothing else
+  /// decides, the laptop's version is kept on both.
+  @override
+  Future<String?> derivedComputerId() async =>
+      '00000000-0000-5000-8000-000000000001';
 }
 
 class _FakeDialogs extends FileSelectorPlatform {
@@ -676,6 +689,14 @@ void main() {
         });
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        // What the look began finishes on both clocks before the test
+        // reads the ledger: a write left waiting on pumps would hold it.
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pump();
+        }
       }
 
       Future<List<String?>> payees(AppDatabase of) async => [
@@ -721,7 +742,7 @@ void main() {
       // Nothing was changed here: the other's change comes in from its
       // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(find.text('1 transaction from The laptop'), findsOneWidget);
+      expect(find.text('Nomin from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));
@@ -766,10 +787,7 @@ void main() {
       });
       await tester.pump();
       await comeBackToTheFront();
-      expect(
-        find.text('1 transaction and other changes from The laptop'),
-        findsOneWidget,
-      );
+      expect(find.text('E-Mart and 1 change from The laptop'), findsOneWidget);
       // Both rows are in; the popup says one looks the same, and that the
       // two together assign more than there is. The other computer's
       // changes aren't this person's to undo.
@@ -804,11 +822,15 @@ void main() {
         expect(data.accounts.values.map((a) => a.name), contains('Wallet'));
       });
 
-      // Both give one category another name. That can't be combined, and
-      // this computer writes nothing over the other's.
+      // The other puts an older ledger back whole (a restore), and this
+      // one renames a category. Until step 5 that is still the question of
+      // which whole ledger to keep, and this computer writes nothing over
+      // the other's.
       late List<int> theirs;
       await tester.runAsync(() async {
+        final old = await otherBackups.keepBefore(today);
         await rename(other, 'Groceries', 'Food');
+        await otherBackups.replaceWith(old, today);
         expect(await otherCloud.check(today, fresh: true), FolderStanding.ok);
         theirs = await copy().readAsBytes();
         await rename(db, 'Groceries', 'Supermarket');
@@ -822,7 +844,7 @@ void main() {
         find.text('Your ledger was changed on two computers'),
         findsOneWidget,
       );
-      expect(find.text('Saved on The laptop · Today 10:00'), findsOneWidget);
+      expect(find.textContaining('Saved on '), findsOneWidget);
       await tester.runAsync(() async {
         expect(await copy().readAsBytes(), theirs);
       });
@@ -976,6 +998,14 @@ void main() {
         });
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
+        // What the look began finishes on both clocks before the test
+        // reads the ledger: a write left waiting on pumps would hold it.
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pump();
+        }
       }
 
       Future<List<String?>> payees(AppDatabase of) async => [
@@ -1021,7 +1051,7 @@ void main() {
       // Nothing was changed here: the other's change comes in from its
       // file, and the popup says whose it was.
       await comeBackToTheFront();
-      expect(find.text('1 transaction from The laptop'), findsOneWidget);
+      expect(find.text('Nomin from The laptop'), findsOneWidget);
       expect(find.text('My Drive/BetterBudget · Today 10:00'), findsWidgets);
       await tester.runAsync(() async {
         expect(await payees(db), contains('Nomin'));
@@ -1090,10 +1120,8 @@ void main() {
       await press(find.byKey(const ValueKey('choose-ledger')));
       await press(find.byKey(ValueKey('rows-transaction|$id-theirs')));
       await press(find.byKey(const ValueKey('rows-save')));
-      expect(
-        find.text('1 transaction and other changes from The laptop'),
-        findsOneWidget,
-      );
+      // The amount chosen came from there too.
+      expect(find.text('E-Mart and 1 change from The laptop'), findsOneWidget);
       expect(find.text('Undo'), findsNothing);
       await tester.runAsync(() async {
         expect(await payees(db), containsAll(['Nomin', 'E-Mart']));
@@ -1112,6 +1140,98 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
     });
+
+    testWidgets('the popup that stays is kept in the ledger, for this ledger '
+        'only, and goes when the folder is stopped; an old plain file goes', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final dialogs = _FakeDialogs();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      late File plain;
+      await tester.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('bb-told');
+        drive = await Directory('${dir.path}/My Drive/BetterBudget')
+            .create(recursive: true);
+        await Directory('${dir.path}/here').create();
+        db = AppDatabase(
+          NativeDatabase(File('${dir.path}/here/Ledger.betterbudget')),
+        );
+        await seedDemoIfEmpty(db, today);
+        final ledger = (await db.loadLedger()).prefs[SyncKeys.ledger];
+        String told(String? of) => jsonEncode({
+          'ledger': of,
+          'message': 'Nomin from The laptop',
+          'extra': <String>[],
+          'from': 'The laptop',
+          'asks': [
+            const Ask(
+              id: 'row|preferences|budget.view',
+              kind: AskKind.setting,
+              mine: AskSide(),
+              theirs: AskSide(),
+              neither: AskSide(),
+              now: AskSide(),
+              replaced: true,
+              setting: 'budget.view',
+            ).toJson(),
+          ],
+        });
+        // Kept for another ledger: not said.
+        await db.setPreference(SyncKeys.told, told('another'));
+        plain = File('${dir.path}/here/settled-told');
+        await plain.writeAsString('{}');
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              clock: () => today,
+              folderAccess: _FakeAccess(),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        expect(plain.existsSync(), isFalse);
+        await db.setPreference(SyncKeys.told, told(ledger));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      final made = dir;
+      addTearDown(() => made.deleteSync(recursive: true));
+      dialogs.folder = drive.path;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+
+      Future<void> press(Finder f) async {
+        await tester.runAsync(() async {
+          await tester.tap(f);
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+        });
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      await press(find.byKey(const ValueKey('keep-in-folder')));
+      expect(find.byKey(const ValueKey('told-more')), findsOneWidget);
+      await press(find.byKey(const ValueKey('stop-folder')));
+      expect(find.byKey(const ValueKey('told-more')), findsNothing);
+      await tester.runAsync(() async {
+        expect((await db.loadLedger()).prefs[SyncKeys.told], isNull);
+        await tester.pumpWidget(const SizedBox());
+        await db.close();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+    });
+
     testWidgets('a second computer is set up in one step: Restore from… the '
         'folder’s ledger keeps this computer on it, and nothing is asked', (
       tester,

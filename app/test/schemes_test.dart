@@ -55,6 +55,9 @@ void main() {
       'recovery_key_screen.dart',
       'ledger_screen.dart',
       'phone_app.dart',
+      // The version in the ledger now, of a thing both computers changed:
+      // settled, done and safe.
+      'rows_dialog.dart',
     };
     final using = [
       for (final f in Directory('lib/ui').listSync(recursive: true))

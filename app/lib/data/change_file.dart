@@ -106,6 +106,16 @@ class ChangeRecord {
   /// row as the other computer had it, and as chosen.
   bool get isResolve => op == 'resolve';
 
+  /// What the writer had applied of the others from here on, not a row's
+  /// change ([appliedMarkerOp]).
+  bool get isApplied => op == appliedMarkerOp;
+
+  /// For [isApplied]: the vector.
+  Map<String, int> get vector => {
+    for (final e in (after ?? const {}).entries)
+      if (e.value is int) e.key: e.value as int,
+  };
+
   factory ChangeRecord.fromRow(ChangeRow r) => ChangeRecord(
     seq: r.seq,
     tbl: r.tbl,
@@ -121,11 +131,28 @@ class ChangeRecord {
 }
 
 class ChangeFile {
-  const ChangeFile(this.header, this.changes);
+  const ChangeFile(this.header, this.changes, {this.knewBefore});
   final ChangeFileHeader header;
 
   /// Oldest first.
   final List<ChangeRecord> changes;
+
+  /// What the writer had applied of the others when it made the first of
+  /// [changes], from the last [ChangeRecord.isApplied] before them; null
+  /// when the file has none there (a build before step 4's reviews).
+  final Map<String, int>? knewBefore;
+
+  /// For each of [changes], the last change of [computer]'s the writer had
+  /// applied when it made it; null where the file doesn't say.
+  List<int?> knewOf(String computer) {
+    // Before the first one written down, unknown: equal values are trusted,
+    // as a build before this did.
+    int? knew = knewBefore == null ? null : (knewBefore![computer] ?? 0);
+    return [
+      for (final c in changes)
+        if (c.isApplied) (knew = c.vector[computer] ?? 0) else knew,
+    ];
+  }
 }
 
 /// Writes [rows] with [header] to [target], whole: made beside the app's
@@ -150,7 +177,7 @@ Future<void> writeChangeFile(
         'CREATE TABLE computer (id TEXT NOT NULL, name TEXT, ledger TEXT, '
         'schema INTEGER NOT NULL, applied TEXT NOT NULL, '
         'first_seq INTEGER NOT NULL, last_seq INTEGER NOT NULL, '
-        'written_at TEXT NOT NULL)',
+        'written_at TEXT NOT NULL, notes_applied INTEGER NOT NULL)',
       );
       db.execute(
         'CREATE TABLE changes (seq INTEGER PRIMARY KEY, tbl TEXT NOT NULL, '
@@ -158,7 +185,7 @@ Future<void> writeChangeFile(
         'at_ms INTEGER NOT NULL, with_schema INTEGER NOT NULL)',
       );
       db.execute('BEGIN');
-      db.execute('INSERT INTO computer VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+      db.execute('INSERT INTO computer VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         header.computer,
         header.name,
         header.ledger,
@@ -167,6 +194,9 @@ Future<void> writeChangeFile(
         rows.isEmpty ? 0 : rows.first.seq,
         header.lastSeq,
         header.writtenAt.toIso8601String(),
+        // Its log writes down what it applied ([appliedMarkerOp]): no note
+        // before a change means nothing applied, not "unknown".
+        1,
       ]);
       final insert = db.prepare(
         'INSERT INTO changes VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -235,7 +265,27 @@ ChangeFile readChangeFile(File file, Uint8List? key, {int afterSeq = 0}) {
             atMs: r['at_ms'] as int,
           ),
       ];
-      return ChangeFile(header, changes);
+      final before = db.select(
+        'SELECT after FROM changes WHERE op = ? AND seq <= ? '
+        'ORDER BY seq DESC LIMIT 1',
+        [appliedMarkerOp, afterSeq],
+      );
+      Map<String, int>? knewBefore;
+      final notes = c.containsKey('notes_applied') && c['notes_applied'] == 1;
+      if (before.isNotEmpty) {
+        knewBefore = ChangeRecord(
+          seq: 0,
+          tbl: '',
+          pk: const {},
+          op: appliedMarkerOp,
+          before: null,
+          after: ChangeRecord._json(before.single['after'] as String?),
+          atMs: 0,
+        ).vector;
+      } else if (notes) {
+        knewBefore = const {};
+      }
+      return ChangeFile(header, changes, knewBefore: knewBefore);
     });
   } finally {
     db.close();

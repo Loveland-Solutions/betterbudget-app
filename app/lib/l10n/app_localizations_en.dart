@@ -5605,26 +5605,13 @@ class WordsEn extends Words {
   String get payeesCategoryGone => 'A deleted category';
 
   @override
-  String ledgerRowsTitle(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count things were changed on both computers',
-      one: 'One thing was changed on both computers',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String ledgerRowsBody(String computer) {
-    return 'Choose which to keep for each. Everything else $computer changed comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
-  }
-
-  @override
   String get ledgerRowsThisComputer => 'This computer';
 
   @override
   String get ledgerRowsOtherComputer => 'The other computer';
+
+  @override
+  String get ledgerRowsOtherComputerInSentence => 'the other computer';
 
   @override
   String get ledgerRowsKeepHere => 'Keep this computer’s';
@@ -5635,18 +5622,12 @@ class WordsEn extends Words {
   }
 
   @override
-  String get ledgerRowsKeepDeletedHere => 'Keep it deleted';
-
-  @override
   String ledgerRowsKeepDeletedTheirs(String computer) {
     return 'Keep it deleted ($computer’s)';
   }
 
   @override
   String get ledgerRowsKeepNeither => 'Neither: as it was';
-
-  @override
-  String get ledgerRowsSave => 'Save my choices';
 
   @override
   String ledgerRowsAssigned(String category, String date) {
@@ -5665,6 +5646,329 @@ class WordsEn extends Words {
   }
 
   @override
+  String get ledgerBothTitle => 'Changed on both computers';
+
+  @override
+  String ledgerBothBody(String computer) {
+    return 'Both computers now show the same, so nothing waits on you. Change any you want, and $computer gets your change too. What was replaced is saved in Backups.';
+  }
+
+  @override
+  String get ledgerBothInLedger => 'in the ledger now';
+
+  @override
+  String get ledgerBothLedgerNow => 'In the ledger now';
+
+  @override
+  String get ledgerBothDone => 'Done';
+
+  @override
+  String get ledgerBothDeleteAnyway => 'Delete it anyway';
+
+  @override
+  String ledgerBothRow(
+    String payee,
+    String date,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$payee on $date was changed on both computers. $computer’s $kept is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothRowPlain(String payee, String date, String computer) {
+    return '$payee on $date was changed on both computers. $computer’s is kept on both.';
+  }
+
+  @override
+  String ledgerBothDeletedHere(String payee, String date, String computer) {
+    return 'You deleted $payee on $date, and $computer changed it. It stays, with $computer’s change.';
+  }
+
+  @override
+  String ledgerBothAssigned(
+    String category,
+    String when,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$category $when was changed on both computers. $computer’s $kept is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothRenamed(
+    String was,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$was was renamed on both computers. $computer’s name, $kept, is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothPay(String name, String computer) {
+    return 'The pay $name was set up differently on both computers. $computer’s way is kept on both.';
+  }
+
+  @override
+  String ledgerBothPlan(String category, String computer) {
+    return '$category was set up differently on both computers. $computer’s way is kept on both.';
+  }
+
+  @override
+  String ledgerBothSetting(String computer) {
+    return 'A setting was changed on both computers. $computer’s is kept on both.';
+  }
+
+  @override
+  String ledgerBothOther(String computer) {
+    return 'Something was changed two ways on both computers. $computer’s is kept on both.';
+  }
+
+  @override
+  String ledgerBothStays(String name, String computer) {
+    return 'You deleted $name, and $computer put a transaction in it. It stays.';
+  }
+
+  @override
+  String ledgerBothSeveral(int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count things were changed on both computers. $computer’s are kept on both, and yours are saved in Backups.',
+      one:
+          '1 thing was changed on both computers. $computer’s is kept on both, and yours is saved in Backups.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerBothCouldnt =>
+      'That couldn’t be changed, so nothing was saved.';
+
+  @override
+  String ledgerRowsTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things were changed on both computers',
+      one: 'One thing was changed on both computers',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ledgerRowsBody =>
+      'Choose which to keep for each. Everything else comes in with your choices. The one you don’t keep is saved in Backups. Until you choose, this computer’s changes and your phone’s entries stay out of the folder.';
+
+  @override
+  String get ledgerRowsSave => 'Save my choices';
+
+  @override
+  String ledgerRowsAsItWasNow(String what) {
+    return 'As it was: $what · in the ledger now';
+  }
+
+  @override
+  String ledgerBothLockReconciled(String date) {
+    return 'The amount is the one reconciled on $date and stays.';
+  }
+
+  @override
+  String get ledgerBothLockBank =>
+      'The amount is the one the bank shows and stays.';
+
+  @override
+  String ledgerBothRowBank(
+    String payee,
+    String date,
+    String kept,
+    String yours,
+  ) {
+    return '$payee on $date was changed on both computers. $kept, the amount the bank shows, is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothRowReconciled(
+    String payee,
+    String date,
+    String on,
+    String kept,
+    String yours,
+  ) {
+    return '$payee on $date was changed on both computers. $kept, the amount reconciled on $on, is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothClearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  ) {
+    return 'Your cleared tick on $payee $amount ($date) was undone; $computer changed it at the same time.';
+  }
+
+  @override
+  String ledgerBothUnclearedLost(
+    String payee,
+    String amount,
+    String date,
+    String computer,
+  ) {
+    return 'Your untick on $payee $amount ($date) was undone; $computer changed it at the same time.';
+  }
+
+  @override
+  String ledgerBothDeletedLower(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  ) {
+    return 'You deleted $payee $amount ($account) on $date; $computer changed it, so it’s back, and $account is $change lower than you left it.';
+  }
+
+  @override
+  String ledgerBothDeletedHigher(
+    String payee,
+    String amount,
+    String account,
+    String date,
+    String computer,
+    String change,
+  ) {
+    return 'You deleted $payee $amount ($account) on $date; $computer changed it, so it’s back, and $account is $change higher than you left it.';
+  }
+
+  @override
+  String ledgerBothAmountIn(String amount, String account) {
+    return '$amount in $account';
+  }
+
+  @override
+  String ledgerBothMemo(String memo) {
+    return 'memo “$memo”';
+  }
+
+  @override
+  String get ledgerBothNoMemo => 'no memo';
+
+  @override
+  String get ledgerBothNoPayee => 'no payee';
+
+  @override
+  String ledgerBothWhenMonth(String month) {
+    return 'in $month';
+  }
+
+  @override
+  String ledgerBothWhenPay(String date) {
+    return 'for the pay period starting $date';
+  }
+
+  @override
+  String ledgerBothAssignedMoved(
+    String category,
+    String other,
+    String when,
+    String computer,
+    String kept,
+    String otherAmount,
+    String yours,
+  ) {
+    return 'You changed $category and $other $when while $computer changed $category. $computer’s $kept for $category is kept on both, and $other keeps your $otherAmount; yours for $category was $yours.';
+  }
+
+  @override
+  String ledgerDayOrdinal(int day, String ending) {
+    String _temp0 = intl.Intl.selectLogic(ending, {
+      'st': 'st',
+      'nd': 'nd',
+      'rd': 'rd',
+      'other': 'th',
+    });
+    return '$day$_temp0';
+  }
+
+  @override
+  String ledgerBothPayOn(String amount, String day) {
+    return '$amount on the $day';
+  }
+
+  @override
+  String ledgerBothPayKept(
+    String name,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return 'The pay $name was changed on both computers. $computer’s $kept is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothPlanKept(
+    String category,
+    String computer,
+    String kept,
+    String yours,
+  ) {
+    return '$category’s plan was changed on both computers. $computer’s $kept is kept on both; yours was $yours.';
+  }
+
+  @override
+  String ledgerBothSettingNamed(String setting, String computer) {
+    return '$setting was changed on both computers. $computer’s is kept on both.';
+  }
+
+  @override
+  String get ledgerSettingNameNoPay => '“I don’t have regular pay”';
+
+  @override
+  String get ledgerSettingNameImport => 'How a bank file is read';
+
+  @override
+  String get ledgerSettingNameBudget => 'A Budget setting';
+
+  @override
+  String get ledgerSettingNameSavings => 'A Savings setting';
+
+  @override
+  String get ledgerSettingNamePhone => 'A phone’s name';
+
+  @override
+  String ledgerBothStaysWith(
+    String name,
+    String computer,
+    String payee,
+    String amount,
+    String date,
+  ) {
+    return 'You deleted $name, and $computer put $payee $amount ($date) in it. It stays.';
+  }
+
+  @override
+  String ledgerCombinedPayeeFrom(String payee, String computer) {
+    return '$payee from $computer';
+  }
+
+  @override
+  String ledgerCombinedPayeeMoreFrom(String payee, int count, String computer) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$payee and $count changes from $computer',
+      one: '$payee and 1 change from $computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String ledgerRowsSaved(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5674,10 +5978,6 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
-
-  @override
-  String get ledgerRowsChangedMeanwhile =>
-      'Something changed on this computer while you were choosing, so nothing was saved. You’ll be asked again.';
 
   @override
   String get rowsColumnSource => 'Source';
