@@ -429,23 +429,26 @@ class _BudgetPageState extends State<_BudgetPage> {
         Currency c, {
         bool big = false,
         bool coral = false,
-      }) => Text(
-        money(v, c),
-        key: ValueKey(key),
-        textAlign: TextAlign.right,
-        style: big
-            ? onest(
-                20,
-                weight: 700,
-                color: coral ? Mid.coral : Mid.ink,
-                tabular: true,
-              )
-            : onest(
-                14,
-                weight: 500,
-                color: coral ? Mid.coral : Mid.ink,
-                tabular: true,
-              ),
+      }) => Shrink(
+        end: true,
+        Text(
+          money(v, c),
+          key: ValueKey(key),
+          maxLines: 1,
+          style: big
+              ? onest(
+                  20,
+                  weight: 700,
+                  color: coral ? Mid.coral : Mid.ink,
+                  tabular: true,
+                )
+              : onest(
+                  14,
+                  weight: 500,
+                  color: coral ? Mid.coral : Mid.ink,
+                  tabular: true,
+                ),
+        ),
       );
       Widget label(String text, {bool big = false, bool coral = false}) => Text(
         text,
@@ -4367,21 +4370,23 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                           ),
                                           child: Row(
                                             children: [
+                                              // Amounts and dates: smaller
+                                              // rather than cut.
                                               Flexible(
-                                                child: Text(
-                                                  preview,
-                                                  key: const ValueKey(
-                                                    'plan-preview',
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: onest(
-                                                    12.5,
-                                                    color: note!.behind
-                                                        ? Mid.ink
-                                                        : Mid.ink2,
-                                                    tabular: true,
+                                                child: Shrink(
+                                                  Text(
+                                                    preview,
+                                                    key: const ValueKey(
+                                                      'plan-preview',
+                                                    ),
+                                                    maxLines: 1,
+                                                    style: onest(
+                                                      12.5,
+                                                      color: note!.behind
+                                                          ? Mid.ink
+                                                          : Mid.ink2,
+                                                      tabular: true,
+                                                    ),
                                                   ),
                                                 ),
                                               ),

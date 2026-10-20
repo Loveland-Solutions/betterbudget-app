@@ -5896,14 +5896,17 @@ class _Sidebar extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           for (final e in net.entries)
-                            Text(
-                              formatMoney(e.value, currency: e.key),
-                              key: ValueKey('net-worth-${e.key.code}'),
-                              style: onest(
-                                net.length > 1 ? 16 : 18,
-                                weight: 500,
-                                color: Mid.sideInk,
-                                tabular: true,
+                            Shrink(
+                              Text(
+                                formatMoney(e.value, currency: e.key),
+                                key: ValueKey('net-worth-${e.key.code}'),
+                                maxLines: 1,
+                                style: onest(
+                                  net.length > 1 ? 16 : 18,
+                                  weight: 500,
+                                  color: Mid.sideInk,
+                                  tabular: true,
+                                ),
                               ),
                             ),
                           if (archived.isNotEmpty)

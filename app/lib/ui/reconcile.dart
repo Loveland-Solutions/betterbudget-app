@@ -307,9 +307,9 @@ class ReconcilePanel extends StatelessWidget {
                       },
                     },
                     key: const ValueKey('reconcile-hint'),
+                    // Wraps rather than cut the amount, the clue to the
+                    // statement's difference.
                     style: onest(12.5, color: Mid.ink3),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               const SizedBox(height: 10),

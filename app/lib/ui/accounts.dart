@@ -141,26 +141,31 @@ class _NewAccountPageState extends State<_NewAccountPage> {
     );
   }
 
-  Widget _choice(String label, bool on, VoidCallback onTap, String key) =>
-      Hoverable(
-        key: ValueKey(key),
-        onTap: onTap,
-        builder: (hover) => Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: on
-                ? Mid.blueWash
-                : (hover ? Mid.raised : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+  Widget _choice(
+    String label,
+    bool on,
+    VoidCallback onTap,
+    String key,
+  ) => Hoverable(
+    key: ValueKey(key),
+    onTap: onTap,
+    builder: (hover) => Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
         ),
-      );
+      ),
+      // As wide as its word, in a row or a Wrap.
+      child: Center(
+        widthFactor: 1,
+        child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +191,8 @@ class _NewAccountPageState extends State<_NewAccountPage> {
         child: Align(
           alignment: Alignment.topLeft,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            // Wide enough for the three Types in a row in Mongolian.
+            constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -229,16 +235,17 @@ class _NewAccountPageState extends State<_NewAccountPage> {
                       ),
                       _FormLine(
                         label: t.setupKind,
-                        child: Row(
+                        // A line of their own rather than past the card.
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             kind(AccountType.asset, t.setupKindBank),
-                            const SizedBox(width: 8),
                             kind(
                               AccountType.asset,
                               t.setupKindCash,
                               cash: true,
                             ),
-                            const SizedBox(width: 8),
                             kind(AccountType.liability, t.setupKindOwed),
                           ],
                         ),
@@ -344,7 +351,7 @@ class _FormLine extends StatelessWidget {
           width: 100,
           child: Text(label, style: onest(13.5, color: Mid.ink3)),
         ),
-        child,
+        Flexible(child: child),
       ],
     ),
   );

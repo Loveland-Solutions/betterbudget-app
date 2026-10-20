@@ -1553,8 +1553,10 @@ class _EntryState extends State<_EntryScreen> {
                         const SizedBox(height: 6),
                         // Its place is kept while no category is chosen, so the rows
                         // under it don't move when one is.
-                        SizedBox(
-                          height: 22,
+                        // A sentence with an amount wraps rather than cut
+                        // the amount (ADR 0004 "No overflow stripe").
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 22),
                           child: split
                               // Each category's share, as the register
                               // shows a split.
@@ -1565,8 +1567,6 @@ class _EntryState extends State<_EntryScreen> {
                                   ].join(' · '),
                                   key: const ValueKey('split-line'),
                                   textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                   style: onest(15, color: Mid.ink2),
                                 )
                               : category == null ||
@@ -1593,8 +1593,6 @@ class _EntryState extends State<_EntryScreen> {
                                       : _leftLine(t, category, left, after),
                                   key: const ValueKey('left-line'),
                                   textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                   style: onest(
                                     15,
                                     color: over ? Mid.coral : Mid.ink2,

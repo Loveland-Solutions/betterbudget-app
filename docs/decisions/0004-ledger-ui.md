@@ -3750,3 +3750,33 @@ left in it: it read as the Budget page.
   top, over a line, then the categories. It was "Split over categories…" at the foot.
   Typing still narrows the list and Split stays at its top; the keys start on the first
   category, so "Gro" and Enter picks Groceries, and Up from it reaches Split.
+
+## No overflow stripe: amounts shrink, names end in "…" (2026-10-20)
+
+Owner, 2026-10-14: "that yellow and black overflow appears in both the phone app and the
+computer app. We need to constrain things so the user doesn't see that." It showed in an
+account's header, where a working balance of more than a hundred million tugrik, with
+cents, ran past its box (issue #127).
+
+- **An amount or a date is drawn smaller until it fits** (`Shrink` in `theme.dart`),
+  never cut, never wrapped onto a second line: a cut amount reads as a different
+  number. Every `Money` does this by itself; where it fits it is drawn exactly as
+  before. So do the header's Working line, the forecast's "Lowest … on …" and its bills
+  line, Budget's three sums and Net worth in the sidebar.
+- **A name ends in "…"**: an account, category or payee in a row, a button or a list.
+  The words the app writes wrap.
+- **A sentence with an amount in it wraps**, so the amount is whole (from the
+  reviews): the phone's "… left after this" and a split's shares over the pad, the
+  forecast's "runs out on … · … short", the reconcile hint. One exception: a row's
+  memo line in the register, which holds a split's shares, stays one line and ends in
+  "…"; the row opens to every share whole.
+- **Two names that start the same may read the same once cut**, and that stays (owner,
+  2026-10-20, on the review's offer of a hover or a cut in the middle: "Life is
+  rough. This isn't an issue, this is just the nature of space on the screen").
+- **New account's Type buttons** fit in one row in Mongolian: the card is 600 wide (was
+  560), and a font that draws them wider puts the third on a line of its own.
+- `test/overflow_test.dart` lays out every page, panel and phone screen with balances
+  past a billion tugrik, with cents, and names some fifty letters longer, in English
+  and Mongolian, at the smallest window and a large one (the phone at 390 and 320
+  wide). It fails on any overflow, on text cut off without "…", on an amount that
+  wraps, on an amount cut with "…", and on one drawn below 60% of its size.

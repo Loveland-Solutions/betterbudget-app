@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -446,6 +447,158 @@ String moneyIn(BuildContext context, int minor, {bool showCents = true}) =>
 String roundedIn(BuildContext context, int minor) =>
     formatRounded(minor, currency: CurrencyScope.of(context));
 
+/// One line too wide for its space, drawn smaller until it fits, so an
+/// amount or a date never runs past its box (owner, 2026-10-14: the
+/// yellow-and-black overflow stripe is never to be seen). Where it fits it
+/// is laid out exactly as it would be without this, baseline and all. It
+/// shrinks only within a bounded width: in a Row, inside Flexible or
+/// Expanded. Names don't shrink; they end in "…".
+class Shrink extends SingleChildRenderObjectWidget {
+  const Shrink(Widget child, {super.key, this.end = false})
+    : super(child: child);
+
+  /// Drawn against the box's end when the box is wider than it.
+  final bool end;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => RenderShrink(end);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderShrink renderObject) =>
+      renderObject.end = end;
+}
+
+/// [Shrink]'s render object.
+class RenderShrink extends RenderProxyBox {
+  RenderShrink(this._end);
+
+  bool _end;
+  set end(bool value) {
+    if (value == _end) return;
+    _end = value;
+    markNeedsLayout();
+  }
+
+  double _scale = 1;
+  Offset _shift = Offset.zero;
+
+  /// How much smaller than its natural size it is drawn: 1 when it fits.
+  double get scale => _scale;
+
+  /// Its natural width, and as tall as it may be.
+  static BoxConstraints _free(BoxConstraints c) =>
+      BoxConstraints(maxHeight: c.maxHeight);
+
+  /// Its size, scale and offset for a child of [natural] size whose
+  /// alphabetic baseline is [baseline] (null: it has none).
+  ({Size size, double scale, Offset shift}) _place(
+    Size natural,
+    double? baseline,
+    BoxConstraints c,
+  ) {
+    final scale = natural.width > c.maxWidth && natural.width > 0
+        ? c.maxWidth / natural.width
+        : 1.0;
+    final size = c.constrain(Size(natural.width * scale, natural.height));
+    final b = baseline ?? natural.height;
+    return (
+      size: size,
+      scale: scale,
+      shift: Offset(
+        _end ? size.width - natural.width * scale : 0,
+        // A smaller line sits on the baseline the full one would.
+        b * (1 - scale),
+      ),
+    );
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final c = child;
+    if (c == null) return constraints.smallest;
+    return _place(c.getDryLayout(_free(constraints)), null, constraints).size;
+  }
+
+  @override
+  double? computeDryBaseline(
+    BoxConstraints constraints,
+    TextBaseline baseline,
+  ) {
+    final c = child;
+    if (c == null) return null;
+    final free = _free(constraints);
+    final b = c.getDryBaseline(free, baseline);
+    if (b == null) return null;
+    final p = _place(
+      c.getDryLayout(free),
+      c.getDryBaseline(free, TextBaseline.alphabetic),
+      constraints,
+    );
+    return p.shift.dy + b * p.scale;
+  }
+
+  @override
+  void performLayout() {
+    final c = child;
+    if (c == null) {
+      size = constraints.smallest;
+      return;
+    }
+    c.layout(_free(constraints), parentUsesSize: true);
+    final p = _place(
+      c.size,
+      c.getDistanceToBaseline(TextBaseline.alphabetic, onlyReal: true),
+      constraints,
+    );
+    size = p.size;
+    _scale = p.scale;
+    _shift = p.shift;
+  }
+
+  Matrix4 get _transform =>
+      Matrix4.translationValues(_shift.dx, _shift.dy, 0)
+        ..scaleByDouble(_scale, _scale, 1, 1);
+
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) {
+    final b = child?.getDistanceToActualBaseline(baseline);
+    return b == null ? null : _shift.dy + b * _scale;
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final c = child;
+    if (c == null) return;
+    if (_scale == 1 && _shift == Offset.zero) {
+      layer = null;
+      context.paintChild(c, offset);
+    } else {
+      layer = context.pushTransform(
+        needsCompositing,
+        offset,
+        _transform,
+        (context, offset) => context.paintChild(c, offset),
+        oldLayer: layer is TransformLayer ? layer as TransformLayer : null,
+      );
+    }
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) =>
+      transform.multiply(_transform);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final c = child;
+    if (c == null) return false;
+    return result.addWithPaintTransform(
+      transform: _transform,
+      position: position,
+      hitTest: (result, position) => c.hitTest(result, position: position),
+    );
+  }
+}
+
 /// Amount with the cents quieter than the whole part.
 class Money extends StatelessWidget {
   const Money(
@@ -481,32 +634,35 @@ class Money extends StatelessWidget {
       MoneySign.negativeOnly => minor < 0 ? '−' : '',
       MoneySign.plusForPositive => minor > 0 ? '+' : (minor < 0 ? '−' : ''),
     };
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: '$prefix${currency.prefix}${formatWhole(minor, currency)}',
-            style: onest(
-              size,
-              weight: weight,
-              color: color,
-              tabular: true,
-              letterSpacing: letterSpacing,
+    // Too wide for its box, it's drawn smaller rather than cut.
+    return Shrink(
+      Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$prefix${currency.prefix}${formatWhole(minor, currency)}',
+              style: onest(
+                size,
+                weight: weight,
+                color: color,
+                tabular: true,
+                letterSpacing: letterSpacing,
+              ),
             ),
-          ),
-          TextSpan(
-            text: formatCents(minor, currency),
-            style: onest(
-              size * centsScale,
-              weight: 400,
-              color: centsColor ?? Mid.ink3,
-              tabular: true,
+            TextSpan(
+              text: formatCents(minor, currency),
+              style: onest(
+                size * centsScale,
+                weight: 400,
+                color: centsColor ?? Mid.ink3,
+                tabular: true,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        maxLines: 1,
+        softWrap: false,
       ),
-      maxLines: 1,
-      softWrap: false,
     );
   }
 }
