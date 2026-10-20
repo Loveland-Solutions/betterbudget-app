@@ -506,8 +506,12 @@ What's known so far:
    **A failure has its own plain popup** (owner, 2026-10-10; #128): "Couldn't
    save: …" came in the gold popup with the error's whole text, a screen of library
    paths. Gold now means only that something was saved. Anything that didn't happen
-   (a failure, a refusal, a row that can't be saved yet) is the page's own card with
-   ordinary ink and a thin rule, not red (red is for a shortfall). It says what
+   (a failure, a refusal, a row that can't be saved yet, a nudge such as "Save or
+   discard the open row first" or "Nothing to undo") is the page's own card with
+   ordinary ink, a coral edge and a coral mark before the sentence (owner,
+   2026-10-21: "the color should stand out in some way"; option A of three, since
+   coral's job is errors. *Rejected:* a coral card, as loud as an alarm for a
+   nudge, and a light card, which stands out without saying anything is wrong). It says what
    didn't happen in one line. The technical reason waits behind **Show details**,
    which reveals it, selectable, and holds the popup until it's closed. It stays 12
    seconds instead of 6. "Couldn't undo … it changed since" has no Details, since

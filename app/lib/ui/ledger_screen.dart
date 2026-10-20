@@ -1353,7 +1353,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           // Undo runs newest first, so an older toast can't jump the queue:
           // restoring its state would silently wipe the newer changes.
           if (!identical(_history.lastOrNull, action)) {
-            _showToast(
+            _showFailure(
               context.t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'),
             );
             return;
@@ -1379,7 +1379,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final a = _history.lastOrNull;
     if (a == null) {
-      _showToast(context.t.ledgerNothingToUndo);
+      _showFailure(context.t.ledgerNothingToUndo);
       return;
     }
     _history.removeLast();
@@ -1403,7 +1403,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final a = _redo.lastOrNull;
     if (a == null) {
-      _showToast(context.t.ledgerNothingToRedo);
+      _showFailure(context.t.ledgerNothingToRedo);
       return;
     }
     _redo.removeLast();
@@ -1438,8 +1438,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _entryProblemShown = message;
   }
 
-  /// Something didn't happen: the plain popup, not the gold one that reports
-  /// a saved change. [message] says what in one line; [error], the technical
+  /// Something didn't happen (a failure, a refusal, a nudge): the plain
+  /// popup with coral's mark, not the gold one that reports a saved change. [message] says what in one line; [error], the technical
   /// reason, waits behind Details (owner, 2026-10-10).
   void _showFailure(String message, {String? detail, Object? error}) =>
       _showToast(message, detail: detail, failed: true, why: error);
@@ -1660,7 +1660,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _tapRow(int id, EditField field) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1690,12 +1690,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The register hides scheduled rows while reconciling, and keys would act
     // on a row nobody can see.
     if (_reconcile != null) {
-      _showToast(context.t.ledgerFinishReconcileFirst);
+      _showFailure(context.t.ledgerFinishReconcileFirst);
       return;
     }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1738,7 +1738,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // with changes keeps the floor.
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -1986,7 +1986,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The new-transaction row gives way the same way: closed when empty,
     // kept when it holds typing.
     if (_adding && _entry.isDirty()) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return;
     }
     // Reconciled rows open too: payee, memo and category can still change.
@@ -2018,7 +2018,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startConfirm(RegisterRow r) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -2209,7 +2209,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void _startReconcile(LedgerData data, AccountInfo account) {
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
-        _showToast(context.t.ledgerSaveOrDiscard);
+        _showFailure(context.t.ledgerSaveOrDiscard);
         return;
       }
       _cancelEdit();
@@ -2352,7 +2352,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final deleted = await db.softDeleteMany([r.txnId]);
     if (!mounted) return;
     if (deleted.isEmpty) {
-      _showToast(_lockMessage(r));
+      _showFailure(_lockMessage(r));
       return;
     }
     _clearSelection();
@@ -2406,7 +2406,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final deleted = await db.softDeleteMany([r.txnId]);
     if (!mounted) return;
     if (deleted.isEmpty) {
-      _showToast(_lockMessage(r));
+      _showFailure(_lockMessage(r));
       return;
     }
     _cancelEdit();
@@ -2505,7 +2505,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final e = _editing;
     if (e == null) return true;
     if (e.controller.isDirty()) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return false;
     }
     _cancelEdit();
@@ -2563,7 +2563,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final into = data.openAccounts.where((a) => !a.isOwed).toList();
     // Income may not be there yet: a new ledger makes it with the first pay.
     if (into.isEmpty) {
-      _showToast(t.ledgerAddBankAccountFirst);
+      _showFailure(t.ledgerAddBankAccountFirst);
       return;
     }
     AccountInfo? byId(List<AccountInfo> from, int? id) =>
@@ -3292,7 +3292,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )
         .firstOrNull;
     if (twin != null) {
-      _showToast(
+      _showFailure(
         t.payeesAlreadyListed(
           twin.name,
           _ruleLabel(t, data, twin, _payChoices(data)),
@@ -4100,7 +4100,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await _archiveCategory(existing, false);
         return existing.id;
       }
-      _showToast(t.ledgerAlreadyCategory(existing.name));
+      _showFailure(t.ledgerAlreadyCategory(existing.name));
       return null;
     }
     late int id;
@@ -4773,7 +4773,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     // A restore replaces the rows an open edit or reconcile points at.
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return false;
     }
     _cancelEdit();
@@ -5061,7 +5061,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (_restoring) return;
     final t = context.t;
     if (_editing?.controller.isDirty() ?? false) {
-      _showToast(context.t.ledgerSaveOrDiscard);
+      _showFailure(context.t.ledgerSaveOrDiscard);
       return;
     }
     final data = _data;
@@ -7533,8 +7533,8 @@ class _Toast extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Gold only for a saved change: a failure is ordinary ink on the page's
-    // own card, nothing to celebrate and nothing to alarm.
+    // Gold only for a saved change: what didn't happen is ordinary ink on
+    // the page's own card, marked in coral.
     final ink = toast.failed ? Mid.ink : Mid.onToast;
     final light = Mid.isLight;
     return Positioned(
@@ -7562,8 +7562,10 @@ class _Toast extends StatelessWidget {
                   // Gold so it gets noticed: it reports something that changed.
                   color: toast.failed ? Mid.raised : Mid.toast,
                   borderRadius: BorderRadius.circular(12),
+                  // Coral's job is errors (owner, 2026-10-21, option A of
+                  // three): an edge and a mark, the words in ordinary ink.
                   border: toast.failed
-                      ? Border.all(color: Mid.rule)
+                      ? Border.all(color: Mid.coral, width: 1.5)
                       : light
                       ? Border.all(color: Mid.gold)
                       : null,
@@ -7585,6 +7587,15 @@ class _Toast extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (toast.failed)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 7, right: 10),
+                            child: Icon(
+                              Icons.error_outline_rounded,
+                              size: 18,
+                              color: Mid.coral,
+                            ),
+                          ),
                         Expanded(
                           child: Padding(
                             // Every line of it: the last clause is often the
