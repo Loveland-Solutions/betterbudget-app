@@ -297,16 +297,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String ledgerScheduledDeleted(String name) {
-    return 'Товлосон $name устгагдлаа';
-  }
-
-  @override
-  String ledgerScheduledDeletedAlreadyIn(String name, String date) {
-    return 'Товлосон $name устгагдлаа · $date-нд аль хэдийн бий';
-  }
-
-  @override
   String ledgerCantMove(String reason) {
     return 'Зөөх боломжгүй · $reason';
   }
@@ -317,11 +307,6 @@ class WordsMn extends Words {
   @override
   String ledgerMovedTo(String name, String account) {
     return '$name $account данс руу зөөгдлөө';
-  }
-
-  @override
-  String ledgerScheduledDeletedShort(String name, String short) {
-    return 'Товлосон $name устгагдлаа · үүний $short нь товлогдоогүй болсон';
   }
 
   @override
@@ -1768,24 +1753,6 @@ class WordsMn extends Words {
   String rowsMoreOverdue(int count) {
     return 'өөр $count нь хугацаа хэтэрсэн';
   }
-
-  @override
-  String rowsAlreadyIn(String date, String payee, String amount) {
-    return 'Энэ дансанд аль хэдийн бий · $date · $payee · $amount';
-  }
-
-  @override
-  String rowsAlreadyInLess(
-    String date,
-    String payee,
-    String amount,
-    String short,
-  ) {
-    return 'Энэ дансанд аль хэдийн бий · $date · $payee · $amount · энэ төлбөрөөс $short-өөр бага';
-  }
-
-  @override
-  String get rowsAlreadyInDelete => 'Товлосныг устгах';
 
   @override
   String get rowsScheduledOnly => 'товлосон';
@@ -5572,5 +5539,169 @@ class WordsMn extends Words {
   @override
   String settingsComputerName(String id) {
     return '$id компьютерийн нэр';
+  }
+
+  @override
+  String rowsPaidOnAsk(String date, String payee, String amount) {
+    return '$date-нд төлсөн үү? $payee, $amount';
+  }
+
+  @override
+  String rowsPaidOnAskFrom(
+    String date,
+    String payee,
+    String amount,
+    String account,
+  ) {
+    return '$date-нд төлсөн үү? $payee, $amount, $account-оос';
+  }
+
+  @override
+  String get rowsPaidYes => 'Тийм';
+
+  @override
+  String get rowsPaidNo => 'Үгүй';
+
+  @override
+  String get rowsNotThisBill => 'Энэ төлбөр биш';
+
+  @override
+  String get rowsNoBillThisTime => 'Энэ удаа төлбөр ирээгүй';
+
+  @override
+  String billAskTitle(String name) {
+    return 'Энэ $name-ын төлбөр мөн үү?';
+  }
+
+  @override
+  String billAskPaidFrom(
+    String payee,
+    String amount,
+    String account,
+    String date,
+  ) {
+    return 'Та $date-нд $account-оос $payee-д $amount төлсөн.';
+  }
+
+  @override
+  String billAskPaid(String payee, String amount, String date) {
+    return 'Та $date-нд $payee-д $amount төлсөн.';
+  }
+
+  @override
+  String billAskBill(String amount, String date) {
+    return 'Төлбөр $amount, $date-нд төлөх.';
+  }
+
+  @override
+  String billAskMore(String more, String category) {
+    return 'Энэ нь төлбөрөөс $more-өөр их. Бүгд $category-ээс гарна.';
+  }
+
+  @override
+  String get billAskYes => 'Тийм, төлсөн';
+
+  @override
+  String get billAskNo => 'Үгүй, өөр зүйл';
+
+  @override
+  String billRestTitle(String rest) {
+    return '$rest төлөх үлдсэн үү?';
+  }
+
+  @override
+  String billRestPaid(String amount, String bill, String name) {
+    return 'Та $name-ын $bill-ийн төлбөрөөс $amount төлсөн.';
+  }
+
+  @override
+  String billRestYes(String date) {
+    return 'Тийм, үлдсэнийг $date-нд төлнө';
+  }
+
+  @override
+  String get billRestNo => 'Үгүй, төлбөр төлөгдсөн';
+
+  @override
+  String billSeveralTitle(int count, String name) {
+    return 'Энэ $name-ын $count төлбөрийг төлсөн үү?';
+  }
+
+  @override
+  String billSeveralPaid(String amount, String date) {
+    return 'Та $date-нд $amount төлсөн.';
+  }
+
+  @override
+  String billSeveralBills2(String first, String second, String each) {
+    return '$first, $second-нд төлөх төлбөр тус бүр $each.';
+  }
+
+  @override
+  String billSeveralBills3(
+    String first,
+    String second,
+    String third,
+    String each,
+  ) {
+    return '$first, $second, $third-нд төлөх төлбөр тус бүр $each.';
+  }
+
+  @override
+  String billSeveralYes(int count) {
+    return 'Тийм, $count төлбөрийг бүгдийг нь';
+  }
+
+  @override
+  String get billSeveralOne => 'Зөвхөн нэгийг';
+
+  @override
+  String ledgerBillPaidNext(String name, String date) {
+    return '$name-ын төлбөр төлөгдлөө. Дараагийнх $date-нд.';
+  }
+
+  @override
+  String ledgerBillPaidOnly(String name) {
+    return '$name-ын төлбөр төлөгдлөө.';
+  }
+
+  @override
+  String ledgerBillsPaidNext(int count, String name, String date) {
+    return '$name-ын $count төлбөр төлөгдлөө. Дараагийнх $date-нд.';
+  }
+
+  @override
+  String ledgerBillRest(String name, String rest, String date) {
+    return '$name: үлдсэн $rest, $date-нд төлөх.';
+  }
+
+  @override
+  String ledgerNotTheBill(String name, String date) {
+    return '$name-ын төлбөр биш. $date-нд төлөх хэвээр.';
+  }
+
+  @override
+  String ledgerNoBill(String name, String date, String amount, String next) {
+    return '$date-нд $name-ын төлбөр ирээгүй. $amount нь $next-ны төлбөрт үлдэнэ.';
+  }
+
+  @override
+  String ledgerNoBillLast(String name, String date) {
+    return '$date-нд $name-ын төлбөр ирээгүй.';
+  }
+
+  @override
+  String ledgerBillsPaidCount(int count) {
+    return '$count төлбөр төлөгдлөө.';
+  }
+
+  @override
+  String ledgerBillsToCheck(int count) {
+    return '$count төлбөр шалгах.';
+  }
+
+  @override
+  String forecastMaybePaid(int count) {
+    return '$count төлбөр төлөгдсөн байж магадгүй. Тийм гэж хэлтэл тооцно.';
   }
 }

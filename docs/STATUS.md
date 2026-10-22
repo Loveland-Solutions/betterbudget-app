@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-21** · version 0.41.3 · schema v21 · 779 tests pass
+**Last updated: 2026-10-21** · version 0.42.0 · schema v21 · 786 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -10,6 +10,19 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**A bill paid another way** (0.42.0, closes #88; ADR 0004 "A bill paid another
+way"): on the owner's rule, a payment in a bill's category pays that period's bill,
+from any account. Near the bill it's marked paid with no question ("Mobicom bill paid.
+Next due 11.15."); a phone's rows and a bank file's pay theirs with the rows. Far
+off, part of it, or two or three bills' worth, a window asks ("Did this pay the
+Mobicom bill?"). Until answered the bill's row asks "Paid on 10.13? … Yes / No" and
+the forecast says a bill may already be paid. Not this bill on a paid row; No bill
+this time in place of Delete on a category's bill, whose money then counts toward
+the next on the Budget page. `billPayments`, `billFit`, `Budget.skippedBills` in
+`domain/budget.dart`; `payBill`, `notTheBill` in `database.dart`; `_tieBill`,
+`_askBill`, `_BillQuestion`, `_settleTyped`, `_settleIncoming` in
+`ledger_screen.dart`; `_PaidAskLine` in `register.dart`. Not seen by the owner yet.
 
 **The forecast's "Nothing has been budgeted" goes by the budget** (0.41.4, closes
 #129): it shows only while no category in use has a plan or an amount assigned. With
@@ -339,7 +352,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 | Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date. A box under the row, "Remember this category for this payee", while there is one to remember: ticked, the payee is remembered with the row, one undo (also in a row's Edit) |
 | Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. A split's categories are edited in its card |
 | Source | An optional register column, on until Settings → Register unticks "Show where each transaction came from": how a row came to be (typed, imported, from a phone, scheduled, opening balance, reconcile adjustment) and the computer's name or the phone's name; a phone is named in the same panel. Empty for rows from before v21 |
-| Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row, which names a row already in the account that looks to be the same bill and offers "Delete the scheduled one". Keys Enter, C, Delete |
+| Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row; a bill a row already in may have paid asks "Paid on 10.13? … Yes / No" on its row; a paid row has Not this bill; a category's bill has No bill this time in place of Delete. Keys Enter, C, Delete |
 | Undo | ⌘Z and ⌘⇧Z (Ctrl+Y on Windows) through the session's actions; in a text field they act on typing |
 | Popup | A card 440 wide with Undo. After a category is picked it offers "Always file this payee here", and the next import follows the rule |
 | Header | Cleared + uncleared = working, the working balance as the large number; "Last reconciled on"; Reconcile and Import… buttons; a credit account reads Owed |

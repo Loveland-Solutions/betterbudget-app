@@ -298,16 +298,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String ledgerScheduledDeleted(String name) {
-    return 'Scheduled $name deleted';
-  }
-
-  @override
-  String ledgerScheduledDeletedAlreadyIn(String name, String date) {
-    return 'Scheduled $name deleted · already in on $date';
-  }
-
-  @override
   String ledgerCantMove(String reason) {
     return 'Can’t move · $reason';
   }
@@ -318,11 +308,6 @@ class WordsEn extends Words {
   @override
   String ledgerMovedTo(String name, String account) {
     return '$name moved to $account';
-  }
-
-  @override
-  String ledgerScheduledDeletedShort(String name, String short) {
-    return 'Scheduled $name deleted · $short of it is no longer scheduled';
   }
 
   @override
@@ -1847,24 +1832,6 @@ class WordsEn extends Words {
   String rowsMoreOverdue(int count) {
     return '$count more overdue';
   }
-
-  @override
-  String rowsAlreadyIn(String date, String payee, String amount) {
-    return 'Already in this account · $date · $payee · $amount';
-  }
-
-  @override
-  String rowsAlreadyInLess(
-    String date,
-    String payee,
-    String amount,
-    String short,
-  ) {
-    return 'Already in this account · $date · $payee · $amount · $short less than this bill';
-  }
-
-  @override
-  String get rowsAlreadyInDelete => 'Delete the scheduled one';
 
   @override
   String get rowsScheduledOnly => 'scheduled';
@@ -5772,5 +5739,204 @@ class WordsEn extends Words {
   @override
   String settingsComputerName(String id) {
     return 'Name for computer $id';
+  }
+
+  @override
+  String rowsPaidOnAsk(String date, String payee, String amount) {
+    return 'Paid on $date? $payee, $amount';
+  }
+
+  @override
+  String rowsPaidOnAskFrom(
+    String date,
+    String payee,
+    String amount,
+    String account,
+  ) {
+    return 'Paid on $date? $payee, $amount, from $account';
+  }
+
+  @override
+  String get rowsPaidYes => 'Yes';
+
+  @override
+  String get rowsPaidNo => 'No';
+
+  @override
+  String get rowsNotThisBill => 'Not this bill';
+
+  @override
+  String get rowsNoBillThisTime => 'No bill this time';
+
+  @override
+  String billAskTitle(String name) {
+    return 'Did this pay the $name bill?';
+  }
+
+  @override
+  String billAskPaidFrom(
+    String payee,
+    String amount,
+    String account,
+    String date,
+  ) {
+    return 'You paid $payee $amount from $account on $date.';
+  }
+
+  @override
+  String billAskPaid(String payee, String amount, String date) {
+    return 'You paid $payee $amount on $date.';
+  }
+
+  @override
+  String billAskBill(String amount, String date) {
+    return 'The bill is $amount, due $date.';
+  }
+
+  @override
+  String billAskMore(String more, String category) {
+    return 'That\'s $more more than the bill. All of it comes out of $category.';
+  }
+
+  @override
+  String get billAskYes => 'Yes, it\'s paid';
+
+  @override
+  String get billAskNo => 'No, something else';
+
+  @override
+  String billRestTitle(String rest) {
+    return 'Is $rest still to pay?';
+  }
+
+  @override
+  String billRestPaid(String amount, String bill, String name) {
+    return 'You paid $amount of the $bill $name bill.';
+  }
+
+  @override
+  String billRestYes(String date) {
+    return 'Yes, pay the rest by $date';
+  }
+
+  @override
+  String get billRestNo => 'No, the bill is paid';
+
+  @override
+  String billSeveralTitle(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Did this pay $count $name bills?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String billSeveralPaid(String amount, String date) {
+    return 'You paid $amount on $date.';
+  }
+
+  @override
+  String billSeveralBills2(String first, String second, String each) {
+    return 'The bills due $first and $second are $each each.';
+  }
+
+  @override
+  String billSeveralBills3(
+    String first,
+    String second,
+    String third,
+    String each,
+  ) {
+    return 'The bills due $first, $second and $third are $each each.';
+  }
+
+  @override
+  String billSeveralYes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Yes, all $count bills',
+      two: 'Yes, both bills',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get billSeveralOne => 'Only one bill';
+
+  @override
+  String ledgerBillPaidNext(String name, String date) {
+    return '$name bill paid. Next due $date.';
+  }
+
+  @override
+  String ledgerBillPaidOnly(String name) {
+    return '$name bill paid.';
+  }
+
+  @override
+  String ledgerBillsPaidNext(int count, String name, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count $name bills paid. Next due $date.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerBillRest(String name, String rest, String date) {
+    return '$name bill: $rest still to pay, due $date.';
+  }
+
+  @override
+  String ledgerNotTheBill(String name, String date) {
+    return 'Not the $name bill. It\'s still due $date.';
+  }
+
+  @override
+  String ledgerNoBill(String name, String date, String amount, String next) {
+    return 'No $name bill on $date. Its $amount stays for the one due $next.';
+  }
+
+  @override
+  String ledgerNoBillLast(String name, String date) {
+    return 'No $name bill on $date.';
+  }
+
+  @override
+  String ledgerBillsPaidCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills paid.',
+      one: '1 bill paid.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerBillsToCheck(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills to check.',
+      one: '1 bill to check.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String forecastMaybePaid(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count bills may already be paid. They\'re counted until you say yes.',
+      one: 'A bill may already be paid. It\'s counted until you say yes.',
+    );
+    return '$_temp0';
   }
 }

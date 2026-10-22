@@ -779,11 +779,10 @@ What's known so far:
     account never says it: nothing clears cash. **A late bill counts the other late
     ones**: All shows only the first scheduled row, so it reads "· due 7 days ago ·
     1 more overdue", and the count opens the Scheduled tab as "next of N scheduled"
-    does ("2 overdue" read as two others). **Confirm names a row already in.**
-    Confirming a late bill that was typed from the bank app, or imported, put it in
-    twice. When Confirm opens on a bill and the account holds a row for it, a line
-    under the fields names that row as it reads, "Already in this account · 09.10 ·
-    Mobicom · −₮41,500.00", with "Delete the scheduled one". A row for it is one the
+    does ("2 overdue" read as two others). **Confirm names a row already in**
+    (since 2026-10-21 the bill's row says it without Confirm: see "A bill paid
+    another way" under rule 27). Confirming a late bill that was typed from the bank
+    app, or imported, put it in twice. A row for it is one the
     same way, dated from 6 days before the bill to 6 days after (a week would find
     last week's weekly bill), or up to today when the bill is late, with the same
     payee; failing that, for a category's bill, a row in that category for between
@@ -793,14 +792,11 @@ What's known so far:
     and i made one, and seeing whether one holds the other (a name under four
     letters has to be the whole of it). Last, a row still in Not categorized, as
     an import leaves it, counts when it is for exactly the bill's amount. The
-    surest kind wins, then the nearest date. **The line leads to its row**: clicked,
+    surest kind wins, then one in the bill's own account, then the nearest date.
+    **The line leads to its row**: clicked,
     the row it names is outlined and the list scrolls just far enough to show it;
     in the Scheduled tab, which lists no such rows, the row is drawn under the
-    line. The button deletes the scheduled row, ties the row to
-    the category's plan as that bill when it is in the category, and schedules the
-    next bill, as one undo. When the row is for less than the bill the line ends "·
-    ₮800,000 less than this bill" and the popup says that much "is no longer
-    scheduled". Confirm is still there (warn, don't block). A payday is not looked
+    line. Confirm is still there (warn, don't block). A payday is not looked
     for: money in is made a pay's paycheck from its own row's Category. **The Move
     popup has Show**, which opens the account the row went to with the row chosen
     (a scheduled one in the Scheduled tab). **Not built: a `+` put in the amount
@@ -1443,6 +1439,63 @@ What's known so far:
       **Since 2026-10-05 Paid from is the one accounts row** of Edit (see
       "From the 2026-10-05 call" below): the bill is scheduled in the one
       account left checked there.
+    - **A bill paid another way** (#88, 2026-10-21). The bill confirms
+      like a payday, but a payment that came in another way (typed, entered
+      on the phone by someone else in the household, or imported) left the
+      bill overdue until someone opened Confirm, and the forecast counted
+      it twice: in the balance, and as due today. **The rule is the
+      owner's:** "Electricity bills only come once per time period. Really
+      any bills. So if any transaction in that category takes place, it
+      should be assumed to be paying that bill. We can pop up a
+      confirmation window if needed." So a money-out row in a category's
+      bill (or with a line in it), in any account in its currency, pays the
+      bill of its date: the nearest of the plan's dates (the rule a
+      confirmed bill is counted by), or, the bill being late, any day from
+      its date up to the next bill's. The first such row pays it; a later
+      small one is spending. Soonest bill first, each row once. A bill
+      typed by hand, with no plan, keeps the match by payee or amount.
+      **Mark it paid, ask if unsure** (owner's pick, A of two; rejected:
+      always asking once, a question every month for every bill). Near the
+      bill (from nine tenths of it to half again over, a winter
+      electricity bill), the bill is paid with no question: a row typed,
+      edited or filed under the category here pays it as its own action,
+      with "Mobicom bill paid. Next due 11.15." and one ⌘Z; a phone's rows
+      or a bank file's pay theirs with the rows, and their popup says "1
+      bill paid." and takes the ties away with its Undo. Otherwise a window
+      asks, in the UX writer's words (the owner sent back "Looks paid",
+      "That's this bill", "Not it", "It didn't come" and "Skip it": "I
+      really hate the language you're using"): "Did this pay the Mobicom
+      bill? / You paid Mobicom ₮5,000 from Golomt on 10.13. / The bill is
+      ₮41,500, due 10.15." with **No, something else** (the default under
+      half the bill) and **Yes, it's paid**; "Is ₮21,500 still to pay?"
+      for part of it, with **Not this bill**, **No, the bill is paid** and
+      **Yes, pay the rest by 10.15** (the default; the rest stays scheduled
+      on the bill's date with its payee and memo); "Did this pay 2
+      Цахилгаан bills?" when it is two or three bills' worth, with **Only
+      one bill** and **Yes, both bills**, which skips the bills after it
+      and schedules the one past them. Enter takes the default, Esc closes
+      it with nothing decided. A typed row that isn't near opens the window
+      at once; from the phone or a file the popup says "1 bill to check."
+      with Show. Until it's answered the bill's row asks: "Paid on 10.13?
+      Mobicom, −₮40,000.00, from Golomt" with **Yes** and **No**, and the
+      forecast says "A bill may already be paid. It's counted until you
+      say yes." with a click to it (owner: "yeah, idea"). No is kept as a
+      setting (`bill.notIt.<bill>`), merged when both computers say it.
+      **Not this bill** on a row taken as a bill brings that bill back to
+      pay and doesn't ask about the row again. **No bill this time**
+      takes Delete's place on a category's scheduled bill, which already
+      skipped it: "No Mobicom bill on 10.15. Its ₮41,500 stays for the one
+      due 11.15." On the Budget page **a bill there won't be asks
+      nothing** and what was put aside for it counts toward the next
+      (owner: "By default it's set for December, but of course, it's free
+      to move if needed"): a deleted bill still tied to the plan, with no
+      row that paid it, is one there won't be, and the period saves for
+      the next; paid ahead, the minus is made up by the periods up to the
+      next bill, a bill's worth each. Rent isn't paid in parts (owner:
+      "You pay it all at once"), so part payment is for a bill shared, not
+      rent. **Not in #88:** a repeat on a scheduled transfer. The owner:
+      "Anything scheduled as a payment should have a category. If it
+      doesn't have a category, we're not budgeting it."
     - **A note under the category's name** says the plan (owner's pick,
       option A of three, 2026-10-01): "₮900,000 a month", "₮100,000 a
       month · up to ₮1,500,000", "₮1,500,000 set aside", "₮270,000 due

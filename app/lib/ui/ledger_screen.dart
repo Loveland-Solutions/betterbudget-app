@@ -706,6 +706,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (inboxes.isEmpty) return;
       final take = await db.takePhoneEntries(inboxes, today: today);
       if (take == null || !mounted) return;
+      // The phone's rows in a bill's category pay it (owner, 2026-10-21);
+      // they go and come back with the rows.
+      final settled = take.transactionIds.isEmpty
+          ? (ties: const <_Tie>[], unsure: const <BillPayment>[])
+          : await _settleIncoming(take.transactionIds.toSet());
+      if (!mounted) return;
       final t = context.t;
       final label = take.transactionIds.isEmpty
           ? t.ledgerCategoryFromPhone(take.categoryIds.length)
@@ -715,14 +721,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // Only this popup's Undo does, and ⌘⇧Z brings them back.
       final action = _Undoable(
         label,
-        () => db.undoPhoneTake(take),
-        () => db.redoPhoneTake(take),
+        () async {
+          for (final tie in settled.ties.reversed) {
+            await tie.undo();
+          }
+          await db.undoPhoneTake(take);
+        },
+        () async {
+          await db.redoPhoneTake(take);
+          for (final tie in settled.ties) {
+            await tie.redo();
+          }
+        },
       );
       _showToast(
-        label,
-        // One new category, with nothing assigned yet: its Edit is where
-        // that is done.
-        more: take.categoryIds.length == 1
+        [
+          label,
+          if (settled.ties.isNotEmpty)
+            t.ledgerBillsPaidCount(settled.ties.length),
+          if (settled.unsure.isNotEmpty)
+            t.ledgerBillsToCheck(settled.unsure.length),
+        ].join(' · '),
+        // A row that may pay a bill but isn't near it: the window asks
+        // (ADR 0004, "A bill paid another way"). Else one new category,
+        // with nothing assigned yet: its Edit is where that is done.
+        more: settled.unsure.isNotEmpty
+            ? (
+                label: t.ledgerShowMoved,
+                onTap: () => _askBill(settled.unsure.first),
+              )
+            : take.categoryIds.length == 1
             ? (
                 label: t.ledgerEditCategory(take.categoryNames.single),
                 onTap: () => _editCategory(take.categoryIds.single),
@@ -1202,6 +1230,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Future<String?> _post(EntryDraft d) async {
     final t = context.t;
+    final over = _loaded;
     int? made;
     var lineMade = const <({int id, String name})>[];
     PayTaken? paycheck;
@@ -1321,6 +1350,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (!madeAny && !hidden && kept == null && d.date.isAfter(today)) {
         _showToast(t.ledgerScheduledToast(sayFullDate(t, d.date)));
       }
+      // In a bill's category: it pays the bill (owner, 2026-10-21).
+      if (!d.date.isAfter(today)) _settleTyped({id}, over);
       return null;
     } on DbException catch (e) {
       return t.ledgerCouldntSaveBecause(dbProblem(t, e));
@@ -2046,6 +2077,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     bool confirming = false,
   }) async {
     final t = context.t;
+    final over = _loaded;
     final before = await db.snapshot(row.txnId);
     final TxnSnapshot after;
     final int? owedId;
@@ -2201,6 +2233,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (kept != null) kept.said,
       ].join(' · '),
     );
+    // Now in a bill's category, or for its amount: it may pay the bill.
+    if (!row.scheduled && !nowScheduled) _settleTyped({row.txnId}, over);
     return null;
   }
 
@@ -2398,61 +2432,424 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
   }
 
-  /// Confirming [r] would put a bill in twice: [found] is it, already in.
-  /// The scheduled one goes instead, and the next of its plan or pay is
-  /// scheduled as a confirm would, all one action.
-  Future<void> _alreadyIn(RegisterRow r, RegisterRow found) async {
+  /// The bills rows already in may have paid ([billPayments]).
+  Map<int, BillPayment> _payments(LedgerData data) =>
+      billPayments(data, today, uncategorizedId: _uncategorizedId(data));
+
+  /// Ties [p]'s row to its bill (ADR 0004, "A bill paid another way"):
+  /// the row is that bill paid, and the bill goes, or with [keepRest]
+  /// stays scheduled for what's still to pay; with [bills] over one, the
+  /// bills after it are paid with it. The plan's next bill is scheduled
+  /// as a confirm would. Returns the undo, the redo and what the popup
+  /// says, or null when it couldn't be written (the failure is shown).
+  Future<_Tie?> _tieBill(
+    BillPayment p, {
+    bool keepRest = false,
+    int bills = 1,
+  }) async {
     final t = context.t;
-    final deleted = await db.softDeleteMany([r.txnId]);
-    if (!mounted) return;
-    if (deleted.isEmpty) {
-      _showFailure(_lockMessage(r));
-      return;
-    }
-    _cancelEdit();
-    _clearSelection();
-    var nextBills = const <int>[];
-    final planned = r.planCategoryId;
-    // A category's bill: the row in that category is the bill paid, so the
-    // plan counts it and the next bill doesn't find it again. A split with
-    // a line in it too.
+    final bill = p.bill, found = p.row;
+    final planned = bill.planCategoryId;
+    // A split is that bill only with a line in its category.
     final tie =
         planned != null &&
-        found.planCategoryId == null &&
-        (found.categoryId == planned ||
+        (found.kind == RowKind.simple ||
             found.splitLines.any((l) => l.accountId == planned));
-    if (planned != null) {
-      try {
+    final short = bill.amount.abs() - found.amount.abs();
+    final rest = keepRest && short > 0 && bill.kind == RowKind.simple
+        ? bill.amount - found.amount
+        : null;
+    // The bill's "No" answers: gone with the bill; with the rest kept, a
+    // row not tied to a plan is kept off it there, so it can't pay the
+    // rest too.
+    final notItKey = billNotItKey(bill.txnId);
+    final prefs = _data?.prefs ?? const <String, String>{};
+    final notItBefore = prefs[notItKey];
+    final notIt = rest == null
+        ? null
+        : tie
+        ? notItBefore
+        : {...billNotIt(prefs, bill.txnId), found.txnId}.join(',');
+    final TxnSnapshot billBefore, billAfter;
+    final int? tiedBefore = found.planCategoryId;
+    final ({
+      List<int> made,
+      List<int> skipped,
+      Map<String, String> wrote,
+      DateTime? next,
+    })
+    done;
+    try {
+      billBefore = await db.snapshot(bill.txnId);
+      done = await db.payBill(
+        billId: bill.txnId,
+        billAccountId: bill.accountId,
+        foundId: found.txnId,
+        today: today,
+        planCategoryId: planned,
+        tie: tie,
+        rest: rest,
+        notIt: notIt,
+        bills: bills,
+      );
+      billAfter = await db.snapshot(bill.txnId);
+    } on DbException catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSaveBecause(dbProblem(t, e)));
+      return null;
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return null;
+    }
+    final nextDue = done.next;
+    final name = rowPayee(t, bill);
+    final String message;
+    if (rest != null) {
+      message = t.ledgerBillRest(
+        name,
+        formatShort(rest.abs(), currency: bill.currency),
+        sayDate(t, bill.date),
+      );
+    } else if (bills > 1 && nextDue != null) {
+      message = t.ledgerBillsPaidNext(bills, name, sayDate(t, nextDue));
+    } else if (nextDue != null) {
+      message = t.ledgerBillPaidNext(name, sayDate(t, nextDue));
+    } else {
+      message = t.ledgerBillPaidOnly(name);
+    }
+    // Bills scheduled before and skipped with this one come back on undo.
+    final hadSkipped = [
+      for (final id in done.skipped)
+        if (!done.made.contains(id)) id,
+    ];
+    return _Tie(
+      message: message,
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(done.made);
+        if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
+        // Only its tie: whatever was done to the row since stays.
+        if (tie) await db.setPlanBill(found.txnId, tiedBefore);
+        await db.restoreSnapshot(billBefore);
+        await db.setPreference(notItKey, notItBefore);
+        for (final k in done.wrote.keys) {
+          await db.setPreference(k, null);
+        }
+      }),
+      redo: () => db.transaction(() async {
+        await db.restoreSnapshot(billAfter);
         if (tie) await db.setPlanBill(found.txnId, planned);
-        nextBills = await db.ensurePlanBills(today, only: planned);
-      } catch (e) {
-        debugPrint('Scheduling the next bill failed: $e');
-      }
+        if (planned != null) await db.bringBackPlanBills(done.made, planned);
+        if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
+        await db.setPreference(notItKey, notIt);
+        for (final e in done.wrote.entries) {
+          await db.setPreference(e.key, e.value);
+        }
+      }),
+    );
+  }
+
+  /// [p]'s row paid its bill, as the person said: one action, with undo.
+  /// From the bill's own line ([close]), the bill open to confirm closes;
+  /// from a save, whatever is open is left as it is.
+  Future<void> _billPaid(
+    BillPayment p, {
+    bool keepRest = false,
+    int bills = 1,
+    bool close = true,
+  }) async {
+    final tied = await _tieBill(p, keepRest: keepRest, bills: bills);
+    if (tied == null || !mounted) return;
+    if (close) {
+      _cancelEdit();
+      _clearSelection();
+    }
+    _did(tied.message, undo: tied.undo, redo: tied.redo);
+  }
+
+  /// Yes on "Paid on 10.13?": a row near its bill paid it; one that isn't
+  /// is asked about first.
+  Future<void> _answerPaid(BillPayment p) async {
+    if (p.fit == BillFit.paid) return _billPaid(p);
+    await _askBill(p);
+  }
+
+  /// The window for a row in a bill's category that isn't near the bill:
+  /// far less, part of it, far more, or two or three bills' worth.
+  /// Opened by a save ([keys] false), Enter doesn't answer it: the next
+  /// row's Enter, typed straight on, mustn't.
+  Future<void> _askBill(
+    BillPayment p, {
+    bool keys = true,
+    bool close = true,
+  }) async {
+    final data = _data;
+    if (data == null) return;
+    final answer = await showDialog<_BillAnswer>(
+      context: context,
+      builder: (_) => _BillQuestion(
+        keys: keys,
+        payment: p,
+        account: p.row.accountId == p.bill.accountId
+            ? null
+            : data.accounts[p.row.accountId]?.name,
+        category: switch (p.bill.planCategoryId ?? p.bill.categoryId) {
+          final id? => data.accounts[id]?.name,
+          null => null,
+        },
+        dues: _billDates(data, p.bill, p.bills),
+      ),
+    );
+    if (!mounted) return;
+    switch (answer) {
+      case _BillAnswer.paid:
+        await _billPaid(p, close: close);
+      case _BillAnswer.rest:
+        await _billPaid(p, keepRest: true, close: close);
+      case _BillAnswer.several:
+        await _billPaid(p, bills: p.bills, close: close);
+      case _BillAnswer.notIt:
+        await _notIt(p.bill, p.row);
+      case null:
+        break;
+    }
+  }
+
+  /// The dates of [bill] and the [count] - 1 bills of its plan after it.
+  List<DateTime> _billDates(LedgerData data, RegisterRow bill, int count) {
+    final plan = switch (bill.planCategoryId) {
+      final id? => data.plans[id],
+      null => null,
+    };
+    if (plan == null) return [bill.date];
+    final pay = data.payScheduleById(plan.payScheduleId);
+    final out = [bill.date];
+    for (var n = 0; n < 400 && out.length < count; n++) {
+      final d = Budget.dueAfter(plan, n, pay: pay);
+      if (d.isAfter(bill.date)) out.add(d);
+    }
+    return out;
+  }
+
+  /// No on "Paid on 10.13?": [found] isn't [bill], so the bill stops
+  /// asking about that row (kept as a setting, [billNotItKey]), with undo.
+  Future<void> _notIt(RegisterRow bill, RegisterRow found) async {
+    final t = context.t;
+    final key = billNotItKey(bill.txnId);
+    final prefs = _data?.prefs ?? const <String, String>{};
+    final before = prefs[key];
+    final after = {...billNotIt(prefs, bill.txnId), found.txnId}.join(',');
+    try {
+      await db.setPreference(key, after);
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
     }
     if (!mounted) return;
-    final short = r.amount.abs() - found.amount.abs();
     _did(
-      t.ledgerScheduledDeleted(rowPayee(t, r)),
+      t.ledgerNotTheBill(rowPayee(t, bill), sayDate(t, bill.date)),
+      undo: () => db.setPreference(key, before),
+      redo: () => db.setPreference(key, after),
+    );
+  }
+
+  /// "Not this bill" on a row taken as a bill paid: it wasn't, so what the
+  /// tie did is put back ([AppDatabase.notTheBill]) and the bill won't ask
+  /// about the row again.
+  Future<void> _notThisBill(RegisterRow r) async {
+    final t = context.t;
+    final data = _data;
+    if (data == null) return;
+    final paidKey = billPaidKey(r.txnId);
+    final recordValue = data.prefs[paidKey];
+    final record = decodeBillPaid(recordValue);
+    if (record == null) return;
+    final planned = r.planCategoryId;
+    final notItKey = billNotItKey(record.bill);
+    final notItBefore = data.prefs[notItKey];
+    final skippedBefore = {
+      for (final s in record.skipped)
+        billSkippedKey(s): data.prefs[billSkippedKey(s)],
+    };
+    final TxnSnapshot billBefore, billAfter;
+    final List<int> made;
+    final String? notItAfter;
+    try {
+      billBefore = await db.snapshot(record.bill);
+      made = await db.notTheBill(
+        rowId: r.txnId,
+        planCategoryId: planned,
+        record: record,
+        today: today,
+      );
+      billAfter = await db.snapshot(record.bill);
+      notItAfter = await db.preference(notItKey);
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    if (!mounted) return;
+    _clearSelection();
+    final name = switch (planned) {
+      final id? => data.accounts[id]?.name,
+      null => null,
+    };
+    _did(
+      t.ledgerNotTheBill(
+        name ?? rowPayee(t, r),
+        sayDate(t, parseDateKey(billAfter.header.date)),
+      ),
       undo: () => db.transaction(() async {
-        await db.dropPlanBills(nextBills);
-        if (tie) await db.setPlanBill(found.txnId, null);
+        await db.dropPlanBills(made);
+        await db.restoreSnapshot(billBefore);
+        if (record.skipped.isNotEmpty) {
+          await db.softDeleteMany(record.skipped);
+        }
+        for (final e in skippedBefore.entries) {
+          await db.setPreference(e.key, e.value);
+        }
+        await db.setPreference(notItKey, notItBefore);
+        await db.setPreference(paidKey, recordValue);
+        if (planned != null) await db.setPlanBill(r.txnId, planned);
+      }),
+      redo: () => db.transaction(() async {
+        if (planned != null) await db.setPlanBill(r.txnId, null);
+        await db.restoreSnapshot(billAfter);
+        if (record.skipped.isNotEmpty) await db.restoreMany(record.skipped);
+        for (final k in skippedBefore.keys) {
+          await db.setPreference(k, null);
+        }
+        await db.setPreference(notItKey, notItAfter);
+        await db.setPreference(paidKey, null);
+        if (planned != null) await db.bringBackPlanBills(made, planned);
+      }),
+    );
+  }
+
+  /// "No bill this time" on a category's scheduled bill: it won't come.
+  /// Deleted by the person, it stays the plan's, so it isn't scheduled
+  /// again and the budget asks nothing for it; what was put aside for it
+  /// stays for the next (owner, 2026-10-21).
+  Future<void> _noBill(RegisterRow r) async {
+    final t = context.t;
+    final planned = r.planCategoryId;
+    if (planned == null) return;
+    final List<int> deleted, made;
+    final skipKey = billSkippedKey(r.txnId);
+    final skipValue = '$planned;${dateKey(r.date)}';
+    try {
+      deleted = await db.softDeleteMany([r.txnId]);
+      if (deleted.isEmpty) {
+        if (mounted) _showFailure(_lockMessage(r));
+        return;
+      }
+      await db.setPreference(skipKey, skipValue);
+      made = await db.ensurePlanBills(today, only: planned);
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    DateTime? next;
+    for (final x
+        in _data?.registerFor(r.accountId).scheduled ?? const <RegisterRow>[]) {
+      if (x.planCategoryId == planned && x.date.isAfter(r.date)) {
+        next = x.date;
+        break;
+      }
+    }
+    if (next == null && made.isNotEmpty) {
+      try {
+        next = parseDateKey((await db.snapshot(made.first)).header.date);
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    _clearSelection();
+    final name = rowPayee(t, r);
+    _did(
+      next == null
+          ? t.ledgerNoBillLast(name, sayDate(t, r.date))
+          : t.ledgerNoBill(
+              name,
+              sayDate(t, r.date),
+              formatShort(r.amount.abs(), currency: r.currency),
+              sayDate(t, next),
+            ),
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(made);
         await db.restoreMany(deleted);
+        await db.setPreference(skipKey, null);
       }),
       redo: () => db.transaction(() async {
         _expect((await db.softDeleteMany(deleted)).length == deleted.length);
-        if (tie) await db.setPlanBill(found.txnId, planned);
-        if (planned != null) await db.bringBackPlanBills(nextBills, planned);
+        await db.setPreference(skipKey, skipValue);
+        await db.bringBackPlanBills(made, planned);
       }),
-      message: short > 0
-          ? t.ledgerScheduledDeletedShort(
-              rowPayee(t, r),
-              formatShort(short, currency: r.currency),
-            )
-          : t.ledgerScheduledDeletedAlreadyIn(
-              rowPayee(t, r),
-              sayDate(t, found.date),
-            ),
     );
+  }
+
+  /// Rows typed, edited or filed here, waiting for the ledger to come
+  /// back with them, and the snapshot they were saved over.
+  final _toSettle = <int>{};
+  LedgerData? _settleOver;
+
+  /// After rows typed, edited or filed here ([ids]): one in a bill's
+  /// category pays it (owner, 2026-10-21). Looked at in the next snapshot
+  /// of the ledger, which holds the save ([_settleNow]).
+  /// [over] is the snapshot from before the save: if one holding it has
+  /// come already, that one is looked at now.
+  void _settleTyped(Set<int> ids, LedgerData? over) {
+    if (!identical(_loaded, over) && _data != null) {
+      final data = _data!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_settleNow(data, ids));
+      });
+      return;
+    }
+    if (_toSettle.isEmpty) _settleOver = over;
+    _toSettle.addAll(ids);
+  }
+
+  /// The ledger came back after a save: near its bill, a row pays it,
+  /// leaving whatever is open as it is; otherwise the window asks, unless
+  /// a row is open being typed or edited, when the bill's own row asks.
+  Future<void> _settleNow(LedgerData data, Set<int> ids) async {
+    // Only a category's bill (owner, 2026-10-21): one typed by hand asks
+    // on its own row.
+    final p = _payments(data).values
+        .where(
+          (x) => ids.contains(x.row.txnId) && x.bill.planCategoryId != null,
+        )
+        .firstOrNull;
+    if (p == null || !mounted) return;
+    if (p.fit == BillFit.paid) return _billPaid(p, close: false);
+    if (_editing?.controller.isDirty() ?? false) return;
+    await _askBill(p, keys: false, close: false);
+  }
+
+  /// Rows that came in ([ids], from the phone or a bank file): those near
+  /// their bill pay it, tied now and undone with the rows; the others are
+  /// left for the person, who is told how many there are to check.
+  Future<({List<_Tie> ties, List<BillPayment> unsure})> _settleIncoming(
+    Set<int> ids,
+  ) async {
+    final ties = <_Tie>[];
+    final unsure = <BillPayment>[];
+    try {
+      final data = await db.loadLedger();
+      for (final p in _payments(data).values) {
+        if (!ids.contains(p.row.txnId) || p.bill.planCategoryId == null) {
+          continue;
+        }
+        if (p.fit != BillFit.paid) {
+          unsure.add(p);
+          continue;
+        }
+        if (!mounted) break;
+        final tied = await _tieBill(p);
+        if (tied != null) ties.add(tied);
+      }
+    } catch (e) {
+      debugPrint('Looking for bills paid failed: $e');
+    }
+    return (ties: ties, unsure: unsure);
   }
 
   /// Moves a row entered in the wrong account. It leaves this register, so
@@ -2949,6 +3346,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   ? RegisterFilter.all
                   : _filter,
               uncategorizedId: _uncategorizedId(data),
+              looksPaid: billPayments(
+                data,
+                today,
+                uncategorizedId: _uncategorizedId(data),
+              ),
+              accountNamed: (id) => data.accounts[id]?.name,
+              notItFor: (id) => billNotIt(data.prefs, id),
+              paysBill: (id) => data.prefs.containsKey(billPaidKey(id)),
               uncategorizedFrom: budgetPeriod(today, data.periodSchedule).start,
               uncategorizedTo: budgetPeriod(today, data.periodSchedule).end,
               search: _search.text,
@@ -2978,8 +3383,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onRowTap: _tapRow,
                 onToggleCleared: _toggleCleared,
                 onConfirm: _startConfirm,
-                onAlreadyIn: _alreadyIn,
+                onBillPaid: _answerPaid,
+                onNotIt: _notIt,
+                onNotThisBill: _notThisBill,
+                onNoBill: _noBill,
                 onPoint: _pointTo,
+                onShowRow: (r) => _showIn(r.accountId, r.txnId),
                 onSetCategory: (r, c) => _setCategory(r, c),
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
@@ -3043,6 +3452,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// A row's category from its inline menu, in whichever account it's in.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
     final t = context.t;
+    final over = _loaded;
     final payee = rowPayee(t, r);
     final previous = await db.setCategoryMany(
       transactionIds: [r.txnId],
@@ -3067,6 +3477,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
             1,
       ),
     );
+    // Filed under a bill's category: it pays the bill.
+    if (!r.scheduled) _settleTyped({r.txnId}, over);
   }
 
   /// Each pay as the category dropdown names it.
@@ -4404,16 +4816,42 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final label = record.added.isNotEmpty
         ? t.importDone(record.added.length)
         : t.importMatchedToast(record.matched.length);
+    // The file's rows in a bill's category pay it (owner, 2026-10-21),
+    // in the same undo as the import.
+    final settled = record.added.isEmpty
+        ? (ties: const <_Tie>[], unsure: const <BillPayment>[])
+        : await _settleIncoming(record.added.keys.toSet());
+    if (!mounted) return;
     _did(
       label,
-      undo: () => db.undoImport(record),
-      redo: () => db.redoImport(record, account.id),
+      more: settled.unsure.isEmpty
+          ? null
+          : (
+              label: t.ledgerShowMoved,
+              onTap: () => _askBill(settled.unsure.first),
+            ),
+      undo: () async {
+        for (final tie in settled.ties.reversed) {
+          await tie.undo();
+        }
+        await db.undoImport(record);
+      },
+      redo: () async {
+        await db.redoImport(record, account.id);
+        for (final tie in settled.ties) {
+          await tie.redo();
+        }
+      },
       message: [
         label,
         if (record.added.isNotEmpty && newlyCleared > 0)
           t.importMatchedToast(newlyCleared),
         if (record.uncategorizedCount > 0)
           t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
+        if (settled.ties.isNotEmpty)
+          t.ledgerBillsPaidCount(settled.ties.length),
+        if (settled.unsure.isNotEmpty)
+          t.ledgerBillsToCheck(settled.unsure.length),
         if (record.openingMove case final o?)
           t.importOpeningMovedToast(
             sayDate(t, o.toDate),
@@ -5204,6 +5642,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 _loaded = loaded;
                 _incomeWord = incomeWord;
                 _data = loaded.withIncomeNamed(incomeWord);
+                // A save waiting for this snapshot: its rows may pay bills.
+                if (_toSettle.isNotEmpty && !identical(loaded, _settleOver)) {
+                  final ids = {..._toSettle};
+                  final settled = _data!;
+                  _toSettle.clear();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) unawaited(_settleNow(settled, ids));
+                  });
+                }
               }
               final data = _data!;
               final setup = inSetup(data);
@@ -5481,6 +5928,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Widget _body(LedgerData data, AccountInfo account) {
     final summary = data.summaryFor(account.id);
+    // Bills here a row already in may have paid: still counted.
+    final maybePaid = [
+      for (final p in _payments(data).values)
+        if (p.bill.accountId == account.id) p.bill,
+    ]..sort((a, b) => a.date.compareTo(b.date));
     final register = data.registerFor(account.id);
     // Nothing in it yet: ask what's in it first.
     final fresh =
@@ -5562,6 +6014,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
               forecast: forecast,
               // A category in use with a plan or an amount assigned; one
               // archived or deleted isn't the budget any more.
+              maybePaid: maybePaid.length,
+              onShowMaybePaid: maybePaid.isEmpty
+                  ? null
+                  : () => _showIn(
+                      maybePaid.first.accountId,
+                      maybePaid.first.txnId,
+                      scheduled: true,
+                    ),
               budgeted: data.categories.any(
                 (c) =>
                     data.plans.containsKey(c.id) ||
@@ -5641,6 +6101,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     : parseEntryDate(_reconcile!.date.text, today) ?? today,
                 filter: _filter,
                 uncategorizedId: _uncategorizedId(data),
+                looksPaid: billPayments(
+                  data,
+                  today,
+                  uncategorizedId: _uncategorizedId(data),
+                ),
+                accountNamed: (id) => data.accounts[id]?.name,
+                notItFor: (id) => billNotIt(data.prefs, id),
+                paysBill: (id) => data.prefs.containsKey(billPaidKey(id)),
                 uncategorizedFrom: budgetPeriod(
                   today,
                   data.periodSchedule,
@@ -5677,8 +6145,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onRowTap: _tapRow,
                   onToggleCleared: _toggleCleared,
                   onConfirm: _startConfirm,
-                  onAlreadyIn: _alreadyIn,
+                  onBillPaid: _answerPaid,
+                  onNotIt: _notIt,
+                  onNotThisBill: _notThisBill,
+                  onNoBill: _noBill,
                   onPoint: _pointTo,
+                  onShowRow: (r) => _showIn(r.accountId, r.txnId),
                   onSetCategory: _setCategory,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
@@ -8036,6 +8508,184 @@ class _LanguageSettings extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A bill tied to the row that paid it: what the popup says, and how it
+/// comes undone and back.
+class _Tie {
+  const _Tie({required this.message, required this.undo, required this.redo});
+  final String message;
+  final Future<void> Function() undo;
+  final Future<void> Function() redo;
+}
+
+/// What the person answered in [_BillQuestion].
+enum _BillAnswer { paid, rest, several, notIt }
+
+/// Asks whether a row in a bill's category paid it, when it isn't near the
+/// bill (ADR 0004, "A bill paid another way"): far less, part, far more,
+/// or two or three bills' worth. Enter answers with the likely answer, Esc
+/// closes it with nothing decided, and the bill's row asks again.
+class _BillQuestion extends StatelessWidget {
+  const _BillQuestion({
+    this.keys = true,
+    required this.payment,
+    required this.account,
+    required this.category,
+    required this.dues,
+  });
+  final BillPayment payment;
+
+  /// Enter answers with the likely answer; not when opened by a save.
+  final bool keys;
+
+  /// The account the row is in, when it isn't the bill's.
+  final String? account;
+
+  /// The bill's category, for what a payment over it comes out of.
+  final String? category;
+
+  /// The bill's date and those after it a payment for several would pay.
+  final List<DateTime> dues;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final p = payment, bill = p.bill, row = p.row;
+    final currency = bill.currency;
+    String money(int v) => formatShort(v.abs(), currency: currency);
+    final name = rowPayee(t, bill);
+    final payee = rowPayee(t, row);
+    final when = sayDate(t, row.date);
+    final paidLine = account == null
+        ? t.billAskPaid(payee, money(row.amount), when)
+        : t.billAskPaidFrom(payee, money(row.amount), account!, when);
+    final billLine = t.billAskBill(money(bill.amount), sayDate(t, bill.date));
+    final short = bill.amount.abs() - row.amount.abs();
+    final String title;
+    final List<String> lines;
+    final List<({String label, _BillAnswer answer, String key})> answers;
+    final _BillAnswer likely;
+    switch (p.fit) {
+      case BillFit.part:
+        title = t.billRestTitle(money(short));
+        lines = [t.billRestPaid(money(row.amount), money(bill.amount), name)];
+        answers = [
+          (label: t.rowsNotThisBill, answer: _BillAnswer.notIt, key: 'no'),
+          (label: t.billRestNo, answer: _BillAnswer.paid, key: 'paid'),
+          (
+            label: t.billRestYes(sayDate(t, bill.date)),
+            answer: _BillAnswer.rest,
+            key: 'rest',
+          ),
+        ];
+        likely = _BillAnswer.rest;
+      case BillFit.several when dues.length >= 2:
+        final each = money(bill.amount);
+        title = t.billSeveralTitle(dues.length, name);
+        lines = [
+          t.billSeveralPaid(money(row.amount), when),
+          dues.length == 2
+              ? t.billSeveralBills2(
+                  sayDate(t, dues[0]),
+                  sayDate(t, dues[1]),
+                  each,
+                )
+              : t.billSeveralBills3(
+                  sayDate(t, dues[0]),
+                  sayDate(t, dues[1]),
+                  sayDate(t, dues[2]),
+                  each,
+                ),
+        ];
+        answers = [
+          (label: t.billSeveralOne, answer: _BillAnswer.paid, key: 'one'),
+          (
+            label: t.billSeveralYes(dues.length),
+            answer: _BillAnswer.several,
+            key: 'several',
+          ),
+        ];
+        likely = _BillAnswer.several;
+      default:
+        title = t.billAskTitle(name);
+        lines = [
+          paidLine,
+          billLine,
+          if (short < 0 && category != null)
+            t.billAskMore(money(-short), category!),
+        ];
+        answers = [
+          (label: t.billAskNo, answer: _BillAnswer.notIt, key: 'no'),
+          (label: t.billAskYes, answer: _BillAnswer.paid, key: 'paid'),
+        ];
+        // Far less than the bill is more likely something else.
+        likely = p.fit == BillFit.small ? _BillAnswer.notIt : _BillAnswer.paid;
+    }
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Mid.rule),
+      ),
+      child: CallbackShortcuts(
+        bindings: {
+          if (keys)
+            const SingleActivator(LogicalKeyboardKey.enter): () =>
+                Navigator.of(context).pop(likely),
+        },
+        child: Focus(
+          autofocus: true,
+          child: SizedBox(
+            width: 540,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+              child: Column(
+                key: const ValueKey('bill-question'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: onest(17, weight: 600, letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final l in lines) ...[
+                    Text(l, style: onest(13.5, tabular: true)),
+                    const SizedBox(height: 6),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Spacer(),
+                      for (final (i, a) in answers.indexed) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        a.answer == likely
+                            ? _PrimaryButton(
+                                key: ValueKey('bill-${a.key}'),
+                                label: a.label,
+                                icon: Icons.check_rounded,
+                                tooltip: 'Enter',
+                                onTap: () =>
+                                    Navigator.of(context).pop(a.answer),
+                              )
+                            : BarButton(
+                                key: ValueKey('bill-${a.key}'),
+                                label: a.label,
+                                onTap: () =>
+                                    Navigator.of(context).pop(a.answer),
+                              ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
