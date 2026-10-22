@@ -1780,15 +1780,13 @@ class _MoveLeft extends StatefulWidget {
   final void Function(AccountInfo? from, AccountInfo? to, int amount)? onMove;
   final Widget child;
 
-  /// Money comes in (it's at zero or below), rather than going out.
+  /// The box opens with money coming in (it's at zero or below), rather
+  /// than going out; Swap turns it around either way (owner, 2026-10-23:
+  /// "they should be able to move money in or out regardless").
   bool get inward => left <= 0;
 
-  /// What the box's list offers: going out, Not assigned and every other
-  /// category; coming in, Not assigned only while it holds money.
-  List<_MoveChoice> get offered => [
-    for (final c in choices)
-      if (!inward || c.category != null || c.left > 0) c,
-  ];
+  /// Anything to trade with: Not assigned can always take money back.
+  bool get offered => choices.isNotEmpty;
 
   @override
   State<_MoveLeft> createState() => _MoveLeftState();
@@ -1831,14 +1829,14 @@ class _MoveLeftState extends State<_MoveLeft> {
     super.didUpdateWidget(old);
     // Nothing left to trade with (another computer's change): it closes,
     // rather than coming back by itself later.
-    if (widget.offered.isEmpty && _portal.isShowing) _portal.hide();
+    if (!widget.offered && _portal.isShowing) _portal.hide();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final onMove = widget.onMove;
-    if (onMove == null || widget.offered.isEmpty) return widget.child;
+    if (onMove == null || !widget.offered) return widget.child;
     return TapRegion(
       groupId: _link,
       onTapOutside: (_) => _close(),
@@ -1860,7 +1858,7 @@ class _MoveLeftState extends State<_MoveLeft> {
                   here: widget.category,
                   left: widget.left,
                   currency: widget.currency,
-                  choices: widget.offered,
+                  choices: widget.choices,
                   onCancel: _close,
                   onMove: (from, to, amount) {
                     _close();
@@ -1952,7 +1950,24 @@ class _MoveBox extends StatefulWidget {
 }
 
 class _MoveBoxState extends State<_MoveBox> {
-  late final bool _inward = widget.left <= 0;
+  late bool _inward = widget.left <= 0;
+
+  /// What the list offers this way round: going out, Not assigned and
+  /// every other category; coming in, Not assigned only while it holds
+  /// money.
+  List<_MoveChoice> get _offered => [
+    for (final c in widget.choices)
+      if (!_inward || c.category != null || c.left > 0) c,
+  ];
+
+  /// Swap: From and To change places; a choice that can't be on its new
+  /// side (Not assigned with nothing in it, as From) is let go.
+  void _swap() => setState(() {
+    _inward = !_inward;
+    _listOpen = false;
+    final picked = _picked;
+    if (picked != null && !_offered.contains(picked)) _picked = null;
+  });
   late final _amount = TextEditingController(
     // Coming in: what it's short, the one figure the screen already says.
     text: widget.left < 0 ? typedAmount(-widget.left, widget.currency) : '',
@@ -2113,7 +2128,7 @@ class _MoveBoxState extends State<_MoveBox> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final (i, c) in widget.choices.indexed) ...[
+          for (final (i, c) in _offered.indexed) ...[
             if (c.heading case final heading?)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
@@ -2151,7 +2166,7 @@ class _MoveBoxState extends State<_MoveBox> {
               ),
             ),
             // Not assigned stands apart from the categories under it.
-            if (i == 0 && c.category == null && widget.choices.length > 1)
+            if (i == 0 && c.category == null && _offered.length > 1)
               Divider(height: 7, thickness: 1, color: Mid.rule),
           ],
         ],
@@ -2162,11 +2177,45 @@ class _MoveBoxState extends State<_MoveBox> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final here = Text(
-      widget.here.name,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: onest(13.5, weight: 500),
+    final here = SizedBox(
+      height: 34,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              widget.here.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: onest(13.5, weight: 500),
+            ),
+          ),
+          Tooltip(
+            message: t.planMoveSwapTip,
+            waitDuration: const Duration(milliseconds: 500),
+            child: Hoverable(
+              key: const ValueKey('move-swap'),
+              onTap: _swap,
+              builder: (hover) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.swap_vert_rounded, size: 15, color: Mid.blue),
+                    const SizedBox(width: 4),
+                    Text(
+                      t.planMoveSwap,
+                      style: onest(12.5, color: Mid.blue).copyWith(
+                        decoration: hover ? TextDecoration.underline : null,
+                        decorationColor: Mid.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
     final picker = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2181,14 +2230,7 @@ class _MoveBoxState extends State<_MoveBox> {
             height: 34,
             child: Align(alignment: Alignment.centerLeft, child: _label(label)),
           ),
-          Expanded(
-            child: field is Text
-                ? SizedBox(
-                    height: 34,
-                    child: Align(alignment: Alignment.centerLeft, child: field),
-                  )
-                : field,
-          ),
+          Expanded(child: field),
         ],
       ),
     );

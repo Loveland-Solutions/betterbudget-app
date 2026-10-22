@@ -5102,6 +5102,25 @@ void main() {
       await settle(tester);
       data = (await tester.runAsync(db.loadLedger))!;
       expect(amounts()[health], 10000000);
+
+      // Swap: Groceries has money, and money can still come in to it.
+      await tapKey('move-left-$groceries');
+      await tapKey('move-swap');
+      await tapKey('move-pick');
+      await tapKey('move-choice-$health');
+      await tester.enterText(
+        find.byKey(const ValueKey('move-amount')),
+        '10000',
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('move-go')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts()[groceries], 91000000);
+      expect(amounts()[health], 9000000);
+      expect(find.textContaining('from Health to Groceries'), findsOneWidget);
       await tidy(tester, db);
     });
 

@@ -3962,4 +3962,9 @@ meant typing two Assigned amounts (#99). The owner picked **A of three** from sk
   Assigned or the ⋯ first: "Left" reads as a result, not a thing to change.
 - **Money coming in lists the categories with most to give first** (first-time
   reader: Groceries was under three lines at ₮0).
+- **Either way from any row** (owner, 2026-10-23: "I think they should be able to
+  move money in or out regardless"). The box still opens out when there's money and
+  in when it's short, and **Swap** beside the fixed side turns it around (the
+  ledger's word for turning a transfer around); a choice that can't be on its new
+  side (Not assigned with nothing in it, as From) is let go.
 - The computer only: the phone records and checks (ADR 0005).

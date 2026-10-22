@@ -5810,4 +5810,10 @@ class WordsMn extends Words {
 
   @override
   String get planMoveMoney => 'Мөнгө шилжүүлэх';
+
+  @override
+  String get planMoveSwap => 'Эргүүлэх';
+
+  @override
+  String get planMoveSwapTip => 'Мөнгийг эсрэг чиглэлд шилжүүлэх';
 }

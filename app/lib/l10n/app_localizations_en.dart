@@ -6045,4 +6045,10 @@ class WordsEn extends Words {
 
   @override
   String get planMoveMoney => 'Move money';
+
+  @override
+  String get planMoveSwap => 'Swap';
+
+  @override
+  String get planMoveSwapTip => 'Move money the other way';
 }

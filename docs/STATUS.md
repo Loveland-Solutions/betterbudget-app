@@ -18,8 +18,8 @@ and rewrite this line whenever an `.aab` is made.
 
 **A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
 categories", the owner's pick A of three): click Left and a box opens under it with
-From, To and Amount. With money in it, it goes out; at zero or below, it comes in, the
-shortfall filled in. Not assigned is first in the list; only categories in the same
+From, To and Amount. With money in it, it opens going out; at zero or below, coming in, the
+shortfall filled in; **Swap** turns it around. Not assigned is first in the list; only categories in the same
 currency are offered; the row the pointer is on says **Move money** beside its Left
 (owner: "it's a hidden feature"). More than a category has still moves, said with the numbers. One
 undo for both lines; no schema change. `_MoveLeft`, `_MoveBox` in `budget.dart`;

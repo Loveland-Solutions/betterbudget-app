@@ -8931,5 +8931,13 @@
   "planMoveMoney": "Move money",
   "@planMoveMoney": {
     "description": "Budget page: beside a category's Left on the row the pointer is on; clicking opens the box that moves money"
+  },
+  "planMoveSwap": "Swap",
+  "@planMoveSwap": {
+    "description": "Budget page, move box: turns it around, so From and To change places"
+  },
+  "planMoveSwapTip": "Move money the other way",
+  "@planMoveSwapTip": {
+    "description": "Budget page, move box: tooltip on Swap"
   }
 }

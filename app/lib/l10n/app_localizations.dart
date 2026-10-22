@@ -8490,6 +8490,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Move money'**
   String get planMoveMoney;
+
+  /// Budget page, move box: turns it around, so From and To change places
+  ///
+  /// In en, this message translates to:
+  /// **'Swap'**
+  String get planMoveSwap;
+
+  /// Budget page, move box: tooltip on Swap
+  ///
+  /// In en, this message translates to:
+  /// **'Move money the other way'**
+  String get planMoveSwapTip;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
