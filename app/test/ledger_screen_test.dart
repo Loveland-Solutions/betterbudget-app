@@ -2244,7 +2244,10 @@ void main() {
     await tester.pumpAndSettle();
     // Above every category, as on the phone (owner, 2026-10-17).
     final split = tester.getTopLeft(find.text('Split')).dy;
-    expect(split, lessThan(tester.getTopLeft(find.text('Groceries')).dy));
+    expect(split, lessThan(tester.getTopLeft(find.text('Childcare')).dy));
+    // New category above it, with its plus (owner, 2026-10-22).
+    expect(tester.getTopLeft(find.text('New category')).dy, lessThan(split));
+    expect(find.byIcon(Icons.add_rounded), findsWidgets);
     expect(
       find.ancestor(
         of: find.byIcon(Icons.call_split_rounded),
@@ -2454,9 +2457,8 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('a split line makes a new category; undo takes it away', (
-    tester,
-  ) async {
+  testWidgets('a split line\'s + New category opens the New category '
+      'window; each is its own undo', (tester) async {
     final db = await pumpLedger(tester);
     Finder inCard(Finder f) => find.descendant(
       of: find.byKey(const ValueKey('split-card')),
@@ -2478,31 +2480,57 @@ void main() {
     await tester.enterText(lineAmount(0), '98000');
     await tester.enterText(lineCategory(1), 'Toys');
     await tester.pumpAndSettle();
-    // The same line the row's own list has, in the row's currency.
+    // The same line the row's own list has; it opens the window, with
+    // the name typed and no Add another (owner, 2026-10-22, #237).
     await tester.tap(find.text('+ New category “Toys”'));
     await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+          .controller!
+          .text,
+      'Toys',
+    );
+    expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    var d = (await tester.runAsync(() => db.loadLedger()))!;
+    final toys = d.categories.singleWhere((c) => c.name == 'Toys');
+    expect(toys.currency, Currency.mnt);
+    expect(tester.widget<TextField>(lineCategory(1)).controller!.text, 'Toys');
+
     await tester.enterText(lineAmount(1), '37500');
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('entry-submit')));
     await settle(tester);
-    expect(find.textContaining('new category “Toys”'), findsOneWidget);
-    var d = (await tester.runAsync(() => db.loadLedger()))!;
-    final toys = d.categories.singleWhere((c) => c.name == 'Toys');
-    expect(toys.currency, Currency.mnt);
+    // Made already: the row doesn't make it again.
+    expect(find.textContaining('new category “Toys”'), findsNothing);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(d.categories.where((c) => c.name == 'Toys'), hasLength(1));
     final row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
     expect(row.splitLines.map((l) => (l.name, l.amount)), [
       ('Groceries', -9800000),
       ('Toys', -3750000),
     ]);
 
-    // One ⌘Z: the row and the category it made both go; redo, both back.
+    // The row's ⌘Z, then the category's; redo brings them back in turn.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     await chord(tester, LogicalKeyboardKey.keyZ);
     await settle(tester);
     d = (await tester.runAsync(() => db.loadLedger()))!;
-    expect(d.categories.where((c) => c.name == 'Toys' && !c.deleted), isEmpty);
     expect(checking(d).posted.where((r) => r.payee == 'Nomin'), isEmpty);
+    expect(
+      d.categories.where((c) => c.name == 'Toys' && !c.deleted),
+      hasLength(1),
+    );
+    await chord(tester, LogicalKeyboardKey.keyZ);
+    await settle(tester);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(d.categories.where((c) => c.name == 'Toys' && !c.deleted), isEmpty);
+    await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+    await settle(tester);
     await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
     await settle(tester);
     d = (await tester.runAsync(() => db.loadLedger()))!;
@@ -2511,6 +2539,130 @@ void main() {
       hasLength(1),
     );
     expect(checking(d).posted.where((r) => r.payee == 'Nomin'), hasLength(1));
+    await tidy(tester, db);
+  });
+
+  testWidgets('Category\'s + New category opens the New category window, '
+      'and what it adds is in the row', (tester) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    // Found by its controller: the hint that names it goes once it's typed.
+    final typed = tester
+        .widget<TextField>(find.widgetWithText(TextField, 'Category'))
+        .controller!;
+    final field = find.byWidgetPredicate(
+      (w) => w is TextField && w.controller == typed,
+    );
+    Future<void> pick(String name) async {
+      await tester.enterText(field, '');
+      await tester.enterText(field, name);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('+ New category “$name”'));
+      await tester.pumpAndSettle();
+    }
+
+    String category() => typed.text;
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'Mobicom',
+    );
+
+    // With nothing typed, it's at the top of the list beside Split, and
+    // the window opens with no name (owner, 2026-10-22: "I don't see a
+    // new category option").
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New category'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+          .controller!
+          .text,
+      '',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    expect(category(), '');
+
+    // Cancel: nothing made, and the name stays typed.
+    await pick('Phone');
+    expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
+    await tester.tap(find.text('Cancel').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    expect(category(), 'Phone');
+    var d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(d.categories.where((c) => c.name == 'Phone'), isEmpty);
+
+    // A name that's already a category says so, and Add puts that one in.
+    await pick('Phone');
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-name')),
+      'groceries',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Groceries is already a category. Add puts it in this row.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    expect(category(), 'Groceries');
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    expect(d.categories.where((c) => c.name == 'groceries'), isEmpty);
+
+    // Added: made with what the window set, in the row's currency, and
+    // the row is filed under it.
+    await pick('Phone');
+    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
+    await settle(tester);
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('plan-amount')),
+        matching: find.byType(EditableText),
+        matchRoot: true,
+      ),
+      '65000',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('plan-repeat')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('plan-repeat-1')));
+    await settle(tester);
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('plan-date')),
+        matching: find.byType(EditableText),
+        matchRoot: true,
+      ),
+      '10.15',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    expect(category(), 'Phone');
+    expect(find.text('new category'), findsNothing);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    final phone = d.categories.singleWhere((c) => c.name == 'Phone');
+    expect(phone.currency, Currency.mnt);
+    expect(d.plans[phone.id]?.amount, parseAmount('65000'));
+
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '65000');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    await settle(tester);
+    d = (await tester.runAsync(() => db.loadLedger()))!;
+    final row = checking(d).posted.firstWhere((r) => r.payee == 'Mobicom');
+    expect(row.categoryLabel, 'Phone');
+    expect(d.categories.where((c) => c.name == 'Phone'), hasLength(1));
     await tidy(tester, db);
   });
 

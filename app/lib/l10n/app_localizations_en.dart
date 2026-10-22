@@ -1396,6 +1396,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String planNameIsCategoryInRow(String name) {
+    return '$name is already a category. Add puts it in this row.';
+  }
+
+  @override
   String planNameArchived(String name) {
     return '$name is archived. Add brings it back.';
   }
@@ -2121,6 +2126,9 @@ class WordsEn extends Words {
 
   @override
   String get rowsCancelEdit => 'Cancel';
+
+  @override
+  String get rowsNewCategoryBlank => 'New category';
 
   @override
   String get rowsSplitOption => 'Split';

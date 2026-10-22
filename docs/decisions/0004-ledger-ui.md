@@ -3876,6 +3876,19 @@ is set before it's made, so nothing opens after Add.
 - Esc, Cancel or a click outside close it; what was added stays.
 - A bill's Set aside each month shows the amount alone, here and in Edit (owner:
   "Remove 'worked out from the date'").
-- Still to come under #237: the ledger's entry row and the phone's "+ New category"
-  open the same window (owner, 2026-10-22), the entry row's without Add another.
+- **The entry row's "+ New category"** (in Category and on a split's line) opens the
+  same window (owner, 2026-10-22). It's always in the list: **New category**, with a
+  plus, at the top beside Split, opens it with no name; a name typed that isn't a
+  category yet shows "+ New category “Toys”" in its place (owner, on the first build:
+  "I don't see a 'new category' option in the category dropdown"; it was there only
+  after typing). Either opens it with the name typed, in the row's currency (no
+  choice of another: the row couldn't take it), and no Add another: a row takes one
+  category. Add makes the category, its own undo, and puts it in the row, cursor in
+  the amount; the row's ⌘Z is a second one. A name that's already a category says
+  "Groceries is already a category. Add puts it in this row." Cancel leaves the name
+  typed: saving the row then makes it bare, as before. A new name typed and saved
+  with Enter, without picking "+ New category", still makes it bare with the row, in
+  one undo, so typing a row isn't stopped by a window it didn't ask for.
+- Still to come under #237: the phone's "+ New category" opens a phone-sized window
+  with the same settings.
 

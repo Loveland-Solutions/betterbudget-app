@@ -1724,7 +1724,16 @@ class _NewCategoryWindow extends StatefulWidget {
     required this.currency,
     required this.nameNote,
     required this.onAdd,
+    this.name = '',
+    this.offerAnother = true,
   });
+
+  /// The name it starts with: what was typed in the entry row's Category.
+  final String name;
+
+  /// Add another beside Add: on the Budget page, not from a row, which
+  /// takes the one category.
+  final bool offerAnother;
 
   /// The ledger as it is now: after an Add, with that category in it.
   final LedgerData Function() data;
@@ -1799,7 +1808,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
                 key: ValueKey('new-category-$_round'),
                 category: AccountInfo(
                   id: _newCategoryId,
-                  name: '',
+                  name: _round == 0 ? widget.name : '',
                   type: AccountType.expense,
                   currency: _currency,
                 ),
@@ -1816,7 +1825,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
                 onArchive: () {},
                 onShowAllRows: () {},
                 onAdd: _add,
-                offerAnother: true,
+                offerAnother: widget.offerAnother,
                 nameNote: widget.nameNote,
               ),
             ],

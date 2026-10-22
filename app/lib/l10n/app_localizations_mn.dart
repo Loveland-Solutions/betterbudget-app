@@ -1332,6 +1332,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String planNameIsCategoryInRow(String name) {
+    return '$name ангилал аль хэдийн байна. Нэмэх дарахад энэ мөрөнд оруулна.';
+  }
+
+  @override
   String planNameArchived(String name) {
     return '$name ангиллыг архивласан байна. Нэмэх дарахад буцааж гаргана.';
   }
@@ -2041,6 +2046,9 @@ class WordsMn extends Words {
 
   @override
   String get rowsCancelEdit => 'Болих';
+
+  @override
+  String get rowsNewCategoryBlank => 'Шинэ ангилал';
 
   @override
   String get rowsSplitOption => 'Хуваах';

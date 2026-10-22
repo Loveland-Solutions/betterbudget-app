@@ -84,6 +84,11 @@ class EntryRowController {
   /// Set by the screen: whether this payee is already remembered as this
   /// category (and pay) on the row's account, so the box isn't offered.
   bool Function(String payee, int categoryId, int? payId)? remembered;
+
+  /// Set by the screen: "+ New category" opens the New category window
+  /// with the name typed and the row's currency (owner, 2026-10-22, #237).
+  /// The category it made or picked, or null when it closed without one.
+  Future<AccountInfo?> Function(String name, Currency currency)? newCategory;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -385,6 +390,16 @@ class _EntryRowState extends State<EntryRow> {
     account: AccountInfo(id: _createId, name: name, type: AccountType.expense),
   );
 
+  /// "New category" at the top of the list, beside Split, while nothing
+  /// new is typed (owner, 2026-10-22: it wasn't in the list to see): the
+  /// window, with no name yet. Its label is what the field says, so
+  /// picking it leaves the field as it was.
+  static const _blankId = -4;
+  ({String label, AccountInfo account}) _blankOption(String typed) => (
+    label: context.t.rowsNewCategoryBlank,
+    account: AccountInfo(id: _blankId, name: typed, type: AccountType.expense),
+  );
+
   /// The "Split" line, at the top of the list (owner, 2026-10-17, as on
   /// the phone). Last in the options, so the keys start on a category.
   static const _splitId = -3;
@@ -590,6 +605,51 @@ class _EntryRowState extends State<EntryRow> {
       _amount.text.trim().isNotEmpty;
 
   bool get _isTransfer => _category.text.trim().startsWith('→');
+
+  /// "+ New category" in Category: the New category window, and the
+  /// category it made in the field. Closed without one, the name stays
+  /// typed, and saving the row still makes it, bare, as before.
+  Future<void> _pickNew(String name) async {
+    final open = widget.controller.newCategory;
+    final made = open == null ? null : await open(name, _hereCurrency);
+    if (!mounted) return;
+    if (open == null) {
+      // Picked on purpose: no doubt left.
+      _chosenNew = name;
+      _amountFocus.requestFocus();
+      return;
+    }
+    if (made == null) {
+      _categoryFocus.requestFocus();
+      return;
+    }
+    setState(() {
+      _category.text = made.name;
+      _chosenNew = null;
+    });
+    _amountFocus.requestFocus();
+  }
+
+  /// "+ New category" on a split's line: the same window, and the
+  /// category it made on the line.
+  Future<void> _pickNewOnLine(_SplitLine l, String name) async {
+    final made = await widget.controller.newCategory!(name, _hereCurrency);
+    if (!mounted) return;
+    setState(() {
+      if (made == null) {
+        // Closed: a name typed stays picked as new; with none, as it was.
+        if (name.isNotEmpty) {
+          l.accountId = null;
+          l.newName = name;
+        }
+      } else {
+        l.accountId = made.id;
+        l.newName = null;
+        l.category.text = made.name;
+      }
+    });
+    (made == null ? l.categoryFocus : l.amountFocus).requestFocus();
+  }
 
   /// A name typed in Category that isn't one yet: saving creates it.
   String? get _newCategory {
@@ -938,6 +998,10 @@ class _EntryRowState extends State<EntryRow> {
           type: AccountType.expense,
           currency: _hereCurrency,
         ),
+      // Nothing new typed: the window, to name one there. It keeps what
+      // the line says, so closing it changes nothing.
+      if (!fresh && widget.controller.newCategory != null)
+        AccountInfo(id: _blankId, name: q, type: AccountType.expense),
     ];
   }
 
@@ -1428,8 +1492,21 @@ class _EntryRowState extends State<EntryRow> {
                         label: (c) => c.name,
                         optionText: (c) => c.id == _createId
                             ? t.rowsNewCategoryOption(c.name)
+                            : c.id == _blankId
+                            ? t.rowsNewCategoryBlank
                             : c.name,
+                        pinned: (c) => c.id == _blankId,
+                        pinnedIcon: (_) => Icons.add_rounded,
                         onSelected: (c) {
+                          if (c.id == _blankId) {
+                            _pickNewOnLine(l, '');
+                            return;
+                          }
+                          if (c.id == _createId &&
+                              widget.controller.newCategory != null) {
+                            _pickNewOnLine(l, c.name);
+                            return;
+                          }
                           if (c.id == _createId) {
                             l.accountId = null;
                             l.newName = c.name;
@@ -1955,28 +2032,42 @@ class _EntryRowState extends State<EntryRow> {
                                                       ),
                                                 ),
                                                 if (_newCategory case final n?)
-                                                  _createOption(n),
+                                                  _createOption(n)
+                                                else if (!_isTransfer &&
+                                                    widget
+                                                            .controller
+                                                            .newCategory !=
+                                                        null)
+                                                  _blankOption(q),
                                                 // Whatever's typed: it starts
                                                 // from the category named.
                                                 if (!_isTransfer) _splitOption,
                                               ],
                                               label: (o) =>
-                                                  o.account.id == _createId
+                                                  o.account.id == _createId ||
+                                                      o.account.id == _blankId
                                                   ? o.account.name
                                                   : o.label,
                                               optionText: (o) => o.label,
                                               pinned: (o) =>
-                                                  o.account.id == _splitId,
-                                              pinnedIcon:
-                                                  Icons.call_split_rounded,
+                                                  o.account.id == _splitId ||
+                                                  o.account.id == _blankId,
+                                              pinnedIcon: (o) =>
+                                                  o.account.id == _blankId
+                                                  ? Icons.add_rounded
+                                                  : Icons.call_split_rounded,
                                               onSelected: (o) {
                                                 if (o.account.id == _splitId) {
                                                   _openSplit();
                                                   return;
                                                 }
-                                                // Picked on purpose: no doubt left.
                                                 if (o.account.id == _createId) {
-                                                  _chosenNew = o.account.name;
+                                                  _pickNew(o.account.name);
+                                                  return;
+                                                }
+                                                if (o.account.id == _blankId) {
+                                                  _pickNew('');
+                                                  return;
                                                 }
                                                 _amountFocus.requestFocus();
                                               },
@@ -2794,7 +2885,7 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
   final bool Function(T)? pinned;
 
   /// Drawn before a pinned option's words.
-  final IconData? pinnedIcon;
+  final IconData? Function(T)? pinnedIcon;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -2897,7 +2988,7 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           for (final (j, o) in above.indexed)
-                            item(o, list.length + j, icon: pinnedIcon),
+                            item(o, list.length + j, icon: pinnedIcon?.call(o)),
                         ],
                       ),
                     ),

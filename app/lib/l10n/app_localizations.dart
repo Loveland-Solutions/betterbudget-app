@@ -1943,6 +1943,12 @@ abstract class Words {
   /// **'{name} is already a category. Add opens it.'**
   String planNameIsCategory(String name);
 
+  /// New category window opened from the entry row's + New category: under the name while it's an existing category's; Add closes the window and puts that category in the row's Category
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is already a category. Add puts it in this row.'**
+  String planNameIsCategoryInRow(String name);
+
   /// New category window: under the name while it's an archived category's; Add brings that category back with what the window set
   ///
   /// In en, this message translates to:
@@ -2968,6 +2974,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get rowsCancelEdit;
+
+  /// Entry row's Category list, at the top beside Split while no new name is typed: opens the New category window
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get rowsNewCategoryBlank;
 
   /// First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing).
   ///
