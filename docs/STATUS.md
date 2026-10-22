@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-22** · version 0.43.0 · schema v21 · 793 tests pass
+**Last updated: 2026-10-23** · version 0.46.0 · schema v21 · 802 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -15,6 +15,14 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 needs a new one; before offering a build, compare this line with `git log` on
 `app/lib/ui/phone/` and the time of `app/build/app/outputs/bundle/release/app-release.aab`,
 and rewrite this line whenever an `.aab` is made.
+
+**A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
+categories", the owner's pick A of three): click Left and a box opens under it with
+From, To and Amount. With money in it, it goes out; at zero or below, it comes in, the
+shortfall filled in. Not assigned is first in the list; only categories in the same
+currency are offered. More than a category has still moves, said with the numbers. One
+undo for both lines; no schema change. `_MoveLeft`, `_MoveBox` in `budget.dart`;
+`_moveBudget` in `ledger_screen.dart`. The computer only.
 
 **The phone's "+ New category" asks everything the computer's window does** (0.45.0,
 closes #237; ADR 0004 "New category: one window with everything"): one scrolling page,

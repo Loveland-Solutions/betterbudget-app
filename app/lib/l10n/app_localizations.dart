@@ -8376,6 +8376,114 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{A bill may already be paid. It\'s counted until you say yes.} other{{count} bills may already be paid. They\'re counted until you say yes.}}'**
   String forecastMaybePaid(int count);
+
+  /// Budget page, the box that moves money between categories: label of the side the money comes from
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get planMoveFrom;
+
+  /// Budget page, move box: label of the side the money goes to
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get planMoveTo;
+
+  /// Budget page, move box: label of the amount field
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get planMoveAmount;
+
+  /// Budget page, move box: the From or To field before a category is chosen
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category'**
+  String get planMoveChoose;
+
+  /// Budget page, move box: what a category in the list has left
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} left'**
+  String planMoveLeft(String amount);
+
+  /// Budget page, move box: a category in the list that is below zero, by how much
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} overspent'**
+  String planMoveOverspent(String amount);
+
+  /// Budget page, move box: the button that moves the money
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get planMoveButton;
+
+  /// Budget page, move box: Move was clicked with no amount
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount'**
+  String get planMoveEnterAmount;
+
+  /// Budget page, move box: the amount is more than the category it comes from has left (it still moves)
+  ///
+  /// In en, this message translates to:
+  /// **'{category} has {left} left. After this, it will be {short} overspent.'**
+  String planMoveWarn(String category, String left, String short);
+
+  /// Budget page, move box: the category the money comes from is already below zero (it still moves)
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is {over} overspent. After this, it will be {short} overspent.'**
+  String planMoveWarnOver(String category, String over, String short);
+
+  /// Budget page, move box: more is taken from Not assigned than it holds (it still moves)
+  ///
+  /// In en, this message translates to:
+  /// **'Only {amount} is not assigned. After this, you will have assigned {over} too much.'**
+  String planMoveWarnNotAssigned(String amount, String over);
+
+  /// Toast after moving money from one category to another
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {amount} from {from} to {to}'**
+  String planMoved(String amount, String from, String to);
+
+  /// Undo history label for moving money between two categories
+  ///
+  /// In en, this message translates to:
+  /// **'Move {amount} from {from} to {to}'**
+  String planMoveUndo(String amount, String from, String to);
+
+  /// Toast after moving money from Not assigned into a category
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned {amount} more to {category}'**
+  String planMovedMore(String amount, String category);
+
+  /// Toast after moving money from a category to Not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {amount} from {category} back to not assigned'**
+  String planMovedBack(String amount, String category);
+
+  /// Undo history label for moving money from a category to Not assigned
+  ///
+  /// In en, this message translates to:
+  /// **'Move {amount} from {category} back to not assigned'**
+  String planMoveBackUndo(String amount, String category);
+
+  /// Budget page: tooltip on a category's Left when it holds money
+  ///
+  /// In en, this message translates to:
+  /// **'Click to move this money to another category'**
+  String get planMoveOutTip;
+
+  /// Budget page: tooltip on a category's Left at zero or below
+  ///
+  /// In en, this message translates to:
+  /// **'Click to move money in from another category'**
+  String get planMoveInTip;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

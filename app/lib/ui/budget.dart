@@ -36,6 +36,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onStartLater,
     required this.onKeepStart,
     required this.onAssignPlanned,
+    required this.onMove,
     required this.onEditOpens,
   });
 
@@ -56,6 +57,11 @@ class _BudgetPage extends StatefulWidget {
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
+
+  /// Move was clicked in the box under a Left: the amount from one side to
+  /// the other in the period; null on a side is Not assigned.
+  final void Function(BudgetSpan, AccountInfo? from, AccountInfo? to, int)
+  onMove;
 
   /// The first-period offer: start the budget in the next period instead.
   final void Function(BudgetSpan period, BudgetSpan next) onStartLater;
@@ -347,6 +353,37 @@ class _BudgetPageState extends State<_BudgetPage> {
       final toAssign = line?.toAssign ?? 0;
       final currency = c.currency;
       final usage = data.categoryUsage[c.id];
+      // What a move can trade with: Not assigned in its currency, then the
+      // other categories in it (rule 28), each with what it has left.
+      // Money waiting for a bill, and the safety net, under their own
+      // headings, so neither reads as money to spend (budget review; the
+      // phone's Bills, owner 2026-10-07).
+      final pool = budget.pools.where((p) => p.currency == currency);
+      final others = [
+        for (final x in spending)
+          if (x.id != c.id &&
+              x.currency == currency &&
+              budget.lines[x.id] != null)
+            x,
+      ];
+      bool isBill(AccountInfo x) =>
+          budget.lines[x.id]?.plan?.plan.kind == PlanKind.byDate;
+      final groups = [
+        (null, others.where((x) => !saved.contains(x.id) && !isBill(x))),
+        (t.phoneBills, others.where((x) => !saved.contains(x.id) && isBill(x))),
+        (t.planSaved, others.where((x) => saved.contains(x.id))),
+      ];
+      final choices = <_MoveChoice>[
+        if (pool.isNotEmpty)
+          (category: null, left: pool.first.notAssigned, heading: null),
+        for (final (heading, xs) in groups)
+          for (final (i, x) in xs.indexed)
+            (
+              category: x,
+              left: budget.lines[x.id]!.left,
+              heading: i == 0 ? heading : null,
+            ),
+      ];
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
@@ -387,6 +424,8 @@ class _BudgetPageState extends State<_BudgetPage> {
             ? t.planFromBefore(money(line.fromBefore, currency))
             : null,
         currency: currency,
+        moveChoices: choices,
+        onMove: (from, to, amount) => widget.onMove(period, from, to, amount),
         editing: _editing == c.id,
         onEdit: () => edit(c.id),
         onAssign: (amount, {required bool next}) {
@@ -1424,8 +1463,15 @@ class _CategoryRow extends StatefulWidget {
     this.assignPlanned,
     this.onAssignPlanned,
     this.flags = const [],
+    this.moveChoices = const [],
+    this.onMove,
   });
   final AccountInfo category;
+
+  /// What the box under Left can move money to or from: Not assigned
+  /// first, then the other categories in its currency.
+  final List<_MoveChoice> moveChoices;
+  final void Function(AccountInfo? from, AccountInfo? to, int amount)? onMove;
 
   /// It's open in Edit under the row.
   final bool open;
@@ -1626,15 +1672,23 @@ class _CategoryRowState extends State<_CategoryRow> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Money(
-                            line.left,
-                            key: ValueKey('left-${c.id}'),
-                            size: 13.5,
-                            weight: 600,
+                          _MoveLeft(
+                            key: ValueKey('move-${c.id}'),
+                            category: c,
+                            left: line.left,
                             currency: widget.currency,
-                            color: line.left < 0
-                                ? Mid.coral
-                                : (line.left == 0 ? Mid.ink3 : Mid.ink),
+                            choices: widget.moveChoices,
+                            onMove: widget.onMove,
+                            child: Money(
+                              line.left,
+                              key: ValueKey('left-${c.id}'),
+                              size: 13.5,
+                              weight: 600,
+                              currency: widget.currency,
+                              color: line.left < 0
+                                  ? Mid.coral
+                                  : (line.left == 0 ? Mid.ink3 : Mid.ink),
+                            ),
                           ),
                           if (widget.fromBefore case final before?)
                             Text(
@@ -1673,6 +1727,506 @@ class _CategoryRowState extends State<_CategoryRow> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One side a move can trade with: a category, or Not assigned (null),
+/// what it has left, and the heading it starts (Bills, Saved), if any.
+typedef _MoveChoice = ({AccountInfo? category, int left, String? heading});
+
+/// A category's Left, which opens the move box under it (#99; ADR 0004
+/// "Move money between categories", the owner's pick A of three). With
+/// money in it, the box moves it out; at zero or below, it moves money in,
+/// the shortfall filled in. Nothing to trade with: plain, not a button.
+class _MoveLeft extends StatefulWidget {
+  const _MoveLeft({
+    super.key,
+    required this.category,
+    required this.left,
+    required this.currency,
+    required this.choices,
+    required this.onMove,
+    required this.child,
+  });
+  final AccountInfo category;
+  final int left;
+  final Currency currency;
+  final List<_MoveChoice> choices;
+  final void Function(AccountInfo? from, AccountInfo? to, int amount)? onMove;
+  final Widget child;
+
+  /// Money comes in (it's at zero or below), rather than going out.
+  bool get inward => left <= 0;
+
+  /// What the box's list offers: going out, Not assigned and every other
+  /// category; coming in, Not assigned only while it holds money.
+  List<_MoveChoice> get offered => [
+    for (final c in choices)
+      if (!inward || c.category != null || c.left > 0) c,
+  ];
+
+  @override
+  State<_MoveLeft> createState() => _MoveLeftState();
+}
+
+class _MoveLeftState extends State<_MoveLeft> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+
+  /// Where focus was before the box opened, so closing hands it back.
+  FocusNode? _returnFocus;
+
+  /// It opens above the amount when there's more room there than below,
+  /// with that much room for its list.
+  bool _above = false;
+  double _room = 600;
+
+  void _toggle() {
+    if (_portal.isShowing) return _close();
+    _returnFocus = FocusManager.instance.primaryFocus;
+    final box = context.findRenderObject() as RenderBox?;
+    final height = MediaQuery.sizeOf(context).height;
+    if (box != null && box.hasSize) {
+      final top = box.localToGlobal(Offset.zero).dy;
+      final below = height - top - box.size.height;
+      _above = below < 480 && top > below;
+      _room = (_above ? top : below) - 16;
+    }
+    setState(_portal.show);
+  }
+
+  void _close() {
+    if (!_portal.isShowing) return;
+    setState(_portal.hide);
+    _returnFocus?.requestFocus();
+  }
+
+  @override
+  void didUpdateWidget(_MoveLeft old) {
+    super.didUpdateWidget(old);
+    // Nothing left to trade with (another computer's change): it closes,
+    // rather than coming back by itself later.
+    if (widget.offered.isEmpty && _portal.isShowing) _portal.hide();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final onMove = widget.onMove;
+    if (onMove == null || widget.offered.isEmpty) return widget.child;
+    return TapRegion(
+      groupId: _link,
+      onTapOutside: (_) => _close(),
+      child: CompositedTransformTarget(
+        link: _link,
+        child: OverlayPortal(
+          controller: _portal,
+          overlayChildBuilder: (context) => CompositedTransformFollower(
+            link: _link,
+            targetAnchor: _above ? Alignment.topRight : Alignment.bottomRight,
+            followerAnchor: _above ? Alignment.bottomRight : Alignment.topRight,
+            offset: Offset(8, _above ? -8 : 8),
+            child: Align(
+              alignment: _above ? Alignment.bottomRight : Alignment.topRight,
+              child: TapRegion(
+                groupId: _link,
+                child: _MoveBox(
+                  room: _room,
+                  here: widget.category,
+                  left: widget.left,
+                  currency: widget.currency,
+                  choices: widget.offered,
+                  onCancel: _close,
+                  onMove: (from, to, amount) {
+                    _close();
+                    onMove(from, to, amount);
+                  },
+                ),
+              ),
+            ),
+          ),
+          child: Tooltip(
+            message: widget.inward ? t.planMoveInTip : t.planMoveOutTip,
+            waitDuration: const Duration(milliseconds: 600),
+            child: Hoverable(
+              key: ValueKey('move-left-${widget.category.id}'),
+              onTap: _toggle,
+              builder: (hover) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                // Pulled right by its padding and edge, so the amount still
+                // ends where it did.
+                transform: Matrix4.translationValues(9, 0, 0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  // Outlined on hover, as Assigned is: a click opens the box.
+                  border: Border.all(
+                    color: hover || _portal.isShowing
+                        ? Mid.ink2.withValues(alpha: 0.4)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The box under a Left: From, To and Amount, one side the category
+/// clicked, the other chosen from a list (empty until chosen), each with
+/// what it has left. More than the side it comes from has is said in plain
+/// words with the real numbers, and still moves (warn, don't block).
+class _MoveBox extends StatefulWidget {
+  const _MoveBox({
+    required this.room,
+    required this.here,
+    required this.left,
+    required this.currency,
+    required this.choices,
+    required this.onMove,
+    required this.onCancel,
+  });
+
+  /// How tall it can be in the window; its list takes what's spare.
+  final double room;
+  final AccountInfo here;
+  final int left;
+  final Currency currency;
+  final List<_MoveChoice> choices;
+  final void Function(AccountInfo? from, AccountInfo? to, int amount) onMove;
+  final VoidCallback onCancel;
+
+  @override
+  State<_MoveBox> createState() => _MoveBoxState();
+}
+
+class _MoveBoxState extends State<_MoveBox> {
+  late final bool _inward = widget.left <= 0;
+  late final _amount = TextEditingController(
+    // Coming in: what it's short, the one figure the screen already says.
+    text: widget.left < 0 ? typedAmount(-widget.left, widget.currency) : '',
+  );
+  final _focus = FocusNode(debugLabel: 'move-amount');
+  _MoveChoice? _picked;
+  bool _listOpen = false;
+
+  /// Move was clicked with no category chosen, or no amount.
+  bool _noPick = false;
+  bool _noAmount = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focus.requestFocus();
+      _amount.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _amount.text.length,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  String _money(int v) => formatMoney(v, currency: widget.currency);
+
+  int? get _typed {
+    final typed = _amount.text.trim();
+    if (typed.isEmpty) return null;
+    final a = parseAmount(typed, widget.currency);
+    return a == null || a <= 0 ? null : a;
+  }
+
+  /// The plain words when more goes than the side it comes from has.
+  String? _warning(Words t) {
+    final amount = _typed;
+    final picked = _picked;
+    if (amount == null || (_inward && picked == null)) return null;
+    final from = _inward ? picked!.category : widget.here;
+    final has = _inward ? picked!.left : widget.left;
+    if (amount <= has) return null;
+    final short = _money(amount - has);
+    if (from == null) return t.planMoveWarnNotAssigned(_money(has), short);
+    return has >= 0
+        ? t.planMoveWarn(from.name, _money(has), short)
+        : t.planMoveWarnOver(from.name, _money(-has), short);
+  }
+
+  void _submit() {
+    final amount = _typed;
+    final picked = _picked;
+    if (picked == null || amount == null) {
+      setState(() {
+        _noPick = picked == null;
+        _noAmount = amount == null;
+      });
+      if (amount == null) _focus.requestFocus();
+      return;
+    }
+    _inward
+        ? widget.onMove(picked.category, widget.here, amount)
+        : widget.onMove(widget.here, picked.category, amount);
+  }
+
+  Widget _label(String text) => SizedBox(
+    width: 64,
+    child: Text(text, style: onest(13, color: Mid.ink2)),
+  );
+
+  /// What a choice shows on its right: left, or overspent in coral; Not
+  /// assigned its amount alone, while it has some.
+  Widget _has(Words t, _MoveChoice c) {
+    if (c.category == null) {
+      return c.left > 0
+          ? Text(_money(c.left), style: onest(13, tabular: true))
+          : const SizedBox.shrink();
+    }
+    return c.left < 0
+        ? Text(
+            t.planMoveOverspent(_money(-c.left)),
+            style: onest(13, color: Mid.coral, tabular: true),
+          )
+        : Text(
+            t.planMoveLeft(_money(c.left)),
+            style: onest(
+              13,
+              color: c.left == 0 ? Mid.ink3 : Mid.ink,
+              tabular: true,
+            ),
+          );
+  }
+
+  String _name(Words t, _MoveChoice c) =>
+      c.category?.name ?? t.planKeyNotAssigned;
+
+  Widget _picker(Words t) {
+    final picked = _picked;
+    return Hoverable(
+      key: const ValueKey('move-pick'),
+      onTap: () => setState(() => _listOpen = !_listOpen),
+      builder: (hover) => Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Mid.ground.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _noPick && picked == null
+                ? Mid.coral.withValues(alpha: 0.6)
+                : (_listOpen || hover ? Mid.blue : Colors.transparent),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                picked == null ? t.planMoveChoose : _name(t, picked),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: onest(13.5, color: picked == null ? Mid.ink3 : Mid.ink),
+              ),
+            ),
+            if (picked != null) ...[_has(t, picked), const SizedBox(width: 6)],
+            Icon(
+              _listOpen
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: Mid.ink3,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _list(Words t) => Container(
+    margin: const EdgeInsets.only(top: 4),
+    padding: const EdgeInsets.all(4),
+    // What's spare once the fields, a warning and the buttons are in.
+    constraints: BoxConstraints(
+      maxHeight: (widget.room - 240).clamp(120.0, 520.0),
+    ),
+    decoration: BoxDecoration(
+      color: Mid.card,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Mid.rule),
+    ),
+    child: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, c) in widget.choices.indexed) ...[
+            if (c.heading case final heading?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+                child: Text(heading, style: onest(12, color: Mid.ink3)),
+              ),
+            Hoverable(
+              key: ValueKey('move-choice-${c.category?.id ?? 'none'}'),
+              onTap: () => setState(() {
+                _picked = c;
+                _listOpen = false;
+                _noPick = false;
+              }),
+              builder: (hover) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                decoration: BoxDecoration(
+                  color: hover || identical(c, _picked)
+                      ? Mid.blueWash
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _name(t, c),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: onest(13),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _has(t, c),
+                  ],
+                ),
+              ),
+            ),
+            // Not assigned stands apart from the categories under it.
+            if (i == 0 && c.category == null && widget.choices.length > 1)
+              Divider(height: 7, thickness: 1, color: Mid.rule),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final here = Text(
+      widget.here.name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: onest(13.5, weight: 500),
+    );
+    final picker = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_picker(t), if (_listOpen) _list(t)],
+    );
+    Widget line(String label, Widget field) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 34,
+            child: Align(alignment: Alignment.centerLeft, child: _label(label)),
+          ),
+          Expanded(
+            child: field is Text
+                ? SizedBox(
+                    height: 34,
+                    child: Align(alignment: Alignment.centerLeft, child: field),
+                  )
+                : field,
+          ),
+        ],
+      ),
+    );
+    final warning = _warning(t);
+    // Its own focus scope: Tab stays in the box, so Esc still closes it.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
+      },
+      child: FocusScope(
+        child: Material(
+          key: const ValueKey('move-box'),
+          color: Mid.card,
+          elevation: 6,
+          shadowColor: Colors.black.withValues(alpha: 0.25),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Mid.rule),
+          ),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                line(t.planMoveFrom, _inward ? picker : here),
+                line(t.planMoveTo, _inward ? here : picker),
+                line(
+                  t.planMoveAmount,
+                  SizedBox(
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('move-amount'),
+                      controller: _amount,
+                      focusNode: _focus,
+                      style: onest(13.5, tabular: true),
+                      onChanged: (_) => setState(() => _noAmount = false),
+                      onSubmitted: (_) => _submit(),
+                      decoration: _fieldDecoration(wrong: _noAmount).copyWith(
+                        prefixText: widget.currency.prefix,
+                        prefixStyle: onest(13.5, color: Mid.ink3),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_noAmount)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 64, bottom: 10),
+                    child: Text(
+                      t.planMoveEnterAmount,
+                      style: onest(12.5, color: Mid.coral),
+                    ),
+                  ),
+                if (warning != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      warning,
+                      key: const ValueKey('move-warning'),
+                      style: onest(13, color: Mid.ink, tabular: true),
+                    ),
+                  ),
+                Row(
+                  children: [
+                    const Spacer(),
+                    BarButton(
+                      key: const ValueKey('move-cancel'),
+                      label: t.planCancel,
+                      onTap: widget.onCancel,
+                    ),
+                    _PrimaryButton(
+                      key: const ValueKey('move-go'),
+                      label: t.planMoveButton,
+                      icon: Icons.arrow_forward_rounded,
+                      tooltip: 'Enter',
+                      onTap: _submit,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

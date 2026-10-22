@@ -4917,6 +4917,237 @@ void main() {
       },
     );
 
+    testWidgets('Left moves money out, or in when short; warns; ⌘Z (#99)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final groceries = id('Groceries'), health = id('Health');
+      final dining = id('Dining out');
+      // Groceries ₮900,000, Tab, Health ₮100,000, as on payday.
+      await tester.tap(find.byKey(ValueKey('assigned-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('assign-field')),
+        '900000',
+      );
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('assign-field')),
+        '100000',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      Map<int, int> amounts() => {
+        for (final b in data.budgetAmounts) b.categoryId: b.amount,
+      };
+      Future<void> tapKey(String key) async {
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+      }
+
+      // Groceries has money: the box moves it out, To chosen from a list.
+      await tapKey('move-left-$groceries');
+      expect(find.byKey(const ValueKey('move-box')), findsOneWidget);
+      expect(find.text('Choose a category'), findsOneWidget);
+      // Move with nothing chosen and no amount: it stays, and says so.
+      await tapKey('move-go');
+      expect(find.text('Enter an amount'), findsOneWidget);
+      expect(find.byKey(const ValueKey('move-box')), findsOneWidget);
+      await tapKey('move-pick');
+      expect(find.byKey(const ValueKey('move-choice-none')), findsOneWidget);
+      await tapKey('move-choice-$health');
+      await tester.enterText(
+        find.byKey(const ValueKey('move-amount')),
+        '200000',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('move-warning')), findsNothing);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('move-go')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts(), {groceries: 70000000, health: 30000000});
+      expect(find.byKey(const ValueKey('move-box')), findsNothing);
+      expect(
+        find.textContaining(
+          'Moved ${formatMoney(20000000, currency: Currency.mnt)} '
+          'from Groceries to Health',
+        ),
+        findsOneWidget,
+      );
+
+      // One ⌘Z puts both back.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts(), {groceries: 90000000, health: 10000000});
+
+      // More than Groceries has: said with the numbers; Esc moves nothing.
+      final has = tester
+          .widget<Money>(find.byKey(ValueKey('left-$groceries')))
+          .minor;
+      final typed = has ~/ 100 + 10000;
+      await tapKey('move-left-$groceries');
+      await tapKey('move-pick');
+      await tapKey('move-choice-$health');
+      await tester.enterText(
+        find.byKey(const ValueKey('move-amount')),
+        '$typed',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('move-warning'))).data,
+        'Groceries has ${formatMoney(has, currency: Currency.mnt)} left. '
+        'After this, it will be '
+        '${formatMoney(typed * 100 - has, currency: Currency.mnt)} overspent.',
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('move-box')), findsNothing);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts(), {groceries: 90000000, health: 10000000});
+
+      // Dining out spent with nothing assigned: the box moves money in,
+      // the shortfall filled in; Not assigned is a choice.
+      final short = -tester
+          .widget<Money>(find.byKey(ValueKey('left-$dining')))
+          .minor;
+      expect(short, greaterThan(0));
+      await tapKey('move-left-$dining');
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('move-amount')))
+            .controller!
+            .text,
+        typedAmount(short, Currency.mnt),
+      );
+      await tapKey('move-pick');
+      await expectLater(
+        find.byType(MaterialApp), // the box lives in the app's overlay
+        matchesGoldenFile('goldens/budget_move.png'),
+      );
+      // From a category at ₮0: it has nothing left, not "₮0 overspent".
+      final childcare = id('Childcare');
+      await tapKey('move-choice-$childcare');
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('move-warning'))).data,
+        startsWith(
+          'Childcare has ${formatMoney(0, currency: Currency.mnt)} left.',
+        ),
+      );
+      await tapKey('move-pick');
+      await tapKey('move-choice-none');
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('move-go')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts()[dining], short);
+      expect(
+        tester.widget<Money>(find.byKey(ValueKey('left-$dining'))).minor,
+        0,
+      );
+      expect(find.textContaining('more to Dining out'), findsOneWidget);
+
+      // Health's money back to not assigned: only Health changes; ⌘Z.
+      await tapKey('move-left-$health');
+      await tapKey('move-pick');
+      await tapKey('move-choice-none');
+      await tester.enterText(
+        find.byKey(const ValueKey('move-amount')),
+        '30000',
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('move-go')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts(), {groceries: 90000000, health: 7000000, dining: short});
+      expect(
+        find.textContaining('from Health back to not assigned'),
+        findsOneWidget,
+      );
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(amounts()[health], 10000000);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a move to a category by a pay lands in one of its pays', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      final gifts = data.categories.firstWhere((c) => c.name == 'Gifts').id;
+      await tester.runAsync(() async {
+        final today = DateTime(2026, 9, 16);
+        final jenny = (await db.savePaySchedule(
+          accountId: data.openAccounts
+              .firstWhere((a) => a.name == 'Khan Savings')
+              .id,
+          name: 'Jenny',
+          amount: 120000000,
+          rule: PayRule.everyWeeks,
+          weeks: 2,
+          anchor: DateTime(2026, 9, 11),
+          weekend: PayWeekend.keep,
+          today: today,
+        )).after.id;
+        await db.changeCategoryPlan(
+          gifts,
+          CategoryPlan(
+            categoryId: gifts,
+            kind: PlanKind.each,
+            amount: 10000000,
+            start: today,
+            payScheduleId: jenny,
+          ),
+          today,
+        );
+      });
+      await settle(tester);
+      await openBudget(tester);
+      // The month on screen holds three of Jenny's pays; the move goes in
+      // the one today is in (09.11–09.24), not spread over all three.
+      await tester.tap(find.byKey(ValueKey('move-left-$gifts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('move-pick')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('move-choice-none')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('move-amount')),
+        '50000',
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('move-go')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(
+        [
+          for (final b in data.budgetAmounts)
+            if (b.categoryId == gifts) (dateKey(b.date), b.amount),
+        ],
+        [('2026-09-11', 5000000)],
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('envelopes: put in, spent and left; Tab goes on; ⌘Z; periods', (
       tester,
     ) async {

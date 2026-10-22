@@ -5733,4 +5733,78 @@ class WordsMn extends Words {
   String forecastMaybePaid(int count) {
     return '$count төлбөр төлөгдсөн байж магадгүй. Тийм гэж хэлтэл тооцно.';
   }
+
+  @override
+  String get planMoveFrom => 'Хаанаас';
+
+  @override
+  String get planMoveTo => 'Хаашаа';
+
+  @override
+  String get planMoveAmount => 'Дүн';
+
+  @override
+  String get planMoveChoose => 'Ангилал сонгох';
+
+  @override
+  String planMoveLeft(String amount) {
+    return '$amount үлдсэн';
+  }
+
+  @override
+  String planMoveOverspent(String amount) {
+    return '$amount хэтэрсэн';
+  }
+
+  @override
+  String get planMoveButton => 'Шилжүүлэх';
+
+  @override
+  String get planMoveEnterAmount => 'Дүнгээ оруулна уу';
+
+  @override
+  String planMoveWarn(String category, String left, String short) {
+    return '$category-д $left үлдсэн. Үүний дараа $short хэтэрнэ.';
+  }
+
+  @override
+  String planMoveWarnOver(String category, String over, String short) {
+    return '$category $over хэтэрсэн байна. Үүний дараа $short хэтэрнэ.';
+  }
+
+  @override
+  String planMoveWarnNotAssigned(String amount, String over) {
+    return 'Зөвхөн $amount хуваарилаагүй байна. Үүний дараа $over-ээр хэт их хуваарилсан болно.';
+  }
+
+  @override
+  String planMoved(String amount, String from, String to) {
+    return '$amount-г $from-с $to руу шилжүүлсэн';
+  }
+
+  @override
+  String planMoveUndo(String amount, String from, String to) {
+    return '$amount-г $from-с $to руу шилжүүлэх';
+  }
+
+  @override
+  String planMovedMore(String amount, String category) {
+    return '$category-д $amount нэмж хуваарилсан';
+  }
+
+  @override
+  String planMovedBack(String amount, String category) {
+    return '$category-с $amount-г хуваарилаагүй мөнгө рүү буцаасан';
+  }
+
+  @override
+  String planMoveBackUndo(String amount, String category) {
+    return '$category-с $amount-г хуваарилаагүй мөнгө рүү буцаах';
+  }
+
+  @override
+  String get planMoveOutTip => 'Дарж энэ мөнгийг өөр ангилал руу шилжүүлэх';
+
+  @override
+  String get planMoveInTip => 'Дарж өөр ангиллаас мөнгө шилжүүлж авах';
 }
