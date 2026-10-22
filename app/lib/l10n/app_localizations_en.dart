@@ -6042,4 +6042,7 @@ class WordsEn extends Words {
 
   @override
   String get planMoveInTip => 'Click to move money in from another category';
+
+  @override
+  String get planMoveMoney => 'Move money';
 }

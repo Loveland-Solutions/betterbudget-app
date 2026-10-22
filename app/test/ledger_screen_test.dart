@@ -4953,6 +4953,25 @@ void main() {
         await tester.pumpAndSettle();
       }
 
+      // Pointing anywhere on a row says "Move money" beside its Left
+      // (owner, 2026-10-23: "it's a hidden feature").
+      expect(find.byKey(ValueKey('move-label-$groceries')), findsNothing);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(
+        tester.getTopLeft(find.byKey(ValueKey('category-$groceries'))) +
+            const Offset(60, 20),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Move money'), findsOneWidget);
+      expect(find.byKey(ValueKey('move-label-$groceries')), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_move_hover.png'),
+      );
+      await mouse.removePointer();
+      await tester.pumpAndSettle();
+
       // Groceries has money: the box moves it out, To chosen from a list.
       await tapKey('move-left-$groceries');
       expect(find.byKey(const ValueKey('move-box')), findsOneWidget);

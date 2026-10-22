@@ -8484,6 +8484,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Click to move money in from another category'**
   String get planMoveInTip;
+
+  /// Budget page: beside a category's Left on the row the pointer is on; clicking opens the box that moves money
+  ///
+  /// In en, this message translates to:
+  /// **'Move money'**
+  String get planMoveMoney;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

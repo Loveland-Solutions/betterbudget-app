@@ -8927,5 +8927,9 @@
   "planMoveInTip": "Click to move money in from another category",
   "@planMoveInTip": {
     "description": "Budget page: tooltip on a category's Left at zero or below"
+  },
+  "planMoveMoney": "Move money",
+  "@planMoveMoney": {
+    "description": "Budget page: beside a category's Left on the row the pointer is on; clicking opens the box that moves money"
   }
 }

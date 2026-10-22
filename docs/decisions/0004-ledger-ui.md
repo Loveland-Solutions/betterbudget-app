@@ -3950,4 +3950,16 @@ meant typing two Assigned amounts (#99). The owner picked **A of three** from sk
   own pay periods**: the one today is in, or the last one in the month (both reviews).
   Spread over every pay in the month, part landed on a pay already over and Left moved
   by less than the toast said.
+- **Found by pointing at a row** (owner, 2026-10-23: "Looks good, but it's a hidden
+  feature. How would people know that's how they do it?"). With the pointer anywhere
+  on a row, its Left is outlined with **Move money** beside the amount ("it should
+  say 'Move money'", not "Move"); at rest the page is as before. The Left column is
+  wider for it, and a plan's note under a name wraps instead of being cut. The design
+  committee's sketches: **2, the row pointed at (chosen)**; 1, "Move money in" under
+  every amount that's short (rejected: the same words seven times on a bad month); 3,
+  short amounts outlined at all times and "Assigned too much" opening the box
+  (rejected: a column of red boxes). The first-time reader would have clicked
+  Assigned or the ⋯ first: "Left" reads as a result, not a thing to change.
+- **Money coming in lists the categories with most to give first** (first-time
+  reader: Groceries was under three lines at ₮0).
 - The computer only: the phone records and checks (ADR 0005).

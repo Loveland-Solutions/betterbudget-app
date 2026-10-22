@@ -20,7 +20,8 @@ and rewrite this line whenever an `.aab` is made.
 categories", the owner's pick A of three): click Left and a box opens under it with
 From, To and Amount. With money in it, it goes out; at zero or below, it comes in, the
 shortfall filled in. Not assigned is first in the list; only categories in the same
-currency are offered. More than a category has still moves, said with the numbers. One
+currency are offered; the row the pointer is on says **Move money** beside its Left
+(owner: "it's a hidden feature"). More than a category has still moves, said with the numbers. One
 undo for both lines; no schema change. `_MoveLeft`, `_MoveBox` in `budget.dart`;
 `_moveBudget` in `ledger_screen.dart`. The computer only.
 

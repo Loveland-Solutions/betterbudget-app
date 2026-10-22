@@ -5807,4 +5807,7 @@ class WordsMn extends Words {
 
   @override
   String get planMoveInTip => 'Дарж өөр ангиллаас мөнгө шилжүүлж авах';
+
+  @override
+  String get planMoveMoney => 'Мөнгө шилжүүлэх';
 }

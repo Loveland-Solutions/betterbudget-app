@@ -278,13 +278,13 @@ class _BudgetPageState extends State<_BudgetPage> {
               // Each word is centred in its column as the dotted lines draw
               // it (owner, 2026-10-07): between two lines, and for Left
               // between its line and where the amounts end.
-              for (final (h, from) in [
-                (t.planAssigned, _ColumnLines._gap),
-                (t.planSpent, _ColumnLines._gap),
-                (t.planLeft, _ColumnLines._gap / 2),
+              for (final (h, from, width) in [
+                (t.planAssigned, _ColumnLines._gap, _amountWidth),
+                (t.planSpent, _ColumnLines._gap, _amountWidth),
+                (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
               ])
                 SizedBox(
-                  width: _amountWidth,
+                  width: width,
                   child: Padding(
                     padding: EdgeInsets.only(left: from * 2),
                     child: Text(
@@ -368,6 +368,14 @@ class _BudgetPageState extends State<_BudgetPage> {
       ];
       bool isBill(AccountInfo x) =>
           budget.lines[x.id]?.plan?.plan.kind == PlanKind.byDate;
+      // Money coming in (it's short): the ones with most to give first, so
+      // Groceries isn't under three lines at ₮0 (first-time reader).
+      if ((line?.left ?? 0) <= 0) {
+        others.sort(
+          (a, b) =>
+              budget.lines[b.id]!.left.compareTo(budget.lines[a.id]!.left),
+        );
+      }
       final groups = [
         (null, others.where((x) => !saved.contains(x.id) && !isBill(x))),
         (t.phoneBills, others.where((x) => !saved.contains(x.id) && isBill(x))),
@@ -894,6 +902,10 @@ class _BudgetPageState extends State<_BudgetPage> {
 
 const double _amountWidth = 136;
 
+/// Left is wider: on the row the pointer is on, "Move money" goes beside
+/// its amount (owner, 2026-10-23), in both languages.
+const double _leftWidth = _amountWidth + 116;
+
 /// Two dotted lines down the list, between Assigned and Spent and between
 /// Spent and Left (owner, 2026-10-07). Each row and the headings draw their
 /// own piece, so the lines stop at an open Edit.
@@ -911,8 +923,9 @@ class _ColumnLines extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final dot = Paint()..color = color.withValues(alpha: 0.6);
-    for (final columns in const [1, 2]) {
-      final x = size.width - _afterLeft - columns * _amountWidth + _gap;
+    for (final columns in const [0, 1]) {
+      final x =
+          size.width - _afterLeft - _leftWidth - columns * _amountWidth + _gap;
       for (var y = 1.0; y < size.height; y += 4) {
         canvas.drawRect(Rect.fromLTWH(x, y, 1, 2), dot);
       }
@@ -1667,13 +1680,14 @@ class _CategoryRowState extends State<_CategoryRow> {
                       ),
                     ),
                     SizedBox(
-                      width: _amountWidth,
+                      width: _leftWidth,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _MoveLeft(
                             key: ValueKey('move-${c.id}'),
+                            rowHover: _hover,
                             category: c,
                             left: line.left,
                             currency: widget.currency,
@@ -1746,6 +1760,7 @@ typedef _MoveChoice = ({AccountInfo? category, int left, String? heading});
 class _MoveLeft extends StatefulWidget {
   const _MoveLeft({
     super.key,
+    this.rowHover = false,
     required this.category,
     required this.left,
     required this.currency,
@@ -1753,6 +1768,11 @@ class _MoveLeft extends StatefulWidget {
     required this.onMove,
     required this.child,
   });
+
+  /// The pointer is on its row: outlined, with "Move money" beside it, so
+  /// it's found without hunting (owner, 2026-10-23: "it's a hidden
+  /// feature").
+  final bool rowHover;
   final AccountInfo category;
   final int left;
   final Currency currency;
@@ -1856,22 +1876,45 @@ class _MoveLeftState extends State<_MoveLeft> {
             child: Hoverable(
               key: ValueKey('move-left-${widget.category.id}'),
               onTap: _toggle,
-              builder: (hover) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                // Pulled right by its padding and edge, so the amount still
-                // ends where it did.
-                transform: Matrix4.translationValues(9, 0, 0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  // Outlined on hover, as Assigned is: a click opens the box.
-                  border: Border.all(
-                    color: hover || _portal.isShowing
-                        ? Mid.ink2.withValues(alpha: 0.4)
-                        : Colors.transparent,
+              builder: (hover) {
+                final lit = hover || widget.rowHover || _portal.isShowing;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                ),
-                child: widget.child,
-              ),
+                  // Pulled right by its padding and edge, so the amount
+                  // still ends where it did.
+                  transform: Matrix4.translationValues(9, 0, 0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    // Outlined, as Assigned is on hover: a click opens it.
+                    border: Border.all(
+                      color: lit
+                          ? Mid.ink2.withValues(alpha: hover ? 0.6 : 0.4)
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (lit) ...[
+                        Flexible(
+                          child: Text(
+                            t.planMoveMoney,
+                            key: ValueKey('move-label-${widget.category.id}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: onest(12.5, weight: 500, color: Mid.blue),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Flexible(child: widget.child),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -2786,10 +2829,10 @@ class _PlanNoteLine extends StatelessWidget {
               child: Hoverable(
                 key: ValueKey('plan-note-$id'),
                 onTap: onPlan,
+                // A sentence with an amount wraps rather than being cut
+                // (ADR 0004 "No overflow stripe"); Left took some width.
                 builder: (hover) => Text(
                   note.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: onest(
                     12,
                     color: hover ? Mid.ink : Mid.ink2,

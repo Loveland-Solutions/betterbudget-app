@@ -1385,5 +1385,6 @@
   "planMovedBack": "{category}-с {amount}-г хуваарилаагүй мөнгө рүү буцаасан",
   "planMoveBackUndo": "{category}-с {amount}-г хуваарилаагүй мөнгө рүү буцаах",
   "planMoveOutTip": "Дарж энэ мөнгийг өөр ангилал руу шилжүүлэх",
-  "planMoveInTip": "Дарж өөр ангиллаас мөнгө шилжүүлж авах"
+  "planMoveInTip": "Дарж өөр ангиллаас мөнгө шилжүүлж авах",
+  "planMoveMoney": "Мөнгө шилжүүлэх"
 }
