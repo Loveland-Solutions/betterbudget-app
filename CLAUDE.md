@@ -24,11 +24,12 @@ into the docs.
   under the license.
 - Ledger first, polished, then the budget.
 - The published privacy policy is `PRIVACY.md` in the public repo
-  `Loveland-Solutions/betterbudget` (no copy here). It says what the app stores and
+  `Loveland-Solutions/betterbudget` (no copy here), copied to
+  https://lls.mn/en/betterbudget/privacy/, the address every store's listing gives. It says what the app stores and
   where: on the device, encrypted, a folder the user picks, files the user saves, bank
   files read on the device, bug reports on GitHub. A change that puts data anywhere
   new, or alters what Report a bug fills in, updates it and its "Last updated" date
-  first.
+  first, and the website's copy with it.
 
 ## How the owner works
 
