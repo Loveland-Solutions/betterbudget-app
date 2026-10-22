@@ -1316,6 +1316,32 @@ class WordsMn extends Words {
   String get planAdd => 'Нэмэх';
 
   @override
+  String get planAddAnother => 'Өөр нэгийг нэмэх';
+
+  @override
+  String planNewAdded(String names) {
+    return 'Нэмэгдсэн: $names';
+  }
+
+  @override
+  String get planEnterName => 'Нэр оруулна уу';
+
+  @override
+  String planNameIsCategory(String name) {
+    return '$name ангилал аль хэдийн байна. Нэмэх дарахад түүнийг нээнэ.';
+  }
+
+  @override
+  String planNameArchived(String name) {
+    return '$name ангиллыг архивласан байна. Нэмэх дарахад буцааж гаргана.';
+  }
+
+  @override
+  String planNameIsAccount(String name) {
+    return '$name нэртэй данс аль хэдийн байна. Ангилалд өөр нэр өгнө үү.';
+  }
+
+  @override
   String get planNothingFiled => 'Энэ ангилалд одоогоор гүйлгээ алга.';
 
   @override
@@ -4481,11 +4507,6 @@ class WordsMn extends Words {
   @override
   String get planPaidFromHintNone =>
       'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны таамаглалд харагдана.';
-
-  @override
-  String planWorkedOut(String amount) {
-    return '$amount · өдрөөс тооцсон';
-  }
 
   @override
   String get planEnterAmountDate => 'Дүн болон өдрөө оруулна уу';

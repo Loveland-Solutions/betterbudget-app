@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-21** · version 0.42.0 · schema v21 · 792 tests pass
+**Last updated: 2026-10-22** · version 0.43.0 · schema v21 · 793 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -10,6 +10,17 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 `docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
 
 ## Next step
+
+**Add category opens a window with everything** (0.43.0, part of #237; ADR 0004
+"New category: one window with everything"): the category's Edit form in a **New
+category** window, with Cancel, **Add another** (⌘↩) and Add. Add another keeps only
+the currency. Each Add is one undo, the category with its accounts and plan. A taken
+name says so as it's typed; a bank account's name stops Add. A bill's Set aside shows
+the amount alone. Seen by the owner in the real app. `_NewCategoryWindow`, and
+`_CategoryEditor`'s `onAdd`, in `budget.dart`; `_addCategory`, `_categoryNameNote` in
+`ledger_screen.dart`. Next under #237: the entry row's "+ New category" opens the same
+window (no Add another there), then the phone's, which changes what the phone writes
+to the folder.
 
 **A bill paid another way** (0.42.0, closes #88; ADR 0004 "A bill paid another
 way"): on the owner's rule, a payment in a bill's category pays that period's bill,

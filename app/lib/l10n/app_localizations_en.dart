@@ -1380,6 +1380,32 @@ class WordsEn extends Words {
   String get planAdd => 'Add';
 
   @override
+  String get planAddAnother => 'Add another';
+
+  @override
+  String planNewAdded(String names) {
+    return 'Added: $names';
+  }
+
+  @override
+  String get planEnterName => 'Enter a name';
+
+  @override
+  String planNameIsCategory(String name) {
+    return '$name is already a category. Add opens it.';
+  }
+
+  @override
+  String planNameArchived(String name) {
+    return '$name is archived. Add brings it back.';
+  }
+
+  @override
+  String planNameIsAccount(String name) {
+    return 'An account is already called $name. Give the category another name.';
+  }
+
+  @override
   String get planNothingFiled => 'Nothing is filed under it yet.';
 
   @override
@@ -4651,11 +4677,6 @@ class WordsEn extends Words {
   @override
   String get planPaidFromHintNone =>
       'Leave one account checked and the bill shows in its forecast.';
-
-  @override
-  String planWorkedOut(String amount) {
-    return '$amount · worked out from the date';
-  }
 
   @override
   String get planEnterAmountDate => 'Enter the amount and the date';

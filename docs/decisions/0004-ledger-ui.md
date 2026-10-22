@@ -3848,3 +3848,34 @@ cents, ran past its box (issue #127).
   and Mongolian, at the smallest window and a large one (the phone at 390 and 320
   wide). It fails on any overflow, on text cut off without "…", on an amount that
   wraps, on an amount cut with "…", and on one drawn below 60% of its size.
+
+## New category: one window with everything (2026-10-22)
+
+Owner, 2026-10-22 (#237): "when they select add category, I want to have a pop up
+window with all the options, and an option to add another." Add category (and ⌘N on
+Budget) opens a **New category** window holding the category's Edit form as it is:
+name, currency (with accounts in two), "Is there a due date?" and its answers, Paid
+from, and the row as it will read. Nothing new to learn: the same questions and words
+as Edit. Buttons: **Cancel**, **Add another** (⌘↩, Ctrl+Enter), **Add** (Enter). This
+replaces the name-only box whose Edit opened under the new row (2026-10-05): everything
+is set before it's made, so nothing opens after Add.
+
+- Sketched three ways (design committee): **A, Edit's form in a window (chosen)**;
+  B, the form on the left and the row on the right (rejected: a second layout, wider);
+  C, a list of several new categories added with one button (rejected: one category,
+  the usual case, gets harder, and Cancel throws away all of them).
+- **Add another** adds this one and empties the form, cursor in the name. Only the
+  currency stays: a Yes kept from Rent would make Food a bill unseen. "Added: Mobicom ·
+  Taxi" under the title is the sign they went in.
+- Each Add is its own undo, the category with its accounts and plan together.
+- A name already in use says so as it's typed: a category ("Groceries is already a
+  category. Add opens it.": Add closes the window and opens its Edit), an archived one
+  ("… is archived. Add brings it back.", with what the window set), or a bank account
+  ("An account is already called TDB Checking. Give the category another name.": one
+  list of names holds both, so this one stops Add). No name: "Enter a name".
+- Esc, Cancel or a click outside close it; what was added stays.
+- A bill's Set aside each month shows the amount alone, here and in Edit (owner:
+  "Remove 'worked out from the date'").
+- Still to come under #237: the ledger's entry row and the phone's "+ New category"
+  open the same window (owner, 2026-10-22), the entry row's without Add another.
+

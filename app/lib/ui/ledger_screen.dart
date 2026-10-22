@@ -4499,35 +4499,90 @@ class _LedgerScreenState extends State<LedgerScreen> {
             )
             .firstOrNull;
 
-  /// A name that's already taken makes nothing new: an archived one comes
-  /// back instead, so there's never two of it.
-  /// The new category's id, so its Edit can open; null when nothing was
-  /// made. A name that's an archived category's brings that one back.
-  Future<int?> _createCategory(String name, Currency currency) async {
+  /// What the New category window says under a name that's taken, and
+  /// what Add does then: a category opens in Edit, an archived one comes
+  /// back with these settings. A bank account's name can't be a
+  /// category's too (one list of names holds both), so that one stops Add.
+  ({String text, bool blocks})? _categoryNameNote(String name) {
     final t = context.t;
     final data = _data;
-    final existing = data == null ? null : _categoryNamed(data, name);
+    if (data == null) return null;
+    final category = _categoryNamed(data, name);
+    if (category != null) {
+      return (
+        text: category.archived
+            ? t.planNameArchived(category.name)
+            : t.planNameIsCategory(category.name),
+        blocks: false,
+      );
+    }
+    final q = name.toLowerCase();
+    final account = data.accounts.values
+        .where((a) => !a.isCategory && a.name.toLowerCase() == q)
+        .firstOrNull;
+    if (account != null) {
+      return (text: t.planNameIsAccount(account.name), blocks: true);
+    }
+    return null;
+  }
+
+  /// Add in the New category window: the category, with its accounts and
+  /// plan, in one write and one undo. A name that's taken makes nothing
+  /// new, so there's never two of it: a category opens in Edit, and an
+  /// archived one comes back with what the window set.
+  Future<_Added> _addCategory(_CategoryEdit e) async {
+    final t = context.t;
+    final data = _data;
+    if (data == null) return _Added.none;
+    final existing = _categoryNamed(data, e.name);
     if (existing != null) {
-      if (existing.archived) {
-        await _archiveCategory(existing, false);
-        return existing.id;
+      if (!existing.archived) {
+        _budgetKey.currentState?.openEdit(existing.id);
+        _closeToast();
+        return _Added.opened;
       }
-      _showFailure(t.ledgerAlreadyCategory(existing.name));
-      return null;
+      await _archiveCategory(existing, false);
+      final back = _data?.accounts[existing.id];
+      if (back != null) await _saveCategory(back, e);
+      return _Added.made;
     }
     late int id;
+    PlanChange? planChange;
+    Future<void> settings() async {
+      if (e.off.isNotEmpty) {
+        await db.setCategoryMoney(id, currency: e.currency, off: e.off);
+      }
+    }
+
     if (!await _accountWrite(
-      () async => id = await db.createCategory(name, currency: currency),
+      () => db.transaction(() async {
+        id = await db.createCategory(e.name, currency: e.currency);
+        await settings();
+        if (e.plan != null) {
+          planChange = await db.changeCategoryPlan(id, e.plan, today);
+        }
+      }),
       what: 'category',
     )) {
-      return null;
+      return _Added.none;
     }
     _did(
-      t.ledgerAdded(name),
-      undo: () async => _expect(await db.deleteEmptyAccount(id)),
-      redo: () => db.undeleteAccount(DeletedAccount(id, const [])),
+      t.ledgerAdded(e.name),
+      undo: () => db.transaction(() async {
+        if (planChange case final change?) {
+          await db.undoPlanChange(id, change);
+        }
+        _expect(await db.deleteEmptyAccount(id));
+      }),
+      redo: () => db.transaction(() async {
+        await db.undeleteAccount(DeletedAccount(id, const []));
+        await settings();
+        if (planChange case final change?) {
+          await db.redoPlanChange(id, e.plan, change);
+        }
+      }),
     );
-    return id;
+    return _Added.made;
   }
 
   /// Renaming onto another category's name is what merging looks like, so
@@ -5847,7 +5902,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onArchive: (c) => _archiveCategory(c, true),
                                   onDelete: (c) => _deleteCategory(data, c),
                                   onPay: (p) => _openPaySetup(existing: p),
-                                  onCreate: _createCategory,
+                                  onAdd: _addCategory,
+                                  nameNote: _categoryNameNote,
                                   onEditOpens: _closeToast,
                                   onUnarchive: (c) =>
                                       _archiveCategory(c, false),
