@@ -9,12 +9,17 @@ import 'dart:math';
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 
-import '../../domain/ledger.dart' show isIncomeName;
+import '../../domain/budget.dart';
+import '../../domain/ledger.dart';
 import '../../domain/money.dart';
+import '../../domain/pay.dart';
 import '../../domain/phone.dart';
 import '../language.dart';
+import '../plan_form.dart';
 import '../schemes.dart';
 import '../theme.dart';
+
+part 'phone_new_category.dart';
 
 /// The snapshot and this phone's waiting entries. Where they are kept and how
 /// they reach the Mac is the store's business; the screens only read and add.
@@ -60,6 +65,10 @@ class PhoneStore extends ChangeNotifier {
   PhoneSnapshot _snapshot;
   final List<PhoneEntry> _waiting;
 
+  /// The phone's clock: the screens set it to theirs, so a page opened
+  /// over them (New category) reads the same day.
+  DateTime Function() now = DateTime.now;
+
   /// Categories made on this phone, waiting for the Mac as its entries do.
   final List<PhoneCategory> _made = [];
 
@@ -71,8 +80,14 @@ class PhoneStore extends ChangeNotifier {
   List<PhoneCategory> get categories => [..._snapshot.categories, ..._made];
 
   /// The category called [name], made now unless there is one already
-  /// (whatever its capitals).
-  PhoneCategory categoryCalled(String name, Currency currency) {
+  /// (whatever its capitals), with the [plan] and the accounts [off] its
+  /// New category page set.
+  PhoneCategory categoryCalled(
+    String name,
+    Currency currency, {
+    CategoryPlan? plan,
+    Set<String> off = const {},
+  }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
     final random = Random.secure();
@@ -82,6 +97,10 @@ class PhoneStore extends ChangeNotifier {
       leftMinor: 0,
       currency: currency,
       madeHere: true,
+      plan: plan,
+      off: off,
+      // A bill's date shows here as the computer's bills do.
+      due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
     _made.add(category);
     notifyListeners();
@@ -419,6 +438,18 @@ class _PhoneHomeState extends State<PhoneHome> {
   var _budget = false;
 
   @override
+  void initState() {
+    super.initState();
+    widget.store.now = widget.now;
+  }
+
+  @override
+  void didUpdateWidget(PhoneHome old) {
+    super.didUpdateWidget(old);
+    widget.store.now = widget.now;
+  }
+
+  @override
   void dispose() {
     _draft.dispose();
     super.dispose();
@@ -557,17 +588,11 @@ class _BudgetScreen extends StatelessWidget {
   final ValueChanged<PhoneCategory> onCategory;
   final Future<void> Function()? onRefresh;
 
-  Future<void> _newCategory(BuildContext context) async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => _NewCategoryDialog(store: store),
-    );
-    if (name == null) return;
-    store.categoryCalled(
-      name,
-      store.snapshot.accounts.firstOrNull?.currency ?? Currency.mnt,
-    );
-  }
+  Future<void> _newCategory(BuildContext context) => _openNewCategory(
+    context,
+    store: store,
+    currency: store.snapshot.accounts.firstOrNull?.currency ?? Currency.mnt,
+  );
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -1914,12 +1939,14 @@ class _CategoryMenuState extends State<_CategoryMenu> {
   );
 
   Future<void> _newCategory() async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => _NewCategoryDialog(store: widget.store),
+    final made = await _openNewCategory(
+      context,
+      store: widget.store,
+      currency: widget.currency,
+      forEntry: true,
     );
-    if (name == null || !mounted) return;
-    widget.onPicked(widget.store.categoryCalled(name, widget.currency));
+    if (made == null || !mounted) return;
+    widget.onPicked(made);
   }
 
   /// The list goes as soon as a line of it is tapped, so a second tap to
@@ -2544,84 +2571,6 @@ class _BackToggle extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Budget's "+ New category": its name, on the phone's keyboard.
-class _NewCategoryDialog extends StatefulWidget {
-  const _NewCategoryDialog({required this.store});
-  final PhoneStore store;
-
-  @override
-  State<_NewCategoryDialog> createState() => _NewCategoryDialogState();
-}
-
-class _NewCategoryDialogState extends State<_NewCategoryDialog> {
-  final _text = TextEditingController();
-
-  /// The name that is already a category, said under the box.
-  String? _taken;
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  void _add() {
-    final name = _text.text.trim();
-    if (name.isEmpty) return;
-    final already = categoryNamed(widget.store.categories, name);
-    // Income is the app's own category, whichever language names it.
-    if (already != null || isIncomeName(name)) {
-      setState(() => _taken = already?.name ?? context.t.ledgerIncome);
-      return;
-    }
-    Navigator.of(context).pop(name);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    return AlertDialog(
-      backgroundColor: Mid.panel,
-      title: Text(t.phoneNewCategoryTitle, style: onest(18, weight: 600)),
-      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-      content: SizedBox(
-        width: 320,
-        child: TextField(
-          key: const ValueKey('new-category-name'),
-          controller: _text,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          style: onest(17),
-          cursorColor: Mid.blue,
-          decoration: InputDecoration(
-            hintText: t.planCategoryName,
-            hintStyle: onest(17, color: Mid.ink3),
-            errorText: _taken == null ? null : t.ledgerAlreadyCategory(_taken!),
-            errorStyle: onest(14, color: Mid.gold),
-          ),
-          onChanged: (_) {
-            if (_taken != null) setState(() => _taken = null);
-          },
-          onSubmitted: (_) => _add(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t.ledgerCancel, style: onest(15, color: Mid.blue)),
-        ),
-        TextButton(
-          onPressed: _add,
-          child: Text(
-            t.planAdd,
-            style: onest(15, weight: 600, color: Mid.blue),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _FieldRow extends StatelessWidget {

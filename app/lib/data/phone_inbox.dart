@@ -4,6 +4,7 @@
 // key, the same way the ledger is, so nothing about the money sits in the
 // folder in the clear. The computer reads every phone's file and never
 // writes one.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -11,7 +12,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sqlite3/sqlite3.dart';
 
+import '../domain/ledger.dart';
 import '../domain/money.dart';
+import '../domain/pay.dart';
 import '../domain/phone.dart';
 import 'encryption.dart';
 
@@ -50,6 +53,17 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         'CREATE TABLE entry_lines (entry_id TEXT NOT NULL, '
         'category_id TEXT NOT NULL, amount_minor INTEGER NOT NULL)',
       );
+      // A category's plan and the accounts it isn't paid from, as its New
+      // category page set them. A computer from before reads neither and
+      // makes the category bare.
+      db.execute(
+        'CREATE TABLE category_plans (category_id TEXT PRIMARY KEY, '
+        'plan TEXT NOT NULL)',
+      );
+      db.execute(
+        'CREATE TABLE category_off (category_id TEXT NOT NULL, '
+        'account_id TEXT NOT NULL)',
+      );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
       for (final c in inbox.categories) {
@@ -58,6 +72,15 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
           c.name,
           c.currency.code,
         ]);
+        if (c.plan case final plan?) {
+          db.execute('INSERT INTO category_plans VALUES (?, ?)', [
+            c.id,
+            jsonEncode(planToJson(plan)),
+          ]);
+        }
+        for (final a in c.off) {
+          db.execute('INSERT INTO category_off VALUES (?, ?)', [c.id, a]);
+        }
       }
       for (final e in inbox.entries) {
         db.execute('INSERT INTO entries VALUES (?, ?, ?, ?, ?, ?, ?)', [
@@ -98,6 +121,27 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'entry_lines'",
           )
           .isNotEmpty;
+      bool has(String table) => db.select(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        [table],
+      ).isNotEmpty;
+      final plans = <String, CategoryPlan>{};
+      if (has('category_plans')) {
+        for (final r in db.select('SELECT * FROM category_plans')) {
+          // One this computer can't read (a newer phone's) is left out:
+          // the category still comes in.
+          final plan = planFromJson(r['plan'] as String);
+          if (plan != null) plans[r['category_id'] as String] = plan;
+        }
+      }
+      final off = <String, Set<String>>{};
+      if (has('category_off')) {
+        for (final r in db.select('SELECT * FROM category_off')) {
+          off
+              .putIfAbsent(r['category_id'] as String, () => {})
+              .add(r['account_id'] as String);
+        }
+      }
       if (hasLines) {
         for (final r in db.select('SELECT * FROM entry_lines ORDER BY rowid')) {
           lines.putIfAbsent(r['entry_id'] as String, () => []).add((
@@ -117,6 +161,12 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
               leftMinor: 0,
               currency: Currency.fromCode(r['currency'] as String),
               madeHere: true,
+              plan: plans[r['id']],
+              // A bill shows with the bills, by its date, as when it was made.
+              due: plans[r['id']]?.kind == PlanKind.byDate
+                  ? plans[r['id']]?.due
+                  : null,
+              off: off[r['id']] ?? const {},
             ),
         ],
         entries: [
@@ -136,6 +186,92 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
     });
   } finally {
     db.close();
+  }
+}
+
+/// [plan] as the phone's file keeps it: by name, so a field added later
+/// leaves an older reader with the rest.
+Map<String, Object?> planToJson(CategoryPlan plan) {
+  String? day(DateTime? d) => d == null ? null : dateKey(d);
+  return {
+    'kind': plan.kind.name,
+    'amount': plan.amount,
+    'start': day(plan.start),
+    'due': day(plan.due),
+    'everyMonths': plan.everyMonths,
+    'everyDays': plan.everyDays,
+    'onDates': plan.onDates == null
+        ? null
+        : [
+            for (final (m, d) in plan.onDates!) [m, d],
+          ],
+    'payScheduleId': plan.payScheduleId,
+    'daysAfterPay': plan.daysAfterPay,
+    'weekend': plan.weekend.name,
+    'weekdays': plan.weekdays,
+    'nth': plan.nth,
+    'nthWeekday': plan.nthWeekday,
+    'endDate': day(plan.endDate),
+    'endCount': plan.endCount,
+    'rollover': plan.rollover,
+    'upTo': plan.upTo,
+    'paidFrom': plan.paidFrom,
+  };
+}
+
+/// The plan [text] holds, for no category yet (0); null when it can't be
+/// read as one.
+CategoryPlan? planFromJson(String text) {
+  try {
+    final j = jsonDecode(text) as Map<String, Object?>;
+    DateTime? day(Object? v) => v == null ? null : parseDateKey(v as String);
+    final kind = PlanKind.values.byName(j['kind'] as String);
+    final weekend = PayWeekend.values.byName(
+      j['weekend'] as String? ?? PayWeekend.keep.name,
+    );
+    final plan = CategoryPlan(
+      categoryId: 0,
+      kind: kind,
+      amount: j['amount'] as int,
+      start: day(j['start'])!,
+      due: day(j['due']),
+      everyMonths: j['everyMonths'] as int?,
+      everyDays: j['everyDays'] as int?,
+      onDates: switch (j['onDates']) {
+        final List<Object?> l => [
+          for (final x in l) ((x as List<Object?>)[0] as int, x[1] as int),
+        ],
+        _ => null,
+      },
+      payScheduleId: j['payScheduleId'] as int?,
+      daysAfterPay: j['daysAfterPay'] as int? ?? 0,
+      weekend: weekend,
+      weekdays: (j['weekdays'] as List<Object?>?)?.cast<int>(),
+      nth: j['nth'] as int?,
+      nthWeekday: j['nthWeekday'] as int?,
+      endDate: day(j['endDate']),
+      endCount: j['endCount'] as int?,
+      rollover: j['rollover'] as bool? ?? true,
+      upTo: j['upTo'] as int?,
+      paidFrom: j['paidFrom'] as int?,
+    );
+    // Only a plan the computer could have made: an amount, counts above
+    // nothing, and a dated one with a date or a pay to come by.
+    bool above(int? n) => n == null || n > 0;
+    if (plan.amount <= 0 ||
+        !above(plan.everyDays) ||
+        !above(plan.everyMonths) ||
+        !above(plan.endCount) ||
+        !above(plan.upTo) ||
+        (plan.kind == PlanKind.byDate &&
+            plan.due == null &&
+            plan.payScheduleId == null)) {
+      throw FormatException('not a plan: $text');
+    }
+    return plan;
+  } catch (e) {
+    debugPrint('A phone’s category plan couldn’t be read: $e');
+    return null;
   }
 }
 

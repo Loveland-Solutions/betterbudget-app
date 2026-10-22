@@ -375,6 +375,42 @@ void main() {
         );
         await tester.pumpAndSettle();
         look();
+        // New category, a bill with a long name and the biggest amount,
+        // its Custom… page, and everything under it.
+        page = 'New category';
+        await tester.dragUntilVisible(
+          find.byKey(const ValueKey('budget-new-category')),
+          find.byType(Scrollable).first,
+          const Offset(0, 200),
+        );
+        await tap(find.byKey(const ValueKey('budget-new-category')));
+        await tester.enterText(
+          find.byKey(const ValueKey('new-category-name')),
+          'Хүүхдийн цэцэрлэгийн хоол ба сургалтын төлбөр',
+        );
+        await tap(find.byKey(const ValueKey('plan-dated-yes')));
+        await tester.enterText(
+          find.byKey(const ValueKey('plan-amount')),
+          '999999999999',
+        );
+        await tester.pumpAndSettle();
+        look();
+        page = 'How often';
+        await tap(find.byKey(const ValueKey('plan-repeat')));
+        page = 'Custom…';
+        // Custom… is the last but one: before On these dates.
+        final choices = find.byType(ListTile);
+        await tap(choices.at(choices.evaluate().length - 2));
+        await tap(find.byKey(const ValueKey('plan-every-unit')));
+        await tester.tap(find.byType(ListTile).at(1));
+        await tester.pumpAndSettle();
+        look();
+        page = 'New category, Custom…';
+        await tap(find.byKey(const ValueKey('custom-done')));
+        await tap(find.byKey(const ValueKey('plan-ends-count')));
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -2000));
+        await tester.pumpAndSettle();
+        look();
 
         expect(overflows.toSet().toList(), isEmpty);
         expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');

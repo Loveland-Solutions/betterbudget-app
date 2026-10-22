@@ -11,16 +11,21 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**The phone's "+ New category" asks everything the computer's window does** (0.45.0,
+closes #237; ADR 0004 "New category: one window with everything"): one scrolling page,
+the owner's pick of three, from Budget (with Add another) and from an entry's Category
+list (in the entry's currency; a name already a category goes in the entry). The plan
+travels in the phone's file (`category_plans`, `category_off`) and the computer makes
+the category with its plan and Paid from, its bill scheduled; the take's undo takes the
+bill too. An older computer takes the category in bare. The answers and the plan they
+make are one class, `PlanAnswers` in `ui/plan_form.dart`, which the computer's Edit
+now uses too. `_NewCategoryPage`, `_CustomRepeatPage` in
+`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. Not
+yet seen by the owner on the Pixel: it reaches the phone with the next Play build.
+
 **The entry row's "+ New category" opens the New category window** (0.44.0, part of
-#237; ADR 0004 "New category: one window with everything"): in Category and on a
-split's line. **New category** is always at the top of the list beside Split; a new
-name typed shows "+ New category “Toys”". It opens with the name typed, in the row's currency, without Add another. Add
-makes the category (its own undo) and puts it in the row. A name that's a category
-already puts that one in. Cancel leaves the name typed; Enter on a new name without
-picking the option still makes it bare with the row. `_newCategoryForRow` in
-`ledger_screen.dart`; `_pickNew`, `_pickNewOnLine` and the controller's `newCategory`
-in `entry_row.dart`. Next under #237: the phone's "+ New category", which changes
-what the phone writes to the folder.
+#237): in Category and on a split's line, always at the top of the list beside Split;
+Add makes the category (its own undo) and puts it in the row.
 
 **Add category opens a window with everything** (0.43.0, part of #237; ADR 0004
 "New category: one window with everything"): the category's Edit form in a **New
@@ -381,7 +386,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 | Reconcile | Statement date and balance; "Add … adjustment and lock" when they differ; "Undo this reconcile" from a locked row. The database refuses changes to locked rows |
 | Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own |
 | Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
-| Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row |
+| Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row and on the phone, each opening the same questions |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
 | Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest, listed most first once two have one), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
