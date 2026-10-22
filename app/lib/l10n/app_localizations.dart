@@ -1913,11 +1913,47 @@ abstract class Words {
   /// **'Cancel'**
   String get planCancel;
 
-  /// Budget page, new category form: button
+  /// Budget page, New category window: button that adds the category and closes the window
   ///
   /// In en, this message translates to:
   /// **'Add'**
   String get planAdd;
+
+  /// Budget page, New category window: button that adds this category and empties the window for the next one (the owner's words)
+  ///
+  /// In en, this message translates to:
+  /// **'Add another'**
+  String get planAddAnother;
+
+  /// Budget page, New category window: line under the title after Add another, naming the categories added so far in this window
+  ///
+  /// In en, this message translates to:
+  /// **'Added: {names}'**
+  String planNewAdded(String names);
+
+  /// New category window: under the name, after Add with no name typed
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get planEnterName;
+
+  /// New category window: under the name while it's an existing category's; Add closes the window and opens that category's Edit
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is already a category. Add opens it.'**
+  String planNameIsCategory(String name);
+
+  /// New category window: under the name while it's an archived category's; Add brings that category back with what the window set
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is archived. Add brings it back.'**
+  String planNameArchived(String name);
+
+  /// New category window: under the name while a bank, card or cash account has it; a category can't share an account's name
+  ///
+  /// In en, this message translates to:
+  /// **'An account is already called {name}. Give the category another name.'**
+  String planNameIsAccount(String name);
 
   /// Delete category dialog: body when merging and the category has no transactions
   ///
@@ -6663,12 +6699,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Leave one account checked and the bill shows in its forecast.'**
   String get planPaidFromHintNone;
-
-  /// Budget page, Edit under a category's row (Yes): the amount set aside each period, which the app works out rather than asks for
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} · worked out from the date'**
-  String planWorkedOut(String amount);
 
   /// Budget page, Edit under a category's row (Yes): in place of the worked-out amount until both are typed
   ///

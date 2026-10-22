@@ -2035,7 +2035,52 @@
   },
   "planAdd": "Add",
   "@planAdd": {
-    "description": "Budget page, new category form: button"
+    "description": "Budget page, New category window: button that adds the category and closes the window"
+  },
+  "planAddAnother": "Add another",
+  "@planAddAnother": {
+    "description": "Budget page, New category window: button that adds this category and empties the window for the next one (the owner's words)"
+  },
+  "planNewAdded": "Added: {names}",
+  "@planNewAdded": {
+    "description": "Budget page, New category window: line under the title after Add another, naming the categories added so far in this window",
+    "placeholders": {
+      "names": {
+        "type": "String",
+        "example": "Groceries · Taxi"
+      }
+    }
+  },
+  "planEnterName": "Enter a name",
+  "@planEnterName": {
+    "description": "New category window: under the name, after Add with no name typed"
+  },
+  "planNameIsCategory": "{name} is already a category. Add opens it.",
+  "@planNameIsCategory": {
+    "description": "New category window: under the name while it's an existing category's; Add closes the window and opens that category's Edit",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planNameArchived": "{name} is archived. Add brings it back.",
+  "@planNameArchived": {
+    "description": "New category window: under the name while it's an archived category's; Add brings that category back with what the window set",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planNameIsAccount": "An account is already called {name}. Give the category another name.",
+  "@planNameIsAccount": {
+    "description": "New category window: under the name while a bank, card or cash account has it; a category can't share an account's name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "planNothingFiled": "Nothing is filed under it yet.",
   "@planNothingFiled": {
@@ -6817,15 +6862,6 @@
   "planPaidFromHintNone": "Leave one account checked and the bill shows in its forecast.",
   "@planPaidFromHintNone": {
     "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)"
-  },
-  "planWorkedOut": "{amount} · worked out from the date",
-  "@planWorkedOut": {
-    "description": "Budget page, Edit under a category's row (Yes): the amount set aside each period, which the app works out rather than asks for",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
   },
   "planEnterAmountDate": "Enter the amount and the date",
   "@planEnterAmountDate": {

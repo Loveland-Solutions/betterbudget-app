@@ -25,7 +25,8 @@ class _BudgetPage extends StatefulWidget {
     required this.onDelete,
     required this.onPay,
     required this.onAskAgain,
-    required this.onCreate,
+    required this.onAdd,
+    required this.nameNote,
     required this.onUnarchive,
     required this.onShowRows,
     required this.onShowAllRows,
@@ -72,9 +73,12 @@ class _BudgetPage extends StatefulWidget {
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
 
-  /// Add category: the new category's id, or null when nothing was made
-  /// (the name was taken). Edit opens under the new row.
-  final Future<int?> Function(String name, Currency currency) onCreate;
+  /// Add in the New category window: the category made with everything
+  /// set in it, or the one already called that opened in Edit.
+  final Future<_Added> Function(_CategoryEdit) onAdd;
+
+  /// What the window says under a name that's taken.
+  final ({String text, bool blocks})? Function(String name) nameNote;
   final ValueChanged<AccountInfo> onUnarchive;
 
   /// A Put in amount was typed for the period starting on the date.
@@ -88,7 +92,6 @@ class _BudgetPage extends StatefulWidget {
 }
 
 class _BudgetPageState extends State<_BudgetPage> {
-  bool _adding = false;
   bool _showArchived = false;
 
   /// Spending (the categories) or Income (the pay, and what came in):
@@ -115,7 +118,6 @@ class _BudgetPageState extends State<_BudgetPage> {
   void openEdit(int id) => setState(() {
     _tab = _BudgetTab.spending;
     _period = null;
-    _adding = false;
     _editing = null;
     _openAtPlan = false;
     _open = id;
@@ -130,8 +132,37 @@ class _BudgetPageState extends State<_BudgetPage> {
     setState(() {
       _open = null;
       _editing = null;
-      _adding = true;
     });
+    _newCategory();
+  }
+
+  /// The New category window (owner, 2026-10-22, #237): everything a new
+  /// category can have, set before it's made, and Add another for the
+  /// next. Made, its row is in the list behind; nothing opens under it.
+  void _newCategory() {
+    final data = widget.data;
+    final currencies = [
+      for (final c in Currency.values)
+        if (data.openAccounts.any((a) => a.currency == c)) c,
+    ];
+    final budget = Budget.currencyOf(data);
+    showDialog<void>(
+      context: context,
+      builder: (_) => _NewCategoryWindow(
+        data: () => widget.data,
+        period: _period ?? _current,
+        today: widget.today,
+        currencies: currencies,
+        // In a currency there's an account in: the budget's own, unless
+        // its accounts are gone (owner, 2026-10-07: a new category came
+        // out in dollars with only a tugrik account left).
+        currency: currencies.isEmpty || currencies.contains(budget)
+            ? budget
+            : currencies.first,
+        nameNote: widget.nameNote,
+        onAdd: widget.onAdd,
+      ),
+    );
   }
 
   /// Esc reached the screen with Edit open (the click before it was
@@ -694,7 +725,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                     label: t.planAddCategory,
                     icon: Icons.add_rounded,
                     tooltip: t.planAddCategoryTip,
-                    onTap: () => setState(() => _adding = true),
+                    onTap: _newCategory,
                   ),
               ],
             ),
@@ -732,33 +763,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_adding)
-                          _NewCategory(
-                            // A category just made opens in Edit under its row,
-                            // so what it's for is asked at once (owner's
-                            // request, 2026-10-05); Esc or Cancel closes the box.
-                            onCreate: widget.onCreate,
-                            onCreated: (id) {
-                              setState(() {
-                                _adding = false;
-                                _editing = null;
-                                _open = id;
-                                _openAtPlan = true;
-                              });
-                              widget.onEditOpens();
-                            },
-                            currencies: currencies,
-                            // In a currency there's an account in: the
-                            // budget's own, unless its accounts are gone
-                            // (owner, 2026-10-07: a new category came out
-                            // in dollars with only a tugrik account left).
-                            currency:
-                                currencies.isEmpty ||
-                                    currencies.contains(budget.currency)
-                                ? budget.currency
-                                : currencies.first,
-                            onCancel: () => setState(() => _adding = false),
-                          ),
                         for (final (i, c) in spending.indexed) ...[
                           if (i == firstSaved)
                             Padding(
@@ -1700,117 +1704,123 @@ List<Widget> _categoryMenu(
   ];
 }
 
-/// A new spending category: its name, and its currency when there's more
-/// than one.
-class _NewCategory extends StatefulWidget {
-  const _NewCategory({
-    required this.onCreate,
-    required this.onCreated,
-    required this.onCancel,
+/// What Add did in the New category window: made the category, opened
+/// the one already called that, or nothing (the window stays as it was).
+enum _Added { made, opened, none }
+
+/// The id a category not made yet has in its window: never a real one.
+const _newCategoryId = -1;
+
+/// The New category window (owner, 2026-10-22, #237): everything a new
+/// category can have, asked as its Edit asks it, and Add another to set up
+/// several in one go. Esc, Cancel or a click outside close it; what was
+/// added stays.
+class _NewCategoryWindow extends StatefulWidget {
+  const _NewCategoryWindow({
+    required this.data,
+    required this.period,
+    required this.today,
     required this.currencies,
     required this.currency,
+    required this.nameNote,
+    required this.onAdd,
   });
-  final Future<int?> Function(String name, Currency currency) onCreate;
 
-  /// The category was made: its id, for the Edit that opens under it.
-  final ValueChanged<int> onCreated;
-  final VoidCallback onCancel;
-
-  /// The currencies there are accounts in. With both, a spending category
-  /// is made in one of them, [currency] to begin with.
+  /// The ledger as it is now: after an Add, with that category in it.
+  final LedgerData Function() data;
+  final BudgetSpan period;
+  final DateTime today;
   final List<Currency> currencies;
+
+  /// The currency it starts in.
   final Currency currency;
+  final ({String text, bool blocks})? Function(String name) nameNote;
+  final Future<_Added> Function(_CategoryEdit) onAdd;
 
   @override
-  State<_NewCategory> createState() => _NewCategoryState();
+  State<_NewCategoryWindow> createState() => _NewCategoryWindowState();
 }
 
-class _NewCategoryState extends State<_NewCategory> {
-  final _name = TextEditingController();
-  final _focus = FocusNode(debugLabel: 'new-category');
+class _NewCategoryWindowState extends State<_NewCategoryWindow> {
+  /// What Add another has made so far: the only sign of it, since the
+  /// window stays open.
+  final _added = <String>[];
+
+  /// Kept from one to the next: chosen, not guessed. Everything else
+  /// starts over, so a bill's Yes doesn't carry into Food unseen.
   late Currency _currency = widget.currency;
 
-  @override
-  void dispose() {
-    _name.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
+  /// Each Add another starts a fresh form.
+  int _round = 0;
 
-  Future<void> _create() async {
-    final n = _name.text.trim();
-    // Nothing typed: nothing to call it, so nothing is made.
-    if (n.isEmpty) return widget.onCancel();
-    final id = await widget.onCreate(n, _currency);
-    if (!mounted) return;
-    // Made: its Edit opens under its row. Not made (the name is taken):
-    // the name stays selected, ready to be changed.
-    if (id != null) return widget.onCreated(id);
-    _name.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _name.text.length,
-    );
-    _focus.requestFocus();
+  Future<bool> _add(_CategoryEdit e, {required bool another}) async {
+    final added = await widget.onAdd(e);
+    if (!mounted || added == _Added.none) return false;
+    if (added == _Added.opened || !another) {
+      Navigator.of(context).pop();
+      return true;
+    }
+    setState(() {
+      _added.add(e.name);
+      _currency = e.currency;
+      _round++;
+    });
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Mid.ground.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 260,
-                  height: 34,
-                  child: TextField(
-                    key: const ValueKey('new-category-name'),
-                    controller: _name,
-                    focusNode: _focus,
-                    autofocus: true,
-                    style: onest(13.5),
-                    onSubmitted: (_) => _create(),
-                    decoration: _fieldDecoration(hint: t.planCategoryName),
+    return Dialog(
+      // A shade off the row inside it, which is drawn as it will read.
+      backgroundColor: Mid.card,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 860),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(t.phoneNewCategoryTitle, style: onest(20, weight: 700)),
+              if (_added.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    t.planNewAdded(_added.join(' · ')),
+                    key: const ValueKey('new-category-added'),
+                    style: onest(12.5, color: Mid.ink2),
                   ),
                 ),
-                if (widget.currencies.length > 1) ...[
-                  const SizedBox(width: 10),
-                  _CurrencyMenu(
-                    buttonKey: 'new-category-currency',
-                    itemPrefix: 'new-category-',
-                    currencies: widget.currencies,
-                    currency: _currency,
-                    onPick: (c) => setState(() => _currency = c),
-                  ),
-                ],
-                const Spacer(),
-                BarButton(
-                  key: const ValueKey('new-category-cancel'),
-                  label: t.planCancel,
-                  onTap: widget.onCancel,
+              const SizedBox(height: 18),
+              _CategoryEditor(
+                key: ValueKey('new-category-$_round'),
+                category: AccountInfo(
+                  id: _newCategoryId,
+                  name: '',
+                  type: AccountType.expense,
+                  currency: _currency,
                 ),
-                _PrimaryButton(
-                  key: const ValueKey('new-category-create'),
-                  label: t.planAdd,
-                  icon: Icons.add_rounded,
-                  tooltip: 'Enter',
-                  onTap: _create,
-                ),
-              ],
-            ),
-          ],
+                data: widget.data(),
+                period: widget.period,
+                today: widget.today,
+                assigned: 0,
+                holds: null,
+                currencies: widget.currencies,
+                usage: null,
+                atPlan: false,
+                onSave: (_) {},
+                onCancel: () => Navigator.of(context).pop(),
+                onArchive: () {},
+                onShowAllRows: () {},
+                onAdd: _add,
+                offerAnother: true,
+                nameNote: widget.nameNote,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2695,7 +2705,13 @@ class _CategoryEditor extends StatefulWidget {
     required this.onCancel,
     required this.onArchive,
     required this.onShowAllRows,
+    this.onAdd,
+    this.offerAnother = false,
+    this.nameNote,
   });
+
+  /// The category, or for the New category window one not made yet: its
+  /// id isn't a real one, and its currency is where the window starts.
   final AccountInfo category;
   final LedgerData data;
   final BudgetSpan period;
@@ -2720,6 +2736,22 @@ class _CategoryEditor extends StatefulWidget {
   final VoidCallback onCancel;
   final VoidCallback onArchive;
   final VoidCallback onShowAllRows;
+
+  /// The New category window (owner, 2026-10-22, #237): Add in place of
+  /// Save, and no usage or Archive. Adds [e], and the window closes unless
+  /// [another]; false when nothing was made, so the answers stay. Null in
+  /// a category's Edit.
+  final Future<bool> Function(_CategoryEdit e, {required bool another})? onAdd;
+
+  /// Add another beside Add: on the Budget page, not where a row takes
+  /// the one category.
+  final bool offerAnother;
+
+  /// What's said under the name as it's typed: it's taken, and what Add
+  /// does then. [blocks]: Add can't go ahead with it.
+  final ({String text, bool blocks})? Function(String name)? nameNote;
+
+  bool get isNew => onAdd != null;
 
   @override
   State<_CategoryEditor> createState() => _CategoryEditorState();
@@ -2780,6 +2812,17 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   late Currency _currency = widget.category.currency;
   late Set<int> _off = {..._savedOff};
 
+  /// The category as the panel has it: a new one is in whatever currency
+  /// is picked, and called what's typed.
+  AccountInfo get _cat => widget.isNew
+      ? AccountInfo(
+          id: widget.category.id,
+          name: _name.text.trim(),
+          type: AccountType.expense,
+          currency: _currency,
+        )
+      : widget.category;
+
   /// The one question: is there a due date? No: a set amount each period
   /// (or none, with the amount left empty). Yes: an amount by a date.
   bool _hasDate = false;
@@ -2839,8 +2882,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   /// The saved plan while it still means something: in another currency
   /// its amounts don't, so the plan starts over there.
-  CategoryPlan? get _plan =>
-      _currency == widget.category.currency ? _savedPlan : null;
+  CategoryPlan? get _plan => _currency == _cat.currency ? _savedPlan : null;
 
   @override
   void initState() {
@@ -3223,10 +3265,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return same ? make(old.start) : fresh;
   }
 
-  void _save() {
+  Future<void> _save({bool another = false}) async {
     if (_done) return;
     final name = _name.text.trim();
-    if (name.isEmpty) {
+    if (name.isEmpty || (widget.nameNote?.call(name)?.blocks ?? false)) {
       setState(() => _tried = true);
       _nameFocus.requestFocus();
       return;
@@ -3245,7 +3287,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       return;
     }
     _done = true;
-    widget.onSave((name: name, currency: _currency, off: _off, plan: draft));
+    final edit = (name: name, currency: _currency, off: _off, plan: draft);
+    final add = widget.onAdd;
+    if (add == null) return widget.onSave(edit);
+    final made = await add(edit, another: another);
+    // Not made: the answers stay, to be changed and added again.
+    if (!made && mounted) _done = false;
   }
 
   String _everyLabel(Words t, int n, _Unit unit) => switch (unit) {
@@ -3466,12 +3513,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     // A set amount's wording follows its own period, not the view's.
     final byPay = _eachPayId != null;
     final eachLabel = byPay ? t.planSetAsidePay : t.planSetAsideMonth;
-    // What a dated plan comes to each period, worked out from the date.
+    // What a dated plan comes to each period: the amount alone (owner,
+    // 2026-10-22: "Remove 'worked out from the date'").
     final String part;
     if (draft == null) {
       part = t.planEnterAmountDate;
     } else if ((line?.plan?.each ?? 0) > 0) {
-      part = t.planWorkedOut(money(line!.plan!.each));
+      part = money(line!.plan!.each);
     } else {
       part = t.planNothingMore;
     }
@@ -4011,7 +4059,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 _off = x == c.currency ? {..._savedOff} : {};
                 // So would the plan's amount be: the type, date and
                 // repeat stay, and the amount is typed again.
-                if (x == c.currency) {
+                if (x == c.currency && !widget.isNew) {
                   _showPlan(_savedPlan);
                 } else {
                   _amount.clear();
@@ -4114,12 +4162,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final c = widget.category;
-    final data = widget.data;
+    final c = _cat;
+    // A new category isn't in the ledger yet: put in, for its row.
+    final data = widget.isNew ? widget.data.withCategory(c) : widget.data;
     String say(int v) => formatShort(v, currency: _currency);
 
     return ListenableBuilder(
       listenable: Listenable.merge([
+        _name,
         _amount,
         _date,
         _upTo,
@@ -4245,6 +4295,21 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           _revealSoon();
         }
 
+        // Under the name: it's taken, and what Add does then; or, Add
+        // tried with nothing typed, that it needs one.
+        final typedName = _name.text.trim();
+        final taken = typedName.isEmpty
+            ? null
+            : widget.nameNote?.call(typedName);
+        final String? nameNote =
+            taken?.text ??
+            (widget.isNew && _tried && typedName.isEmpty
+                ? t.planEnterName
+                : null);
+        final nameNoteColor = taken == null || taken.blocks
+            ? Mid.coral
+            : Mid.ink2;
+
         Widget warning(String text, String key, Color color) => Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Text(
@@ -4262,6 +4327,17 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             const SingleActivator(LogicalKeyboardKey.enter): () {
               if (!_closeMenu()) _save();
             },
+            if (widget.offerAnother) ...{
+              const SingleActivator(LogicalKeyboardKey.enter, meta: true): () {
+                if (!_closeMenu()) _save(another: true);
+              },
+              const SingleActivator(
+                LogicalKeyboardKey.enter,
+                control: true,
+              ): () {
+                if (!_closeMenu()) _save(another: true);
+              },
+            },
           },
           child: Focus(
             focusNode: _panelFocus,
@@ -4269,13 +4345,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             // A click on a choice in the panel leaves the cursor where
             // it is.
             child: TextFieldTapRegion(
+              // In the window, the window is its card.
               child: Container(
-                margin: const EdgeInsets.fromLTRB(0, 2, 0, 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Mid.ground.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                margin: widget.isNew
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                padding: widget.isNew
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.all(12),
+                decoration: widget.isNew
+                    ? null
+                    : BoxDecoration(
+                        color: Mid.ground.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -4332,6 +4415,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               ..._currencyChoice(t),
                             ],
                           ),
+                          if (nameNote != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                nameNote,
+                                key: const ValueKey('edit-name-note'),
+                                style: onest(12.5, color: nameNoteColor),
+                              ),
+                            ),
                           const SizedBox(height: 22),
                           ..._planFields(t, line: line, draft: draft),
                           // The row, as it will read after Save.
@@ -4451,46 +4543,75 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                         Mid.note,
                       ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        // How much it's used decides keep, merge or archive.
-                        if (widget.usage case final usage?)
-                          Hoverable(
-                            key: const ValueKey('edit-rows'),
-                            onTap: widget.onShowAllRows,
-                            builder: (hover) => Text(
-                              t.planShowAllRows(usage),
-                              style: onest(
-                                12.5,
-                                color: hover ? Mid.blue : Mid.ink2,
-                                tabular: true,
+                    if (widget.isNew)
+                      Row(
+                        children: [
+                          const Spacer(),
+                          BarButton(
+                            key: const ValueKey('new-category-cancel'),
+                            label: t.planCancel,
+                            onTap: widget.onCancel,
+                          ),
+                          if (widget.offerAnother)
+                            Tooltip(
+                              message: _isMac ? '⌘↩' : 'Ctrl+Enter',
+                              waitDuration: const Duration(milliseconds: 600),
+                              child: BarButton(
+                                key: const ValueKey('new-category-another'),
+                                label: t.planAddAnother,
+                                onTap: () => _save(another: true),
                               ),
                             ),
+                          _PrimaryButton(
+                            key: const ValueKey('new-category-add'),
+                            label: t.planAdd,
+                            icon: Icons.add_rounded,
+                            tooltip: 'Enter',
+                            onTap: _save,
                           ),
-                        // Beside the usage, which is what decides it; apart
-                        // from Cancel and Save.
-                        if (widget.usage != null) const SizedBox(width: 10),
-                        if (!isSafetyNet(widget.category))
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          // How much it's used decides keep, merge or archive.
+                          if (widget.usage case final usage?)
+                            Hoverable(
+                              key: const ValueKey('edit-rows'),
+                              onTap: widget.onShowAllRows,
+                              builder: (hover) => Text(
+                                t.planShowAllRows(usage),
+                                style: onest(
+                                  12.5,
+                                  color: hover ? Mid.blue : Mid.ink2,
+                                  tabular: true,
+                                ),
+                              ),
+                            ),
+                          // Beside the usage, which is what decides it; apart
+                          // from Cancel and Save.
+                          if (widget.usage != null) const SizedBox(width: 10),
+                          if (!isSafetyNet(widget.category))
+                            BarButton(
+                              key: const ValueKey('edit-archive'),
+                              label: t.planArchive,
+                              onTap: widget.onArchive,
+                            ),
+                          const Spacer(),
                           BarButton(
-                            key: const ValueKey('edit-archive'),
-                            label: t.planArchive,
-                            onTap: widget.onArchive,
+                            key: const ValueKey('edit-cancel'),
+                            label: t.planCancel,
+                            onTap: widget.onCancel,
                           ),
-                        const Spacer(),
-                        BarButton(
-                          key: const ValueKey('edit-cancel'),
-                          label: t.planCancel,
-                          onTap: widget.onCancel,
-                        ),
-                        _PrimaryButton(
-                          key: const ValueKey('edit-save'),
-                          label: t.planSave,
-                          icon: Icons.check_rounded,
-                          tooltip: 'Enter',
-                          onTap: _save,
-                        ),
-                      ],
-                    ),
+                          _PrimaryButton(
+                            key: const ValueKey('edit-save'),
+                            label: t.planSave,
+                            icon: Icons.check_rounded,
+                            tooltip: 'Enter',
+                            onTap: _save,
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),

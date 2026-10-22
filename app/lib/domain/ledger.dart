@@ -1096,6 +1096,25 @@ class LedgerData {
     ],
   );
 
+  /// This ledger with [category] in it: a category not made yet, so the
+  /// window that's making it can draw its row as it will read.
+  LedgerData withCategory(AccountInfo category) => LedgerData(
+    accounts: [
+      for (final a in accounts.values)
+        if (a.id != category.id) a,
+      category,
+    ],
+    txns: txns,
+    reconciliations: reconciliations,
+    paySchedules: paySchedules,
+    payeeRules: payeeRules,
+    stoppedPaySchedules: stoppedPaySchedules,
+    prefs: prefs,
+    budgetAmounts: budgetAmounts,
+    accountsOff: accountsOff,
+    plans: plans.values.toList(),
+  );
+
   /// This ledger with the app's Income category called [name]: the word
   /// for it in the user's language, so menus, rows and typed names all use
   /// it.

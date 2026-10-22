@@ -5352,20 +5352,17 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('add-category')));
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.byKey(const ValueKey('new-category-name')),
+          find.byKey(const ValueKey('edit-name')),
           'Car insurance',
         );
         // The currency is picked from a dropdown.
-        await tester.tap(find.byKey(const ValueKey('new-category-currency')));
+        await tester.tap(find.byKey(const ValueKey('money-currency')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('new-category-USD')));
+        await tester.tap(find.byKey(const ValueKey('money-currency-USD')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('new-category-create')));
+        await tester.tap(find.byKey(const ValueKey('new-category-add')));
         await settle(tester);
         await tester.pump(const Duration(seconds: 7)); // the toast goes
-        await tester.pumpAndSettle();
-        // The new category opened in Edit; nothing more to set here.
-        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
         await reload();
         final insurance = id('Car insurance');
@@ -5594,40 +5591,43 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('new-category-name')),
-        'Coffee',
-      );
+      await tester.enterText(find.byKey(const ValueKey('edit-name')), 'Coffee');
       await tester.pumpAndSettle();
+      // The window is over the screen, so the picture is the whole app.
       await expectLater(
-        find.byType(LedgerScreen),
+        find.byType(MaterialApp),
         matchesGoldenFile('goldens/budget_categories.png'),
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
-      // The new category opens in Edit under its row, so what it's for is
-      // asked at once; the add box closes. No popup: it would lie over the
-      // Edit's Cancel and Save.
-      expect(find.text('Coffee added'), findsNothing);
-      expect(find.byKey(const ValueKey('new-category-name')), findsNothing);
-      expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
-      expect(find.byKey(const ValueKey('plan-amount')), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
+      // Added from the window, which closes: everything was set in it, so
+      // nothing opens under the row.
+      expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
       expect(find.byKey(const ValueKey('edit-name')), findsNothing);
+      await tester.pump(const Duration(seconds: 7)); // the toast goes
+      await tester.pumpAndSettle();
       expect(find.text('Coffee'), findsOneWidget);
-      // The same name again adds nothing, and the box stays for another.
+      // The same name again says so while it's typed, and Add opens the
+      // one there is.
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('new-category-name')),
-        'coffee',
+      await tester.enterText(find.byKey(const ValueKey('edit-name')), 'coffee');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Coffee is already a category. Add opens it.'),
+        findsOneWidget,
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
-      expect(find.text('Coffee is already a category'), findsOneWidget);
-      expect(find.byKey(const ValueKey('new-category-name')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+      expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+            .controller!
+            .text,
+        'Coffee',
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
 
       // Its menu, from a right-click or ⋯, is Edit and Delete.
@@ -6008,7 +6008,7 @@ void main() {
     });
 
     testWidgets('a new category is in a currency there is an account in, '
-        'and its Edit offers no other', (tester) async {
+        'and its window offers no other', (tester) async {
       final db = await pumpLedger(tester);
       // The budget began in dollars; the dollar accounts are gone since,
       // and one dollar category is left from then.
@@ -6023,21 +6023,121 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('add-category')));
       await tester.pumpAndSettle();
       // One currency of accounts: nothing to choose.
-      expect(find.byKey(const ValueKey('new-category-currency')), findsNothing);
+      expect(find.byKey(const ValueKey('money-currency')), findsNothing);
       await tester.enterText(
-        find.byKey(const ValueKey('new-category-name')),
+        find.byKey(const ValueKey('edit-name')),
         'Post box',
       );
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
-      expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
-      expect(find.byKey(const ValueKey('money-currency')), findsNothing);
+      expect(find.byKey(const ValueKey('edit-name')), findsNothing);
       final made = (await tester.runAsync(
         () async => (await db.loadLedger()).categories.firstWhere(
           (c) => c.name == 'Post box',
         ),
       ))!;
       expect(made.currency, Currency.mnt);
+      await tidy(tester, db);
+    });
+
+    testWidgets('the New category window sets a bill before the category '
+        'is made, and Add another starts the next', (tester) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      Future<LedgerData> load() async =>
+          (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> tap(String key) async {
+        await tester.tap(find.byKey(ValueKey(key)));
+        await settle(tester);
+      }
+
+      String name() => tester
+          .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+          .controller!
+          .text;
+
+      await tap('add-category');
+      // A bank account's name can't be a category's too: said as it's
+      // typed, and Add waits.
+      await type('edit-name', 'tdb checking');
+      expect(
+        find.text(
+          'An account is already called TDB Checking. '
+          'Give the category another name.',
+        ),
+        findsOneWidget,
+      );
+      await tap('new-category-add');
+      expect(find.byKey(const ValueKey('new-category-add')), findsOneWidget);
+
+      // Mobicom, a bill each month, set up before it's made.
+      await type('edit-name', 'Mobicom');
+      await tap('plan-dated-yes');
+      await type('plan-amount', '65000');
+      await tap('plan-repeat');
+      await tap('plan-repeat-1');
+      await type('plan-date', '10.15');
+      // What's set aside is the amount alone (owner, 2026-10-22).
+      expect(find.textContaining('worked out'), findsNothing);
+      await tap('new-category-another');
+
+      // The window stays, empty for the next, and says what went in. The
+      // bill's Yes doesn't carry over.
+      expect(find.text('Added: Mobicom'), findsOneWidget);
+      expect(name(), '');
+      expect(find.byKey(const ValueKey('plan-repeat')), findsNothing);
+
+      // Taxi with nothing set: Enter adds it and closes the window.
+      await type('edit-name', 'Taxi');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+
+      var data = await load();
+      final mobicom = data.categories.firstWhere((c) => c.name == 'Mobicom');
+      final plan = data.plans[mobicom.id]!;
+      expect(plan.kind, PlanKind.byDate);
+      expect(plan.amount, parseAmount('65000'));
+      expect(plan.everyMonths, 1);
+      expect(plan.due, DateTime(2026, 10, 15));
+      expect(data.categories.where((c) => c.name == 'Taxi'), hasLength(1));
+      expect(data.plans.containsKey(mobicom.id), isTrue);
+
+      // Each Add is its own undo: one takes back Taxi, the next Mobicom
+      // with its plan.
+      Future<void> undo() async {
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      await undo();
+      data = await load();
+      expect(data.categories.where((c) => c.name == 'Taxi'), isEmpty);
+      expect(data.categories.where((c) => c.name == 'Mobicom'), hasLength(1));
+      await undo();
+      data = await load();
+      expect(data.categories.where((c) => c.name == 'Mobicom'), isEmpty);
       await tidy(tester, db);
     });
 
