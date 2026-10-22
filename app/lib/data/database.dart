@@ -578,8 +578,14 @@ class PhoneTake {
     this.categoryIds, [
     this.unarchivedIds = const [],
     this.categoryNames = const [],
+    this.plans = const {},
   ]);
   final List<int> transactionIds;
+
+  /// The plans the phones' categories came with, by category (one it made,
+  /// or one it had already with no plan), and what giving them did, for
+  /// an exact undo.
+  final Map<int, ({CategoryPlan plan, PlanChange change})> plans;
 
   /// The categories it had to make, and what each is called.
   final List<int> categoryIds;
@@ -5201,6 +5207,13 @@ class AppDatabase extends _$AppDatabase {
       for (final a in live)
         if (a.archivedAt != null) a.id,
     };
+    final pays = {
+      for (final p in await (select(
+        paySchedules,
+      )..where((p) => p.deletedAt.isNull())).get())
+        p.id,
+    };
+    final plans = <int, ({CategoryPlan plan, PlanChange change})>{};
     final added = <int>[], made = <int>[], unarchived = <int>[];
     final madeNames = <String>[];
     for (final inbox in inboxes) {
@@ -5223,6 +5236,47 @@ class AppDatabase extends _$AppDatabase {
           madeNames.add(c.name.trim());
           spending.add(id);
           byName[name] = id;
+          await _phoneCategorySettings(
+            id,
+            c,
+            today: today,
+            accounts: {
+              for (final a in live)
+                if (paidFrom.contains(a.id) && a.currency == c.currency.code)
+                  a.id,
+            },
+            pays: pays,
+            plans: plans,
+          );
+        } else if (c.plan != null &&
+            currencyOf[id] == c.currency.code &&
+            !plans.containsKey(id) &&
+            await (select(
+                  categoryPlans,
+                )..where((p) => p.categoryId.equals(id!))).getSingleOrNull() ==
+                null) {
+          // Already a category here (made on the computer meanwhile, or
+          // archived where the phone can't see it) with no plan of its own:
+          // the phone's bill is the one it has, and an archived one comes
+          // back with it. One with a plan keeps the computer's, and its
+          // own Paid from either way.
+          if (archived.remove(id)) {
+            await setArchived(id, false);
+            unarchived.add(id);
+          }
+          await _phoneCategorySettings(
+            id,
+            c,
+            today: today,
+            accounts: {
+              for (final a in live)
+                if (paidFrom.contains(a.id) && a.currency == c.currency.code)
+                  a.id,
+            },
+            pays: pays,
+            plans: plans,
+            withOff: false,
+          );
         }
         categories[c.id] = '$id';
         return id;
@@ -5387,15 +5441,82 @@ class AppDatabase extends _$AppDatabase {
     }
     final after = PhoneTaken.encode(taken);
     if (after != row?.value) await setPreference(phoneTakenKey, after);
-    return added.isEmpty && made.isEmpty
+    return added.isEmpty && made.isEmpty && plans.isEmpty
         ? null
-        : PhoneTake(added, made, unarchived, madeNames);
+        : PhoneTake(added, made, unarchived, madeNames, plans);
   });
+
+  /// What a phone's New category page set for the category [id] just
+  /// made for [c]: the accounts it isn't paid from (unless not [withOff],
+  /// for one the computer had already), and its plan. Only
+  /// what still fits the ledger: an account or pay gone since the phone
+  /// looked is left out, and a plan on a pay that's gone with it.
+  Future<void> _phoneCategorySettings(
+    int id,
+    PhoneCategory c, {
+    required DateTime today,
+    required Set<int> accounts,
+    required Set<int> pays,
+    required Map<int, ({CategoryPlan plan, PlanChange change})> plans,
+    bool withOff = true,
+  }) async {
+    final off = {
+      if (withOff)
+        for (final a in c.off)
+          if (int.tryParse(a) case final n? when accounts.contains(n)) n,
+    };
+    if (off.isNotEmpty) {
+      await setCategoryMoney(id, currency: c.currency, off: off);
+    }
+    final p = c.plan;
+    if (p == null) return;
+    if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) return;
+    // One the computer had already keeps its own Paid from: the bill goes
+    // only to an account it uses.
+    final unused = withOff
+        ? off
+        : {
+            for (final r in await (select(
+              categoryAccountsOff,
+            )..where((r) => r.categoryId.equals(id))).get())
+              r.accountId,
+          };
+    final paid = p.paidFrom;
+    final plan = CategoryPlan(
+      categoryId: id,
+      kind: p.kind,
+      amount: p.amount,
+      start: p.start,
+      due: p.due,
+      everyMonths: p.everyMonths,
+      everyDays: p.everyDays,
+      onDates: p.onDates,
+      payScheduleId: p.payScheduleId,
+      daysAfterPay: p.daysAfterPay,
+      weekend: p.weekend,
+      weekdays: p.weekdays,
+      nth: p.nth,
+      nthWeekday: p.nthWeekday,
+      endDate: p.endDate,
+      endCount: p.endCount,
+      rollover: p.rollover,
+      upTo: p.upTo,
+      paidFrom:
+          paid != null && accounts.contains(paid) && !unused.contains(paid)
+          ? paid
+          : null,
+    );
+    plans[id] = (plan: plan, change: await changeCategoryPlan(id, plan, today));
+  }
 
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.
   /// They stay marked as taken, so the next look doesn't bring them back.
   Future<void> undoPhoneTake(PhoneTake t) => transaction(() async {
     await softDeleteMany(t.transactionIds);
+    // Its bills first: a category with one scheduled isn't empty.
+    for (final MapEntry(key: c, value: p) in t.plans.entries) {
+      await undoPlanChange(c, p.change);
+    }
     for (final c in t.categoryIds) {
       await deleteEmptyAccount(c);
     }
@@ -5407,6 +5528,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> redoPhoneTake(PhoneTake t) => transaction(() async {
     for (final c in t.categoryIds) {
       await undeleteAccount(DeletedAccount(c, const []));
+    }
+    for (final MapEntry(key: c, value: p) in t.plans.entries) {
+      await redoPlanChange(c, p.plan, p.change);
     }
     for (final c in t.unarchivedIds) {
       await setArchived(c, false);

@@ -44,6 +44,7 @@ import 'schemes.dart';
 import 'language.dart';
 import 'brand.dart';
 import 'data_words.dart';
+import 'plan_form.dart';
 import 'theme.dart';
 
 part 'accounts.dart';
@@ -713,8 +714,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
           : await _settleIncoming(take.transactionIds.toSet());
       if (!mounted) return;
       final t = context.t;
+      // The categories it made, and one it had already that took the
+      // phone's bill.
+      final categories = {...take.categoryIds, ...take.plans.keys}.toList();
       final label = take.transactionIds.isEmpty
-          ? t.ledgerCategoryFromPhone(take.categoryIds.length)
+          ? t.ledgerCategoryFromPhone(categories.length)
           : t.ledgerFromPhone(take.transactionIds.length);
       // Not in ⌘Z's history (owner, 2026-10-08): ⌘Z pressed for something
       // just typed would take out rows the phone has already let go of.
@@ -750,10 +754,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 label: t.ledgerShowMoved,
                 onTap: () => _askBill(settled.unsure.first),
               )
-            : take.categoryIds.length == 1
+            : categories.length == 1
             ? (
-                label: t.ledgerEditCategory(take.categoryNames.single),
-                onTap: () => _editCategory(take.categoryIds.single),
+                label: t.ledgerEditCategory(
+                  take.categoryIds.isEmpty
+                      ? _data?.accounts[categories.single]?.name ?? ''
+                      : take.categoryNames.single,
+                ),
+                onTap: () => _editCategory(categories.single),
               )
             : null,
         undo: () async {

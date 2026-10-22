@@ -3889,6 +3889,23 @@ is set before it's made, so nothing opens after Add.
   typed: saving the row then makes it bare, as before. A new name typed and saved
   with Enter, without picking "+ New category", still makes it bare with the row, in
   one undo, so typing a row isn't stopped by a window it didn't ask for.
-- Still to come under #237: the phone's "+ New category" opens a phone-sized window
-  with the same settings.
+- **The phone's "+ New category"** (on Budget and in an entry's Category list) opens
+  the same questions on one page (owner, 2026-10-22, the pick of three sketches): **A,
+  one scrolling page (chosen)**, Cancel at the top, Add another and Add at the bottom;
+  B, a box over the screen (rejected: cramped, the keyboard covers half); C, one
+  question per screen with Next (rejected: more taps, unlike the computer). Same order
+  and words as the computer's window: name, currency (from Budget, with accounts in
+  two), "Is there a due date?", then what that needs, Paid from, Set aside, and the row
+  as it will read on the computer's Budget page. A choice opens a list from the bottom;
+  Custom… opens its own page. From an entry it's in the entry's currency with no Add
+  another, and a name that's already a category says "… Add puts it in this row."; on
+  Budget that name stops Add, as an account's name does. The category waits with the
+  phone's entries and comes in on the computer with its plan and Paid from, its bill
+  scheduled; the take's undo takes the bill too. A pay or account gone on the computer
+  meanwhile is left out (a plan on a gone pay: the category comes in bare). A name the
+  computer already has (made there meanwhile, or archived where the phone can't see
+  it) takes the phone's bill when it has no plan, and an archived one comes back; one
+  with a plan keeps the computer's, and its own Paid from either way (budget review).
+  A due date is picked from today on, as a date typed on the computer rolls ahead. A
+  computer on an older version takes the category in bare.
 

@@ -36,7 +36,17 @@ class PhoneCategory {
     this.due,
     this.madeHere = false,
     this.transfer = false,
+    this.plan,
+    this.off = const {},
   });
+
+  /// Made here: the plan its New category page set (its categoryId
+  /// means nothing until the computer makes it), which the computer gives it when it comes in.
+  final CategoryPlan? plan;
+
+  /// Made here: the accounts in its currency it isn't paid from, by the
+  /// ledger's id, as Paid from on the computer keeps them (rule 28).
+  final Set<String> off;
 
   /// Not a category: another of the ledger's accounts, picked in the
   /// Category list to move money to it (cash from an ATM, a card paid).
@@ -100,7 +110,13 @@ class PhoneSnapshot {
     this.periodEnd,
     this.payees = const [],
     this.taken = const {},
+    this.data,
   });
+
+  /// The ledger the snapshot was made from: the New category page works
+  /// out a plan from it as the computer does, with its pays and periods.
+  /// Null for figures made up (the preview, tests).
+  final LedgerData? data;
 
   /// What the computer has taken in from each phone, by the phone's name
   /// for itself: a phone drops these from what it has waiting.
@@ -462,6 +478,7 @@ PhoneSnapshot snapshotOf(
 
   return PhoneSnapshot(
     madeAt: madeAt,
+    data: data,
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,
     payees: everyPayee,

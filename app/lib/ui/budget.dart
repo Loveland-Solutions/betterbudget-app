@@ -353,13 +353,13 @@ class _BudgetPageState extends State<_BudgetPage> {
         striped: striped,
         planNote: line == null || planLine == null
             ? null
-            : _planNote(
+            : planNote(
                 t,
                 line,
                 period,
                 widget.today,
                 currency,
-                payName: _ownPayName(t, data, planLine.plan),
+                payName: ownPayName(t, data, planLine.plan),
                 own: data.payScheduleById(planLine.plan.payScheduleId),
               ),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
@@ -1438,7 +1438,7 @@ class _CategoryRow extends StatefulWidget {
   final List<_LineFlag> flags;
 
   /// With a plan: what it says under the name (rule 27).
-  final _PlanNote? planNote;
+  final PlanNote? planNote;
 
   /// "₮200,000" when the plan wants more assigned this period than is;
   /// clicking it assigns that.
@@ -2201,129 +2201,6 @@ class _StartOffer extends StatelessWidget {
   );
 }
 
-/// The pay a set amount is per, by name, when there's more than one pay to
-/// tell it from; null for a monthly one, or the only pay.
-String? _ownPayName(Words t, LedgerData data, CategoryPlan plan) {
-  if (plan.kind != PlanKind.each || plan.payScheduleId == null) return null;
-  if (data.paySchedules.length < 2) return null;
-  final pay = data.payScheduleById(plan.payScheduleId);
-  return pay == null ? null : payTitle(t, data, pay);
-}
-
-/// What a plan says under its category's name: the plan, then whether a
-/// dated one has what it should ("on track", or "₮200,000 short" in
-/// full ink).
-typedef _PlanNote = ({String text, String? state, bool behind});
-
-_PlanNote _planNote(
-  Words t,
-  EnvelopeLine line,
-  BudgetSpan period,
-  DateTime today,
-  Currency currency, {
-  String? payName,
-  PaySchedule? own,
-}) {
-  final p = line.plan!;
-  // The period on screen, and a set amount's own (its month or its pay,
-  // named when there's more than one pay to tell apart).
-  final byPay = period.label == payPeriodLabel;
-  final ownPay = p.plan.kind == PlanKind.each
-      ? p.plan.payScheduleId != null
-      : byPay;
-  String money(int v) => formatShort(v, currency: currency);
-  // In the last period before a date, the part is the rest: "this month".
-  String each(int v) => p.lastPeriod
-      ? (byPay ? t.planThisPay(money(v)) : t.planThisMonth(money(v)))
-      : !ownPay
-      ? t.planEachMonth(money(v))
-      : payName != null
-      ? t.planEachPayOf(money(v), payName)
-      : t.planEachPay(money(v));
-  // This year's dates need no year; a date in 2028 does.
-  String date(DateTime d) =>
-      d.year == today.year ? sayDate(t, d) : sayFullDate(t, d);
-  final due = p.due ?? p.plan.due ?? p.plan.start;
-  final once = p.plan.kind == PlanKind.byDate && !p.plan.repeats;
-  // What went back is said once the period it went back in has begun;
-  // looking ahead, it hasn't happened yet.
-  final wentBack = p.wentBack > 0 && !period.start.isAfter(today);
-  // A dated plan names its part only while it wants one.
-  final wants = p.each > 0 && p.planned > 0 && !(once && p.done);
-  final cap = p.plan.rollover ? p.plan.upTo : null;
-  final parts = switch (p.plan.kind) {
-    PlanKind.each => [
-      // Holding its cap, the line says so in place of the amount.
-      if (cap != null && p.done)
-        t.planSetAsideAmount(money(cap))
-      else
-        each(p.each),
-      // Seen by another period than its own: its share of this one, by
-      // days, said as about. More than one period's worth (the one before
-      // was never filled, and the rest of it is in view) is said as what
-      // that period still needs, plus what's toward the next (owner,
-      // 2026-10-05: "₮600,000 each … · about ₮700,000 this …" read as a
-      // contradiction).
-      if (p.shares.length > 1 &&
-          p.planned > p.each &&
-          p.shares.first.amount > 0 &&
-          own != null &&
-          !(cap != null && p.done))
-        ...() {
-          final first = p.shares.first;
-          final period = budgetPeriod(first.date, own);
-          final rest = p.planned - first.amount;
-          return [
-            t.planStillFor(
-              money(first.amount),
-              date(period.start),
-              date(period.end),
-            ),
-            if (rest > 0) t.planPlusNext(money(rest)),
-          ];
-        }()
-      else if (p.approx && p.planned > 0 && !(cap != null && p.done))
-        byPay
-            ? t.planAboutThisPay(money(p.planned))
-            : t.planAboutThisMonth(money(p.planned)),
-      if (cap != null && !p.done) t.planUpTo(money(cap)),
-      // Seen by its own period, "last month"; by another, the day.
-      if (wentBack)
-        ownPay != byPay && p.wentBackOn != null
-            ? t.planWentBackOn(money(p.wentBack), date(p.wentBackOn!))
-            : ownPay
-            ? t.planWentBackPay(money(p.wentBack))
-            : t.planWentBack(money(p.wentBack))
-      else if (!p.plan.rollover)
-        t.planNoCarry,
-    ],
-    PlanKind.byDate => [
-      if (p.ended)
-        t.planEnded(money(p.plan.amount), date(due))
-      else if (!once)
-        t.planDue(money(p.plan.amount), date(due))
-      else if (p.done && due.isBefore(period.start))
-        t.planWasDue(money(p.plan.amount), date(due))
-      else
-        t.planBy(money(p.plan.amount), date(due)),
-      if (wants) each(p.each),
-    ],
-  };
-  final String? state;
-  if (line.short > 0) {
-    state = t.planShort(money(line.short));
-  } else if (once && p.done) {
-    state = t.planSetAsideState;
-  } else if (p.plan.kind == PlanKind.each || p.waiting || p.done) {
-    state = null;
-  } else if (line.toAssign == 0) {
-    state = t.planOnTrack;
-  } else {
-    state = null;
-  }
-  return (text: parts.join(' · '), state: state, behind: line.short > 0);
-}
-
 /// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
 /// ₮200,000" at its end assigns what the plan wants this period.
 class _PlanNoteLine extends StatelessWidget {
@@ -2335,7 +2212,7 @@ class _PlanNoteLine extends StatelessWidget {
     required this.onPlan,
   });
   final int id;
-  final _PlanNote note;
+  final PlanNote note;
   final String? assign;
   final VoidCallback? onAssign;
   final VoidCallback? onPlan;
@@ -2614,13 +2491,6 @@ String cashBankLabel(Words t, LedgerData data) {
   return t.planKeyCashBank;
 }
 
-/// The accounts in [currency] a category can use: cash, bank and credit
-/// cards (owner, 2026-10-02: a bill planned for the Visa is the Visa's). Not
-/// a mortgage or student loan. [Budget.spendable], not [Budget.counts]: the
-/// latter is only where money sits, and a card holds none.
-Iterable<AccountInfo> _categoryAccounts(LedgerData data, Currency currency) =>
-    data.openAccounts.where((a) => Budget.spendable(a, currency));
-
 /// What a spending line says about its money (rule 28): the accounts it's
 /// kept in, when those hold less than is left in it ([today]: only in the
 /// period today is in, since balances are today's), a payment from an
@@ -2638,7 +2508,7 @@ List<_LineFlag> _lineFlags(
   String money(int v, [Currency? currency]) =>
       formatShort(v, currency: currency ?? c.currency);
   final off = data.accountsOff[c.id] ?? const <int>{};
-  final mine = _categoryAccounts(data, c.currency).toList();
+  final mine = categoryAccounts(data, c.currency).toList();
   final used = mine.where((a) => !off.contains(a.id)).toList();
   return [
     if (used.length < mine.length)
@@ -2768,14 +2638,13 @@ class _CategoryEditor extends StatefulWidget {
 
 class _CategoryEditorState extends State<_CategoryEditor> {
   late final _name = TextEditingController(text: widget.category.name);
-  late final _amount = TextEditingController();
-  late final _date = TextEditingController();
-  late final _upTo = TextEditingController();
-  late final _everyN = TextEditingController(text: '1');
-  late final _dates = TextEditingController();
-  late final _daysAfter = TextEditingController();
-  late final _endDate = TextEditingController();
-  late final _endCount = TextEditingController(text: '12');
+
+  /// The plan's answers, and what they add up to: the phone's New
+  /// category page asks the same.
+  late final _p = PlanAnswers(
+    today: widget.today,
+    currency: widget.category.currency,
+  );
   final _nameFocus = FocusNode(debugLabel: 'category-name');
   final _amountFocus = FocusNode(debugLabel: 'plan-amount');
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
@@ -2784,9 +2653,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _repeatMenu = MenuController();
   final _eachMenu = MenuController();
 
-  /// A set amount's own period: per this pay's periods, or per month
-  /// (null). Owner, 2026-10-05: each category says how it's budgeted.
-  int? _eachPayId;
   final _unitMenu = MenuController();
   final _weekendMenu = MenuController();
   final _nthMenu = MenuController();
@@ -2818,7 +2684,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// the panel was clicked), so Esc still closes and Enter still saves.
   final _panelFocus = FocusNode(debugLabel: 'category-editor');
 
-  late Currency _currency = widget.category.currency;
+  Currency get _currency => _p.currency;
+  set _currency(Currency c) => _p.currency = c;
   late Set<int> _off = {..._savedOff};
 
   /// The category as the panel has it: a new one is in whatever currency
@@ -2832,35 +2699,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         )
       : widget.category;
 
-  /// The one question: is there a due date? No: a set amount each period
-  /// (or none, with the amount left empty). Yes: an amount by a date.
-  bool _hasDate = false;
-
-  /// How often it comes, as the question is asked: once, every so many
-  /// days, weeks, months or years, on fixed dates each year, or every
-  /// payday. [_custom] shows the number and unit for "Every…".
-  _Repeat _repeat = _Repeat.once;
-  bool _custom = false;
-  _Unit _unit = _Unit.months;
-
-  /// Custom… (owner, 2026-10-05, an Outlook-like block): every so many
-  /// weeks on these weekdays (Monday 1); every so many months or years on
-  /// the nth weekday instead of the day of the month; and when it ends.
-  final Set<int> _weekdays = {};
-  bool _nthOn = false;
-  int _nth = 1;
-  int _nthWeekday = 1;
-  _Ends _ends = _Ends.never;
-  int? _payScheduleId;
-  PayWeekend _weekend = PayWeekend.keep;
-  bool _rollover = true;
-
   /// The account a dated plan's bill is scheduled in: the one account the
   /// category is paid from, when it's narrowed to one. One control says
   /// both (owner, 2026-10-05: "two account selectors: just have one").
   int? get _paidFromNow {
-    if (!_dated) return null;
-    final used = _categoryAccounts(
+    if (!_p.hasDate) return null;
+    final used = categoryAccounts(
       widget.data,
       _currency,
     ).where((a) => !_off.contains(a.id)).toList();
@@ -2898,7 +2742,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     super.initState();
     _showPlan(_savedPlan);
     final atPlan = widget.atPlan;
-    final first = atPlan ? _amount : _name;
+    final first = atPlan ? _p.amount : _name;
     first.selection = TextSelection(
       baseOffset: 0,
       extentOffset: first.text.length,
@@ -2953,14 +2797,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   void dispose() {
     _reveal?.cancel();
     _name.dispose();
-    _amount.dispose();
-    _date.dispose();
-    _upTo.dispose();
-    _everyN.dispose();
-    _dates.dispose();
-    _daysAfter.dispose();
-    _endDate.dispose();
-    _endCount.dispose();
+    _p.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
     _dateFocus.dispose();
@@ -2970,309 +2807,30 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     super.dispose();
   }
 
-  String _amountText(int a) => a <= 0 ? '' : typedAmount(a, _currency);
-
   /// Fills the plan's fields from [p], or empties them.
-  void _showPlan(CategoryPlan? p) {
-    _hasDate = p?.kind == PlanKind.byDate;
-    _amount.text = _amountText(p?.amount ?? 0);
-    _date.text = p?.due == null ? '' : fullDate(p!.due!);
-    _custom = false;
-    _weekend = p?.weekend ?? PayWeekend.keep;
-    _payScheduleId = p?.kind == PlanKind.byDate ? p?.payScheduleId : null;
-    // A set amount's own period: its own, or for a new one the period on
-    // screen (budget review, 2026-10-05: made while viewing by a pay, it
-    // shouldn't start as "each month · about ₮93,300 this pay period").
-    _eachPayId = p?.kind == PlanKind.each
-        ? p?.payScheduleId
-        : widget.data.periodSchedule?.id;
-    final after = p?.daysAfterPay ?? 0;
-    _daysAfter.text = after == 0 ? '' : '$after';
-    _dates.text = p?.onDates == null
-        ? ''
-        : [for (final (m, d) in p!.onDates!) _monthDay(m, d)].join(', ');
-    var n = 1;
-    if (p?.payScheduleId != null) {
-      _repeat = _Repeat.payday;
-    } else if (p?.onDates != null) {
-      _repeat = _Repeat.dates;
-    } else if (p?.everyDays case final days?) {
-      _repeat = _Repeat.every;
-      _unit = days % 7 == 0 ? _Unit.weeks : _Unit.days;
-      n = days % 7 == 0 ? days ~/ 7 : days;
-      _custom = days != 7 && days != 14;
-    } else if (p?.everyMonths case final months?) {
-      _repeat = _Repeat.every;
-      _unit = months % 12 == 0 ? _Unit.years : _Unit.months;
-      n = months % 12 == 0 ? months ~/ 12 : months;
-      _custom = months != 1 && months != 3 && months != 12;
-    } else {
-      _repeat = _Repeat.once;
-      _unit = _Unit.months;
-    }
-    _everyN.text = '$n';
-    // Custom…'s own answers: any of them makes the repeat a custom one.
-    _weekdays
-      ..clear()
-      ..addAll(p?.weekdays ?? const []);
-    _nthOn = p?.nth != null;
-    _nth = p?.nth ?? 1;
-    _nthWeekday = p?.nthWeekday ?? 1;
-    _ends = p?.endCount != null
-        ? _Ends.count
-        : p?.endDate != null
-        ? _Ends.date
-        : _Ends.never;
-    _endDate.text = p?.endDate == null ? '' : fullDate(p!.endDate!);
-    _endCount.text = '${p?.endCount ?? 12}';
-    // A pattern makes it Custom…; an end alone doesn't, since Ends shows
-    // under every repeat.
-    if (p != null && (p.weekdays != null || p.nth != null)) _custom = true;
-    _rollover = p?.rollover ?? true;
-    _upTo.text = _amountText(p?.upTo ?? 0);
-  }
+  void _showPlan(CategoryPlan? p) =>
+      _p.show(p, periodPayId: widget.data.periodSchedule?.id);
 
   void _pickDated(bool yes) {
     setState(() {
-      _hasDate = yes;
+      _p.hasDate = yes;
       _tried = false;
     });
-    _amount.selection = TextSelection(
+    _p.amount.selection = TextSelection(
       baseOffset: 0,
-      extentOffset: _amount.text.length,
+      extentOffset: _p.amount.text.length,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _amountFocus.requestFocus();
     });
   }
 
-  bool get _dated => _hasDate;
-
-  /// The plan the answers add up to: dated, a set amount, or none when
-  /// the amount is left empty.
-  PlanKind? get _kindNow => _hasDate
-      ? PlanKind.byDate
-      : _amount.text.trim().isEmpty
-      ? null
-      : PlanKind.each;
-
-  int? get _typedAmount =>
-      switch (parseAmount(_amount.text.trim(), _currency)) {
-        final a? when a > 0 => a,
-        _ => null,
-      };
-
-  /// The cap, when one is typed; empty is no cap.
-  int? get _typedUpTo => switch (parseAmount(_upTo.text.trim(), _currency)) {
-    final a? when a > 0 => a,
-    _ => null,
-  };
-
-  /// Something is in the cap's field that isn't an amount.
-  bool get _wrongUpTo => _upTo.text.trim().isNotEmpty && _typedUpTo == null;
-
-  /// A bill or goal is ahead: `03.15` typed in October is next March's,
-  /// and a bill that repeats is its next time round (`10.10` typed on
-  /// 10.15 for a monthly bill is 11.10).
-  DateTime? get _typedDate {
-    final text = _date.text.trim();
-    var d = parseEntryDate(text, widget.today);
-    // A year far off is a slip of the hand, not a date.
-    if (d == null || d.year > widget.today.year + 100) return null;
-    final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
-    if (pieces.length > 2 || !d.isBefore(widget.today)) return d;
-    final months = _dated ? _everyMonthsNow : null;
-    final days = _dated ? _everyDaysNow : null;
-    if (months == null && days == null) {
-      return DateTime(d.year + 1, d.month, d.day);
-    }
-    final day = d.day;
-    while (d!.isBefore(widget.today)) {
-      if (days != null) {
-        d = DateTime(d.year, d.month, d.day + days);
-      } else {
-        final last = DateTime(d.year, d.month + months! + 1, 0).day;
-        d = DateTime(d.year, d.month + months, day < last ? day : last);
-      }
-    }
-    return d;
-  }
-
-  static String _monthDay(int m, int d) =>
-      '${m.toString().padLeft(2, '0')}.${d.toString().padLeft(2, '0')}';
-
-  /// The number typed after "Every"; null when it isn't one.
-  int? get _typedEveryN => switch (int.tryParse(_everyN.text.trim())) {
-    final n? when n > 0 && n < 1000 => n,
-    _ => null,
-  };
-
-  /// Every so many months, when that's how it repeats.
-  int? get _everyMonthsNow {
-    if (_repeat != _Repeat.every) return null;
-    final n = _typedEveryN;
-    return switch (_unit) {
-      _Unit.months => n,
-      _Unit.years => n == null ? null : n * 12,
-      _ => null,
-    };
-  }
-
-  /// Every so many days, when that's how it repeats.
-  int? get _everyDaysNow {
-    if (_repeat != _Repeat.every) return null;
-    final n = _typedEveryN;
-    return switch (_unit) {
-      _Unit.days => n,
-      _Unit.weeks => n == null ? null : n * 7,
-      _ => null,
-    };
-  }
-
-  /// Custom… is on: its block shows, and its answers count.
-  bool get _customOn => _repeat == _Repeat.every && _custom;
-
-  /// The weekdays picked, every so many weeks; null for the date's own.
-  List<int>? get _weekdaysNow =>
-      _customOn && _unit == _Unit.weeks && _weekdays.isNotEmpty
-      ? ([..._weekdays]..sort())
-      : null;
-
-  /// On the nth weekday of the month, every so many months or years.
-  bool get _nthNow =>
-      _customOn && (_unit == _Unit.months || _unit == _Unit.years) && _nthOn;
-
-  DateTime? get _typedEndDate {
-    final d = parseEntryDate(_endDate.text.trim(), widget.today);
-    if (d == null || d.year > widget.today.year + 100) return null;
-    return d;
-  }
-
-  int? get _typedEndCount => switch (int.tryParse(_endCount.text.trim())) {
-    final n? when n > 0 && n < 1000 => n,
-    _ => null,
-  };
-
-  /// Ends applies to any repeat typed as every so many (a preset or
-  /// Custom…): "Every month, 12 times" is an installment plan (budget
-  /// review, 2026-10-05).
-  bool get _endsOn => _repeat == _Repeat.every;
-  DateTime? get _endDateNow =>
-      _endsOn && _ends == _Ends.date ? _typedEndDate : null;
-  int? get _endCountNow =>
-      _endsOn && _ends == _Ends.count ? _typedEndCount : null;
-
-  /// The dates typed for "On these dates", as (month, day); null when
-  /// one of them isn't a date.
-  List<(int, int)>? get _typedDates {
-    final pieces = _dates.text
-        .split(RegExp(r'[,;\s]+'))
-        .where((x) => x.isNotEmpty)
-        .toList();
-    final out = <(int, int)>[];
-    for (final piece in pieces) {
-      final d = parseEntryDate(piece, widget.today);
-      if (d == null) return null;
-      out.add((d.month, d.day));
-    }
-    return out;
-  }
-
-  /// The first of the typed dates from today on.
-  DateTime? _firstOfDates(List<(int, int)> dates) {
-    DateTime? first;
-    for (final (m, d) in dates) {
-      var on = DateTime(widget.today.year, m, d);
-      if (on.isBefore(widget.today)) on = DateTime(widget.today.year + 1, m, d);
-      if (first == null || on.isBefore(first)) first = on;
-    }
-    return first;
-  }
-
-  int get _daysAfterNow => switch (int.tryParse(_daysAfter.text.trim())) {
-    final n? when n > 0 && n < 100 => n,
-    _ => 0,
-  };
-
   /// The plan as typed. Null with a kind picked means something is missing.
-  CategoryPlan? get _draft {
-    final kind = _kindNow;
-    if (kind == null) return null;
-    final amount = _typedAmount;
-    if (amount == null) return null;
-    final old = _plan;
-    final rollover = kind != PlanKind.each || _rollover;
-    if (kind == PlanKind.each && rollover && _wrongUpTo) return null;
-    final upTo = kind == PlanKind.each && rollover ? _typedUpTo : null;
-    // How it comes again, and from when.
-    DateTime? due;
-    List<(int, int)>? dates;
-    int? payId;
-    if (_dated) {
-      switch (_repeat) {
-        case _Repeat.payday:
-          payId = _payScheduleId;
-          if (payId == null) return null;
-        case _Repeat.dates:
-          dates = _typedDates;
-          if (dates == null || dates.isEmpty) return null;
-          due = _firstOfDates(dates);
-        case _Repeat.every:
-          if (_typedEveryN == null) return null;
-          due = _typedDate;
-          if (due == null) return null;
-          if (_ends == _Ends.date && _typedEndDate == null) return null;
-          if (_ends == _Ends.count && _typedEndCount == null) return null;
-        case _Repeat.once:
-          due = _typedDate;
-          if (due == null) return null;
-      }
-    }
-    CategoryPlan make(DateTime start) => CategoryPlan(
-      categoryId: widget.category.id,
-      kind: kind,
-      amount: amount,
-      start: start,
-      due: due,
-      everyMonths: _dated ? _everyMonthsNow : null,
-      everyDays: _dated ? _everyDaysNow : null,
-      onDates: dates,
-      payScheduleId: _dated ? payId : _eachPayId,
-      daysAfterPay: payId == null ? 0 : _daysAfterNow,
-      // Chosen weekdays are the days; a weekend rule would move a
-      // Saturday onto Friday's bill (code review).
-      weekend:
-          _dated &&
-              _repeat != _Repeat.once &&
-              payId == null &&
-              _weekdaysNow == null
-          ? _weekend
-          : PayWeekend.keep,
-      weekdays: _dated ? _weekdaysNow : null,
-      nth: _dated && _nthNow ? _nth : null,
-      nthWeekday: _dated && _nthNow ? _nthWeekday : null,
-      endDate: _dated ? _endDateNow : null,
-      endCount: _dated ? _endCountNow : null,
-      rollover: rollover,
-      upTo: upTo,
-      paidFrom: _paidFromNow,
-    );
-    final fresh = make(widget.today);
-    // A dated plan's parts count from the day it was made, and a category
-    // that doesn't carry over is emptied from that day on: only a plan
-    // that's really the same keeps its day. One that already didn't
-    // carry over keeps it through a new amount; a cap or the account a
-    // bill is paid from changes nothing about the count.
-    final same =
-        old != null &&
-        old.kind == kind &&
-        (kind == PlanKind.each
-            ? old.rollover == rollover &&
-                  old.payScheduleId == _eachPayId &&
-                  (!rollover || old.amount == amount)
-            : old.amount == amount && old.sameRepeat(fresh));
-    return same ? make(old.start) : fresh;
-  }
+  CategoryPlan? get _draft => _p.draft(
+    categoryId: widget.category.id,
+    paidFrom: _paidFromNow,
+    old: _plan,
+  );
 
   Future<void> _save({bool another = false}) async {
     if (_done) return;
@@ -3283,13 +2841,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       return;
     }
     final draft = _draft;
-    if (_kindNow != null && draft == null) {
+    if (_p.kind != null && draft == null) {
       setState(() => _tried = true);
-      (_typedAmount == null
+      (_p.typedAmount == null
               ? _amountFocus
-              : !_dated
+              : !_p.hasDate
               ? _upToFocus
-              : _repeat == _Repeat.dates
+              : _p.repeat == PlanRepeat.dates
               ? _datesFocus
               : _dateFocus)
           .requestFocus();
@@ -3303,38 +2861,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     // Not made: the answers stay, to be changed and added again.
     if (!made && mounted) _done = false;
   }
-
-  String _everyLabel(Words t, int n, _Unit unit) => switch (unit) {
-    _Unit.days => t.planRepeatDays(n),
-    _Unit.weeks => t.planRepeatWeeks(n),
-    _Unit.months => t.planRepeatMonths(n),
-    _Unit.years => t.planRepeatYears(n),
-  };
-
-  String _unitLabel(Words t, _Unit unit) => switch (unit) {
-    _Unit.days => t.planUnitDays,
-    _Unit.weeks => t.planUnitWeeks,
-    _Unit.months => t.planUnitMonths,
-    _Unit.years => t.planUnitYears,
-  };
-
-  String _weekendLabel(Words t, PayWeekend w) => switch (w) {
-    PayWeekend.keep => t.planWeekendKeep,
-    PayWeekend.before => t.planWeekendBefore,
-    PayWeekend.after => t.planWeekendAfter,
-  };
-
-  /// "first" … "fourth", or "last" (-1).
-  String _nthLabel(Words t, int n) => switch (n) {
-    1 => t.planNthFirst,
-    2 => t.planNthSecond,
-    3 => t.planNthThird,
-    4 => t.planNthFourth,
-    _ => t.planNthLast,
-  };
-
-  /// Monday (1) … Sunday (7), in full.
-  String _weekdayName(Words t, int wd) => t.planWeekdayNames.split('|')[wd - 1];
 
   /// One weekday in Custom…'s row of them, lit when picked.
   Widget _dayChip(
@@ -3363,38 +2889,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ),
   );
 
-  /// "Every payday", or which pay when there's more than one.
-  String _paydayLabel(Words t, PaySchedule s) {
-    if (widget.data.paySchedules.length < 2) return t.planEveryPayday;
-    return t.planEveryPaydayOf(payTitle(t, widget.data, s));
-  }
-
-  /// "Every pay period", or with more than one pay, "Every pay period ·
-  /// Jenny".
-  String _eachPayLabel(Words t, PaySchedule s) {
-    if (widget.data.paySchedules.length < 2) return t.planEveryPayPeriod;
-    return t.planEveryPayPeriodOf(payTitle(t, widget.data, s));
-  }
-
-  /// What the How often button says.
-  String _repeatLabel(Words t) => switch (_repeat) {
-    _Repeat.once => t.planOnce,
-    // Custom… open: the block under it says the pattern.
-    _Repeat.every when _custom => t.planCustomOn,
-    _Repeat.every => _everyLabel(t, _typedEveryN ?? 1, _unit),
-    _Repeat.dates => t.planDatesAYear(_typedDates?.length ?? 0),
-    _Repeat.payday => switch (widget.data.payScheduleById(_payScheduleId)) {
-      final s? => _paydayLabel(t, s),
-      null => t.planEveryPayday,
-    },
-  };
-
-  void _preset(int n, _Unit unit) => setState(() {
-    _repeat = _Repeat.every;
-    _custom = false;
-    _everyN.text = '$n';
-    _unit = unit;
-  });
+  void _preset(int n, PlanUnit unit) => setState(() => _p.preset(n, unit));
 
   /// A control that says what it is by its value (the currency, the
   /// accounts): no label over it, the label as its tooltip.
@@ -3442,12 +2937,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     required EnvelopeLine? line,
     required CategoryPlan? draft,
   }) {
-    final wrongAmount = _tried && _kindNow != null && _typedAmount == null;
-    final wrongDate = _tried && _dated && _typedDate == null;
-    final wrongUpTo = _tried && !_dated && _wrongUpTo;
+    final wrongAmount = _tried && _p.kind != null && _p.typedAmount == null;
+    final wrongDate = _tried && _p.hasDate && _p.typedDate == null;
+    final wrongUpTo = _tried && !_p.hasDate && _p.wrongUpTo;
     final data = widget.data;
     final paidAccount = data.accounts[_paidFromNow];
-    final hasAmount = _amount.text.trim().isNotEmpty;
+    final hasAmount = _p.amount.text.trim().isNotEmpty;
     String money(int v) => formatShort(v, currency: _currency);
     Widget amountField(
       TextEditingController controller,
@@ -3520,7 +3015,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
     );
     // A set amount's wording follows its own period, not the view's.
-    final byPay = _eachPayId != null;
+    final byPay = _p.eachPayId != null;
     final eachLabel = byPay ? t.planSetAsidePay : t.planSetAsideMonth;
     // What a dated plan comes to each period: the amount alone (owner,
     // 2026-10-22: "Remove 'worked out from the date'").
@@ -3532,7 +3027,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     } else {
       part = t.planNothingMore;
     }
-    final due = line?.plan?.due ?? _typedDate;
+    final due = line?.plan?.due ?? _p.typedDate;
     final dueText = due == null
         ? null
         : due.year == widget.today.year
@@ -3543,23 +3038,23 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         t.planDueDateQ,
         _Segmented(
           items: [
-            ('plan-dated-no', t.planNo, !_hasDate, () => _pickDated(false)),
-            ('plan-dated-yes', t.planYes, _hasDate, () => _pickDated(true)),
+            ('plan-dated-no', t.planNo, !_p.hasDate, () => _pickDated(false)),
+            ('plan-dated-yes', t.planYes, _p.hasDate, () => _pickDated(true)),
           ],
         ),
         // What the answer picked means, in one example (owner, 2026-10-05:
         // "What happens if there isn't a due date?").
-        aside: _hasDate
+        aside: _p.hasDate
             ? t.planDueYesMeans
             : byPay
             ? t.planDueNoMeansPay
             : t.planDueNoMeans,
       ),
-      if (!_hasDate) ...[
+      if (!_p.hasDate) ...[
         _formRow(
           eachLabel,
           amountField(
-            _amount,
+            _p.amount,
             _amountFocus,
             key: 'plan-amount',
             wrong: wrongAmount,
@@ -3576,34 +3071,34 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // and Jenny). Month is the default; without pay there's nothing
         // else to pick, so no row. A pay since stopped stays pickable
         // while the plan is on it.
-        if (data.paySchedules.isNotEmpty || _eachPayId != null)
+        if (data.paySchedules.isNotEmpty || _p.eachPayId != null)
           _formRow(
             t.planHowOften,
             menu(
               _eachMenu,
               key: 'plan-each-period',
-              label: switch (data.payScheduleById(_eachPayId)) {
+              label: switch (data.payScheduleById(_p.eachPayId)) {
                 null => t.planRepeatMonths(1),
-                final pay => _eachPayLabel(t, pay),
+                final pay => planEachPayLabel(t, widget.data, pay),
               },
               items: [
                 item(
                   'plan-each-month',
                   t.planRepeatMonths(1),
-                  on: _eachPayId == null,
-                  onTap: () => setState(() => _eachPayId = null),
+                  on: _p.eachPayId == null,
+                  onTap: () => setState(() => _p.eachPayId = null),
                 ),
                 for (final pay in [
                   ...data.paySchedules,
-                  if (data.payScheduleById(_eachPayId) case final p?
+                  if (data.payScheduleById(_p.eachPayId) case final p?
                       when !data.paySchedules.any((x) => x.id == p.id))
                     p,
                 ])
                   item(
                     'plan-each-pay-${pay.id}',
-                    _eachPayLabel(t, pay),
-                    on: _eachPayId == pay.id,
-                    onTap: () => setState(() => _eachPayId = pay.id),
+                    planEachPayLabel(t, widget.data, pay),
+                    on: _p.eachPayId == pay.id,
+                    onTap: () => setState(() => _p.eachPayId = pay.id),
                   ),
               ],
             ),
@@ -3618,23 +3113,23 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 (
                   'plan-carry-on',
                   t.planStaysHere,
-                  _rollover,
-                  () => setState(() => _rollover = true),
+                  _p.rollover,
+                  () => setState(() => _p.rollover = true),
                 ),
                 (
                   'plan-carry-off',
                   t.planGoesBack,
-                  !_rollover,
-                  () => setState(() => _rollover = false),
+                  !_p.rollover,
+                  () => setState(() => _p.rollover = false),
                 ),
               ],
             ),
           ),
-          if (_rollover && hasAmount)
+          if (_p.rollover && hasAmount)
             _formRow(
               t.planStopAt,
               amountField(
-                _upTo,
+                _p.upTo,
                 _upToFocus,
                 key: 'plan-up-to',
                 wrong: wrongUpTo,
@@ -3648,7 +3143,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         _formRow(
           t.planAmountDue,
           amountField(
-            _amount,
+            _p.amount,
             _amountFocus,
             key: 'plan-amount',
             wrong: wrongAmount,
@@ -3663,63 +3158,80 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               menu(
                 _repeatMenu,
                 key: 'plan-repeat',
-                label: _repeatLabel(t),
+                label: planRepeatLabel(t, widget.data, _p),
                 items: [
                   item(
                     'plan-repeat-0',
                     t.planOnce,
-                    on: _repeat == _Repeat.once,
-                    onTap: () => setState(() => _repeat = _Repeat.once),
+                    on: _p.repeat == PlanRepeat.once,
+                    onTap: () => setState(() => _p.repeat = PlanRepeat.once),
                   ),
                   for (final (key, n, unit, label) in [
-                    ('plan-repeat-d7', 1, _Unit.weeks, t.planRepeatWeeks(1)),
-                    ('plan-repeat-d14', 2, _Unit.weeks, t.planRepeatWeeks(2)),
-                    ('plan-repeat-1', 1, _Unit.months, t.planRepeatMonths(1)),
-                    ('plan-repeat-3', 3, _Unit.months, t.planRepeatMonths(3)),
-                    ('plan-repeat-12', 1, _Unit.years, t.planRepeatYears(1)),
+                    ('plan-repeat-d7', 1, PlanUnit.weeks, t.planRepeatWeeks(1)),
+                    (
+                      'plan-repeat-d14',
+                      2,
+                      PlanUnit.weeks,
+                      t.planRepeatWeeks(2),
+                    ),
+                    (
+                      'plan-repeat-1',
+                      1,
+                      PlanUnit.months,
+                      t.planRepeatMonths(1),
+                    ),
+                    (
+                      'plan-repeat-3',
+                      3,
+                      PlanUnit.months,
+                      t.planRepeatMonths(3),
+                    ),
+                    ('plan-repeat-12', 1, PlanUnit.years, t.planRepeatYears(1)),
                   ])
                     item(
                       key,
                       label,
                       on:
-                          _repeat == _Repeat.every &&
-                          !_custom &&
-                          _unit == unit &&
-                          _typedEveryN == n,
+                          _p.repeat == PlanRepeat.every &&
+                          !_p.custom &&
+                          _p.unit == unit &&
+                          _p.typedEveryN == n,
                       onTap: () => _preset(n, unit),
                     ),
                   // Payday by payday: only with pay set up.
                   for (final pay in data.paySchedules)
                     item(
                       'plan-repeat-pay-${pay.id}',
-                      _paydayLabel(t, pay),
-                      on: _repeat == _Repeat.payday && _payScheduleId == pay.id,
+                      planPaydayLabel(t, widget.data, pay),
+                      on:
+                          _p.repeat == PlanRepeat.payday &&
+                          _p.payScheduleId == pay.id,
                       onTap: () => setState(() {
-                        _repeat = _Repeat.payday;
-                        _payScheduleId = pay.id;
+                        _p.repeat = PlanRepeat.payday;
+                        _p.payScheduleId = pay.id;
                       }),
                     ),
                   item(
                     'plan-repeat-custom',
                     t.planEveryCustom,
-                    on: _repeat == _Repeat.every && _custom,
+                    on: _p.repeat == PlanRepeat.every && _p.custom,
                     onTap: () => setState(() {
-                      _repeat = _Repeat.every;
-                      _custom = true;
+                      _p.repeat = PlanRepeat.every;
+                      _p.custom = true;
                     }),
                   ),
                   item(
                     'plan-repeat-dates',
                     t.planOnDates,
-                    on: _repeat == _Repeat.dates,
-                    onTap: () => setState(() => _repeat = _Repeat.dates),
+                    on: _p.repeat == PlanRepeat.dates,
+                    onTap: () => setState(() => _p.repeat = PlanRepeat.dates),
                   ),
                 ],
               ),
             ],
           ),
         ),
-        if (_repeat == _Repeat.payday)
+        if (_p.repeat == PlanRepeat.payday)
           _formRow(
             t.planLabelDueDate,
             Row(
@@ -3730,7 +3242,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   height: 34,
                   child: TextField(
                     key: const ValueKey('plan-days-after'),
-                    controller: _daysAfter,
+                    controller: _p.daysAfter,
                     textAlign: TextAlign.center,
                     style: onest(13.5, tabular: true),
                     onSubmitted: (_) => _save(),
@@ -3744,21 +3256,23 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 Text(t.planDaysAfterPay, style: onest(13, color: Mid.ink2)),
               ],
             ),
-            aside: _daysAfterNow == 0 ? t.planOnPayday : null,
+            aside: _p.daysAfterNow == 0 ? t.planOnPayday : null,
           )
         else
           _formRow(
-            _repeat == _Repeat.dates ? t.planDatesLabel : t.planLabelDueDate,
+            _p.repeat == PlanRepeat.dates
+                ? t.planDatesLabel
+                : t.planLabelDueDate,
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_repeat == _Repeat.dates)
+                if (_p.repeat == PlanRepeat.dates)
                   SizedBox(
                     width: 300,
                     height: 34,
                     child: TextField(
                       key: const ValueKey('plan-dates'),
-                      controller: _dates,
+                      controller: _p.dates,
                       focusNode: _datesFocus,
                       style: onest(13.5, tabular: true),
                       onSubmitted: (_) => _save(),
@@ -3766,7 +3280,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                           _fieldDecoration(
                             wrong:
                                 _tried &&
-                                (_typedDates == null || _typedDates!.isEmpty),
+                                (_p.typedDates == null ||
+                                    _p.typedDates!.isEmpty),
                           ).copyWith(
                             hintText: t.planDatesHint,
                             hintStyle: onest(13.5, color: Mid.ink3),
@@ -3779,7 +3294,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                     height: 34,
                     child: DateField(
                       key: const ValueKey('plan-date'),
-                      controller: _date,
+                      controller: _p.date,
                       focusNode: _dateFocus,
                       today: widget.today,
                       small: true,
@@ -3792,19 +3307,19 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   ),
                 // A weekend rule, for dates that can land on one (not
                 // chosen weekdays: those are the days).
-                if (_repeat != _Repeat.once && _weekdaysNow == null) ...[
+                if (_p.repeat != PlanRepeat.once && _p.weekdaysNow == null) ...[
                   const SizedBox(width: 10),
                   menu(
                     _weekendMenu,
                     key: 'plan-weekend',
-                    label: _weekendLabel(t, _weekend),
+                    label: planWeekendLabel(t, _p.weekend),
                     items: [
                       for (final w in PayWeekend.values)
                         item(
                           'plan-weekend-${w.name}',
-                          _weekendLabel(t, w),
-                          on: w == _weekend,
-                          onTap: () => setState(() => _weekend = w),
+                          planWeekendLabel(t, w),
+                          on: w == _p.weekend,
+                          onTap: () => setState(() => _p.weekend = w),
                         ),
                     ],
                   ),
@@ -3816,7 +3331,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // (owner, 2026-10-05), under the date it starts from: how many of
         // which unit, the weekdays or the nth weekday when the unit has
         // them, and when it ends.
-        if (_customOn) ...[
+        if (_p.customOn) ...[
           _formRow(
             t.planRepeatEvery,
             Row(
@@ -3827,12 +3342,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   height: 34,
                   child: TextField(
                     key: const ValueKey('plan-every-n'),
-                    controller: _everyN,
+                    controller: _p.everyN,
                     textAlign: TextAlign.center,
                     style: onest(13.5, tabular: true),
                     onSubmitted: (_) => _save(),
                     decoration: _fieldDecoration(
-                      wrong: _tried && _typedEveryN == null,
+                      wrong: _tried && _p.typedEveryN == null,
                     ),
                   ),
                 ),
@@ -3840,21 +3355,21 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 menu(
                   _unitMenu,
                   key: 'plan-every-unit',
-                  label: _unitLabel(t, _unit),
+                  label: planUnitLabel(t, _p.unit),
                   items: [
-                    for (final u in _Unit.values)
+                    for (final u in PlanUnit.values)
                       item(
                         'plan-every-unit-${u.name}',
-                        _unitLabel(t, u),
-                        on: u == _unit,
-                        onTap: () => setState(() => _unit = u),
+                        planUnitLabel(t, u),
+                        on: u == _p.unit,
+                        onTap: () => setState(() => _p.unit = u),
                       ),
                   ],
                 ),
               ],
             ),
           ),
-          if (_unit == _Unit.weeks)
+          if (_p.unit == PlanUnit.weeks)
             _formRow(
               t.planOnWeekdays,
               Row(
@@ -3865,18 +3380,18 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                     _dayChip(
                       initial,
                       key: 'plan-weekday-${i + 1}',
-                      on: _weekdays.contains(i + 1),
+                      on: _p.weekdays.contains(i + 1),
                       onTap: () => setState(
-                        () => _weekdays.contains(i + 1)
-                            ? _weekdays.remove(i + 1)
-                            : _weekdays.add(i + 1),
+                        () => _p.weekdays.contains(i + 1)
+                            ? _p.weekdays.remove(i + 1)
+                            : _p.weekdays.add(i + 1),
                       ),
                     ),
                 ],
               ),
-              aside: _weekdays.isEmpty ? t.planWeekdaysHint : null,
+              aside: _p.weekdays.isEmpty ? t.planWeekdaysHint : null,
             ),
-          if (_unit == _Unit.months || _unit == _Unit.years)
+          if (_p.unit == PlanUnit.months || _p.unit == PlanUnit.years)
             _formRow(
               t.planOnLabel,
               Row(
@@ -3887,39 +3402,30 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       (
                         'plan-nth-off',
                         t.planDayOfMonth,
-                        !_nthOn,
-                        () => setState(() => _nthOn = false),
+                        !_p.nthOn,
+                        () => setState(() => _p.nthOn = false),
                       ),
                       (
                         'plan-nth-on',
                         t.planAWeekday,
-                        _nthOn,
-                        () => setState(() {
-                          _nthOn = true;
-                          // Start from the date typed: its weekday, and
-                          // which one of the month it is.
-                          if (_typedDate case final d?) {
-                            _nthWeekday = d.weekday;
-                            _nth = (d.day - 1) ~/ 7 + 1;
-                            if (_nth > 4) _nth = -1;
-                          }
-                        }),
+                        _p.nthOn,
+                        () => setState(_p.startNth),
                       ),
                     ],
                   ),
-                  if (_nthOn) ...[
+                  if (_p.nthOn) ...[
                     const SizedBox(width: 8),
                     menu(
                       _nthMenu,
                       key: 'plan-nth',
-                      label: _nthLabel(t, _nth),
+                      label: planNthLabel(t, _p.nth),
                       items: [
                         for (final n in const [1, 2, 3, 4, -1])
                           item(
                             'plan-nth-$n',
-                            _nthLabel(t, n),
-                            on: n == _nth,
-                            onTap: () => setState(() => _nth = n),
+                            planNthLabel(t, n),
+                            on: n == _p.nth,
+                            onTap: () => setState(() => _p.nth = n),
                           ),
                       ],
                     ),
@@ -3927,14 +3433,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                     menu(
                       _nthWeekdayMenu,
                       key: 'plan-nth-weekday',
-                      label: _weekdayName(t, _nthWeekday),
+                      label: planWeekdayName(t, _p.nthWeekday),
                       items: [
                         for (var wd = 1; wd <= 7; wd++)
                           item(
                             'plan-nth-weekday-$wd',
-                            _weekdayName(t, wd),
-                            on: wd == _nthWeekday,
-                            onTap: () => setState(() => _nthWeekday = wd),
+                            planWeekdayName(t, wd),
+                            on: wd == _p.nthWeekday,
+                            onTap: () => setState(() => _p.nthWeekday = wd),
                           ),
                       ],
                     ),
@@ -3943,7 +3449,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ),
             ),
         ],
-        if (_endsOn)
+        if (_p.endsOn)
           _formRow(
             t.planEnds,
             Row(
@@ -3952,31 +3458,31 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 _Segmented(
                   items: [
                     for (final (e, label) in [
-                      (_Ends.never, t.planEndsNever),
-                      (_Ends.date, t.planEndsOn),
-                      (_Ends.count, t.planEndsAfter),
+                      (PlanEnds.never, t.planEndsNever),
+                      (PlanEnds.date, t.planEndsOn),
+                      (PlanEnds.count, t.planEndsAfter),
                     ])
                       (
                         'plan-ends-${e.name}',
                         label,
-                        _ends == e,
-                        () => setState(() => _ends = e),
+                        _p.ends == e,
+                        () => setState(() => _p.ends = e),
                       ),
                   ],
                 ),
-                if (_ends == _Ends.date) ...[
+                if (_p.ends == PlanEnds.date) ...[
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 130,
                     height: 34,
                     child: TextField(
                       key: const ValueKey('plan-end-date'),
-                      controller: _endDate,
+                      controller: _p.endDate,
                       style: onest(13.5, tabular: true),
                       onSubmitted: (_) => _save(),
                       decoration:
                           _fieldDecoration(
-                            wrong: _tried && _typedEndDate == null,
+                            wrong: _tried && _p.typedEndDate == null,
                           ).copyWith(
                             hintText: t.planEndDateHint,
                             hintStyle: onest(13.5, color: Mid.ink3),
@@ -3984,19 +3490,19 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                     ),
                   ),
                 ],
-                if (_ends == _Ends.count) ...[
+                if (_p.ends == PlanEnds.count) ...[
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 56,
                     height: 34,
                     child: TextField(
                       key: const ValueKey('plan-end-count'),
-                      controller: _endCount,
+                      controller: _p.endCount,
                       textAlign: TextAlign.center,
                       style: onest(13.5, tabular: true),
                       onSubmitted: (_) => _save(),
                       decoration: _fieldDecoration(
-                        wrong: _tried && _typedEndCount == null,
+                        wrong: _tried && _p.typedEndCount == null,
                       ),
                     ),
                   ),
@@ -4012,7 +3518,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           // forecast, said with the count (budget review, 2026-10-05).
           aside: paidAccount != null && dueText != null
               ? t.planPaidFromHint(paidAccount.name, dueText)
-              : switch (_categoryAccounts(
+              : switch (categoryAccounts(
                   data,
                   _currency,
                 ).where((a) => !_off.contains(a.id)).length) {
@@ -4071,10 +3577,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 if (x == c.currency && !widget.isNew) {
                   _showPlan(_savedPlan);
                 } else {
-                  _amount.clear();
+                  _p.amount.clear();
                 }
               });
-              if (_hasDate) _amountFocus.requestFocus();
+              if (_p.hasDate) _amountFocus.requestFocus();
             },
           ),
         ),
@@ -4087,7 +3593,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// it uses. The one row for both what rule 28 called the accounts a
   /// category uses and the account a dated plan's bill is scheduled in.
   Widget _accountsRow(Words t, {String? aside}) {
-    final accounts = _categoryAccounts(widget.data, _currency).toList();
+    final accounts = categoryAccounts(widget.data, _currency).toList();
     final used = accounts.where((a) => !_off.contains(a.id)).toList();
     return _formRow(
       t.planLabelPaidFrom,
@@ -4179,14 +3685,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return ListenableBuilder(
       listenable: Listenable.merge([
         _name,
-        _amount,
-        _date,
-        _upTo,
-        _everyN,
-        _dates,
-        _daysAfter,
-        _endDate,
-        _endCount,
+        _p.amount,
+        _p.date,
+        _p.upTo,
+        _p.everyN,
+        _p.dates,
+        _p.daysAfter,
+        _p.endDate,
+        _p.endCount,
       ]),
       builder: (context, _) {
         final draft = _draft;
@@ -4196,7 +3702,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // The category as the answers so far make it: the row drawn as
         // it will read, and a dated plan's part.
         EnvelopeLine? line;
-        _PlanNote? note;
+        PlanNote? note;
         if (_currency == c.currency) {
           Budget of(LedgerData d) => Budget.of(
             d,
@@ -4207,7 +3713,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           final now = of(data);
           // No plan, picked over a saved one, can bring money back too.
           final plans =
-              draft != null || (_kindNow == null && _savedPlan != null);
+              draft != null || (_p.kind == null && _savedPlan != null);
           final after = plans ? of(data.withPlan(c.id, draft)) : now;
           line = after.lines[c.id];
           // In the category's own currency.
@@ -4225,13 +3731,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             );
           }
           if (line?.plan != null) {
-            note = _planNote(
+            note = planNote(
               t,
               line!,
               widget.period,
               widget.today,
               _currency,
-              payName: _ownPayName(t, data, line.plan!.plan),
+              payName: ownPayName(t, data, line.plan!.plan),
               own: data.payScheduleById(line.plan!.plan.payScheduleId),
             );
           }
@@ -4248,7 +3754,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           paidArchived = t.planPaidFromArchived(paidAccount.name);
         }
 
-        final accounts = _categoryAccounts(data, _currency).toList();
+        final accounts = categoryAccounts(data, _currency).toList();
         // In another currency its amounts and plan mean nothing: they go,
         // and the panel says so first.
         final assigned = data.budgetAmounts
@@ -4285,19 +3791,19 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // under the window's edge.
         // The repeat rows grow it too: Custom…, its unit, Ends.
         final shape = Object.hash(
-          _hasDate,
-          _kindNow,
+          _p.hasDate,
+          _p.kind,
           accounts.length,
           preview != null,
           returns != null,
           rest != null,
           loses,
-          _repeat,
-          _customOn,
-          _unit,
-          _endsOn,
-          _ends,
-          _nthOn,
+          _p.repeat,
+          _p.customOn,
+          _p.unit,
+          _p.endsOn,
+          _p.ends,
+          _p.nthOn,
         );
         if (shape != _shape) {
           _shape = shape;
@@ -4693,12 +4199,3 @@ class _Segmented extends StatelessWidget {
     ),
   );
 }
-
-/// How a dated plan comes again, as the panel asks it.
-enum _Repeat { once, every, dates, payday }
-
-/// Custom…: when a repeating plan stops.
-enum _Ends { never, date, count }
-
-/// The unit after "Every": days, weeks, months or years.
-enum _Unit { days, weeks, months, years }
