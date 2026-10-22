@@ -55,6 +55,7 @@ jobs:
         run: |
           $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
           "name=BetterBudget-$version-windows" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       # The artifact downloads as one zip of the app folder (BetterBudget.exe
       # and the files beside it).
@@ -65,4 +66,29 @@ jobs:
           if-no-files-found: error
           # Kept two weeks, not GitHub's 90 days: each build is 15 MB of the
           # account's Actions storage, and a release has its own copy.
+          retention-days: 14
+
+      # The Microsoft Store package (#109): the same app folder, its tiles and
+      # manifest (windows/msix), packed with the Windows SDK's MakeAppx. Packed
+      # unsigned: the Store signs what is uploaded to it. Its version is the
+      # app's with a 0 after it, as the Store requires.
+      - name: Store package
+        shell: pwsh
+        run: |
+          $version = "${{ steps.name.outputs.version }}"
+          $stage = "build/msix"
+          Copy-Item build/windows/x64/runner/Release $stage -Recurse
+          Copy-Item windows/msix/Assets "$stage/Assets" -Recurse
+          (Get-Content windows/msix/AppxManifest.xml -Raw).Replace('Version="VERSION"', "Version=`"$version.0`"") |
+            Set-Content "$stage/AppxManifest.xml" -Encoding utf8
+          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          & $makeappx.FullName pack /d $stage /p "build/BetterBudget-$version.msix" /o
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: BetterBudget-${{ steps.name.outputs.version }}-store
+          path: app/build/BetterBudget-*.msix
+          if-no-files-found: error
           retention-days: 14

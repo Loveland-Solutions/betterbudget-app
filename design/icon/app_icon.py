@@ -9,8 +9,9 @@ the logo on a white tile (2026-10-08), and before that the bee.
 
 Run from the repo root; needs rsvg-convert (`brew install librsvg`) and sips:
     python3 design/icon/app_icon.py
-It writes the PNGs into app/macos/Runner/Assets.xcassets/AppIcon.appiconset and
-app/windows/runner/resources/app_icon.ico. Windows draws an icon as it is, with no
+It writes the PNGs into app/macos/Runner/Assets.xcassets/AppIcon.appiconset,
+app/windows/runner/resources/app_icon.ico, and the Microsoft Store package's tiles
+into app/windows/msix/Assets. Windows draws an icon as it is, with no
 margin of its own and no shadow, so its tile fills the square and casts none.
 """
 import pathlib
@@ -23,6 +24,9 @@ ROOT = HERE.parent.parent
 LOGO = ROOT / "assets/logo/prepared/logo-night.svg"
 ICONSET = ROOT / "app/macos/Runner/Assets.xcassets/AppIcon.appiconset"
 ICO = ROOT / "app/windows/runner/resources/app_icon.ico"
+# The Store package's tiles, by the names its manifest gives them.
+STORE = ROOT / "app/windows/msix/Assets"
+STORE_TILES = {"Square44x44Logo": 44, "Square150x150Logo": 150, "StoreLogo": 50}
 
 # The tile macOS expects inside a 1024 canvas, and the logo's height in it:
 # 620 makes the logo 61% of the tile wide, with room for the coins' shadow.
@@ -108,6 +112,13 @@ def main():
             for size in (16, 20, 24, 32, 40, 48, 64, 256)
         ]
         write_ico(pngs)
+        STORE.mkdir(parents=True, exist_ok=True)
+        for name, size in STORE_TILES.items():
+            subprocess.run(
+                ["rsvg-convert", "-w", str(size), str(win_svg),
+                 "-o", str(STORE / f"{name}.png")],
+                check=True,
+            )
     finally:
         beside.unlink()
         mac_svg.unlink()
