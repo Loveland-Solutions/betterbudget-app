@@ -22,7 +22,8 @@ this time in place of Delete on a category's bill, whose money then counts towar
 the next on the Budget page. `billPayments`, `billFit`, `Budget.skippedBills` in
 `domain/budget.dart`; `payBill`, `notTheBill` in `database.dart`; `_tieBill`,
 `_askBill`, `_BillQuestion`, `_settleTyped`, `_settleIncoming` in
-`ledger_screen.dart`; `_PaidAskLine` in `register.dart`. Not seen by the owner yet.
+`ledger_screen.dart`; `_PaidAskLine` in `register.dart`. Seen working by the owner in
+the real app.
 
 **The forecast's "Nothing has been budgeted" goes by the budget** (0.41.4, closes
 #129): it shows only while no category in use has a plan or an amount assigned. With
