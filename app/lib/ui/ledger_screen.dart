@@ -782,6 +782,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The latest ledger, for comparing a backup with what's here now.
   LedgerData? _data;
 
+  /// Completes once the next snapshot of the ledger is in [_data].
+  Completer<void>? _nextData;
+
   /// The ledger as the database gave it, and the word Income was named
   /// with: [_data] is made again only when one of them changes.
   LedgerData? _loaded;
@@ -834,6 +837,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 db.suggestedCategory(payee, _entryAccountId ?? _accountId!),
           )
           ..onProblem = _entryProblem
+          ..newCategory = _newCategoryForRow
           ..remembered = (payee, category, pay) => _rememberedSo(
             _entryAccountId ?? _accountId,
             payee,
@@ -2029,6 +2033,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           )
           ..payeeNames = _entry.payeeNames
           ..onProblem = _entryProblem
+          ..newCategory = _newCategoryForRow
           ..remembered = (payee, category, pay) =>
               _rememberedSo(row.accountId, payee, category, pay);
     // The popup in the corner would lie over the Cancel and Save of a row
@@ -4503,7 +4508,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// what Add does then: a category opens in Edit, an archived one comes
   /// back with these settings. A bank account's name can't be a
   /// category's too (one list of names holds both), so that one stops Add.
-  ({String text, bool blocks})? _categoryNameNote(String name) {
+  ({String text, bool blocks})? _categoryNameNote(
+    String name, {
+    bool inRow = false,
+  }) {
     final t = context.t;
     final data = _data;
     if (data == null) return null;
@@ -4512,6 +4520,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return (
         text: category.archived
             ? t.planNameArchived(category.name)
+            : inRow
+            ? t.planNameIsCategoryInRow(category.name)
             : t.planNameIsCategory(category.name),
         blocks: false,
       );
@@ -4526,11 +4536,60 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return null;
   }
 
+  /// "+ New category" in the entry row (owner, 2026-10-22, #237): the New
+  /// category window, with what was typed, in the row's currency, without
+  /// Add another. A name that's a category already puts that one in the
+  /// row. What's made is in the data before the row is given it.
+  Future<AccountInfo?> _newCategoryForRow(String name, Currency currency) async {
+    final data = _data;
+    if (data == null) return null;
+    AccountInfo? picked;
+    int? madeId;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _NewCategoryWindow(
+        data: () => _data ?? data,
+        period: budgetPeriod(today, data.periodSchedule),
+        today: today,
+        currencies: [currency],
+        currency: currency,
+        name: name,
+        offerAnother: false,
+        nameNote: (n) => _categoryNameNote(n, inRow: true),
+        onAdd: (e) async {
+          final now = _data;
+          if (now == null) return _Added.none;
+          final existing = _categoryNamed(now, e.name);
+          if (existing != null && !existing.archived) {
+            picked = existing;
+            return _Added.opened;
+          }
+          return _addCategory(e, made: (id) => madeId = id);
+        },
+      ),
+    );
+    if (picked != null || madeId == null) return picked;
+    final id = madeId!;
+    while (mounted && _data?.accounts[id] == null) {
+      try {
+        await (_nextData ??= Completer<void>()).future.timeout(
+          const Duration(seconds: 2),
+        );
+      } on TimeoutException {
+        break;
+      }
+    }
+    return mounted ? _data?.accounts[id] : null;
+  }
+
   /// Add in the New category window: the category, with its accounts and
   /// plan, in one write and one undo. A name that's taken makes nothing
   /// new, so there's never two of it: a category opens in Edit, and an
   /// archived one comes back with what the window set.
-  Future<_Added> _addCategory(_CategoryEdit e) async {
+  Future<_Added> _addCategory(
+    _CategoryEdit e, {
+    ValueChanged<int>? made,
+  }) async {
     final t = context.t;
     final data = _data;
     if (data == null) return _Added.none;
@@ -4544,6 +4603,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await _archiveCategory(existing, false);
       final back = _data?.accounts[existing.id];
       if (back != null) await _saveCategory(back, e);
+      made?.call(existing.id);
       return _Added.made;
     }
     late int id;
@@ -4582,6 +4642,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
       }),
     );
+    made?.call(id);
     return _Added.made;
   }
 
@@ -5697,6 +5758,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 _loaded = loaded;
                 _incomeWord = incomeWord;
                 _data = loaded.withIncomeNamed(incomeWord);
+                if (_nextData case final next?) {
+                  _nextData = null;
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => next.complete(),
+                  );
+                }
                 // A save waiting for this snapshot: its rows may pay bills.
                 if (_toSettle.isNotEmpty && !identical(loaded, _settleOver)) {
                   final ids = {..._toSettle};

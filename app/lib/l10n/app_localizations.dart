@@ -1943,6 +1943,12 @@ abstract class Words {
   /// **'{name} is already a category. Add opens it.'**
   String planNameIsCategory(String name);
 
+  /// New category window opened from the entry row's + New category: under the name while it's an existing category's; Add closes the window and puts that category in the row's Category
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is already a category. Add puts it in this row.'**
+  String planNameIsCategoryInRow(String name);
+
   /// New category window: under the name while it's an archived category's; Add brings that category back with what the window set
   ///
   /// In en, this message translates to:

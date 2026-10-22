@@ -2064,6 +2064,15 @@
       }
     }
   },
+  "planNameIsCategoryInRow": "{name} is already a category. Add puts it in this row.",
+  "@planNameIsCategoryInRow": {
+    "description": "New category window opened from the entry row's + New category: under the name while it's an existing category's; Add closes the window and puts that category in the row's Category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "planNameArchived": "{name} is archived. Add brings it back.",
   "@planNameArchived": {
     "description": "New category window: under the name while it's an archived category's; Add brings that category back with what the window set",

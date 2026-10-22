@@ -84,6 +84,11 @@ class EntryRowController {
   /// Set by the screen: whether this payee is already remembered as this
   /// category (and pay) on the row's account, so the box isn't offered.
   bool Function(String payee, int categoryId, int? payId)? remembered;
+
+  /// Set by the screen: "+ New category" opens the New category window
+  /// with the name typed and the row's currency (owner, 2026-10-22, #237).
+  /// The category it made or picked, or null when it closed without one.
+  Future<AccountInfo?> Function(String name, Currency currency)? newCategory;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -590,6 +595,48 @@ class _EntryRowState extends State<EntryRow> {
       _amount.text.trim().isNotEmpty;
 
   bool get _isTransfer => _category.text.trim().startsWith('→');
+
+  /// "+ New category" in Category: the New category window, and the
+  /// category it made in the field. Closed without one, the name stays
+  /// typed, and saving the row still makes it, bare, as before.
+  Future<void> _pickNew(String name) async {
+    final open = widget.controller.newCategory;
+    final made = open == null ? null : await open(name, _hereCurrency);
+    if (!mounted) return;
+    if (open == null) {
+      // Picked on purpose: no doubt left.
+      _chosenNew = name;
+      _amountFocus.requestFocus();
+      return;
+    }
+    if (made == null) {
+      _categoryFocus.requestFocus();
+      return;
+    }
+    setState(() {
+      _category.text = made.name;
+      _chosenNew = null;
+    });
+    _amountFocus.requestFocus();
+  }
+
+  /// "+ New category" on a split's line: the same window, and the
+  /// category it made on the line.
+  Future<void> _pickNewOnLine(_SplitLine l, String name) async {
+    final made = await widget.controller.newCategory!(name, _hereCurrency);
+    if (!mounted) return;
+    setState(() {
+      if (made == null) {
+        l.accountId = null;
+        l.newName = name;
+      } else {
+        l.accountId = made.id;
+        l.newName = null;
+        l.category.text = made.name;
+      }
+    });
+    (made == null ? l.categoryFocus : l.amountFocus).requestFocus();
+  }
 
   /// A name typed in Category that isn't one yet: saving creates it.
   String? get _newCategory {
@@ -1430,6 +1477,11 @@ class _EntryRowState extends State<EntryRow> {
                             ? t.rowsNewCategoryOption(c.name)
                             : c.name,
                         onSelected: (c) {
+                          if (c.id == _createId &&
+                              widget.controller.newCategory != null) {
+                            _pickNewOnLine(l, c.name);
+                            return;
+                          }
                           if (c.id == _createId) {
                             l.accountId = null;
                             l.newName = c.name;
@@ -1974,9 +2026,9 @@ class _EntryRowState extends State<EntryRow> {
                                                   _openSplit();
                                                   return;
                                                 }
-                                                // Picked on purpose: no doubt left.
                                                 if (o.account.id == _createId) {
-                                                  _chosenNew = o.account.name;
+                                                  _pickNew(o.account.name);
+                                                  return;
                                                 }
                                                 _amountFocus.requestFocus();
                                               },
