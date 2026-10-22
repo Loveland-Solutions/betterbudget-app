@@ -11,6 +11,11 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**The last Play build is 0.45.0** (`.aab` made 2026-10-23). A phone change after it
+needs a new one; before offering a build, compare this line with `git log` on
+`app/lib/ui/phone/` and the time of `app/build/app/outputs/bundle/release/app-release.aab`,
+and rewrite this line whenever an `.aab` is made.
+
 **The phone's "+ New category" asks everything the computer's window does** (0.45.0,
 closes #237; ADR 0004 "New category: one window with everything"): one scrolling page,
 the owner's pick of three, from Budget (with Add another) and from an entry's Category
@@ -20,8 +25,8 @@ the category with its plan and Paid from, its bill scheduled; the take's undo ta
 bill too. An older computer takes the category in bare. The answers and the plan they
 make are one class, `PlanAnswers` in `ui/plan_form.dart`, which the computer's Edit
 now uses too. `_NewCategoryPage`, `_CustomRepeatPage` in
-`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. Not
-yet seen by the owner on the Pixel: it reaches the phone with the next Play build.
+`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. The
+Play build with it is made (0.45.0 `.aab`, 2026-10-23), for the owner to upload.
 
 **The entry row's "+ New category" opens the New category window** (0.44.0, part of
 #237): in Category and on a split's line, always at the top of the list beside Split;
