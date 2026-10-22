@@ -162,8 +162,9 @@ Open: #104, #105, #106, #107.
 
 ### F. Mac App Store (owner item 5)
 - [x] Privacy policy (2026-10-14): `PRIVACY.md` in the public repo,
-      https://github.com/Loveland-Solutions/betterbudget/blob/main/PRIVACY.md, the address
-      for every store's listing
+      https://github.com/Loveland-Solutions/betterbudget/blob/main/PRIVACY.md, and its
+      copy on the website, https://lls.mn/en/betterbudget/privacy/, the address for every
+      store's listing (owner, 2026-10-23, for the Microsoft Store)
 
 Open: #108, #169.
 
