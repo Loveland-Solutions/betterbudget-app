@@ -5968,4 +5968,87 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String get planMoveFrom => 'From';
+
+  @override
+  String get planMoveTo => 'To';
+
+  @override
+  String get planMoveAmount => 'Amount';
+
+  @override
+  String get planMoveChoose => 'Choose a category';
+
+  @override
+  String planMoveLeft(String amount) {
+    return '$amount left';
+  }
+
+  @override
+  String planMoveOverspent(String amount) {
+    return '$amount overspent';
+  }
+
+  @override
+  String get planMoveButton => 'Move';
+
+  @override
+  String get planMoveEnterAmount => 'Enter an amount';
+
+  @override
+  String planMoveWarn(String category, String left, String short) {
+    return '$category has $left left. After this, it will be $short overspent.';
+  }
+
+  @override
+  String planMoveWarnOver(String category, String over, String short) {
+    return '$category is $over overspent. After this, it will be $short overspent.';
+  }
+
+  @override
+  String planMoveWarnNotAssigned(String amount, String over) {
+    return 'Only $amount is not assigned. After this, you will have assigned $over too much.';
+  }
+
+  @override
+  String planMoved(String amount, String from, String to) {
+    return 'Moved $amount from $from to $to';
+  }
+
+  @override
+  String planMoveUndo(String amount, String from, String to) {
+    return 'Move $amount from $from to $to';
+  }
+
+  @override
+  String planMovedMore(String amount, String category) {
+    return 'Assigned $amount more to $category';
+  }
+
+  @override
+  String planMovedBack(String amount, String category) {
+    return 'Moved $amount from $category back to not assigned';
+  }
+
+  @override
+  String planMoveBackUndo(String amount, String category) {
+    return 'Move $amount from $category back to not assigned';
+  }
+
+  @override
+  String get planMoveOutTip => 'Click to move this money to another category';
+
+  @override
+  String get planMoveInTip => 'Click to move money in from another category';
+
+  @override
+  String get planMoveMoney => 'Move money';
+
+  @override
+  String get planMoveSwap => 'Swap';
+
+  @override
+  String get planMoveSwapTip => 'Move money the other way';
 }

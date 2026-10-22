@@ -4268,6 +4268,99 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Moves [amount] from [from] to [to] in [period] (#99; ADR 0004 "Move
+  /// money between categories"): one's Assigned goes down and the other's
+  /// up, in one write and one undo. Null on a side is Not assigned, so only
+  /// the other side changes. It's allowed past what [from] has; the box
+  /// said by how much first.
+  Future<void> _moveBudget(
+    BudgetSpan period,
+    AccountInfo? from,
+    AccountInfo? to,
+    int amount,
+  ) async {
+    if (amount <= 0 || (from == null && to == null)) return;
+    final t = context.t;
+    final data = _data!;
+    final first = data.prefs[BudgetKeys.began] == null;
+    final currency = Budget.currencyOf(data);
+    final start = period.start, end = period.end;
+    final b = Budget.of(data, start: start, end: end, today: today);
+    int assigned(AccountInfo c) => b.lines[c.id]?.assigned ?? 0;
+    // A category whose own period isn't the page's (a pay seen by month)
+    // takes the whole move in one of its own periods, not spread over
+    // every pay in the month (budget review): the one today is in, or the
+    // last one that starts in the span.
+    List<({DateTime date, int amount})> rows(AccountInfo c, int delta) {
+      final plan = data.plans[c.id];
+      final own = plan?.kind == PlanKind.each
+          ? data.payScheduleById(plan!.payScheduleId)
+          : data.periodSchedule;
+      if (own?.id == data.periodSchedule?.id ||
+          !budgetPeriod(start, own).end.isBefore(end)) {
+        return _budgetRows(data, b, c, period, assigned(c) + delta);
+      }
+      final now = !today.isBefore(start) && !today.isAfter(end);
+      var day = budgetPeriod(now ? today : end, own).start;
+      if (day.isBefore(start)) day = dateOnly(start);
+      final byDay = <DateTime, int>{};
+      for (final a in data.budgetAmounts) {
+        if (a.categoryId != c.id) continue;
+        final d = dateOnly(a.date);
+        if (d.isBefore(start) || d.isAfter(end)) continue;
+        byDay[d] = (byDay[d] ?? 0) + a.amount;
+      }
+      byDay[day] = (byDay[day] ?? 0) + delta;
+      return [
+        for (final e in byDay.entries)
+          if (e.value != 0) (date: e.key, amount: e.value),
+      ];
+    }
+
+    final byId = {
+      if (from != null) from.id: rows(from, -amount),
+      if (to != null) to.id: rows(to, amount),
+    };
+    late Map<int, List<BudgetAmount>> before;
+    Future<void> write() async {
+      before = await db.setBudgetAmounts(byId, start, end);
+      if (first) {
+        await db.setPreference(BudgetKeys.began, dateKey(start));
+        await db.setPreference(BudgetKeys.currency, currency.code);
+      }
+    }
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    final shown = formatMoney(amount, currency: (from ?? to)!.currency);
+    final (label, message) = switch ((from, to)) {
+      (final f?, final c?) => (
+        t.planMoveUndo(shown, f.name, c.name),
+        t.planMoved(shown, f.name, c.name),
+      ),
+      (null, final c?) => (
+        t.planAssignUndo(shown, c.name),
+        t.planMovedMore(shown, c.name),
+      ),
+      (final f?, null) => (
+        t.planMoveBackUndo(shown, f.name),
+        t.planMovedBack(shown, f.name),
+      ),
+      _ => throw StateError('a move needs a side'),
+    };
+    _did(
+      label,
+      message: message,
+      undo: () async {
+        await db.restoreBudgetAmountsOf(before, start, end);
+        if (first) {
+          await db.setPreference(BudgetKeys.began, null);
+          await db.setPreference(BudgetKeys.currency, null);
+        }
+      },
+      redo: write,
+    );
+  }
+
   /// Puts [c] in [currency], using every account in it but [off] (rule
   /// 28). Unchecking an account is quiet; a change of currency takes back
   /// what was assigned and removes the plan, and says so, with Undo.
@@ -4548,7 +4641,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// category window, with what was typed, in the row's currency, without
   /// Add another. A name that's a category already puts that one in the
   /// row. What's made is in the data before the row is given it.
-  Future<AccountInfo?> _newCategoryForRow(String name, Currency currency) async {
+  Future<AccountInfo?> _newCategoryForRow(
+    String name,
+    Currency currency,
+  ) async {
     final data = _data;
     if (data == null) return null;
     AccountInfo? picked;
@@ -5966,6 +6062,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onBudgetBy: _budgetBy,
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
+                                  onMove: _moveBudget,
                                   onKeepStart: () => _setPref(
                                     BudgetKeys.keptStart,
                                     '1',

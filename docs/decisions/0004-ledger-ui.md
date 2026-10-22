@@ -3909,3 +3909,63 @@ is set before it's made, so nothing opens after Add.
   A due date is picked from today on, as a date typed on the computer rolls ahead. A
   computer on an older version takes the category in bare.
 
+
+## Move money between categories (2026-10-23)
+
+Rule 26 said "money can be moved in from another category any time"; until now that
+meant typing two Assigned amounts (#99). The owner picked **A of three** from sketches
+("I like both A's", both directions of it):
+
+- **Click a category's Left.** A box opens under it (above it when the window has
+  more room there) with **From**, **To** and **Amount**, Cancel and **Move** (Enter);
+  Esc or a click away closes it. One side is the category clicked, as plain text; the
+  other is a list, empty until chosen ("Choose a category"), each choice with what it
+  has: "₮18,500 left", or "₮32,000 overspent" in coral.
+- **With money in it, the money goes out** (From is this category). **At zero or
+  below, money comes in** (To is this category), and Amount starts at what it's short:
+  the one figure the screen already shows, not a guess.
+- **Not assigned** is first in the list, apart: in To always, in From only while it
+  holds money, with its amount alone (no "left"). Then every other category in the
+  same currency (rule 28); a category in another currency isn't offered, and nothing
+  says so. With nothing to trade with, Left is plain, not a button.
+- **More than it has still moves** (warn, don't block), said in plain ink with the
+  real numbers: "Groceries has ₮18,500 left. After this, it will be ₮13,500
+  overspent." From Not assigned: "Only ₮420,000 is not assigned. After this, you will
+  have assigned ₮30,000 too much."
+- A move lowers one Assigned and raises the other in the period on screen, one undo
+  and redo; nothing new is stored, so no schema change. Unlike typing an amount it
+  has a toast, since it changes two lines: "Moved ₮32,000 from Groceries to Dining
+  out", "Assigned ₮32,000 more to Dining out", "Moved ₮32,000 from Groceries back to
+  not assigned". A plan's "assign ₮X" offer comes back on the line money left, as it
+  would after typing a lower amount, for the rest of the period (owner, asked
+  2026-10-23: "Yes").
+- Words by the UX writer: "Cover" (other apps' word) and "Transfer" (in the ledger,
+  money between accounts) were left out.
+- Rejected: **B**, drag a Left onto another category (quick, but nothing on the page
+  says it can be done); **C**, a "Move money…" button on the top line opening a window
+  (easy to find, but both sides must be picked, even from the line that's short).
+- **Bills and the safety net stand apart in the list** (budget review): categories
+  waiting for a bill under **Bills**, the safety net under **Saved**, as on the phone
+  and the Budget page, so neither reads as money to spend.
+- **A category budgeted by a pay, seen by month, takes the whole move in one of its
+  own pay periods**: the one today is in, or the last one in the month (both reviews).
+  Spread over every pay in the month, part landed on a pay already over and Left moved
+  by less than the toast said.
+- **Found by pointing at a row** (owner, 2026-10-23: "Looks good, but it's a hidden
+  feature. How would people know that's how they do it?"). With the pointer anywhere
+  on a row, its Left is outlined with **Move money** beside the amount ("it should
+  say 'Move money'", not "Move"); at rest the page is as before. The Left column is
+  wider for it, and a plan's note under a name wraps instead of being cut. The design
+  committee's sketches: **2, the row pointed at (chosen)**; 1, "Move money in" under
+  every amount that's short (rejected: the same words seven times on a bad month); 3,
+  short amounts outlined at all times and "Assigned too much" opening the box
+  (rejected: a column of red boxes). The first-time reader would have clicked
+  Assigned or the ⋯ first: "Left" reads as a result, not a thing to change.
+- **Money coming in lists the categories with most to give first** (first-time
+  reader: Groceries was under three lines at ₮0).
+- **Either way from any row** (owner, 2026-10-23: "I think they should be able to
+  move money in or out regardless"). The box still opens out when there's money and
+  in when it's short, and **Swap** beside the fixed side turns it around (the
+  ledger's word for turning a transfer around); a choice that can't be on its new
+  side (Not assigned with nothing in it, as From) is let go.
+- The computer only: the phone records and checks (ADR 0005).

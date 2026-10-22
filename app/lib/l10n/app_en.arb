@@ -8769,5 +8769,175 @@
         "type": "int"
       }
     }
+  },
+  "planMoveFrom": "From",
+  "@planMoveFrom": {
+    "description": "Budget page, the box that moves money between categories: label of the side the money comes from"
+  },
+  "planMoveTo": "To",
+  "@planMoveTo": {
+    "description": "Budget page, move box: label of the side the money goes to"
+  },
+  "planMoveAmount": "Amount",
+  "@planMoveAmount": {
+    "description": "Budget page, move box: label of the amount field"
+  },
+  "planMoveChoose": "Choose a category",
+  "@planMoveChoose": {
+    "description": "Budget page, move box: the From or To field before a category is chosen"
+  },
+  "planMoveLeft": "{amount} left",
+  "@planMoveLeft": {
+    "description": "Budget page, move box: what a category in the list has left",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveOverspent": "{amount} overspent",
+  "@planMoveOverspent": {
+    "description": "Budget page, move box: a category in the list that is below zero, by how much",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveButton": "Move",
+  "@planMoveButton": {
+    "description": "Budget page, move box: the button that moves the money"
+  },
+  "planMoveEnterAmount": "Enter an amount",
+  "@planMoveEnterAmount": {
+    "description": "Budget page, move box: Move was clicked with no amount"
+  },
+  "planMoveWarn": "{category} has {left} left. After this, it will be {short} overspent.",
+  "@planMoveWarn": {
+    "description": "Budget page, move box: the amount is more than the category it comes from has left (it still moves)",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveWarnOver": "{category} is {over} overspent. After this, it will be {short} overspent.",
+  "@planMoveWarnOver": {
+    "description": "Budget page, move box: the category the money comes from is already below zero (it still moves)",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveWarnNotAssigned": "Only {amount} is not assigned. After this, you will have assigned {over} too much.",
+  "@planMoveWarnNotAssigned": {
+    "description": "Budget page, move box: more is taken from Not assigned than it holds (it still moves)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoved": "Moved {amount} from {from} to {to}",
+  "@planMoved": {
+    "description": "Toast after moving money from one category to another",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveUndo": "Move {amount} from {from} to {to}",
+  "@planMoveUndo": {
+    "description": "Undo history label for moving money between two categories",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planMovedMore": "Assigned {amount} more to {category}",
+  "@planMovedMore": {
+    "description": "Toast after moving money from Not assigned into a category",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planMovedBack": "Moved {amount} from {category} back to not assigned",
+  "@planMovedBack": {
+    "description": "Toast after moving money from a category to Not assigned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveBackUndo": "Move {amount} from {category} back to not assigned",
+  "@planMoveBackUndo": {
+    "description": "Undo history label for moving money from a category to Not assigned",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planMoveOutTip": "Click to move this money to another category",
+  "@planMoveOutTip": {
+    "description": "Budget page: tooltip on a category's Left when it holds money"
+  },
+  "planMoveInTip": "Click to move money in from another category",
+  "@planMoveInTip": {
+    "description": "Budget page: tooltip on a category's Left at zero or below"
+  },
+  "planMoveMoney": "Move money",
+  "@planMoveMoney": {
+    "description": "Budget page: beside a category's Left on the row the pointer is on; clicking opens the box that moves money"
+  },
+  "planMoveSwap": "Swap",
+  "@planMoveSwap": {
+    "description": "Budget page, move box: turns it around, so From and To change places"
+  },
+  "planMoveSwapTip": "Move money the other way",
+  "@planMoveSwapTip": {
+    "description": "Budget page, move box: tooltip on Swap"
   }
 }

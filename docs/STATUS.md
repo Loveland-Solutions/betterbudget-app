@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-22** · version 0.43.0 · schema v21 · 793 tests pass
+**Last updated: 2026-10-23** · version 0.46.0 · schema v21 · 802 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,6 +11,20 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**The last Play build is 0.45.0** (`.aab` made 2026-10-23). A phone change after it
+needs a new one; before offering a build, compare this line with `git log` on
+`app/lib/ui/phone/` and the time of `app/build/app/outputs/bundle/release/app-release.aab`,
+and rewrite this line whenever an `.aab` is made.
+
+**A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
+categories", the owner's pick A of three): click Left and a box opens under it with
+From, To and Amount. With money in it, it opens going out; at zero or below, coming in, the
+shortfall filled in; **Swap** turns it around. Not assigned is first in the list; only categories in the same
+currency are offered; the row the pointer is on says **Move money** beside its Left
+(owner: "it's a hidden feature"). More than a category has still moves, said with the numbers. One
+undo for both lines; no schema change. `_MoveLeft`, `_MoveBox` in `budget.dart`;
+`_moveBudget` in `ledger_screen.dart`. The computer only.
+
 **The phone's "+ New category" asks everything the computer's window does** (0.45.0,
 closes #237; ADR 0004 "New category: one window with everything"): one scrolling page,
 the owner's pick of three, from Budget (with Add another) and from an entry's Category
@@ -20,8 +34,8 @@ the category with its plan and Paid from, its bill scheduled; the take's undo ta
 bill too. An older computer takes the category in bare. The answers and the plan they
 make are one class, `PlanAnswers` in `ui/plan_form.dart`, which the computer's Edit
 now uses too. `_NewCategoryPage`, `_CustomRepeatPage` in
-`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. Not
-yet seen by the owner on the Pixel: it reaches the phone with the next Play build.
+`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. The
+Play build with it is made (0.45.0 `.aab`, 2026-10-23), for the owner to upload.
 
 **The entry row's "+ New category" opens the New category window** (0.44.0, part of
 #237): in Category and on a split's line, always at the top of the list beside Split;
