@@ -16,7 +16,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'forecast.dart' show ForecastSpan;
-import 'ledger.dart' show alreadyInDays;
+import 'ledger.dart' show alreadyInDays, billNotItPrefix, billPrefsPrefix;
 import 'phone.dart'
     show
         PhoneTaken,
@@ -1030,6 +1030,8 @@ class _Combine {
       // under it) can't be told from one that only holds the same digits.
       if (!_same({'key': key, 'value': value}, was[key]) &&
           key != phoneTakenKey &&
+          // Rows' ids, which no category made on both is.
+          !key.startsWith(billPrefsPrefix) &&
           (number.hasMatch(value) ||
               (number.hasMatch(key) &&
                   !_keyedById.any((x) => key == '$x$to')))) {
@@ -1508,6 +1510,19 @@ class _Combine {
         if (here == null) {
           _insert('preferences', {'key': k, 'value': value});
         } else if (here['value'] != value) {
+          _update('preferences', {'key': k, 'value': value});
+        }
+        continue;
+      }
+      if (k.startsWith(billNotItPrefix) && here != null && there != null) {
+        // Said Not it on both, to different rows: neither is that bill.
+        final ids = {
+          for (final v in [here['value'], there['value']])
+            for (final part in '$v'.split(','))
+              if (part.isNotEmpty) part,
+        }.toList()..sort();
+        final value = ids.join(',');
+        if (here['value'] != value) {
           _update('preferences', {'key': k, 'value': value});
         }
         continue;

@@ -524,6 +524,72 @@ String? overdueNote(RegisterRow r, DateTime today) =>
       null => null,
     };
 
+/// The setting that keeps the rows the person said didn't pay scheduled
+/// bill [txnId] ("Not it"), as their ids joined by commas.
+String billNotItKey(int txnId) => '$billNotItPrefix$txnId';
+
+/// What every [billNotItKey] starts with.
+const billNotItPrefix = 'bill.notIt.';
+
+/// What every setting about bills starts with: their values hold rows'
+/// ids, the same on every computer.
+const billPrefsPrefix = 'bill.';
+
+/// The setting that marks scheduled bill [txnId] as one there won't be
+/// ("No bill this time", or paid ahead with the one before), as its
+/// category's id and date: `12;2026-10-15`. The budget asks nothing for it.
+String billSkippedKey(int txnId) => 'bill.skipped.$txnId';
+
+/// What every [billSkippedKey] starts with.
+const billSkippedPrefix = 'bill.skipped.';
+
+/// The setting on a row taken as a bill paid ([AppDatabase.payBill]):
+/// which bill, what it was for before a part payment left the rest
+/// (empty when it went), and the bills after it paid with it. "Not this
+/// bill" puts back exactly that.
+String billPaidKey(int rowTxnId) => 'bill.paid.$rowTxnId';
+
+/// A [billPaidKey]'s value: the bill, its date (the budget counts the row
+/// on it, however late it was paid), what it was for before a part
+/// payment, and the bills skipped with it.
+typedef BillPaidRecord = ({
+  int bill,
+  DateTime? date,
+  int? amount,
+  List<int> skipped,
+});
+
+String encodeBillPaid(BillPaidRecord r) =>
+    '${r.bill};${r.amount ?? ''};${r.skipped.join(',')};'
+    '${r.date == null ? '' : dateKey(r.date!)}';
+
+BillPaidRecord? decodeBillPaid(String? s) {
+  final parts = (s ?? '').split(';');
+  final bill = int.tryParse(parts.first);
+  if (bill == null) return null;
+  DateTime? date;
+  if (parts.length > 3 && parts[3].isNotEmpty) {
+    try {
+      date = parseDateKey(parts[3]);
+    } catch (_) {}
+  }
+  return (
+    bill: bill,
+    date: date,
+    amount: parts.length > 1 ? int.tryParse(parts[1]) : null,
+    skipped: [
+      if (parts.length > 2)
+        for (final x in parts[2].split(',')) ?int.tryParse(x),
+    ],
+  );
+}
+
+/// The rows said not to have paid bill [txnId] ([billNotItKey]).
+Set<int> billNotIt(Map<String, String> prefs, int txnId) => {
+  for (final part in (prefs[billNotItKey(txnId)] ?? '').split(','))
+    ?int.tryParse(part),
+};
+
 /// A scheduled row and one already in this near in date may be the same
 /// bill. Under a week, so a weekly bill doesn't find last week's.
 const alreadyInDays = 6;
@@ -602,17 +668,20 @@ bool samePayeeName(String a, String b) {
 }
 
 /// The row already in [posted] that [scheduled] looks to be, so that
-/// confirming would put it in twice (typed from the bank app, or imported,
-/// before the bill was confirmed): the same account, the same way, dated
-/// within [alreadyInDays] of the bill, or up to [today] for a late one (paid
-/// late, it is dated late). What makes it the bill, the surest first: the
-/// same payee as typed; the same name in another spelling
-/// ([samePayeeName]); for a category's bill, a row in that category for
-/// between half and twice the amount; a row still in [uncategorizedId]
-/// (as an import leaves it, under the bank's own name) for exactly the
-/// amount. Among equals the nearest in date; null when there is none. A
-/// row already tied to the same plan is the bill before, not this one. Not
-/// for a payday: money in is made a pay's paycheck from its own row.
+/// confirming would put it in twice (typed from the bank app, entered on
+/// the phone, or imported, before the bill was confirmed): in any account
+/// of the same currency (a bill scheduled in one account is often paid
+/// from another), the same way, dated within [alreadyInDays] of the bill,
+/// or up to [today] for a late one (paid late, it is dated late). What
+/// makes it the bill, the surest first, each for between half and twice
+/// the amount: the same payee as typed; the same name in another spelling
+/// ([samePayeeName]); for a category's bill, a row in that category. Last,
+/// a row still in [uncategorizedId] (as an import leaves it, under the
+/// bank's own name) for exactly the amount. Among equals one in the bill's own
+/// account, then the nearest in date; null when there is none. A row
+/// already tied to a plan's bill paid that bill, not this one, and one in
+/// [notIt] the person said isn't it. Not for a payday: money in is made a
+/// pay's paycheck from its own row.
 /// A split (one receipt over several categories) is found as an ordinary
 /// row with the same payee, dates and total would be.
 RegisterRow? alreadyIn(
@@ -620,6 +689,7 @@ RegisterRow? alreadyIn(
   Iterable<RegisterRow> posted,
   DateTime today, {
   int? uncategorizedId,
+  Set<int> notIt = const {},
 }) {
   if (scheduled.payScheduleId != null) return null;
   final payee = scheduled.payee.trim().toLowerCase();
@@ -628,26 +698,36 @@ RegisterRow? alreadyIn(
   final after = late > alreadyInDays ? late : alreadyInDays;
   RegisterRow? found;
   var foundSure = 0;
+  var foundHere = false;
   var nearest = 0;
   for (final r in posted) {
     if (r.scheduled ||
-        r.accountId != scheduled.accountId ||
+        r.projected ||
+        r.currency != scheduled.currency ||
         _kindFor(r.kind) != _kindFor(scheduled.kind) ||
         (r.amount < 0) != (scheduled.amount < 0) ||
-        (plan != null && r.planCategoryId == plan)) {
+        r.planCategoryId != null ||
+        r.payScheduleId != null ||
+        notIt.contains(r.txnId)) {
       continue;
     }
     final since = daysBefore(scheduled.date, r.date);
     if (since < -alreadyInDays || since > after) continue;
-    final int sure;
-    if (payee.isNotEmpty && r.payee.trim().toLowerCase() == payee) {
-      sure = 4;
-    } else if (samePayeeName(r.payee, scheduled.payee)) {
-      sure = 3;
-    } else if (plan != null &&
-        r.categoryId == plan &&
+    // About the bill's size: rent paid in halves is, a ₮5,000 top-up
+    // against a ₮41,500 phone bill isn't, nor a phone bought at Mobicom.
+    final about =
         r.amount.abs() * 2 >= scheduled.amount.abs() &&
-        r.amount.abs() <= scheduled.amount.abs() * 2) {
+        r.amount.abs() <= scheduled.amount.abs() * 2;
+    final int sure;
+    if (!about && r.categoryId != uncategorizedId) {
+      continue;
+    } else if (about &&
+        payee.isNotEmpty &&
+        r.payee.trim().toLowerCase() == payee) {
+      sure = 4;
+    } else if (about && samePayeeName(r.payee, scheduled.payee)) {
+      sure = 3;
+    } else if (about && plan != null && r.categoryId == plan) {
       sure = 2;
     } else if (uncategorizedId != null &&
         r.categoryId == uncategorizedId &&
@@ -657,13 +737,17 @@ RegisterRow? alreadyIn(
       continue;
     }
     final apart = since.abs();
+    final here = r.accountId == scheduled.accountId;
     if (found == null ||
         sure > foundSure ||
         (sure == foundSure &&
-            (apart < nearest ||
-                (apart == nearest && r.date.isAfter(found.date))))) {
+            ((here && !foundHere) ||
+                (here == foundHere &&
+                    (apart < nearest ||
+                        (apart == nearest && r.date.isAfter(found.date))))))) {
       found = r;
       foundSure = sure;
+      foundHere = here;
       nearest = apart;
     }
   }

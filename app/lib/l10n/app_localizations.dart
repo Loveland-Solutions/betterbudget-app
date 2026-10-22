@@ -468,18 +468,6 @@ abstract class Words {
   /// **'{name} deleted'**
   String ledgerDeleted(String name);
 
-  /// Undo-menu label after a scheduled bill was deleted because the real one was already in. name is the payee.
-  ///
-  /// In en, this message translates to:
-  /// **'Scheduled {name} deleted'**
-  String ledgerScheduledDeleted(String name);
-
-  /// Toast after a scheduled bill was deleted because the real one was already in the account. name is the payee, date a day like 10.05.
-  ///
-  /// In en, this message translates to:
-  /// **'Scheduled {name} deleted · already in on {date}'**
-  String ledgerScheduledDeletedAlreadyIn(String name, String date);
-
   /// Toast when moving a row to another account is refused; reason comes from the app.
   ///
   /// In en, this message translates to:
@@ -497,12 +485,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{name} moved to {account}'**
   String ledgerMovedTo(String name, String account);
-
-  /// Toast after a scheduled bill was deleted because a row for it was already in the account, when that row was for less than the bill: short, like ₮800,000, is the part of the bill that is now neither paid nor scheduled.
-  ///
-  /// In en, this message translates to:
-  /// **'Scheduled {name} deleted · {short} of it is no longer scheduled'**
-  String ledgerScheduledDeletedShort(String name, String short);
 
   /// Button on the toast after a row is moved to another account: opens that account with the row chosen.
   ///
@@ -2590,29 +2572,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count} more overdue'**
   String rowsMoreOverdue(int count);
-
-  /// Register, under a scheduled bill being confirmed, when a row that looks to be the same bill is already in the account: confirming would put the bill in twice. Names that row as the register shows it: date like 10.05, payee, amount like −₮900,000.00.
-  ///
-  /// In en, this message translates to:
-  /// **'Already in this account · {date} · {payee} · {amount}'**
-  String rowsAlreadyIn(String date, String payee, String amount);
-
-  /// As rowsAlreadyIn, when that row is for less than the scheduled bill being confirmed: short is the difference, like ₮800,000.
-  ///
-  /// In en, this message translates to:
-  /// **'Already in this account · {date} · {payee} · {amount} · {short} less than this bill'**
-  String rowsAlreadyInLess(
-    String date,
-    String payee,
-    String amount,
-    String short,
-  );
-
-  /// Button beside rowsAlreadyIn: deletes the scheduled bill being confirmed, since the real one is already in.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete the scheduled one'**
-  String get rowsAlreadyInDelete;
 
   /// Register, after the payee of the only scheduled row shown at the top of All
   ///
@@ -8162,6 +8121,219 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Name for computer {id}'**
   String settingsComputerName(String id);
+
+  /// On a scheduled bill, a row already in that may have paid it, asked: date like 10.13, payee, amount like −₮40,000.00. Yes and No follow.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid on {date}? {payee}, {amount}'**
+  String rowsPaidOnAsk(String date, String payee, String amount);
+
+  /// As rowsPaidOnAsk, when the row is in another account than the bill: account like Golomt.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid on {date}? {payee}, {amount}, from {account}'**
+  String rowsPaidOnAskFrom(
+    String date,
+    String payee,
+    String amount,
+    String account,
+  );
+
+  /// Answer to rowsPaidOnAsk: that row paid this bill.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get rowsPaidYes;
+
+  /// Answer to rowsPaidOnAsk: that row is something else; the bill stays.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get rowsPaidNo;
+
+  /// On a row that was taken as a bill paid: it wasn't; the bill comes back as still to pay.
+  ///
+  /// In en, this message translates to:
+  /// **'Not this bill'**
+  String get rowsNotThisBill;
+
+  /// On a scheduled bill from the Budget page, in place of Delete: this one won't come, and its money stays for the next.
+  ///
+  /// In en, this message translates to:
+  /// **'No bill this time'**
+  String get rowsNoBillThisTime;
+
+  /// Window title when a row in a bill's category might be that bill: name like Mobicom.
+  ///
+  /// In en, this message translates to:
+  /// **'Did this pay the {name} bill?'**
+  String billAskTitle(String name);
+
+  /// In the window: the row, like Mobicom ₮40,000 from Golomt on 10.13.
+  ///
+  /// In en, this message translates to:
+  /// **'You paid {payee} {amount} from {account} on {date}.'**
+  String billAskPaidFrom(
+    String payee,
+    String amount,
+    String account,
+    String date,
+  );
+
+  /// As billAskPaidFrom, when the row is in the bill's own account.
+  ///
+  /// In en, this message translates to:
+  /// **'You paid {payee} {amount} on {date}.'**
+  String billAskPaid(String payee, String amount, String date);
+
+  /// In the window: the bill, like ₮41,500 due 10.15.
+  ///
+  /// In en, this message translates to:
+  /// **'The bill is {amount}, due {date}.'**
+  String billAskBill(String amount, String date);
+
+  /// In the window, when the row is for much more than the bill.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {more} more than the bill. All of it comes out of {category}.'**
+  String billAskMore(String more, String category);
+
+  /// Window button: the row paid the bill.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, it\'s paid'**
+  String get billAskYes;
+
+  /// Window button: the row is something else; the bill stays.
+  ///
+  /// In en, this message translates to:
+  /// **'No, something else'**
+  String get billAskNo;
+
+  /// Window title when the row is for part of the bill: rest like ₮21,500.
+  ///
+  /// In en, this message translates to:
+  /// **'Is {rest} still to pay?'**
+  String billRestTitle(String rest);
+
+  /// In the part-paid window: amount like ₮20,000, bill like ₮41,500, name like Mobicom.
+  ///
+  /// In en, this message translates to:
+  /// **'You paid {amount} of the {bill} {name} bill.'**
+  String billRestPaid(String amount, String bill, String name);
+
+  /// Part-paid window: the rest stays scheduled on the bill's date.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, pay the rest by {date}'**
+  String billRestYes(String date);
+
+  /// Part-paid window: it came in lower; nothing more is owed.
+  ///
+  /// In en, this message translates to:
+  /// **'No, the bill is paid'**
+  String get billRestNo;
+
+  /// Window title when one row is two or three bills' worth.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{Did this pay {count} {name} bills?}}'**
+  String billSeveralTitle(int count, String name);
+
+  /// In the several-bills window: the row.
+  ///
+  /// In en, this message translates to:
+  /// **'You paid {amount} on {date}.'**
+  String billSeveralPaid(String amount, String date);
+
+  /// In the several-bills window, for two bills.
+  ///
+  /// In en, this message translates to:
+  /// **'The bills due {first} and {second} are {each} each.'**
+  String billSeveralBills2(String first, String second, String each);
+
+  /// In the several-bills window, for three bills.
+  ///
+  /// In en, this message translates to:
+  /// **'The bills due {first}, {second} and {third} are {each} each.'**
+  String billSeveralBills3(
+    String first,
+    String second,
+    String third,
+    String each,
+  );
+
+  /// Several-bills window: the row paid them all.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =2{Yes, both bills} other{Yes, all {count} bills}}'**
+  String billSeveralYes(int count);
+
+  /// Several-bills window: it paid only this bill.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one bill'**
+  String get billSeveralOne;
+
+  /// Toast: a bill was paid by a row already in; date of the next one.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} bill paid. Next due {date}.'**
+  String ledgerBillPaidNext(String name, String date);
+
+  /// Toast: a bill was paid by a row already in, with nothing after it.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} bill paid.'**
+  String ledgerBillPaidOnly(String name);
+
+  /// Toast: one row paid two or three bills.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{{count} {name} bills paid. Next due {date}.}}'**
+  String ledgerBillsPaidNext(int count, String name, String date);
+
+  /// Toast: part of a bill was paid; the rest stays scheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} bill: {rest} still to pay, due {date}.'**
+  String ledgerBillRest(String name, String rest, String date);
+
+  /// Toast after No or Not this bill: the bill stays to pay.
+  ///
+  /// In en, this message translates to:
+  /// **'Not the {name} bill. It\'s still due {date}.'**
+  String ledgerNotTheBill(String name, String date);
+
+  /// Toast after No bill this time.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} bill on {date}. Its {amount} stays for the one due {next}.'**
+  String ledgerNoBill(String name, String date, String amount, String next);
+
+  /// As ledgerNoBill, when no bill comes after it.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} bill on {date}.'**
+  String ledgerNoBillLast(String name, String date);
+
+  /// Popup after the phone's rows or a bank file: that many bills they paid.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bill paid.} other{{count} bills paid.}}'**
+  String ledgerBillsPaidCount(int count);
+
+  /// Popup after the phone's rows or a bank file: rows that may pay a bill but need an answer. Show opens the first.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bill to check.} other{{count} bills to check.}}'**
+  String ledgerBillsToCheck(int count);
+
+  /// Under the forecast: bills a row may have paid, still counted. Show opens the first.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{A bill may already be paid. It\'s counted until you say yes.} other{{count} bills may already be paid. They\'re counted until you say yes.}}'**
+  String forecastMaybePaid(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

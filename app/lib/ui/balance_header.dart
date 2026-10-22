@@ -29,6 +29,8 @@ class BalanceHeader extends StatelessWidget {
     this.shortAhead,
     this.onShowShort,
     this.budgeted = false,
+    this.maybePaid = 0,
+    this.onShowMaybePaid,
   });
 
   /// No payday ahead: the forecast offers to put pay in.
@@ -48,6 +50,12 @@ class BalanceHeader extends StatelessWidget {
 
   /// A credit account: every amount here is what's owed, positive.
   final bool owed;
+
+  /// Bills here a row already in may have paid, still counted until the
+  /// person says (ADR 0004, "A bill paid another way"), and the click that
+  /// shows the first.
+  final int maybePaid;
+  final VoidCallback? onShowMaybePaid;
 
   /// Some category has a plan or an amount assigned.
   final bool budgeted;
@@ -111,6 +119,8 @@ class BalanceHeader extends StatelessWidget {
                 shortAhead: shortAhead,
                 onShowShort: onShowShort,
                 budgeted: budgeted,
+                maybePaid: maybePaid,
+                onShowMaybePaid: onShowMaybePaid,
               ),
             ),
           ],
@@ -496,6 +506,8 @@ class ForecastPanel extends StatelessWidget {
     this.shortAhead,
     this.onShowShort,
     this.budgeted = false,
+    this.maybePaid = 0,
+    this.onShowMaybePaid,
   });
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
@@ -512,6 +524,11 @@ class ForecastPanel extends StatelessWidget {
   /// or below zero, we need to let the user know").
   final ({DateTime date, int low})? shortAhead;
   final VoidCallback? onShowShort;
+
+  /// Bills a row already in may have paid: counted until the person says,
+  /// so a line says so, and a click shows the first.
+  final int maybePaid;
+  final VoidCallback? onShowMaybePaid;
 
   /// How far it looks (owner's request, 2026-10-05): the small title is
   /// the control. [payPeriodEnd] names the pay-period choice by its date;
@@ -658,6 +675,21 @@ class ForecastPanel extends StatelessWidget {
                   decoration: hover ? TextDecoration.underline : null,
                   decorationColor: Mid.coral,
                 ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        // A bill counted that may be paid already: a shortfall may not be.
+        if (maybePaid > 0) ...[
+          Hoverable(
+            key: const ValueKey('forecast-maybe-paid'),
+            onTap: onShowMaybePaid ?? () {},
+            builder: (hover) => Text(
+              t.forecastMaybePaid(maybePaid),
+              style: onest(12.5, color: Mid.ink2).copyWith(
+                decoration: hover ? TextDecoration.underline : null,
+                decorationColor: Mid.ink2,
               ),
             ),
           ),

@@ -3372,6 +3372,177 @@ class AppDatabase extends _$AppDatabase {
         return row.planCategoryId;
       });
 
+  /// Scheduled bill [billId] was paid by [foundId], a row already in
+  /// (ADR 0004, "A bill paid another way"), in [billAccountId] or another
+  /// account: the person said so, or the row was near the bill. In one
+  /// write the row is tied to [planCategoryId]'s plan with [tie] so the
+  /// plan counts it as that bill (not a split with no line there), and the
+  /// bill goes. With [rest] (the bill was paid in part) the bill stays
+  /// scheduled on its date for what is still to pay instead, its payee and
+  /// memo as they were. [notIt] is the bill's No answers as they are to be
+  /// ([billNotItKey]; null removes it). With [bills] over one (a payment
+  /// two or three bills' worth), that many after it are skipped
+  /// ([billSkippedKey]) as paid with it. The plan's next bill is then
+  /// scheduled as a confirm would. What was done is kept on the row
+  /// ([billPaidKey]) for "Not this bill". Returns the bills scheduled, the
+  /// ones skipped and the settings written, for undo, and the date of the
+  /// plan's next bill, for the popup.
+  Future<
+    ({
+      List<int> made,
+      List<int> skipped,
+      Map<String, String> wrote,
+      DateTime? next,
+    })
+  >
+  payBill({
+    required int billId,
+    required int billAccountId,
+    required int foundId,
+    required DateTime today,
+    int? planCategoryId,
+    bool tie = true,
+    int? rest,
+    String? notIt,
+    int bills = 1,
+  }) => transaction(() async {
+    final bill = await (select(
+      transactions,
+    )..where((t) => t.id.equals(billId))).getSingle();
+    final sides = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(billId))).get();
+    final was = sides
+        .where((e) => e.accountId == billAccountId)
+        .firstOrNull
+        ?.amountMinor;
+    if (tie && planCategoryId != null) {
+      await setPlanBill(foundId, planCategoryId);
+    }
+    if (rest != null) {
+      if (sides.length != 2) {
+        throw NotFoundException(DbProblem.notSingleCategory);
+      }
+      for (final e in sides) {
+        await (update(entries)..where((x) => x.id.equals(e.id))).write(
+          EntriesCompanion(
+            amountMinor: Value(e.accountId == billAccountId ? rest : -rest),
+          ),
+        );
+      }
+      await _touch(billId);
+    } else if ((await softDeleteMany([billId])).isEmpty) {
+      throw LockedException(DbProblem.reconciled);
+    }
+    await setPreference(billNotItKey(billId), notIt);
+    final made = <int>[], skipped = <int>[];
+    final wrote = <String, String>{};
+    if (planCategoryId != null) {
+      var after = parseDateKey(bill.date);
+      for (var k = 1; k < bills; k++) {
+        // The next bill after this one, scheduled already or now: paid
+        // with it.
+        var next = await _nextPlanBill(planCategoryId, after);
+        if (next == null) {
+          made.addAll(await ensurePlanBills(today, only: planCategoryId));
+          next = await _nextPlanBill(planCategoryId, after);
+        }
+        if (next == null) break;
+        skipped.addAll(await softDeleteMany([next.id]));
+        after = next.date;
+        final key = billSkippedKey(next.id);
+        wrote[key] = '$planCategoryId;${dateKey(next.date)}';
+        await setPreference(key, wrote[key]);
+      }
+      made.addAll(await ensurePlanBills(today, only: planCategoryId));
+    }
+    final record = billPaidKey(foundId);
+    wrote[record] = encodeBillPaid((
+      bill: billId,
+      date: parseDateKey(bill.date),
+      amount: rest == null ? null : was,
+      skipped: skipped,
+    ));
+    await setPreference(record, wrote[record]);
+    final next = planCategoryId == null
+        ? null
+        : await _nextPlanBill(planCategoryId, null);
+    return (made: made, skipped: skipped, wrote: wrote, next: next?.date);
+  });
+
+  /// [categoryId]'s plan's soonest scheduled bill, or the soonest dated
+  /// after [after]; null when there is none.
+  Future<({int id, DateTime date})?> _nextPlanBill(
+    int categoryId,
+    DateTime? after,
+  ) async {
+    final row =
+        await (select(transactions)
+              ..where(
+                (t) =>
+                    t.planCategoryId.equals(categoryId) &
+                    t.scheduled.equals(true) &
+                    t.deletedAt.isNull() &
+                    (after == null
+                        ? const Constant(true)
+                        : t.date.isBiggerThanValue(dateKey(after))),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.date)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : (id: row.id, date: parseDateKey(row.date));
+  }
+
+  /// "Not this bill" (ADR 0004, "A bill paid another way"): [rowId] was
+  /// taken as a bill paid ([payBill], whose [record] it keeps) and wasn't.
+  /// It is untied, and what the tie did is put back: the bill is to pay
+  /// again in full, the bills skipped with it come back, and the bill
+  /// doesn't ask about the row again ([billNotItKey]). The plan's bills
+  /// are then kept scheduled. Returns what was scheduled, for undo.
+  Future<List<int>> notTheBill({
+    required int rowId,
+    required int? planCategoryId,
+    required BillPaidRecord record,
+    required DateTime today,
+  }) => transaction(() async {
+    if (planCategoryId != null) await setPlanBill(rowId, null);
+    if (record.amount case final was?) {
+      final sides = await (select(
+        entries,
+      )..where((e) => e.transactionId.equals(record.bill))).get();
+      final types = await _accountTypes();
+      for (final e in sides) {
+        await (update(entries)..where((x) => x.id.equals(e.id))).write(
+          EntriesCompanion(
+            amountMinor: Value(
+              _isCategoryType(types[e.accountId]) ? -was : was,
+            ),
+          ),
+        );
+      }
+      await _touch(record.bill);
+    } else {
+      await restoreMany([record.bill]);
+    }
+    if (record.skipped.isNotEmpty) await restoreMany(record.skipped);
+    for (final s in record.skipped) {
+      await setPreference(billSkippedKey(s), null);
+    }
+    final key = billNotItKey(record.bill);
+    final before = await preference(key);
+    await setPreference(
+      key,
+      {
+        for (final p in (before ?? '').split(',')) ?int.tryParse(p),
+        rowId,
+      }.join(','),
+    );
+    await setPreference(billPaidKey(rowId), null);
+    return planCategoryId == null
+        ? const <int>[]
+        : ensurePlanBills(today, only: planCategoryId);
+  });
+
   /// Keeps each dated plan's next bill scheduled in the account it's paid
   /// from (rule 27), the way [ensurePaydays] keeps paydays: a plan with
   /// nothing waiting from [today] on gets the bill after its latest

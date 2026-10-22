@@ -1,7 +1,9 @@
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/forecast.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart' show Currency;
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/import/mapping.dart';
 import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
@@ -1143,6 +1145,190 @@ void main() {
     );
   });
 
+  test('how a payment fits its bill', () {
+    ({BillFit fit, int bills}) fit(int paid) => billFit(-4150000, -paid);
+    expect(fit(4150000), (fit: BillFit.paid, bills: 1));
+    expect(fit(3800000), (fit: BillFit.paid, bills: 1)); // a little low
+    expect(fit(6000000), (fit: BillFit.paid, bills: 1)); // winter
+    expect(fit(2500000), (fit: BillFit.part, bills: 1));
+    expect(fit(500000), (fit: BillFit.small, bills: 1)); // a top-up
+    expect(fit(7000000), (fit: BillFit.more, bills: 1));
+    expect(fit(8300000), (fit: BillFit.several, bills: 2));
+    expect(fit(12450000), (fit: BillFit.several, bills: 3));
+  });
+
+  test(
+    'a row in a bill’s category pays the bill of its date, in any '
+    'account; the soonest bill first, each row once; No kept as a setting',
+    () {
+      AccountInfo account(int id, AccountType type) =>
+          AccountInfo(id: id, name: 'A$id', type: type);
+      const phone = 3, groceries = 4;
+      TxnData txn(
+        int id,
+        int day, {
+        int month = 9,
+        int from = 1,
+        int to = phone,
+        bool scheduled = false,
+        int amount = -4150000,
+        int? plan,
+      }) => TxnData(
+        id: id,
+        date: DateTime(2026, month, day),
+        payee: scheduled ? null : 'МОБИКОМ',
+        scheduled: scheduled,
+        planCategoryId: plan,
+        entries: [
+          EntryData(id: id * 10, accountId: from, amount: amount),
+          EntryData(id: id * 10 + 1, accountId: to, amount: -amount),
+        ],
+      );
+      final plan = CategoryPlan(
+        categoryId: phone,
+        kind: PlanKind.byDate,
+        amount: 4150000,
+        start: DateTime(2026, 8, 1),
+        due: DateTime(2026, 8, 15),
+        everyMonths: 1,
+        paidFrom: 1,
+      );
+      Map<int, (int, BillFit)> paid(
+        List<TxnData> txns, {
+        Map<String, String> prefs = const {},
+        DateTime? today,
+      }) => billPayments(
+        LedgerData(
+          accounts: [
+            account(1, AccountType.asset),
+            account(2, AccountType.asset),
+            account(phone, AccountType.expense),
+            account(groceries, AccountType.expense),
+          ],
+          txns: txns,
+          prefs: prefs,
+          plans: [plan],
+        ),
+        today ?? DateTime(2026, 9, 16),
+      ).map((k, v) => MapEntry(k, (v.row.txnId, v.fit)));
+
+      final bill = txn(1, 15, scheduled: true, plan: phone);
+      // Paid from the other account, two days early, under the bank's name.
+      expect(paid([bill, txn(5, 13, from: 2)]), {1: (5, BillFit.paid)});
+      // In another category it isn't the bill.
+      expect(paid([bill, txn(5, 13, to: groceries)]), isEmpty);
+      // The first in the bill's time pays it; a later top-up is spending.
+      expect(paid([bill, txn(5, 10), txn(6, 20, amount: -500000)]), {
+        1: (5, BillFit.paid),
+      });
+      // A month off is another month's bill.
+      expect(paid([bill, txn(5, 13, month: 8)]), isEmpty);
+      // Late, it takes a row after its date, up to the next bill's.
+      expect(paid([bill, txn(5, 3, month: 10)], today: DateTime(2026, 10, 5)), {
+        1: (5, BillFit.paid),
+      });
+      // Already a bill's, or said No to, it isn't asked about.
+      expect(paid([bill, txn(5, 13, plan: phone)]), isEmpty);
+      expect(paid([bill, txn(5, 13)], prefs: {billNotItKey(1): '5'}), isEmpty);
+      expect(billNotIt({billNotItKey(1): '5,8'}, 1), {5, 8});
+      // Far from the bill's amount: still that row, for the person to say.
+      expect(paid([bill, txn(5, 13, amount: -500000)]), {
+        1: (5, BillFit.small),
+      });
+      expect(paid([bill, txn(5, 13, amount: -8300000)]), {
+        1: (5, BillFit.several),
+      });
+      // Money in never pays a bill.
+      expect(paid([bill, txn(5, 13, amount: 4150000)]), isEmpty);
+    },
+  );
+
+  test('a bill there won’t be: its month asks nothing, and what was put '
+      'aside goes to the next', () {
+    AccountInfo account(int id, AccountType type) =>
+        AccountInfo(id: id, name: 'A$id', type: type);
+    const sub = 3;
+    final plan = CategoryPlan(
+      categoryId: sub,
+      kind: PlanKind.byDate,
+      amount: 2000000,
+      start: DateTime(2026, 9, 1),
+      due: DateTime(2026, 9, 20),
+      everyMonths: 1,
+      paidFrom: 1,
+    );
+    LedgerData ledger({Map<String, String> skipped = const {}}) => LedgerData(
+      accounts: [
+        account(1, AccountType.asset),
+        account(sub, AccountType.expense),
+      ],
+      txns: [
+        // September's paid.
+        TxnData(
+          id: 1,
+          date: DateTime(2026, 9, 20),
+          payee: 'Netflix',
+          planCategoryId: sub,
+          entries: [
+            EntryData(id: 10, accountId: 1, amount: -2000000),
+            EntryData(id: 11, accountId: sub, amount: 2000000),
+          ],
+        ),
+      ],
+      prefs: {BudgetKeys.began: '2026-09-01', ...skipped},
+      plans: [plan],
+      budgetAmounts: [
+        BudgetAmount(
+          id: 1,
+          categoryId: sub,
+          date: DateTime(2026, 9, 1),
+          amount: 2000000,
+        ),
+        BudgetAmount(
+          id: 2,
+          categoryId: sub,
+          date: DateTime(2026, 10, 1),
+          amount: 2000000,
+        ),
+      ],
+    );
+    int asked(LedgerData data, int month) => Budget.of(
+      data,
+      start: DateTime(2026, month, 1),
+      end: DateTime(2026, month + 1, 0),
+      today: DateTime(2026, month, 5),
+    ).lines[sub]!.plan!.planned;
+    // October's bill paid as usual: November asks for its own.
+    expect(asked(ledger(), 11), 2000000);
+    // October's didn't come: its ₮20,000 is for November's, which asks
+    // nothing more.
+    final skipped = ledger(skipped: {billSkippedKey(99): '$sub;2026-10-20'});
+    expect(Budget.skippedBills(skipped, plan), {DateTime(2026, 10, 20)});
+    expect(asked(skipped, 11), 0);
+    // Another category's, or a bill deleted any other way, isn't one.
+    expect(
+      Budget.skippedBills(
+        ledger(skipped: {billSkippedKey(99): '7;2026-10-20'}),
+        plan,
+      ),
+      isEmpty,
+    );
+    expect(Budget.skippedBills(ledger(), plan), isEmpty);
+    final record = decodeBillPaid(
+      encodeBillPaid((
+        bill: 4,
+        date: DateTime(2026, 10, 5),
+        amount: -100,
+        skipped: [5, 6],
+      )),
+    )!;
+    expect(
+      (record.bill, record.date, record.amount),
+      (4, DateTime(2026, 10, 5), -100),
+    );
+    expect(record.skipped, [5, 6]);
+  });
+
   test('a scheduled bill finds the row already in that it would repeat', () {
     RegisterRow row(
       int id,
@@ -1154,6 +1340,7 @@ void main() {
       int category = 2,
       int? plan,
       RowKind kind = RowKind.simple,
+      Currency currency = Currency.mnt,
     }) => RegisterRow(
       txnId: id,
       entryId: id,
@@ -1169,17 +1356,37 @@ void main() {
       splitLines: const [],
       accountId: account,
       planCategoryId: plan,
+      currency: currency,
     );
     DateTime day(int d) => DateTime(2026, 9, d);
     final bill = row(1, day(20), scheduled: true);
-    int? found(List<RegisterRow> posted, {RegisterRow? of, int on = 20}) =>
-        alreadyIn(of ?? bill, posted, day(on))?.txnId;
+    int? found(
+      List<RegisterRow> posted, {
+      RegisterRow? of,
+      int on = 20,
+      Set<int> notIt = const {},
+    }) => alreadyIn(of ?? bill, posted, day(on), notIt: notIt)?.txnId;
 
     expect(found([row(2, day(14)), row(3, day(26))]), 3); // a tie: the later
     expect(found([row(2, day(13))]), isNull); // a week off: last week's
     expect(found([row(2, day(21), payee: ' rent ')]), 2);
     expect(found([row(2, day(21), payee: 'Water')]), isNull);
-    expect(found([row(2, day(21), account: 5)]), isNull);
+    // Paid from another account (a spouse's): still the bill, though one
+    // in the bill's own account comes first; never another currency.
+    expect(found([row(2, day(21), account: 5)]), 2);
+    expect(found([row(2, day(21), account: 5), row(3, day(25))]), 3);
+    expect(
+      found([row(2, day(21), account: 5, currency: Currency.usd)]),
+      isNull,
+    );
+    // Said not to be it, or already tied to a bill, it isn't looked at.
+    expect(found([row(2, day(21)), row(3, day(23))], notIt: {2}), 3);
+    expect(found([row(2, day(21), plan: 4)]), isNull);
+    // The same payee for another size isn't the bill: a top-up, or a phone
+    // bought where the bill is paid.
+    expect(found([row(2, day(21), amount: -50000)]), isNull);
+    expect(found([row(2, day(21), amount: -12000000)]), isNull);
+    expect(found([row(2, day(21), amount: -450000)]), 2); // half: rent in two
     expect(found([row(2, day(21), amount: 900000)]), isNull); // a refund
     expect(found([row(2, day(21), scheduled: true)]), isNull);
     expect(found([row(2, day(15)), row(3, day(19))]), 3); // the nearest

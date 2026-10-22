@@ -47,7 +47,7 @@ private, their imports go in `ledger_screen.dart`, and they are tested only by p
 
 | Area | Domain / data | UI | Tests |
 | --- | --- | --- | --- |
-| Register, entry, edit | `domain/ledger.dart` (`RegisterRow`); `database.dart` "reads", "writes" | `register.dart`, `entry_row.dart` | both ledger tests |
+| Register, entry, edit | `domain/ledger.dart` (`RegisterRow`; `alreadyIn`, `billNotItKey`); `domain/budget.dart` (`billPayments`, `billFit`: a bill paid another way); `database.dart` "reads", "writes" (`payBill`, `notTheBill`) | `register.dart` (`_PaidAskLine`), `entry_row.dart`; `_tieBill`, `_askBill`, `_BillQuestion`, `_settleTyped`, `_settleIncoming`, `_notThisBill`, `_noBill` in `ledger_screen.dart` | both ledger tests |
 | Balances, forecast | `domain/ledger.dart` (`AccountSummary`), `domain/forecast.dart` | `balance_header.dart` | both ledger tests |
 | Reconcile | `domain/ledger.dart` (`Reconciliation`, `ReconcileHint`) | `reconcile.dart` | both ledger tests |
 | Accounts | `database.dart` "accounts" | `accounts.dart`; sidebar in `ledger_screen.dart` | both ledger tests ("accounts") |

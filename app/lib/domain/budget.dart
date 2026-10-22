@@ -443,15 +443,18 @@ class Budget {
           // A bill the plan itself scheduled counts on the date it was
           // for: taken on the 30th instead of the 1st, it's still that
           // month's bill, not an extra one the month before.
+          // A row taken as a bill paid counts on that bill's date, however
+          // late ([billPaidKey]).
           final planned = t.planCategoryId == a.id
-              ? switch (plans[a.id]) {
-                  final p? when p.kind == PlanKind.byDate => billDate(
-                    p,
-                    d,
-                    pay: data.payScheduleById(p.payScheduleId),
-                  ),
-                  _ => null,
-                }
+              ? decodeBillPaid(data.prefs[billPaidKey(t.id)])?.date ??
+                    switch (plans[a.id]) {
+                      final p? when p.kind == PlanKind.byDate => billDate(
+                        p,
+                        d,
+                        pay: data.payScheduleById(p.payScheduleId),
+                      ),
+                      _ => null,
+                    }
               : null;
           spend(a.id, d, x.amount, counted, on: planned);
           // Paid from an account it doesn't use: counted all the same.
@@ -552,6 +555,7 @@ class Budget {
                 spent: counted,
                 wentBack: wentBack,
                 wentBackOn: wentBackOn,
+                skipped: skippedBills(data, plan),
               ),
       );
       held[currency] = (held[currency] ?? 0) + holds;
@@ -686,6 +690,24 @@ class Budget {
   /// A plan's part is rounded up to one whole unit of the currency (both
   /// have two decimals), so a bill in seven parts isn't ₮171,428.57 each.
   static const _unit = 100;
+
+  /// The dates of [plan]'s bills there won't be, as the person said
+  /// ("No bill this time", or a payment for more than one): kept as
+  /// settings ([billSkippedKey]). A bill deleted any other way isn't one.
+  static Set<DateTime> skippedBills(LedgerData data, CategoryPlan plan) {
+    final out = <DateTime>{};
+    for (final e in data.prefs.entries) {
+      if (!e.key.startsWith(billSkippedPrefix)) continue;
+      final parts = e.value.split(';');
+      if (parts.length != 2 || int.tryParse(parts[0]) != plan.categoryId) {
+        continue;
+      }
+      try {
+        out.add(parseDateKey(parts[1]));
+      } catch (_) {}
+    }
+    return out;
+  }
 
   /// An each-period category that doesn't carry over.
   static bool _emptied(CategoryPlan p) =>
@@ -1020,6 +1042,7 @@ class Budget {
     required int spent,
     required int wentBack,
     DateTime? wentBackOn,
+    Set<DateTime> skipped = const {},
   }) {
     // What it held at the start of [day], and what was assigned from
     // [from] up to [to].
@@ -1178,6 +1201,11 @@ class Budget {
       while (dueOf(n).isBefore(p.start) && n - n0 < _mostPeriods) {
         n++;
       }
+      // A bill there won't be ("No bill this time", or paid ahead with
+      // the one before): the period saves for the next.
+      while (skipped.contains(dueOf(n)) && n - n0 < _mostPeriods) {
+        n++;
+      }
     }
     final due = dueOf(n);
     // Past its last bill, the plan asks for nothing more.
@@ -1195,12 +1223,24 @@ class Budget {
     // from the period after the one before it was due. So a bill skipped
     // and never owed isn't asked for again, and "short" never grows past
     // one bill.
-    final from = n == n0
+    // The last bill before it that there was: a skipped one counts from
+    // the one before.
+    var kept = n - 1;
+    while (kept >= n0 && skipped.contains(dueOf(kept))) {
+      kept--;
+    }
+    final from = kept < n0
         ? begins
-        : nextBudgetPeriod(budgetPeriod(dueOf(n - 1), by), by);
+        : nextBudgetPeriod(budgetPeriod(dueOf(kept), by), by);
     final int need;
-    if (n == n0) {
+    if (kept < n0) {
       need = firstNeed;
+    } else if (kept < n - 1) {
+      // Bills skipped since: what the category holds is all toward this
+      // one. Left from a bill that didn't come counts for the next (owner,
+      // 2026-10-21); a minus from paying ahead is made up by the periods
+      // up to it, a bill's worth each.
+      need = atLeast0(bill - heldBefore(from.start));
     } else {
       // What a later bill starts from. A minus (the last one cost more
       // than was saved) is added to this one. What's left over isn't
@@ -1241,10 +1281,14 @@ class Budget {
     // a payday that a weekend moved): each is wanted whole.
     if (repeats) {
       var more = 0;
-      while (!dueOf(n + more + 1).isAfter(p.end) &&
-          !over(plan, dueOf(n + more + 1), pay: pay) &&
-          more < _mostPeriods) {
-        more++;
+      for (
+        var k = n + 1;
+        !dueOf(k).isAfter(p.end) &&
+            !over(plan, dueOf(k), pay: pay) &&
+            k - n < _mostPeriods;
+        k++
+      ) {
+        if (!skipped.contains(dueOf(k))) more++;
       }
       each += bill * more;
     }
@@ -1273,3 +1317,159 @@ BudgetSpan nextBudgetPeriod(BudgetSpan p, PaySchedule? by) =>
 /// The period before [p].
 BudgetSpan previousBudgetPeriod(BudgetSpan p, PaySchedule? by) =>
     budgetPeriod(DateTime(p.start.year, p.start.month, p.start.day - 1), by);
+
+/// How a payment stands against the bill it pays (ADR 0004, "A bill paid
+/// another way"): near enough to be the bill, which is taken as paid
+/// without asking; for part of it; far less or far more, where the person
+/// is asked; or two or three bills' worth at once.
+enum BillFit { paid, part, small, more, several }
+
+/// [paid] against a bill of [bill], both in minor units of one currency.
+/// Paid is from nine tenths of the bill (a bill a little low owes nothing
+/// more) to half again over it (a winter electricity bill); part is from
+/// half; two or three bills' worth is within a tenth of that many.
+({BillFit fit, int bills}) billFit(int bill, int paid) {
+  final b = bill.abs(), p = paid.abs();
+  if (b == 0) return (fit: BillFit.paid, bills: 1);
+  for (final n in const [2, 3]) {
+    if ((p - b * n).abs() * 10 <= b) return (fit: BillFit.several, bills: n);
+  }
+  if (p * 10 >= b * 9 && p * 2 <= b * 3) return (fit: BillFit.paid, bills: 1);
+  if (p * 2 >= b && p < b) return (fit: BillFit.part, bills: 1);
+  return (fit: p < b ? BillFit.small : BillFit.more, bills: 1);
+}
+
+/// A scheduled bill and the row already in that pays it.
+typedef BillPayment = ({
+  RegisterRow bill,
+  RegisterRow row,
+  BillFit fit,
+  int bills,
+});
+
+/// What part of [r] is in [categoryId]: the row, or its line there.
+int _amountIn(RegisterRow r, int categoryId) {
+  if (r.categoryId == categoryId) return r.amount;
+  for (final l in r.splitLines) {
+    if (l.accountId == categoryId) {
+      return r.amount < 0 ? -l.amount.abs() : l.amount.abs();
+    }
+  }
+  return 0;
+}
+
+final _billPaymentsMemo =
+    Expando<Map<(DateTime, int?), Map<int, BillPayment>>>();
+
+/// Each scheduled bill that a row already in pays, by the bill's
+/// transaction (owner, 2026-10-21: "Electricity bills only come once per
+/// time period. Really any bills. So if any transaction in that category
+/// takes place, it should be assumed to be paying that bill"). For a
+/// category's bill, the first money-out row in that category (or with a
+/// line in it), in any account in its currency, whose date is that bill's
+/// ([Budget.billDate], the nearest of the plan's dates), or, the bill
+/// being late, any day from the bill's date up to the next bill's. For a
+/// bill scheduled by hand, the row [alreadyIn] finds. Soonest bill first,
+/// each row once; never a row already tied to a bill, one the person said
+/// isn't it ([billNotIt]), a transfer or a payday.
+Map<int, BillPayment> billPayments(
+  LedgerData data,
+  DateTime today, {
+  int? uncategorizedId,
+}) {
+  final memo = _billPaymentsMemo[data] ??= {};
+  return memo[(dateOnly(today), uncategorizedId)] ??= () {
+    final bills = <RegisterRow>[];
+    final posted = <RegisterRow>[];
+    for (final a in data.accounts.values) {
+      if (a.deleted ||
+          (a.type != AccountType.asset && a.type != AccountType.liability)) {
+        continue;
+      }
+      final r = data.registerFor(a.id);
+      posted.addAll(r.posted);
+      bills.addAll(
+        r.scheduled.where(
+          (b) =>
+              b.amount < 0 &&
+              b.kind != RowKind.transfer &&
+              b.payScheduleId == null,
+        ),
+      );
+    }
+    int byDate(RegisterRow a, RegisterRow b) {
+      final c = a.date.compareTo(b.date);
+      return c != 0 ? c : a.txnId.compareTo(b.txnId);
+    }
+
+    bills.sort(byDate);
+    posted.sort(byDate);
+    final start = dateOnly(today);
+    final taken = <int>{};
+    final out = <int, BillPayment>{};
+    for (final b in bills) {
+      final notIt = billNotIt(data.prefs, b.txnId);
+      final plan = switch (b.planCategoryId) {
+        final id? => data.plans[id],
+        null => null,
+      };
+      RegisterRow? found;
+      var amount = 0;
+      if (plan != null && plan.kind == PlanKind.byDate) {
+        final pay = data.payScheduleById(plan.payScheduleId);
+        // The bill after this one, for how late a late one can be paid.
+        DateTime? next;
+        if (plan.repeats) {
+          for (var n = 0; n < 400; n++) {
+            final d = Budget.dueAfter(plan, n, pay: pay);
+            if (d.isAfter(b.date)) {
+              next = d;
+              break;
+            }
+          }
+        }
+        for (final r in posted) {
+          if (taken.contains(r.txnId) ||
+              r.projected ||
+              r.currency != b.currency ||
+              r.kind == RowKind.transfer ||
+              r.kind == RowKind.opening ||
+              r.planCategoryId != null ||
+              r.payScheduleId != null ||
+              notIt.contains(r.txnId)) {
+            continue;
+          }
+          final part = _amountIn(r, plan.categoryId);
+          if (part >= 0) continue;
+          final late =
+              b.date.isBefore(start) &&
+              !r.date.isBefore(b.date) &&
+              (next == null || r.date.isBefore(next));
+          if (late || Budget.billDate(plan, r.date, pay: pay) == b.date) {
+            found = r;
+            amount = part;
+            break;
+          }
+        }
+      } else {
+        found = alreadyIn(
+          b,
+          posted.where((p) => !taken.contains(p.txnId)),
+          today,
+          uncategorizedId: uncategorizedId,
+          notIt: notIt,
+        );
+        amount = found?.amount ?? 0;
+      }
+      if (found == null) continue;
+      var fit = billFit(b.amount, amount);
+      // Only a category's bill has bills after it to pay ahead.
+      if (fit.fit == BillFit.several && (plan == null || !plan.repeats)) {
+        fit = (fit: BillFit.more, bills: 1);
+      }
+      out[b.txnId] = (bill: b, row: found, fit: fit.fit, bills: fit.bills);
+      taken.add(found.txnId);
+    }
+    return out;
+  }();
+}

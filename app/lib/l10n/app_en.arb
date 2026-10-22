@@ -445,27 +445,6 @@
       }
     }
   },
-  "ledgerScheduledDeleted": "Scheduled {name} deleted",
-  "@ledgerScheduledDeleted": {
-    "description": "Undo-menu label after a scheduled bill was deleted because the real one was already in. name is the payee.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "ledgerScheduledDeletedAlreadyIn": "Scheduled {name} deleted · already in on {date}",
-  "@ledgerScheduledDeletedAlreadyIn": {
-    "description": "Toast after a scheduled bill was deleted because the real one was already in the account. name is the payee, date a day like 10.05.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "ledgerCantMove": "Can’t move · {reason}",
   "@ledgerCantMove": {
     "description": "Toast when moving a row to another account is refused; reason comes from the app.",
@@ -487,18 +466,6 @@
         "type": "String"
       },
       "account": {
-        "type": "String"
-      }
-    }
-  },
-  "ledgerScheduledDeletedShort": "Scheduled {name} deleted · {short} of it is no longer scheduled",
-  "@ledgerScheduledDeletedShort": {
-    "description": "Toast after a scheduled bill was deleted because a row for it was already in the account, when that row was for less than the bill: short, like ₮800,000, is the part of the bill that is now neither paid nor scheduled.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "short": {
         "type": "String"
       }
     }
@@ -2772,43 +2739,6 @@
         "type": "int"
       }
     }
-  },
-  "rowsAlreadyIn": "Already in this account · {date} · {payee} · {amount}",
-  "@rowsAlreadyIn": {
-    "description": "Register, under a scheduled bill being confirmed, when a row that looks to be the same bill is already in the account: confirming would put the bill in twice. Names that row as the register shows it: date like 10.05, payee, amount like −₮900,000.00.",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "payee": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "rowsAlreadyInLess": "Already in this account · {date} · {payee} · {amount} · {short} less than this bill",
-  "@rowsAlreadyInLess": {
-    "description": "As rowsAlreadyIn, when that row is for less than the scheduled bill being confirmed: short is the difference, like ₮800,000.",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "payee": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      },
-      "short": {
-        "type": "String"
-      }
-    }
-  },
-  "rowsAlreadyInDelete": "Delete the scheduled one",
-  "@rowsAlreadyInDelete": {
-    "description": "Button beside rowsAlreadyIn: deletes the scheduled bill being confirmed, since the real one is already in."
   },
   "rowsScheduledOnly": "scheduled",
   "@rowsScheduledOnly": {
@@ -8438,6 +8368,356 @@
     "placeholders": {
       "id": {
         "type": "String"
+      }
+    }
+  },
+  "rowsPaidOnAsk": "Paid on {date}? {payee}, {amount}",
+  "@rowsPaidOnAsk": {
+    "description": "On a scheduled bill, a row already in that may have paid it, asked: date like 10.13, payee, amount like −₮40,000.00. Yes and No follow.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsPaidOnAskFrom": "Paid on {date}? {payee}, {amount}, from {account}",
+  "@rowsPaidOnAskFrom": {
+    "description": "As rowsPaidOnAsk, when the row is in another account than the bill: account like Golomt.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsPaidYes": "Yes",
+  "@rowsPaidYes": {
+    "description": "Answer to rowsPaidOnAsk: that row paid this bill."
+  },
+  "rowsPaidNo": "No",
+  "@rowsPaidNo": {
+    "description": "Answer to rowsPaidOnAsk: that row is something else; the bill stays."
+  },
+  "rowsNotThisBill": "Not this bill",
+  "@rowsNotThisBill": {
+    "description": "On a row that was taken as a bill paid: it wasn't; the bill comes back as still to pay."
+  },
+  "rowsNoBillThisTime": "No bill this time",
+  "@rowsNoBillThisTime": {
+    "description": "On a scheduled bill from the Budget page, in place of Delete: this one won't come, and its money stays for the next."
+  },
+  "billAskTitle": "Did this pay the {name} bill?",
+  "@billAskTitle": {
+    "description": "Window title when a row in a bill's category might be that bill: name like Mobicom.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billAskPaidFrom": "You paid {payee} {amount} from {account} on {date}.",
+  "@billAskPaidFrom": {
+    "description": "In the window: the row, like Mobicom ₮40,000 from Golomt on 10.13.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billAskPaid": "You paid {payee} {amount} on {date}.",
+  "@billAskPaid": {
+    "description": "As billAskPaidFrom, when the row is in the bill's own account.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billAskBill": "The bill is {amount}, due {date}.",
+  "@billAskBill": {
+    "description": "In the window: the bill, like ₮41,500 due 10.15.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billAskMore": "That's {more} more than the bill. All of it comes out of {category}.",
+  "@billAskMore": {
+    "description": "In the window, when the row is for much more than the bill.",
+    "placeholders": {
+      "more": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "billAskYes": "Yes, it's paid",
+  "@billAskYes": {
+    "description": "Window button: the row paid the bill."
+  },
+  "billAskNo": "No, something else",
+  "@billAskNo": {
+    "description": "Window button: the row is something else; the bill stays."
+  },
+  "billRestTitle": "Is {rest} still to pay?",
+  "@billRestTitle": {
+    "description": "Window title when the row is for part of the bill: rest like ₮21,500.",
+    "placeholders": {
+      "rest": {
+        "type": "String"
+      }
+    }
+  },
+  "billRestPaid": "You paid {amount} of the {bill} {name} bill.",
+  "@billRestPaid": {
+    "description": "In the part-paid window: amount like ₮20,000, bill like ₮41,500, name like Mobicom.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "bill": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billRestYes": "Yes, pay the rest by {date}",
+  "@billRestYes": {
+    "description": "Part-paid window: the rest stays scheduled on the bill's date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billRestNo": "No, the bill is paid",
+  "@billRestNo": {
+    "description": "Part-paid window: it came in lower; nothing more is owed."
+  },
+  "billSeveralTitle": "{count, plural, other{Did this pay {count} {name} bills?}}",
+  "@billSeveralTitle": {
+    "description": "Window title when one row is two or three bills' worth.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billSeveralPaid": "You paid {amount} on {date}.",
+  "@billSeveralPaid": {
+    "description": "In the several-bills window: the row.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billSeveralBills2": "The bills due {first} and {second} are {each} each.",
+  "@billSeveralBills2": {
+    "description": "In the several-bills window, for two bills.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      },
+      "each": {
+        "type": "String"
+      }
+    }
+  },
+  "billSeveralBills3": "The bills due {first}, {second} and {third} are {each} each.",
+  "@billSeveralBills3": {
+    "description": "In the several-bills window, for three bills.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      },
+      "third": {
+        "type": "String"
+      },
+      "each": {
+        "type": "String"
+      }
+    }
+  },
+  "billSeveralYes": "{count, plural, =2{Yes, both bills} other{Yes, all {count} bills}}",
+  "@billSeveralYes": {
+    "description": "Several-bills window: the row paid them all.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billSeveralOne": "Only one bill",
+  "@billSeveralOne": {
+    "description": "Several-bills window: it paid only this bill."
+  },
+  "ledgerBillPaidNext": "{name} bill paid. Next due {date}.",
+  "@ledgerBillPaidNext": {
+    "description": "Toast: a bill was paid by a row already in; date of the next one.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBillPaidOnly": "{name} bill paid.",
+  "@ledgerBillPaidOnly": {
+    "description": "Toast: a bill was paid by a row already in, with nothing after it.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBillsPaidNext": "{count, plural, other{{count} {name} bills paid. Next due {date}.}}",
+  "@ledgerBillsPaidNext": {
+    "description": "Toast: one row paid two or three bills.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBillRest": "{name} bill: {rest} still to pay, due {date}.",
+  "@ledgerBillRest": {
+    "description": "Toast: part of a bill was paid; the rest stays scheduled.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "rest": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNotTheBill": "Not the {name} bill. It's still due {date}.",
+  "@ledgerNotTheBill": {
+    "description": "Toast after No or Not this bill: the bill stays to pay.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNoBill": "No {name} bill on {date}. Its {amount} stays for the one due {next}.",
+  "@ledgerNoBill": {
+    "description": "Toast after No bill this time.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNoBillLast": "No {name} bill on {date}.",
+  "@ledgerNoBillLast": {
+    "description": "As ledgerNoBill, when no bill comes after it.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBillsPaidCount": "{count, plural, =1{1 bill paid.} other{{count} bills paid.}}",
+  "@ledgerBillsPaidCount": {
+    "description": "Popup after the phone's rows or a bank file: that many bills they paid.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ledgerBillsToCheck": "{count, plural, =1{1 bill to check.} other{{count} bills to check.}}",
+  "@ledgerBillsToCheck": {
+    "description": "Popup after the phone's rows or a bank file: rows that may pay a bill but need an answer. Show opens the first.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forecastMaybePaid": "{count, plural, =1{A bill may already be paid. It's counted until you say yes.} other{{count} bills may already be paid. They're counted until you say yes.}}",
+  "@forecastMaybePaid": {
+    "description": "Under the forecast: bills a row may have paid, still counted. Show opens the first.",
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   }

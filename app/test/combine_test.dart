@@ -3,6 +3,7 @@
 // each time: the one both agreed on, this computer's, the other's.
 import 'package:betterbudget/domain/combine.dart';
 import 'package:betterbudget/domain/forecast.dart';
+import 'package:betterbudget/domain/ledger.dart' show billNotItKey;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -584,6 +585,20 @@ void main() {
     final found = run();
     expect(found.conflict, isNull);
     expect(found.ops, isEmpty);
+  });
+
+  test('Not it said for one bill on both, to different rows: both kept', () {
+    mine['preferences']!.add(pref(billNotItKey(40), '812'));
+    theirs['preferences']!.add(pref(billNotItKey(40), '815'));
+    final found = run();
+    expect(found.conflict, isNull);
+    final result = combined();
+    expect(
+      result['preferences']!.singleWhere(
+        (p) => p['key'] == billNotItKey(40),
+      )['value'],
+      '812,815',
+    );
   });
 
   test('the counts each computer keeps are never brought in', () {

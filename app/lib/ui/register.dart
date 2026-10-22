@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../domain/budget.dart' show categoryTakes;
+import '../domain/budget.dart' show BillFit, BillPayment, categoryTakes;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/sync.dart' show MadeHow;
@@ -144,17 +144,36 @@ class RegisterActions {
     required this.onMove,
     this.pays = const [],
     this.onSetPay,
-    this.onAlreadyIn,
+    this.onBillPaid,
+    this.onNotIt,
+    this.onNotThisBill,
+    this.onNoBill,
     this.onPoint,
+    this.onShowRow,
   });
 
-  /// The "Already in this account" line was clicked: bring the row it names
-  /// into sight.
+  /// The "Looks paid" line was clicked while its bill is being confirmed:
+  /// bring the row it names into sight.
   final ValueChanged<RegisterRow>? onPoint;
 
-  /// Confirming [scheduled], and [found] is the same bill, already in: the
-  /// scheduled one goes instead of being confirmed.
-  final void Function(RegisterRow scheduled, RegisterRow found)? onAlreadyIn;
+  /// The "Looks paid" line was clicked on a bill not open: go to the row
+  /// it names, in its own account.
+  final ValueChanged<RegisterRow>? onShowRow;
+
+  /// Yes to "Paid on 10.13?": [payment]'s row paid its bill (ADR 0004,
+  /// "A bill paid another way"); a row that isn't near the bill is asked
+  /// about first.
+  final ValueChanged<BillPayment>? onBillPaid;
+
+  /// No to "Paid on 10.13?": the row is something else, and the bill stays.
+  final void Function(RegisterRow bill, RegisterRow found)? onNotIt;
+
+  /// "Not this bill" on a row that was taken as a bill paid: the bill
+  /// comes back to pay.
+  final ValueChanged<RegisterRow>? onNotThisBill;
+
+  /// "No bill this time" on a category's scheduled bill: it won't come.
+  final ValueChanged<RegisterRow>? onNoBill;
 
   /// Each pay set up, by the name the dropdown says it under ("Income ·
   /// Loveland Solutions"), and the account it's paid into. Picking one on
@@ -253,7 +272,28 @@ class RegisterPanel extends StatelessWidget {
     this.uncategorizedId,
     this.uncategorizedFrom,
     this.uncategorizedTo,
+    this.looksPaid = const {},
+    this.notItFor = _noNotIt,
+    this.paysBill = _paysNoBill,
+    this.accountNamed,
   });
+
+  static bool _paysNoBill(int _) => false;
+
+  /// A row taken as a bill paid ([billPaidKey]): its bar has Not this bill.
+  final bool Function(int txnId) paysBill;
+
+  static Set<int> _noNotIt(int _) => const {};
+
+  /// The rows said not to have paid a bill ([billNotIt]).
+  final Set<int> Function(int billTxnId) notItFor;
+
+  /// Each scheduled bill a row already in may have paid, by the bill's
+  /// transaction (`billPayments`): the bill's row asks.
+  final Map<int, BillPayment> looksPaid;
+
+  /// Any account's name, for a bill paid from another account.
+  final String? Function(int accountId)? accountNamed;
 
   /// The "Not categorized" category, if the ledger has one: its rows get a
   /// tab of their own while there are any (owner, 2026-10-06: they're said
@@ -395,24 +435,61 @@ class RegisterPanel extends StatelessWidget {
             categories: categories,
             accounts: transferTargets,
             actions: actions,
+            paysBill: paysBill(r.txnId),
           )
         : null;
 
-    // Confirming a bill that looks to be in already would put it in twice.
-    RegisterRow? alreadyFor(RegisterRow r) {
+    // A bill that a row already in looks to have paid: confirming it
+    // would put it in twice, so its row says so, open or not.
+    BillPayment? paidBy(RegisterRow r) {
       final e = editing;
-      return e != null &&
-              e.txnId == r.txnId &&
-              e.confirming &&
-              actions.onAlreadyIn != null
-          ? alreadyIn(r, posted, today, uncategorizedId: uncategorizedId)
-          : null;
+      if (actions.onBillPaid == null || through != null) return null;
+      if (e != null && e.txnId == r.txnId && !e.confirming) return null;
+      if (looksPaid[r.txnId] case final p?) return p;
+      // Confirming anything else (a transfer, money in): a row already in
+      // here would still be put in twice.
+      if (e == null || e.txnId != r.txnId) return null;
+      final found = alreadyIn(
+        r,
+        posted,
+        today,
+        uncategorizedId: uncategorizedId,
+        notIt: notItFor(r.txnId),
+      );
+      if (found == null) return null;
+      return (bill: r, row: found, fit: BillFit.paid, bills: 1);
+    }
+
+    // Drawn in this register: the same account, or All accounts.
+    bool here(RegisterRow found, RegisterRow bill) =>
+        allAccounts != null || found.accountId == bill.accountId;
+
+    Widget? paidLine(RegisterRow r, {required bool open}) {
+      final p = paidBy(r);
+      if (p == null) return null;
+      final found = p.row;
+      return _PaidAskLine(
+        key: ValueKey('looks-paid-${r.txnId}-${found.txnId}'),
+        found: found,
+        account: found.accountId == r.accountId
+            ? null
+            : accountNamed?.call(found.accountId),
+        // In the Scheduled tab the row is drawn right under this one.
+        onShow: showScheduled && here(found, r)
+            ? null
+            : open && here(found, r)
+            ? (actions.onPoint == null ? null : () => actions.onPoint!(found))
+            : (actions.onShowRow == null
+                  ? null
+                  : () => actions.onShowRow!(found)),
+        onYes: () => actions.onBillPaid!(p),
+        onNo: actions.onNotIt == null ? null : () => actions.onNotIt!(r, found),
+      );
     }
 
     Widget? editor(RegisterRow r) {
       final e = editing;
       if (e == null || e.txnId != r.txnId) return null;
-      final found = alreadyFor(r);
       return EntryRow(
         key: ValueKey('edit-${r.txnId}'),
         controller: e.controller,
@@ -429,17 +506,7 @@ class RegisterPanel extends StatelessWidget {
           focus: e.focus,
           confirmingOn: e.confirming ? today : null,
         ),
-        notice: found == null
-            ? null
-            : _AlreadyInLine(
-                found: found,
-                bill: r.amount,
-                // In the Scheduled tab the row is drawn right under this one.
-                onShow: showScheduled || actions.onPoint == null
-                    ? null
-                    : () => actions.onPoint!(found),
-                onDelete: () => actions.onAlreadyIn!(r, found),
-              ),
+        notice: paidLine(r, open: true),
         onCancel: actions.onCancelEdit,
       );
     }
@@ -495,6 +562,7 @@ class RegisterPanel extends StatelessWidget {
                   onConfirm: () => actions.onConfirm(r),
                   extra: null,
                   accountName: _accountOf(r),
+                  paid: paidLine(r, open: false),
                   bar: bar(r),
                   onTap: () => tap(r.txnId),
                 ),
@@ -502,7 +570,7 @@ class RegisterPanel extends StatelessWidget {
         );
         // This tab lists no rows already in, so the one the line names is
         // drawn under it.
-        if (alreadyFor(r) case final found?) {
+        if (paidBy(r)?.row case final found? when here(found, r)) {
           children.add(
             KeyedSubtree(
               key: const ValueKey('already-in-row'),
@@ -514,6 +582,12 @@ class RegisterPanel extends StatelessWidget {
     } else {
       if (showNext) {
         final next = visibleScheduled.first;
+        // Bills that look paid show here too, not only the first: their
+        // line is the one thing left to do with them.
+        final paidToo = [
+          for (final r in visibleScheduled.skip(1))
+            if (paidBy(r) != null) r,
+        ];
         // Only the first shows here, so a second late bill would go unsaid.
         final late = visibleScheduled
             .where((r) => overdueDays(r, today) != null)
@@ -536,11 +610,30 @@ class RegisterPanel extends StatelessWidget {
                   accountName: _accountOf(next),
                   overdueMore: late > 1 ? t.rowsMoreOverdue(late - 1) : null,
                   onMore: () => actions.onFilter(RegisterFilter.scheduled),
+                  paid: paidLine(next, open: false),
                   bar: bar(next),
                   onTap: () => tap(next.txnId),
                 ),
           ),
         );
+        for (final r in paidToo) {
+          children.add(
+            keyed(
+              r,
+              editor(r) ??
+                  _ScheduledRow(
+                    row: r,
+                    today: today,
+                    onConfirm: () => actions.onConfirm(r),
+                    extra: null,
+                    accountName: _accountOf(r),
+                    paid: paidLine(r, open: false),
+                    bar: bar(r),
+                    onTap: () => tap(r.txnId),
+                  ),
+            ),
+          );
+        }
       }
       if (visiblePosted.isEmpty) {
         children.add(
@@ -774,7 +867,11 @@ class _RowActions extends StatelessWidget {
     required this.categories,
     required this.accounts,
     required this.actions,
+    this.paysBill = false,
   });
+
+  /// Taken as a bill paid: it may not have been.
+  final bool paysBill;
 
   final RegisterRow row;
   final List<AccountInfo> categories;
@@ -900,11 +997,29 @@ class _RowActions extends StatelessWidget {
               ?categorize,
               if (!r.scheduled) clearButton,
               ?move,
-              BarButton(
-                label: t.rowsDelete,
-                color: Mid.coral,
-                onTap: () => actions.onDelete(r),
-              ),
+              // Taken as a category's bill paid: it may not have been.
+              if (!r.scheduled && paysBill && actions.onNotThisBill != null)
+                BarButton(
+                  key: const ValueKey('not-this-bill'),
+                  label: t.rowsNotThisBill,
+                  onTap: () => actions.onNotThisBill!(r),
+                ),
+              // A category's bill: deleting it was always skipping it, so
+              // the button says so, and its money stays for the next.
+              if (r.scheduled &&
+                  r.planCategoryId != null &&
+                  actions.onNoBill != null)
+                BarButton(
+                  key: const ValueKey('no-bill'),
+                  label: t.rowsNoBillThisTime,
+                  onTap: () => actions.onNoBill!(r),
+                )
+              else
+                BarButton(
+                  label: t.rowsDelete,
+                  color: Mid.coral,
+                  onTap: () => actions.onDelete(r),
+                ),
             ],
             const Spacer(),
             Hoverable(
@@ -1405,33 +1520,55 @@ class _PostedRow extends StatelessWidget {
 /// Under a scheduled row being confirmed: the row already in that looks
 /// to be the same bill, as its own row reads, and the way out that doesn't
 /// put it in twice.
-class _AlreadyInLine extends StatelessWidget {
-  const _AlreadyInLine({
+/// Under a scheduled bill: the row already in that may have paid it,
+/// asked (ADR 0004, "A bill paid another way"). The person answers.
+class _PaidAskLine extends StatelessWidget {
+  const _PaidAskLine({
+    super.key,
     required this.found,
-    required this.bill,
+    required this.account,
     required this.onShow,
-    required this.onDelete,
+    required this.onYes,
+    required this.onNo,
   });
   final RegisterRow found;
 
+  /// The account [found] is in, when it isn't the bill's.
+  final String? account;
+
   /// Brings that row into sight; null where it is already beside this line.
   final VoidCallback? onShow;
-
-  /// What the scheduled bill is for: a row for less leaves part of it
-  /// unpaid, and deleting the scheduled one takes that out of the forecast.
-  final int bill;
-  final VoidCallback onDelete;
+  final VoidCallback onYes;
+  final VoidCallback? onNo;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final amount = found.amount > 0
-        ? '+${formatMoney(found.amount, currency: found.currency)}'
-        : formatMoney(found.amount, currency: found.currency);
-    final short = bill.abs() - found.amount.abs();
+    final amount = formatMoney(found.amount, currency: found.currency);
+    final text = account == null
+        ? t.rowsPaidOnAsk(sayDate(t, found.date), rowPayee(t, found), amount)
+        : t.rowsPaidOnAskFrom(
+            sayDate(t, found.date),
+            rowPayee(t, found),
+            amount,
+            account!,
+          );
+    Widget button(String label, Key key, VoidCallback? onTap, Color color) =>
+        Hoverable(
+          onTap: onTap,
+          builder: (h) => Container(
+            key: key,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: h ? Mid.blueWash : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(label, style: onest(13, weight: 500, color: color)),
+          ),
+        );
     return Padding(
-      key: const ValueKey('already-in'),
-      padding: const EdgeInsets.only(top: 8),
+      key: const ValueKey('looks-paid'),
+      padding: const EdgeInsets.only(top: 2, bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -1439,19 +1576,8 @@ class _AlreadyInLine extends StatelessWidget {
             child: Hoverable(
               onTap: onShow,
               builder: (h) => Text(
-                short > 0
-                    ? t.rowsAlreadyInLess(
-                        sayDate(t, found.date),
-                        rowPayee(t, found),
-                        amount,
-                        formatShort(short, currency: found.currency),
-                      )
-                    : t.rowsAlreadyIn(
-                        sayDate(t, found.date),
-                        rowPayee(t, found),
-                        amount,
-                      ),
-                key: const ValueKey('already-in-text'),
+                text,
+                key: const ValueKey('looks-paid-text'),
                 style: onest(13, weight: 600, color: Mid.ink, tabular: true)
                     .copyWith(
                       decoration: onShow != null && h
@@ -1459,27 +1585,26 @@ class _AlreadyInLine extends StatelessWidget {
                           : null,
                       decorationColor: Mid.ink,
                     ),
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
               ),
             ),
           ),
           const SizedBox(width: 10),
-          Hoverable(
-            onTap: onDelete,
-            builder: (h) => Container(
-              key: const ValueKey('already-in-delete'),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: h ? Mid.blueWash : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                t.rowsAlreadyInDelete,
-                style: onest(13, weight: 500, color: Mid.blue),
-              ),
-            ),
+          button(
+            t.rowsPaidYes,
+            const ValueKey('looks-paid-yes'),
+            onYes,
+            Mid.blue,
           ),
+          if (onNo != null)
+            button(
+              t.rowsPaidNo,
+              const ValueKey('looks-paid-no'),
+              onNo,
+              Mid.ink2,
+            ),
         ],
       ),
     );
@@ -1497,7 +1622,11 @@ class _ScheduledRow extends StatelessWidget {
     this.onMore,
     this.accountName,
     this.overdueMore,
+    this.paid,
   });
+
+  /// "Looks paid · …": a row already in that looks to have paid this bill.
+  final Widget? paid;
 
   /// "2 more overdue", when this late row is not the only late one; it opens the
   /// Scheduled tab, as [extra] does.
@@ -1708,6 +1837,7 @@ class _ScheduledRow extends StatelessWidget {
                     ],
                   ),
                 ),
+                ?paid,
                 ?bar,
               ],
             ),
