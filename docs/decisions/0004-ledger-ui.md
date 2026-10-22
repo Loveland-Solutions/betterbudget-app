@@ -3937,7 +3937,8 @@ meant typing two Assigned amounts (#99). The owner picked **A of three** from sk
   has a toast, since it changes two lines: "Moved ₮32,000 from Groceries to Dining
   out", "Assigned ₮32,000 more to Dining out", "Moved ₮32,000 from Groceries back to
   not assigned". A plan's "assign ₮X" offer comes back on the line money left, as it
-  would after typing a lower amount.
+  would after typing a lower amount, for the rest of the period (owner, asked
+  2026-10-23: "Yes").
 - Words by the UX writer: "Cover" (other apps' word) and "Transfer" (in the ledger,
   money between accounts) were left out.
 - Rejected: **B**, drag a Left onto another category (quick, but nothing on the page
