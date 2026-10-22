@@ -3877,7 +3877,11 @@ is set before it's made, so nothing opens after Add.
 - A bill's Set aside each month shows the amount alone, here and in Edit (owner:
   "Remove 'worked out from the date'").
 - **The entry row's "+ New category"** (in Category and on a split's line) opens the
-  same window (owner, 2026-10-22), with the name typed, in the row's currency (no
+  same window (owner, 2026-10-22). It's always in the list: **New category**, with a
+  plus, at the top beside Split, opens it with no name; a name typed that isn't a
+  category yet shows "+ New category “Toys”" in its place (owner, on the first build:
+  "I don't see a 'new category' option in the category dropdown"; it was there only
+  after typing). Either opens it with the name typed, in the row's currency (no
   choice of another: the row couldn't take it), and no Add another: a row takes one
   category. Add makes the category, its own undo, and puts it in the row, cursor in
   the amount; the row's ⌘Z is a second one. A name that's already a category says

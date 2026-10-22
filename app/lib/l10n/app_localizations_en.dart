@@ -2128,6 +2128,9 @@ class WordsEn extends Words {
   String get rowsCancelEdit => 'Cancel';
 
   @override
+  String get rowsNewCategoryBlank => 'New category';
+
+  @override
   String get rowsSplitOption => 'Split';
 
   @override

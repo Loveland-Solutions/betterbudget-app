@@ -2975,6 +2975,12 @@ abstract class Words {
   /// **'Cancel'**
   String get rowsCancelEdit;
 
+  /// Entry row's Category list, at the top beside Split while no new name is typed: opens the New category window
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get rowsNewCategoryBlank;
+
   /// First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing).
   ///
   /// In en, this message translates to:

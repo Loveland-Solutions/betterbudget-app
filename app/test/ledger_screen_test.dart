@@ -2244,7 +2244,10 @@ void main() {
     await tester.pumpAndSettle();
     // Above every category, as on the phone (owner, 2026-10-17).
     final split = tester.getTopLeft(find.text('Split')).dy;
-    expect(split, lessThan(tester.getTopLeft(find.text('Groceries')).dy));
+    expect(split, lessThan(tester.getTopLeft(find.text('Childcare')).dy));
+    // New category above it, with its plus (owner, 2026-10-22).
+    expect(tester.getTopLeft(find.text('New category')).dy, lessThan(split));
+    expect(find.byIcon(Icons.add_rounded), findsWidgets);
     expect(
       find.ancestor(
         of: find.byIcon(Icons.call_split_rounded),
@@ -2565,6 +2568,25 @@ void main() {
       'Mobicom',
     );
 
+    // With nothing typed, it's at the top of the list beside Split, and
+    // the window opens with no name (owner, 2026-10-22: "I don't see a
+    // new category option").
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New category'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+          .controller!
+          .text,
+      '',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+    expect(category(), '');
+
     // Cancel: nothing made, and the name stays typed.
     await pick('Phone');
     expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
@@ -2577,7 +2599,10 @@ void main() {
 
     // A name that's already a category says so, and Add puts that one in.
     await pick('Phone');
-    await tester.enterText(find.byKey(const ValueKey('edit-name')), 'groceries');
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-name')),
+      'groceries',
+    );
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
     expect(

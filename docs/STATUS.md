@@ -13,7 +13,8 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **The entry row's "+ New category" opens the New category window** (0.44.0, part of
 #237; ADR 0004 "New category: one window with everything"): in Category and on a
-split's line, with the name typed, in the row's currency, without Add another. Add
+split's line. **New category** is always at the top of the list beside Split; a new
+name typed shows "+ New category “Toys”". It opens with the name typed, in the row's currency, without Add another. Add
 makes the category (its own undo) and puts it in the row. A name that's a category
 already puts that one in. Cancel leaves the name typed; Enter on a new name without
 picking the option still makes it bare with the row. `_newCategoryForRow` in

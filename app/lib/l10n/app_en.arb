@@ -3175,6 +3175,10 @@
   "@rowsCancelEdit": {
     "description": "Entry row, button beside Save while editing a transaction: closes the row without saving"
   },
+  "rowsNewCategoryBlank": "New category",
+  "@rowsNewCategoryBlank": {
+    "description": "Entry row's Category list, at the top beside Split while no new name is typed: opens the New category window"
+  },
   "rowsSplitOption": "Split",
   "@rowsSplitOption": {
     "description": "First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing)."

@@ -2048,6 +2048,9 @@ class WordsMn extends Words {
   String get rowsCancelEdit => 'Болих';
 
   @override
+  String get rowsNewCategoryBlank => 'Шинэ ангилал';
+
+  @override
   String get rowsSplitOption => 'Хуваах';
 
   @override
