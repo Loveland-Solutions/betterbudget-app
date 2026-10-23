@@ -99,6 +99,12 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   signed in as a service account whose key is
   `~/.config/betterbudget/play-service-account.json` (never in the repo); `--check`
   uploads and throws the upload away.
+- **Microsoft Store.** `tool/release_store.sh` tags main with the version, waits for
+  the Windows build's unsigned `.msix`, checks it is that version and asks only for
+  `runFullTrust`, and sends it to Partner Center with `msstore`, set to publish on the
+  owner's Publish now. It stops while a submission is waiting there, since `msstore
+  publish` would delete it; `--check` uses a tag already pushed and throws the
+  submission away.
 - **Downloads** (unused since 2026-10-20: stores only, no GitHub downloads; ROADMAP).
   `tool/release_mac.sh` makes the Mac disk image signed with Developer
   ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft
