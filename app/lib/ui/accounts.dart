@@ -422,7 +422,7 @@ class _AccountStartState extends State<_AccountStart> {
 
   int? get _parsed => parseAmount(_balance.text, widget.account.currency);
   bool get _empty => _balance.text.trim().isEmpty;
-  DateTime? get _day => parseEntryDate(_date.text, widget.today);
+  DateTime? get _day => parseRowDate(_date.text, widget.today);
 
   void _start() {
     final day = _day;

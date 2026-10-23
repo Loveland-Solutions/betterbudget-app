@@ -1392,7 +1392,9 @@ Map<int, BillPayment> billPayments(
         r.scheduled.where(
           (b) =>
               b.amount < 0 &&
-              b.kind != RowKind.transfer &&
+              // A card's or loan's payment, scheduled by its category's
+              // plan, is a transfer to it.
+              (b.kind != RowKind.transfer || b.planCategoryId != null) &&
               b.payScheduleId == null,
         ),
       );
@@ -1404,6 +1406,11 @@ Map<int, BillPayment> billPayments(
 
     bills.sort(byDate);
     posted.sort(byDate);
+    final loanOf = <int, int>{};
+    for (final a in data.accounts.values) {
+      final c = a.deleted || !a.isOwed ? null : Budget.loanCategory(data, a.id);
+      if (c != null) loanOf[c] = a.id;
+    }
     final start = dateOnly(today);
     final taken = <int>{};
     final out = <int, BillPayment>{};
@@ -1428,18 +1435,27 @@ Map<int, BillPayment> billPayments(
             }
           }
         }
+        // Paying the card or loan whose payments come out of the category
+        // pays its bill, as the budget counts it (seen from the card: money
+        // in).
+        final loan = loanOf[plan.categoryId];
         for (final r in posted) {
+          final toLoan =
+              loan != null &&
+              r.kind == RowKind.transfer &&
+              r.accountId == loan &&
+              r.amount > 0;
           if (taken.contains(r.txnId) ||
               r.projected ||
               r.currency != b.currency ||
-              r.kind == RowKind.transfer ||
+              (r.kind == RowKind.transfer && !toLoan) ||
               r.kind == RowKind.opening ||
               r.planCategoryId != null ||
               r.payScheduleId != null ||
               notIt.contains(r.txnId)) {
             continue;
           }
-          final part = _amountIn(r, plan.categoryId);
+          final part = toLoan ? -r.amount : _amountIn(r, plan.categoryId);
           if (part >= 0) continue;
           final late =
               b.date.isBefore(start) &&

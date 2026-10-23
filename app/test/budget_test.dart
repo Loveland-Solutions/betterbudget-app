@@ -2018,6 +2018,36 @@ void main() {
       expect((await db.loadLedger()).plans, isEmpty);
     });
 
+    test('a card’s payment bill is scheduled as a transfer to the card', () async {
+      final payment = await db.createCategory('Visa payment');
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      final card = await db.addAccount(
+        name: 'Visa',
+        type: AccountType.liability,
+      );
+      await db.setPreference('${BudgetKeys.loanPrefix}$card', '$payment');
+      await db.setCategoryPlan(
+        payment,
+        CategoryPlan(
+          categoryId: payment,
+          kind: PlanKind.byDate,
+          amount: 64020000,
+          start: today,
+          due: DateTime(2027, 1, 10),
+          everyMonths: 1,
+          paidFrom: bank,
+        ),
+      );
+      await db.ensurePlanBills(today);
+      final bill = (await db.loadLedger()).txns.singleWhere(
+        (x) => x.planCategoryId == payment && x.scheduled,
+      );
+      expect({for (final e in bill.entries) e.accountId: e.amount}, {
+        bank: -64020000,
+        card: 64020000,
+      });
+    });
+
     test(
       'a dated plan paid from an account keeps its bill scheduled',
       () async {

@@ -11,6 +11,17 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**The Ledger's fine-tooth comb is under way** (#162; the findings are checkboxes
+there). 0.46.3 fixes its money and data group: a card's or loan's payment bill is
+scheduled as a transfer to it and a transfer to it pays the bill (`_loanPaidThrough`,
+`billPayments`); an import keeps the date of a transfer reconciled in the other
+account; a date typed with no year is this year's unless that is over six months
+ahead or nine back (`parseRowDate`); a day's money in comes before its money out
+(`registerOrder`); a side moved to another account, or a row moved past today, starts
+uncleared and undo puts it back; an import's undo is one write. Next in the comb:
+the keys-and-mouse group, then what's on screen and the words, then the owner's three
+answers (ADR 0004, "The Ledger's fine-tooth comb: three answers").
+
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload
 by hand (#251). Before offering one, compare this line with `git log` on
