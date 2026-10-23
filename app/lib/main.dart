@@ -9,6 +9,7 @@ import 'data/backup.dart';
 import 'data/database.dart';
 import 'data/keys.dart';
 import 'data/ledger_file.dart';
+import 'data/store_folder.dart';
 import 'ui/appearance.dart';
 import 'ui/language.dart';
 import 'ui/phone/phone_app.dart';
@@ -20,6 +21,8 @@ Future<void> main() async {
   // Restore opens the backup it's about to put back as a second database,
   // briefly, to check it.
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  // Before anything asks where the app's folder is.
+  useStoreFolderIfPackaged();
 
   final dir = await getApplicationSupportDirectory();
   // A phone records and checks (ADR 0005); it never holds the ledger itself.

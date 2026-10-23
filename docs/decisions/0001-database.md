@@ -235,22 +235,30 @@ restores, and the result is encrypted.
 
 ## Where the ledger lives on Windows (owner, 2026-10-23, #246)
 
-The zip download keeps the ledger, its daily copies and the saved recovery key in
-`%APPDATA%\Loveland Solutions\BetterBudget`. A Microsoft Store (MSIX) package would
-otherwise have Windows send the new files it makes there to a private folder of the
-package, which uninstall deletes: someone uninstalling to fix a problem would come back
-to an empty ledger. The owner chose to have the Store app use the zip download's folder
-for real, so uninstall leaves it there and someone moving from the zip download finds
-their ledger. `app/windows/msix/AppxManifest.xml` asks for the restricted capability
-`unvirtualizedResources`: on Windows 11, for that one folder; on Windows 10 (1903 or
-later, now the lowest the package installs on), for all of AppData. Microsoft approves
-it in certification; if it's refused, the fallback is the second option below.
+The zip download keeps the ledger, its daily copies, the saved key
+(`flutter_secure_storage.dat`, DPAPI) and its small settings files in
+`%APPDATA%\Loveland Solutions\BetterBudget`. The Microsoft Store app keeps them in
+its package's own folder, `%LOCALAPPDATA%\Packages\<family>\LocalState`, which Windows
+deletes on uninstall (owner: what's left behind on uninstall is garbage; the person
+keeps their recovery key, and uninstall removes the saved one from the machine).
+`data/store_folder.dart` asks Windows whether the app runs from a package and, if so,
+hands path_provider that folder, so the key store follows too.
 
-Rejected: a `BetterBudget` folder in the user's home folder for the Store app (no
-approval needed, but a change to the app and a move of the zip download's ledger;
-Documents was ruled out because OneDrive often syncs it while the ledger is open), and
-leaving Windows' private folder with a line in Settings saying uninstall deletes it
-(the person has to read it before they uninstall).
+The Store app never looks in the zip download's folder. Left to Windows, a packaged
+app reaching into AppData edits a file that's already there in place but sends every
+new file beside it (the ledger's `-wal`, the daily copies, the files of two computers)
+to the package: one ledger in two places, which the two builds see differently.
+Someone moving from the zip download brings their ledger over with Open ledger, from
+their folder or a backup, as a second computer does.
+
+Rejected: the restricted capability `unvirtualizedResources`, so the Store app used
+the zip download's folder for real (built and tried in 0.46.1, then dropped the same
+day: it leaves the ledger behind on uninstall); a `BetterBudget` folder in the user's
+home folder (left behind too); Windows' default with a line in Settings (the split
+above).
+
+The zip download has no uninstall, and macOS doesn't tell an app it's been dragged to
+the Trash, so both still leave their folder behind.
 
 ## Open items
 
