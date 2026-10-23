@@ -233,6 +233,25 @@ restores, and the result is encrypted.
   prebuilt libraries exist for all three. Verify each when its build is first made, or
   in CI (a GitHub Actions matrix build) once CI exists.
 
+## Where the ledger lives on Windows (owner, 2026-10-23, #246)
+
+The zip download keeps the ledger, its daily copies and the saved recovery key in
+`%APPDATA%\Loveland Solutions\BetterBudget`. A Microsoft Store (MSIX) package would
+otherwise have Windows send the new files it makes there to a private folder of the
+package, which uninstall deletes: someone uninstalling to fix a problem would come back
+to an empty ledger. The owner chose to have the Store app use the zip download's folder
+for real, so uninstall leaves it there and someone moving from the zip download finds
+their ledger. `app/windows/msix/AppxManifest.xml` asks for the restricted capability
+`unvirtualizedResources`: on Windows 11, for that one folder; on Windows 10 (1903 or
+later, now the lowest the package installs on), for all of AppData. Microsoft approves
+it in certification; if it's refused, the fallback is the second option below.
+
+Rejected: a `BetterBudget` folder in the user's home folder for the Store app (no
+approval needed, but a change to the app and a move of the zip download's ledger;
+Documents was ruled out because OneDrive often syncs it while the ledger is open), and
+leaving Windows' private folder with a line in Settings saying uninstall deletes it
+(the person has to read it before they uninstall).
+
 ## Open items
 
 - **Verify the cipher library on Windows, Linux and Android** (see the test build
