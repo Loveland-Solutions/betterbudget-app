@@ -3977,3 +3977,31 @@ wouldn't take it. The owner: "I call it garbage." What an app leaves behind on
 uninstall is garbage; the person keeps their recovery key, and uninstall removes the
 saved one from the machine. The Store app now keeps everything in its package's
 folder, which Windows deletes with it (ADR 0001 "Where the ledger lives on Windows").
+
+## The Ledger's fine-tooth comb: three answers (2026-10-23)
+
+From the comb of the Ledger (#162), three things a household meets that the
+app didn't handle, put to the owner.
+
+- **A typed row the bank shows for another amount.** Typed Номин ₮86,400, the
+  bank's file has ₮84,600 a day later: the import offers "Same purchase: take
+  the bank's ₮84,600" when a typed row and a new bank row are close in date
+  and payee. The owner: "Yes, but be careful doing too much. The very fact
+  that the one I entered hasn't cleared usually keeps this from causing a
+  problem." So it is an offer in the import window, one pair at a time, and
+  nothing is changed without the click.
+- **Rows typed after a starting balance, dated before it.** "₮1,250,000 in
+  TDB today", then last week's receipts counts them twice. A typed row dated
+  on or before the account's starting balance offers to move the starting
+  balance before it, as import already does. Owner: "Okay, yes".
+- **Changing the amount of a row an older reconcile locked.** Payee, category
+  and memo already change on any reconciled row; the row says so instead of
+  only "date and amount locked". For the amount, the owner chose B ("B makes
+  more sense to me"): the locked amount has a **Change…** button, and before
+  saving the row says which reconciles saving takes back ("Saving takes back
+  3 reconciles: 09.30, 10.31 and 11.30, and you reconcile each statement
+  again"). The take-back and the edit are one action, with undo; Esc or
+  Cancel before saving changes nothing. Rejected: taking the difference off
+  that statement's reconcile adjustment (the budget expert's choice, which
+  keeps later statements reconciled), and a correction row dated today (the
+  bank never shows it, so the next reconcile is off by it).

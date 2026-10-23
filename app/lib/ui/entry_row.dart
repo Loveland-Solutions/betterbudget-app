@@ -182,6 +182,27 @@ class EditInitial {
   final DateTime plannedDate;
 }
 
+/// A row's date, as [parseEntryDate] reads it, but a month and day with no
+/// year is this year's unless that is more than six months ahead (last
+/// year's: `12.30` typed on 01.03 is last week's receipt, not next
+/// December's) or more than nine months back (next year's: `01.05` typed on
+/// 12.28 is next week). Most rows typed are of days gone by.
+DateTime? parseRowDate(String input, DateTime today) {
+  final d = parseEntryDate(input, today);
+  if (d == null) return null;
+  final pieces = input.trim().split(RegExp(r'[.\-/]'));
+  if (pieces.where((p) => p.isNotEmpty).length != 2) return d;
+  final ahead = d.difference(dateOnly(today)).inDays;
+  final y = ahead > 183
+      ? d.year - 1
+      : ahead < -274
+      ? d.year + 1
+      : d.year;
+  final moved = DateTime(y, d.month, d.day);
+  // 02.29 has no other year to fall in.
+  return moved.day == d.day ? moved : d;
+}
+
 /// `09.16`, `9.16`, `2026.09.16` or `2026-09-16`. Null when not a real date.
 DateTime? parseEntryDate(String input, DateTime today) {
   final parts = input
@@ -1618,7 +1639,7 @@ class _EntryRowState extends State<EntryRow> {
 
     final lockCategory = _initial?.lockCategory ?? false;
     final lockAmount = _initial?.lockAmount ?? false;
-    final date = parseEntryDate(_date.text, widget.today);
+    final date = parseRowDate(_date.text, widget.today);
     final counter = lockCategory
         ? null
         : _counterOptions
@@ -2655,7 +2676,7 @@ class _DateFieldState extends State<DateField> {
               child: ListenableBuilder(
                 listenable: widget.controller,
                 builder: (context, _) => _Calendar(
-                  selected: parseEntryDate(
+                  selected: parseRowDate(
                     widget.controller.text,
                     widget.today,
                   ),

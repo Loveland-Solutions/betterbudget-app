@@ -59,6 +59,18 @@ enum AppEquity { openingBalances, adjustments }
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// A register's order: by date, and within a day money in before money
+/// out, then as the rows were made. A bank file's rows and the app's
+/// paydays and bills have ids that don't say which came first, and a
+/// running balance that dips below zero between a day's pay and its rent
+/// never happened; the day ends on the same balance either way.
+int registerOrder(RegisterRow a, RegisterRow b) {
+  final c = a.date.compareTo(b.date);
+  if (c != 0) return c;
+  final inFirst = (b.amount > 0 ? 1 : 0) - (a.amount > 0 ? 1 : 0);
+  return inFirst != 0 ? inFirst : a.txnId.compareTo(b.txnId);
+}
+
 /// A calendar date as stored: `YYYY-MM-DD` (ADR 0001).
 String dateKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -1395,10 +1407,7 @@ class LedgerData {
         (t.scheduled ? scheduled : posted).add(_row(t, e));
       }
     }
-    int byDate(RegisterRow a, RegisterRow b) {
-      final c = a.date.compareTo(b.date);
-      return c != 0 ? c : a.txnId.compareTo(b.txnId);
-    }
+    int byDate(RegisterRow a, RegisterRow b) => registerOrder(a, b);
 
     posted.sort(byDate);
     scheduled.sort(byDate);
@@ -1465,10 +1474,7 @@ class LedgerData {
       }
       (t.scheduled ? scheduled : posted).add(row);
     }
-    int byDate(RegisterRow a, RegisterRow b) {
-      final c = a.date.compareTo(b.date);
-      return c != 0 ? c : a.txnId.compareTo(b.txnId);
-    }
+    int byDate(RegisterRow a, RegisterRow b) => registerOrder(a, b);
 
     return (
       posted: List.unmodifiable(posted..sort(byDate)),

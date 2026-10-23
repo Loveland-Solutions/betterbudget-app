@@ -6,7 +6,7 @@ import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart' show Currency;
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/import/mapping.dart';
-import 'package:betterbudget/ui/entry_row.dart' show EditInitial;
+import 'package:betterbudget/ui/entry_row.dart' show EditInitial, parseRowDate;
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1243,6 +1243,74 @@ void main() {
     },
   );
 
+  test('within a day money in comes first, so the balance never dips', () {
+    AccountInfo account(int id, AccountType type) =>
+        AccountInfo(id: id, name: 'A$id', type: type);
+    TxnData txn(int id, int amount) => TxnData(
+      id: id,
+      date: DateTime(2026, 9, 15),
+      entries: [
+        EntryData(id: id * 10, accountId: 1, amount: amount),
+        EntryData(id: id * 10 + 1, accountId: 2, amount: -amount),
+      ],
+    );
+    final data = LedgerData(
+      accounts: [account(1, AccountType.asset), account(2, AccountType.expense)],
+      // A bank file's ids say nothing of order: rent's is smaller.
+      txns: [txn(7, -30000000), txn(9, -5000000), txn(8, 50000000)],
+    );
+    final posted = data.registerFor(1).posted;
+    expect(posted.map((r) => r.txnId), [8, 7, 9]);
+    expect(posted.map((r) => r.balance), [50000000, 20000000, 15000000]);
+  });
+
+  test('a card’s payment bill is paid by a transfer to the card', () {
+    AccountInfo account(int id, AccountType type) =>
+        AccountInfo(id: id, name: 'A$id', type: type);
+    const checking = 1, card = 2, cardPayment = 3, other = 4;
+    TxnData txn(int id, int day, {int to = card, bool scheduled = false}) =>
+        TxnData(
+          id: id,
+          date: DateTime(2026, 9, day),
+          scheduled: scheduled,
+          planCategoryId: scheduled ? cardPayment : null,
+          entries: [
+            EntryData(id: id * 10, accountId: checking, amount: -64020000),
+            EntryData(id: id * 10 + 1, accountId: to, amount: 64020000),
+          ],
+        );
+    Map<int, int> paid(List<TxnData> txns) => billPayments(
+      LedgerData(
+        accounts: [
+          account(checking, AccountType.asset),
+          account(card, AccountType.liability),
+          account(cardPayment, AccountType.expense),
+          account(other, AccountType.asset),
+        ],
+        txns: txns,
+        prefs: {'${BudgetKeys.loanPrefix}$card': '$cardPayment'},
+        plans: [
+          CategoryPlan(
+            categoryId: cardPayment,
+            kind: PlanKind.byDate,
+            amount: 64020000,
+            start: DateTime(2026, 8, 1),
+            due: DateTime(2026, 8, 25),
+            everyMonths: 1,
+            paidFrom: checking,
+          ),
+        ],
+      ),
+      DateTime(2026, 9, 26),
+    ).map((k, v) => MapEntry(k, v.row.txnId));
+
+    final bill = txn(1, 25, scheduled: true);
+    // Paid the day before, to the card.
+    expect(paid([bill, txn(5, 24)]), {1: 5});
+    // A transfer to another account isn't the card's bill.
+    expect(paid([bill, txn(5, 24, to: other)]), isEmpty);
+  });
+
   test('a bill there won’t be: its month asks nothing, and what was put '
       'aside goes to the next', () {
     AccountInfo account(int id, AccountType type) =>
@@ -1481,6 +1549,22 @@ void main() {
     );
   });
 
+  test('a date with no year is this year’s, unless far ahead or far back', () {
+    final jan3 = DateTime(2027, 1, 3);
+    // Last week's receipt, not next December's.
+    expect(parseRowDate('12.30', jan3), DateTime(2026, 12, 30));
+    expect(parseRowDate('01.02', jan3), DateTime(2027, 1, 2));
+    // Next week's rent, typed at the end of December.
+    expect(parseRowDate('01.05', DateTime(2026, 12, 28)), DateTime(2027, 1, 5));
+    // Mid-year either way is this year.
+    expect(parseRowDate('03.15', DateTime(2026, 9, 16)), DateTime(2026, 3, 15));
+    expect(parseRowDate('12.15', DateTime(2026, 9, 16)), DateTime(2026, 12, 15));
+    // A year typed is kept, and 02.29 stays in the year that has it.
+    expect(parseRowDate('2025.12.30', jan3), DateTime(2025, 12, 30));
+    expect(parseRowDate('02.29', DateTime(2028, 9, 1)), DateTime(2028, 2, 29));
+    expect(parseRowDate('13.01', jan3), isNull);
+  });
+
   group('editing', () {
     Future<RegisterRow> row(String payee) async => (await db.loadLedger())
         .registerFor(checking)
@@ -1513,6 +1597,58 @@ void main() {
       final restored = await row('Unitel');
       expect(restored.amount, -3000000);
       expect(restored.categoryLabel, 'Phone & internet');
+    });
+
+    test('a transfer moved to another account starts uncleared there, and '
+        'undo puts its cleared mark back', () async {
+      final data = await db.loadLedger();
+      int id(String name) =>
+          data.balanceSheetAccounts.firstWhere((a) => a.name == name).id;
+      final savings = id('Khan Savings'), cash = id('Cash wallet');
+      final move = data.registerFor(savings).posted.firstWhere(
+        (r) => r.kind == RowKind.transfer && r.memo == 'Monthly savings',
+      );
+      expect(move.cleared, Cleared.cleared);
+      final before = await db.snapshot(move.txnId);
+      await db.editTransaction(
+        transactionId: move.txnId,
+        accountId: checking,
+        date: move.date,
+        today: today,
+        payee: null,
+        memo: move.memo,
+        counterAccountId: cash,
+      );
+      Cleared side(LedgerData d, int account) => d
+          .registerFor(account)
+          .posted
+          .firstWhere((r) => r.txnId == move.txnId)
+          .cleared;
+      expect(side(await db.loadLedger(), cash), Cleared.uncleared);
+      await db.restoreSnapshot(before);
+      expect(side(await db.loadLedger(), savings), Cleared.cleared);
+    });
+
+    test('a cleared row moved past today is scheduled and uncleared; undo '
+        'clears it again', () async {
+      final coffee = await row('Sakura Coffee');
+      expect(coffee.cleared, Cleared.cleared);
+      final before = await db.snapshot(coffee.txnId);
+      await db.editTransaction(
+        transactionId: coffee.txnId,
+        accountId: checking,
+        date: DateTime(2026, 9, 20),
+        today: today,
+        payee: 'Sakura Coffee',
+        memo: coffee.memo,
+      );
+      final moved = (await db.loadLedger())
+          .registerFor(checking)
+          .scheduled
+          .firstWhere((r) => r.txnId == coffee.txnId);
+      expect(moved.cleared, Cleared.uncleared);
+      await db.restoreSnapshot(before);
+      expect((await row('Sakura Coffee')).cleared, Cleared.cleared);
     });
 
     test('a split keeps its lines when only its header changes', () async {

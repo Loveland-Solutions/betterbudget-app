@@ -5,7 +5,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
-import '../domain/budget.dart' show Budget, uncategorizedNames;
+import '../domain/budget.dart' show Budget, BudgetKeys, uncategorizedNames;
 import '../domain/combine.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
@@ -608,6 +608,7 @@ class TypedMatch {
     required this.payee,
     required this.cleared,
     required this.hasMemo,
+    this.reconciledElsewhere = false,
   });
   final int transactionId;
   final int entryId;
@@ -615,6 +616,10 @@ class TypedMatch {
   final String payee;
   final Cleared cleared;
   final bool hasMemo;
+
+  /// A transfer whose other side is reconciled: its date is held by that
+  /// account's statement.
+  final bool reconciledElsewhere;
 }
 
 class ImportPlanRow {
@@ -712,10 +717,11 @@ typedef OpeningMove = ({
 
 /// A matched row's date: the typed one, unless the bank's falls in another
 /// month (owner, 2026-09-30), so a reconcile for that month matches the
-/// bank's statement. A reconciled row keeps its date.
+/// bank's statement. A reconciled row keeps its date, and so does a
+/// transfer whose other side is reconciled.
 DateTime matchedDate(TypedMatch m, DateTime bank) {
   final b = dateOnly(bank);
-  if (m.cleared == Cleared.reconciled) return m.date;
+  if (m.cleared == Cleared.reconciled || m.reconciledElsewhere) return m.date;
   return b.year == m.date.year && b.month == m.date.month ? m.date : b;
 }
 
@@ -2525,6 +2531,15 @@ class AppDatabase extends _$AppDatabase {
         throw LockedException(DbProblem.reconciled);
       }
     }
+    // Back from scheduled (moved ahead of today, which uncleared it), every
+    // side is as it was.
+    final unscheduled =
+        !s.header.scheduled &&
+        ((await (select(transactions)
+                  ..where((t) => t.id.equals(s.header.id)))
+                .getSingleOrNull())
+            ?.scheduled ??
+            false);
     await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
       TransactionsCompanion(
         date: Value(s.header.date),
@@ -2542,12 +2557,24 @@ class AppDatabase extends _$AppDatabase {
           (x) => x.transactionId.equals(s.header.id) & x.id.isNotIn(keep),
         ))
         .go();
+    final was = {
+      for (final e in await (select(
+        entries,
+      )..where((x) => x.transactionId.equals(s.header.id))).get())
+        e.id: e.accountId,
+    };
     for (final e in s.entries) {
       final n = await (update(entries)..where((x) => x.id.equals(e.id))).write(
         EntriesCompanion(
           accountId: Value(e.accountId),
           amountMinor: Value(e.amountMinor),
           currency: Value(e.currency),
+          // A side moved to another account started uncleared there; back
+          // in its own, it's as it was.
+          cleared:
+              unscheduled || (was[e.id] != null && was[e.id] != e.accountId)
+              ? Value(e.cleared)
+              : const Value.absent(),
         ),
       );
       if (n == 0) await into(entries).insert(e);
@@ -2755,6 +2782,17 @@ class AppDatabase extends _$AppDatabase {
           updatedAt: Value(_now),
         ),
       );
+      // Moved ahead of today, a row becomes scheduled: no bank has shown it.
+      if (!header.scheduled &&
+          !confirm &&
+          dateOnly(date).isAfter(dateOnly(today))) {
+        await (update(entries)..where(
+              (e) =>
+                  e.transactionId.equals(transactionId) &
+                  e.cleared.equalsValue(Cleared.cleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.uncleared)));
+      }
 
       if (counterAccountId != null) await _assertLive(counterAccountId);
       if (counterAccountId == accountId) {
@@ -2834,6 +2872,16 @@ class AppDatabase extends _$AppDatabase {
           EntriesCompanion(
             accountId: Value(counterAccountId ?? others.single.accountId),
             amountMinor: Value(-newAmount),
+            // Moved to another account, a transfer's side starts uncleared
+            // there, as Move to does: that bank hasn't shown it.
+            cleared:
+                counterAccountId != null &&
+                    counterAccountId != others.single.accountId &&
+                    _reconcilable.contains(
+                      (await _accountTypes())[counterAccountId],
+                    )
+                ? const Value(Cleared.uncleared)
+                : const Value.absent(),
           ),
         );
       }
@@ -3556,6 +3604,32 @@ class AppDatabase extends _$AppDatabase {
   /// for; deleted by the user, it's skipped and doesn't come back). An
   /// amount wanted once is scheduled once. Returns what it scheduled,
   /// for undo.
+  /// The live card or loan in [currency] whose payments come out of
+  /// [categoryId] (Savings, "Payments come out of"), if any.
+  Future<int?> _loanPaidThrough(int categoryId, String currency) async {
+    final links = await (select(preferences)..where(
+          (p) =>
+              p.key.like('${BudgetKeys.loanPrefix}%') &
+              p.value.equals('$categoryId'),
+        ))
+        .get();
+    for (final l in links) {
+      final id = int.tryParse(l.key.substring(BudgetKeys.loanPrefix.length));
+      if (id == null) continue;
+      final loan = await (select(
+        accounts,
+      )..where((a) => a.id.equals(id))).getSingleOrNull();
+      if (loan != null &&
+          loan.type == AccountType.liability &&
+          loan.deletedAt == null &&
+          loan.archivedAt == null &&
+          loan.currency == currency) {
+        return id;
+      }
+    }
+    return null;
+  }
+
   Future<List<int>> ensurePlanBills(
     DateTime today, {
     int? only,
@@ -3666,7 +3740,11 @@ class AppDatabase extends _$AppDatabase {
               cleared: Cleared.uncleared,
             ),
             (
-              accountId: plan.categoryId,
+              // A card's or loan's payment goes to it: confirmed, it pays
+              // down what's owed, and the budget counts it in the category.
+              accountId:
+                  await _loanPaidThrough(plan.categoryId, account.currency) ??
+                  plan.categoryId,
               amount: plan.amount,
               cleared: Cleared.uncleared,
             ),
@@ -5823,18 +5901,20 @@ class AppDatabase extends _$AppDatabase {
         continue;
       }
       used.add(best.read<int>('entry_id'));
+      final txnId = best.read<int>('txn_id');
       plan.add(
         ImportPlanRow(
           row: r,
           key: keys[i],
           fate: ImportFate.match,
           match: TypedMatch(
-            transactionId: best.read<int>('txn_id'),
+            transactionId: txnId,
             entryId: best.read<int>('entry_id'),
             date: parseDateKey(best.read<String>('date')),
             payee: best.read<String?>('payee') ?? '',
             cleared: Cleared.values[best.read<int>('cleared')],
             hasMemo: (best.read<String?>('memo') ?? '').trim().isNotEmpty,
+            reconciledElsewhere: (await _reconciledAmong([txnId])).isNotEmpty,
           ),
         ),
       );

@@ -2296,7 +2296,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   ReconcileCheck _reconcileCheck(LedgerData data, AccountSummary summary) {
     final t = context.t;
     final s = _reconcile!;
-    final date = parseEntryDate(s.date.text, today);
+    final date = parseRowDate(s.date.text, today);
     final last = summary.reconciledOn;
     final problem = date == null
         // The form to type, so numeric in both languages.
@@ -5050,18 +5050,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
               label: t.ledgerShowMoved,
               onTap: () => _askBill(settled.unsure.first),
             ),
-      undo: () async {
+      // One write each way: a tie undone and the import refused would
+      // leave half of it.
+      undo: () => db.transaction(() async {
         for (final tie in settled.ties.reversed) {
           await tie.undo();
         }
         await db.undoImport(record);
-      },
-      redo: () async {
+      }),
+      redo: () => db.transaction(() async {
         await db.redoImport(record, account.id);
         for (final tie in settled.ties) {
           await tie.redo();
         }
-      },
+      }),
       message: [
         label,
         if (record.added.isNotEmpty && newlyCleared > 0)
@@ -6326,7 +6328,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 scheduled: register.scheduled,
                 reconcileThrough: _reconcile == null
                     ? null
-                    : parseEntryDate(_reconcile!.date.text, today) ?? today,
+                    : parseRowDate(_reconcile!.date.text, today) ?? today,
                 filter: _filter,
                 uncategorizedId: _uncategorizedId(data),
                 looksPaid: billPayments(

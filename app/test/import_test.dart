@@ -1319,6 +1319,51 @@ void main() {
       },
     );
 
+    test(
+      'a match keeps the date of a transfer reconciled in the other account',
+      () async {
+        final savings = await db.createAccount(
+          name: 'Savings',
+          type: AccountType.asset,
+        );
+        final t = await db.postSimple(
+          accountId: bank,
+          date: DateTime(2026, 9, 30),
+          today: DateTime(2026, 10, 3),
+          payee: 'To savings',
+          counterAccountId: savings,
+          amount: -500000,
+        );
+        final there = (await db.snapshot(
+          t,
+        )).entries.singleWhere((e) => e.accountId == savings);
+        await db.toggleCleared(there.id);
+        await db.reconcile(
+          accountId: savings,
+          statementDate: DateTime(2026, 9, 30),
+          today: DateTime(2026, 10, 3),
+          balance: 500000,
+        );
+        // Checking's bank shows it on 10.02: the month differs, but the
+        // savings statement holds the date.
+        final p = await plan([
+          ImportRow(
+            sourceRow: 0,
+            date: DateTime(2026, 10, 2),
+            amount: -500000,
+            payee: 'To savings',
+          ),
+        ]);
+        expect(p.single.fate, ImportFate.match);
+        await db.applyImport(
+          accountId: bank,
+          plan: p,
+          uncategorizedNames: ['Not categorized'],
+        );
+        expect((await db.snapshot(t)).header.date, '2026-09-30');
+      },
+    );
+
     test('a typed row too far from the bank date is not matched', () async {
       await db.postSimple(
         accountId: bank,

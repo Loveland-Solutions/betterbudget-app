@@ -105,7 +105,7 @@ class _ImportDialogState extends State<_ImportDialog> {
   }
 
   DateTime? get _fromDay =>
-      widget.today == null ? null : parseEntryDate(_from.text, widget.today!);
+      widget.today == null ? null : parseRowDate(_from.text, widget.today!);
 
   bool get _fromWrong => widget.starting && _fromSet && _fromDay == null;
 
