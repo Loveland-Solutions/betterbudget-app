@@ -16,6 +16,11 @@ new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no
 by hand (#251). Before offering one, compare this line with `git log` on
 `app/lib/ui/phone/`, and rewrite this line after each upload.
 
+**The Microsoft Store has 0.44.0 in certification** (Submission 1, made in Partner
+Center, set to publish on the owner's Publish now; it must not go live before #246).
+Later versions go by `app/tool/release_store.sh` (#251), which can only run once that
+first submission is published: the Store holds one submission at a time.
+
 **A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
 categories", the owner's pick A of three): click Left and a box opens under it with
 From, To and Amount. With money in it, it opens going out; at zero or below, coming in, the
