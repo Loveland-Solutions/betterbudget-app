@@ -6,26 +6,17 @@
   (2026-10-23). VERSION is filled in by the workflow from pubspec.yaml, as the
   Store wants it: three numbers and a 0.
 
-  It asks for nothing but to run as a desktop app (runFullTrust) and to write its own
-  folder in AppData for real (unvirtualizedResources): no internetClient, no other
-  capability. The tiles are drawn by design/icon/app_icon.py.
+  It asks for nothing but to run as a desktop app (runFullTrust): no internetClient,
+  no other capability. The tiles are drawn by design/icon/app_icon.py.
 
-  Where the ledger lives (#246, owner's pick 2026-10-23): in the folder the zip
-  download uses, %APPDATA%\Loveland Solutions\BetterBudget (named by Runner.rc's
-  CompanyName and ProductName). Left to itself, Windows sends a packaged app's new
-  files in AppData to a private folder of the package and deletes it on uninstall,
-  taking the ledger, its daily copies and the saved recovery key with it. Windows 11
-  reads the ExcludedDirectory and leaves only that folder real; Windows 10 reads
-  desktop6's "disabled" and leaves all of AppData real. 1903 (18362) is the first
-  Windows 10 that has either, so it is the lowest the package installs on.
+  The app keeps its files in the package's own folder, which Windows deletes on
+  uninstall, and never in the zip download's (#246, lib/data/store_folder.dart).
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
-  xmlns:virtualization="http://schemas.microsoft.com/appx/manifest/virtualization/windows10"
-  IgnorableNamespaces="uap rescap desktop6 virtualization">
+  IgnorableNamespaces="uap rescap">
 
   <Identity
     Name="LovelandSolutions.BetterBudget"
@@ -37,16 +28,10 @@
     <DisplayName>BetterBudget</DisplayName>
     <PublisherDisplayName>Loveland Solutions</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
-    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
-    <virtualization:FileSystemWriteVirtualization>
-      <virtualization:ExcludedDirectories>
-        <virtualization:ExcludedDirectory>$(KnownFolder:RoamingAppData)\Loveland Solutions\BetterBudget</virtualization:ExcludedDirectory>
-      </virtualization:ExcludedDirectories>
-    </virtualization:FileSystemWriteVirtualization>
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.18362.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
   </Dependencies>
 
   <Resources>
@@ -66,6 +51,5 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="unvirtualizedResources" />
   </Capabilities>
 </Package>

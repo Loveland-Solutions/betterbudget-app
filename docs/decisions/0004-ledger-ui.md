@@ -3969,3 +3969,11 @@ meant typing two Assigned amounts (#99). The owner picked **A of three** from sk
   ledger's word for turning a transfer around); a choice that can't be on its new
   side (Not assigned with nothing in it, as From) is let go.
 - The computer only: the phone records and checks (ADR 0005).
+
+## Uninstall leaves nothing behind (2026-10-23)
+
+The Store app first kept its ledger in the zip download's folder, so an uninstall
+wouldn't take it. The owner: "I call it garbage." What an app leaves behind on
+uninstall is garbage; the person keeps their recovery key, and uninstall removes the
+saved one from the machine. The Store app now keeps everything in its package's
+folder, which Windows deletes with it (ADR 0001 "Where the ledger lives on Windows").

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-23** · version 0.46.1 · schema v21 · 802 tests pass
+**Last updated: 2026-10-23** · version 0.46.2 · schema v21 · 804 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -17,21 +17,21 @@ by hand (#251). Before offering one, compare this line with `git log` on
 `app/lib/ui/phone/`, and rewrite this line after each upload.
 
 **The Microsoft Store has 0.44.0 in certification** (Submission 1, made in Partner
-Center, set to publish on the owner's Publish now). **It must not go out:** it lacks
-0.46.1's package change, so uninstalling it would delete the ledger. Cancel it and
-submit 0.46.1 by hand in Partner Center, which asks why the app needs the restricted
-capability `unvirtualizedResources`. Later versions go by `app/tool/release_store.sh`
-(#251), which can only run once a submission is published: the Store holds one at a
-time.
+Center, set to publish on the owner's Publish now). Replace its package with 0.46.2's
+(cancel certification, Packages, upload, submit); it asks for no restricted
+capability. Microsoft's upload tool can't touch a submission made on the website.
+Later versions go by `app/tool/release_store.sh` (#251), which can only run once a
+submission is published: the Store holds one at a time.
 
-**The Store app keeps its ledger in the zip download's folder** (0.46.1, closes #246;
-ADR 0001 "Where the ledger lives on Windows", the owner's pick of three):
-`%APPDATA%\Loveland Solutions\BetterBudget`, kept out of Windows' private package
-folder by `app/windows/msix/AppxManifest.xml`. Tried on Windows 11 (ARM, in
-Parallels): the Store build opened the ledger the zip build had set up, each saw the
-other's row, and uninstalling the Store build left the ledger, its copies and the
-saved key. If Microsoft refuses the capability, the fallback in the ADR is a
-`BetterBudget` folder in the user's home folder.
+**The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
+"Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
+run from a Store package, `data/store_folder.dart` hands path_provider the package's
+`LocalState`, so the ledger, its copies, the saved key and the settings files go when
+the app does. It never looks in the zip download's folder; moving over is Open
+ledger. Tried on Windows 11 (ARM, in Parallels): it opened on the first screen beside
+a zip download's ledger, everything it wrote was in `LocalState`, and uninstall left
+nothing of it. 0.46.1's other way (the zip download's folder, kept past uninstall)
+was dropped the same day.
 
 **A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
 categories", the owner's pick A of three): click Left and a box opens under it with
