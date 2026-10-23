@@ -11,10 +11,10 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**The last Play build is 0.45.0** (`.aab` made 2026-10-23). A phone change after it
-needs a new one; before offering a build, compare this line with `git log` on
-`app/lib/ui/phone/` and the time of `app/build/app/outputs/bundle/release/app-release.aab`,
-and rewrite this line whenever an `.aab` is made.
+**Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
+new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload
+by hand (#251). Before offering one, compare this line with `git log` on
+`app/lib/ui/phone/`, and rewrite this line after each upload.
 
 **A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
 categories", the owner's pick A of three): click Left and a box opens under it with
