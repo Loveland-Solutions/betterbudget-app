@@ -151,8 +151,7 @@ class WordsEn extends Words {
   String get ledgerUndo => 'Undo';
 
   @override
-  String get ledgerSaveOrDiscard =>
-      'Save with Enter, or press Esc to discard your changes';
+  String get ledgerSaveOrDiscard => 'Save or cancel the open row first';
 
   @override
   String get ledgerFinishReconcileFirst =>
@@ -287,6 +286,10 @@ class WordsEn extends Words {
   String ledgerCantDeleteTransfer(String account) {
     return 'Can’t delete · this transfer is reconciled in $account';
   }
+
+  @override
+  String get ledgerCantUnclearReconciled =>
+      'Can’t mark it uncleared · it matches a bank statement';
 
   @override
   String get ledgerCantDeleteReconciled =>
@@ -2115,6 +2118,18 @@ class WordsEn extends Words {
       'payee': 'needs payee',
       'category': 'needs category',
       'other': 'needs amount',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsEnterMissing(String field) {
+    String _temp0 = intl.Intl.selectLogic(field, {
+      'when': 'Enter a date',
+      'account': 'Pick an account',
+      'payee': 'Enter a payee',
+      'category': 'Pick a category',
+      'other': 'Enter an amount',
     });
     return '$_temp0';
   }

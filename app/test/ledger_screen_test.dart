@@ -1150,6 +1150,133 @@ void main() {
     await tidy(tester, db);
   });
 
+  group('keys and the mouse (#162)', () {
+    Future<void> undoKey(WidgetTester tester) async {
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> key(WidgetTester tester, LogicalKeyboardKey k) async {
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(k);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('⌘Z right after Add undoes the Add', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      final payee = find.widgetWithText(TextField, 'New transaction — payee');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Dining out',
+      );
+      await tester.enterText(payee, 'Modern Nomads');
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '42000');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Modern Nomads'), findsOneWidget);
+      // Focus is in the next row's empty payee.
+      await undoKey(tester);
+      expect(find.text('Modern Nomads'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a typed new row has Cancel, stays when another account is '
+        'clicked, and Esc from the register closes it', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      final payee = find.widgetWithText(TextField, 'New transaction — payee');
+      expect(find.byKey(const ValueKey('cancel-entry')), findsNothing);
+      await tester.enterText(payee, 'Nomin');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cancel-entry')), findsOneWidget);
+
+      await tester.tap(find.text('Khan Savings').first); // the sidebar
+      await tester.pumpAndSettle();
+      expect(find.text('Save or cancel the open row first'), findsOneWidget);
+      expect(find.text('TDB Checking'), findsWidgets);
+      expect(find.widgetWithText(TextField, 'Nomin'), findsOneWidget);
+
+      // Focus leaves the row; Esc still closes it.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.widgetWithText(TextField, 'Nomin'), findsNothing);
+
+      // And Cancel does too.
+      await openEntry(tester);
+      await tester.enterText(payee, 'Nomin');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('cancel-entry')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Nomin'), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('an open Edit keeps Delete and C from its row; Esc closes it '
+        'after focus has left', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cancel-edit')), findsOneWidget);
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await key(tester, LogicalKeyboardKey.backspace);
+      await key(tester, LogicalKeyboardKey.keyC);
+      expect(find.textContaining('Deleted'), findsNothing);
+      expect(find.textContaining('marked'), findsNothing);
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.byKey(const ValueKey('cancel-edit')), findsNothing);
+      expect(find.text('Unitel'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('keys act only on a row the tab shows; ↓ and ↑ choose rows', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      // The tab, under the header's Uncleared line.
+      await tester.tap(find.text('Uncleared').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      // C clears it, and it leaves the Uncleared tab.
+      await key(tester, LogicalKeyboardKey.keyC);
+      expect(find.text('Unitel'), findsNothing);
+      // Delete now finds no row on screen to act on.
+      await key(tester, LogicalKeyboardKey.backspace);
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+      expect(find.text('Unitel'), findsOneWidget);
+
+      // ↓ chooses the first row on screen, and again the next.
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await key(tester, LogicalKeyboardKey.escape); // let it go
+      expect(find.text('Mark uncleared'), findsNothing);
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      // The third row on screen: Unitel, under the next bill and Nomin.
+      expect(find.text('Mark uncleared'), findsOneWidget);
+      await key(tester, LogicalKeyboardKey.arrowUp);
+      expect(find.text('Mark uncleared'), findsNothing);
+      await tidy(tester, db);
+    });
+  });
+
   group('adding a transaction in any order', () {
     Finder field(String hint) => find.widgetWithText(TextField, hint);
     bool focused(WidgetTester tester, String hint) => tester
@@ -1182,6 +1309,8 @@ void main() {
       );
       await enter(tester);
       expect(focused(tester, 'New transaction — payee'), isTrue);
+      // And the popup says what's missing, as a person would.
+      expect(find.text('Enter a payee'), findsOneWidget);
       expect(find.text('Sakura Coffee'), findsOneWidget); // nothing added yet
       await tidy(tester, db);
     });
@@ -1702,10 +1831,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('cancel-edit')), findsNothing);
     expect(find.widgetWithText(TextField, 'Nomin'), findsOneWidget);
-    expect(
-      find.text('Save with Enter, or press Esc to discard your changes'),
-      findsOneWidget,
-    );
+    expect(find.text('Save or cancel the open row first'), findsOneWidget);
 
     // Add while an Edit holds changes: Edit stays, and no new row opens.
     await tester.enterText(find.widgetWithText(TextField, 'Nomin'), '');
