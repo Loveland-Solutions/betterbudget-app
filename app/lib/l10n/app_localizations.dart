@@ -6359,6 +6359,24 @@ abstract class Words {
   /// **'Spending before {date}, when the budget began, isn\'t counted against its categories.'**
   String planKeyBeganInside(String date);
 
+  /// Move box, under the amount, when Move is pressed with no category chosen to move from or to.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category'**
+  String get planMoveChooseCategory;
+
+  /// Move box's list, when there's nothing to move from: every other category in the currency is at zero or overspent, and Not assigned is zero.
+  ///
+  /// In en, this message translates to:
+  /// **'No other category in this currency has money to move, and none is unassigned.'**
+  String get planMoveNothingFrom;
+
+  /// Budget page's top card, beside Cash & bank, while another period than today's is on screen: the top card's figures are today's, the rows below are that period's.
+  ///
+  /// In en, this message translates to:
+  /// **'As of today'**
+  String get planKeyAsOfToday;
+
   /// Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short.
   ///
   /// In en, this message translates to:
