@@ -4492,6 +4492,16 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planMoveChooseCategory => 'Choose a category';
+
+  @override
+  String get planMoveNothingFrom =>
+      'No other category in this currency has money to move, and none is unassigned.';
+
+  @override
+  String get planKeyAsOfToday => 'As of today';
+
+  @override
   String get planKeyOver => 'Assigned too much';
 
   @override

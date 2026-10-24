@@ -727,7 +727,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                         onClose: () {
                           if (mounted) setState(() {});
                         },
-                        menuChildren: [
+                        menuChildren: focusFirstOnKeys([
                           for (final a in open)
                             MenuItemButton(
                               key: ValueKey('payee-account-${a.id}'),
@@ -773,7 +773,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                                 ),
                               ),
                             ),
-                        ],
+                        ]),
                         child: BarButton(
                           key: const ValueKey('payee-accounts'),
                           label: _accountsLabel(t, data, _accounts),

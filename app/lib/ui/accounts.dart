@@ -621,7 +621,7 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
       SubmenuButton(
         key: const ValueKey('menu-loan-category'),
         menuStyle: _menuStyle,
-        menuChildren: [
+        menuChildren: focusFirstOnKeys([
           for (final c in [null, ...loan.categories])
             MenuItemButton(
               key: ValueKey('loan-category-${c?.id ?? 'none'}'),
@@ -638,7 +638,7 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
                 ),
               ),
             ),
-        ],
+        ]),
         child: Builder(
           builder: (context) => Text(
             context.t.setupLoanPaidFrom,
@@ -792,14 +792,16 @@ class _AccountTitleState extends State<_AccountTitle> {
         MenuAnchor(
           style: _menuStyle,
           alignmentOffset: const Offset(0, 4),
-          menuChildren: _accountMenu(
-            a,
-            _AccountActions(
-              rename: _startRename,
-              changeKind: widget.actions.changeKind,
-              archive: widget.actions.archive,
-              delete: widget.actions.delete,
-              loanPaidFrom: widget.actions.loanPaidFrom,
+          menuChildren: focusFirstOnKeys(
+            _accountMenu(
+              a,
+              _AccountActions(
+                rename: _startRename,
+                changeKind: widget.actions.changeKind,
+                archive: widget.actions.archive,
+                delete: widget.actions.delete,
+                loanPaidFrom: widget.actions.loanPaidFrom,
+              ),
             ),
           ),
           builder: (context, menu, _) => Hoverable(

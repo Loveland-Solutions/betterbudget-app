@@ -193,7 +193,11 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `register.dart`) is a Tab stop pressed with Enter or Space, with Shortcuts of its
   own so the register's keys don't see that Enter; a register row passes
   `focusable: false` and its line sits in `ExcludeFocus` (↑ ↓ choose rows), and the
-  sidebar is a `FocusTraversalGroup`.
+  sidebar is a `FocusTraversalGroup`. A menu's items go through `focusFirstOnKeys`
+  (also `register.dart`), so a menu opened from the keys has its first item focused;
+  a new `MenuAnchor` should do the same. A calendar or other overlay that's only for
+  the mouse sits in `ExcludeFocus`, or Tab steps into it and focus is lost when it
+  closes.
 - **Money.** `Money` reads its currency from the `CurrencyScope` above it and falls back
   to tugrik without complaint, so a new page for an account needs the scope.
 - **Not verified.** `fit_window.dart` says its smallest size must match
