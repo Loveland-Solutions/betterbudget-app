@@ -894,6 +894,14 @@ void main() {
     // Each bill with the balance after it, then the income that ends it.
     expect(find.text('Zaisan Residence'), findsNWidgets(2));
     expect(find.text('+₮2,500,000'), findsOneWidget);
+    // Money out with its minus, as in the register.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('forecast-bill-line')),
+        matching: find.textContaining(RegExp('^−₮')),
+      ),
+      findsNWidgets(3),
+    );
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/forecast_bills.png'),
@@ -1204,6 +1212,290 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a row taken out of the opening balance, deleted, offers to '
+      'put it back', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Khan Savings').first);
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, '2026.09.16'),
+      '08.30',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'ATM',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      'Household',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '50000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Take it out of the opening balance'));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    final atm = find.text('ATM', skipOffstage: false);
+    await tester.ensureVisible(atm);
+    await tester.pumpAndSettle();
+    await tester.tap(atm);
+    await tester.pumpAndSettle();
+    // A new amount: the popup says where the balance would come to.
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '50000'), '30000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Changes saved · it was taken out of the opening balance'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Make the opening balance ₮12,130,000'),
+      findsOneWidget,
+    );
+    // Not clicked: the popup goes. Today's balance is over by ₮20,000.
+    await tester.pump(const Duration(seconds: 20));
+    await tester.pumpAndSettle();
+    expect(find.text('₮12,620,000.00'), findsWidgets);
+    // Still chosen after Save.
+    expect(find.text('Delete'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await settle(tester);
+    expect(
+      find.text('ATM deleted · it was taken out of the opening balance'),
+      findsOneWidget,
+    );
+    // Gone, the ₮50,000 taken out is counted nowhere.
+    expect(find.text('₮12,650,000.00'), findsWidgets);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Opening balance back to ₮12,100,000'));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Opening balance now ₮12,100,000 on 08.29'),
+      findsOneWidget,
+    );
+    // Back where it was before the row, though its popup was missed.
+    expect(find.text('₮12,600,000.00'), findsWidgets);
+    // A second Delete pressed at once recorded nothing: undo takes back the
+    // put-back, the delete, then the edit.
+    for (var i = 0; i < 3; i++) {
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Undone · ATM edited'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a transfer before both accounts\' opening balances comes out '
+      'of both, in one undo', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Khan Savings').first);
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, '2026.09.16'),
+      '08.30',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      '→ Cash wallet',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '50000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'it’s dated on or before the opening balance (₮12,100,000 on 09.01), '
+        'which already counts it · it’s dated on or before the opening '
+        'balance of Cash wallet (₮86,500 on 09.01), which already counts it',
+      ),
+      findsOneWidget,
+    );
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Take it out of both opening balances'));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Opening balance of Khan Savings now ₮12,150,000 on 08.29 · '
+        'Opening balance of Cash wallet now ₮36,500 on 08.29',
+      ),
+      findsOneWidget,
+    );
+    Future<int> balance(String name) => tester.runAsync(() async {
+      final data = await db.loadLedger();
+      final a = data.accounts.values.firstWhere((a) => a.name == name);
+      return data.summaryFor(a.id).working;
+    }).then((v) => v!);
+    // Today's balances are as before the transfer: the bank's.
+    final cash = await balance('Cash wallet');
+    expect(await balance('Khan Savings'), 1260000000);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(await balance('Cash wallet'), cash + 5000000);
+    expect(await balance('Khan Savings'), 1260000000 - 5000000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Change the amount… opens on a reconciled split, whose lines '
+      'must add up, and on a transfer reconciled on one side only', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final data = await db.loadLedger();
+      int named(String n) =>
+          data.accounts.values.firstWhere((a) => a.name == n).id;
+      final tdb = named('TDB Checking');
+      final txn = await db.postSplit(
+        accountId: tdb,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 16),
+        payee: 'Номин',
+        splits: [
+          (categoryId: named('Groceries'), amount: -6000000),
+          (categoryId: named('Clothing'), amount: -2000000),
+        ],
+      );
+      final row = (await db.loadLedger())
+          .registerFor(tdb)
+          .posted
+          .firstWhere((r) => r.txnId == txn);
+      await db.toggleCleared(row.entryId);
+      await db.reconcile(
+        accountId: tdb,
+        statementDate: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 16),
+        balance: (await db.loadLedger()).summaryFor(tdb).cleared,
+        adjust: true,
+      );
+    });
+    await settle(tester);
+    final nomin = find.text('Номин', skipOffstage: false);
+    await tester.ensureVisible(nomin);
+    await tester.pumpAndSettle();
+    await tester.tap(nomin);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '80000'), '90000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    // A new total opens the lines, which must add up to it.
+    expect(find.text('₮10,000.00 left'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, '60000'), '70000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    // The lines add up: the card closes, and Enter saves.
+    expect(find.byKey(const ValueKey('split-card')), findsNothing);
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 reconcile taken back'), findsOneWidget);
+    Future<RegisterRow> row(String payee) async => (await tester.runAsync(
+      () async =>
+          checking(await db.loadLedger()).posted
+              .firstWhere((r) => r.payee == payee),
+    ))!;
+    expect((await row('Номин')).amount, -9000000);
+    expect((await row('Номин')).cleared, Cleared.cleared);
+    expect(
+      (await row('Номин')).splitLines.map((l) => l.amount),
+      unorderedEquals([-7000000, -2000000]),
+    );
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect((await row('Номин')).amount, -8000000);
+    expect((await row('Номин')).cleared, Cleared.reconciled);
+
+    // The card payment: reconciled in TDB Checking, only cleared in Golomt
+    // Visa. A new amount changes both sides.
+    final before = (await tester.runAsync(
+      () async => checking(
+        await db.loadLedger(),
+      ).posted.firstWhere((r) => r.kind == RowKind.transfer && r.locked),
+    ))!;
+    final card = find.byKey(ValueKey('row-${before.txnId}'));
+    await tester.scrollUntilVisible(
+      card,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '350000'), '300000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('reconcile'), findsWidgets);
+    final payment = (await tester.runAsync(
+      () async => checking(
+        await db.loadLedger(),
+      ).posted.firstWhere((r) => r.txnId == before.txnId),
+    ))!;
+    expect(payment.amount, -30000000);
+    final visa = await tester.runAsync(() async {
+      final data = await db.loadLedger();
+      return data.txns
+          .firstWhere((x) => x.id == payment.txnId)
+          .entries
+          .firstWhere((e) => e.accountId != payment.accountId);
+    });
+    expect(visa!.amount, 30000000);
+    await tidy(tester, db);
+  });
+
   testWidgets('a reconciled row says what can still change; Change the '
       'amount… takes back its reconcile on Save, and undo locks it again', (
     tester,
@@ -1390,6 +1682,46 @@ void main() {
       await key(tester, LogicalKeyboardKey.escape);
       expect(find.byKey(const ValueKey('cancel-edit')), findsNothing);
       expect(find.text('Unitel'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('Tab reaches the register\'s tabs and a row\'s buttons; '
+        'Enter and Space press them', (tester) async {
+      final db = await pumpLedger(tester);
+      // The words on whatever has focus now.
+      String focused() {
+        final c = FocusManager.instance.primaryFocus?.context;
+        if (c == null) return '';
+        final words = <String>[];
+        void visit(Element e) {
+          if (e.widget case Text(:final data?)) words.add(data);
+          e.visitChildren(visit);
+        }
+
+        c.visitChildElements(visit);
+        return words.join(' ');
+      }
+
+      Future<void> tabTo(String label) async {
+        for (var i = 0; i < 40; i++) {
+          if (focused() == label) return;
+          await key(tester, LogicalKeyboardKey.tab);
+        }
+        fail('Tab never reached $label');
+      }
+
+      await tabTo('Uncleared (2)');
+      await key(tester, LogicalKeyboardKey.enter);
+      // The Uncleared tab: a cleared row isn't in it.
+      expect(find.text('Unitel'), findsOneWidget);
+      expect(find.text('Altan Gadas LLC'), findsNothing);
+
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tabTo('Mark cleared');
+      await key(tester, LogicalKeyboardKey.space);
+      // Cleared: it leaves the Uncleared tab.
+      expect(find.text('Unitel'), findsNothing);
       await tidy(tester, db);
     });
 
@@ -1698,7 +2030,7 @@ void main() {
       find.text('Unitel on 09.16 is ₮30,000 and isn’t cleared'),
       findsOneWidget,
     );
-    expect(find.text('Add ₮30,000 adjustment and lock'), findsOneWidget);
+    expect(find.text('Take ₮30,000 off the balance and lock'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/reconcile.png'),
@@ -1750,7 +2082,7 @@ void main() {
     expect(find.text('Bank is higher'), findsOneWidget);
     expect(find.text('Clear the rows your bank shows'), findsOneWidget);
     await tester.runAsync(() async {
-      await tester.tap(find.text('Add ₮1,000 adjustment and lock'));
+      await tester.tap(find.text('Add ₮1,000 to the balance and lock'));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
@@ -3727,6 +4059,55 @@ void main() {
     await tapAndWait(tester, find.text('Confirm'));
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('an open Edit scrolled far out of sight keeps what was typed', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final taxi = ledger.categories.firstWhere((c) => c.name == 'Transport');
+      for (var i = 0; i < 60; i++) {
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 8, 1),
+          today: DateTime(2026, 9, 16),
+          payee: 'Taxi $i',
+          counterAccountId: taxi.id,
+          amount: -500000,
+        );
+      }
+    });
+    await settle(tester);
+    await tester.tap(find.text('Unitel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Unitel'),
+      'Unitel postpaid plan',
+    );
+    // The register's list: the open row's fields scroll sideways.
+    final list = find
+        .byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        )
+        .last;
+    await tester.scrollUntilVisible(find.text('Taxi 59'), 400, scrollable: list);
+    // Out of sight, the row isn't built at all; what was typed is kept.
+    expect(find.byType(EntryRow, skipOffstage: false), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Unitel postpaid plan'),
+      -400,
+      scrollable: list,
+    );
+    expect(
+      find.widgetWithText(TextField, 'Unitel postpaid plan'),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 
@@ -8621,6 +9002,60 @@ void main() {
       await settle(tester);
       expect(
         find.text('Undone · Groceries remembered for next time'),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('the mouse wheel over it scrolls the list under it', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      final list = tester.state<ScrollableState>(find.byType(Scrollable).last);
+      expect(list.position.maxScrollExtent, greaterThan(0));
+      expect(list.position.pixels, 0);
+      final at = tester.getCenter(popup);
+      await pointer(tester, at);
+      await tester.pump();
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: at,
+          kind: PointerDeviceKind.mouse,
+          scrollDelta: const Offset(0, 120),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(list.position.pixels, greaterThan(0));
+      await tidy(tester, db);
+    });
+
+    testWidgets('remembering another category for a payee says what it was '
+        'before', (tester) async {
+      final db = await pumpLedger(tester);
+      await file(tester);
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      await settle(tester);
+      expect(
+        find.textContaining('Groceries remembered for next time'),
+        findsOneWidget,
+      );
+      // Still chosen: its Categorize again.
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Dining out'),
+        ),
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      await settle(tester);
+      expect(
+        find.text(
+          'Dining out remembered for next time · it was Groceries before',
+        ),
         findsOneWidget,
       );
       await tidy(tester, db);

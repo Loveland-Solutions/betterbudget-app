@@ -111,6 +111,102 @@
       }
     }
   },
+  "ledgerOpeningOfCountsIt": "it’s dated on or before the opening balance of {account} ({amount} on {date}), which already counts it",
+  "@ledgerOpeningOfCountsIt": {
+    "description": "Clause of the toast after a row is added, after \" · \": the opening balance of the named account (a transfer's other account, or the row's own in All accounts) already holds the row's money.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTakeOutOfBothOpenings": "Take it out of both opening balances",
+  "@ledgerTakeOutOfBothOpenings": {
+    "description": "Button on that toast when a transfer is already in both accounts' opening balances."
+  },
+  "ledgerOpeningOfNow": "Opening balance of {account} now {amount} on {date}",
+  "@ledgerOpeningOfNow": {
+    "description": "Toast and undo label after both accounts' opening balances were moved before a typed transfer; one per account, joined by \" · \".",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerOpeningTookIt": "it was taken out of the opening balance",
+  "@ledgerOpeningTookIt": {
+    "description": "Clause of the toast after a row is deleted or its amount changed, after \" · \": the row had been taken out of the account's opening balance (Take it out of the opening balance)."
+  },
+  "ledgerOpeningOfTookIt": "it was taken out of the opening balance of {account}",
+  "@ledgerOpeningOfTookIt": {
+    "description": "The same, naming the account: a transfer's other account, or All accounts.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCorrectBothOpenings": "Correct both opening balances",
+  "@ledgerCorrectBothOpenings": {
+    "description": "The same for a transfer taken out of both accounts' opening balances."
+  },
+  "ledgerOpeningBackTo": "Opening balance back to {amount}",
+  "@ledgerOpeningBackTo": {
+    "description": "Button on the toast after a row taken out of the opening balance is deleted: the balance takes the row's money back. amount is where the balance comes to.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMakeOpening": "Make the opening balance {amount}",
+  "@ledgerMakeOpening": {
+    "description": "Button on the toast after the amount of a row taken out of the opening balance changes: the balance comes to amount, as if the new amount had been taken out.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerMoreRowsFiled": "{count, plural, =1{1 more row filed} other{{count} more rows filed}}",
+  "@ledgerMoreRowsFiled": {
+    "description": "Clause of the remember popup, after \" · \", when it also says what the payee was remembered for before.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rowsAdjustOwedUpAndLock": "Add {amount} to what you owe and lock",
+  "@rowsAdjustOwedUpAndLock": {
+    "description": "Reconcile panel button on a card or loan when the bank says more is owed: posts the difference as an adjustment row, then locks.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsAdjustOwedDownAndLock": "Take {amount} off what you owe and lock",
+  "@rowsAdjustOwedDownAndLock": {
+    "description": "The same when the bank says less is owed.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerTakeOutOfOpening": "Take it out of the opening balance",
   "@ledgerTakeOutOfOpening": {
     "description": "Button on that toast: the opening balance moves before the row, less its amount."
@@ -2912,6 +3008,15 @@
       }
     }
   },
+  "ledgerRememberedBefore": "it was {category} before",
+  "@ledgerRememberedBefore": {
+    "description": "Clause of that popup, after \" · \", when the payee was already remembered for another category, which this replaces.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerAlwaysFiled": "{count, plural, =0{{category} remembered for next time} =1{{category} remembered for next time · 1 more row filed} other{{category} remembered for next time · {count} more rows filed}}",
   "@ledgerAlwaysFiled": {
     "description": "Popup card after Remember is clicked; with count 0 it is also the undo label (\"Undone · Income remembered for next time\": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.",
@@ -3647,9 +3752,18 @@
   "@rowsCancel": {
     "description": "Reconcile panel button: stop reconciling"
   },
-  "rowsAddAdjustmentAndLock": "Add {amount} adjustment and lock",
-  "@rowsAddAdjustmentAndLock": {
-    "description": "Reconcile panel button when the numbers don’t match: posts the difference as an adjustment row, then locks. amount is formatted money",
+  "rowsAdjustUpAndLock": "Add {amount} to the balance and lock",
+  "@rowsAdjustUpAndLock": {
+    "description": "Reconcile panel button when the bank's balance is higher than the cleared one: posts the difference as an adjustment row, then locks. The balance is as the bank shows it (on a card, what's owed). amount is formatted money",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsAdjustDownAndLock": "Take {amount} off the balance and lock",
+  "@rowsAdjustDownAndLock": {
+    "description": "The same when the bank's balance is lower.",
     "placeholders": {
       "amount": {
         "type": "String"

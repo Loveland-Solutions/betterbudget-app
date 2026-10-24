@@ -1621,6 +1621,72 @@ void main() {
     expect(await db.preference(openingAsOfKey(savings)), isNull);
   });
 
+  test('a row taken out of the opening balance, deleted, puts its money '
+      'back; changed, the balance takes out the new amount', () async {
+    final savings = (await db.loadLedger()).balanceSheetAccounts
+        .firstWhere((a) => a.name == 'Khan Savings')
+        .id;
+    final household = await categoryId('Household');
+    Future<int> openingAmount() async => (await db.loadLedger())
+        .registerFor(savings)
+        .posted
+        .firstWhere((r) => r.kind == RowKind.opening)
+        .amount;
+    final id = await db.postSimple(
+      accountId: savings,
+      date: DateTime(2026, 8, 30),
+      today: today,
+      payee: 'ATM',
+      counterAccountId: household,
+      amount: -5000000,
+    );
+    final took = await db.takeOutOfOpening(
+      accountId: savings,
+      date: DateTime(2026, 8, 30),
+      amount: -5000000,
+      rowId: id,
+    );
+    expect(took!.move.toAmount, 1215000000);
+    var data = await db.loadLedger();
+    expect(data.openingTook(savings, id)?.taken, -5000000);
+    // Another row isn't known as taken out.
+    expect(data.openingTook(savings, id + 1), isNull);
+
+    // Its amount changed to ₮40,000, and that popup missed; then to
+    // ₮30,000: the balance is as if ₮30,000 had been taken out.
+    final changed = await db.putBackInOpening(
+      accountId: savings,
+      rowId: id,
+      now: -3000000,
+    );
+    expect(changed!.move.toAmount, 1213000000);
+    expect((await db.loadLedger()).openingTook(savings, id)?.taken, -3000000);
+
+    // Deleted: all of it goes back, and it's no longer kept.
+    final back = await db.putBackInOpening(
+      accountId: savings,
+      rowId: id,
+      now: 0,
+    );
+    expect(back!.move.toAmount, 1210000000);
+    expect(await openingAmount(), 1210000000);
+    expect((await db.loadLedger()).openingTook(savings, id), isNull);
+    expect(
+      await db.putBackInOpening(accountId: savings, rowId: id, now: 0),
+      isNull,
+    );
+
+    // Undo, newest first, takes it back to where it was.
+    await db.redoTakeOutOfOpening(savings, back, back: true);
+    await db.redoTakeOutOfOpening(savings, changed, back: true);
+    expect(await openingAmount(), 1215000000);
+    data = await db.loadLedger();
+    expect(data.openingTook(savings, id)?.taken, -5000000);
+    await db.redoTakeOutOfOpening(savings, took, back: true);
+    expect(await openingAmount(), 1210000000);
+    expect(await db.preference(openingTakenKey(savings)), isNull);
+  });
+
   group('editing', () {
     Future<RegisterRow> row(String payee) async => (await db.loadLedger())
         .registerFor(checking)

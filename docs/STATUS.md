@@ -12,39 +12,23 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 ## Next step
 
 **The Ledger's fine-tooth comb is under way** (#162; the findings are checkboxes
-there). 0.46.3 fixes its money and data group: a card's or loan's payment bill is
-scheduled as a transfer to it and a transfer to it pays the bill (`_loanPaidThrough`,
-`billPayments`); an import keeps the date of a transfer reconciled in the other
-account; a date typed with no year is this year's unless that is over six months
-ahead or nine back (`parseRowDate`); a day's money in comes before its money out
-(`registerOrder`); a side moved to another account, or a row moved past today, starts
-uncleared and undo puts it back; an import's undo is one write. 0.46.4 fixes its
-keys-and-mouse group: an open Edit keeps Delete and C from its row, and the new row
-keeps them while focus is in it (`holdsFocus`); keys act only on a row on screen
-(`RegisterPanel.shown`); ↑ ↓ choose rows, Enter or ↓ in search goes to the first
-found, Esc in search clears it (`_step`); Esc closes an open row or Reconcile wherever
-the last click was; ⌘Z right after Add undoes it; a typed new row has Cancel under Add
-and stops a move to another account or Reconcile; Enter on an incomplete row says
-what's missing ("Enter a payee"); a two-currency transfer isn't ready until both
-amounts are in; Enter adds split lines until one is left empty; C on a reconciled row
-says why; ⌘K is gone (⌘F). Left from the group: Tab doesn't reach the tabs or a row's
-buttons. 0.46.5 fixes what was on screen and the words: under 1440 wide the Source
-column is left out so payees aren't cut (ADR 0004, "Where a row came from"); Reconcile's
-notes wrap rather than cut; the Mongolian forecast is төсөөлөл throughout, the Ledger's
-bill questions, "Paid on…?", split errors and forecast lines carry no ending on a
-placeholder (glossary, "Word forms"), and the popup from a computer with no name no
-longer says computer twice; one wording each for a date and an amount that can't be
-read; "entered", not "posted"; "Budget page"; "Next 12 months". The Budget page's own
-Mongolian endings wait for its comb (#163). 0.47.0 builds the owner's three answers
-(ADR 0004, "The Ledger's fine-tooth comb: three answers"): import offers "Same purchase:
-take the bank's ₮X" for an uncleared typed row of one category at another amount (`near`,
-`samePurchase`, `_setTwoSided`); a typed row dated on or before an account's opening
-balance offers "Take it out of the opening balance" in its popup (`openingHolding`,
-`takeOutOfOpening`, the day kept by `openingAsOfKey`); a reconciled row says what can
-still change, and its Edit's "Change the amount…" takes back the reconciles from its own
-on, in one undo (`unreconcileThrough`, `_takesBack`). Follow-ups from the reviews: #259
-(a question), #260, #261, #262. Next in the comb: #141 and #148's Ledger items, and Tab
-reaching the register's tabs and a row's buttons.
+there). 0.46.3 to 0.46.5 fixed its money and data, keys and mouse, on-screen and
+words groups; 0.47.0 built the owner's three answers (ADR 0004, "The Ledger's
+fine-tooth comb: three answers"). 0.47.1 finishes the follow-ups (ADR 0004, "Settled
+in the comb's follow-ups"): a transfer before both accounts' opening balances comes
+out of both (#261); a row taken out of an opening balance is kept with it
+with its amount (`opening.taken.<account>`, `openingTook`), and deleting it or
+changing its amount offers to put the balance right (`putBackInOpening`; an
+import's Same purchase does it too, #260); Change the amount… works on a
+reconciled split and a transfer reconciled on one side (#262); Tab reaches the
+register's tabs, a chosen row's buttons and the sidebar (`Hoverable` is focusable;
+rows aren't); the mouse wheel over the popup scrolls the list; a lit row's cents
+read in every scheme; the bill list's money out has its minus; Reconcile's
+adjustment says which way; remembering a payee for another category says what it
+was; confirming looks through every account's rows; a double Delete records one;
+an open row scrolled away keeps its typing (#141, #148). The opening-balance offers live only
+in the popup; a missed one leaves the account off from the bank by that row
+(known issue, #259). Next: the Budget page's comb (#163).
 
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload

@@ -189,7 +189,11 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   with the owner's Apple team: [STATUS.md](STATUS.md) "Local setup notes".
 - **Keyboard.** Single-key shortcuts live in `_LedgerScreenState._onKey` and return
   `ignored` while a text field has focus. A plain key bound with `CallbackShortcuts`
-  takes the key from the field. Test with `sendKeyEvent`.
+  takes the key from the field. Test with `sendKeyEvent`. `Hoverable` (in
+  `register.dart`) is a Tab stop pressed with Enter or Space, with Shortcuts of its
+  own so the register's keys don't see that Enter; a register row passes
+  `focusable: false` and its line sits in `ExcludeFocus` (↑ ↓ choose rows), and the
+  sidebar is a `FocusTraversalGroup`.
 - **Money.** `Money` reads its currency from the `CurrencyScope` above it and falls back
   to tugrik without complaint, so a new page for an account needs the scope.
 - **Not verified.** `fit_window.dart` says its smallest size must match

@@ -85,6 +85,62 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerOpeningOfCountsIt(String account, String amount, String date) {
+    return 'it’s dated on or before the opening balance of $account ($amount on $date), which already counts it';
+  }
+
+  @override
+  String get ledgerTakeOutOfBothOpenings =>
+      'Take it out of both opening balances';
+
+  @override
+  String ledgerOpeningOfNow(String account, String amount, String date) {
+    return 'Opening balance of $account now $amount on $date';
+  }
+
+  @override
+  String get ledgerOpeningTookIt => 'it was taken out of the opening balance';
+
+  @override
+  String ledgerOpeningOfTookIt(String account) {
+    return 'it was taken out of the opening balance of $account';
+  }
+
+  @override
+  String get ledgerCorrectBothOpenings => 'Correct both opening balances';
+
+  @override
+  String ledgerOpeningBackTo(String amount) {
+    return 'Opening balance back to $amount';
+  }
+
+  @override
+  String ledgerMakeOpening(String amount) {
+    return 'Make the opening balance $amount';
+  }
+
+  @override
+  String ledgerMoreRowsFiled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more rows filed',
+      one: '1 more row filed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rowsAdjustOwedUpAndLock(String amount) {
+    return 'Add $amount to what you owe and lock';
+  }
+
+  @override
+  String rowsAdjustOwedDownAndLock(String amount) {
+    return 'Take $amount off what you owe and lock';
+  }
+
+  @override
   String get ledgerTakeOutOfOpening => 'Take it out of the opening balance';
 
   @override
@@ -1947,6 +2003,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerRememberedBefore(String category) {
+    return 'it was $category before';
+  }
+
+  @override
   String ledgerAlwaysFiled(int count, Object category) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -2450,8 +2511,13 @@ class WordsEn extends Words {
   String get rowsCancel => 'Cancel';
 
   @override
-  String rowsAddAdjustmentAndLock(String amount) {
-    return 'Add $amount adjustment and lock';
+  String rowsAdjustUpAndLock(String amount) {
+    return 'Add $amount to the balance and lock';
+  }
+
+  @override
+  String rowsAdjustDownAndLock(String amount) {
+    return 'Take $amount off the balance and lock';
   }
 
   @override
