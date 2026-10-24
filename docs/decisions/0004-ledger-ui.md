@@ -4156,3 +4156,22 @@ The Budget page by keys and mouse (comb, 2026-10-24):
   saved.
 - **The top card** narrows its figure columns with many currencies (four fit
   at 1360 × 760), and says "As of today" while another period is on screen.
+
+The Budget page's words (comb, 2026-10-24), through the UX writer:
+
+- **Mongolian endings** no longer sit on an amount, date or name (glossary,
+  "Word forms"): "Хүнс ангилалд", "огноо: 9-р сарын 30", "дууссан өдөр: …".
+- **Money set aside in a category** is хуваарилах in Mongolian, as Assigned
+  is, not хуримтлуулах (the Savings page's word). A bill is confirmed with
+  бүртгэх, not the cleared word.
+- **"still to put in"** is "still to assign"; **"doesn't carry over"** is
+  "goes back to not assigned", which says where the money goes; a currency
+  change "sends the ₮X assigned to it back to not assigned".
+- **One word for the cap**: the field is **Up to**, as the row's note says.
+- **Paid from's notes** are whole sentences that say what to do next: "Enter
+  the date and the bill shows in TDB Checking's forecast", "3 accounts are
+  checked, so this bill isn't in any forecast. Leave one checked to see it
+  there."
+- **An empty amount** is said once, by the note beside it ("you choose each
+  month how much to assign"), not also by a hint in the field.
+- **Add category's tooltip** is its shortcut, ⌘N, not its own label again.

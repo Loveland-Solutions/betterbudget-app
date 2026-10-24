@@ -1125,7 +1125,7 @@ class WordsMn extends Words {
 
   @override
   String planPaidFromSeveral(int count) {
-    return '$count данс сонгоотой тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй. Нэг данс үлдээвэл тэнд харагдана.';
+    return '$count данс сонгоотой тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй. Нэг л данс сонгоотой үлдээвэл тэнд харагдана.';
   }
 
   @override
@@ -1270,15 +1270,12 @@ class WordsMn extends Words {
   String get planAddCategory => 'Ангилал нэмэх';
 
   @override
-  String get planAddCategoryTip => 'Шинэ ангилал нэмэх';
-
-  @override
   String get setupAddPayTip =>
       'Цалингаа тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
 
   @override
   String planIncomeExpected(String received, String expected) {
-    return 'Энэ үед хүлээгдэж буй $expected-с $received орсон';
+    return 'Энэ үед $received орсон, орох ёстой нь $expected';
   }
 
   @override
@@ -1318,7 +1315,12 @@ class WordsMn extends Words {
 
   @override
   String planMorePay(int count) {
-    return ' · өөр $count цалин';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'өөр $count цалин',
+    );
+    return ' · $_temp0';
   }
 
   @override
@@ -1327,7 +1329,7 @@ class WordsMn extends Words {
 
   @override
   String planRaiseLowest(String amount) {
-    return 'Сүүлийн 6 цалингийн хамгийн бага нь $amount · тооцоолсон дүнг нэмэх үү?';
+    return 'Сүүлийн 6 цалингийн доод дүн $amount · тооцоолсон дүнг нэмэх үү?';
   }
 
   @override
@@ -1347,7 +1349,7 @@ class WordsMn extends Words {
 
   @override
   String planPaydayPayNext(String pay, String date) {
-    return 'Цалин: $pay · дараагийнх $date';
+    return 'Цалин: $pay · дараагийн $date';
   }
 
   @override
@@ -1510,7 +1512,7 @@ class WordsMn extends Words {
   String get planSetAside => 'Хойшлуулсан';
 
   @override
-  String get planSetAsideState => 'хуримтлагдсан';
+  String get planSetAsideState => 'бүгд хуваарилсан';
 
   @override
   String planSetAsideUndo(String step) {
@@ -3788,7 +3790,7 @@ class WordsMn extends Words {
 
   @override
   String planStartLater(String date) {
-    return 'Төсвийг $date-нээс эхлүүлэх';
+    return 'Оронд нь төсөв эхлэх өдрийг $date болгох';
   }
 
   @override
@@ -3796,12 +3798,12 @@ class WordsMn extends Words {
 
   @override
   String planStartLaterUndo(String date) {
-    return 'Төсвийг $date-нээс эхлүүлсэн';
+    return 'Төсөв эхлэх өдөр: $date';
   }
 
   @override
   String planMoneyBack(String amount, String category) {
-    return '$category-д хуваарилсан $amount хуваарилаагүй мөнгө рүү буцна';
+    return '$category ангилалд хуваарилсан $amount хуваарилаагүй мөнгө рүү буцна';
   }
 
   @override
@@ -4204,7 +4206,7 @@ class WordsMn extends Words {
 
   @override
   String planPaidFromArchived(String account) {
-    return '$account архивлагдсан тул энэ товлогдохгүй';
+    return '$account дансыг архивласан тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй';
   }
 
   @override
@@ -4224,7 +4226,7 @@ class WordsMn extends Words {
 
   @override
   String planStillFor(String amount, String start, String end) {
-    return '$start–$end-д $amount оруулах хэрэгтэй хэвээр';
+    return '$start–$end хугацаанд $amount хуваарилах хэрэгтэй хэвээр';
   }
 
   @override
@@ -4233,7 +4235,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planNoCarry => 'үлдсэн нь шилжихгүй';
+  String get planNoCarry => 'үлдсэн нь хуваарилаагүй мөнгө рүү буцна';
 
   @override
   String planWentBack(String amount) {
@@ -4269,7 +4271,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planEditTip => 'Төлөвлөгөөг өөрчлөхийн тулд дарна уу';
+  String get planEditTip => 'Дарж төлөвлөгөөг өөрчлөх';
 
   @override
   String planFill(int count, String amount) {
@@ -4363,7 +4365,7 @@ class WordsMn extends Words {
 
   @override
   String planWentBackOn(String amount, String date) {
-    return '$date-нд $amount хуваарилаагүй мөнгө рүү буцсан';
+    return '$amount хуваарилаагүй мөнгө рүү буцсан, огноо: $date';
   }
 
   @override
@@ -4396,12 +4398,12 @@ class WordsMn extends Words {
 
   @override
   String planMoneyChange(String amount) {
-    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцаж, төлөвлөгөө нь арилна';
+    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount хуваарилаагүй мөнгө рүү буцаж, төлөвлөгөө нь арилна';
   }
 
   @override
   String planMoneyChangeAmount(String amount) {
-    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount буцна';
+    return 'Валютыг өөрчилбөл түүнд хуваарилсан $amount хуваарилаагүй мөнгө рүү буцна';
   }
 
   @override
@@ -4431,7 +4433,7 @@ class WordsMn extends Words {
       count,
       locale: localeName,
       other:
-          '$amount ($count мөр) энд тооцогдоогүй (энэ ангилал $symbol валюттай); $other хуваарилаагүй мөнгөнөөс хасагдсан',
+          '$amount ($count гүйлгээ) энд тооцогдоогүй (энэ ангилал $symbol валюттай); $other хуваарилаагүй мөнгөнөөс хасагдсан',
     );
     return '$_temp0';
   }
@@ -4488,20 +4490,21 @@ class WordsMn extends Words {
   String get planYes => 'Тийм';
 
   @override
-  String get planSetAsideMonth => 'Сар бүр хуримтлуулах';
+  String get planSetAsideMonth => 'Сар бүр хуваарилах';
 
   @override
-  String get planSetAsidePay => 'Цалингийн үе бүрт хуримтлуулах';
+  String get planSetAsidePay => 'Цалингийн үе бүрт хуваарилах';
 
   @override
   String get planNothingSet => 'тогтоогоогүй';
 
   @override
-  String get planEmptyHint => 'Хоосон үлдээвэл сар бүр өөрөө шийднэ.';
+  String get planEmptyHint =>
+      'Хоосон үлдээвэл хэдийг хуваарилахаа сар бүр өөрөө шийднэ.';
 
   @override
   String get planEmptyHintPay =>
-      'Хоосон үлдээвэл цалингийн үе бүрт өөрөө шийднэ.';
+      'Хоосон үлдээвэл хэдийг хуваарилахаа цалингийн үе бүрт өөрөө шийднэ.';
 
   @override
   String get planLeftMonthEnd => 'Сарын эцэст үлдсэн нь';
@@ -4522,7 +4525,8 @@ class WordsMn extends Words {
   String get planNoLimit => 'хязгааргүй';
 
   @override
-  String get planStopAtHint => 'Энэ хэмжээнд хүрмэгц асуухаа болино.';
+  String get planStopAtHint =>
+      'Энэ хэмжээнд хүрмэгц төлөвлөгөө нэмж хуваарилахаа болино.';
 
   @override
   String get planAmountDue => 'Төлөх дүн';
@@ -4581,7 +4585,7 @@ class WordsMn extends Words {
   String get planCustomOn => 'Өөрөө тохируулсан';
 
   @override
-  String get planRepeatEvery => 'Давтамж';
+  String get planRepeatEvery => 'Хэд тутам';
 
   @override
   String get planOnWeekdays => 'Гарагууд';
@@ -4603,13 +4607,13 @@ class WordsMn extends Words {
   String get planNthFirst => 'эхний';
 
   @override
-  String get planNthSecond => '2 дахь';
+  String get planNthSecond => 'хоёр дахь';
 
   @override
-  String get planNthThird => '3 дахь';
+  String get planNthThird => 'гурав дахь';
 
   @override
-  String get planNthFourth => '4 дэх';
+  String get planNthFourth => 'дөрөв дэх';
 
   @override
   String get planNthLast => 'сүүлийн';
@@ -4621,7 +4625,7 @@ class WordsMn extends Words {
   String get planEnds => 'Дуусах';
 
   @override
-  String get planEndsNever => 'Хэзээ ч';
+  String get planEndsNever => 'Дуусахгүй';
 
   @override
   String get planEndsOn => 'Өдрөөр';
@@ -4637,7 +4641,7 @@ class WordsMn extends Words {
 
   @override
   String planEnded(String amount, String date) {
-    return '$amount · $date-нд дууссан';
+    return '$amount · дууссан өдөр: $date';
   }
 
   @override
@@ -4673,10 +4677,10 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planDaysAfterPay => 'өдрийн дараа (цалин орсноос)';
+  String get planDaysAfterPay => 'хоногийн дараа, цалингийн өдрөөс';
 
   @override
-  String get planOnPayday => 'цалин орох өдөр';
+  String get planOnPayday => 'цалингийн өдөр';
 
   @override
   String get planWeekendKeep => 'Тэр өдөртөө';
@@ -4689,18 +4693,19 @@ class WordsMn extends Words {
 
   @override
   String planPaidFromHint(String account, String date) {
-    return '$account дансны төсөөлөлд харагдана, огноо: $date; төлөгдсөн үед нь та баталгаажуулна.';
+    return 'Төлбөр $account дансны төсөөлөлд харагдана, огноо: $date. Төлөгдсөн үед нь та тэнд бүртгэнэ.';
   }
 
   @override
-  String get planPaidFromHintNone =>
-      'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны төсөөлөлд харагдана.';
+  String planPaidFromHintNone(String account) {
+    return 'Огноогоо оруулбал төлбөр $account дансны төсөөлөлд харагдана.';
+  }
 
   @override
   String get planEnterAmountDate => 'Дүн болон өдрөө оруулна уу';
 
   @override
-  String get planNothingMore => 'өөр хуримтлуулах зүйлгүй';
+  String get planNothingMore => 'өөр хуваарилах зүйлгүй';
 
   @override
   String get planRowWillRead => 'Мөр ингэж харагдана';
@@ -4710,12 +4715,12 @@ class WordsMn extends Words {
 
   @override
   String planUpTo(String amount) {
-    return '$amount хүртэл';
+    return 'дээд хэмжээ $amount';
   }
 
   @override
   String planSetAsideAmount(String amount) {
-    return '$amount хуримтлагдсан';
+    return '$amount хуваарилж дууссан';
   }
 
   @override
@@ -5969,42 +5974,42 @@ class WordsMn extends Words {
 
   @override
   String planMoveWarn(String category, String left, String short) {
-    return '$category-д $left үлдсэн. Үүний дараа $short хэтэрнэ.';
+    return '$category ангилалд $left үлдсэн. Үүний дараа хэтэрсэн дүн $short болно.';
   }
 
   @override
   String planMoveWarnOver(String category, String over, String short) {
-    return '$category $over хэтэрсэн байна. Үүний дараа $short хэтэрнэ.';
+    return '$category ангилал $over хэтэрсэн байна. Үүний дараа хэтэрсэн дүн $short болно.';
   }
 
   @override
   String planMoveWarnNotAssigned(String amount, String over) {
-    return 'Зөвхөн $amount хуваарилаагүй байна. Үүний дараа $over-ээр хэт их хуваарилсан болно.';
+    return 'Хуваарилаагүй мөнгө зөвхөн $amount байна. Үүний дараа илүү хуваарилсан дүн $over болно.';
   }
 
   @override
   String planMoved(String amount, String from, String to) {
-    return '$amount-г $from-с $to руу шилжүүлсэн';
+    return '$from ангиллаас $to ангилал руу $amount шилжүүлсэн';
   }
 
   @override
   String planMoveUndo(String amount, String from, String to) {
-    return '$amount-г $from-с $to руу шилжүүлэх';
+    return '$from ангиллаас $to ангилал руу $amount шилжүүлэх';
   }
 
   @override
   String planMovedMore(String amount, String category) {
-    return '$category-д $amount нэмж хуваарилсан';
+    return '$category ангилалд $amount нэмж хуваарилсан';
   }
 
   @override
   String planMovedBack(String amount, String category) {
-    return '$category-с $amount-г хуваарилаагүй мөнгө рүү буцаасан';
+    return '$category ангиллаас $amount хуваарилаагүй мөнгө рүү буцаасан';
   }
 
   @override
   String planMoveBackUndo(String amount, String category) {
-    return '$category-с $amount-г хуваарилаагүй мөнгө рүү буцаах';
+    return '$category ангиллаас $amount хуваарилаагүй мөнгө рүү буцаах';
   }
 
   @override

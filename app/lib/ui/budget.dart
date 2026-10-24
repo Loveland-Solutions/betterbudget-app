@@ -876,7 +876,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                     key: const ValueKey('add-category'),
                     label: t.planAddCategory,
                     icon: Icons.add_rounded,
-                    tooltip: t.planAddCategoryTip,
                     onTap: _newCategory,
                   ),
               ],
@@ -3901,7 +3900,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             key: 'plan-amount',
             wrong: wrongAmount,
             autofocus: widget.atPlan,
-            hint: t.planNothingSet,
+            // No hint: the note beside it says what empty means (#163).
           ),
           aside: hasAmount
               ? null
@@ -4363,10 +4362,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               : switch (categoryAccounts(
                   data,
                   _currency,
-                ).where((a) => !_off.contains(a.id)).length) {
-                  0 => t.planPaidFromNoneChecked,
-                  1 => t.planPaidFromHintNone,
-                  final n => t.planPaidFromSeveral(n),
+                ).where((a) => !_off.contains(a.id)).toList()) {
+                  [] => t.planPaidFromNoneChecked,
+                  // One checked, no date yet: what's left to do (#163).
+                  [final one] => t.planPaidFromHintNone(one.name),
+                  final n => t.planPaidFromSeveral(n.length),
                 },
         ),
         _formRow(

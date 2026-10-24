@@ -1629,7 +1629,7 @@ abstract class Words {
   /// Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)
   ///
   /// In en, this message translates to:
-  /// **'Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.'**
+  /// **'{count} accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.'**
   String planPaidFromSeveral(int count);
 
   /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked
@@ -1835,12 +1835,6 @@ abstract class Words {
   /// **'Add category'**
   String get planAddCategory;
 
-  /// Budget page: tooltip on the Add category button
-  ///
-  /// In en, this message translates to:
-  /// **'Add a category'**
-  String get planAddCategoryTip;
-
   /// Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button
   ///
   /// In en, this message translates to:
@@ -1910,13 +1904,13 @@ abstract class Words {
   /// Budget page: added at the end of the pay note when there are more pay schedules
   ///
   /// In en, this message translates to:
-  /// **' · +{count} more pay'**
+  /// **' · {count, plural, =1{+1 more pay} other{+{count} more pays}}'**
   String planMorePay(int count);
 
   /// Budget page: gold suggestion in the pay note, pay that varies (two amounts a month)
   ///
   /// In en, this message translates to:
-  /// **'Your last 6 all came in over 5% above the estimate · raise it?'**
+  /// **'Your last 6 pays were each more than 5% over the estimate · raise it?'**
   String get planRaiseSplit;
 
   /// Budget page: gold suggestion in the pay note, pay that varies
@@ -1928,13 +1922,13 @@ abstract class Words {
   /// Budget page: gold suggestion in the pay note, the same pay came in lower twice
   ///
   /// In en, this message translates to:
-  /// **'Last 2 came in at {amount}, less than planned · update it?'**
+  /// **'Your last 2 pays were {amount}, less than planned · change the amount?'**
   String planLastTwoLess(String amount);
 
   /// Budget page: gold suggestion in the pay note, the same pay came in different twice
   ///
   /// In en, this message translates to:
-  /// **'Last 2 came in at {amount} · update the amount?'**
+  /// **'Your last 2 pays were {amount} · change the amount?'**
   String planLastTwoMore(String amount);
 
   /// Budget page: the pay note beside the Income line; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)
@@ -6200,7 +6194,7 @@ abstract class Words {
   /// Budget page, a category's plan (On a date): gold line in Edit when the Paid from account has been archived
   ///
   /// In en, this message translates to:
-  /// **'{account} is archived, so this isn’t scheduled'**
+  /// **'{account} is archived, so this bill isn’t in any forecast'**
   String planPaidFromArchived(String account);
 
   /// Budget page: note under a category's name, a set amount per one of several pays' periods, named by the pay
@@ -6224,7 +6218,7 @@ abstract class Words {
   /// Budget page: note under a category's name, seen by another period than its own, when the period before was never filled and the rest of it is in view: what that period still needs, with its dates (like 10.23–11.24)
   ///
   /// In en, this message translates to:
-  /// **'{amount} still to put in for {start}–{end}'**
+  /// **'{amount} still to assign for {start}–{end}'**
   String planStillFor(String amount, String start, String end);
 
   /// Budget page: note under a category's name, after planStillFor: the share, by days, toward the category's next own period
@@ -6236,7 +6230,7 @@ abstract class Words {
   /// Budget page: part of the note under a category's name, after the amount and a dot
   ///
   /// In en, this message translates to:
-  /// **'what’s left doesn’t carry over'**
+  /// **'what’s left goes back to not assigned'**
   String get planNoCarry;
 
   /// Budget page: part of the note under a category's name; what the period before left unspent, returned to the money not assigned
@@ -6452,13 +6446,13 @@ abstract class Words {
   /// Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan
   ///
   /// In en, this message translates to:
-  /// **'Changing the currency takes back {amount} assigned to it and removes its plan'**
+  /// **'Changing the currency sends the {amount} assigned to it back to not assigned and removes its plan'**
   String planMoneyChange(String amount);
 
   /// The same line, for a category with amounts and no plan
   ///
   /// In en, this message translates to:
-  /// **'Changing the currency takes back {amount} assigned to it'**
+  /// **'Changing the currency sends the {amount} assigned to it back to not assigned'**
   String planMoneyChangeAmount(String amount);
 
   /// The same line, for a category with a plan and nothing assigned
@@ -6487,7 +6481,7 @@ abstract class Words {
   /// Budget page: note under a category's name when every account is unchecked
   ///
   /// In en, this message translates to:
-  /// **'no account chosen'**
+  /// **'no account checked'**
   String get planFromNone;
 
   /// Budget page: gold note under a category's name; rows in the other currency are filed under it. It stays until they're fixed; clicking shows them
@@ -6547,13 +6541,13 @@ abstract class Words {
   /// Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example
   ///
   /// In en, this message translates to:
-  /// **'A set amount you spend through each month, like groceries.'**
+  /// **'An amount you spend as the month goes, like groceries.'**
   String get planDueNoMeans;
 
   /// Budget page, Edit: the same note while the budget runs by pay period
   ///
   /// In en, this message translates to:
-  /// **'A set amount you spend through each pay period, like groceries.'**
+  /// **'An amount you spend as the pay period goes, like groceries.'**
   String get planDueNoMeansPay;
 
   /// Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example
@@ -6595,13 +6589,13 @@ abstract class Words {
   /// Budget page, Edit under a category's row: note beside the empty monthly amount
   ///
   /// In en, this message translates to:
-  /// **'Leave it empty and you decide each month.'**
+  /// **'Leave it empty and you choose each month how much to assign.'**
   String get planEmptyHint;
 
   /// Budget page, Edit under a category's row: the same, by pay period
   ///
   /// In en, this message translates to:
-  /// **'Leave it empty and you decide each pay period.'**
+  /// **'Leave it empty and you choose each pay period how much to assign.'**
   String get planEmptyHintPay;
 
   /// Budget page, Edit under a category's row: label of the carry-over choice, by month
@@ -6631,7 +6625,7 @@ abstract class Words {
   /// Budget page, Edit under a category's row: label of the optional cap on a category that carries over
   ///
   /// In en, this message translates to:
-  /// **'Stop at'**
+  /// **'Up to'**
   String get planStopAt;
 
   /// Budget page, Edit under a category's row: grey hint inside the empty cap field
@@ -6643,7 +6637,7 @@ abstract class Words {
   /// Budget page, Edit under a category's row: note beside the cap
   ///
   /// In en, this message translates to:
-  /// **'Once it holds this much, it stops asking.'**
+  /// **'Once it holds this much, the plan stops adding to it.'**
   String get planStopAtHint;
 
   /// Budget page, Edit under a category's row (Yes): label of the amount field
@@ -6733,7 +6727,7 @@ abstract class Words {
   /// Budget page, Edit, the Custom block: note beside the weekday chips while none is picked
   ///
   /// In en, this message translates to:
-  /// **'Pick the days; with none picked, the date’s own weekday.'**
+  /// **'Pick the days. With none picked, it’s the due date’s weekday.'**
   String get planWeekdaysHint;
 
   /// Budget page, Edit, the Custom block, every so many months or years: label of the row choosing the day of the month or a weekday (the second Tuesday)
@@ -6913,14 +6907,14 @@ abstract class Words {
   /// Budget page, Edit under a category's row (Yes): note beside Paid from once an account is chosen
   ///
   /// In en, this message translates to:
-  /// **'Shows in {account}’s forecast on {date}; you confirm it when it’s paid.'**
+  /// **'The bill shows in {account}’s forecast on {date}. When it’s paid, you confirm it there.'**
   String planPaidFromHint(String account, String date);
 
   /// Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)
   ///
   /// In en, this message translates to:
-  /// **'Leave one account checked and the bill shows in its forecast.'**
-  String get planPaidFromHintNone;
+  /// **'Enter the date and the bill shows in {account}’s forecast.'**
+  String planPaidFromHintNone(String account);
 
   /// Budget page, Edit under a category's row (Yes): in place of the worked-out amount until both are typed
   ///
