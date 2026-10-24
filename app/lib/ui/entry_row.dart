@@ -6,7 +6,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
 import 'language.dart';
-import 'register.dart' show Cols, SourceColumn;
+import 'register.dart' show BarButton, Cols, SourceColumn;
 import 'theme.dart';
 
 enum EditField { date, payee, memo, category, amount }
@@ -25,7 +25,12 @@ class EntryDraft {
     this.payId,
     this.remember = false,
     this.splits,
+    this.amountUnlocked = false,
   });
+
+  /// Change… was used on an amount a reconcile locked: saving takes back
+  /// the reconciles from that one on, as the row said.
+  final bool amountUnlocked;
 
   /// A split (one receipt for groceries and clothing): each category and
   /// its share, signed as [amount] is, adding up to it. [counter] is null.
@@ -101,6 +106,11 @@ class EntryRowController {
 
   /// Set by the row: what Esc or Cancel does, for when focus is elsewhere.
   void Function() cancel = () {};
+
+  /// Set by the screen while an Edit is open: for an amount a reconcile
+  /// locked, what saving a new one takes back, as a sentence; null when it
+  /// can't be changed that way (a transfer locked by the other account).
+  String? Function()? changeLockedAmount;
 
   /// Set by the row: whether keyboard focus is anywhere in it, a button
   /// (a split's Category, Swap) as well as a field.
@@ -600,7 +610,7 @@ class _EntryRowState extends State<EntryRow> {
             _categoryFocus,
             _category,
           ),
-          EditField.amount when !_initial.lockAmount => (_amountFocus, _amount),
+          EditField.amount when !_lockAmount => (_amountFocus, _amount),
           _ => (_payeeFocus, _payee),
         };
         if (node == null || ctrl == null) return;
@@ -747,7 +757,7 @@ class _EntryRowState extends State<EntryRow> {
     final raw = _amount.text.trim();
     final initial = _initial;
     final int? amount;
-    if (initial != null && initial.lockAmount) {
+    if (initial != null && _lockAmount) {
       amount = initial.amount;
     } else {
       final parsed = parseAmount(
@@ -778,7 +788,7 @@ class _EntryRowState extends State<EntryRow> {
         _split != null ||
         !initial.confirming ||
         initial.variesPay ||
-        initial.lockAmount ||
+        _lockAmount ||
         initial.amount <= 0) {
       return null;
     }
@@ -829,14 +839,13 @@ class _EntryRowState extends State<EntryRow> {
         !(_initial?.lockCategory ?? false))
       (name: 'category', focus: _categoryFocus),
     // A bare `+` (Swap before any amount) is still no amount.
-    if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
-        !(_initial?.lockAmount ?? false))
+    if (_amount.text.trim().replaceFirst('+', '').isEmpty && !_lockAmount)
       (name: 'amount', focus: _amountFocus),
     // A transfer to an account in another currency: what the other side
     // sent or got is wanted too.
     if (_exchangeWith != null &&
         _otherAmount.text.trim().replaceFirst('+', '').isEmpty &&
-        !(_initial?.lockAmount ?? false))
+        !_lockAmount)
       (name: 'amount', focus: _otherAmountFocus),
   ];
 
@@ -866,6 +875,11 @@ class _EntryRowState extends State<EntryRow> {
 
   /// The account list is open: focus is in its items, still in this row.
   bool _accountMenuOpen = false;
+
+  /// Change… on an amount an older reconcile locked: open for typing, and
+  /// saving takes back the reconciles from that one on (owner, 2026-10-23).
+  bool _amountUnlocked = false;
+  bool get _lockAmount => (_initial?.lockAmount ?? false) && !_amountUnlocked;
 
   void _focusChanged() {
     final active = _accountMenuOpen || _focuses.any((f) => f.hasFocus);
@@ -911,6 +925,11 @@ class _EntryRowState extends State<EntryRow> {
       _splitOpen = false;
       _linesInChosen = null;
     });
+    // The next row starts here: a date kept from the last one isn't typing,
+    // so ⌘Z after Add still undoes the Add.
+    for (final c in _all) {
+      _start[c] = c.text;
+    }
     _problem(null);
     if (keepFocus) _payeeFocus.requestFocus();
   }
@@ -985,7 +1004,7 @@ class _EntryRowState extends State<EntryRow> {
   /// Null while Amount is empty.
   int? get _splitTotal {
     final initial = _initial;
-    if (initial != null && initial.lockAmount) return initial.amount.abs();
+    if (initial != null && _lockAmount) return initial.amount.abs();
     final parsed = parseAmount(
       _amount.text.trim().replaceFirst(RegExp(r'^\+'), ''),
       _hereCurrency,
@@ -1188,7 +1207,7 @@ class _EntryRowState extends State<EntryRow> {
     if (!focus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final locked = _initial?.lockAmount ?? false;
+      final locked = _lockAmount;
       (locked ? _categoryFocus : _amountFocus).requestFocus();
     });
   }
@@ -1197,7 +1216,7 @@ class _EntryRowState extends State<EntryRow> {
   /// out unless the row says in.
   void _totalFromLines() {
     final sum = _splitSum;
-    if (_splitTotal != null || (_initial?.lockAmount ?? false)) return;
+    if (_splitTotal != null || _lockAmount) return;
     if (sum == 0) {
       // Lines that even out: a total of 0, nothing in or out.
       if (_splitEven) _amount.text = editableAmount(0, _hereCurrency);
@@ -1422,7 +1441,7 @@ class _EntryRowState extends State<EntryRow> {
     final even = _splitEven && (total == null || total == 0);
     final way = even
         ? t.rowsSplitEven
-        : total != null || sum == 0 || (_initial?.lockAmount ?? false)
+        : total != null || sum == 0 || _lockAmount
         ? null
         : (_linesIn ? t.rowsSplitIsIn : t.rowsSplitIsOut);
     Widget label(String text, {TextAlign align = TextAlign.left}) => Padding(
@@ -1666,7 +1685,7 @@ class _EntryRowState extends State<EntryRow> {
     }
 
     final lockCategory = _initial?.lockCategory ?? false;
-    final lockAmount = _initial?.lockAmount ?? false;
+    final lockAmount = _lockAmount;
     final date = parseRowDate(_date.text, widget.today);
     final counter = lockCategory
         ? null
@@ -1806,6 +1825,7 @@ class _EntryRowState extends State<EntryRow> {
         account: _picking ? widget.controller.account : null,
         otherAmount: _exchangeWith == null ? null : _otherParsed?.abs(),
         remember: _remember && _canRemember && splits == null,
+        amountUnlocked: _amountUnlocked,
       ),
     );
     if (!mounted) return;
@@ -1950,6 +1970,10 @@ class _EntryRowState extends State<EntryRow> {
     final transferLine = _transferLine;
     final shortBy = _shortBy;
     final t = context.t;
+    // An amount a reconcile locked, and what changing it would take back.
+    final takesBack = (initial?.lockAmount ?? false)
+        ? widget.controller.changeLockedAmount?.call()
+        : null;
     final reconciledTip = t.rowsReconciledTip;
 
     return CallbackShortcuts(
@@ -2160,7 +2184,7 @@ class _EntryRowState extends State<EntryRow> {
                               ],
                               SizedBox(
                                 width: Cols.amount,
-                                child: initial != null && initial.lockAmount
+                                child: initial != null && _lockAmount
                                     ? Align(
                                         alignment: Alignment.centerRight,
                                         child: _locked(
@@ -2250,6 +2274,32 @@ class _EntryRowState extends State<EntryRow> {
                                 ),
                               ),
                             ),
+                          if (takesBack != null)
+                            _ChangeLockedLine(
+                              open: _amountUnlocked,
+                              takesBack: takesBack,
+                              width:
+                                  Cols.category +
+                                  Cols.amount +
+                                  Cols.balance +
+                                  2 * Cols.gap +
+                                  (SourceColumn.showing(context)
+                                      ? Cols.source + Cols.gap
+                                      : 0),
+                              onChange: () {
+                                setState(() => _amountUnlocked = true);
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (!mounted) return;
+                                  _amountFocus.requestFocus();
+                                  _amount.selection = TextSelection(
+                                    baseOffset: 0,
+                                    extentOffset: _amount.text.length,
+                                  );
+                                });
+                              },
+                            ),
                           if (shortBy != null)
                             _OwedLine(
                               short: shortBy,
@@ -2267,7 +2317,7 @@ class _EntryRowState extends State<EntryRow> {
                           if (transferLine != null)
                             _TransferLine(
                               text: transferLine,
-                              onSwap: initial != null && initial.lockAmount
+                              onSwap: initial != null && _lockAmount
                                   ? null
                                   : _swapDirection,
                             ),
@@ -2279,7 +2329,7 @@ class _EntryRowState extends State<EntryRow> {
                               hereAmount: preview,
                               controller: _otherAmount,
                               focusNode: _otherAmountFocus,
-                              locked: initial != null && initial.lockAmount,
+                              locked: initial != null && _lockAmount,
                               wanted: _hasContent && (_otherParsed ?? 0) == 0,
                               onSubmitted: _submit,
                             ),
@@ -2347,6 +2397,45 @@ class _RememberLine extends StatelessWidget {
           ],
         ),
       ),
+    ),
+  );
+}
+
+/// Under a row whose amount an older reconcile locked: Change… opens it,
+/// and once open the line says what saving takes back.
+class _ChangeLockedLine extends StatelessWidget {
+  const _ChangeLockedLine({
+    required this.open,
+    required this.takesBack,
+    required this.width,
+    required this.onChange,
+  });
+  final bool open;
+  final String takesBack;
+  final double width;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: SizedBox(
+      width: width,
+      child: open
+          ? Text(
+              takesBack,
+              key: const ValueKey('change-locked-note'),
+              style: onest(12.5, color: Mid.ink2),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                BarButton(
+                  key: const ValueKey('change-locked-amount'),
+                  label: context.t.rowsChangeLockedAmount,
+                  onTap: onChange,
+                ),
+              ],
+            ),
     ),
   );
 }

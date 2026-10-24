@@ -80,6 +80,19 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerOpeningCountsIt(String amount, String date) {
+    return 'эхний үлдэгдлийн өдөр эсвэл түүнээс өмнөх огноотой тул эхний үлдэгдэлд ($date, $amount) аль хэдийн орсон';
+  }
+
+  @override
+  String get ledgerTakeOutOfOpening => 'Эхний үлдэгдлээс хасах';
+
+  @override
+  String ledgerOpeningNow(String amount, String date) {
+    return 'Эхний үлдэгдэл одоо $amount, огноо: $date';
+  }
+
+  @override
   String ledgerAddedTo(String name, String account) {
     return '$account дансанд $name нэмэгдлээ';
   }
@@ -1906,6 +1919,40 @@ class WordsMn extends Words {
   String get rowsUndoThisReconcile => 'Энэ тулгалтыг буцаах';
 
   @override
+  String rowsReconciledOnCanChange(String date) {
+    return 'Тулгасан огноо: $date · ангилал, харилцагч, тэмдэглэлийг өөрчилж болно';
+  }
+
+  @override
+  String rowsReconciledOnCanChangeTransfer(String date) {
+    return 'Тулгасан огноо: $date · харилцагч, тэмдэглэлийг өөрчилж болно';
+  }
+
+  @override
+  String get rowsChangeLockedAmount => 'Дүнг өөрчлөх…';
+
+  @override
+  String rowsTakesBackReconciles(int count, String dates) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Хадгалахад $count тулгалт буцна: $dates. Хуулга бүрийг дахин тулгана.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerReconcilesTakenBack(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count тулгалт буцсан',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String rowsReconciledInLocked(String account) {
     return '$account дансанд тулгасан · огноо, дүн түгжээтэй';
   }
@@ -3481,6 +3528,27 @@ class WordsMn extends Words {
 
   @override
   String get importLeaveNewOut => 'Шинэ мөрүүдийг орхих';
+
+  @override
+  String importMaybeSame(
+    String payee,
+    String typed,
+    String typedDate,
+    String bank,
+    String bankDate,
+  ) {
+    return 'Та $payee $typed гэж бичсэн, огноо: $typedDate. Банкинд $bank, огноо: $bankDate.';
+  }
+
+  @override
+  String importSamePurchase(String amount) {
+    return 'Нэг худалдан авалт: банкны дүнг авах ($amount)';
+  }
+
+  @override
+  String importFateTakesAmount(String amount) {
+    return 'дүн: $amount';
+  }
 
   @override
   String importUnmatched(int count, Object from, Object to, Object list) {

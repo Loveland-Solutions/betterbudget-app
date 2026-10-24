@@ -944,9 +944,59 @@ class _ImportDialogState extends State<_ImportDialog> {
       );
     }
 
-    if (plan.unmatched.isNotEmpty) {
+    // Maybe the same purchase at another amount: offered, one pair at a
+    // time, never assumed (owner, 2026-10-23).
+    for (final (i, p) in plan.rows.indexed) {
+      final near = p.near;
+      if (near == null || p.fate != ImportFate.add) continue;
+      notes.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _note(
+              Icons.info_outline_rounded,
+              Mid.note,
+              t.importMaybeSame(
+                near.payee,
+                _money(_shown(near.amount!).abs()),
+                sayDate(t, near.date),
+                _money(_shown(p.row.amount).abs()),
+                sayDate(t, dateOnly(p.row.date)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 21, top: 4),
+              child: BarButton(
+                key: ValueKey('import-same-$i'),
+                label: t.importSamePurchase(_money(_shown(p.row.amount).abs())),
+                onTap: () => setState(
+                  () => _plan = plan.withRows(
+                    [...plan.rows]..[i] = p.samePurchase(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Typed rows a same purchase took aren't left out any more, and one
+    // offered above is said there.
+    final taken = {
+      for (final p in plan.rows)
+        if (p.fate == ImportFate.match)
+          ?p.match?.entryId
+        else if (p.fate == ImportFate.add)
+          ?p.near?.entryId,
+    };
+    final unmatched = [
+      for (final u in plan.unmatched)
+        if (!taken.contains(u.entryId)) u,
+    ];
+    if (unmatched.isNotEmpty) {
       const shown = 4;
-      final u = plan.unmatched;
+      final u = unmatched;
       final items = [
         for (final x in u.take(shown))
           t.importUnmatchedItem(
@@ -1043,6 +1093,11 @@ class _PlanLine extends StatelessWidget {
           // Another month: it takes the bank's date.
           if (matchedDate(p.match!, r.date) != p.match!.date)
             t.importFateRedated(sayDate(t, dateOnly(r.date))),
+          // A same purchase: it takes the bank's amount.
+          if (p.match!.amount case final a? when a != r.amount)
+            t.importFateTakesAmount(
+              formatShort(r.amount.abs(), currency: CurrencyScope.of(context)),
+            ),
         ].join(' · '),
         Mid.green,
       ),

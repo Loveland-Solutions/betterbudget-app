@@ -35,8 +35,16 @@ bill questions, "Paid on…?", split errors and forecast lines carry no ending o
 placeholder (glossary, "Word forms"), and the popup from a computer with no name no
 longer says computer twice; one wording each for a date and an amount that can't be
 read; "entered", not "posted"; "Budget page"; "Next 12 months". The Budget page's own
-Mongolian endings wait for its comb (#163). Next in the comb: the owner's three answers
-(ADR 0004, "The Ledger's fine-tooth comb: three answers"), then #141 and #148.
+Mongolian endings wait for its comb (#163). 0.47.0 builds the owner's three answers
+(ADR 0004, "The Ledger's fine-tooth comb: three answers"): import offers "Same purchase:
+take the bank's ₮X" for an uncleared typed row of one category at another amount (`near`,
+`samePurchase`, `_setTwoSided`); a typed row dated on or before an account's opening
+balance offers "Take it out of the opening balance" in its popup (`openingHolding`,
+`takeOutOfOpening`, the day kept by `openingAsOfKey`); a reconciled row says what can
+still change, and its Edit's "Change the amount…" takes back the reconciles from its own
+on, in one undo (`unreconcileThrough`, `_takesBack`). Follow-ups from the reviews: #259
+(a question), #260, #261, #262. Next in the comb: #141 and #148's Ledger items, and Tab
+reaching the register's tabs and a row's buttons.
 
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload

@@ -10,7 +10,8 @@ void main() {
     addTearDown(() => tmp.delete(recursive: true));
     final localState = '${tmp.path}/Packages/family/LocalState';
 
-    final path = await StorePathProvider(localState).getApplicationSupportPath();
+    final path = await StorePathProvider(localState)
+        .getApplicationSupportPath();
 
     expect(path, localState);
     expect(Directory(localState).existsSync(), isTrue);

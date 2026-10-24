@@ -80,6 +80,19 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerOpeningCountsIt(String amount, String date) {
+    return 'it’s dated on or before the opening balance ($amount on $date), which already counts it';
+  }
+
+  @override
+  String get ledgerTakeOutOfOpening => 'Take it out of the opening balance';
+
+  @override
+  String ledgerOpeningNow(String amount, String date) {
+    return 'Opening balance now $amount on $date';
+  }
+
+  @override
   String ledgerAddedTo(String name, String account) {
     return '$name added to $account';
   }
@@ -1986,6 +1999,43 @@ class WordsEn extends Words {
   String get rowsUndoThisReconcile => 'Undo this reconcile';
 
   @override
+  String rowsReconciledOnCanChange(String date) {
+    return 'Reconciled on $date · its category, payee and memo can still change';
+  }
+
+  @override
+  String rowsReconciledOnCanChangeTransfer(String date) {
+    return 'Reconciled on $date · its payee and memo can still change';
+  }
+
+  @override
+  String get rowsChangeLockedAmount => 'Change the amount…';
+
+  @override
+  String rowsTakesBackReconciles(int count, String dates) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Saving takes back $count reconciles: $dates. Then reconcile each statement again.',
+      one:
+          'Saving takes back the reconcile of $dates. Then reconcile that statement again.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerReconcilesTakenBack(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reconciles taken back',
+      one: '1 reconcile taken back',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String rowsReconciledInLocked(String account) {
     return 'Reconciled in $account · date and amount locked';
   }
@@ -3620,6 +3670,27 @@ class WordsEn extends Words {
 
   @override
   String get importLeaveNewOut => 'Leave the new rows out';
+
+  @override
+  String importMaybeSame(
+    String payee,
+    String typed,
+    String typedDate,
+    String bank,
+    String bankDate,
+  ) {
+    return 'You typed $payee $typed on $typedDate. The bank has $bank on $bankDate.';
+  }
+
+  @override
+  String importSamePurchase(String amount) {
+    return 'Same purchase: take the bank’s $amount';
+  }
+
+  @override
+  String importFateTakesAmount(String amount) {
+    return 'takes $amount';
+  }
 
   @override
   String importUnmatched(int count, Object from, Object to, Object list) {

@@ -1345,15 +1345,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ? t.ledgerAdded(d.payee)
           : t.ledgerAddedTo(d.payee, d.account!.name);
       final madeAny = made != null || lineMade.isNotEmpty;
+      // Dated on or before the account's opening balance, which already
+      // counts it: offered to come out of it (owner, 2026-10-23).
+      final account = d.account?.id ?? _accountId!;
+      // From the ledger on screen: a read here would wait behind the write.
+      final holds = kept == null && !d.date.isAfter(today)
+          ? _data?.openingHolding(account, d.date)
+          : null;
+      final said = madeAny || hidden || kept != null || holds != null;
       _did(
         t.ledgerAdded(d.payee),
         undo: pair.undo,
         redo: pair.redo,
-        toast: madeAny || hidden || kept != null,
+        toast: said,
         detail: kept == null ? null : d.payee,
-        more: kept?.more,
+        more: holds != null
+            ? (
+                label: t.ledgerTakeOutOfOpening,
+                onTap: () => _takeOutOfOpening(account, d.date, d.amount!),
+              )
+            : kept?.more,
         // Whole clauses joined by " · ", as every toast is.
-        message: madeAny || hidden || kept != null
+        message: said
             ? [
                 added,
                 if (made != null) t.ledgerNewCategory(d.newCategory!),
@@ -1362,6 +1375,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   t.ledgerScheduledFor(sayFullDate(t, d.date)),
                 if (kept != null) kept.said,
                 if (hidden) t.ledgerNotInThisView,
+                if (holds != null)
+                  t.ledgerOpeningCountsIt(
+                    _accountMoney(account, holds.amount),
+                    sayDate(t, holds.date),
+                  ),
               ].join(' · ')
             : null,
       );
@@ -1376,6 +1394,46 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       _entryError = e;
       return t.ledgerCouldntSave;
+    }
+  }
+
+  /// [minor] on [accountId]'s side, the way its page says it: on a card,
+  /// "₮640,200 owed", so a balance going down isn't read as money lost.
+  String _accountMoney(int accountId, int minor) {
+    final a = _data?.accounts[accountId];
+    final owed = a?.isOwed ?? false;
+    final money = formatShort(
+      owed ? -minor : minor,
+      currency: a?.currency ?? Currency.mnt,
+    );
+    return owed ? context.t.ledgerOwed(money) : money;
+  }
+
+  /// The popup's offer after a row its account's opening balance already
+  /// counted: the balance moves before the row, less what it did.
+  Future<void> _takeOutOfOpening(
+    int accountId,
+    DateTime date,
+    int amount,
+  ) async {
+    final t = context.t;
+    try {
+      final done = await db.takeOutOfOpening(
+        accountId: accountId,
+        date: date,
+        amount: amount,
+      );
+      if (done == null || !mounted) return;
+      _did(
+        t.ledgerOpeningNow(
+          _accountMoney(accountId, done.move.toAmount),
+          sayDate(t, done.move.toDate),
+        ),
+        undo: () => db.redoTakeOutOfOpening(accountId, done, back: true),
+        redo: () => db.redoTakeOutOfOpening(accountId, done),
+      );
+    } on DbException catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSaveBecause(dbProblem(t, e)));
     }
   }
 
@@ -2132,8 +2190,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ..payeeNames = _entry.payeeNames
           ..onProblem = _entryProblem
           ..newCategory = _newCategoryForRow
-          ..remembered = (payee, category, pay) =>
-              _rememberedSo(row.accountId, payee, category, pay);
+          ..remembered = ((payee, category, pay) =>
+              _rememberedSo(row.accountId, payee, category, pay))
+          ..changeLockedAmount = (() => _takesBack(row));
     // The popup in the corner would lie over the Cancel and Save of a row
     // near the bottom; ⌘Z still undoes what it said.
     _closeToast();
@@ -2147,6 +2206,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _selected = id;
       _adding = false;
     });
+  }
+
+  /// What changing [r]'s amount, which a reconcile locked, takes back,
+  /// as the row says it: that reconcile and every later one of the account,
+  /// newest first, so each lock left still matches its statement. Null when
+  /// it can't be changed that way: a transfer, a split, or a row locked by
+  /// another account's statement.
+  String? _takesBack(RegisterRow r) {
+    final data = _data;
+    final on = r.reconciledOn;
+    if (data == null ||
+        on == null ||
+        r.cleared != Cleared.reconciled ||
+        r.lockedIn != null ||
+        r.kind != RowKind.simple) {
+      return null;
+    }
+    final dates = [
+      for (final x in data.reconciliations)
+        if (x.accountId == r.accountId && !x.statementDate.isBefore(on))
+          x.statementDate,
+    ]..sort();
+    if (dates.isEmpty) return null;
+    final t = context.t;
+    return t.rowsTakesBackReconciles(
+      dates.length,
+      dates.map((d) => sayDate(t, d)).join(', '),
+    );
   }
 
   void _startConfirm(RegisterRow r) {
@@ -2192,11 +2279,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     int? made;
     var lineMade = const <({int id, String name})>[];
     ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
+    // Change the amount… on a reconciled row: the reconciles it takes back,
+    // newest first, in the same write as the edit.
+    var takenBack = const <ReconcileRecord>[];
     try {
       owedId = await db.transaction(() async {
         made = await _makeCategory(d);
         final split = await _splitParts(d);
         lineMade = split.made;
+        if (d.amountUnlocked && d.amount != null && d.amount != row.amount) {
+          takenBack = await db.unreconcileThrough(row.accountId, row.entryId);
+        }
         final owed = await db.editTransaction(
           transactionId: row.txnId,
           accountId: row.accountId,
@@ -2318,10 +2411,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return null;
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
+    final taken = takenBack;
     final rowPair = _alsoCategory(
       [?made, for (final m in lineMade) m.id],
-      () => db.restoreSnapshot(before),
-      () => db.restoreSnapshot(after),
+      // The row as it was, then its statements locked again, oldest first.
+      () => db.transaction(() async {
+        await db.restoreSnapshot(before);
+        for (final r in taken.reversed) {
+          await db.relock(r);
+        }
+      }),
+      () => db.transaction(() async {
+        for (final r in taken) {
+          await db.unreconcile(r);
+        }
+        await db.restoreSnapshot(after);
+      }),
     );
     final pair = _alsoRemember(remembered, rowPair.undo, rowPair.redo);
     final kept = remembered == null ? null : _rememberedWords(remembered!);
@@ -2339,6 +2444,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (made != null) t.ledgerNewCategory(d.newCategory!),
         for (final m in lineMade) t.ledgerNewCategory(m.name),
         if (kept != null) kept.said,
+        if (taken.isNotEmpty) t.ledgerReconcilesTakenBack(taken.length),
       ].join(' · '),
     );
     // Now in a bill's category, or for its amount: it may pay the bill.

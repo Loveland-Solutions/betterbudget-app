@@ -977,9 +977,13 @@ class _RowActions extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4, right: 12),
                 child: Text(
-                  r.reconciledOn == null
-                      ? t.rowsReconciledLocked
-                      : t.rowsReconciledOnLocked(sayDate(t, r.reconciledOn!)),
+                  // What can still change, not only what can't.
+                  switch (r.reconciledOn) {
+                    null => t.rowsReconciledLocked,
+                    final on when r.kind == RowKind.transfer =>
+                      t.rowsReconciledOnCanChangeTransfer(sayDate(t, on)),
+                    final on => t.rowsReconciledOnCanChange(sayDate(t, on)),
+                  },
                   style: onest(13, color: Mid.ink3),
                 ),
               ),

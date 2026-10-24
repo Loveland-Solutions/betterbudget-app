@@ -1255,7 +1255,10 @@ void main() {
       ],
     );
     final data = LedgerData(
-      accounts: [account(1, AccountType.asset), account(2, AccountType.expense)],
+      accounts: [
+        account(1, AccountType.asset),
+        account(2, AccountType.expense),
+      ],
       // A bank file's ids say nothing of order: rent's is smaller.
       txns: [txn(7, -30000000), txn(9, -5000000), txn(8, 50000000)],
     );
@@ -1558,11 +1561,64 @@ void main() {
     expect(parseRowDate('01.05', DateTime(2026, 12, 28)), DateTime(2027, 1, 5));
     // Mid-year either way is this year.
     expect(parseRowDate('03.15', DateTime(2026, 9, 16)), DateTime(2026, 3, 15));
-    expect(parseRowDate('12.15', DateTime(2026, 9, 16)), DateTime(2026, 12, 15));
+    expect(
+      parseRowDate('12.15', DateTime(2026, 9, 16)),
+      DateTime(2026, 12, 15),
+    );
     // A year typed is kept, and 02.29 stays in the year that has it.
     expect(parseRowDate('2025.12.30', jan3), DateTime(2025, 12, 30));
     expect(parseRowDate('02.29', DateTime(2028, 9, 1)), DateTime(2028, 2, 29));
     expect(parseRowDate('13.01', jan3), isNull);
+  });
+
+  test('a row typed before the opening balance comes out of it, the day the '
+      'balance was true for kept; undo puts it back', () async {
+    final savings = (await db.loadLedger()).balanceSheetAccounts
+        .firstWhere((a) => a.name == 'Khan Savings')
+        .id;
+    Future<int> balanceToday() async =>
+        (await db.loadLedger()).balanceOf(savings);
+    final before = await balanceToday();
+    final opening = DateTime(2026, 9, 1); // the demo's, day -15
+    expect(await db.openingHolding(savings, DateTime(2026, 9, 2)), isNull);
+    expect(await db.openingHolding(savings, opening), isNotNull);
+
+    // A withdrawal on 08.30: the balance moves to 08.29, with it back in.
+    final first = await db.takeOutOfOpening(
+      accountId: savings,
+      date: DateTime(2026, 8, 30),
+      amount: -5000000,
+    );
+    expect(first!.move.toDate, DateTime(2026, 8, 29));
+    expect(first.move.toAmount, 1210000000 + 5000000);
+    // Typed in: today's balance is the bank's again.
+    await db.postSimple(
+      accountId: savings,
+      date: DateTime(2026, 8, 30),
+      today: today,
+      payee: 'ATM',
+      counterAccountId: await categoryId('Household'),
+      amount: -5000000,
+    );
+    expect(await balanceToday(), before);
+
+    // 08.31 is after the balance's new date but before the day it was
+    // true for: still in it. The date stays.
+    final second = await db.takeOutOfOpening(
+      accountId: savings,
+      date: DateTime(2026, 8, 31),
+      amount: -1000000,
+    );
+    expect(second!.move.toDate, DateTime(2026, 8, 29));
+    expect(second.move.toAmount, 1210000000 + 6000000);
+    expect(await db.openingHolding(savings, DateTime(2026, 9, 2)), isNull);
+
+    await db.redoTakeOutOfOpening(savings, second, back: true);
+    await db.redoTakeOutOfOpening(savings, first, back: true);
+    final back = await db.openingHolding(savings, opening);
+    expect(back!.date, opening);
+    expect(back.amount, 1210000000);
+    expect(await db.preference(openingAsOfKey(savings)), isNull);
   });
 
   group('editing', () {
@@ -1605,9 +1661,12 @@ void main() {
       int id(String name) =>
           data.balanceSheetAccounts.firstWhere((a) => a.name == name).id;
       final savings = id('Khan Savings'), cash = id('Cash wallet');
-      final move = data.registerFor(savings).posted.firstWhere(
-        (r) => r.kind == RowKind.transfer && r.memo == 'Monthly savings',
-      );
+      final move = data
+          .registerFor(savings)
+          .posted
+          .firstWhere(
+            (r) => r.kind == RowKind.transfer && r.memo == 'Monthly savings',
+          );
       expect(move.cleared, Cleared.cleared);
       final before = await db.snapshot(move.txnId);
       await db.editTransaction(
