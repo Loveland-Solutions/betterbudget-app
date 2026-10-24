@@ -263,6 +263,7 @@ class RegisterPanel extends StatelessWidget {
     required this.actions,
     this.editing,
     this.adding = false,
+    this.shown,
     this.onCloseEntry,
     this.addButton,
     this.searchBox,
@@ -325,6 +326,10 @@ class RegisterPanel extends StatelessWidget {
 
   /// The new-transaction row is open (from Add or ⌘N).
   final bool adding;
+
+  /// Filled with the rows drawn, so the screen's keys act only on a row
+  /// that's on screen (a tab or search hides the others).
+  final Set<int>? shown;
   final VoidCallback? onCloseEntry;
 
   final RegisterEditing? editing;
@@ -517,7 +522,7 @@ class RegisterPanel extends StatelessWidget {
     final grow = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 180);
-    Widget keyed(RegisterRow r, Widget row) => SmoothHeight(
+    Widget sized(RegisterRow r, Widget row) => SmoothHeight(
       key: ValueKey('row-${r.txnId}'),
       duration: grow,
       child: r.txnId == selected && selectedKey != null
@@ -526,6 +531,12 @@ class RegisterPanel extends StatelessWidget {
           ? KeyedSubtree(key: pointedKey, child: row)
           : row,
     );
+    shown?.clear();
+    Widget keyed(RegisterRow r, Widget row) {
+      shown?.add(r.txnId);
+      return sized(r, row);
+    }
+
     Widget postedRow(int i, RegisterRow r, {bool? isPointed}) => _PostedRow(
       row: r,
       today: today,

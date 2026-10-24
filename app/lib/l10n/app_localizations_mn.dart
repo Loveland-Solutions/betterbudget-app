@@ -152,7 +152,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerSaveOrDiscard =>
-      'Хадгалах бол Enter, өөрчлөлтөө хаях бол Esc дарна уу';
+      'Эхлээд нээлттэй мөрөө хадгалах эсвэл болиулна уу';
 
   @override
   String get ledgerFinishReconcileFirst =>
@@ -286,6 +286,10 @@ class WordsMn extends Words {
   String ledgerCantDeleteTransfer(String account) {
     return 'Устгах боломжгүй · энэ шилжүүлгийг $account дансанд тулгасан';
   }
+
+  @override
+  String get ledgerCantUnclearReconciled =>
+      'Хүлээгдэж буй болгох боломжгүй · банкны хуулгатай тулгасан';
 
   @override
   String get ledgerCantDeleteReconciled =>
@@ -2035,6 +2039,18 @@ class WordsMn extends Words {
       'payee': 'харилцагч дутуу',
       'category': 'ангилал дутуу',
       'other': 'дүн дутуу',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String rowsEnterMissing(String field) {
+    String _temp0 = intl.Intl.selectLogic(field, {
+      'when': 'Огноо оруулна уу',
+      'account': 'Данс сонгоно уу',
+      'payee': 'Харилцагч оруулна уу',
+      'category': 'Ангилал сонгоно уу',
+      'other': 'Дүн оруулна уу',
     });
     return '$_temp0';
   }

@@ -220,7 +220,7 @@
   "@ledgerUndo": {
     "description": "Button at the top right of the popup card, in the page's bottom-right corner."
   },
-  "ledgerSaveOrDiscard": "Save with Enter, or press Esc to discard your changes",
+  "ledgerSaveOrDiscard": "Save or cancel the open row first",
   "@ledgerSaveOrDiscard": {
     "description": "Toast when leaving a row that has unsaved edits."
   },
@@ -431,6 +431,10 @@
         "type": "String"
       }
     }
+  },
+  "ledgerCantUnclearReconciled": "Can’t mark it uncleared · it matches a bank statement",
+  "@ledgerCantUnclearReconciled": {
+    "description": "Popup when C is pressed on a reconciled row."
   },
   "ledgerCantDeleteReconciled": "Can’t delete · it matches a bank statement",
   "@ledgerCantDeleteReconciled": {
@@ -3156,6 +3160,15 @@
   "rowsNeeds": "{field, select, when{needs date} account{needs account} payee{needs payee} category{needs category} other{needs amount}}",
   "@rowsNeeds": {
     "description": "Entry row, note by Add: the one required field still empty. field is when (the date), account, payee, category or amount",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsEnterMissing": "{field, select, when{Enter a date} account{Pick an account} payee{Enter a payee} category{Pick a category} other{Enter an amount}}",
+  "@rowsEnterMissing": {
+    "description": "Popup when Enter is pressed on a row with a required field empty: the first one. field is when (the date), account, payee, category or amount",
     "placeholders": {
       "field": {
         "type": "String"

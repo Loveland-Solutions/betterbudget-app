@@ -310,7 +310,7 @@ abstract class Words {
   /// Toast when leaving a row that has unsaved edits.
   ///
   /// In en, this message translates to:
-  /// **'Save with Enter, or press Esc to discard your changes'**
+  /// **'Save or cancel the open row first'**
   String get ledgerSaveOrDiscard;
 
   /// Toast when a forecast dot is clicked while reconciling.
@@ -455,6 +455,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Can’t delete · this transfer is reconciled in {account}'**
   String ledgerCantDeleteTransfer(String account);
+
+  /// Popup when C is pressed on a reconciled row.
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t mark it uncleared · it matches a bank statement'**
+  String get ledgerCantUnclearReconciled;
 
   /// Toast when Delete is pressed on a reconciled row.
   ///
@@ -2962,6 +2968,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{field, select, when{needs date} account{needs account} payee{needs payee} category{needs category} other{needs amount}}'**
   String rowsNeeds(String field);
+
+  /// Popup when Enter is pressed on a row with a required field empty: the first one. field is when (the date), account, payee, category or amount
+  ///
+  /// In en, this message translates to:
+  /// **'{field, select, when{Enter a date} account{Pick an account} payee{Enter a payee} category{Pick a category} other{Enter an amount}}'**
+  String rowsEnterMissing(String field);
 
   /// Entry row, note by Add: how many required fields are still empty (2 or more)
   ///

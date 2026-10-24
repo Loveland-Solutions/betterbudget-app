@@ -144,6 +144,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The clicked row; its actions show in a bar under it.
   int? _selected;
 
+  /// The rows the register drew last: keys act on the selected row only
+  /// while it's one of them (a tab or a search can hide it).
+  final _shown = <int>{};
+
   /// On the selected row, so it can be scrolled into view.
   final _selectedKey = GlobalKey();
 
@@ -1629,7 +1633,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
             (!_isMac && event.logicalKey == LogicalKeyboardKey.keyY));
     if (_restoring) return KeyEventResult.handled;
     if (undo || redo) {
-      if (_typing) return KeyEventResult.ignored;
+      // Right after Add the next row is empty: ⌘Z undoes the Add, not
+      // typing that isn't there.
+      final emptyRow = _adding && !_entry.isDirty() && !_searchFocus.hasFocus;
+      if (_typing && !emptyRow) return KeyEventResult.ignored;
       if (event is KeyDownEvent) undo ? _undo() : _redoLast();
       return KeyEventResult.handled;
     }
@@ -1654,6 +1661,46 @@ class _LedgerScreenState extends State<LedgerScreen> {
         (_setupKey.currentState?.closePayForm() ?? false)) {
       return KeyEventResult.handled;
     }
+    // ↓ in search goes to the rows it found.
+    if (_section == AppSection.ledger &&
+        _searchFocus.hasFocus &&
+        event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _step(1, fromTop: true);
+      return KeyEventResult.handled;
+    }
+    final escape = event.logicalKey == LogicalKeyboardKey.escape;
+    if (_section == AppSection.ledger && escape && event is KeyDownEvent) {
+      // Esc in search clears it, and a second Esc leaves it.
+      if (_searchFocus.hasFocus) {
+        if (_search.text.isNotEmpty) {
+          _search.clear();
+          setState(() {});
+        } else {
+          _registerFocus.requestFocus();
+        }
+        return KeyEventResult.handled;
+      }
+      // Esc closes an open row wherever the last click was, as its Cancel
+      // does; inside the row, the row takes it first. A row chosen since
+      // is let go first, so typing isn't thrown away by an Esc meant for it.
+      if (!_typing && _editing != null) {
+        _cancelEdit();
+        return KeyEventResult.handled;
+      }
+      if (!_typing && _shown.contains(_selected)) {
+        _clearSelection();
+        return KeyEventResult.handled;
+      }
+      if (!_typing && _adding) {
+        _entry.cancel();
+        return KeyEventResult.handled;
+      }
+      // And Reconcile, after a click on a row's cleared mark.
+      if (!_typing && _reconcile != null && _selected == null) {
+        _endReconcile();
+        return KeyEventResult.handled;
+      }
+    }
     // Row keys act on the register; elsewhere its selection is out of sight.
     if (_section != AppSection.ledger ||
         // Setup is over the register: its rows are out of sight.
@@ -1664,7 +1711,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
         keys.isAltPressed) {
       return KeyEventResult.ignored;
     }
-    final row = _rows[_selected];
+    // An open Edit keeps the row keys: Delete or C would act on the row
+    // under it. The new row keeps them while focus is in it, on one of
+    // its buttons (a split's Category, Swap) as well as a field.
+    if (_editing != null || (_adding && _entry.holdsFocus())) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _step(event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1);
+      return KeyEventResult.handled;
+    }
+    final row = _shown.contains(_selected) ? _rows[_selected] : null;
     if (row == null) {
       // Esc with nothing selected takes the category filter off.
       if (event.logicalKey == LogicalKeyboardKey.escape &&
@@ -2010,7 +2068,32 @@ class _LedgerScreenState extends State<LedgerScreen> {
     controller: _search,
     focusNode: _searchFocus,
     onChanged: () => setState(() {}),
+    onSubmitted: () => _step(1, fromTop: true),
   );
+
+  /// ↑ and ↓ (and Enter or ↓ in search): the row above or below the
+  /// selected one, of those on screen, chosen and scrolled into sight.
+  /// With none chosen, or [fromTop], the first (or the last going up).
+  void _step(int by, {bool fromTop = false}) {
+    final rows = _shown.toList();
+    if (rows.isEmpty) return;
+    final at = fromTop ? -1 : rows.indexOf(_selected ?? -1);
+    final next = at < 0
+        ? (by > 0 ? rows.first : rows.last)
+        : rows[(at + by).clamp(0, rows.length - 1)];
+    setState(() => _selected = next);
+    _registerFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final row = _selectedKey.currentContext;
+      if (row == null || !row.mounted) return;
+      Scrollable.ensureVisible(
+        row,
+        alignmentPolicy: by > 0
+            ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+            : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+    });
+  }
 
   void _closeEntry() {
     setState(() => _adding = false);
@@ -2077,11 +2160,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _editing = null;
       _pointed = null;
     });
-    _registerFocus.requestFocus();
-    // The row's widgets still hold the focus node until this frame ends.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => editing.controller.payeeFocus.dispose(),
-    );
+    _dropEditor(editing);
+  }
+
+  /// After an editor closes: the keys go back to the register, and the
+  /// row's focus node goes once its widgets no longer hold it.
+  void _dropEditor(RegisterEditing editing) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      editing.controller.payeeFocus.dispose();
+      if (mounted) _registerFocus.requestFocus();
+    });
   }
 
   Future<String?> _saveEdit(
@@ -2254,6 +2342,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
   // ---------- reconcile ----------
 
   void _startReconcile(LedgerData data, AccountInfo account) {
+    if (_adding && _entry.isDirty()) {
+      _showFailure(context.t.ledgerSaveOrDiscard);
+      return;
+    }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
         _showFailure(context.t.ledgerSaveOrDiscard);
@@ -2371,6 +2463,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   // ---------- actions ----------
 
   Future<void> _toggleCleared(RegisterRow r) async {
+    // A statement holds it: said, not silently ignored.
+    if (r.cleared == Cleared.reconciled) {
+      _showFailure(context.t.ledgerCantUnclearReconciled);
+      return;
+    }
     final next = r.cleared == Cleared.uncleared
         ? Cleared.cleared
         : Cleared.uncleared;
@@ -2912,6 +3009,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Leaving the view: an edit with changes stops it, as clicking another
   /// row does; otherwise the editor closes. False means stay.
   bool _mayLeave() {
+    // A new row with typing in it stays where it was typed: it would be
+    // saved in whichever account was open next, or lost.
+    if (_adding && _entry.isDirty()) {
+      _showFailure(context.t.ledgerSaveOrDiscard);
+      return false;
+    }
     final e = _editing;
     if (e == null) return true;
     if (e.controller.isDirty()) {
@@ -3285,8 +3388,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       for (final r in [...register.posted, ...register.scheduled]) r.txnId: r,
     };
     if (!_rows.containsKey(_selected)) _selected = null;
-    if (_editing != null && !_rows.containsKey(_editing!.txnId)) {
+    if (_editing case final e? when !_rows.containsKey(e.txnId)) {
+      // Gone from under its editor (undone, or another computer's change):
+      // it closes as Cancel would, after this build.
       _editing = null;
+      _dropEditor(e);
     }
     final open = data.openAccounts;
     // A new row starts in the account last open, then stays on the last one
@@ -3383,6 +3489,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               entryController: _entry,
               today: today,
               adding: _adding,
+              shown: _shown,
               searchBox: _searchBox(),
               addButton: _PrimaryButton(
                 label: t.ledgerAdd,
@@ -5828,10 +5935,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         const SingleActivator(LogicalKeyboardKey.keyN, meta: true): _newEntry,
         const SingleActivator(LogicalKeyboardKey.keyN, control: true):
             _newEntry,
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-            _searchFocus.requestFocus,
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-            _searchFocus.requestFocus,
         const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
             _searchFocus.requestFocus,
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
@@ -6174,8 +6277,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     };
     // Drop the selection when its row is gone (deleted, other account).
     if (!_rows.containsKey(_selected)) _selected = null;
-    if (_editing != null && !_rows.containsKey(_editing!.txnId)) {
+    if (_editing case final e? when !_rows.containsKey(e.txnId)) {
+      // Gone from under its editor (undone, or another computer's change):
+      // it closes as Cancel would, after this build.
       _editing = null;
+      _dropEditor(e);
     }
     final forecast = _forecastFor(data, account);
     // The pay-period choice is named by its date: the date that forecast
@@ -6362,6 +6468,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 entryController: _entry,
                 today: today,
                 adding: _adding,
+                shown: _shown,
                 searchBox: _searchBox(),
                 addButton: _PrimaryButton(
                   label: context.t.ledgerAdd,
@@ -8086,10 +8193,14 @@ class _SearchField extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.onSubmitted,
   });
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onChanged;
+
+  /// Enter: the first row found is chosen, and the keys go to the register.
+  final VoidCallback? onSubmitted;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -8099,6 +8210,7 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       focusNode: focusNode,
       onChanged: (_) => onChanged(),
+      onSubmitted: (_) => onSubmitted?.call(),
       style: onest(13),
       decoration: InputDecoration(
         isDense: true,

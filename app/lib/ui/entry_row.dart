@@ -99,6 +99,13 @@ class EntryRowController {
   /// Set by the row: whether anything has been typed or changed.
   bool Function() isDirty = () => false;
 
+  /// Set by the row: what Esc or Cancel does, for when focus is elsewhere.
+  void Function() cancel = () {};
+
+  /// Set by the row: whether keyboard focus is anywhere in it, a button
+  /// (a split's Category, Swap) as well as a field.
+  bool Function() holdsFocus = () => false;
+
   void focus() => payeeFocus.requestFocus();
 }
 
@@ -566,6 +573,13 @@ class _EntryRowState extends State<EntryRow> {
     _splitStart; // the lines it opened with
     widget.controller.isDirty = () =>
         _all.any((c) => c.text != _start[c]) || _splitSig != _splitStart;
+    widget.controller.cancel = _escape;
+    widget.controller.holdsFocus = () {
+      final f = FocusManager.instance.primaryFocus?.context;
+      return f != null &&
+          f.mounted &&
+          f.findAncestorStateOfType<_EntryRowState>() == this;
+    };
     // A split's category double-clicked: its card opens.
     if (_split != null && _initial!.focus == EditField.category) {
       _splitBefore = (lines: _linesNow, category: '');
@@ -818,6 +832,12 @@ class _EntryRowState extends State<EntryRow> {
     if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
         !(_initial?.lockAmount ?? false))
       (name: 'amount', focus: _amountFocus),
+    // A transfer to an account in another currency: what the other side
+    // sent or got is wanted too.
+    if (_exchangeWith != null &&
+        _otherAmount.text.trim().replaceFirst('+', '').isEmpty &&
+        !(_initial?.lockAmount ?? false))
+      (name: 'amount', focus: _otherAmountFocus),
   ];
 
   @override
@@ -1206,9 +1226,15 @@ class _EntryRowState extends State<EntryRow> {
 
   /// Enter in a line's amount: on to the next line still missing its
   /// category or amount; a new line while some of the total is left to
-  /// place; otherwise Done.
+  /// place, or while no total is typed (a receipt of three, added up as
+  /// it's typed); Enter on a line left empty is Done, and the line goes.
   void _lineEntered(_SplitLine l) {
     final lines = _split!;
+    if (l.category.text.trim().isEmpty && l.amount.text.trim().isEmpty) {
+      if (lines.length > 2) _removeLine(l);
+      _doneSplit();
+      return;
+    }
     final after = [
       ...lines.skip(lines.indexOf(l) + 1),
       ...lines.take(lines.indexOf(l)),
@@ -1224,7 +1250,7 @@ class _EntryRowState extends State<EntryRow> {
               ? next.categoryFocus
               : next.amountFocus)
           .requestFocus();
-    } else if (total != null && total - _splitSum > 0) {
+    } else if (total == null || total - _splitSum > 0) {
       _addLine();
     } else {
       _doneSplit();
@@ -1633,6 +1659,8 @@ class _EntryRowState extends State<EntryRow> {
 
     final missing = _missing;
     if (missing.isNotEmpty) {
+      final name = missing.first.name;
+      _problem(context.t.rowsEnterMissing(name == 'date' ? 'when' : name));
       missing.first.focus.requestFocus();
       return;
     }
@@ -1794,15 +1822,44 @@ class _EntryRowState extends State<EntryRow> {
     _exchangeWith?.currency ?? _hereCurrency,
   );
 
+  /// The new row's Cancel, under Add.
+  Widget _cancelLine() => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: SizedBox(
+      width:
+          Cols.category +
+          Cols.amount +
+          Cols.balance +
+          2 * Cols.gap +
+          (SourceColumn.showing(context) ? Cols.source + Cols.gap : 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _AddButton(
+            key: const ValueKey('cancel-entry'),
+            label: context.t.rowsCancelEdit,
+            keyName: 'Esc',
+            quiet: true,
+            ready: false,
+            onTap: _escape,
+          ),
+        ],
+      ),
+    ),
+  );
+
   /// The note (what's missing, the sum) and Add.
   Widget _submitLine(int? preview, bool showsMath) => Row(
     mainAxisAlignment: MainAxisAlignment.end,
     children: [
       Flexible(child: _note(preview, showsMath)),
-      if (_editing) ...[
+      // A new row's Cancel is on a line of its own ([_cancelLine]), so it
+      // doesn't squeeze what's missing; under All accounts' wide line it
+      // fits here.
+      if (_editing || (_picking && _hasContent)) ...[
         const SizedBox(width: 6),
         _AddButton(
-          key: const ValueKey('cancel-edit'),
+          key: ValueKey(_editing ? 'cancel-edit' : 'cancel-entry'),
           label: context.t.rowsCancelEdit,
           keyName: 'Esc',
           quiet: true,
@@ -2226,6 +2283,14 @@ class _EntryRowState extends State<EntryRow> {
                               wanted: _hasContent && (_otherParsed ?? 0) == 0,
                               onSubmitted: _submit,
                             ),
+                          // A new row with something in it can be thrown away
+                          // with the mouse too; an empty one closes with a
+                          // click away.
+                          if (!_editing &&
+                              !_picking &&
+                              _hasContent &&
+                              !_splitOpen)
+                            _cancelLine(),
                         ],
                       ),
                     ],
@@ -2676,10 +2741,7 @@ class _DateFieldState extends State<DateField> {
               child: ListenableBuilder(
                 listenable: widget.controller,
                 builder: (context, _) => _Calendar(
-                  selected: parseRowDate(
-                    widget.controller.text,
-                    widget.today,
-                  ),
+                  selected: parseRowDate(widget.controller.text, widget.today),
                   today: widget.today,
                   onPick: _pick,
                   allowFuture: widget.allowFuture,
