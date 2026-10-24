@@ -520,15 +520,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     final t = context.t;
     final n = done.transactions;
-    final from = done.from.savedByName ?? t.ledgerRowsOtherComputerInSentence;
     final label = switch (done.from.savedByName) {
       // One transaction came: by its payee.
-      _ when n == 1 && done.payee != null && done.others == 0 =>
-        t.ledgerCombinedPayeeFrom(done.payee!, from),
-      _ when n == 1 && done.payee != null => t.ledgerCombinedPayeeMoreFrom(
+      final name? when n == 1 && done.payee != null && done.others == 0 =>
+        t.ledgerCombinedPayeeFrom(done.payee!, name),
+      final name? when n == 1 && done.payee != null =>
+        t.ledgerCombinedPayeeMoreFrom(done.payee!, done.others, name),
+      null when n == 1 && done.payee != null && done.others == 0 =>
+        t.ledgerCombinedPayee(done.payee!),
+      null when n == 1 && done.payee != null => t.ledgerCombinedPayeeMore(
         done.payee!,
         done.others,
-        from,
       ),
       final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
       final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
@@ -1418,7 +1420,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   /// What went wrong undoing or redoing, for Details: nothing when the
-  /// message already says it ("it changed since").
+  /// message already says it ("it was changed afterwards").
   static Object? _undoError(Object e) => e is _ChangedSince ? null : e;
 
   /// Undoes the newest action.
@@ -1979,7 +1981,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Widget _withSources(LedgerData data, Widget child) {
     final s = _sourcesOf(data);
     return SourceColumn(
-      shown: data.prefs[showSourceKey] != '0',
+      // On, unless Settings turns it off; a window under 1440 wide leaves it
+      // out, so the payee isn't cut to a few letters (ADR 0004, "Where a row
+      // came from").
+      shown:
+          data.prefs[showSourceKey] != '0' &&
+          MediaQuery.sizeOf(context).width >= 1440,
       here: db.thisComputer,
       machines: s.machines,
       computers: s.computers,

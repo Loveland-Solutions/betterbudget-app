@@ -224,7 +224,8 @@ class ReconcilePanel extends StatelessWidget {
                         // takes off pending holds and won't match.
                         t.rowsNotAvailableBalance,
                         style: onest(12.5, color: Mid.ink3),
-                        maxLines: 1,
+                        // Two lines at the smallest window, not cut.
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       )
                     : null,
@@ -278,7 +279,7 @@ class ReconcilePanel extends StatelessWidget {
                           (true, false) => t.rowsBankSaysOweMore,
                         },
                         style: onest(12.5, color: Mid.ink2),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
               ),

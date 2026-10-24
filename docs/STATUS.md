@@ -28,8 +28,15 @@ and stops a move to another account or Reconcile; Enter on an incomplete row say
 what's missing ("Enter a payee"); a two-currency transfer isn't ready until both
 amounts are in; Enter adds split lines until one is left empty; C on a reconciled row
 says why; ⌘K is gone (⌘F). Left from the group: Tab doesn't reach the tabs or a row's
-buttons. Next in the comb: what's on screen and the words, then the owner's three
-answers (ADR 0004, "The Ledger's fine-tooth comb: three answers").
+buttons. 0.46.5 fixes what was on screen and the words: under 1440 wide the Source
+column is left out so payees aren't cut (ADR 0004, "Where a row came from"); Reconcile's
+notes wrap rather than cut; the Mongolian forecast is төсөөлөл throughout, the Ledger's
+bill questions, "Paid on…?", split errors and forecast lines carry no ending on a
+placeholder (glossary, "Word forms"), and the popup from a computer with no name no
+longer says computer twice; one wording each for a date and an amount that can't be
+read; "entered", not "posted"; "Budget page"; "Next 12 months". The Budget page's own
+Mongolian endings wait for its comb (#163). Next in the comb: the owner's three answers
+(ADR 0004, "The Ledger's fine-tooth comb: three answers"), then #141 and #148.
 
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload

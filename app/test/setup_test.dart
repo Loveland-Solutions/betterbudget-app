@@ -201,7 +201,7 @@ void main() {
     final db = AppDatabase(NativeDatabase.memory());
     await open(tester, db);
     await add(tester, 'setup-add-bank', 'Khan', 'lots');
-    expect(find.text('Can’t read “lots” as an amount'), findsOneWidget);
+    expect(find.text('“lots” isn’t an amount'), findsOneWidget);
     expect((await ledger(tester, db)).openAccounts, isEmpty);
     // Cancel closes the line with the mouse alone.
     await tester.tap(find.byKey(const ValueKey('setup-cancel')));
@@ -323,7 +323,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('setup-amount')), 'some');
     await toPay(tester);
-    expect(find.text('Can’t read “some” as an amount'), findsOneWidget);
+    expect(find.text('“some” isn’t an amount'), findsOneWidget);
     expect(find.text('Your accounts'), findsOneWidget);
     expect(find.text('Your pay'), findsNothing);
     await tidy(tester, db);

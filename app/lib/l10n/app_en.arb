@@ -180,7 +180,7 @@
   "@ledgerNothingToRedo": {
     "description": "Toast when ⌘⇧Z is pressed with nothing to redo."
   },
-  "ledgerCouldntUndo": "Couldn’t undo “{action}” · it changed since",
+  "ledgerCouldntUndo": "Couldn’t undo “{action}” · it was changed afterwards",
   "@ledgerCouldntUndo": {
     "description": "Popup when undo fails because the data changed. action is the undo label, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
@@ -189,7 +189,7 @@
       }
     }
   },
-  "ledgerCouldntRedo": "Couldn’t redo “{action}” · it changed since",
+  "ledgerCouldntRedo": "Couldn’t redo “{action}” · it was changed afterwards",
   "@ledgerCouldntRedo": {
     "description": "Popup when redo fails because the data changed. action is the undo label, e.g. \"Coffee added\", or \"Filed under Bank fees\" with the row's payee on the line under it.",
     "placeholders": {
@@ -282,7 +282,7 @@
       }
     }
   },
-  "ledgerPostedToday": "posted today, {date}",
+  "ledgerPostedToday": "entered today, {date}",
   "@ledgerPostedToday": {
     "description": "Part of the confirm toast, after \" · \": the confirmed row is dated today, not its planned day.",
     "placeholders": {
@@ -291,7 +291,7 @@
       }
     }
   },
-  "ledgerPostedOn": "posted {date}",
+  "ledgerPostedOn": "entered {date}",
   "@ledgerPostedOn": {
     "description": "Part of the confirm toast, after \" · \": the confirmed row got a date other than planned.",
     "placeholders": {
@@ -300,7 +300,7 @@
       }
     }
   },
-  "ledgerUnderEstimate": "{amount} under the estimate · lower it on the Budget screen",
+  "ledgerUnderEstimate": "{amount} under the estimate · lower it on the Budget page",
   "@ledgerUnderEstimate": {
     "description": "Part of the confirm toast, after \" · \": a bill came in under its estimate.",
     "placeholders": {
@@ -331,7 +331,7 @@
   "@ledgerChangesSaved": {
     "description": "Toast after a transaction is edited."
   },
-  "ledgerTypeADate": "Type a date like {example}",
+  "ledgerTypeADate": "Enter the date like {example}",
   "@ledgerTypeADate": {
     "description": "Reconcile panel, under the statement date field. example is today as month.day, e.g. 09.30.",
     "placeholders": {
@@ -1252,7 +1252,7 @@
   "@ledgerKeptNoRows": {
     "description": "Erase-everything dialog, under the choice when keeping."
   },
-  "ledgerAddCategoriesAgain": "You’ll add categories again on the Budget screen.",
+  "ledgerAddCategoriesAgain": "You’ll add categories again on the Budget page.",
   "@ledgerAddCategoriesAgain": {
     "description": "Erase-everything dialog, under the choice when erasing."
   },
@@ -1315,7 +1315,7 @@
   "@ledgerDbSplitNotEditable": {
     "description": "Under the row editor: a split transaction’s amount or category."
   },
-  "ledgerDbChangedSince": "It changed since",
+  "ledgerDbChangedSince": "It was changed afterwards",
   "@ledgerDbChangedSince": {
     "description": "Toast after \"Can’t move · \": the row changed meanwhile."
   },
@@ -1655,7 +1655,7 @@
   "@planExpectedIncome": {
     "description": "Forecast list: a payday the pay plan expects, with its amount. Deliberately general: the app doesn't know what kind of income it is."
   },
-  "planNothingBudgeted": "Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.",
+  "planNothingBudgeted": "Fill in your budget and the forecast appears here.",
   "@planNothingBudgeted": {
     "description": "Forecast, under the list when pay is known but nothing is budgeted or scheduled to go out. The owner's wording (2026-09-30)."
   },
@@ -1773,7 +1773,7 @@
   "@planNext6Months": {
     "description": "Account header, forecast panel: the small title and its dropdown's choice for a span of six months"
   },
-  "planNextYear": "Next year",
+  "planNextYear": "Next 12 months",
   "@planNextYear": {
     "description": "Account header, forecast panel: the small title and its dropdown's choice for a span of a year from today"
   },
@@ -3098,7 +3098,7 @@
       }
     }
   },
-  "rowsErrorDate": "Enter the date as 2026.09.16",
+  "rowsErrorDate": "Enter the date like 2026.09.16",
   "@rowsErrorDate": {
     "description": "Popup at the bottom when an entry row can’t be saved when the date typed isn’t a real date. Keep the example date as is"
   },
@@ -3115,7 +3115,7 @@
       }
     }
   },
-  "rowsErrorAmount": "“{typed}” isn’t a valid amount",
+  "rowsErrorAmount": "“{typed}” isn’t an amount",
   "@rowsErrorAmount": {
     "description": "Popup at the bottom when an entry row can’t be saved: the amount typed isn’t a number. typed is what was typed",
     "placeholders": {
@@ -3716,7 +3716,7 @@
   "@setupOn": {
     "description": "First screen of a new account, label beside the date field (\"as of this date\")."
   },
-  "setupCantRead": "Can’t read “{text}” as an amount",
+  "setupCantRead": "“{text}” isn’t an amount",
   "@setupCantRead": {
     "description": "First screen of a new account, red note when the typed amount isn't a number. text is what was typed.",
     "placeholders": {
@@ -3725,7 +3725,7 @@
       }
     }
   },
-  "setupDateShouldLook": "Date should look like {example}",
+  "setupDateShouldLook": "Enter the date like {example}",
   "@setupDateShouldLook": {
     "description": "Red note when a typed date can't be read. example is today as 2026.09.30.",
     "placeholders": {
@@ -8316,6 +8316,27 @@
       },
       "computer": {
         "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedPayee": "{payee} from the other computer",
+  "@ledgerCombinedPayee": {
+    "description": "Popup: one transaction came in from another computer that has no name yet.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedPayeeMore": "{count, plural, =1{{payee} and 1 change from the other computer} other{{payee} and {count} changes from the other computer}}",
+  "@ledgerCombinedPayeeMore": {
+    "description": "Popup: one transaction and other changes came in from another computer that has no name yet.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
       }
     }
   },
