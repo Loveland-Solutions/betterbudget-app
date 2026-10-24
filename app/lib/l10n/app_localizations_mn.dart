@@ -4302,6 +4302,28 @@ class WordsMn extends Words {
   String get planKeyNotAssigned => 'Хуваарилаагүй';
 
   @override
+  String get planKeyOverspent => 'Хэтэрсэн';
+
+  @override
+  String get planKeyNotBegun =>
+      'Ангилалд мөнгө хуваарилсны дараагаас тэр ангиллын зарлага тооцогдож эхэлнэ.';
+
+  @override
+  String planBeganMovedBack(String date) {
+    return 'төсөв одоо эхлэх өдөр: $date, тэр өдрөөс хойшхи зарлага ангилалдаа тооцогдоно';
+  }
+
+  @override
+  String planAssignedTo(String amount, String category) {
+    return '$category ангилалд $amount хуваарилсан';
+  }
+
+  @override
+  String planKeyBeganInside(String date) {
+    return 'Төсөв эхэлсэн өдөр $date. Түүнээс өмнөх зарлага ангилалд тооцогдохгүй.';
+  }
+
+  @override
   String get planKeyOver => 'Илүү хуваарилсан';
 
   @override
