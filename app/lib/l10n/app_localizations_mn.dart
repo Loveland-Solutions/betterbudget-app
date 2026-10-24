@@ -193,17 +193,17 @@ class WordsMn extends Words {
 
   @override
   String ledgerPostedToday(String date) {
-    return 'өнөөдрийн огноогоор бүртгэсэн, $date';
+    return 'өнөөдрийн огноогоор оруулсан, $date';
   }
 
   @override
   String ledgerPostedOn(String date) {
-    return 'бүртгэсэн огноо: $date';
+    return 'оруулсан огноо: $date';
   }
 
   @override
   String ledgerUnderEstimate(String amount) {
-    return 'тооцоолсноос $amount бага · Төсөв хэсэгт бууруулж болно';
+    return 'тооцоолсноос $amount бага · Төсөв хуудсанд бууруулж болно';
   }
 
   @override
@@ -872,7 +872,7 @@ class WordsMn extends Words {
 
   @override
   String get ledgerAddCategoriesAgain =>
-      'Ангиллуудаа Төсөв хэсэгт дахин нэмнэ.';
+      'Ангиллуудаа Төсөв хуудсанд дахин нэмнэ.';
 
   @override
   String get ledgerEraseNote =>
@@ -944,7 +944,7 @@ class WordsMn extends Words {
 
   @override
   String planNotClearedYet(int count) {
-    return '$count гүйлгээ баталгаажаагүй';
+    return '$count хүлээгдэж буй';
   }
 
   @override
@@ -1057,12 +1057,12 @@ class WordsMn extends Words {
 
   @override
   String planPaidFromSeveral(int count) {
-    return '$count данс сонгоотой тул энэ төлбөр ямар ч таамаглалд харагдахгүй. Нэг данс үлдээвэл тэнд харагдана.';
+    return '$count данс сонгоотой тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй. Нэг данс үлдээвэл тэнд харагдана.';
   }
 
   @override
   String get planPaidFromNoneChecked =>
-      'Ямар ч данс сонгоогүй тул энэ төлбөр ямар ч таамаглалд харагдахгүй.';
+      'Ямар ч данс сонгоогүй тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй.';
 
   @override
   String planRunsOutZero(String date) {
@@ -1071,12 +1071,12 @@ class WordsMn extends Words {
 
   @override
   String planShortAhead(String end, String date, String amount) {
-    return '$end-с хойш: $date-нд мөнгө дуусна · $amount дутна';
+    return '$end өдрөөс хойш мөнгө дуусах өдөр: $date · $amount дутна';
   }
 
   @override
   String planShortAheadZero(String end, String date) {
-    return '$end-с хойш: $date-нд мөнгө дуусна';
+    return '$end өдрөөс хойш мөнгө дуусах өдөр: $date';
   }
 
   @override
@@ -1090,7 +1090,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planForecast => 'Урьдчилсан тооцоо';
+  String get planForecast => 'Төсөөлөл';
 
   @override
   String get planTodaysBalance => 'Өнөөдрийн үлдэгдэл';
@@ -1099,12 +1099,11 @@ class WordsMn extends Words {
   String get planExpectedIncome => 'Хүлээгдэж буй орлого';
 
   @override
-  String get planNothingBudgeted =>
-      'Төсөв хараахан гаргаагүй байна. Төсвөө бөглөсний дараа энд урьдчилсан тооцоо харагдана.';
+  String get planNothingBudgeted => 'Төсвөө бөглөхөд төсөөлөл энд гарна.';
 
   @override
   String planUntilPaycheck(String date) {
-    return '$date-ны цалин хүртэл';
+    return 'Цалингийн өдөр $date хүртэл';
   }
 
   @override
@@ -1165,7 +1164,7 @@ class WordsMn extends Words {
   String get planNextYear => 'Дараагийн 12 сар';
 
   @override
-  String get planSpanTip => 'Таамаглал хэр хол харахыг сонгоно';
+  String get planSpanTip => 'Төсөөлөл хэр хол харахыг сонгоно';
 
   @override
   String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
@@ -1781,7 +1780,7 @@ class WordsMn extends Words {
 
   @override
   String rowsNextOfScheduled(int count) {
-    return '$count товлосноос';
+    return '$count товлосны дараагийнх';
   }
 
   @override
@@ -1996,7 +1995,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get rowsErrorDate => 'Огноо 2026.09.16 хэлбэртэй байна';
+  String get rowsErrorDate => 'Огноог 2026.09.16 хэлбэрээр бичнэ үү';
 
   @override
   String get rowsErrorSameAccount =>
@@ -2112,21 +2111,21 @@ class WordsMn extends Words {
   String get rowsSplitRemove => 'Энэ ангиллыг хасах';
 
   @override
-  String get rowsSplitDone => 'Болсон';
+  String get rowsSplitDone => 'Дуусгах';
 
   @override
   String rowsErrorSplitLeft(String amount) {
-    return 'Үлдсэн $amount-г ангилалд оруулна уу';
+    return 'Үлдсэн дүн $amount: ангилалд оруулна уу';
   }
 
   @override
   String rowsErrorSplitTooMuch(String amount) {
-    return 'Мөрүүдийн нийлбэр нийт дүнгээс $amount-өөр их байна';
+    return 'Мөрүүдийн нийлбэр нийт дүнгээс $amount илүү байна';
   }
 
   @override
   String rowsErrorSplitNoCategory(String amount) {
-    return '$amount-д ангилал сонгоно уу';
+    return 'Дүн $amount: ангилал сонгоно уу';
   }
 
   @override
@@ -2425,7 +2424,7 @@ class WordsMn extends Words {
 
   @override
   String setupDateShouldLook(String example) {
-    return 'Огноо $example хэлбэртэй байна';
+    return 'Огноог $example хэлбэрээр бичнэ үү';
   }
 
   @override
@@ -4525,12 +4524,12 @@ class WordsMn extends Words {
 
   @override
   String planPaidFromHint(String account, String date) {
-    return '$account дансны таамаглалд $date-нд харагдана; төлөгдсөн үед нь та баталгаажуулна.';
+    return '$account дансны төсөөлөлд харагдана, огноо: $date; төлөгдсөн үед нь та баталгаажуулна.';
   }
 
   @override
   String get planPaidFromHintNone =>
-      'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны таамаглалд харагдана.';
+      'Нэг л данс сонгоотой үлдээвэл төлбөр тэр дансны төсөөлөлд харагдана.';
 
   @override
   String get planEnterAmountDate => 'Дүн болон өдрөө оруулна уу';
@@ -5449,12 +5448,12 @@ class WordsMn extends Words {
 
   @override
   String ledgerRowsKeepTheirs(String computer) {
-    return '$computer-ийнхийг үлдээх';
+    return '$computer дээрхийг үлдээх';
   }
 
   @override
   String ledgerRowsKeepDeletedTheirs(String computer) {
-    return 'Устгасан хэвээр нь үлдээх ($computer-ийнх)';
+    return 'Устгасан хэвээр нь үлдээх ($computer дээрх)';
   }
 
   @override
@@ -5507,6 +5506,21 @@ class WordsMn extends Words {
       count,
       locale: localeName,
       other: '$computer компьютерээс $payee болон $count өөрчлөлт',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedPayee(String payee) {
+    return 'Нөгөө компьютерээс $payee';
+  }
+
+  @override
+  String ledgerCombinedPayeeMore(String payee, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Нөгөө компьютерээс $payee болон $count өөрчлөлт',
     );
     return '$_temp0';
   }
@@ -5588,7 +5602,7 @@ class WordsMn extends Words {
 
   @override
   String rowsPaidOnAsk(String date, String payee, String amount) {
-    return '$date-нд төлсөн үү? $payee, $amount';
+    return '$date өдөр төлсөн үү? $payee, $amount';
   }
 
   @override
@@ -5598,7 +5612,7 @@ class WordsMn extends Words {
     String amount,
     String account,
   ) {
-    return '$date-нд төлсөн үү? $payee, $amount, $account-оос';
+    return '$date өдөр төлсөн үү? $payee, $amount, $account данснаас';
   }
 
   @override
@@ -5615,7 +5629,7 @@ class WordsMn extends Words {
 
   @override
   String billAskTitle(String name) {
-    return 'Энэ $name-ын төлбөр мөн үү?';
+    return '$name: энэ төлбөрийг төлсөн үү?';
   }
 
   @override
@@ -5625,22 +5639,22 @@ class WordsMn extends Words {
     String account,
     String date,
   ) {
-    return 'Та $date-нд $account-оос $payee-д $amount төлсөн.';
+    return 'Та $account данснаас $payee харилцагчид $amount төлсөн. Огноо: $date.';
   }
 
   @override
   String billAskPaid(String payee, String amount, String date) {
-    return 'Та $date-нд $payee-д $amount төлсөн.';
+    return 'Та $payee харилцагчид $amount төлсөн. Огноо: $date.';
   }
 
   @override
   String billAskBill(String amount, String date) {
-    return 'Төлбөр $amount, $date-нд төлөх.';
+    return 'Төлбөр $amount, төлөх өдөр: $date.';
   }
 
   @override
   String billAskMore(String more, String category) {
-    return 'Энэ нь төлбөрөөс $more-өөр их. Бүгд $category-ээс гарна.';
+    return 'Энэ нь төлбөрөөс $more илүү. Бүгд $category ангиллаас гарна.';
   }
 
   @override
@@ -5656,12 +5670,12 @@ class WordsMn extends Words {
 
   @override
   String billRestPaid(String amount, String bill, String name) {
-    return 'Та $name-ын $bill-ийн төлбөрөөс $amount төлсөн.';
+    return '$name төлбөр $bill. Та үүнээс $amount төлсөн.';
   }
 
   @override
   String billRestYes(String date) {
-    return 'Тийм, үлдсэнийг $date-нд төлнө';
+    return 'Тийм, үлдсэнийг төлөх өдөр: $date';
   }
 
   @override
@@ -5669,17 +5683,22 @@ class WordsMn extends Words {
 
   @override
   String billSeveralTitle(int count, String name) {
-    return 'Энэ $name-ын $count төлбөрийг төлсөн үү?';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name: энэ $count төлбөрийг төлсөн үү?',
+    );
+    return '$_temp0';
   }
 
   @override
   String billSeveralPaid(String amount, String date) {
-    return 'Та $date-нд $amount төлсөн.';
+    return 'Та $amount төлсөн. Огноо: $date.';
   }
 
   @override
   String billSeveralBills2(String first, String second, String each) {
-    return '$first, $second-нд төлөх төлбөр тус бүр $each.';
+    return 'Төлөх өдөр: $first, $second. Төлбөр тус бүр $each.';
   }
 
   @override
@@ -5689,7 +5708,7 @@ class WordsMn extends Words {
     String third,
     String each,
   ) {
-    return '$first, $second, $third-нд төлөх төлбөр тус бүр $each.';
+    return 'Төлөх өдөр: $first, $second, $third. Төлбөр тус бүр $each.';
   }
 
   @override
@@ -5702,37 +5721,42 @@ class WordsMn extends Words {
 
   @override
   String ledgerBillPaidNext(String name, String date) {
-    return '$name-ын төлбөр төлөгдлөө. Дараагийнх $date-нд.';
+    return '$name төлбөр төлөгдлөө. Дараагийн төлөх өдөр: $date.';
   }
 
   @override
   String ledgerBillPaidOnly(String name) {
-    return '$name-ын төлбөр төлөгдлөө.';
+    return '$name төлбөр төлөгдлөө.';
   }
 
   @override
   String ledgerBillsPaidNext(int count, String name, String date) {
-    return '$name-ын $count төлбөр төлөгдлөө. Дараагийнх $date-нд.';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name: $count төлбөр төлөгдлөө. Дараагийн төлөх өдөр: $date.',
+    );
+    return '$_temp0';
   }
 
   @override
   String ledgerBillRest(String name, String rest, String date) {
-    return '$name: үлдсэн $rest, $date-нд төлөх.';
+    return '$name: үлдсэн $rest, төлөх өдөр: $date.';
   }
 
   @override
   String ledgerNotTheBill(String name, String date) {
-    return '$name-ын төлбөр биш. $date-нд төлөх хэвээр.';
+    return '$name төлбөр биш. Төлөх өдөр хэвээр: $date.';
   }
 
   @override
   String ledgerNoBill(String name, String date, String amount, String next) {
-    return '$date-нд $name-ын төлбөр ирээгүй. $amount нь $next-ны төлбөрт үлдэнэ.';
+    return '$name төлбөр ирээгүй, огноо: $date. $amount нь дараагийн төлбөрт үлдэнэ, төлөх өдөр: $next.';
   }
 
   @override
   String ledgerNoBillLast(String name, String date) {
-    return '$date-нд $name-ын төлбөр ирээгүй.';
+    return '$name төлбөр ирээгүй, огноо: $date.';
   }
 
   @override
@@ -5742,7 +5766,7 @@ class WordsMn extends Words {
 
   @override
   String ledgerBillsToCheck(int count) {
-    return '$count төлбөр шалгах.';
+    return 'Шалгах $count төлбөр байна.';
   }
 
   @override

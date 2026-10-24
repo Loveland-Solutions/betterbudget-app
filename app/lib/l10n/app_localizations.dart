@@ -280,13 +280,13 @@ abstract class Words {
   /// Popup when undo fails because the data changed. action is the undo label, e.g. "Coffee added", or "Filed under Bank fees" with the row's payee on the line under it.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t undo “{action}” · it changed since'**
+  /// **'Couldn’t undo “{action}” · it was changed afterwards'**
   String ledgerCouldntUndo(String action);
 
   /// Popup when redo fails because the data changed. action is the undo label, e.g. "Coffee added", or "Filed under Bank fees" with the row's payee on the line under it.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t redo “{action}” · it changed since'**
+  /// **'Couldn’t redo “{action}” · it was changed afterwards'**
   String ledgerCouldntRedo(String action);
 
   /// Popup after ⌘Z. action is what was undone, e.g. "Coffee added", or "Filed under Bank fees" with the row's payee on the line under it.
@@ -351,19 +351,19 @@ abstract class Words {
   /// Part of the confirm toast, after " · ": the confirmed row is dated today, not its planned day.
   ///
   /// In en, this message translates to:
-  /// **'posted today, {date}'**
+  /// **'entered today, {date}'**
   String ledgerPostedToday(String date);
 
   /// Part of the confirm toast, after " · ": the confirmed row got a date other than planned.
   ///
   /// In en, this message translates to:
-  /// **'posted {date}'**
+  /// **'entered {date}'**
   String ledgerPostedOn(String date);
 
   /// Part of the confirm toast, after " · ": a bill came in under its estimate.
   ///
   /// In en, this message translates to:
-  /// **'{amount} under the estimate · lower it on the Budget screen'**
+  /// **'{amount} under the estimate · lower it on the Budget page'**
   String ledgerUnderEstimate(String amount);
 
   /// Undo-menu label after a transaction is edited. name is the payee.
@@ -387,7 +387,7 @@ abstract class Words {
   /// Reconcile panel, under the statement date field. example is today as month.day, e.g. 09.30.
   ///
   /// In en, this message translates to:
-  /// **'Type a date like {example}'**
+  /// **'Enter the date like {example}'**
   String ledgerTypeADate(String example);
 
   /// Reconcile panel, under the statement date field.
@@ -1263,7 +1263,7 @@ abstract class Words {
   /// Erase-everything dialog, under the choice when erasing.
   ///
   /// In en, this message translates to:
-  /// **'You’ll add categories again on the Budget screen.'**
+  /// **'You’ll add categories again on the Budget page.'**
   String get ledgerAddCategoriesAgain;
 
   /// Erase-everything dialog, note.
@@ -1341,7 +1341,7 @@ abstract class Words {
   /// Toast after "Can’t move · ": the row changed meanwhile.
   ///
   /// In en, this message translates to:
-  /// **'It changed since'**
+  /// **'It was changed afterwards'**
   String get ledgerDbChangedSince;
 
   /// Toast when a change is refused (rare; usually a row changed in the meantime).
@@ -1605,7 +1605,7 @@ abstract class Words {
   /// Forecast, under the list when pay is known but nothing is budgeted or scheduled to go out. The owner's wording (2026-09-30).
   ///
   /// In en, this message translates to:
-  /// **'Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.'**
+  /// **'Fill in your budget and the forecast appears here.'**
   String get planNothingBudgeted;
 
   /// Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).
@@ -1688,7 +1688,7 @@ abstract class Words {
   /// Account header, forecast panel: the small title and its dropdown's choice for a span of a year from today
   ///
   /// In en, this message translates to:
-  /// **'Next year'**
+  /// **'Next 12 months'**
   String get planNextYear;
 
   /// Account header, forecast panel: tooltip on the small title, which is a dropdown of spans (until the paycheck after next, 30, 60 or 90 days, 6 months, a year)
@@ -2912,7 +2912,7 @@ abstract class Words {
   /// Popup at the bottom when an entry row can’t be saved when the date typed isn’t a real date. Keep the example date as is
   ///
   /// In en, this message translates to:
-  /// **'Enter the date as 2026.09.16'**
+  /// **'Enter the date like 2026.09.16'**
   String get rowsErrorDate;
 
   /// Popup at the bottom when an entry row can’t be saved: a transfer to the account the row is in
@@ -2930,7 +2930,7 @@ abstract class Words {
   /// Popup at the bottom when an entry row can’t be saved: the amount typed isn’t a number. typed is what was typed
   ///
   /// In en, this message translates to:
-  /// **'“{typed}” isn’t a valid amount'**
+  /// **'“{typed}” isn’t an amount'**
   String rowsErrorAmount(String typed);
 
   /// The box under the new-transaction row and a row's Edit (owner, 2026-10-12). Ticked, the category is remembered for the payee when the row is saved, as the popup's offer does.
@@ -3554,13 +3554,13 @@ abstract class Words {
   /// First screen of a new account, red note when the typed amount isn't a number. text is what was typed.
   ///
   /// In en, this message translates to:
-  /// **'Can’t read “{text}” as an amount'**
+  /// **'“{text}” isn’t an amount'**
   String setupCantRead(String text);
 
   /// Red note when a typed date can't be read. example is today as 2026.09.30.
   ///
   /// In en, this message translates to:
-  /// **'Date should look like {example}'**
+  /// **'Enter the date like {example}'**
   String setupDateShouldLook(String example);
 
   /// A new card or loan's first screen, under the amount. zero is ₮0 or $0.
@@ -8049,6 +8049,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{{payee} and 1 change from {computer}} other{{payee} and {count} changes from {computer}}}'**
   String ledgerCombinedPayeeMoreFrom(String payee, int count, String computer);
+
+  /// Popup: one transaction came in from another computer that has no name yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{payee} from the other computer'**
+  String ledgerCombinedPayee(String payee);
+
+  /// Popup: one transaction and other changes came in from another computer that has no name yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{payee} and 1 change from the other computer} other{{payee} and {count} changes from the other computer}}'**
+  String ledgerCombinedPayeeMore(String payee, int count);
 
   /// Register column header, shown only when the person turns it on in Settings
   ///

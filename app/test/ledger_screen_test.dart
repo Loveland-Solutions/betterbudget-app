@@ -752,7 +752,7 @@ void main() {
     await settle(tester);
     expect(
       find.text(
-        'Zaisan Residence confirmed early · ₮1,850,000, planned ₮1,800,000 · posted today, 09.16',
+        'Zaisan Residence confirmed early · ₮1,850,000, planned ₮1,800,000 · entered today, 09.16',
       ),
       findsOneWidget,
     );
@@ -795,7 +795,7 @@ void main() {
     await settle(tester);
     expect(
       find.text(
-        'Zaisan Residence confirmed early · ₮1,800,000 · posted today, 09.16',
+        'Zaisan Residence confirmed early · ₮1,800,000 · entered today, 09.16',
       ),
       findsOneWidget,
     );
@@ -3315,7 +3315,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('new-ledger-drop')));
     await tester.pumpAndSettle();
     expect(
-      find.text('You’ll add categories again on the Budget screen.'),
+      find.text('You’ll add categories again on the Budget page.'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const ValueKey('new-ledger-keep')));
@@ -4264,7 +4264,7 @@ void main() {
     await settle(tester);
     expect(
       find.text(
-        'Altan Gadas LLC confirmed early · ₮1,250,000 · ₮1,250,000 still owed, due 10.10 · posted today, 09.16',
+        'Altan Gadas LLC confirmed early · ₮1,250,000 · ₮1,250,000 still owed, due 10.10 · entered today, 09.16',
       ),
       findsOneWidget,
     );
@@ -7010,10 +7010,7 @@ void main() {
       expect(find.text('+₮2,100,000'), findsNWidgets(2));
       expect(find.text('10.09'), findsOneWidget);
       expect(
-        find.text(
-          'Nothing has been budgeted. Once you fill out your budget, this '
-          'area will show you a forecast.',
-        ),
+        find.text('Fill in your budget and the forecast appears here.'),
         findsOneWidget,
       );
       await expectLater(
@@ -7034,12 +7031,12 @@ void main() {
       );
       await settle(tester);
       expect(find.byKey(const ValueKey('forecast-known')), findsOneWidget);
-      expect(find.textContaining('Nothing has been budgeted'), findsNothing);
+      expect(find.textContaining('Fill in your budget'), findsNothing);
       await tester.runAsync(
         () => db.setBudgetAmount(food, month.start, month.end, 0),
       );
       await settle(tester);
-      expect(find.textContaining('Nothing has been budgeted'), findsOneWidget);
+      expect(find.textContaining('Fill in your budget'), findsOneWidget);
 
       // The pay is listed on the Budget page's Income tab, with its next
       // payday; Settings keeps only Budget by.

@@ -3682,6 +3682,9 @@ list a given phone as a source".
   balance, Reconcile adjustment) says nothing in it. At the smallest window (1360 ×
   760) it takes about 144 px from the payee, which then shortens; if that bites,
   the answer is to hide the column on a narrow window, not to shrink it further.
+  It bit (the Ledger's comb, 2026-10-23: "Номин супер…", "To Khan Savi…", a
+  scheduled row's "Zaisan … · next o…"): under 1440 wide the column is left
+  out, whatever the setting.
 - **A phone is named in the same panel**, one box per phone that has sent a row.
 - Rows from before this say nothing in the column; it isn't guessed.
 - Rejected: an Edit-only line (the owner asked for a column), a mark on the row.

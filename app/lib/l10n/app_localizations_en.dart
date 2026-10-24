@@ -129,12 +129,12 @@ class WordsEn extends Words {
 
   @override
   String ledgerCouldntUndo(String action) {
-    return 'Couldn’t undo “$action” · it changed since';
+    return 'Couldn’t undo “$action” · it was changed afterwards';
   }
 
   @override
   String ledgerCouldntRedo(String action) {
-    return 'Couldn’t redo “$action” · it changed since';
+    return 'Couldn’t redo “$action” · it was changed afterwards';
   }
 
   @override
@@ -192,17 +192,17 @@ class WordsEn extends Words {
 
   @override
   String ledgerPostedToday(String date) {
-    return 'posted today, $date';
+    return 'entered today, $date';
   }
 
   @override
   String ledgerPostedOn(String date) {
-    return 'posted $date';
+    return 'entered $date';
   }
 
   @override
   String ledgerUnderEstimate(String amount) {
-    return '$amount under the estimate · lower it on the Budget screen';
+    return '$amount under the estimate · lower it on the Budget page';
   }
 
   @override
@@ -220,7 +220,7 @@ class WordsEn extends Words {
 
   @override
   String ledgerTypeADate(String example) {
-    return 'Type a date like $example';
+    return 'Enter the date like $example';
   }
 
   @override
@@ -883,7 +883,7 @@ class WordsEn extends Words {
 
   @override
   String get ledgerAddCategoriesAgain =>
-      'You’ll add categories again on the Budget screen.';
+      'You’ll add categories again on the Budget page.';
 
   @override
   String get ledgerEraseNote =>
@@ -928,7 +928,7 @@ class WordsEn extends Words {
       'Change a split’s categories in its own card';
 
   @override
-  String get ledgerDbChangedSince => 'It changed since';
+  String get ledgerDbChangedSince => 'It was changed afterwards';
 
   @override
   String get ledgerDbStillHasRows => 'It still has rows; pick where they go';
@@ -1139,7 +1139,7 @@ class WordsEn extends Words {
 
   @override
   String get planNothingBudgeted =>
-      'Nothing has been budgeted. Once you fill out your budget, this area will show you a forecast.';
+      'Fill in your budget and the forecast appears here.';
 
   @override
   String planUntilPaycheck(String date) {
@@ -1213,7 +1213,7 @@ class WordsEn extends Words {
   String get planNext6Months => 'Next 6 months';
 
   @override
-  String get planNextYear => 'Next year';
+  String get planNextYear => 'Next 12 months';
 
   @override
   String get planSpanTip => 'How far ahead the forecast looks';
@@ -2076,7 +2076,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get rowsErrorDate => 'Enter the date as 2026.09.16';
+  String get rowsErrorDate => 'Enter the date like 2026.09.16';
 
   @override
   String get rowsErrorSameAccount => 'Can’t transfer to the same account';
@@ -2088,7 +2088,7 @@ class WordsEn extends Words {
 
   @override
   String rowsErrorAmount(String typed) {
-    return '“$typed” isn’t a valid amount';
+    return '“$typed” isn’t an amount';
   }
 
   @override
@@ -2500,12 +2500,12 @@ class WordsEn extends Words {
 
   @override
   String setupCantRead(String text) {
-    return 'Can’t read “$text” as an amount';
+    return '“$text” isn’t an amount';
   }
 
   @override
   String setupDateShouldLook(String example) {
-    return 'Date should look like $example';
+    return 'Enter the date like $example';
   }
 
   @override
@@ -5706,6 +5706,22 @@ class WordsEn extends Words {
       locale: localeName,
       other: '$payee and $count changes from $computer',
       one: '$payee and 1 change from $computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ledgerCombinedPayee(String payee) {
+    return '$payee from the other computer';
+  }
+
+  @override
+  String ledgerCombinedPayeeMore(String payee, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$payee and $count changes from the other computer',
+      one: '$payee and 1 change from the other computer',
     );
     return '$_temp0';
   }
