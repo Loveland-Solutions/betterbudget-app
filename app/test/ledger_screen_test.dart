@@ -6576,6 +6576,12 @@ void main() {
           ),
           findsOneWidget,
         );
+        // Only dollars were assigned so far: the tugrik budget begins with
+        // September, so its spending counts (each currency has its own
+        // start, #163).
+        await tester.runAsync(
+          () => db.setPreference(BudgetKeys.began, '2026-09-01'),
+        );
         await click('edit-save');
         await reload();
         expect(data.accountsOff[groceries], {

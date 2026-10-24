@@ -28,7 +28,15 @@ adjustment says which way; remembering a payee for another category says what it
 was; confirming looks through every account's rows; a double Delete records one;
 an open row scrolled away keeps its typing (#141, #148). The opening-balance offers live only
 in the popup; a missed one leaves the account off from the bank by that row
-(known issue, #259). Next: the Budget page's comb (#163).
+(known issue, #259). **The Budget page's comb is under way** (#163; findings are checkboxes there). 0.48.0
+builds the owner's three answers (ADR 0004, "The Budget page's fine-tooth comb: three
+answers"): overspent categories no longer add to Not assigned, and an Overspent line
+says what they went over (`BudgetPool.overspent`); a bill is asked for out of the pay
+before it (`asked` in `_planLine`); until the first amount, the top card says why rows
+don't add up. Also: each currency begins on its own (`BudgetKeys.beganIn`), an amount
+put before the start moves it back (`_beganBy`), a period holding the start says so,
+typed pay counts as received, and amounts over 15 digits are refused. Next in the comb:
+keys and focus on the Budget page, then its words. Living within their means is #234.
 
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload

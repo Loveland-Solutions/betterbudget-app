@@ -17,6 +17,11 @@ abstract final class BudgetKeys {
   /// the user moves it.
   static const began = 'budget.began';
 
+  /// [began] for a currency other than the budget's own, by its code
+  /// (`budget.began.USD`): dollars assigned first don't start the tugrik
+  /// budget, nor the other way round (#163). Without one, [began].
+  static String beganIn(Currency c) => '$began.${c.code}';
+
   /// The currency amounts are in, set with [began], so adding accounts in
   /// the other currency can't change what the amounts mean.
   static const currency = 'budget.currency';
@@ -204,14 +209,22 @@ class BudgetPool {
     required this.currency,
     required this.money,
     required this.notAssigned,
+    this.overspent = 0,
   });
   final Currency currency;
 
-  /// Cash and bank in this currency, less what its cards owe.
+  /// Cash and bank in this currency (ADR 0004, "What's owed is not the
+  /// Budget page's job").
   final int money;
 
-  /// [money] less what sits in this currency's categories, as of today.
+  /// [money] less what this currency's categories with money hold, as of
+  /// today. An overspent category counts as nothing here: what it went
+  /// over is already gone from [money] (owner, 2026-10-24).
   final int notAssigned;
+
+  /// What this currency's overspent categories went over, together, as of
+  /// today: shown under In categories, not taken off again.
+  final int overspent;
 }
 
 class Budget {
@@ -243,13 +256,12 @@ class Budget {
   /// Each income category: what came in during the period.
   final Map<int, Map<Currency, int>> cameIn;
 
-  /// In [currency]: what the user has, less what's in the categories, as
-  /// of today, with every amount assigned counted, a later period's too.
-  /// Negative when more was assigned than there is, or cards owe more
-  /// than there is.
+  /// In [currency]: what the user has, less what the categories with money
+  /// hold, as of today, with every amount assigned counted, a later
+  /// period's too. Negative when more was assigned than there is.
   int get notAssigned => _main.notAssigned;
 
-  /// What [notAssigned] starts from: cash and bank, less what cards owe.
+  /// What [notAssigned] starts from: cash and bank.
   int get money => _main.money;
 
   /// This period's spending since the budget began in categories nothing
@@ -347,14 +359,15 @@ class Budget {
       for (final p in plans.values) p.categoryId: [],
     };
 
-    DateTime? earliest;
+    final earliest = <Currency, DateTime>{};
     final assigned = <int, int>{}, assignedBy = <int, int>{};
     final assignedAll = <int, int>{};
     for (final b in data.budgetAmounts) {
       if (!envelopes.contains(b.categoryId)) continue;
       final d = dateOnly(b.date);
       dated[b.categoryId]?.add((date: d, amount: b.amount));
-      if (earliest == null || d.isBefore(earliest)) earliest = d;
+      final c = currencyOfCategory(b.categoryId);
+      if (earliest[c] == null || d.isBefore(earliest[c]!)) earliest[c] = d;
       assignedAll[b.categoryId] = (assignedAll[b.categoryId] ?? 0) + b.amount;
       if (!d.isAfter(e)) {
         assignedBy[b.categoryId] = (assignedBy[b.categoryId] ?? 0) + b.amount;
@@ -364,7 +377,15 @@ class Budget {
       }
     }
     final stored = data.prefs[BudgetKeys.began];
-    final began = stored != null ? parseDateKey(stored) : earliest;
+    final began = stored != null ? parseDateKey(stored) : earliest[main];
+    // Each currency's own first day: its key, else the budget's, else its
+    // first amount.
+    DateTime? beganFor(Currency c) {
+      if (c == main) return began;
+      final own = data.prefs[BudgetKeys.beganIn(c)];
+      if (own != null) return parseDateKey(own);
+      return stored != null ? parseDateKey(stored) : earliest[c];
+    }
 
     final spent = <int, int>{}, spentCounted = <int, int>{};
     final spentBy = <int, int>{}, spentAll = <int, int>{};
@@ -399,7 +420,6 @@ class Budget {
     for (final t in data.txns) {
       if (t.scheduled) continue;
       final d = dateOnly(t.date);
-      final budgetBegun = began != null && !d.isBefore(began);
       // A plain move between two of the user's accounts this period.
       if (within(d) && t.entries.length == 2) {
         final a = t.entries[0], b = t.entries[1];
@@ -429,6 +449,8 @@ class Budget {
           // Holds no money: its rows stay in what's not assigned.
         } else if (envelopes.contains(a.id)) {
           final from = countsFrom[a.id];
+          final starts = beganFor(a.currency);
+          final budgetBegun = starts != null && !d.isBefore(starts);
           final counted = budgetBegun && (from == null || !d.isBefore(from));
           if (x.currency != a.currency) {
             // In the other currency: it can't be counted against this
@@ -472,11 +494,14 @@ class Budget {
             when x.amount > 0 && fromMoney(x.currency)) {
           // A payment into a long loan, from money that counts.
           final from = countsFrom[c];
+          final starts = beganFor(x.currency);
           spend(
             c,
             d,
             x.amount,
-            budgetBegun && (from == null || !d.isBefore(from)),
+            starts != null &&
+                !d.isBefore(starts) &&
+                (from == null || !d.isBefore(from)),
           );
         }
       }
@@ -488,7 +513,8 @@ class Budget {
     final BudgetSpan viewed = (start: s, end: e, label: '');
 
     final lines = <int, EnvelopeLine>{};
-    final held = <Currency, int>{}, holding = <int, int>{};
+    final held = <Currency, int>{}, over = <Currency, int>{};
+    final holding = <int, int>{};
     var unassignedCount = 0, unassignedAmount = 0;
     for (final id in envelopes) {
       final currency = currencyOfCategory(id);
@@ -549,16 +575,23 @@ class Budget {
                 viewed,
                 by,
                 pay: data.payScheduleById(plan.payScheduleId),
-                began: began,
+                began: beganFor(currency),
                 assigned: assigned[id] ?? 0,
                 left: left,
                 spent: counted,
                 wentBack: wentBack,
                 wentBackOn: wentBackOn,
                 skipped: skippedBills(data, plan),
+                pays: data.paySchedules,
               ),
       );
-      held[currency] = (held[currency] ?? 0) + holds;
+      // Only what a category with money holds is out of the money not
+      // assigned; an overspent one's minus was spent from it already.
+      if (holds > 0) {
+        held[currency] = (held[currency] ?? 0) + holds;
+      } else {
+        over[currency] = (over[currency] ?? 0) - holds;
+      }
       holding[id] = holds;
       if (currency == main && (assignedBy[id] ?? 0) == 0 && counted > 0) {
         unassignedCount++;
@@ -673,6 +706,7 @@ class Budget {
             currency: c,
             money: money,
             notAssigned: money - (held[c] ?? 0),
+            overspent: over[c] ?? 0,
           );
         }(),
     ];
@@ -1043,7 +1077,22 @@ class Budget {
     required int wentBack,
     DateTime? wentBackOn,
     Set<DateTime> skipped = const {},
+    List<PaySchedule> pays = const [],
   }) {
+    // The day a bill is counted in: the last payday on or before it is
+    // due, since that pay is what has to cover it (owner, 2026-10-24).
+    // Rent due 11.01 after the 10.25 pay is asked for in October. With no
+    // pay set up, its own date. In a pay period view it lands in the same
+    // period either way.
+    DateTime asked(DateTime due) {
+      DateTime? last;
+      for (final s in pays) {
+        final d = s.lastOnOrBefore(due);
+        if (d != null && (last == null || d.isAfter(last))) last = d;
+      }
+      return last ?? due;
+    }
+
     // What it held at the start of [day], and what was assigned from
     // [from] up to [to].
     int heldBefore(DateTime day) {
@@ -1177,13 +1226,13 @@ class Budget {
     // first due in its first period or later.
     var n0 = 0;
     if (repeats) {
-      while (dueOf(n0).isBefore(begins.start) && n0 < _mostPeriods) {
+      while (asked(dueOf(n0)).isBefore(begins.start) && n0 < _mostPeriods) {
         n0++;
       }
     }
     final firstNeed = atLeast0(bill - base);
     // Once, its date gone: whatever is still missing is wanted now.
-    if (!repeats && first.isBefore(p.start)) {
+    if (!repeats && asked(first).isBefore(p.start)) {
       final missing = atLeast0(firstNeed - assignedIn(begins.start, p.start));
       return PlanLine(
         plan: plan,
@@ -1198,7 +1247,7 @@ class Budget {
     // starts.
     var n = n0;
     if (repeats) {
-      while (dueOf(n).isBefore(p.start) && n - n0 < _mostPeriods) {
+      while (asked(dueOf(n)).isBefore(p.start) && n - n0 < _mostPeriods) {
         n++;
       }
       // A bill there won't be ("No bill this time", or paid ahead with
@@ -1231,7 +1280,7 @@ class Budget {
     }
     final from = kept < n0
         ? begins
-        : nextBudgetPeriod(budgetPeriod(dueOf(kept), by), by);
+        : nextBudgetPeriod(budgetPeriod(asked(dueOf(kept)), by), by);
     final int need;
     if (kept < n0) {
       need = firstNeed;
@@ -1260,11 +1309,11 @@ class Budget {
     // thin period spreads over the rest instead of being asked for all
     // at once. With one period left, that is the rest.
     int partIn(BudgetSpan span, int missing) {
-      final part = ceilDiv(missing, _periodsThrough(span, due, by));
+      final part = ceilDiv(missing, _periodsThrough(span, asked(due), by));
       return part > missing ? missing : part;
     }
 
-    final lastPeriod = _periodsThrough(p, due, by) == 1;
+    final lastPeriod = _periodsThrough(p, asked(due), by) == 1;
 
     var each = partIn(p, missing);
     // Behind by what last period asked for and didn't get: how far the
@@ -1283,7 +1332,7 @@ class Budget {
       var more = 0;
       for (
         var k = n + 1;
-        !dueOf(k).isAfter(p.end) &&
+        !asked(dueOf(k)).isAfter(p.end) &&
             !over(plan, dueOf(k), pay: pay) &&
             k - n < _mostPeriods;
         k++

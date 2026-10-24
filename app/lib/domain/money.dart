@@ -148,7 +148,11 @@ String formatRounded(int minor, {Currency currency = Currency.mnt}) =>
 /// `12000+8500`, `3 * 4500`, `1,250.50`. Returns minor units, or null when the
 /// input is not a valid expression. `*` and `/` bind tighter than `+` and `-`.
 /// [currency] decides how many decimals count: `1200.5` isn't yen.
+/// More than [mostWholeDigits] whole digits, typed or worked out, isn't an
+/// amount: it would wrap round to a minus or throw (#163).
 int? parseAmount(String input, [Currency currency = Currency.mnt]) {
+  final most = _mostWhole * currency.scale;
+  int? kept(int? v) => v == null || v.abs() > most ? null : v;
   final scale = currency.scale;
   final d = currency.decimals;
   final src = input
@@ -175,6 +179,7 @@ int? parseAmount(String input, [Currency currency = Currency.mnt]) {
     if (t == null || !RegExp(r'^[\d.]').hasMatch(t)) return null;
     pos++;
     final parts = t.split('.');
+    if (parts[0].length > mostWholeDigits) return null;
     final whole = parts[0].isEmpty ? 0 : int.parse(parts[0]);
     final frac = d == 0 || parts.length < 2 ? '' : parts[1];
     return sign *
@@ -188,12 +193,12 @@ int? parseAmount(String input, [Currency currency = Currency.mnt]) {
       final op = tokens[pos++].group(0);
       final rhs = number();
       if (rhs == null) return null;
-      if (op == '/') {
-        if (rhs == 0) return null;
-        acc = (acc! * scale / rhs).round();
-      } else {
-        acc = (acc! * rhs / scale).round();
-      }
+      // As doubles: the product of two big amounts wraps round as ints.
+      final worked = op == '/'
+          ? (rhs == 0 ? null : acc!.toDouble() * scale / rhs)
+          : acc!.toDouble() * rhs / scale;
+      if (worked == null || worked.abs() > most) return null;
+      acc = worked.round();
     }
     return acc;
   }
@@ -204,7 +209,12 @@ int? parseAmount(String input, [Currency currency = Currency.mnt]) {
     final op = tokens[pos++].group(0);
     final rhs = term();
     if (rhs == null) return null;
-    total = op == '+' ? total! + rhs : total! - rhs;
+    total = kept(op == '+' ? total! + rhs : total! - rhs);
+    if (total == null) return null;
   }
   return pos == tokens.length ? total : null;
 }
+
+/// The most whole digits an amount typed may have: ₮999 trillion.
+const mostWholeDigits = 15;
+const _mostWhole = 999999999999999;

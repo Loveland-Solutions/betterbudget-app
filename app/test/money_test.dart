@@ -13,6 +13,15 @@ void main() {
   });
 
   group('parseAmount', () {
+    test('more than 15 whole digits is not an amount, typed or worked out '
+        '(#163)', () {
+      expect(parseAmount('999999999999999'), 99999999999999900);
+      expect(parseAmount('100000000000000000'), isNull);
+      expect(parseAmount('1234567890123456789012'), isNull);
+      expect(parseAmount('999999999999999+1'), isNull);
+      expect(parseAmount('999999999999999*10'), isNull);
+      expect(parseAmount('-999999999999999-1'), isNull);
+    });
     test('plain numbers become minor units', () {
       expect(parseAmount('8000'), 800000);
       expect(parseAmount('2,500,000'), 250000000);
