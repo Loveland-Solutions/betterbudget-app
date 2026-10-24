@@ -1725,6 +1725,20 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('Tab from a date goes on to the next field, past its '
+        'calendar', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.tap(find.widgetWithText(TextField, '2026.09.16'));
+      await tester.pumpAndSettle();
+      await key(tester, LogicalKeyboardKey.tab);
+      final payee = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+      );
+      expect(payee.focusNode?.hasFocus ?? false, isTrue);
+      await tidy(tester, db);
+    });
+
     testWidgets('keys act only on a row the tab shows; ↓ and ↑ choose rows', (
       tester,
     ) async {
