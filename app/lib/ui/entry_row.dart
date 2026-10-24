@@ -2827,13 +2827,21 @@ class _DateFieldState extends State<DateField> {
             alignment: Alignment.topLeft,
             // Clicks in the calendar count as inside the field, so it keeps focus.
             child: TextFieldTapRegion(
-              child: ListenableBuilder(
-                listenable: widget.controller,
-                builder: (context, _) => _Calendar(
-                  selected: parseRowDate(widget.controller.text, widget.today),
-                  today: widget.today,
-                  onPick: _pick,
-                  allowFuture: widget.allowFuture,
+              // For the mouse: the keys type the date. Tab mustn't step
+              // into it, or the field loses focus and the calendar goes
+              // with focus inside it (#163).
+              child: ExcludeFocus(
+                child: ListenableBuilder(
+                  listenable: widget.controller,
+                  builder: (context, _) => _Calendar(
+                    selected: parseRowDate(
+                      widget.controller.text,
+                      widget.today,
+                    ),
+                    today: widget.today,
+                    onPick: _pick,
+                    allowFuture: widget.allowFuture,
+                  ),
                 ),
               ),
             ),

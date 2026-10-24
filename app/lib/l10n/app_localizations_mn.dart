@@ -85,6 +85,61 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerOpeningOfCountsIt(String account, String amount, String date) {
+    return '$account дансны эхний үлдэгдлийн өдөр эсвэл түүнээс өмнөх огноотой тул тэр үлдэгдэлд ($date, $amount) аль хэдийн орсон';
+  }
+
+  @override
+  String get ledgerTakeOutOfBothOpenings =>
+      'Хоёр дансны эхний үлдэгдлээс хасах';
+
+  @override
+  String ledgerOpeningOfNow(String account, String amount, String date) {
+    return '$account дансны эхний үлдэгдэл одоо $amount, огноо: $date';
+  }
+
+  @override
+  String get ledgerOpeningTookIt => 'энэ нь эхний үлдэгдлээс хасагдсан байсан';
+
+  @override
+  String ledgerOpeningOfTookIt(String account) {
+    return 'энэ нь $account дансны эхний үлдэгдлээс хасагдсан байсан';
+  }
+
+  @override
+  String get ledgerCorrectBothOpenings => 'Хоёр дансны эхний үлдэгдлийг засах';
+
+  @override
+  String ledgerOpeningBackTo(String amount) {
+    return 'Эхний үлдэгдлийг буцааж $amount болгох';
+  }
+
+  @override
+  String ledgerMakeOpening(String amount) {
+    return 'Эхний үлдэгдлийг $amount болгох';
+  }
+
+  @override
+  String ledgerMoreRowsFiled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'дахиад $count гүйлгээ ангилагдлаа',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rowsAdjustOwedUpAndLock(String amount) {
+    return 'Өрөнд $amount нэмээд түгжих';
+  }
+
+  @override
+  String rowsAdjustOwedDownAndLock(String amount) {
+    return 'Өрөөс $amount хасаад түгжих';
+  }
+
+  @override
   String get ledgerTakeOutOfOpening => 'Эхний үлдэгдлээс хасах';
 
   @override
@@ -1867,6 +1922,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerRememberedBefore(String category) {
+    return 'өмнө нь ангилал: $category';
+  }
+
+  @override
   String ledgerAlwaysFiled(int count, Object category) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -2367,8 +2427,13 @@ class WordsMn extends Words {
   String get rowsCancel => 'Болих';
 
   @override
-  String rowsAddAdjustmentAndLock(String amount) {
-    return '$amount залруулга нэмээд түгжих';
+  String rowsAdjustUpAndLock(String amount) {
+    return 'Үлдэгдэлд $amount нэмээд түгжих';
+  }
+
+  @override
+  String rowsAdjustDownAndLock(String amount) {
+    return 'Үлдэгдлээс $amount хасаад түгжих';
   }
 
   @override

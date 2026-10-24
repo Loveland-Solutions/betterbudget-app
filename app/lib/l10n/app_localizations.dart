@@ -211,6 +211,72 @@ abstract class Words {
   /// **'it’s dated on or before the opening balance ({amount} on {date}), which already counts it'**
   String ledgerOpeningCountsIt(String amount, String date);
 
+  /// Clause of the toast after a row is added, after " · ": the opening balance of the named account (a transfer's other account, or the row's own in All accounts) already holds the row's money.
+  ///
+  /// In en, this message translates to:
+  /// **'it’s dated on or before the opening balance of {account} ({amount} on {date}), which already counts it'**
+  String ledgerOpeningOfCountsIt(String account, String amount, String date);
+
+  /// Button on that toast when a transfer is already in both accounts' opening balances.
+  ///
+  /// In en, this message translates to:
+  /// **'Take it out of both opening balances'**
+  String get ledgerTakeOutOfBothOpenings;
+
+  /// Toast and undo label after both accounts' opening balances were moved before a typed transfer; one per account, joined by " · ".
+  ///
+  /// In en, this message translates to:
+  /// **'Opening balance of {account} now {amount} on {date}'**
+  String ledgerOpeningOfNow(String account, String amount, String date);
+
+  /// Clause of the toast after a row is deleted or its amount changed, after " · ": the row had been taken out of the account's opening balance (Take it out of the opening balance).
+  ///
+  /// In en, this message translates to:
+  /// **'it was taken out of the opening balance'**
+  String get ledgerOpeningTookIt;
+
+  /// The same, naming the account: a transfer's other account, or All accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'it was taken out of the opening balance of {account}'**
+  String ledgerOpeningOfTookIt(String account);
+
+  /// The same for a transfer taken out of both accounts' opening balances.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct both opening balances'**
+  String get ledgerCorrectBothOpenings;
+
+  /// Button on the toast after a row taken out of the opening balance is deleted: the balance takes the row's money back. amount is where the balance comes to.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening balance back to {amount}'**
+  String ledgerOpeningBackTo(String amount);
+
+  /// Button on the toast after the amount of a row taken out of the opening balance changes: the balance comes to amount, as if the new amount had been taken out.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the opening balance {amount}'**
+  String ledgerMakeOpening(String amount);
+
+  /// Clause of the remember popup, after " · ", when it also says what the payee was remembered for before.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more row filed} other{{count} more rows filed}}'**
+  String ledgerMoreRowsFiled(int count);
+
+  /// Reconcile panel button on a card or loan when the bank says more is owed: posts the difference as an adjustment row, then locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {amount} to what you owe and lock'**
+  String rowsAdjustOwedUpAndLock(String amount);
+
+  /// The same when the bank says less is owed.
+  ///
+  /// In en, this message translates to:
+  /// **'Take {amount} off what you owe and lock'**
+  String rowsAdjustOwedDownAndLock(String amount);
+
   /// Button on that toast: the opening balance moves before the row, less its amount.
   ///
   /// In en, this message translates to:
@@ -2741,6 +2807,12 @@ abstract class Words {
   /// **'{count, plural, =0{Remember this for next time} =1{Remember this for next time, and file 1 more row now} other{Remember this for next time, and file {count} more rows now}}'**
   String ledgerAlwaysFile(int count);
 
+  /// Clause of that popup, after " · ", when the payee was already remembered for another category, which this replaces.
+  ///
+  /// In en, this message translates to:
+  /// **'it was {category} before'**
+  String ledgerRememberedBefore(String category);
+
   /// Popup card after Remember is clicked; with count 0 it is also the undo label ("Undone · Income remembered for next time": the rows are back, so it doesn't say they were filed). The payee is on the line under it. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
@@ -3449,11 +3521,17 @@ abstract class Words {
   /// **'Cancel'**
   String get rowsCancel;
 
-  /// Reconcile panel button when the numbers don’t match: posts the difference as an adjustment row, then locks. amount is formatted money
+  /// Reconcile panel button when the bank's balance is higher than the cleared one: posts the difference as an adjustment row, then locks. The balance is as the bank shows it (on a card, what's owed). amount is formatted money
   ///
   /// In en, this message translates to:
-  /// **'Add {amount} adjustment and lock'**
-  String rowsAddAdjustmentAndLock(String amount);
+  /// **'Add {amount} to the balance and lock'**
+  String rowsAdjustUpAndLock(String amount);
+
+  /// The same when the bank's balance is lower.
+  ///
+  /// In en, this message translates to:
+  /// **'Take {amount} off the balance and lock'**
+  String rowsAdjustDownAndLock(String amount);
 
   /// Reconcile panel button when there’s nothing new to lock
   ///

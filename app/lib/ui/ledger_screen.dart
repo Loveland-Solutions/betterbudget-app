@@ -5,6 +5,8 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
+import 'package:flutter/rendering.dart' show BoxHitTestResult;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -162,6 +164,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// Holds keyboard focus for the register, so row shortcuts reach [_onKey].
   final _registerFocus = FocusNode(debugLabel: 'register');
+
+  /// The page under the popup, which a mouse wheel over the popup scrolls.
+  final _pageKey = GlobalKey();
   late final EntryRowController _entry;
 
   /// The new-transaction row is open. It opens from Add or ⌘N.
@@ -1346,23 +1351,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
           : t.ledgerAddedTo(d.payee, d.account!.name);
       final madeAny = made != null || lineMade.isNotEmpty;
       // Dated on or before the account's opening balance, which already
-      // counts it: offered to come out of it (owner, 2026-10-23).
+      // counts it: offered to come out of it (owner, 2026-10-23). A
+      // transfer's other account is asked about too.
       final account = d.account?.id ?? _accountId!;
-      // From the ledger on screen: a read here would wait behind the write.
       final holds = kept == null && !d.date.isAfter(today)
-          ? _data?.openingHolding(account, d.date)
-          : null;
-      final said = madeAny || hidden || kept != null || holds != null;
+          ? _openingsHolding(d, account)
+          : const <_OpeningHeld>[];
+      final said = madeAny || hidden || kept != null || holds.isNotEmpty;
       _did(
         t.ledgerAdded(d.payee),
         undo: pair.undo,
         redo: pair.redo,
         toast: said,
         detail: kept == null ? null : d.payee,
-        more: holds != null
+        more: holds.isNotEmpty
             ? (
-                label: t.ledgerTakeOutOfOpening,
-                onTap: () => _takeOutOfOpening(account, d.date, d.amount!),
+                label: holds.length > 1
+                    ? t.ledgerTakeOutOfBothOpenings
+                    : t.ledgerTakeOutOfOpening,
+                onTap: () => _takeOutOfOpening(d.date, holds, id),
               )
             : kept?.more,
         // Whole clauses joined by " · ", as every toast is.
@@ -1375,11 +1382,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   t.ledgerScheduledFor(sayFullDate(t, d.date)),
                 if (kept != null) kept.said,
                 if (hidden) t.ledgerNotInThisView,
-                if (holds != null)
-                  t.ledgerOpeningCountsIt(
-                    _accountMoney(account, holds.amount),
-                    sayDate(t, holds.date),
-                  ),
+                for (final h in holds)
+                  // The register's own account goes unnamed, as before.
+                  h.accountId == account && d.account == null
+                      ? t.ledgerOpeningCountsIt(
+                          _accountMoney(h.accountId, h.opening.amount),
+                          sayDate(t, h.opening.date),
+                        )
+                      : t.ledgerOpeningOfCountsIt(
+                          _data?.accounts[h.accountId]?.name ?? '',
+                          _accountMoney(h.accountId, h.opening.amount),
+                          sayDate(t, h.opening.date),
+                        ),
               ].join(' · ')
             : null,
       );
@@ -1409,31 +1423,172 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return owed ? context.t.ledgerOwed(money) : money;
   }
 
+  /// The accounts whose opening balance already counts the row [d] just
+  /// added to [account]: its own and, for a transfer, the other one, each
+  /// with what the row did to it (#261).
+  List<_OpeningHeld> _openingsHolding(EntryDraft d, int account) {
+    final data = _data;
+    final amount = d.amount;
+    // From the ledger on screen: a read here would wait behind the write.
+    if (data == null || amount == null) return const [];
+    final other = d.counter;
+    return [
+      if (data.openingHolding(account, d.date) case final o?)
+        (accountId: account, amount: amount, opening: o),
+      if (other != null && other.isBalanceSheet && d.splits == null)
+        if (data.openingHolding(other.id, d.date) case final o?)
+          (
+            accountId: other.id,
+            // Between currencies the other side moved by its own amount.
+            amount: d.otherAmount == null
+                ? -amount
+                : (amount < 0 ? d.otherAmount! : -d.otherAmount!),
+            opening: o,
+          ),
+    ];
+  }
+
   /// The popup's offer after a row its account's opening balance already
-  /// counted: the balance moves before the row, less what it did.
+  /// counted: the balance moves before the row, less what it did. A
+  /// transfer held by both accounts' balances moves both, in one undo.
   Future<void> _takeOutOfOpening(
-    int accountId,
     DateTime date,
-    int amount,
+    List<_OpeningHeld> holds,
+    int rowId,
+  ) => _moveOpenings(
+    [for (final h in holds) h.accountId],
+    (a) => db.takeOutOfOpening(
+      accountId: a,
+      date: date,
+      amount: holds.firstWhere((h) => h.accountId == a).amount,
+      rowId: rowId,
+    ),
+  );
+
+  /// After row [rowId] was deleted ([after] null) or saved: each account
+  /// whose opening balance it was taken out of, when what was taken out
+  /// isn't what the row does there now, with where the balance comes to
+  /// once put right (#260).
+  List<_PutBack> _openingsToPutBack(
+    int rowId,
+    TxnSnapshot before,
+    TxnSnapshot? after,
+  ) {
+    final data = _data;
+    if (data == null) return const [];
+    return [
+      for (final account in {for (final e in before.entries) e.accountId})
+        if (data.openingTook(account, rowId) case final o?)
+          if (_onAccount(after, account) case final now when now != o.taken)
+            (
+              accountId: account,
+              now: now,
+              to: o.opening.amount + o.taken - now,
+            ),
+    ];
+  }
+
+  /// What row [s] does to [account]; 0 when it's gone ([s] null).
+  static int _onAccount(TxnSnapshot? s, int account) => (s?.entries ?? const [])
+      .where((e) => e.accountId == account)
+      .fold(0, (sum, e) => sum + e.amountMinor);
+
+  /// The popup's clauses and offer for [backs] ([_openingsToPutBack]): the
+  /// row was taken out of the opening balance, and the button saying where
+  /// the balance comes to once put right.
+  ({List<String> said, ({String label, VoidCallback onTap})? more})
+  _putBackOffer(int rowId, List<_PutBack> backs) {
+    final t = context.t;
+    if (backs.isEmpty) return (said: const [], more: null);
+    final named = backs.length > 1 || _all;
+    final one = backs.first;
+    return (
+      said: [
+        for (final b in backs)
+          named || b.accountId != _accountId
+              ? t.ledgerOpeningOfTookIt(
+                  _data?.accounts[b.accountId]?.name ?? '',
+                )
+              : t.ledgerOpeningTookIt,
+      ],
+      more: (
+        // The figure the balance comes to, not an amount to add or take
+        // off, which reads the wrong way round on spending.
+        label: backs.length > 1
+            ? t.ledgerCorrectBothOpenings
+            : one.now == 0
+            ? t.ledgerOpeningBackTo(_accountMoney(one.accountId, one.to))
+            : t.ledgerMakeOpening(_accountMoney(one.accountId, one.to)),
+        onTap: () => _moveOpenings(
+          [for (final b in backs) b.accountId],
+          (a) => db.putBackInOpening(
+            accountId: a,
+            rowId: rowId,
+            now: backs.firstWhere((b) => b.accountId == a).now,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Moves each of [holds]' opening balances by [each], in one write and
+  /// one undo, and says where each now stands.
+  Future<void> _moveOpenings(
+    List<int> accounts,
+    Future<OpeningTake?> Function(int account) each,
   ) async {
     final t = context.t;
     try {
-      final done = await db.takeOutOfOpening(
-        accountId: accountId,
-        date: date,
-        amount: amount,
-      );
-      if (done == null || !mounted) return;
+      final done = await db.transaction(() async {
+        final moved = <(int, OpeningTake)>[];
+        for (final a in accounts) {
+          if (await each(a) case final m?) moved.add((a, m));
+        }
+        return moved;
+      });
+      if (done.isEmpty || !mounted) return;
+      final said = [
+        for (final (a, m) in done)
+          done.length == 1
+              ? t.ledgerOpeningNow(
+                  _accountMoney(a, m.move.toAmount),
+                  sayDate(t, m.move.toDate),
+                )
+              : t.ledgerOpeningOfNow(
+                  _data?.accounts[a]?.name ?? '',
+                  _accountMoney(a, m.move.toAmount),
+                  sayDate(t, m.move.toDate),
+                ),
+      ].join(' · ');
       _did(
-        t.ledgerOpeningNow(
-          _accountMoney(accountId, done.move.toAmount),
-          sayDate(t, done.move.toDate),
-        ),
-        undo: () => db.redoTakeOutOfOpening(accountId, done, back: true),
-        redo: () => db.redoTakeOutOfOpening(accountId, done),
+        said,
+        undo: () => db.transaction(() async {
+          for (final (a, m) in done.reversed) {
+            await db.redoTakeOutOfOpening(a, m, back: true);
+          }
+        }),
+        redo: () => db.transaction(() async {
+          for (final (a, m) in done) {
+            await db.redoTakeOutOfOpening(a, m);
+          }
+        }),
       );
     } on DbException catch (e) {
       if (mounted) _showFailure(t.ledgerCouldntSaveBecause(dbProblem(t, e)));
+    }
+  }
+
+  /// The mouse wheel over the popup: it goes to what's under it on the
+  /// page, so the list scrolls as if the popup weren't there (#148). Called
+  /// while the wheel's own event is handed out, so the list under it takes
+  /// the scroll as it would have.
+  void _scrollUnderToast(PointerScrollEvent e) {
+    final page = _pageKey.currentContext?.findRenderObject();
+    if (page is! RenderBox || !page.attached) return;
+    final hit = BoxHitTestResult();
+    page.hitTest(hit, position: page.globalToLocal(e.position));
+    for (final entry in hit.path) {
+      entry.target.handleEvent(e.transformed(entry.transform), entry);
     }
   }
 
@@ -2211,8 +2366,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// What changing [r]'s amount, which a reconcile locked, takes back,
   /// as the row says it: that reconcile and every later one of the account,
   /// newest first, so each lock left still matches its statement. Null when
-  /// it can't be changed that way: a transfer, a split, or a row locked by
-  /// another account's statement.
+  /// it can't be changed that way: an opening balance, a row locked by
+  /// another account's statement, or a transfer reconciled in both.
   String? _takesBack(RegisterRow r) {
     final data = _data;
     final on = r.reconciledOn;
@@ -2220,7 +2375,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
         on == null ||
         r.cleared != Cleared.reconciled ||
         r.lockedIn != null ||
-        r.kind != RowKind.simple) {
+        r.kind == RowKind.opening) {
+      return null;
+    }
+    // A transfer also reconciled in the other account stays as it is: one
+    // Change… can't take back two accounts' statements (#262).
+    if (r.kind == RowKind.transfer &&
+        data.txns
+            .where((x) => x.id == r.txnId)
+            .expand((x) => x.entries)
+            .any(
+              (e) =>
+                  e.accountId != r.accountId && e.cleared == Cleared.reconciled,
+            )) {
       return null;
     }
     final dates = [
@@ -2430,12 +2597,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     final pair = _alsoRemember(remembered, rowPair.undo, rowPair.redo);
     final kept = remembered == null ? null : _rememberedWords(remembered!);
+    // A new amount on a row taken out of an opening balance (#260). When
+    // the remember offer has the button, the line still says it.
+    final back = _putBackOffer(
+      row.txnId,
+      _openingsToPutBack(row.txnId, before, after),
+    );
     _did(
       t.ledgerEdited(name),
       undo: pair.undo,
       redo: pair.redo,
       detail: kept == null ? null : d.payee,
-      more: kept?.more,
+      more: kept?.more ?? back.more,
       // Whole clauses joined by " · ", as every toast is.
       message: [
         nowScheduled
@@ -2445,6 +2618,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         for (final m in lineMade) t.ledgerNewCategory(m.name),
         if (kept != null) kept.said,
         if (taken.isNotEmpty) t.ledgerReconcilesTakenBack(taken.length),
+        ...back.said,
       ].join(' · '),
     );
     // Now in a bill's category, or for its amount: it may pay the bill.
@@ -2605,16 +2779,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ? context.t.ledgerCantDeleteTransfer(r.lockedIn!)
       : context.t.ledgerCantDeleteReconciled;
 
+  /// Rows being deleted: a second fast click on Delete finds its row here
+  /// and does nothing, so one delete is one undo (#141).
+  final _deleting = <int>{};
+
   Future<void> _delete(RegisterRow r) async {
-    final deleted = await db.softDeleteMany([r.txnId]);
+    if (!_deleting.add(r.txnId)) return;
+    final TxnSnapshot before;
+    final List<int> deleted;
+    try {
+      before = await db.snapshot(r.txnId);
+      deleted = await db.softDeleteMany([r.txnId]);
+    } finally {
+      _deleting.remove(r.txnId);
+    }
     if (!mounted) return;
     if (deleted.isEmpty) {
       _showFailure(_lockMessage(r));
       return;
     }
     _clearSelection();
+    final label = context.t.ledgerDeleted(rowPayee(context.t, r));
+    // Taken out of an opening balance: offered to go back in (#260).
+    final back = _putBackOffer(
+      r.txnId,
+      _openingsToPutBack(r.txnId, before, null),
+    );
     _did(
-      context.t.ledgerDeleted(rowPayee(context.t, r)),
+      label,
+      message: back.said.isEmpty ? null : [label, ...back.said].join(' · '),
+      more: back.more,
       undo: () async {
         await db.restoreMany(deleted);
         if (mounted) setState(() => _selected = r.txnId);
@@ -2958,6 +3152,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final List<int> deleted, made;
     final skipKey = billSkippedKey(r.txnId);
     final skipValue = '$planned;${dateKey(r.date)}';
+    if (!_deleting.add(r.txnId)) return;
     try {
       deleted = await db.softDeleteMany([r.txnId]);
       if (deleted.isEmpty) {
@@ -2969,6 +3164,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     } catch (e) {
       if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
       return;
+    } finally {
+      _deleting.remove(r.txnId);
     }
     DateTime? next;
     for (final x
@@ -3570,6 +3767,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               owed: false,
               accountName: null,
               posted: register.posted,
+              everyPosted: () => data.registerAll().posted,
               scheduled: register.scheduled,
               reconcileThrough: null,
               filter:
@@ -3890,13 +4088,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    final filed = pay == null ? previous.length : paychecks.length;
+    // Remembered as something else before: said, not replaced quietly (#148).
+    final data = _data;
+    final before = was == null || data == null
+        ? null
+        : _ruleLabel(t, data, was, _payChoices(data));
     _did(
       // The undo's popup doesn't say rows were filed: they're back.
       t.ledgerAlwaysFiled(0, label),
-      message: t.ledgerAlwaysFiled(
-        pay == null ? previous.length : paychecks.length,
-        label,
-      ),
+      // What it was before comes first: the rows filed were in Not
+      // categorized, not in the old category.
+      message: before == null || before == label
+          ? t.ledgerAlwaysFiled(filed, label)
+          : [
+              t.ledgerAlwaysFiled(0, label),
+              t.ledgerRememberedBefore(before),
+              if (filed > 0) t.ledgerMoreRowsFiled(filed),
+            ].join(' · '),
       detail: payee,
       undo: () async {
         for (final p in paychecks.reversed) {
@@ -5294,6 +5503,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
           t.ledgerBillsPaidCount(settled.ties.length),
         if (settled.unsure.isNotEmpty)
           t.ledgerBillsToCheck(settled.unsure.length),
+        // Same purchase on a row taken out of the opening balance: the
+        // balance followed it.
+        if (record.openingFixes.lastOrNull case (_, final f)?)
+          t.ledgerOpeningNow(
+            _accountMoney(account.id, f.move.toAmount),
+            sayDate(t, f.move.toDate),
+          ),
         if (record.openingMove case final o?)
           t.importOpeningMovedToast(
             sayDate(t, o.toDate),
@@ -6121,6 +6337,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               return Stack(
                 children: [
                   Row(
+                    key: _pageKey,
                     children: [
                       _Sidebar(
                         data: data,
@@ -6359,6 +6576,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       key: _toastKey,
                       toast: _toast!,
                       onPointer: _toastPointerAt,
+                      onScroll: _scrollUnderToast,
                       onClose: _closeToast,
                       whyOpen: _whyOpen,
                       onWhy: _toggleWhy,
@@ -6544,6 +6762,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 owed: account.isOwed,
                 accountName: account.name,
                 posted: register.posted,
+                everyPosted: () => data.registerAll().posted,
                 scheduled: register.scheduled,
                 reconcileThrough: _reconcile == null
                     ? null
@@ -6732,249 +6951,253 @@ class _Sidebar extends StatelessWidget {
           onTap: () => onSection(sec),
         );
 
-    return Container(
-      width: 240,
-      decoration: BoxDecoration(
-        color: Mid.side,
-        border: Border(right: BorderSide(color: Mid.sideRule)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // The dark-mode logo: the sidebar is dark in every scheme.
-          // On its own layer: the mark is some 1,100 drawing steps, and
-          // nothing about it changes while the page repaints.
-          const RepaintBoundary(
-            child: Padding(
-              key: ValueKey('logo'),
-              padding: EdgeInsets.fromLTRB(24, 30, 24, 6),
-              child: Row(
-                children: [
-                  Mark(height: 40),
-                  SizedBox(width: 10),
-                  Wordmark(height: 22),
-                ],
+    // Tab goes down the sidebar, then on to the page.
+    return FocusTraversalGroup(
+      child: Container(
+        width: 240,
+        decoration: BoxDecoration(
+          color: Mid.side,
+          border: Border(right: BorderSide(color: Mid.sideRule)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The dark-mode logo: the sidebar is dark in every scheme.
+            // On its own layer: the mark is some 1,100 drawing steps, and
+            // nothing about it changes while the page repaints.
+            const RepaintBoundary(
+              child: Padding(
+                key: ValueKey('logo'),
+                padding: EdgeInsets.fromLTRB(24, 30, 24, 6),
+                child: Row(
+                  children: [
+                    Mark(height: 40),
+                    SizedBox(width: 10),
+                    Wordmark(height: 22),
+                  ],
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 22, 12, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // The sections scroll when the accounts outgrow the
-                  // window; Settings and Net worth stay put below.
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!setup)
-                            header(
-                              AppSection.ledger,
-                              Icons.format_list_bulleted_rounded,
-                              t.ledgerSectionLedger,
-                            ),
-                          _Spill(
-                            open: setup || section == AppSection.ledger,
-                            children: [
-                              const SizedBox(height: 10),
-                              if (!setup)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 26,
-                                    bottom: 12,
-                                  ),
-                                  child: _AllAccountsTile(
-                                    active: allActive,
-                                    onTap: onAll,
-                                  ),
-                                ),
-                              for (final g in groups.entries) ...[
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    38,
-                                    0,
-                                    12,
-                                    6,
-                                  ),
-                                  child: Text(
-                                    groupName(g.key),
-                                    style: onest(12, color: Mid.sideInk3),
-                                  ),
-                                ),
-                                for (final a in g.value)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 22, 12, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // The sections scroll when the accounts outgrow the
+                    // window; Settings and Net worth stay put below.
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (!setup)
+                              header(
+                                AppSection.ledger,
+                                Icons.format_list_bulleted_rounded,
+                                t.ledgerSectionLedger,
+                              ),
+                            _Spill(
+                              open: setup || section == AppSection.ledger,
+                              children: [
+                                const SizedBox(height: 10),
+                                if (!setup)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 26),
-                                    // In setup the list on the page is
-                                    // where an account is changed; here
-                                    // it only shows what's been added.
-                                    child: IgnorePointer(
-                                      ignoring: setup,
-                                      child: _AccountTile(
-                                        account: a,
-                                        runsOut: runsOut[a.id],
-                                        balance: data.balanceOf(a.id),
-                                        active: a.id == selected,
-                                        onTap: () => onSelect(a.id),
-                                        actions: actionsFor(a),
-                                      ),
+                                    padding: const EdgeInsets.only(
+                                      left: 26,
+                                      bottom: 12,
+                                    ),
+                                    child: _AllAccountsTile(
+                                      active: allActive,
+                                      onTap: onAll,
                                     ),
                                   ),
-                                const SizedBox(height: 14),
+                                for (final g in groups.entries) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      38,
+                                      0,
+                                      12,
+                                      6,
+                                    ),
+                                    child: Text(
+                                      groupName(g.key),
+                                      style: onest(12, color: Mid.sideInk3),
+                                    ),
+                                  ),
+                                  for (final a in g.value)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 26),
+                                      // In setup the list on the page is
+                                      // where an account is changed; here
+                                      // it only shows what's been added.
+                                      child: IgnorePointer(
+                                        ignoring: setup,
+                                        child: _AccountTile(
+                                          account: a,
+                                          runsOut: runsOut[a.id],
+                                          balance: data.balanceOf(a.id),
+                                          active: a.id == selected,
+                                          onTap: () => onSelect(a.id),
+                                          actions: actionsFor(a),
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 14),
+                                ],
+                                if (!setup)
+                                  _AddAccountTile(
+                                    active: addingAccount,
+                                    onTap: onAddAccount,
+                                  ),
+                                const SizedBox(height: 10),
                               ],
-                              if (!setup)
-                                _AddAccountTile(
-                                  active: addingAccount,
-                                  onTap: onAddAccount,
-                                ),
-                              const SizedBox(height: 10),
+                            ),
+                            if (!setup) ...[
+                              const SizedBox(height: 2),
+                              header(
+                                AppSection.budget,
+                                Icons.pie_chart_outline_rounded,
+                                t.ledgerSectionBudget,
+                              ),
+                              const SizedBox(height: 2),
+                              header(
+                                AppSection.savings,
+                                Icons.savings_outlined,
+                                t.ledgerSectionSavings,
+                              ),
+                              const SizedBox(height: 2),
+                              header(
+                                AppSection.payees,
+                                Icons.storefront_outlined,
+                                t.ledgerSectionPayees,
+                              ),
                             ],
-                          ),
-                          if (!setup) ...[
-                            const SizedBox(height: 2),
-                            header(
-                              AppSection.budget,
-                              Icons.pie_chart_outline_rounded,
-                              t.ledgerSectionBudget,
-                            ),
-                            const SizedBox(height: 2),
-                            header(
-                              AppSection.savings,
-                              Icons.savings_outlined,
-                              t.ledgerSectionSavings,
-                            ),
-                            const SizedBox(height: 2),
-                            header(
-                              AppSection.payees,
-                              Icons.storefront_outlined,
-                              t.ledgerSectionPayees,
-                            ),
                           ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Settings, above Net worth, laid out like a section header so its
-                  // icon and label line up with theirs.
-                  if (!setup)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      // Full width, like the section headers, so hover fills the row.
-                      child: ListenableBuilder(
-                        listenable: Listenable.merge([backupHealth, folder]),
-                        builder: (context, _) => _SettingsGear(
-                          active: section == AppSection.settings,
-                          alert:
-                              folder.value.standing == FolderStanding.apart ||
-                                  folder.value.standing == FolderStanding.rows
-                              ? context.t.ledgerFolderApartAlert
-                              : folder.value.held
-                              ? context.t.ledgerFolderAlert
-                              : backupHealth.value.alarmingAt(now())
-                              ? context.t.ledgerDailyCopyFailing
-                              : null,
-                          onTap: () => onSection(AppSection.settings),
                         ),
                       ),
                     ),
-                  // In setup with no account yet, ₮0.00 would be noise.
-                  if (!setup || data.balanceSheetAccounts.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: Mid.sideRule)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t.ledgerNetWorth,
-                            style: onest(12, color: Mid.sideInk3),
+                    // Settings, above Net worth, laid out like a section header so its
+                    // icon and label line up with theirs.
+                    if (!setup)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        // Full width, like the section headers, so hover fills the row.
+                        child: ListenableBuilder(
+                          listenable: Listenable.merge([backupHealth, folder]),
+                          builder: (context, _) => _SettingsGear(
+                            active: section == AppSection.settings,
+                            alert:
+                                folder.value.standing == FolderStanding.apart ||
+                                    folder.value.standing == FolderStanding.rows
+                                ? context.t.ledgerFolderApartAlert
+                                : folder.value.held
+                                ? context.t.ledgerFolderAlert
+                                : backupHealth.value.alarmingAt(now())
+                                ? context.t.ledgerDailyCopyFailing
+                                : null,
+                            onTap: () => onSection(AppSection.settings),
                           ),
-                          const SizedBox(height: 4),
-                          for (final e in net.entries)
-                            Shrink(
-                              Text(
-                                formatMoney(e.value, currency: e.key),
-                                key: ValueKey('net-worth-${e.key.code}'),
-                                maxLines: 1,
-                                style: onest(
-                                  net.length > 1 ? 16 : 18,
-                                  weight: 500,
-                                  color: Mid.sideInk,
-                                  tabular: true,
-                                ),
-                              ),
-                            ),
-                          if (archived.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                t.ledgerInclArchived(
-                                  archived.entries
-                                      .map((e) => _money(e.value, e.key))
-                                      .join(' · '),
-                                ),
-                                key: const ValueKey('net-worth-archived'),
-                                style: onest(
-                                  11.5,
-                                  color: Mid.sideInk3,
-                                  tabular: true,
-                                ),
-                              ),
-                            ),
-                          // The daily copies share a disk with the ledger:
-                          // said here, on every page, once it has been a
-                          // month, and never while the ledger is in a folder.
-                          if (!setup)
-                            ListenableBuilder(
-                              listenable: Listenable.merge([
-                                elsewhere,
-                                folder,
-                                folderLoaded,
-                              ]),
-                              builder: (context, _) {
-                                final e = elsewhere.value;
-                                if (e == null ||
-                                    !folderLoaded.value ||
-                                    folder.value.path != null ||
-                                    !e.dueAt(now())) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Hoverable(
-                                    key: const ValueKey('backup-reminder'),
-                                    onTap: () => onSection(AppSection.settings),
-                                    builder: (h) => Text(
-                                      e.copied == null
-                                          ? t.ledgerNeverCopiedElsewhere
-                                          : t.ledgerLastCopiedElsewhere(
-                                              e.daysAt(now()),
-                                            ),
-                                      // 11: the longest of the two fits the sidebar on one line.
-                                      style: onest(11, color: Mid.sideInk2)
-                                          .copyWith(
-                                            decoration: h
-                                                ? TextDecoration.underline
-                                                : null,
-                                            decorationColor: Mid.sideInk2,
-                                          ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
-                ],
+                    // In setup with no account yet, ₮0.00 would be noise.
+                    if (!setup || data.balanceSheetAccounts.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                        decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: Mid.sideRule)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.ledgerNetWorth,
+                              style: onest(12, color: Mid.sideInk3),
+                            ),
+                            const SizedBox(height: 4),
+                            for (final e in net.entries)
+                              Shrink(
+                                Text(
+                                  formatMoney(e.value, currency: e.key),
+                                  key: ValueKey('net-worth-${e.key.code}'),
+                                  maxLines: 1,
+                                  style: onest(
+                                    net.length > 1 ? 16 : 18,
+                                    weight: 500,
+                                    color: Mid.sideInk,
+                                    tabular: true,
+                                  ),
+                                ),
+                              ),
+                            if (archived.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  t.ledgerInclArchived(
+                                    archived.entries
+                                        .map((e) => _money(e.value, e.key))
+                                        .join(' · '),
+                                  ),
+                                  key: const ValueKey('net-worth-archived'),
+                                  style: onest(
+                                    11.5,
+                                    color: Mid.sideInk3,
+                                    tabular: true,
+                                  ),
+                                ),
+                              ),
+                            // The daily copies share a disk with the ledger:
+                            // said here, on every page, once it has been a
+                            // month, and never while the ledger is in a folder.
+                            if (!setup)
+                              ListenableBuilder(
+                                listenable: Listenable.merge([
+                                  elsewhere,
+                                  folder,
+                                  folderLoaded,
+                                ]),
+                                builder: (context, _) {
+                                  final e = elsewhere.value;
+                                  if (e == null ||
+                                      !folderLoaded.value ||
+                                      folder.value.path != null ||
+                                      !e.dueAt(now())) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Hoverable(
+                                      key: const ValueKey('backup-reminder'),
+                                      onTap: () =>
+                                          onSection(AppSection.settings),
+                                      builder: (h) => Text(
+                                        e.copied == null
+                                            ? t.ledgerNeverCopiedElsewhere
+                                            : t.ledgerLastCopiedElsewhere(
+                                                e.daysAt(now()),
+                                              ),
+                                        // 11: the longest of the two fits the sidebar on one line.
+                                        style: onest(11, color: Mid.sideInk2)
+                                            .copyWith(
+                                              decoration: h
+                                                  ? TextDecoration.underline
+                                                  : null,
+                                              decorationColor: Mid.sideInk2,
+                                            ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -8068,38 +8291,32 @@ class _SectionHeader extends StatefulWidget {
 }
 
 class _SectionHeaderState extends State<_SectionHeader> {
-  bool _hover = false;
-
   @override
   Widget build(BuildContext context) {
     final on = widget.expanded;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: _hover && !on ? Mid.sideHover : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(widget.icon, size: 16, color: on ? Mid.sun : Mid.sideInk3),
-              const SizedBox(width: 10),
-              Text(
-                widget.label,
-                style: onest(
-                  14,
-                  weight: on ? 600 : 500,
-                  color: on ? Mid.sideInk : Mid.sideInk2,
-                ),
+    // Hoverable: Tab reaches it, and Enter opens it.
+    return Hoverable(
+      onTap: widget.onTap,
+      builder: (hover) => Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: hover && !on ? Mid.sideHover : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(widget.icon, size: 16, color: on ? Mid.sun : Mid.sideInk3),
+            const SizedBox(width: 10),
+            Text(
+              widget.label,
+              style: onest(
+                14,
+                weight: on ? 600 : 500,
+                color: on ? Mid.sideInk : Mid.sideInk2,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -8209,7 +8426,6 @@ class _AccountTile extends StatefulWidget {
 }
 
 class _AccountTileState extends State<_AccountTile> {
-  bool _hover = false;
   final _menu = MenuController();
 
   @override
@@ -8225,12 +8441,10 @@ class _AccountTileState extends State<_AccountTile> {
     child: _tile(),
   );
 
-  Widget _tile() => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => _hover = true),
-    onExit: (_) => setState(() => _hover = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
+  // Hoverable: Tab reaches it, and Enter opens the account.
+  Widget _tile() => Hoverable(
+    onTap: widget.onTap,
+    builder: (hover) => GestureDetector(
       // Right-click: the same menu as ⋯ beside the name, where the click was.
       onSecondaryTapDown: (d) => _menu.open(position: d.localPosition),
       child: Container(
@@ -8239,7 +8453,7 @@ class _AccountTileState extends State<_AccountTile> {
         decoration: BoxDecoration(
           color: widget.active
               ? Mid.sideSel
-              : (_hover || _menu.isOpen ? Mid.sideHover : Colors.transparent),
+              : (hover || _menu.isOpen ? Mid.sideHover : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
           border: widget.active
               ? Border(left: BorderSide(color: Mid.sun, width: 2))
@@ -8290,7 +8504,7 @@ class _AccountTileState extends State<_AccountTile> {
                     ? Mid.sideCoral
                     // The account being worked in reads clearly on its
                     // highlight; the others stay quiet.
-                    : (widget.active || _hover ? Mid.sideInk2 : Mid.sideInk3),
+                    : (widget.active || hover ? Mid.sideInk2 : Mid.sideInk3),
                 tabular: true,
               ),
             ),
@@ -8443,6 +8657,7 @@ class _Toast extends StatelessWidget {
     required this.toast,
     required this.onClose,
     required this.onPointer,
+    required this.onScroll,
     required this.whyOpen,
     required this.onWhy,
   });
@@ -8464,6 +8679,9 @@ class _Toast extends StatelessWidget {
 
   /// Where the pointer moved or clicked on the card; null when it left.
   final ValueChanged<Offset?> onPointer;
+
+  /// The mouse wheel over it, passed to the page under it.
+  final ValueChanged<PointerScrollEvent> onScroll;
 
   static const width = 440.0;
 
@@ -8491,6 +8709,9 @@ class _Toast extends StatelessWidget {
           onExit: (_) => onPointer(null),
           child: Listener(
             onPointerDown: (e) => onPointer(e.position),
+            onPointerSignal: (e) {
+              if (e is PointerScrollEvent) onScroll(e);
+            },
             child: Material(
               color: Colors.transparent,
               child: Container(
@@ -9145,3 +9366,12 @@ class _BillQuestion extends StatelessWidget {
     );
   }
 }
+
+/// An account whose opening balance already counts a row just added:
+/// what the row did to it, and the balance's row.
+typedef _OpeningHeld = ({int accountId, int amount, RegisterRow opening});
+
+/// An account whose opening balance a deleted or changed row was taken out
+/// of: what the row does there [now], and the balance it comes [to] once
+/// put right.
+typedef _PutBack = ({int accountId, int now, int to});
