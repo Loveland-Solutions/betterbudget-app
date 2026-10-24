@@ -609,7 +609,12 @@ class TypedMatch {
     required this.cleared,
     required this.hasMemo,
     this.reconciledElsewhere = false,
+    this.amount,
   });
+
+  /// The typed row's amount on the account, when it isn't the bank's: a
+  /// "same purchase" the person said it is takes the bank's.
+  final int? amount;
   final int transactionId;
   final int entryId;
   final DateTime date;
@@ -628,11 +633,17 @@ class ImportPlanRow {
     required this.key,
     required this.fate,
     this.match,
+    this.near,
     this.repeat = false,
   });
   final ImportRow row;
   final String key;
   final ImportFate fate;
+
+  /// A typed row, still uncleared, near this new one in date and payee or
+  /// amount but at another amount: maybe the same purchase (owner,
+  /// 2026-10-23: offered, never assumed).
+  final TypedMatch? near;
 
   /// A row imported before under another key (from the bank's other kind
   /// of file) has this one's day and amount: it starts left out.
@@ -641,16 +652,36 @@ class ImportPlanRow {
   /// Kept when the person turns the match off, so it can be turned back on.
   final TypedMatch? match;
 
-  ImportPlanRow withFate(ImportFate f) =>
-      ImportPlanRow(row: row, key: key, fate: f, match: match, repeat: repeat);
+  ImportPlanRow withFate(ImportFate f) => ImportPlanRow(
+    row: row,
+    key: key,
+    fate: f,
+    match: match,
+    near: near,
+    repeat: repeat,
+  );
+
+  /// The person said [near] is the same purchase: it matches, and takes the
+  /// bank's amount.
+  ImportPlanRow samePurchase() => ImportPlanRow(
+    row: row,
+    key: key,
+    fate: ImportFate.match,
+    match: near,
+    near: near,
+    repeat: repeat,
+  );
 }
 
 /// A typed row in the file's dates that no bank row matched.
 class UnmatchedTyped {
-  const UnmatchedTyped(this.date, this.payee, this.amount);
+  const UnmatchedTyped(this.date, this.payee, this.amount, {this.entryId});
   final DateTime date;
   final String payee;
   final int amount;
+
+  /// Its entry on the account, to tell when a "same purchase" took it.
+  final int? entryId;
 }
 
 /// What an import would do, and what around it deserves a look.
@@ -734,11 +765,17 @@ class MatchedImport {
     this.memo,
     this.dateBefore,
     this.dateAfter,
+    this.amountBefore,
+    this.amountAfter,
   });
   final int transactionId;
   final int entryId;
   final Cleared before;
   final String key;
+
+  /// Set when a "same purchase" took the bank's amount, on the account.
+  final int? amountBefore;
+  final int? amountAfter;
 
   /// Set when the match took the bank's date (another month).
   final DateTime? dateBefore;
@@ -2535,10 +2572,10 @@ class AppDatabase extends _$AppDatabase {
     // side is as it was.
     final unscheduled =
         !s.header.scheduled &&
-        ((await (select(transactions)
-                  ..where((t) => t.id.equals(s.header.id)))
-                .getSingleOrNull())
-            ?.scheduled ??
+        ((await (select(
+                  transactions,
+                )..where((t) => t.id.equals(s.header.id))).getSingleOrNull())
+                ?.scheduled ??
             false);
     await (update(transactions)..where((t) => t.id.equals(s.header.id))).write(
       TransactionsCompanion(
@@ -3607,12 +3644,13 @@ class AppDatabase extends _$AppDatabase {
   /// The live card or loan in [currency] whose payments come out of
   /// [categoryId] (Savings, "Payments come out of"), if any.
   Future<int?> _loanPaidThrough(int categoryId, String currency) async {
-    final links = await (select(preferences)..where(
-          (p) =>
-              p.key.like('${BudgetKeys.loanPrefix}%') &
-              p.value.equals('$categoryId'),
-        ))
-        .get();
+    final links =
+        await (select(preferences)..where(
+              (p) =>
+                  p.key.like('${BudgetKeys.loanPrefix}%') &
+                  p.value.equals('$categoryId'),
+            ))
+            .get();
     for (final l in links) {
       final id = int.tryParse(l.key.substring(BudgetKeys.loanPrefix.length));
       if (id == null) continue;
@@ -5167,6 +5205,24 @@ class AppDatabase extends _$AppDatabase {
         return record;
       });
 
+  /// Takes back [accountId]'s reconciles, newest first as [unreconcileLast]
+  /// does, until entry [entryId] is no longer locked, so its amount can
+  /// change (owner, 2026-10-23: "Change the amount…"). Returns them newest
+  /// first; undo [relock]s them oldest first.
+  Future<List<ReconcileRecord>> unreconcileThrough(
+    int accountId,
+    int entryId,
+  ) => transaction(() async {
+    final done = <ReconcileRecord>[];
+    while (true) {
+      final e = await (select(
+        entries,
+      )..where((x) => x.id.equals(entryId))).getSingle();
+      if (e.cleared != Cleared.reconciled) return done;
+      done.add(await unreconcileLast(accountId));
+    }
+  });
+
   /// Undo for [reconcile]: the entries go back to cleared, and an adjustment
   /// it posted is removed.
   Future<void> unreconcile(ReconcileRecord record) => transaction(() async {
@@ -5789,7 +5845,10 @@ class AppDatabase extends _$AppDatabase {
     }
     final typed = await customSelect(
       'SELECT e.id AS entry_id, e.amount_minor AS amount, e.cleared AS cleared, '
-      't.id AS txn_id, t.date AS date, t.memo AS memo, p.name AS payee '
+      't.id AS txn_id, t.date AS date, t.memo AS memo, p.name AS payee, '
+      '(SELECT COUNT(*) FROM entries x WHERE x.transaction_id = t.id) AS sides, '
+      '(SELECT a.type FROM entries x JOIN accounts a ON a.id = x.account_id '
+      'WHERE x.transaction_id = t.id AND x.id != e.id LIMIT 1) AS other_type '
       'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
       'LEFT JOIN payees p ON p.id = t.payee_id '
       'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
@@ -5942,8 +6001,84 @@ class AppDatabase extends _$AppDatabase {
             parseDateKey(t.read<String>('date')),
             t.read<String?>('payee') ?? '',
             t.read<int>('amount'),
+            entryId: t.read<int>('entry_id'),
           ),
     ]..sort((a, b) => a.date.compareTo(b.date));
+    // Maybe the same purchase at another amount: a new bank row and an
+    // uncleared typed row of one category (never a transfer or exchange,
+    // whose other side is another account's), near in date, the same name
+    // or within a tenth of the amount. The same name first, then the
+    // nearest amount, then the nearest day. Each typed row offered once.
+    final offered = <int>{};
+    for (var i = 0; i < plan.length; i++) {
+      final p = plan[i];
+      if (p.fate != ImportFate.add || p.repeat) continue;
+      final bankDay = dateOnly(p.row.date);
+      final name = p.row.payee.trim().toLowerCase();
+      QueryRow? best;
+      (int, int, int)? bestRank;
+      for (final t in typed) {
+        final entry = t.read<int>('entry_id');
+        final amount = t.read<int>('amount');
+        if (used.contains(entry) ||
+            offered.contains(entry) ||
+            t.read<int>('sides') != 2 ||
+            !const {
+              'income',
+              'expense',
+            }.contains(t.read<String?>('other_type')) ||
+            Cleared.values[t.read<int>('cleared')] != Cleared.uncleared ||
+            amount == p.row.amount ||
+            amount.sign != p.row.amount.sign) {
+          continue;
+        }
+        final gap = bankDay
+            .difference(parseDateKey(t.read<String>('date')))
+            .inDays;
+        if (gap < -matchDaysBefore || gap > matchDaysAfter) continue;
+        final payee = (t.read<String?>('payee') ?? '').trim().toLowerCase();
+        final sameName =
+            payee.length >= 3 && name.isNotEmpty && name.contains(payee) ||
+            name.length >= 3 && payee.contains(name);
+        // By amount alone, under another name: only within a few days, or
+        // two coffees a week apart would be offered as one.
+        final close =
+            (amount - p.row.amount).abs() * 10 <= p.row.amount.abs() &&
+            gap.abs() <= 3;
+        if (!sameName && !close) continue;
+        final rank = (
+          sameName ? 0 : 1,
+          (amount - p.row.amount).abs(),
+          gap.abs(),
+        );
+        final b = bestRank;
+        if (b == null ||
+            rank.$1 < b.$1 ||
+            (rank.$1 == b.$1 &&
+                (rank.$2 < b.$2 || (rank.$2 == b.$2 && rank.$3 < b.$3)))) {
+          bestRank = rank;
+          best = t;
+        }
+      }
+      if (best == null) continue;
+      offered.add(best.read<int>('entry_id'));
+      final txnId = best.read<int>('txn_id');
+      plan[i] = ImportPlanRow(
+        row: p.row,
+        key: p.key,
+        fate: p.fate,
+        near: TypedMatch(
+          transactionId: txnId,
+          entryId: best.read<int>('entry_id'),
+          date: parseDateKey(best.read<String>('date')),
+          payee: best.read<String?>('payee') ?? '',
+          cleared: Cleared.uncleared,
+          hasMemo: (best.read<String?>('memo') ?? '').trim().isNotEmpty,
+          reconciledElsewhere: (await _reconciledAmong([txnId])).isNotEmpty,
+          amount: best.read<int>('amount'),
+        ),
+      );
+    }
     final before = await customSelect(
       'SELECT COUNT(*) AS n FROM entries e '
       'JOIN transactions t ON t.id = e.transaction_id '
@@ -5965,6 +6100,75 @@ class AppDatabase extends _$AppDatabase {
       opening: opening,
     );
   }
+
+  /// [accountId]'s starting balance when a row dated [date] is one it
+  /// already holds: on or before the day the balance was true for, and not
+  /// locked by a reconcile. Null otherwise.
+  Future<OpeningBalance?> openingHolding(int accountId, DateTime date) async {
+    final o = await _openingOf(accountId);
+    if (o == null || o.locked) return null;
+    final day = openingAsOf(
+      await preference(openingAsOfKey(accountId)),
+      o.transactionId,
+      o.date,
+    );
+    return dateOnly(date).isAfter(day) ? null : o;
+  }
+
+  /// Takes a row of [amount], dated [date], out of [accountId]'s starting
+  /// balance, which already counted it (owner, 2026-10-23): the balance
+  /// moves to the day before the row if it isn't before it already, less
+  /// what the row did, so the account's balance today is as it was. Null
+  /// when the balance doesn't hold the row (any more).
+  Future<({OpeningMove move, String? asOfBefore})?> takeOutOfOpening({
+    required int accountId,
+    required DateTime date,
+    required int amount,
+  }) => transaction(() async {
+    final o = await openingHolding(accountId, date);
+    if (o == null) return null;
+    final key = openingAsOfKey(accountId);
+    final asOfBefore = await preference(key);
+    final asOf = openingAsOf(asOfBefore, o.transactionId, o.date);
+    final dayBefore = dateOnly(date).subtract(const Duration(days: 1));
+    final move = (
+      transactionId: o.transactionId,
+      fromDate: o.date,
+      fromAmount: o.amount,
+      toDate: dayBefore.isBefore(o.date) ? dayBefore : o.date,
+      toAmount: o.amount - amount,
+    );
+    await _setOpening(o.transactionId, move.toDate, move.toAmount);
+    await setPreference(key, openingAsOfValue(o.transactionId, asOf));
+    return (move: move, asOfBefore: asOfBefore);
+  });
+
+  /// Undoes [takeOutOfOpening] ([back]) or does it again.
+  Future<void> redoTakeOutOfOpening(
+    int accountId,
+    ({OpeningMove move, String? asOfBefore}) done, {
+    bool back = false,
+  }) => transaction(() async {
+    // Reconciled since (another computer's statement): it stays.
+    if ((await _openingOf(accountId))?.locked ?? false) {
+      throw LockedException(DbProblem.reconciled);
+    }
+    final m = done.move;
+    await _setOpening(
+      m.transactionId,
+      back ? m.fromDate : m.toDate,
+      back ? m.fromAmount : m.toAmount,
+    );
+    await setPreference(
+      openingAsOfKey(accountId),
+      back
+          ? done.asOfBefore
+          : openingAsOfValue(
+              m.transactionId,
+              openingAsOf(done.asOfBefore, m.transactionId, m.fromDate),
+            ),
+    );
+  });
 
   /// [accountId]'s opening balance (its earliest row against Opening
   /// balances), or null.
@@ -6153,6 +6357,12 @@ class AppDatabase extends _$AppDatabase {
               p.key,
               dateBefore: redated == m.date ? null : m.date,
               dateAfter: redated == m.date ? null : redated,
+              amountBefore: m.amount != null && m.amount != p.row.amount
+                  ? m.amount
+                  : null,
+              amountAfter: m.amount != null && m.amount != p.row.amount
+                  ? p.row.amount
+                  : null,
               // A reconciled row is locked: it takes the key and nothing else.
               memo:
                   m.hasMemo ||
@@ -6178,6 +6388,20 @@ class AppDatabase extends _$AppDatabase {
         opening.transactionId,
         openingMove.toDate,
         openingMove.toAmount,
+      );
+      // The day the balance was true for, so a row typed later between the
+      // two days is known to be in it too.
+      final key = openingAsOfKey(accountId);
+      await setPreference(
+        key,
+        openingAsOfValue(
+          opening.transactionId,
+          openingAsOf(
+            await preference(key),
+            opening.transactionId,
+            opening.date,
+          ),
+        ),
       );
     }
     final record = ImportRecord(
@@ -6206,6 +6430,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _applyMatches(ImportRecord r) async {
     for (final m in r.matched) {
+      if (m.amountAfter case final to?) await _setTwoSided(m, to);
       await (update(entries)..where((e) => e.id.equals(m.entryId))).write(
         EntriesCompanion(importKey: Value(m.key)),
       );
@@ -6229,6 +6454,26 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     }
+  }
+
+  /// A "same purchase": the typed row, one account and one category, takes
+  /// [amount] on the account, and its category the other side.
+  Future<void> _setTwoSided(MatchedImport m, int amount) async {
+    // A statement holds it: never rewritten under it.
+    if ((await _reconciledAmong([m.transactionId])).isNotEmpty) {
+      throw LockedException(DbProblem.reconciled);
+    }
+    final sides = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(m.transactionId))).get();
+    for (final e in sides) {
+      await (update(entries)..where((x) => x.id.equals(e.id))).write(
+        EntriesCompanion(
+          amountMinor: Value(e.id == m.entryId ? amount : -amount),
+        ),
+      );
+    }
+    await _assertBalanced(m.transactionId);
   }
 
   /// Takes an import back: its new rows go (their keys freed, so the same
@@ -6267,6 +6512,13 @@ class AppDatabase extends _$AppDatabase {
       if (m.dateBefore != null) {
         await (update(transactions)..where((t) => t.id.equals(m.transactionId)))
             .write(TransactionsCompanion(date: Value(dateKey(m.dateBefore!))));
+      }
+      // The typed amount back; a statement since holds the bank's.
+      if (m.amountBefore case final a?) {
+        if ((await _reconciledAmong([m.transactionId])).isNotEmpty) {
+          throw LockedException(DbProblem.reconciled);
+        }
+        await _setTwoSided(m, a);
       }
     }
     if (r.openingMove case final o?) {

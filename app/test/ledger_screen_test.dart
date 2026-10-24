@@ -1069,7 +1069,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
-    expect(find.textContaining('date and amount locked'), findsOneWidget);
+    expect(find.textContaining('can still change'), findsOneWidget);
     expect(find.text('Delete'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await settle(tester);
@@ -1147,6 +1147,156 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(find.text('Nothing to undo'), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a row typed before the opening balance offers to come out of '
+      'it, with undo', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Khan Savings').first);
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, '2026.09.16'),
+      '08.30',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'ATM',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      'Household',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '50000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'it’s dated on or before the opening balance (₮12,100,000 on 09.01), '
+        'which already counts it',
+      ),
+      findsOneWidget,
+    );
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Take it out of the opening balance'));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Opening balance now ₮12,150,000 on 08.29'),
+      findsOneWidget,
+    );
+    // Today's balance is the bank's: ₮12,100,000 less what was moved out
+    // since (the demo's ₮500,000 in, on 09.15).
+    expect(find.text('₮12,600,000.00'), findsWidgets);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('₮12,550,000.00'), findsWidgets);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a reconciled row says what can still change; Change the '
+      'amount… takes back its reconcile on Save, and undo locks it again', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    Future<void> toRow() => tester.scrollUntilVisible(
+      find.text('Өргөө кино театр'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await toRow();
+    await tester.tap(find.text('Өргөө кино театр'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Reconciled on 09.10 · its category, payee and memo can still change',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('change-locked-amount')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Saving takes back the reconcile of 09.10. Then reconcile that '
+        'statement again.',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/change_locked_amount.png'),
+    );
+    await tester.enterText(find.widgetWithText(TextField, '48000'), '40000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 reconcile taken back'), findsOneWidget);
+    Future<RegisterRow> cinema() async => (await tester.runAsync(
+      () async =>
+          checking(await db.loadLedger()).posted
+              .firstWhere((r) => r.payee == 'Өргөө кино театр'),
+    ))!;
+    expect((await cinema()).amount, -4000000);
+    expect((await cinema()).cleared, Cleared.cleared);
+    expect(find.text('Never reconciled'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
+    expect((await cinema()).amount, -4800000);
+    expect((await cinema()).cleared, Cleared.reconciled);
+    // Redo takes it back again, with the new amount.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect((await cinema()).amount, -4000000);
+    expect(find.text('Never reconciled'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pumpAndSettle();
+    expect((await cinema()).cleared, Cleared.reconciled);
+
+    // Esc before saving changes nothing. A double-click opens Edit.
+    await toRow();
+    await tester.tap(find.text('Өргөө кино театр'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('Өргөө кино театр'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Last reconciled on 09.10'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -1664,7 +1814,9 @@ void main() {
     await tester.tap(salary);
     await tester.pumpAndSettle();
     expect(
-      find.text('Reconciled on 09.10 · date and amount locked'),
+      find.text(
+        'Reconciled on 09.10 · its category, payee and memo can still change',
+      ),
       findsOneWidget,
     );
     await tester.runAsync(() async {
@@ -8922,6 +9074,94 @@ void main() {
     expect(find.textContaining('opening balance now'), findsOneWidget);
     final data = (await tester.runAsync(db.loadLedger))!;
     expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('import: a typed row at another amount is offered as the same '
+      'purchase; taken, it gets the bank\'s amount', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-same'),
+    ))!;
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (1, 0): DateTime(2026, 9, 13, 18, 0),
+          (1, 2): 0.0,
+          (1, 3): 7000.0,
+          (1, 6): 993000.0,
+          (1, 7): 'Такси',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+    final (id, typed) = (await tester.runAsync(() async {
+      final id = await db.createAccount(
+        name: 'State Bank',
+        type: AccountType.asset,
+      );
+      await db.postOpeningBalance(
+        accountId: id,
+        date: DateTime(2026, 9, 1),
+        balance: 100000000,
+      );
+      final data = await db.loadLedger();
+      final typed = await db.postSimple(
+        accountId: id,
+        date: DateTime(2026, 9, 12),
+        today: DateTime(2026, 9, 16),
+        payee: 'Такси',
+        counterAccountId: data.categories
+            .firstWhere((c) => c.name == 'Transport')
+            .id,
+        amount: -750000,
+      );
+      return (id, typed);
+    }))!;
+    await settle(tester);
+    await tester.tap(find.text('State Bank'));
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.text(
+        'You typed Такси ₮7,500.00 on 09.12. The bank has ₮7,000.00 on 09.13.',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(Dialog),
+      matchesGoldenFile('goldens/import_same_purchase.png'),
+    );
+    await run(find.byKey(const ValueKey('import-same-0')));
+    expect(find.textContaining('takes ₮7,000'), findsOneWidget);
+    await run(find.byKey(const ValueKey('import-do')));
+    final row = (await tester.runAsync(() => db.snapshot(typed)))!.entries
+        .singleWhere((e) => e.accountId == id);
+    expect(row.amountMinor, -700000);
+    expect(row.cleared, Cleared.cleared);
     await tidy(tester, db);
   });
 

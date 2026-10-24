@@ -71,6 +71,29 @@ int registerOrder(RegisterRow a, RegisterRow b) {
   return inFirst != 0 ? inFirst : a.txnId.compareTo(b.txnId);
 }
 
+/// The setting holding the day [accountId]'s opening balance was true for,
+/// kept once the balance has moved back before rows it already held, so a
+/// row typed later, between the two days, is still known to be in it.
+String openingAsOfKey(int accountId) => 'opening.asOf.$accountId';
+
+/// The value kept under [openingAsOfKey]: the opening balance's row with
+/// its day, so a balance moved or entered again by hand isn't judged by a
+/// day kept for another.
+String openingAsOfValue(int transactionId, DateTime day) =>
+    '$transactionId|${dateKey(day)}';
+
+/// The day an opening balance (row [transactionId], dated [date]) was true
+/// for: the day [kept] for it, or its own date when none was or the one
+/// kept was another row's. Never before its own date.
+DateTime openingAsOf(String? kept, int transactionId, DateTime date) {
+  final parts = kept?.split('|');
+  if (parts == null || parts.length != 2 || parts[0] != '$transactionId') {
+    return date;
+  }
+  final day = parseDateKey(parts[1]);
+  return day.isBefore(date) ? date : day;
+}
+
 /// A calendar date as stored: `YYYY-MM-DD` (ADR 0001).
 String dateKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -1170,6 +1193,23 @@ class LedgerData {
   final Map<int, AccountInfo> accounts;
   final List<TxnData> txns;
   final List<Reconciliation> reconciliations;
+
+  /// [accountId]'s opening balance when a row dated [date] is one it
+  /// already holds (owner, 2026-10-23): on or before the day the balance
+  /// was true for ([openingAsOfKey]), and not locked by a reconcile. Null
+  /// otherwise.
+  RegisterRow? openingHolding(int accountId, DateTime date) {
+    final o = registerFor(accountId).posted
+        .where(
+          (r) =>
+              r.kind == RowKind.opening &&
+              r.equity == AppEquity.openingBalances,
+        )
+        .firstOrNull;
+    if (o == null || o.locked) return null;
+    final day = openingAsOf(prefs[openingAsOfKey(accountId)], o.txnId, o.date);
+    return dateOnly(date).isAfter(day) ? null : o;
+  }
 
   /// Every account that still exists, archived ones included: net worth.
   List<AccountInfo> get balanceSheetAccounts =>

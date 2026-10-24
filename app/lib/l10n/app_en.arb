@@ -99,6 +99,34 @@
       }
     }
   },
+  "ledgerOpeningCountsIt": "it’s dated on or before the opening balance ({amount} on {date}), which already counts it",
+  "@ledgerOpeningCountsIt": {
+    "description": "Clause of the toast after a row is added, after \" · \": the account's opening balance already holds the row's money, so it counts twice.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerTakeOutOfOpening": "Take it out of the opening balance",
+  "@ledgerTakeOutOfOpening": {
+    "description": "Button on that toast: the opening balance moves before the row, less its amount."
+  },
+  "ledgerOpeningNow": "Opening balance now {amount} on {date}",
+  "@ledgerOpeningNow": {
+    "description": "Toast and undo label after the opening balance was moved before a typed row.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "ledgerAddedTo": "{name} added to {account}",
   "@ledgerAddedTo": {
     "description": "Toast after a transaction is added from All accounts. name is the payee; account is the account it went into.",
@@ -2950,6 +2978,49 @@
   "@rowsUndoThisReconcile": {
     "description": "Button in the action bar under a row locked by the account’s latest reconcile"
   },
+  "rowsReconciledOnCanChange": "Reconciled on {date} · its category, payee and memo can still change",
+  "@rowsReconciledOnCanChange": {
+    "description": "Bar under a reconciled row (not a transfer): what can still be changed. date is month.day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsReconciledOnCanChangeTransfer": "Reconciled on {date} · its payee and memo can still change",
+  "@rowsReconciledOnCanChangeTransfer": {
+    "description": "Bar under a reconciled transfer: what can still be changed. date is month.day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsChangeLockedAmount": "Change the amount…",
+  "@rowsChangeLockedAmount": {
+    "description": "Button under a reconciled row's amount in its Edit: opens it, taking back reconciles when saved."
+  },
+  "rowsTakesBackReconciles": "{count, plural, =1{Saving takes back the reconcile of {dates}. Then reconcile that statement again.} other{Saving takes back {count} reconciles: {dates}. Then reconcile each statement again.}}",
+  "@rowsTakesBackReconciles": {
+    "description": "Under a reconciled row's amount once Change the amount… is clicked. dates are month.day, joined by commas.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "dates": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerReconcilesTakenBack": "{count, plural, =1{1 reconcile taken back} other{{count} reconciles taken back}}",
+  "@ledgerReconcilesTakenBack": {
+    "description": "Toast clause after an amount a reconcile locked was changed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "rowsReconciledInLocked": "Reconciled in {account} · date and amount locked",
   "@rowsReconciledInLocked": {
     "description": "Action bar under a transfer whose other side was reconciled in another account. account is that account’s name",
@@ -5291,6 +5362,45 @@
   "importLeaveNewOut": "Leave the new rows out",
   "@importLeaveNewOut": {
     "description": "Import window button under the overlap warning."
+  },
+  "importMaybeSame": "You typed {payee} {typed} on {typedDate}. The bank has {bank} on {bankDate}.",
+  "@importMaybeSame": {
+    "description": "Import preview: an uncleared typed row near a new bank row of another amount; maybe the same purchase.",
+    "placeholders": {
+      "payee": {
+        "type": "String"
+      },
+      "typed": {
+        "type": "String"
+      },
+      "typedDate": {
+        "type": "String"
+      },
+      "bank": {
+        "type": "String"
+      },
+      "bankDate": {
+        "type": "String"
+      }
+    }
+  },
+  "importSamePurchase": "Same purchase: take the bank’s {amount}",
+  "@importSamePurchase": {
+    "description": "Button under importMaybeSame: the bank row matches the typed one, which takes the bank's amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "importFateTakesAmount": "takes {amount}",
+  "@importFateTakesAmount": {
+    "description": "Import preview, a row's tag after Same purchase, after \" · \": the typed row takes the bank's amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "importUnmatched": "{count, plural, =1{1 row you typed between {from} and {to} isn’t in this file: {list}. It stays not cleared.} other{{count} rows you typed between {from} and {to} aren’t in this file: {list}. They stay not cleared.}}",
   "@importUnmatched": {

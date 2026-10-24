@@ -17,17 +17,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// the folder channel goes unanswered, as it does with no handler.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   setUp(() {
-    TestWidgetsFlutterBinding.ensureInitialized()
-        .defaultBinaryMessenger
-        .setMockMethodCallHandler(const MethodChannel('betterbudget/folder'), (call) async {
-      if (call.method == 'computerName') return testComputerName;
-      throw MissingPluginException();
-    });
+    TestWidgetsFlutterBinding.ensureInitialized().defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('betterbudget/folder'), (
+          call,
+        ) async {
+          if (call.method == 'computerName') return testComputerName;
+          throw MissingPluginException();
+        });
   });
-  final tolerance = double.tryParse(Platform.environment['GOLDEN_TOLERANCE'] ?? '');
+  final tolerance = double.tryParse(
+    Platform.environment['GOLDEN_TOLERANCE'] ?? '',
+  );
   if (tolerance != null && goldenFileComparator is LocalFileComparator) {
     final base = (goldenFileComparator as LocalFileComparator).basedir;
-    goldenFileComparator = _Tolerant(base.resolve('flutter_test_config.dart'), tolerance);
+    goldenFileComparator = _Tolerant(
+      base.resolve('flutter_test_config.dart'),
+      tolerance,
+    );
   }
   await testMain();
 }

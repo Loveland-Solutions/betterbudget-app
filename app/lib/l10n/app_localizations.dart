@@ -205,6 +205,24 @@ abstract class Words {
   /// **'{name} added'**
   String ledgerAdded(String name);
 
+  /// Clause of the toast after a row is added, after " · ": the account's opening balance already holds the row's money, so it counts twice.
+  ///
+  /// In en, this message translates to:
+  /// **'it’s dated on or before the opening balance ({amount} on {date}), which already counts it'**
+  String ledgerOpeningCountsIt(String amount, String date);
+
+  /// Button on that toast: the opening balance moves before the row, less its amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Take it out of the opening balance'**
+  String get ledgerTakeOutOfOpening;
+
+  /// Toast and undo label after the opening balance was moved before a typed row.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening balance now {amount} on {date}'**
+  String ledgerOpeningNow(String amount, String date);
+
   /// Toast after a transaction is added from All accounts. name is the payee; account is the account it went into.
   ///
   /// In en, this message translates to:
@@ -2801,6 +2819,36 @@ abstract class Words {
   /// **'Undo this reconcile'**
   String get rowsUndoThisReconcile;
 
+  /// Bar under a reconciled row (not a transfer): what can still be changed. date is month.day.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconciled on {date} · its category, payee and memo can still change'**
+  String rowsReconciledOnCanChange(String date);
+
+  /// Bar under a reconciled transfer: what can still be changed. date is month.day.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconciled on {date} · its payee and memo can still change'**
+  String rowsReconciledOnCanChangeTransfer(String date);
+
+  /// Button under a reconciled row's amount in its Edit: opens it, taking back reconciles when saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the amount…'**
+  String get rowsChangeLockedAmount;
+
+  /// Under a reconciled row's amount once Change the amount… is clicked. dates are month.day, joined by commas.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Saving takes back the reconcile of {dates}. Then reconcile that statement again.} other{Saving takes back {count} reconciles: {dates}. Then reconcile each statement again.}}'**
+  String rowsTakesBackReconciles(int count, String dates);
+
+  /// Toast clause after an amount a reconcile locked was changed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 reconcile taken back} other{{count} reconciles taken back}}'**
+  String ledgerReconcilesTakenBack(int count);
+
   /// Action bar under a transfer whose other side was reconciled in another account. account is that account’s name
   ///
   /// In en, this message translates to:
@@ -5051,6 +5099,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Leave the new rows out'**
   String get importLeaveNewOut;
+
+  /// Import preview: an uncleared typed row near a new bank row of another amount; maybe the same purchase.
+  ///
+  /// In en, this message translates to:
+  /// **'You typed {payee} {typed} on {typedDate}. The bank has {bank} on {bankDate}.'**
+  String importMaybeSame(
+    String payee,
+    String typed,
+    String typedDate,
+    String bank,
+    String bankDate,
+  );
+
+  /// Button under importMaybeSame: the bank row matches the typed one, which takes the bank's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Same purchase: take the bank’s {amount}'**
+  String importSamePurchase(String amount);
+
+  /// Import preview, a row's tag after Same purchase, after " · ": the typed row takes the bank's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'takes {amount}'**
+  String importFateTakesAmount(String amount);
 
   /// Import window note: typed rows the bank file doesn't have (another amount, or not posted).
   ///

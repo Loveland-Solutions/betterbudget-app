@@ -1334,9 +1334,8 @@ void main() {
           counterAccountId: savings,
           amount: -500000,
         );
-        final there = (await db.snapshot(
-          t,
-        )).entries.singleWhere((e) => e.accountId == savings);
+        final there = (await db.snapshot(t)).entries
+            .singleWhere((e) => e.accountId == savings);
         await db.toggleCleared(there.id);
         await db.reconcile(
           accountId: savings,
@@ -1363,6 +1362,131 @@ void main() {
         expect((await db.snapshot(t)).header.date, '2026-09-30');
       },
     );
+
+    test('a typed row at another amount is offered as the same purchase, '
+        'never assumed; taken, it gets the bank\'s amount, and undo puts '
+        'the typed one back', () async {
+      final typed = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 30),
+        payee: 'Номин',
+        counterAccountId: groceries,
+        amount: -8640000,
+      );
+      // Far in amount and another name: not offered.
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 30),
+        payee: 'Shunkhlai',
+        counterAccountId: groceries,
+        amount: -12000000,
+      );
+      final rows = [row(15, -8460000, 'POS 12345678: НОМИН СУПЕРМАРКЕТ')];
+      final p = await plan(rows);
+      expect(p.single.fate, ImportFate.add);
+      expect(p.single.near?.transactionId, typed);
+      expect(p.single.near?.amount, -8640000);
+
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: [p.single.samePurchase()],
+        uncategorizedNames: ['Not categorized'],
+      );
+      expect(r.added, isEmpty);
+      final after = await db.snapshot(typed);
+      final mine = after.entries.singleWhere((e) => e.accountId == bank);
+      expect(mine.amountMinor, -8460000);
+      expect(mine.cleared, Cleared.cleared);
+      expect(
+        after.entries.singleWhere((e) => e.accountId == groceries).amountMinor,
+        8460000,
+      );
+
+      await db.undoImport(r);
+      final back = (await db.snapshot(typed)).entries
+          .singleWhere((e) => e.accountId == bank);
+      expect(back.amountMinor, -8640000);
+      expect(back.cleared, Cleared.uncleared);
+    });
+
+    test('a cleared typed row, or one within a tenth by amount alone under '
+        'another name, is handled as it should be', () async {
+      // Cleared already: the bank had it; never offered.
+      final cleared = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 30),
+        payee: 'Номин',
+        counterAccountId: groceries,
+        amount: -8640000,
+      );
+      final e = (await db.snapshot(cleared)).entries
+          .singleWhere((x) => x.accountId == bank);
+      await db.toggleCleared(e.id);
+      expect((await plan([row(15, -8460000, 'НОМИН')])).single.near, isNull);
+      // Another name, the amount within a tenth: offered.
+      final other = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 20),
+        today: DateTime(2026, 9, 30),
+        payee: 'Taxi',
+        counterAccountId: groceries,
+        amount: -1000000,
+      );
+      expect(
+        (await plan([row(21, -950000, 'UBCAB')])).single.near?.transactionId,
+        other,
+      );
+      // A week later under another name: two purchases, not offered.
+      expect((await plan([row(27, -950000, 'UBCAB')])).single.near, isNull);
+    });
+
+    test('same purchase: never a transfer, and the nearest amount wins over '
+        'the nearest day', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      // A transfer of about the bank's amount, a day off: not offered.
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 12),
+        today: DateTime(2026, 9, 30),
+        payee: 'To savings',
+        counterAccountId: savings,
+        amount: -720000,
+      );
+      expect((await plan([row(13, -700000, 'POS 1234')])).single.near, isNull);
+      // Taxi ₮7,500 on 09.12, coffee ₮7,200 on 09.13; the bank's ₮7,000 on
+      // 09.13 is the coffee by amount, and by day.
+      final taxi = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 12),
+        today: DateTime(2026, 9, 30),
+        payee: 'Taxi',
+        counterAccountId: groceries,
+        amount: -750000,
+      );
+      final coffee = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 13),
+        today: DateTime(2026, 9, 30),
+        payee: 'Coffee',
+        counterAccountId: groceries,
+        amount: -720000,
+      );
+      expect(
+        (await plan([row(13, -700000, 'POS 1234')])).single.near?.transactionId,
+        coffee,
+      );
+      // ₮7,450 on 09.13 is nearer the taxi's amount though a day further.
+      expect(
+        (await plan([row(13, -745000, 'POS 1234')])).single.near?.transactionId,
+        taxi,
+      );
+    });
 
     test('a typed row too far from the bank date is not matched', () async {
       await db.postSimple(

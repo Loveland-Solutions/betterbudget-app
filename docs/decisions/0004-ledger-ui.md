@@ -4008,3 +4008,20 @@ app didn't handle, put to the owner.
   that statement's reconcile adjustment (the budget expert's choice, which
   keeps later statements reconciled), and a correction row dated today (the
   bank never shows it, so the next reconcile is off by it).
+
+Settled while building them (reviews, 2026-10-24):
+
+- **Same purchase** is offered only for a typed row of one category (never a
+  transfer or an exchange, whose other side is another account's, maybe
+  reconciled), still uncleared; the same name first, then the nearest
+  amount, then the nearest day; by amount alone only within three days, so
+  two coffees a week apart aren't offered as one. The typed row it offers
+  isn't also listed among the rows the file didn't have.
+- **The opening balance**: the day it was true for is kept with the
+  balance's own row (`opening.asOf.<account>` = row and day), so a balance
+  moved or entered again by hand is judged by its own date. On a card the
+  popup says "₮640,200 owed", as the card's page does. The offer lives in
+  the popup for now; where it stays is a question to the owner (#259).
+- **Change the amount…**, not "Change…": the button sits under the amount.
+  Its line is an instruction: "Saving takes back the reconcile of 09.10.
+  Then reconcile that statement again." Plain rows only for now (#262).
