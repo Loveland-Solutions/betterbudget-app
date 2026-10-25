@@ -832,10 +832,10 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _aside(
         paidAccount != null && dueText != null
             ? t.planPaidFromHint(paidAccount.name, dueText)
-            : switch (used.length) {
-                0 => t.planPaidFromNoneChecked,
-                1 => t.planPaidFromHintNone,
-                final n => t.planPaidFromSeveral(n),
+            : switch (used) {
+                [] => t.planPaidFromNoneChecked,
+                [final one] => t.planPaidFromHintNone(one.name),
+                final n => t.planPaidFromSeveral(n.length),
               },
       ),
     ];

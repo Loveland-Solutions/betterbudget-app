@@ -1697,7 +1697,7 @@
       }
     }
   },
-  "planPaidFromSeveral": "Checked in {count} accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.",
+  "planPaidFromSeveral": "{count} accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.",
   "@planPaidFromSeveral": {
     "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)",
     "placeholders": {
@@ -1961,10 +1961,6 @@
   "@planAddCategory": {
     "description": "Budget page: button, top right"
   },
-  "planAddCategoryTip": "Add a category",
-  "@planAddCategoryTip": {
-    "description": "Budget page: tooltip on the Add category button"
-  },
   "setupAddPayTip": "Set up a paycheck: how much, how often, and the account it goes into",
   "@setupAddPayTip": {
     "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
@@ -2046,7 +2042,7 @@
   "@planPaydayNotSetUp": {
     "description": "Budget page: the pay note beside the Income line, gold, when pay is not set up yet"
   },
-  "planMorePay": " · +{count} more pay",
+  "planMorePay": " · {count, plural, =1{+1 more pay} other{+{count} more pays}}",
   "@planMorePay": {
     "description": "Budget page: added at the end of the pay note when there are more pay schedules",
     "placeholders": {
@@ -2055,7 +2051,7 @@
       }
     }
   },
-  "planRaiseSplit": "Your last 6 all came in over 5% above the estimate · raise it?",
+  "planRaiseSplit": "Your last 6 pays were each more than 5% over the estimate · raise it?",
   "@planRaiseSplit": {
     "description": "Budget page: gold suggestion in the pay note, pay that varies (two amounts a month)"
   },
@@ -2068,7 +2064,7 @@
       }
     }
   },
-  "planLastTwoLess": "Last 2 came in at {amount}, less than planned · update it?",
+  "planLastTwoLess": "Your last 2 pays were {amount}, less than planned · change the amount?",
   "@planLastTwoLess": {
     "description": "Budget page: gold suggestion in the pay note, the same pay came in lower twice",
     "placeholders": {
@@ -2077,7 +2073,7 @@
       }
     }
   },
-  "planLastTwoMore": "Last 2 came in at {amount} · update the amount?",
+  "planLastTwoMore": "Your last 2 pays were {amount} · change the amount?",
   "@planLastTwoMore": {
     "description": "Budget page: gold suggestion in the pay note, the same pay came in different twice",
     "placeholders": {
@@ -6368,7 +6364,7 @@
       }
     }
   },
-  "planPaidFromArchived": "{account} is archived, so this isn’t scheduled",
+  "planPaidFromArchived": "{account} is archived, so this bill isn’t in any forecast",
   "@planPaidFromArchived": {
     "description": "Budget page, a category's plan (On a date): gold line in Edit when the Paid from account has been archived",
     "placeholders": {
@@ -6415,7 +6411,7 @@
       }
     }
   },
-  "planStillFor": "{amount} still to put in for {start}–{end}",
+  "planStillFor": "{amount} still to assign for {start}–{end}",
   "@planStillFor": {
     "description": "Budget page: note under a category's name, seen by another period than its own, when the period before was never filled and the rest of it is in view: what that period still needs, with its dates (like 10.23–11.24)",
     "placeholders": {
@@ -6439,7 +6435,7 @@
       }
     }
   },
-  "planNoCarry": "what’s left doesn’t carry over",
+  "planNoCarry": "what’s left goes back to not assigned",
   "@planNoCarry": {
     "description": "Budget page: part of the note under a category's name, after the amount and a dot"
   },
@@ -6718,7 +6714,7 @@
       }
     }
   },
-  "planMoneyChange": "Changing the currency takes back {amount} assigned to it and removes its plan",
+  "planMoneyChange": "Changing the currency sends the {amount} assigned to it back to not assigned and removes its plan",
   "@planMoneyChange": {
     "description": "Budget page, a category's currency and accounts: gold line before Save, and part of the toast after, when the currency is changed on a category that has amounts and a plan",
     "placeholders": {
@@ -6727,7 +6723,7 @@
       }
     }
   },
-  "planMoneyChangeAmount": "Changing the currency takes back {amount} assigned to it",
+  "planMoneyChangeAmount": "Changing the currency sends the {amount} assigned to it back to not assigned",
   "@planMoneyChangeAmount": {
     "description": "The same line, for a category with amounts and no plan",
     "placeholders": {
@@ -6773,7 +6769,7 @@
       }
     }
   },
-  "planFromNone": "no account chosen",
+  "planFromNone": "no account checked",
   "@planFromNone": {
     "description": "Budget page: note under a category's name when every account is unchecked"
   },
@@ -6870,11 +6866,11 @@
   "@planDueDateQ": {
     "description": "Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date"
   },
-  "planDueNoMeans": "A set amount you spend through each month, like groceries.",
+  "planDueNoMeans": "An amount you spend as the month goes, like groceries.",
   "@planDueNoMeans": {
     "description": "Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example"
   },
-  "planDueNoMeansPay": "A set amount you spend through each pay period, like groceries.",
+  "planDueNoMeansPay": "An amount you spend as the pay period goes, like groceries.",
   "@planDueNoMeansPay": {
     "description": "Budget page, Edit: the same note while the budget runs by pay period"
   },
@@ -6902,11 +6898,11 @@
   "@planNothingSet": {
     "description": "Budget page, Edit under a category's row: grey hint inside the empty monthly amount; empty means no plan"
   },
-  "planEmptyHint": "Leave it empty and you decide each month.",
+  "planEmptyHint": "Leave it empty and you choose each month how much to assign.",
   "@planEmptyHint": {
     "description": "Budget page, Edit under a category's row: note beside the empty monthly amount"
   },
-  "planEmptyHintPay": "Leave it empty and you decide each pay period.",
+  "planEmptyHintPay": "Leave it empty and you choose each pay period how much to assign.",
   "@planEmptyHintPay": {
     "description": "Budget page, Edit under a category's row: the same, by pay period"
   },
@@ -6926,7 +6922,7 @@
   "@planGoesBack": {
     "description": "Budget page, Edit under a category's row: the second carry-over answer: when a period ends, what wasn't spent returns to the money not assigned"
   },
-  "planStopAt": "Stop at",
+  "planStopAt": "Up to",
   "@planStopAt": {
     "description": "Budget page, Edit under a category's row: label of the optional cap on a category that carries over"
   },
@@ -6934,7 +6930,7 @@
   "@planNoLimit": {
     "description": "Budget page, Edit under a category's row: grey hint inside the empty cap field"
   },
-  "planStopAtHint": "Once it holds this much, it stops asking.",
+  "planStopAtHint": "Once it holds this much, the plan stops adding to it.",
   "@planStopAtHint": {
     "description": "Budget page, Edit under a category's row: note beside the cap"
   },
@@ -7011,7 +7007,7 @@
   "@planOnWeekdays": {
     "description": "Budget page, Edit, the Custom block, every so many weeks: label of the row of weekday chips (Mo … Su)"
   },
-  "planWeekdaysHint": "Pick the days; with none picked, the date’s own weekday.",
+  "planWeekdaysHint": "Pick the days. With none picked, it’s the due date’s weekday.",
   "@planWeekdaysHint": {
     "description": "Budget page, Edit, the Custom block: note beside the weekday chips while none is picked"
   },
@@ -7147,7 +7143,7 @@
   "@planOnce": {
     "description": "Budget page, Edit under a category's row (Yes): the first choice of how often, the amount is wanted one time"
   },
-  "planPaidFromHint": "Shows in {account}’s forecast on {date}; you confirm it when it’s paid.",
+  "planPaidFromHint": "The bill shows in {account}’s forecast on {date}. When it’s paid, you confirm it there.",
   "@planPaidFromHint": {
     "description": "Budget page, Edit under a category's row (Yes): note beside Paid from once an account is chosen",
     "placeholders": {
@@ -7159,9 +7155,14 @@
       }
     }
   },
-  "planPaidFromHintNone": "Leave one account checked and the bill shows in its forecast.",
+  "planPaidFromHintNone": "Enter the date and the bill shows in {account}’s forecast.",
   "@planPaidFromHintNone": {
-    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)"
+    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while more than one account, or none, is checked (the bill is scheduled only in a single account)",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
   },
   "planEnterAmountDate": "Enter the amount and the date",
   "@planEnterAmountDate": {

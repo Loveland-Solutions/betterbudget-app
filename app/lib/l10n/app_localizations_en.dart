@@ -1165,7 +1165,7 @@ class WordsEn extends Words {
 
   @override
   String planPaidFromSeveral(int count) {
-    return 'Checked in $count accounts, so this bill isn’t in any forecast. Uncheck down to one to see it there.';
+    return '$count accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.';
   }
 
   @override
@@ -1323,9 +1323,6 @@ class WordsEn extends Words {
   String get planAddCategory => 'Add category';
 
   @override
-  String get planAddCategoryTip => 'Add a category';
-
-  @override
   String get setupAddPayTip =>
       'Set up a paycheck: how much, how often, and the account it goes into';
 
@@ -1371,12 +1368,18 @@ class WordsEn extends Words {
 
   @override
   String planMorePay(int count) {
-    return ' · +$count more pay';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '+$count more pays',
+      one: '+1 more pay',
+    );
+    return ' · $_temp0';
   }
 
   @override
   String get planRaiseSplit =>
-      'Your last 6 all came in over 5% above the estimate · raise it?';
+      'Your last 6 pays were each more than 5% over the estimate · raise it?';
 
   @override
   String planRaiseLowest(String amount) {
@@ -1385,12 +1388,12 @@ class WordsEn extends Words {
 
   @override
   String planLastTwoLess(String amount) {
-    return 'Last 2 came in at $amount, less than planned · update it?';
+    return 'Your last 2 pays were $amount, less than planned · change the amount?';
   }
 
   @override
   String planLastTwoMore(String amount) {
-    return 'Last 2 came in at $amount · update the amount?';
+    return 'Your last 2 pays were $amount · change the amount?';
   }
 
   @override
@@ -4371,7 +4374,7 @@ class WordsEn extends Words {
 
   @override
   String planPaidFromArchived(String account) {
-    return '$account is archived, so this isn’t scheduled';
+    return '$account is archived, so this bill isn’t in any forecast';
   }
 
   @override
@@ -4391,7 +4394,7 @@ class WordsEn extends Words {
 
   @override
   String planStillFor(String amount, String start, String end) {
-    return '$amount still to put in for $start–$end';
+    return '$amount still to assign for $start–$end';
   }
 
   @override
@@ -4400,7 +4403,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planNoCarry => 'what’s left doesn’t carry over';
+  String get planNoCarry => 'what’s left goes back to not assigned';
 
   @override
   String planWentBack(String amount) {
@@ -4565,12 +4568,12 @@ class WordsEn extends Words {
 
   @override
   String planMoneyChange(String amount) {
-    return 'Changing the currency takes back $amount assigned to it and removes its plan';
+    return 'Changing the currency sends the $amount assigned to it back to not assigned and removes its plan';
   }
 
   @override
   String planMoneyChangeAmount(String amount) {
-    return 'Changing the currency takes back $amount assigned to it';
+    return 'Changing the currency sends the $amount assigned to it back to not assigned';
   }
 
   @override
@@ -4592,7 +4595,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planFromNone => 'no account chosen';
+  String get planFromNone => 'no account checked';
 
   @override
   String planOtherRows(int count, String amount, String symbol, String other) {
@@ -4643,11 +4646,11 @@ class WordsEn extends Words {
 
   @override
   String get planDueNoMeans =>
-      'A set amount you spend through each month, like groceries.';
+      'An amount you spend as the month goes, like groceries.';
 
   @override
   String get planDueNoMeansPay =>
-      'A set amount you spend through each pay period, like groceries.';
+      'An amount you spend as the pay period goes, like groceries.';
 
   @override
   String get planDueYesMeans =>
@@ -4669,11 +4672,12 @@ class WordsEn extends Words {
   String get planNothingSet => 'nothing set';
 
   @override
-  String get planEmptyHint => 'Leave it empty and you decide each month.';
+  String get planEmptyHint =>
+      'Leave it empty and you choose each month how much to assign.';
 
   @override
   String get planEmptyHintPay =>
-      'Leave it empty and you decide each pay period.';
+      'Leave it empty and you choose each pay period how much to assign.';
 
   @override
   String get planLeftMonthEnd => 'What’s left at month’s end';
@@ -4688,13 +4692,14 @@ class WordsEn extends Words {
   String get planGoesBack => 'Goes back to not assigned';
 
   @override
-  String get planStopAt => 'Stop at';
+  String get planStopAt => 'Up to';
 
   @override
   String get planNoLimit => 'no limit';
 
   @override
-  String get planStopAtHint => 'Once it holds this much, it stops asking.';
+  String get planStopAtHint =>
+      'Once it holds this much, the plan stops adding to it.';
 
   @override
   String get planAmountDue => 'Amount due';
@@ -4760,7 +4765,7 @@ class WordsEn extends Words {
 
   @override
   String get planWeekdaysHint =>
-      'Pick the days; with none picked, the date’s own weekday.';
+      'Pick the days. With none picked, it’s the due date’s weekday.';
 
   @override
   String get planOnLabel => 'On';
@@ -4863,12 +4868,13 @@ class WordsEn extends Words {
 
   @override
   String planPaidFromHint(String account, String date) {
-    return 'Shows in $account’s forecast on $date; you confirm it when it’s paid.';
+    return 'The bill shows in $account’s forecast on $date. When it’s paid, you confirm it there.';
   }
 
   @override
-  String get planPaidFromHintNone =>
-      'Leave one account checked and the bill shows in its forecast.';
+  String planPaidFromHintNone(String account) {
+    return 'Enter the date and the bill shows in $account’s forecast.';
+  }
 
   @override
   String get planEnterAmountDate => 'Enter the amount and the date';

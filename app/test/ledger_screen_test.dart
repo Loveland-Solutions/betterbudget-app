@@ -5567,7 +5567,7 @@ void main() {
         expect(title(), 'Pay period · 11.20–12.03');
         expect(
           find.text(
-            '₮600,000 each pay period · Jeff · ₮600,000 still to put in for '
+            '₮600,000 each pay period · Jeff · ₮600,000 still to assign for '
             '10.23–11.24 · plus about ₮180,000 toward the next',
           ),
           findsOneWidget,
@@ -6305,7 +6305,7 @@ void main() {
       await reload();
       expect(data.plans[groceries]!.rollover, isFalse);
       expect(
-        find.text('₮900,000 a month · what’s left doesn’t carry over'),
+        find.text('₮900,000 a month · what’s left goes back to not assigned'),
         findsOneWidget,
       );
       await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
@@ -6480,7 +6480,7 @@ void main() {
       // One control for the accounts: left checked alone, TDB Checking is
       // where the bill is scheduled.
       expect(
-        find.textContaining('accounts, so this bill isn’t in any forecast'),
+        find.textContaining('accounts are checked, so this bill isn’t in any forecast'),
         findsOneWidget,
       );
       await pick('money-accounts');
@@ -6492,7 +6492,10 @@ void main() {
         await tester.pumpAndSettle();
       }
       await pick('money-accounts');
-      expect(find.textContaining('Shows in TDB Checking'), findsOneWidget);
+      expect(
+        find.textContaining('The bill shows in TDB Checking'),
+        findsOneWidget,
+      );
       // Every six months, typed under "Every…" (a gap the presets don't
       // offer).
       await pick('plan-repeat');
@@ -6789,7 +6792,8 @@ void main() {
         );
         expect(
           text('money-change'),
-          r'Changing the currency takes back $120.00 assigned to it',
+          r'Changing the currency sends the $120.00 assigned to it back to '
+          'not assigned',
         );
         await click('edit-save');
         await reload();
