@@ -4129,3 +4129,30 @@ Settled while building them (2026-10-24):
   matches the Income line beside it.
 - **An amount typed with more than 15 whole digits isn't an amount**, typed
   or worked out: it had turned into a minus.
+
+The Budget page by keys and mouse (comb, 2026-10-24):
+
+- **Every menu opened from the keys puts focus on its first item**
+  (`focusFirstOnKeys`), so ↑ ↓, Enter and Esc work in it: a category's ⋯,
+  Edit's dropdowns, the period's, and the Ledger's Categorize and Move to.
+  Opened with the mouse, focus stays where it was.
+- **Focus comes back where it was**: to the Assigned amount after Enter or
+  Esc, to the row's ⋯ after Edit closes.
+- **Edit is a focus scope**, as the Move box is: Tab goes round its fields
+  and buttons. A date's calendar is for the mouse and is out of Tab.
+- **On the Income tab** the hidden Spending rows are out of Tab.
+- **An open Edit stays open** across ‹ ›, Back to today and ⌘N (New category
+  opens over it), with what was typed. Leaving the page still closes it.
+- **Move box**: Enter moves wherever focus is in it; Esc closes the list
+  first; ↑ ↓ walk the list; Move with nothing chosen says "Choose a
+  category", as a missing amount says "Enter an amount"; with nothing to
+  move from, the list says so; an archived category with money can be
+  moved from.
+- **Deleting a category with rows** starts with Not categorized chosen, when
+  there is one: a default, not a required choice.
+- **A new category named like an archived one** brings it back with its own
+  name, as one Add and one undo.
+- **Edit's preview** draws "Assign ₮X" in quiet ink: it does nothing until
+  saved.
+- **The top card** narrows its figure columns with many currencies (four fit
+  at 1360 × 760), and says "As of today" while another period is on screen.

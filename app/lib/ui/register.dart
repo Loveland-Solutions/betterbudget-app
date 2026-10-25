@@ -2046,7 +2046,7 @@ class CategoryMenu extends StatelessWidget {
         maximumSize: const WidgetStatePropertyAll(Size(260, 360)),
       ),
       alignmentOffset: const Offset(0, 4),
-      menuChildren: [
+      menuChildren: focusFirstOnKeys([
         for (final l in leading)
           MenuItemButton(
             onPressed: l.onTap,
@@ -2077,7 +2077,7 @@ class CategoryMenu extends StatelessWidget {
               style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
             ),
           ),
-      ],
+      ]),
       builder: (context, menu, _) =>
           builder(menu.isOpen, () => menu.isOpen ? menu.close() : menu.open()),
     );
@@ -2218,9 +2218,14 @@ class Hoverable extends StatefulWidget {
     required this.builder,
     this.onTap,
     this.focusable = true,
+    this.focusNode,
   });
   final Widget Function(bool hover) builder;
   final VoidCallback? onTap;
+
+  /// Its own, when focus is to come back to it (an amount typed in it,
+  /// an editor it opened, closed).
+  final FocusNode? focusNode;
 
   /// False for a register row, which ↑ ↓ choose: Tab goes to its buttons
   /// once it's chosen, not through every row.
@@ -2252,6 +2257,7 @@ class _HoverableState extends State<Hoverable> {
     );
     if (onTap == null || !widget.focusable) return region;
     return FocusableActionDetector(
+      focusNode: widget.focusNode,
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       // Its own, so Enter presses it before the register's keys see it.
       shortcuts: const {
@@ -2270,6 +2276,53 @@ class _HoverableState extends State<Hoverable> {
       child: region,
     );
   }
+}
+
+/// A menu's items, the first taking focus when the menu was opened from
+/// the keyboard, so ↑ ↓, Enter and Esc work in it (#163). Opened with the
+/// mouse, focus stays where it was.
+List<Widget> focusFirstOnKeys(List<Widget> items) => [
+  if (items.isNotEmpty) _FocusFirstOnKeys(child: items.first),
+  ...items.skip(1),
+];
+
+class _FocusFirstOnKeys extends StatefulWidget {
+  const _FocusFirstOnKeys({required this.child});
+  final Widget child;
+
+  @override
+  State<_FocusFirstOnKeys> createState() => _FocusFirstOnKeysState();
+}
+
+class _FocusFirstOnKeysState extends State<_FocusFirstOnKeys> {
+  @override
+  void initState() {
+    super.initState();
+    if (FocusManager.instance.highlightMode != FocusHighlightMode.traditional) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // The item's own focus: the first Focus under it.
+      FocusNode? first;
+      void visit(Element e) {
+        if (first != null) return;
+        if (e.widget is Focus) {
+          e.visitChildElements(
+            (c) => first ??= Focus.maybeOf(c, createDependency: false),
+          );
+          if (first != null) return;
+        }
+        e.visitChildElements(visit);
+      }
+
+      context.visitChildElements(visit);
+      first?.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _DashedBorder extends CustomPainter {

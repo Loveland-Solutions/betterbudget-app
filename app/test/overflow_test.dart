@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart' show Currency;
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/language.dart';
@@ -60,6 +61,22 @@ Future<void> _fillIn(AppDatabase db, DateTime today) async {
   );
   final month = DateTime(today.year, today.month);
   final monthEnd = DateTime(today.year, today.month + 1, 0);
+  // Four currencies: the Budget page's top card has a column each (#163).
+  for (final code in ['USD', 'CNY', 'KRW']) {
+    final c = Currency.fromCode(code);
+    final bank = await db.createAccount(
+      name: 'Bank in $code',
+      type: AccountType.asset,
+      currency: c,
+    );
+    await db.postOpeningBalance(
+      accountId: bank,
+      date: month,
+      balance: 987654321,
+    );
+    final travel = await db.createCategory('Travel in $code', currency: c);
+    await db.setBudgetAmount(travel, month, monthEnd, 123456789);
+  }
   var i = 0;
   for (final c in data.accounts.values.where(
     (a) => a.type == AccountType.expense && !a.deleted,

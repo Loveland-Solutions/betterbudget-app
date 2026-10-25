@@ -35,8 +35,12 @@ says what they went over (`BudgetPool.overspent`); a bill is asked for out of th
 before it (`asked` in `_planLine`); until the first amount, the top card says why rows
 don't add up. Also: each currency begins on its own (`BudgetKeys.beganIn`), an amount
 put before the start moves it back (`_beganBy`), a period holding the start says so,
-typed pay counts as received, and amounts over 15 digits are refused. Next in the comb:
-keys and focus on the Budget page, then its words. Living within their means is #234.
+typed pay counts as received, and amounts over 15 digits are refused. 0.48.1 is the page by keys
+and mouse (ADR 0004, "The Budget page by keys and mouse"): menus take focus from the
+keys (`focusFirstOnKeys` in `register.dart`), focus comes back where it was, Edit is a
+focus scope, Edit stays open across ‹ ›, and the Move box, delete and top-card fixes.
+Left from the group: Shift+Tab while typing Assigned, and an Edit with changes closed
+by leaving the page. Next in the comb: the page's words. Living within their means is #234.
 
 **Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
 new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload

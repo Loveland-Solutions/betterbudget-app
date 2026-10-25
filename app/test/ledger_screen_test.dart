@@ -5331,6 +5331,129 @@ void main() {
     Future<void> editCategory(WidgetTester tester, String name) =>
         categoryMenu(tester, name, 'category-edit');
 
+    group('by keys alone (#163)', () {
+      // Whether focus is on, or inside, the widget keyed [k].
+      bool focusIn(Key k) {
+        var found = false;
+        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
+          e,
+        ) {
+          if (e.widget.key == k) found = true;
+          return !found;
+        });
+        return found;
+      }
+
+      bool focusInKeyStarting(String prefix) {
+        var found = false;
+        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
+          e,
+        ) {
+          if (e.widget.key case ValueKey<String>(:final value)
+              when value.startsWith(prefix)) {
+            found = true;
+          }
+          return !found;
+        });
+        return found;
+      }
+
+      Future<void> press(WidgetTester tester, LogicalKeyboardKey k) async {
+        await tester.runAsync(() async {
+          await tester.sendKeyEvent(k);
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> tabTo(WidgetTester tester, Key k) async {
+        for (var i = 0; i < 120; i++) {
+          if (focusIn(k)) return;
+          await press(tester, LogicalKeyboardKey.tab);
+        }
+        fail('Tab never reached $k');
+      }
+
+      testWidgets('a category\'s ⋯ opens its menu with the first item '
+          'focused; Edit, then Esc, comes back to the ⋯', (tester) async {
+        final db = await pumpLedger(tester);
+        await openBudget(tester);
+        final id = (await tester.runAsync(db.loadLedger))!.categories
+            .firstWhere((c) => c.name == 'Groceries')
+            .id;
+        final dots = ValueKey('category-menu-$id');
+        await tabTo(tester, dots);
+        await press(tester, LogicalKeyboardKey.enter);
+        expect(focusIn(const ValueKey('category-edit')), isTrue);
+        await press(tester, LogicalKeyboardKey.enter);
+        expect(find.byKey(ValueKey('category-editor-$id')), findsOneWidget);
+        // Tab goes round Edit, not on to the rows under it.
+        for (var i = 0; i < 30; i++) {
+          await press(tester, LogicalKeyboardKey.tab);
+          expect(
+            focusInKeyStarting('category-editor-'),
+            isTrue,
+            reason: 'Tab $i left Edit',
+          );
+        }
+        await press(tester, LogicalKeyboardKey.escape);
+        expect(find.byKey(ValueKey('category-editor-$id')), findsNothing);
+        expect(focusIn(dots), isTrue);
+        await tidy(tester, db);
+      });
+
+      testWidgets('an amount typed in Assigned and Enter: focus is back on '
+          'that amount', (tester) async {
+        final db = await pumpLedger(tester);
+        await openBudget(tester);
+        final id = (await tester.runAsync(db.loadLedger))!.categories
+            .firstWhere((c) => c.name == 'Groceries')
+            .id;
+        final cell = ValueKey('assigned-$id');
+        await tabTo(tester, cell);
+        await press(tester, LogicalKeyboardKey.enter);
+        await tester.enterText(
+          find.byKey(const ValueKey('assign-field')),
+          '50000',
+        );
+        await tester.runAsync(() async {
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('assign-field')), findsNothing);
+        expect(focusIn(cell), isTrue);
+        await tidy(tester, db);
+      });
+
+      testWidgets('on the Income tab, Tab never reaches the hidden Spending '
+          'rows; an open Edit stays open across ‹ ›', (tester) async {
+        final db = await pumpLedger(tester);
+        await openBudget(tester);
+        await tester.tap(find.text('Income').first);
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 40; i++) {
+          await press(tester, LogicalKeyboardKey.tab);
+          expect(focusInKeyStarting('assigned-'), isFalse);
+          expect(focusInKeyStarting('category-menu-'), isFalse);
+        }
+        await tester.tap(find.text('Spending').first);
+        await tester.pumpAndSettle();
+        await editCategory(tester, 'Groceries');
+        expect(find.byKey(const ValueKey('plan-preview')), findsNothing);
+        final editor = find.byWidgetPredicate(
+          (w) =>
+              w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('category-editor-'),
+        );
+        expect(editor, findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('period-next')));
+        await tester.pumpAndSettle();
+        expect(editor, findsOneWidget);
+        await tidy(tester, db);
+      });
+    });
+
     testWidgets(
       'two earners: named pays, the view by one, an amount per the other',
       (tester) async {
@@ -5652,6 +5775,15 @@ void main() {
       // Move with nothing chosen and no amount: it stays, and says so.
       await tapKey('move-go');
       expect(find.text('Enter an amount'), findsOneWidget);
+      // The missing choice is said as the missing amount is (#163).
+      expect(find.byKey(const ValueKey('move-choose')), findsOneWidget);
+      expect(find.byKey(const ValueKey('move-box')), findsOneWidget);
+      // Esc with the list open closes the list, not the box.
+      await tapKey('move-pick');
+      expect(find.byKey(const ValueKey('move-choice-none')), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('move-choice-none')), findsNothing);
       expect(find.byKey(const ValueKey('move-box')), findsOneWidget);
       await tapKey('move-pick');
       expect(find.byKey(const ValueKey('move-choice-none')), findsOneWidget);

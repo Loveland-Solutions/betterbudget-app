@@ -1592,6 +1592,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
   }
 
+  /// Makes the actions recorded since [mark] one: one ⌘Z takes them all
+  /// back, newest first, and one redo does them again in order.
+  void _joinHistory(int mark, String label) {
+    if (_history.length - mark < 2) return;
+    final parts = _history.sublist(mark);
+    _history.removeRange(mark, _history.length);
+    _history.add(
+      _Undoable(
+        label,
+        () async {
+          for (final p in parts.reversed) {
+            await p.undo();
+          }
+        },
+        () async {
+          for (final p in parts) {
+            await p.redo();
+          }
+        },
+      ),
+    );
+  }
+
   /// Records an undoable action. Toasts are for saved changes and deletes;
   /// quick clicks like clearing a row stay quiet and rely on ⌘Z.
   void _did(
@@ -5177,9 +5200,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
         _closeToast();
         return _Added.opened;
       }
+      // Back, with the window's settings, as one Add and one undo; and its
+      // own name, not the case it was typed in (#163).
+      final mark = _history.length;
       await _archiveCategory(existing, false);
       final back = _data?.accounts[existing.id];
-      if (back != null) await _saveCategory(back, e);
+      if (back != null) {
+        await _saveCategory(back, (
+          name: existing.name,
+          currency: e.currency,
+          off: e.off,
+          plan: e.plan,
+        ));
+      }
+      _joinHistory(mark, t.ledgerAdded(existing.name));
       made?.call(existing.id);
       return _Added.made;
     }
@@ -8481,7 +8515,9 @@ class _AccountTileState extends State<_AccountTile> {
     onClose: () {
       if (mounted) setState(() {});
     },
-    menuChildren: _accountMenu(widget.account, widget.actions),
+    menuChildren: focusFirstOnKeys(
+      _accountMenu(widget.account, widget.actions),
+    ),
     child: _tile(),
   );
 

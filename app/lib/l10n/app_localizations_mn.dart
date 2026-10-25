@@ -4324,6 +4324,16 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planMoveChooseCategory => 'Ангилал сонгоно уу';
+
+  @override
+  String get planMoveNothingFrom =>
+      'Энэ валютаар шилжүүлэх мөнгөтэй өөр ангилал алга, хуваарилаагүй мөнгө ч алга.';
+
+  @override
+  String get planKeyAsOfToday => 'Өнөөдрийн байдлаар';
+
+  @override
   String get planKeyOver => 'Илүү хуваарилсан';
 
   @override
