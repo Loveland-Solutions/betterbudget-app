@@ -1284,7 +1284,9 @@ class _BillLineState extends State<_BillLine> {
               SizedBox(
                 width: 104,
                 child: Text(
-                  '${r.amount > 0 ? '+' : ''}${moneyIn(context, r.amount.abs(), showCents: false)}',
+                  // Money out in ordinary ink with its minus, as in the
+                  // register (owner, 2026-10-09; #148).
+                  '${r.amount > 0 ? '+' : (r.amount < 0 ? '−' : '')}${moneyIn(context, r.amount.abs(), showCents: false)}',
                   textAlign: TextAlign.right,
                   style: onest(
                     13,

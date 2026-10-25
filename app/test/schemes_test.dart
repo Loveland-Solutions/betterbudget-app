@@ -76,6 +76,32 @@ void main() {
   });
 
   for (final b in Brightness.values) {
+    test('a register row\'s cents read on its stripe, under the pointer and '
+        'chosen, in ${b.name} mode (#148)', () {
+      final low = <String>[];
+      for (final s in schemes) {
+        final p = Palette.of(s, b);
+        Mid.palette = p;
+        for (final surface in [p.panel, p.card]) {
+          final striped = Color.alphaBlend(Mid.stripe, surface);
+          // A lit row's cents are a step darker ([Money.centsColor]).
+          for (final (name, row, cents) in [
+            ('plain', surface, Mid.ink3),
+            ('striped', striped, Mid.ink3),
+            ('hovered', Color.alphaBlend(Mid.rowHover, striped), Mid.ink2),
+            ('chosen', Color.alphaBlend(Mid.blueWash, surface), Mid.ink2),
+          ]) {
+            final c = contrast(cents, row);
+            if (c < 4.5) low.add('${s.id} $name ${c.toStringAsFixed(2)}');
+          }
+        }
+      }
+      Mid.palette = Palette.dark;
+      expect(low, isEmpty);
+    });
+  }
+
+  for (final b in Brightness.values) {
     test('every scheme reads in ${b.name} mode', () {
       for (final s in schemes) {
         final p = Palette.of(s, b);

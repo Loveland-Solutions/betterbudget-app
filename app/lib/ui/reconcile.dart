@@ -329,9 +329,22 @@ class ReconcilePanel extends StatelessWidget {
                     if (canAdjust)
                       BarButton(
                         key: const ValueKey('reconcile-adjust'),
-                        label: t.rowsAddAdjustmentAndLock(
-                          money(bank(off).abs()),
-                        ),
+                        // Which way, as the bank shows the balance (#148).
+                        // On a card, in the panel's own words: what you owe.
+                        label: switch ((s.owed, bank(off) > 0)) {
+                          (false, true) => t.rowsAdjustUpAndLock(
+                            money(bank(off)),
+                          ),
+                          (false, false) => t.rowsAdjustDownAndLock(
+                            money(-bank(off)),
+                          ),
+                          (true, true) => t.rowsAdjustOwedUpAndLock(
+                            money(bank(off)),
+                          ),
+                          (true, false) => t.rowsAdjustOwedDownAndLock(
+                            money(-bank(off)),
+                          ),
+                        },
                         onTap: onAdjust,
                       )
                     else

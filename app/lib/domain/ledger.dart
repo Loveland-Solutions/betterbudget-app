@@ -94,6 +94,35 @@ DateTime openingAsOf(String? kept, int transactionId, DateTime date) {
   return day.isBefore(date) ? date : day;
 }
 
+/// The setting holding the rows taken out of [accountId]'s opening balance
+/// (Take it out of the opening balance), each with what was taken out for
+/// it, so deleting one, or changing its amount, can put the balance right
+/// however many changes since (#260).
+String openingTakenKey(int accountId) => 'opening.taken.$accountId';
+
+/// The rows [kept] under [openingTakenKey] for opening balance
+/// [transactionId], each with the amount taken out for it (signed as the
+/// row was on the account); none when kept for another balance's row.
+Map<int, int> openingTaken(String? kept, int transactionId) {
+  final parts = kept?.split('|');
+  if (parts == null || parts.length != 2 || parts[0] != '$transactionId') {
+    return const {};
+  }
+  final rows = <int, int>{};
+  for (final pair in parts[1].split(',')) {
+    final [id, amount] = pair.split(':').followedBy(['']).take(2).toList();
+    if ((int.tryParse(id), int.tryParse(amount)) case (final i?, final a?)) {
+      rows[i] = a;
+    }
+  }
+  return rows;
+}
+
+/// The value kept under [openingTakenKey]: null for no rows.
+String? openingTakenValue(int transactionId, Map<int, int> rows) => rows.isEmpty
+    ? null
+    : '$transactionId|${[for (final MapEntry(:key, :value) in rows.entries) '$key:$value'].join(',')}';
+
 /// A calendar date as stored: `YYYY-MM-DD` (ADR 0001).
 String dateKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -1209,6 +1238,28 @@ class LedgerData {
     if (o == null || o.locked) return null;
     final day = openingAsOf(prefs[openingAsOfKey(accountId)], o.txnId, o.date);
     return dateOnly(date).isAfter(day) ? null : o;
+  }
+
+  /// [accountId]'s opening balance, and what was taken out of it for row
+  /// [transactionId], when it was and the balance isn't locked by a
+  /// reconcile since. Null otherwise.
+  ({RegisterRow opening, int taken})? openingTook(
+    int accountId,
+    int transactionId,
+  ) {
+    final o = registerFor(accountId).posted
+        .where(
+          (r) =>
+              r.kind == RowKind.opening &&
+              r.equity == AppEquity.openingBalances,
+        )
+        .firstOrNull;
+    if (o == null || o.locked) return null;
+    final taken = openingTaken(prefs[openingTakenKey(accountId)], o.txnId);
+    return switch (taken[transactionId]) {
+      final t? => (opening: o, taken: t),
+      null => null,
+    };
   }
 
   /// Every account that still exists, archived ones included: net worth.

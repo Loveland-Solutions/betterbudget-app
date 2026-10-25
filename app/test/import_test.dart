@@ -1267,6 +1267,13 @@ void main() {
         (await db.snapshot(r.openingMove!.transactionId)).header.date,
         '2026-09-04',
       );
+      // The rows it took in are kept with it, each with its amount.
+      final opening = r.openingMove!.transactionId;
+      final taken = openingTaken(
+        await db.preference(openingTakenKey(bank)),
+        opening,
+      );
+      expect(taken.values.toSet(), {-2000000, 5000000});
       await db.undoImport(r);
       data = await db.loadLedger();
       expect(data.balanceOf(bank), 100000000);
@@ -1274,8 +1281,58 @@ void main() {
         (await db.snapshot(r.openingMove!.transactionId)).header.date,
         '2026-09-30',
       );
+      expect(await db.preference(openingTakenKey(bank)), isNull);
+      expect(await db.preference(openingAsOfKey(bank)), isNull);
       await db.redoImport(r, bank);
       expect((await db.loadLedger()).balanceOf(bank), 100000000);
+      expect(
+        openingTaken(await db.preference(openingTakenKey(bank)), opening),
+        taken,
+      );
+    });
+
+    test('same purchase on a row taken out of the opening balance: the '
+        'balance takes out the bank\'s amount instead, with undo', () async {
+      await db.postOpeningBalance(
+        accountId: bank,
+        date: DateTime(2026, 9, 30),
+        balance: 100000000,
+      );
+      final typed = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 30),
+        payee: 'Номин',
+        counterAccountId: groceries,
+        amount: -8640000,
+      );
+      await db.takeOutOfOpening(
+        accountId: bank,
+        date: DateTime(2026, 9, 14),
+        amount: -8640000,
+        rowId: typed,
+      );
+      Future<int> openingNow() async => (await db.loadLedger())
+          .registerFor(bank)
+          .posted
+          .firstWhere((x) => x.kind == RowKind.opening)
+          .amount;
+      expect(await openingNow(), 108640000);
+      final p = await plan([row(15, -8460000, 'НОМИН СУПЕРМАРКЕТ')]);
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: [p.single.samePurchase()],
+        uncategorizedNames: ['Not categorized'],
+      );
+      expect(r.openingFixes, hasLength(1));
+      // As if the bank's amount had been taken out: today is the bank's.
+      expect(await openingNow(), 108460000);
+      expect((await db.loadLedger()).balanceOf(bank), 100000000);
+      await db.undoImport(r);
+      expect(await openingNow(), 108640000);
+      expect((await db.loadLedger()).balanceOf(bank), 100000000);
+      await db.redoImport(r, bank);
+      expect(await openingNow(), 108460000);
     });
 
     test(

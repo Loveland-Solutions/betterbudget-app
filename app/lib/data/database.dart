@@ -737,6 +737,16 @@ class OpeningBalance {
   final bool locked;
 }
 
+/// What [AppDatabase.takeOutOfOpening] or [AppDatabase.putBackInOpening]
+/// did: the balance's move and its two settings before and after.
+typedef OpeningTake = ({
+  OpeningMove move,
+  String? asOfBefore,
+  String? asOfAfter,
+  String? takenBefore,
+  String? takenAfter,
+});
+
 /// Where an import moved the opening balance, for undo and redo.
 typedef OpeningMove = ({
   int transactionId,
@@ -796,8 +806,26 @@ class ImportRecord {
     this.openingMove,
     this.openingId,
     this.paid = const [],
+    this.openingFixes = const [],
+    this.openingKept,
   });
+
+  /// The opening balance's two settings ([openingAsOfKey],
+  /// [openingTakenKey]) before and after the import moved it, so undo puts
+  /// them back as well as the balance.
+  final ({
+    int accountId,
+    String? asOfBefore,
+    String? asOfAfter,
+    String? takenBefore,
+    String? takenAfter,
+  })?
+  openingKept;
   final Map<int, String> added;
+
+  /// A typed row taken out of the opening balance that took the bank's
+  /// amount (Same purchase): the balance put right with it, by account.
+  final List<(int, OpeningTake)> openingFixes;
 
   /// New rows a payee rule made a pay's paychecks ([AppDatabase.takeAsPay]).
   final List<PayTaken> paid;
@@ -3054,10 +3082,17 @@ class AppDatabase extends _$AppDatabase {
   /// Soft delete: nothing disappears until purged, which makes undo trivial.
   /// Reconciled transactions are locked and throw [LockedException].
   Future<void> softDelete(int transactionId) async {
-    if (await softDeleteMany([transactionId]) case []) {
+    await _deleteUnlocked([transactionId]);
+  }
+
+  /// Deletes [ids], or throws [LockedException] when a statement holds one.
+  /// A row already deleted (another computer's change) isn't a lock.
+  Future<void> _deleteUnlocked(List<int> ids) => transaction(() async {
+    if ((await _reconciledAmong(ids)).isNotEmpty) {
       throw LockedException(DbProblem.reconciled);
     }
-  }
+    await softDeleteMany(ids);
+  });
 
   Future<void> restore(int transactionId) =>
       (update(transactions)..where((t) => t.id.equals(transactionId))).write(
@@ -3522,8 +3557,8 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       await _touch(billId);
-    } else if ((await softDeleteMany([billId])).isEmpty) {
-      throw LockedException(DbProblem.reconciled);
+    } else {
+      await _deleteUnlocked([billId]);
     }
     await setPreference(billNotItKey(billId), notIt);
     final made = <int>[], skipped = <int>[];
@@ -6120,10 +6155,13 @@ class AppDatabase extends _$AppDatabase {
   /// moves to the day before the row if it isn't before it already, less
   /// what the row did, so the account's balance today is as it was. Null
   /// when the balance doesn't hold the row (any more).
-  Future<({OpeningMove move, String? asOfBefore})?> takeOutOfOpening({
+  /// [rowId] is the row taken out, kept under [openingTakenKey] so deleting
+  /// it can put its money back.
+  Future<OpeningTake?> takeOutOfOpening({
     required int accountId,
     required DateTime date,
     required int amount,
+    int? rowId,
   }) => transaction(() async {
     final o = await openingHolding(accountId, date);
     if (o == null) return null;
@@ -6138,15 +6176,28 @@ class AppDatabase extends _$AppDatabase {
       toDate: dayBefore.isBefore(o.date) ? dayBefore : o.date,
       toAmount: o.amount - amount,
     );
-    await _setOpening(o.transactionId, move.toDate, move.toAmount);
-    await setPreference(key, openingAsOfValue(o.transactionId, asOf));
-    return (move: move, asOfBefore: asOfBefore);
+    final takenBefore = await preference(openingTakenKey(accountId));
+    final taken = {...openingTaken(takenBefore, o.transactionId)};
+    if (rowId != null) taken[rowId] = (taken[rowId] ?? 0) + amount;
+    final takenAfter = rowId == null
+        ? takenBefore
+        : openingTakenValue(o.transactionId, taken);
+    final done = (
+      move: move,
+      asOfBefore: asOfBefore,
+      asOfAfter: openingAsOfValue(o.transactionId, asOf),
+      takenBefore: takenBefore,
+      takenAfter: takenAfter,
+    );
+    await redoTakeOutOfOpening(accountId, done);
+    return done;
   });
 
-  /// Undoes [takeOutOfOpening] ([back]) or does it again.
+  /// Undoes [takeOutOfOpening] or [putBackInOpening] ([back]), or does it
+  /// again.
   Future<void> redoTakeOutOfOpening(
     int accountId,
-    ({OpeningMove move, String? asOfBefore}) done, {
+    OpeningTake done, {
     bool back = false,
   }) => transaction(() async {
     // Reconciled since (another computer's statement): it stays.
@@ -6161,13 +6212,52 @@ class AppDatabase extends _$AppDatabase {
     );
     await setPreference(
       openingAsOfKey(accountId),
-      back
-          ? done.asOfBefore
-          : openingAsOfValue(
-              m.transactionId,
-              openingAsOf(done.asOfBefore, m.transactionId, m.fromDate),
-            ),
+      back ? done.asOfBefore : done.asOfAfter,
     );
+    await setPreference(
+      openingTakenKey(accountId),
+      back ? done.takenBefore : done.takenAfter,
+    );
+  });
+
+  /// Row [rowId], taken out of [accountId]'s opening balance, was deleted
+  /// or changed and now does [now] to the account: the balance takes back
+  /// what was taken out for it, less [now], so it is as if [now] had been
+  /// taken out (#260). Gone ([now] 0), the row is no longer kept. Null when
+  /// the balance no longer holds it, or nothing changes.
+  Future<OpeningTake?> putBackInOpening({
+    required int accountId,
+    required int rowId,
+    required int now,
+  }) => transaction(() async {
+    final o = await _openingOf(accountId);
+    if (o == null || o.locked) return null;
+    final key = openingTakenKey(accountId);
+    final takenBefore = await preference(key);
+    final taken = {...openingTaken(takenBefore, o.transactionId)};
+    final was = taken[rowId];
+    if (was == null || was == now) return null;
+    if (now == 0) {
+      taken.remove(rowId);
+    } else {
+      taken[rowId] = now;
+    }
+    final asOf = await preference(openingAsOfKey(accountId));
+    final done = (
+      move: (
+        transactionId: o.transactionId,
+        fromDate: o.date,
+        fromAmount: o.amount,
+        toDate: o.date,
+        toAmount: o.amount + was - now,
+      ),
+      asOfBefore: asOf,
+      asOfAfter: asOf,
+      takenBefore: takenBefore,
+      takenAfter: openingTakenValue(o.transactionId, taken),
+    );
+    await redoTakeOutOfOpening(accountId, done);
+    return done;
   });
 
   /// [accountId]'s opening balance (its earliest row against Opening
@@ -6282,6 +6372,8 @@ class AppDatabase extends _$AppDatabase {
     final remembered = <String, int?>{};
     final paid = <PayTaken>[];
     final added = <int, String>{};
+    final addedOn = <int, ({DateTime date, int amount})>{};
+    final fixes = <(int, OpeningTake)>[];
     final matched = <MatchedImport>[];
     for (final p in plan) {
       switch (p.fate) {
@@ -6323,6 +6415,7 @@ class AppDatabase extends _$AppDatabase {
             ],
           );
           added[id] = p.key;
+          addedOn[id] = (date: dateOnly(p.row.date), amount: p.row.amount);
           // Money in from a payee the person said is a pay's paycheck.
           final pay = rule?.payId;
           if (pay != null && today != null && p.row.amount > 0) {
@@ -6375,6 +6468,14 @@ class AppDatabase extends _$AppDatabase {
       }
     }
     OpeningMove? openingMove;
+    ({
+      int accountId,
+      String? asOfBefore,
+      String? asOfAfter,
+      String? takenBefore,
+      String? takenAfter,
+    })?
+    openingKept;
     final opening = moveOpening == null ? null : await _openingOf(accountId);
     if (moveOpening != null && opening != null && !opening.locked) {
       openingMove = (
@@ -6392,17 +6493,24 @@ class AppDatabase extends _$AppDatabase {
       // The day the balance was true for, so a row typed later between the
       // two days is known to be in it too.
       final key = openingAsOfKey(accountId);
-      await setPreference(
-        key,
-        openingAsOfValue(
-          opening.transactionId,
-          openingAsOf(
-            await preference(key),
-            opening.transactionId,
-            opening.date,
-          ),
-        ),
+      final asOfBefore = await preference(key);
+      final asOf = openingAsOf(asOfBefore, opening.transactionId, opening.date);
+      // The rows it now leaves out, so deleting one can put it back (#260).
+      final takenKey = openingTakenKey(accountId);
+      final takenBefore = await preference(takenKey);
+      openingKept = (
+        accountId: accountId,
+        asOfBefore: asOfBefore,
+        asOfAfter: openingAsOfValue(opening.transactionId, asOf),
+        takenBefore: takenBefore,
+        takenAfter: openingTakenValue(opening.transactionId, {
+          ...openingTaken(takenBefore, opening.transactionId),
+          for (final MapEntry(:key, :value) in addedOn.entries)
+            if (!value.date.isAfter(asOf)) key: value.amount,
+        }),
       );
+      await setPreference(key, openingKept.asOfAfter);
+      await setPreference(takenKey, openingKept.takenAfter);
     }
     final record = ImportRecord(
       added: added,
@@ -6412,9 +6520,24 @@ class AppDatabase extends _$AppDatabase {
       openingMove: openingMove,
       openingId: openingId,
       paid: paid,
+      openingFixes: fixes,
+      openingKept: openingKept,
     );
     await _keyAdded(accountId, record);
     await _applyMatches(record);
+    // A typed row taken out of the opening balance, now at the bank's
+    // amount: the balance takes out that instead, or the account is off
+    // the bank by the difference.
+    for (final m in matched) {
+      if (m.amountAfter case final to?) {
+        final fix = await putBackInOpening(
+          accountId: accountId,
+          rowId: m.transactionId,
+          now: to,
+        );
+        if (fix != null) fixes.add((accountId, fix));
+      }
+    }
     return record;
   });
 
@@ -6481,12 +6604,14 @@ class AppDatabase extends _$AppDatabase {
   /// bank, and go back to uncleared; a category it made goes if nothing else
   /// uses it.
   Future<void> undoImport(ImportRecord r) => transaction(() async {
+    for (final (a, f) in r.openingFixes.reversed) {
+      await redoTakeOutOfOpening(a, f, back: true);
+    }
     for (final p in r.paid.reversed) {
       await _untakePayday(p);
     }
     final ids = r.added.keys.toList();
-    final gone = await softDeleteMany(ids);
-    if (gone.length != ids.length) throw LockedException(DbProblem.reconciled);
+    await _deleteUnlocked(ids);
     await (update(entries)..where((e) => e.transactionId.isIn(ids))).write(
       const EntriesCompanion(importKey: Value(null)),
     );
@@ -6524,10 +6649,12 @@ class AppDatabase extends _$AppDatabase {
     if (r.openingMove case final o?) {
       await _setOpening(o.transactionId, o.fromDate, o.fromAmount);
     }
+    if (r.openingKept case final k?) {
+      await setPreference(openingAsOfKey(k.accountId), k.asOfBefore);
+      await setPreference(openingTakenKey(k.accountId), k.takenBefore);
+    }
     if (r.openingId case final o?) {
-      if ((await softDeleteMany([o])).length != 1) {
-        throw LockedException(DbProblem.reconciled);
-      }
+      await _deleteUnlocked([o]);
     }
     if (r.madeCategory case final c?) await deleteEmptyAccount(c);
   });
@@ -6542,6 +6669,13 @@ class AppDatabase extends _$AppDatabase {
         await _applyMatches(r);
         if (r.openingMove case final o?) {
           await _setOpening(o.transactionId, o.toDate, o.toAmount);
+        }
+        if (r.openingKept case final k?) {
+          await setPreference(openingAsOfKey(k.accountId), k.asOfAfter);
+          await setPreference(openingTakenKey(k.accountId), k.takenAfter);
+        }
+        for (final (a, f) in r.openingFixes) {
+          await redoTakeOutOfOpening(a, f);
         }
         for (final p in r.paid) {
           await _retakePayday(p);

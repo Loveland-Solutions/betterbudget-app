@@ -4021,7 +4021,61 @@ Settled while building them (reviews, 2026-10-24):
   balance's own row (`opening.asOf.<account>` = row and day), so a balance
   moved or entered again by hand is judged by its own date. On a card the
   popup says "₮640,200 owed", as the card's page does. The offer lives in
-  the popup for now; where it stays is a question to the owner (#259).
+  the popup only: a missed one leaves the account off from the bank by that
+  row, which the owner kept as a known issue (2026-10-24, #259).
 - **Change the amount…**, not "Change…": the button sits under the amount.
   Its line is an instruction: "Saving takes back the reconcile of 09.10.
   Then reconcile that statement again." Plain rows only for now (#262).
+
+Settled in the comb's follow-ups (2026-10-24):
+
+- **Both sides of a transfer.** A transfer dated on or before the other
+  account's opening balance is offered too: one button, "Take it out of both
+  opening balances" when both hold it, each account named in the popup, one
+  undo (#261).
+- **Putting it back.** The rows taken out of an opening balance are kept
+  with it, each with the amount taken out (`opening.taken.<account>`, by the
+  balance's row; an import's rows too), so a popup missed on the way doesn't
+  leave it off. Deleting one offers "Opening balance back to ₮1,000,000"; a
+  new amount offers "Make the opening balance ₮1,080,000": the figure it
+  comes to, since "take out ₮80,000" reads the wrong way round on spending.
+  A row moved to another account counts as gone. When the remember offer
+  has the popup's button, the popup still says the row was taken out. A
+  row whose offer was turned down is never offered back (#260). An import's
+  Same purchase on such a row moves the balance with it, said in its popup.
+- **Change the amount… on a split and a transfer.** A split's new total
+  opens its lines, which must add up to it as when typing; a transfer
+  changes on both sides. Not offered for a transfer reconciled in both
+  accounts: one Change… can't take back two accounts' statements (#262).
+- **Tab.** The register's tabs, a chosen row's buttons and the sidebar's
+  accounts and sections are reached with Tab and pressed with Enter or
+  Space, drawn as under the pointer while they have focus. Rows are not
+  Tab stops: ↑ ↓ choose them. The sidebar is one group, then the page.
+- **The popup and the wheel.** The mouse wheel over the popup scrolls the
+  list under it.
+- **Cents on a lit row.** On a row under the pointer or chosen, the cents
+  are a step darker (`ink2`), so they read at 4.5:1 on its tint in every
+  scheme; `schemes_test.dart` checks the stripe, hover and chosen tints.
+- **The forecast's bill list** writes money out with its minus, as the
+  register does.
+- **Reconcile's adjustment** says which way, as the bank shows it: "Add
+  ₮1,000 to the balance and lock", "Take ₮30,000 off the balance and lock";
+  on a card, in the panel's own words, "Add ₮30,000 to what you owe and
+  lock" (a Mongolian card app's үлдэгдэл is the credit left).
+- **Remembering a payee for another category** says what it was, before
+  the count, since the rows filed were in Not categorized: "Dining out
+  remembered for next time · it was Groceries before · 2 more rows filed".
+- **Confirming a bill** looks for a row already in among every account's
+  rows, not only those a filter shows. A second fast click on Delete does
+  nothing (a guard on the screen; the database still deletes a row deleted
+  already, which another computer's change can need). An open row scrolled
+  far out of sight keeps what was typed (it already did; now tested).
+- Left as they are: a bank row with no word in common with its bill's
+  payee, not categorized and for another amount, isn't taken as the bill;
+  once it is given the bill's category, it pays it (owner, 2026-10-21). The
+  "file N more rows" offer counts the payee's rows in Not categorized from
+  every period, as the Payees page does.
+- **A transfer on All accounts keeps its minus.** Asked whether "To Khan
+  Savings −₮500,000" read as spending there (#264), the owner: "It is
+  'minus-ing' from one account to another. The minus is fine." Rejected:
+  showing it unsigned in quieter ink with both accounts named.
