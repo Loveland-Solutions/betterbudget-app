@@ -274,8 +274,10 @@ void main() {
     );
     final o = of(d, oct);
     expect(o.lines[coffee]!.left, -450000);
-    // Coffee carries it as minus, so the money not given out doesn't move.
-    expect(o.notAssigned, 540000000 - 90000000);
+    // Spent from the money not assigned: it's that much less, and the
+    // ₮4,500 over is said, not taken off again (owner, 2026-10-24).
+    expect(o.notAssigned, 540000000 - 450000 - 90000000);
+    expect(o.pools.first.overspent, 450000);
   });
 
   test('refunds put money back', () {
@@ -853,6 +855,48 @@ void main() {
       ).lines[xmas]!;
       expect(l.plan!.planned, 20000000);
       expect(l.short, 0);
+    });
+
+    test('by the month, a bill due before the next pay is asked for in the '
+        'month of the pay before it', () {
+      // Paid on the 25th; rent due on the 1st (owner, 2026-10-24): the
+      // 10.25 pay covers 11.01's rent, so October asks for it.
+      const pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.monthly,
+        day1: 25,
+        weekend: PayWeekend.keep,
+      );
+      final d = ledger(
+        pay: [pay],
+        plans: [
+          plan(
+            xmas,
+            PlanKind.byDate,
+            180000000,
+            due: DateTime(2026, 11, 1),
+            every: 1,
+            start: DateTime(2026, 10, 1),
+          ),
+        ],
+      );
+      final october = of(d, oct).lines[xmas]!.plan!;
+      expect(october.planned, 180000000);
+      // The note keeps the bill's own date.
+      expect(october.due, DateTime(2026, 11, 1));
+      expect(october.lastPeriod, isTrue);
+      // November asks for December's.
+      final nov = (start: DateTime(2026, 11, 1), end: DateTime(2026, 11, 30));
+      final november = of(d, nov).lines[xmas]!.plan!;
+      expect(november.due, DateTime(2026, 12, 1));
+      expect(november.planned, 180000000);
+      // With no pay set up, October asks for nothing: the bill is
+      // November's.
+      final none = ledger(plans: d.plans.values.toList());
+      expect(of(none, oct).lines[xmas]!.plan!.planned, lessThan(180000000));
     });
 
     test('paid weekly, a date years ahead is still quick', () {
@@ -1732,6 +1776,22 @@ void main() {
       expect(of(refund, oct).lines[food]!.offSpent, 0);
     });
 
+    test('dollars assigned first don\'t start the tugrik budget', () {
+      // Only Car insurance's $120 is assigned, in October: its own start.
+      final d = ledger(
+        more: [usd],
+        amounts: [put(insurance, oct.start, 12000)],
+        prefs: {BudgetKeys.beganIn(Currency.usd): '2026-10-01'},
+        rows: [move(DateTime(2026, 10, 3), checking, food, 27665050)],
+      );
+      final o = of(d, oct);
+      // Tugrik hasn't begun: Groceries' spending counts against nothing.
+      expect(o.began, isNull);
+      expect(o.lines[food]!.left, 0);
+      expect(o.lines[food]!.spent, 27665050);
+      expect(o.lines[insurance]!.left, 12000);
+    });
+
     test('changed to dollars, it counts from that period on', () {
       final rows = [
         move(
@@ -1750,10 +1810,13 @@ void main() {
         ),
       ];
       final amounts = [put(food, DateTime(2026, 9, 1), 90000000)];
+      // A ledger from before each currency had its own day: the budget's
+      // counts for dollars too.
+      const began = {BudgetKeys.began: '2026-09-01'};
       // Without a day of its own, September's $600 would count.
       expect(
         of(
-          ledger(more: [usd], amounts: amounts, rows: rows),
+          ledger(more: [usd], amounts: amounts, rows: rows, prefs: began),
           oct,
         ).lines[insurance]!.left,
         -69000,
@@ -1763,13 +1826,18 @@ void main() {
           more: [usd],
           amounts: amounts,
           rows: rows,
-          prefs: {'${BudgetKeys.fromPrefix}$insurance': '2026-10-01'},
+          prefs: {
+            ...began,
+            '${BudgetKeys.fromPrefix}$insurance': '2026-10-01',
+          },
         ),
         oct,
       );
       expect(o.lines[insurance]!.left, -9000);
-      // The pool still adds up: what's there, less what the lines hold.
-      expect(o.pools[1].notAssigned, o.pools[1].money + 9000);
+      // What's there, less what the lines with money hold: the $90 over
+      // was spent from it, and is said, not taken off again.
+      expect(o.pools[1].notAssigned, o.pools[1].money);
+      expect(o.pools[1].overspent, 9000);
     });
 
     test('a category that uses only the card: planned for the Visa', () {

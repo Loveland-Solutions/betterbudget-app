@@ -4470,6 +4470,28 @@ class WordsEn extends Words {
   String get planKeyNotAssigned => 'Not assigned';
 
   @override
+  String get planKeyOverspent => 'Overspent';
+
+  @override
+  String get planKeyNotBegun =>
+      'Spending counts against a category once you assign money to it.';
+
+  @override
+  String planBeganMovedBack(String date) {
+    return 'the budget now begins $date, so spending from then on counts against its categories';
+  }
+
+  @override
+  String planAssignedTo(String amount, String category) {
+    return 'Assigned $amount to $category';
+  }
+
+  @override
+  String planKeyBeganInside(String date) {
+    return 'Spending before $date, when the budget began, isn\'t counted against its categories.';
+  }
+
+  @override
   String get planKeyOver => 'Assigned too much';
 
   @override

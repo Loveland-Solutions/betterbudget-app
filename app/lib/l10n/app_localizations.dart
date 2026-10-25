@@ -6329,6 +6329,36 @@ abstract class Words {
   /// **'Not assigned'**
   String get planKeyNotAssigned;
 
+  /// Budget page's top card, the line under In categories: what overspent categories went over, together. Already spent from Cash & bank, so not taken off Not assigned again.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent'**
+  String get planKeyOverspent;
+
+  /// Budget page's top card, only while nothing has been assigned yet: why a row reads Assigned ₮0 · Spent ₮276,650 · Left ₮0.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending counts against a category once you assign money to it.'**
+  String get planKeyNotBegun;
+
+  /// Clause of the popup (or the whole popup) after an amount is assigned in a period before the budget began: the budget's first day moves back to that period.
+  ///
+  /// In en, this message translates to:
+  /// **'the budget now begins {date}, so spending from then on counts against its categories'**
+  String planBeganMovedBack(String date);
+
+  /// Popup after an amount is typed in Assigned, shown only when it also moved the day the budget began.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned {amount} to {category}'**
+  String planAssignedTo(String amount, String category);
+
+  /// Budget page's top card, when the period on screen holds the day the budget began: Spent shows the period's spending, Left only what came after that day.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending before {date}, when the budget began, isn\'t counted against its categories.'**
+  String planKeyBeganInside(String date);
+
   /// Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short.
   ///
   /// In en, this message translates to:

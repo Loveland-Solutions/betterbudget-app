@@ -4591,6 +4591,55 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ];
   }
 
+  /// What a write into the period starting [start] does to the day the
+  /// budget began: the first amount ever fixes it (with its currency), and
+  /// one put in a period before it moves it back there, so that period's
+  /// spending counts against its categories as its amounts say (#163).
+  /// Null when it stays.
+  /// Each currency has its own first day: dollars assigned don't start the
+  /// tugrik budget (#163). [currencies] are those of the categories
+  /// written to.
+  List<_Began> _beganBy(
+    LedgerData data,
+    DateTime start,
+    Iterable<Currency> currencies,
+  ) {
+    final main = Budget.currencyOf(data);
+    final shared = data.prefs[BudgetKeys.began];
+    // The budget's own currency, fixed with the first amount ever.
+    final fixes = data.prefs[BudgetKeys.currency] == null;
+    return [
+      for (final c in currencies.toSet())
+        if ((c == main ? BudgetKeys.began : BudgetKeys.beganIn(c))
+            case final key)
+          if (c == main ? shared : (data.prefs[key] ?? shared) case final was
+              when was == null || dateOnly(start).isBefore(parseDateKey(was)))
+            (
+              key: key,
+              was: data.prefs[key],
+              now: dateKey(start),
+              moved: was != null,
+              currency: fixes ? main.code : null,
+            ),
+    ];
+  }
+
+  Future<void> _writeBegan(List<_Began> began, {bool back = false}) async {
+    for (final b in began) {
+      await db.setPreference(b.key, back ? b.was : b.now);
+      if (b.currency != null) {
+        await db.setPreference(BudgetKeys.currency, back ? null : b.currency);
+      }
+    }
+  }
+
+  /// The popup's words when [b] moved the day the budget began back.
+  String? _beganMoved(List<_Began> began) => began.any((b) => b.moved)
+      ? context.t.planBeganMovedBack(
+          sayDate(context.t, parseDateKey(began.first.now)),
+        )
+      : null;
+
   Future<void> _setBudgetAmount(
     AccountInfo c,
     BudgetSpan period,
@@ -4598,8 +4647,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   ) async {
     final t = context.t;
     final data = _data!;
-    final first = data.prefs[BudgetKeys.began] == null;
-    final currency = Budget.currencyOf(data);
+    final began = _beganBy(data, period.start, [c.currency]);
     final start = period.start, end = period.end;
     final rows = _budgetRows(
       data,
@@ -4616,10 +4664,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         amount,
         rows: rows,
       );
-      if (first) {
-        await db.setPreference(BudgetKeys.began, dateKey(start));
-        await db.setPreference(BudgetKeys.currency, currency.code);
-      }
+      await _writeBegan(began);
       return before;
     }
 
@@ -4630,15 +4675,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     )) {
       return;
     }
+    final moved = _beganMoved(began);
     _did(
       t.planAssignUndo(formatMoney(amount, currency: c.currency), c.name),
-      toast: false,
+      // Quiet, unless it moved the day the budget began: that's said.
+      toast: moved != null,
+      message: moved == null
+          ? null
+          : '${t.planAssignedTo(formatShort(amount, currency: c.currency), c.name)} · $moved',
       undo: () async {
         await db.restoreBudgetAmounts(c.id, start, end, before);
-        if (first) {
-          await db.setPreference(BudgetKeys.began, null);
-          await db.setPreference(BudgetKeys.currency, null);
-        }
+        await _writeBegan(began, back: true);
       },
       redo: () async => before = await write(),
     );
@@ -4655,8 +4702,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (amounts.isEmpty) return;
     final t = context.t;
     final data = _data!;
-    final first = data.prefs[BudgetKeys.began] == null;
-    final currency = Budget.currencyOf(data);
+    final began = _beganBy(
+      data,
+      period.start,
+      amounts.keys.map((c) => c.currency),
+    );
     final start = period.start, end = period.end;
     final b = Budget.of(data, start: start, end: end, today: today);
     final total = amounts.entries.fold(
@@ -4670,28 +4720,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
     late Map<int, List<BudgetAmount>> before;
     Future<void> write() async {
       before = await db.setBudgetAmounts(byId, start, end);
-      if (first) {
-        await db.setPreference(BudgetKeys.began, dateKey(start));
-        await db.setPreference(BudgetKeys.currency, currency.code);
-      }
+      await _writeBegan(began);
     }
 
     if (!await _accountWrite(write, what: 'category')) return;
-    _did(
-      t.planFilled(
-        amounts.length,
-        formatShort(
-          total,
-          // One currency's button: its categories are all in it.
-          currency: amounts.keys.first.currency,
-        ),
+    final moved = _beganMoved(began);
+    final filled = t.planFilled(
+      amounts.length,
+      formatShort(
+        total,
+        // One currency's button: its categories are all in it.
+        currency: amounts.keys.first.currency,
       ),
+    );
+    _did(
+      filled,
+      message: moved == null ? null : '$filled · $moved',
       undo: () async {
         await db.restoreBudgetAmountsOf(before, start, end);
-        if (first) {
-          await db.setPreference(BudgetKeys.began, null);
-          await db.setPreference(BudgetKeys.currency, null);
-        }
+        await _writeBegan(began, back: true);
       },
       redo: write,
     );
@@ -4711,8 +4758,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (amount <= 0 || (from == null && to == null)) return;
     final t = context.t;
     final data = _data!;
-    final first = data.prefs[BudgetKeys.began] == null;
-    final currency = Budget.currencyOf(data);
+    final began = _beganBy(data, period.start, [
+      ?from?.currency,
+      ?to?.currency,
+    ]);
     final start = period.start, end = period.end;
     final b = Budget.of(data, start: start, end: end, today: today);
     int assigned(AccountInfo c) => b.lines[c.id]?.assigned ?? 0;
@@ -4753,10 +4802,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     late Map<int, List<BudgetAmount>> before;
     Future<void> write() async {
       before = await db.setBudgetAmounts(byId, start, end);
-      if (first) {
-        await db.setPreference(BudgetKeys.began, dateKey(start));
-        await db.setPreference(BudgetKeys.currency, currency.code);
-      }
+      await _writeBegan(began);
     }
 
     if (!await _accountWrite(write, what: 'category')) return;
@@ -4776,15 +4822,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
       ),
       _ => throw StateError('a move needs a side'),
     };
+    final moved = _beganMoved(began);
     _did(
       label,
-      message: message,
+      message: moved == null ? message : '$message · $moved',
       undo: () async {
         await db.restoreBudgetAmountsOf(before, start, end);
-        if (first) {
-          await db.setPreference(BudgetKeys.began, null);
-          await db.setPreference(BudgetKeys.currency, null);
-        }
+        await _writeBegan(began, back: true);
       },
       redo: write,
     );
@@ -9375,3 +9419,13 @@ typedef _OpeningHeld = ({int accountId, int amount, RegisterRow opening});
 /// of: what the row does there [now], and the balance it comes [to] once
 /// put right.
 typedef _PutBack = ({int accountId, int now, int to});
+
+/// The day the budget began, before and after an amount moved it, and
+/// the currency fixed with the first amount ever (null after that).
+typedef _Began = ({
+  String key,
+  String? was,
+  String now,
+  bool moved,
+  String? currency,
+});

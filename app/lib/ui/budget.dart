@@ -316,9 +316,17 @@ class _BudgetPageState extends State<_BudgetPage> {
         d = p.nextAfter(d);
       }
     }
+    // Pay that came: any row filed under a pay's category, not only a
+    // payday the app scheduled, so pay typed or imported is "received"
+    // too, as the Income line beside it counts it (#163).
+    final payCategories = {for (final p in data.paySchedules) p.categoryId};
     final fromPay = <Currency, int>{};
     for (final x in data.txns) {
-      if (x.scheduled || x.payScheduleId == null) continue;
+      if (x.scheduled) continue;
+      if (x.payScheduleId == null &&
+          !x.entries.any((e) => payCategories.contains(e.accountId))) {
+        continue;
+      }
       if (x.date.isBefore(period.start) || x.date.isAfter(period.end)) {
         continue;
       }
@@ -532,7 +540,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         text,
         style: big
             ? onest(14, weight: 500, color: coral ? Mid.coral : Mid.ink)
-            : onest(13, color: Mid.ink3),
+            : onest(13, color: coral ? Mid.coral : Mid.ink3),
       );
 
       Widget row(
@@ -627,6 +635,21 @@ class _BudgetPageState extends State<_BudgetPage> {
                   p.currency,
                 ),
             ], assignedNotes),
+            // What overspent categories went over: already out of Cash &
+            // bank, so said here and not taken off again (owner,
+            // 2026-10-24).
+            if (pools.any((p) => p.overspent > 0))
+              row(label(t.planKeyOverspent, coral: true), [
+                for (final p in pools)
+                  p.overspent > 0
+                      ? figure(
+                          'overspent${tagOf(p.currency)}',
+                          p.overspent,
+                          p.currency,
+                          coral: true,
+                        )
+                      : const SizedBox(),
+              ], const []),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Container(height: 1, color: Mid.rule),
@@ -667,6 +690,29 @@ class _BudgetPageState extends State<_BudgetPage> {
                 ],
                 const [],
                 big: true,
+              ),
+            // Nothing assigned yet: why a row's Left is ₮0 beside what was
+            // spent (owner, 2026-10-24). Gone with the first amount.
+            if (budget.began == null)
+              Padding(
+                key: const ValueKey('budget-not-begun'),
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  t.planKeyNotBegun,
+                  style: onest(13, color: Mid.ink2),
+                ),
+              )
+            // The budget began inside the period on screen: Spent shows
+            // all of it, Left only what came after (#163).
+            else if (budget.began case final b?
+                when b.isAfter(period.start) && !b.isAfter(period.end))
+              Padding(
+                key: const ValueKey('budget-began-inside'),
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  t.planKeyBeganInside(sayDate(t, b)),
+                  style: onest(13, color: Mid.ink2),
+                ),
               ),
             if (offerStart)
               _StartOffer(

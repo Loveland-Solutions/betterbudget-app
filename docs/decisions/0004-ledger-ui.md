@@ -4079,3 +4079,53 @@ Settled in the comb's follow-ups (2026-10-24):
   Savings −₮500,000" read as spending there (#264), the owner: "It is
   'minus-ing' from one account to another. The minus is fine." Rejected:
   showing it unsigned in quieter ink with both accounts named.
+
+## The Budget page's fine-tooth comb: three answers (2026-10-24)
+
+From the comb of the Budget page (#163), three ways money was counted or
+shown that the owner decided.
+
+- **Overspent categories don't add to Not assigned.** Each overspent
+  category's minus was added back into Not assigned, so it could show more
+  than there is (₮16,390,691 with ₮16,095,600 really free) and Assigned too
+  much never came. The owner chose A ("yes, it should always have been this
+  way"): In categories counts what categories with money hold, a red line
+  under it says "Overspent ₮295,090.50" (money already gone from the bank,
+  so not taken off again), and Not assigned is Cash & bank less In
+  categories. A category still carries its own minus into the next period
+  (rule 26); assigning to cover it moves nothing out of Not assigned, since
+  that money was spent from it already. Rejected: keeping the figures and showing Assigned too much only when
+  the categories hold more than Cash & bank.
+- **A bill is asked for out of the pay before it.** Rent due 11.01 was asked
+  for only in November, after the 10.25 paycheck that has to pay it. The
+  owner chose A: a bill due before the next payday is asked for in the pay
+  period before it. Rejected: leaving the timing and naming the coming bills
+  in Assign what's planned.
+- **A new budget's first rows say why they don't add up.** Before the first
+  amount, a row reads Assigned ₮0 · Spent ₮276,650.50 · Left ₮0 (rule 26).
+  The owner chose A: while nothing is assigned, the top card says "This
+  month's spending counts against a category once you assign money to it",
+  gone with the first amount. Rejected: Left showing −₮276,650.50 as if the
+  budget had begun on the 1st.
+
+Living within their means (owner, 2026-10-24: "If they have 5,000,000 USD in
+their account, it doesn't matter. What I care about is how much money they
+make") is #234, to be worked out with sketches.
+
+Settled while building them (2026-10-24):
+
+- **Each currency begins on its own.** Dollars assigned first don't start the
+  tugrik budget: tugrik keeps `budget.began`, another currency
+  `budget.began.<code>`, and without one it falls back to `budget.began`,
+  so a ledger from before counts as it did.
+- **An amount put in a period before the budget began moves the start back
+  there**, and the popup says so ("the budget now begins 09.01, so spending
+  from then on counts against its categories"), with undo. Before, it showed
+  that period's spending as covered and gave the category the money again.
+- **A period that holds the day the budget began** says so in the top card:
+  Spent shows the period's spending, Left only what came after.
+- **The Income tab's "received"** counts every row filed under a pay's
+  category, typed or imported, not only paydays the app scheduled, so it
+  matches the Income line beside it.
+- **An amount typed with more than 15 whole digits isn't an amount**, typed
+  or worked out: it had turned into a minus.
