@@ -53,13 +53,12 @@ with `app/tool/release_play.sh` from the ring's branch (the phone's Budget scree
 the ring). A phone change after it needs a new one. Before offering one, compare this
 line with `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
 
-**The Microsoft Store has 0.46.2 published** (Submission 1, made in Partner Center;
-checked with `msstore submission status` on 2026-10-26: nothing waiting). Later
-versions go by `app/tool/release_store.sh` (#251), from a clean, pushed commit on
-main: it tags main with the version, waits for GitHub's Windows build, and sends the
-package to certification, set to publish on the owner's Publish now. It refuses
-while a submission waits, since the Store holds one at a time. 0.49.0 hasn't gone
-yet: it waits on PR #275's merge.
+**The Microsoft Store has 0.46.2 published and 0.49.0 in certification** (tag
+`v0.49.0`, sent 2026-10-26 by the owner with `app/tool/release_store.sh`; when it
+passes, Partner Center waits for the owner's Publish now). Later versions go the same
+way, from a clean, pushed commit on main: the script tags main with the version,
+waits for GitHub's Windows build, and sends the package to certification. It refuses
+while a submission waits, since the Store holds one at a time (#251).
 
 **The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
 "Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
