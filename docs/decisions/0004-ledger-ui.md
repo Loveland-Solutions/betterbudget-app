@@ -4375,3 +4375,20 @@ decided.
     are deleted reads "No account"; accounts are named, never "All accounts"
     (which read as taking in accounts opened later); an archived account a line
     holds on is listed so it can be unticked.
+
+### The Payees page by keys and mouse (2026-10-26)
+
+From the same comb, along the lines given for Budget and Savings:
+
+- A payee's Edit is kept by the screen (`_PayeeKeep`): another page and back
+  finds it open as typed. ⌘N, Add a payee or a click on another line don't throw
+  typing away; the popup says to save or cancel first.
+- Save with nothing changed just closes: no popup, no empty undo. An undo or redo
+  on a payee closes an Edit open on it, which would hold what was undone.
+- Esc, Cancel or Save put focus back on the payee's line (Add a payee for a new
+  one); Delete on the next line.
+- In the Accounts and Category lists, Enter picks the item; a click away from an
+  open list closes the list, not the Edit. Opening an Edit closes the popup and
+  scrolls the Edit into view.
+- A line is one Tab stop: its category chip is part of it, without the ▾ (it
+  opens the Edit, not a list).
