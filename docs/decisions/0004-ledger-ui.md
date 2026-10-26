@@ -4392,3 +4392,23 @@ From the same comb, along the lines given for Budget and Savings:
   scrolls the Edit into view.
 - A line is one Tab stop: its category chip is part of it, without the ▾ (it
   opens the Edit, not a list).
+
+### The Payees page's words (2026-10-26)
+
+From the same comb, along the owner's lines:
+
+- One sentence over the list says what a line does: "A payee here fills its
+  category when a row is typed with it, and files rows of it brought in from a bank
+  file. Rows already in the ledger stay where they are."
+- Delete is quiet, not red: red is for a shortfall, and a page of red buttons reads
+  as one. Undo puts a payee back.
+- "Where to look"; "Anywhere in the payee or memo" (Mongolian: the row's own
+  Тэмдэглэл); "{n} have it elsewhere in the payee or memo"; "already in the list,
+  with Groceries"; Delete's popup: "Groceries no longer remembered for next time";
+  "Rows like this will read"; a new payee's chip says "Pick a category", not the
+  label beside it; what's missing is said once, in the red line.
+- The empty page points at the box under a row, not a popup.
+- Mongolian: toasts in the past tense, «мөр» not «гүйлгээ», one sentence where two
+  were glued, no «уу» on the prompts, no ending glued onto a quoted label.
+- The preview's chip is a picture of the row: no Tab stop, no pointer, no ▾. Two
+  lines with the same words keep their order on reload.

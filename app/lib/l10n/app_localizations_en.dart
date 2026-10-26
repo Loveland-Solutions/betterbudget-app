@@ -5728,7 +5728,7 @@ class WordsEn extends Words {
 
   @override
   String payeesDeletedMessage(String category) {
-    return 'Deleted · new rows of this payee stop going to $category by themselves';
+    return 'Deleted · $category no longer remembered for next time';
   }
 
   @override
@@ -5738,13 +5738,13 @@ class WordsEn extends Words {
   String get payeesWordsLabel => 'Payee, or a word in it';
 
   @override
-  String get payeesWhere => 'Where';
+  String get payeesWhere => 'Where to look';
 
   @override
   String get payeesAtStart => 'At the start of the payee';
 
   @override
-  String get payeesAnywhere => 'Anywhere in the payee or the memo';
+  String get payeesAnywhere => 'Anywhere in the payee or memo';
 
   @override
   String payeesStartsWith(String name) {
@@ -5803,7 +5803,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get payeesHowRowReads => 'How a row will read';
+  String get payeesHowRowReads => 'Rows like this will read';
 
   @override
   String get payeesNeedsWords => 'Type a payee, or a word in it';
@@ -5816,7 +5816,7 @@ class WordsEn extends Words {
 
   @override
   String get payeesEmpty =>
-      'Nothing remembered yet. Pick a category on a row in the Ledger and the popup offers “Remember this for next time”, or add a payee here.';
+      'Nothing remembered yet. When you pick a row\'s category in the Ledger, tick “Remember this category for this payee” under it, or add a payee here.';
 
   @override
   String get payeesColumnFiled => 'Category';
@@ -5848,7 +5848,7 @@ class WordsEn extends Words {
 
   @override
   String payeesAlreadyListed(String payee, String category) {
-    return '«$payee» is already in the list, as $category';
+    return '«$payee» is already in the list, with $category';
   }
 
   @override
@@ -5867,8 +5867,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count have it anywhere',
-      one: '1 has it anywhere',
+      other: '$count have it elsewhere in the payee or memo',
+      one: '1 has it elsewhere in the payee or memo',
     );
     return '$_temp0';
   }
@@ -5891,6 +5891,10 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String get payeesWhatLinesDo =>
+      'A payee here fills its category when a row is typed with it, and files rows of it brought in from a bank file. Rows already in the ledger stay where they are.';
 
   @override
   String get payeesCategoryGone => 'A deleted category';

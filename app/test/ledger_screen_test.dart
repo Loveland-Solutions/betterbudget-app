@@ -10480,8 +10480,7 @@ void main() {
       await tapAndWait(tester, find.byKey(const ValueKey('payee-delete')));
       expect(
         find.text(
-          'Deleted · new rows of this payee stop going to Groceries by '
-          'themselves',
+          'Deleted · Groceries no longer remembered for next time',
         ),
         findsOneWidget,
       );
@@ -10673,8 +10672,9 @@ void main() {
         'Sakura',
       );
       await tester.pumpAndSettle();
-      // Nothing counts until an account is picked, and it says so.
-      expect(find.text('Pick an account'), findsNWidgets(2));
+      // Nothing counts until an account is picked, and it says so, once:
+      // on the button, and in the red line, not again in grey.
+      expect(find.text('Pick an account'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('payee-accounts')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('payee-account-$checkingId')));
@@ -10740,7 +10740,7 @@ void main() {
       await tester.pumpAndSettle();
       await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
       expect(
-        find.text('«Sakura» is already in the list, as Dining out'),
+        find.text('«Sakura» is already in the list, with Dining out'),
         findsOneWidget,
       );
       // The Edit stays, with what was typed.

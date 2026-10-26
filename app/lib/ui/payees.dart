@@ -131,11 +131,6 @@ String _accountsLabel(Words t, LedgerData data, Set<int> ids) {
   return on.map((a) => a.name).join(', ');
 }
 
-String _dayText(DateTime d) {
-  String two(int n) => n < 10 ? '0$n' : '$n';
-  return '${d.year}.${two(d.month)}.${two(d.day)}';
-}
-
 /// A sentence with the payee's words in «…»: the words in ink, the rest
 /// quiet, whatever order the language puts them in.
 class _Quoted extends StatelessWidget {
@@ -281,8 +276,14 @@ class _PayeesPageState extends State<_PayeesPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     final data = widget.data;
+    // The same order on every reload: two lines with the same words on
+    // different accounts don't swap.
     final rules = [...data.payeeRules]
-      ..sort((x, y) => x.words.compareTo(y.words));
+      ..sort(
+        (x, y) => x.words != y.words
+            ? x.words.compareTo(y.words)
+            : x.id.compareTo(y.id),
+      );
     // With one account there is nothing for the column to tell apart.
     final accounts = data.openAccounts.length > 1;
     Widget heading(String label) =>
@@ -333,7 +334,11 @@ class _PayeesPageState extends State<_PayeesPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            // What a line does, said once where the lines are.
+            if (rules.isNotEmpty)
+              Text(t.payeesWhatLinesDo, style: onest(13, color: Mid.ink2)),
+            const SizedBox(height: 14),
             Flexible(
               child: Container(
                 decoration: BoxDecoration(
@@ -513,10 +518,11 @@ class _PayeeLine extends StatelessWidget {
               width: endWidth,
               child: Align(
                 alignment: Alignment.centerRight,
+                // Quiet: red is for a shortfall, and a page of red buttons
+                // reads as one (Undo puts a payee back).
                 child: BarButton(
                   key: const ValueKey('payee-delete'),
                   label: t.payeesDelete,
-                  color: Mid.coral,
                   onTap: onDelete,
                 ),
               ),
@@ -668,7 +674,8 @@ class _PayeeEditorState extends State<_PayeeEditor> {
   List<AccountInfo> _categories() {
     final currencies = _currencies;
     final all = widget.data.categories.where(
-      (c) => !isUncategorized(c) && currencies.every((x) => categoryTakes(c, x)),
+      (c) =>
+          !isUncategorized(c) && currencies.every((x) => categoryTakes(c, x)),
     );
     return [...all.where((c) => !c.isIncome), ...all.where((c) => c.isIncome)];
   }
@@ -812,301 +819,316 @@ class _PayeeEditorState extends State<_PayeeEditor> {
           ),
         },
         child: Focus(
-        focusNode: _panelFocus,
-        skipTraversal: true,
-        // A click in the panel leaves the cursor where it is, and isn't a
-        // click away from it.
-        child: TextFieldTapRegion(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {},
-            child: Container(
-              key: const ValueKey('payee-editor'),
-              margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-              decoration: BoxDecoration(
-                color: Mid.blueWash,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Mid.blueEdge),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        t.payeesWordsLabel,
-                        style: onest(12, color: Mid.ink3),
-                      ),
-                      const Spacer(),
-                      if (widget.onDelete case final del?)
-                        BarButton(
-                          key: const ValueKey('payee-edit-delete'),
-                          label: t.payeesDelete,
-                          color: Mid.coral,
-                          onTap: del,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    width: 420,
-                    child: TextField(
-                      key: const ValueKey('payee-words'),
-                      controller: _name,
-                      focusNode: _nameFocus,
-                      autofocus: true,
-                      style: onest(19, weight: 700),
-                      onSubmitted: (_) => _save(),
-                      decoration: _fieldDecoration(
-                        wrong: (_tried && words.isEmpty) || _clash,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _FormLine(
-                    label: t.payeesWhere,
-                    child: Row(
+          focusNode: _panelFocus,
+          skipTraversal: true,
+          // A click in the panel leaves the cursor where it is, and isn't a
+          // click away from it.
+          child: TextFieldTapRegion(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: Container(
+                key: const ValueKey('payee-editor'),
+                margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                decoration: BoxDecoration(
+                  color: Mid.blueWash,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Mid.blueEdge),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        BarButton(
-                          key: const ValueKey('payee-where-starts'),
-                          label: t.payeesAtStart,
-                          active: !_anywhere,
-                          color: !_anywhere ? Mid.blue : Mid.ink2,
-                          onTap: () => setState(() => _anywhere = false),
+                        Text(
+                          t.payeesWordsLabel,
+                          style: onest(12, color: Mid.ink3),
                         ),
-                        BarButton(
-                          key: const ValueKey('payee-where-anywhere'),
-                          label: t.payeesAnywhere,
-                          active: _anywhere,
-                          color: _anywhere ? Mid.blue : Mid.ink2,
-                          onTap: () => setState(() => _anywhere = true),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (open.length > 1)
-                    _FormLine(
-                      label: t.payeesColumnAccounts,
-                      child: MenuAnchor(
-                        controller: _accountsMenu,
-                        style: _menuStyle,
-                        onOpen: () => setState(() {}),
-                        onClose: () {
-                          if (mounted) setState(() {});
-                        },
-                        menuChildren: focusFirstOnKeys([
-                          // An archived one it still holds on is listed,
-                          // so it can be unticked.
-                          for (final a in [
-                            ...open,
-                            for (final x in data.balanceSheetAccounts)
-                              if (x.archived && _accounts.contains(x.id)) x,
-                          ])
-                            MenuItemButton(
-                              key: ValueKey('payee-account-${a.id}'),
-                              closeOnActivate: false,
-                              onPressed: () => _tick(a.id),
-                              style: ButtonStyle(
-                                minimumSize: const WidgetStatePropertyAll(
-                                  Size(320, 34),
-                                ),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                padding: const WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                overlayColor: WidgetStatePropertyAll(
-                                  Mid.blueWash,
-                                ),
-                              ),
-                              leadingIcon: Icon(
-                                _accounts.contains(a.id)
-                                    ? Icons.check_box_rounded
-                                    : Icons.check_box_outline_blank_rounded,
-                                size: 18,
-                                color: _accounts.contains(a.id)
-                                    ? Mid.blue
-                                    : Mid.ink3,
-                              ),
-                              child: Text(
-                                a.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: onest(
-                                  13,
-                                  color: _accounts.contains(a.id)
-                                      ? Mid.ink
-                                      : Mid.ink2,
-                                ),
-                              ),
-                            ),
-                        ]),
-                        child: BarButton(
-                          key: const ValueKey('payee-accounts'),
-                          label: _accounts.isEmpty
-                              ? t.payeesNeedsAccount
-                              : _accountsLabel(t, data, _accounts),
-                          color: _tried && _accounts.isEmpty ? Mid.coral : null,
-                          trailing: Icons.expand_more_rounded,
-                          active: _accountsMenu.isOpen,
-                          onTap: () => _accountsMenu.isOpen
-                              ? _accountsMenu.close()
-                              : _accountsMenu.open(),
-                        ),
-                      ),
-                    ),
-                  _FormLine(
-                    label: t.payeesColumnFiled,
-                    child: CategoryMenu(
-                      controller: _categoryMenu,
-                      consumeOutsideTap: true,
-                      leading: [
-                        for (final p in pays)
-                          (
-                            label: p.label,
-                            onTap: () {
-                              setState(() {
-                                _payId = p.id;
-                                _categoryId = data.income?.id;
-                              });
-                              _takeKeys();
-                            },
+                        const Spacer(),
+                        if (widget.onDelete case final del?)
+                          BarButton(
+                            key: const ValueKey('payee-edit-delete'),
+                            label: t.payeesDelete,
+                            color: Mid.coral,
+                            onTap: del,
                           ),
                       ],
-                      categories: _categories(),
-                      current: categoryLabel,
-                      onPicked: (c) {
-                        setState(() {
-                          _categoryId = c.id;
-                          _payId = null;
-                        });
-                        _takeKeys();
-                      },
-                      builder: (menuOpen, toggle) => CategoryChip(
-                        key: const ValueKey('payee-category'),
-                        label: categoryLabel ?? t.payeesColumnFiled,
-                        open: menuOpen,
-                        onTap: toggle,
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      width: 420,
+                      child: TextField(
+                        key: const ValueKey('payee-words'),
+                        controller: _name,
+                        focusNode: _nameFocus,
+                        autofocus: true,
+                        style: onest(19, weight: 700),
+                        onSubmitted: (_) => _save(),
+                        decoration: _fieldDecoration(
+                          wrong: (_tried && words.isEmpty) || _clash,
+                        ),
                       ),
                     ),
-                  ),
-                  Text(
-                    fits,
-                    key: const ValueKey('payee-fits'),
-                    style: onest(
-                      13,
-                      color: words.isEmpty ? Mid.ink3 : Mid.ink2,
-                    ),
-                  ),
-                  if (missing.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      missing.join(' · '),
-                      key: const ValueKey('payee-missing'),
-                      style: onest(13, color: Mid.coral),
-                    ),
-                  ],
-                  if (example != null && exampleAccount != null) ...[
                     const SizedBox(height: 14),
-                    Text(
-                      t.payeesHowRowReads,
-                      style: onest(12, color: Mid.ink3),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      key: const ValueKey('payee-example'),
-                      height: 52,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      decoration: BoxDecoration(
-                        color: Mid.ground,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                    _FormLine(
+                      label: t.payeesWhere,
                       child: Row(
                         children: [
-                          SizedBox(
-                            width: 110,
-                            child: Text(
-                              _dayText(example.date),
-                              style: onest(13.5, color: Mid.ink2),
-                            ),
+                          BarButton(
+                            key: const ValueKey('payee-where-starts'),
+                            label: t.payeesAtStart,
+                            active: !_anywhere,
+                            color: !_anywhere ? Mid.blue : Mid.ink2,
+                            onTap: () => setState(() => _anywhere = false),
                           ),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  example.txnPayee ?? '',
-                                  style: onest(14, weight: 500),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (example.memo.trim().isNotEmpty)
-                                  Text(
-                                    example.memo,
-                                    style: onest(12, color: Mid.ink3),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          SizedBox(
-                            width: 160,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: CategoryChip(
-                                label: categoryLabel ?? example.categoryLabel,
-                                open: false,
-                                onTap: () {},
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 140,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Money(
-                                example.amount,
-                                size: 14,
-                                currency: exampleAccount.currency,
-                                sign: MoneySign.plusForPositive,
-                              ),
-                            ),
+                          BarButton(
+                            key: const ValueKey('payee-where-anywhere'),
+                            label: t.payeesAnywhere,
+                            active: _anywhere,
+                            color: _anywhere ? Mid.blue : Mid.ink2,
+                            onTap: () => setState(() => _anywhere = true),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      const Spacer(),
-                      BarButton(
-                        key: const ValueKey('payee-cancel'),
-                        label: t.planCancel,
-                        onTap: widget.onCancel,
+                    if (open.length > 1)
+                      _FormLine(
+                        label: t.payeesColumnAccounts,
+                        child: MenuAnchor(
+                          controller: _accountsMenu,
+                          style: _menuStyle,
+                          onOpen: () => setState(() {}),
+                          onClose: () {
+                            if (mounted) setState(() {});
+                          },
+                          menuChildren: focusFirstOnKeys([
+                            // An archived one it still holds on is listed,
+                            // so it can be unticked.
+                            for (final a in [
+                              ...open,
+                              for (final x in data.balanceSheetAccounts)
+                                if (x.archived && _accounts.contains(x.id)) x,
+                            ])
+                              MenuItemButton(
+                                key: ValueKey('payee-account-${a.id}'),
+                                closeOnActivate: false,
+                                onPressed: () => _tick(a.id),
+                                style: ButtonStyle(
+                                  minimumSize: const WidgetStatePropertyAll(
+                                    Size(320, 34),
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding: const WidgetStatePropertyAll(
+                                    EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  overlayColor: WidgetStatePropertyAll(
+                                    Mid.blueWash,
+                                  ),
+                                ),
+                                leadingIcon: Icon(
+                                  _accounts.contains(a.id)
+                                      ? Icons.check_box_rounded
+                                      : Icons.check_box_outline_blank_rounded,
+                                  size: 18,
+                                  color: _accounts.contains(a.id)
+                                      ? Mid.blue
+                                      : Mid.ink3,
+                                ),
+                                child: Text(
+                                  a.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: onest(
+                                    13,
+                                    color: _accounts.contains(a.id)
+                                        ? Mid.ink
+                                        : Mid.ink2,
+                                  ),
+                                ),
+                              ),
+                          ]),
+                          child: BarButton(
+                            key: const ValueKey('payee-accounts'),
+                            label: _accounts.isEmpty
+                                ? t.payeesNeedsAccount
+                                : _accountsLabel(t, data, _accounts),
+                            color: _tried && _accounts.isEmpty
+                                ? Mid.coral
+                                : null,
+                            trailing: Icons.expand_more_rounded,
+                            active: _accountsMenu.isOpen,
+                            onTap: () => _accountsMenu.isOpen
+                                ? _accountsMenu.close()
+                                : _accountsMenu.open(),
+                          ),
+                        ),
                       ),
-                      _PrimaryButton(
-                        key: const ValueKey('payee-save'),
-                        label: t.planSave,
-                        icon: Icons.check_rounded,
-                        tooltip: 'Enter',
-                        onTap: _save,
+                    _FormLine(
+                      label: t.payeesColumnFiled,
+                      child: CategoryMenu(
+                        controller: _categoryMenu,
+                        consumeOutsideTap: true,
+                        leading: [
+                          for (final p in pays)
+                            (
+                              label: p.label,
+                              onTap: () {
+                                setState(() {
+                                  _payId = p.id;
+                                  _categoryId = data.income?.id;
+                                });
+                                _takeKeys();
+                              },
+                            ),
+                        ],
+                        categories: _categories(),
+                        current: categoryLabel,
+                        onPicked: (c) {
+                          setState(() {
+                            _categoryId = c.id;
+                            _payId = null;
+                          });
+                          _takeKeys();
+                        },
+                        builder: (menuOpen, toggle) => CategoryChip(
+                          key: const ValueKey('payee-category'),
+                          // Not the label beside it again: what to do.
+                          label: categoryLabel ?? t.payeesNeedsCategory,
+                          open: menuOpen,
+                          onTap: toggle,
+                        ),
+                      ),
+                    ),
+                    // Not when the red line under it says the same.
+                    if (!missing.contains(fits))
+                      Text(
+                        fits,
+                        key: const ValueKey('payee-fits'),
+                        style: onest(
+                          13,
+                          color: words.isEmpty ? Mid.ink3 : Mid.ink2,
+                        ),
+                      ),
+                    if (missing.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        missing.join(' · '),
+                        key: const ValueKey('payee-missing'),
+                        style: onest(13, color: Mid.coral),
                       ),
                     ],
-                  ),
-                ],
+                    if (example != null && exampleAccount != null) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        t.payeesHowRowReads,
+                        style: onest(12, color: Mid.ink3),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        key: const ValueKey('payee-example'),
+                        height: 52,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        decoration: BoxDecoration(
+                          color: Mid.ground,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 110,
+                              child: Text(
+                                fullDate(example.date),
+                                style: onest(13.5, color: Mid.ink2),
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    example.txnPayee ?? '',
+                                    style: onest(14, weight: 500),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (example.memo.trim().isNotEmpty)
+                                    Text(
+                                      example.memo,
+                                      style: onest(12, color: Mid.ink3),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            SizedBox(
+                              width: 160,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                // A picture of the row: no Tab stop, no
+                                // pointer, no ▾.
+                                child: ExcludeFocus(
+                                  child: IgnorePointer(
+                                    child: CategoryChip(
+                                      label:
+                                          categoryLabel ??
+                                          example.categoryLabel,
+                                      open: false,
+                                      onTap: () {},
+                                      arrow: false,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 140,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Money(
+                                  example.amount,
+                                  size: 14,
+                                  currency: exampleAccount.currency,
+                                  sign: MoneySign.plusForPositive,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        BarButton(
+                          key: const ValueKey('payee-cancel'),
+                          label: t.planCancel,
+                          onTap: widget.onCancel,
+                        ),
+                        _PrimaryButton(
+                          key: const ValueKey('payee-save'),
+                          label: t.planSave,
+                          icon: Icons.check_rounded,
+                          tooltip: 'Enter',
+                          onTap: _save,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

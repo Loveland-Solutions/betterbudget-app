@@ -124,7 +124,7 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'дахиад $count гүйлгээ ангилагдлаа',
+      other: 'өөр $count мөр ангиллаа',
     );
     return '$_temp0';
   }
@@ -1921,7 +1921,7 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Дараагийн удаад санах · өөр $count мөрийг одоо ангилна',
+      other: 'Дараагийн удаад санаж, өөр $count мөрийг одоо ангилах',
       zero: 'Дараагийн удаад санах',
     );
     return '$_temp0';
@@ -1938,8 +1938,8 @@ class WordsMn extends Words {
       count,
       locale: localeName,
       other:
-          '$category гэдгийг дараагийн удаад санана · өөр $count мөр ангиллаа',
-      zero: '$category гэдгийг дараагийн удаад санана',
+          'Дараа нь $category гэж ангилахаар санаж авлаа · өөр $count мөр ангиллаа',
+      zero: 'Дараа нь $category гэж ангилахаар санаж авлаа',
     );
     return '$_temp0';
   }
@@ -5536,7 +5536,7 @@ class WordsMn extends Words {
 
   @override
   String payeesDeletedMessage(String category) {
-    return 'Устгалаа · энэ харилцагчийн шинэ мөр цаашид $category ангилалд өөрөө орохгүй';
+    return 'Устгалаа · $category гэдгийг цаашид санахгүй';
   }
 
   @override
@@ -5546,14 +5546,14 @@ class WordsMn extends Words {
   String get payeesWordsLabel => 'Харилцагч, эсвэл нэрэнд нь орсон үг';
 
   @override
-  String get payeesWhere => 'Хаана';
+  String get payeesWhere => 'Хаана хайх';
 
   @override
   String get payeesAtStart => 'Харилцагчийн нэрийн эхэнд';
 
   @override
   String get payeesAnywhere =>
-      'Харилцагчийн нэр эсвэл гүйлгээний утгын аль ч хэсэгт';
+      'Харилцагчийн нэр эсвэл тэмдэглэлийн аль ч хэсэгт';
 
   @override
   String payeesStartsWith(String name) {
@@ -5608,20 +5608,20 @@ class WordsMn extends Words {
   }
 
   @override
-  String get payeesHowRowReads => 'Мөр ингэж харагдана';
+  String get payeesHowRowReads => 'Ийм мөр ингэж харагдана';
 
   @override
   String get payeesNeedsWords => 'Харилцагч, эсвэл нэрэнд нь орсон үг бичнэ үү';
 
   @override
-  String get payeesNeedsCategory => 'Ангилал сонгоно уу';
+  String get payeesNeedsCategory => 'Ангилал сонгоорой';
 
   @override
-  String get payeesNeedsAccount => 'Данс сонгоно уу';
+  String get payeesNeedsAccount => 'Данс сонгоорой';
 
   @override
   String get payeesEmpty =>
-      'Санасан зүйл хараахан алга. Дэвтрийн мөрд ангилал сонгоход доорх цонх «Дараагийн удаад санах» гэж санал болгоно; эсвэл энд харилцагч нэмнэ үү.';
+      'Санасан зүйл хараахан алга. Дэвтрийн мөрд ангилал сонгохдоо доор нь «Энэ харилцагчид энэ ангиллыг санах» гэдгийг чагтлаарай, эсвэл энд харилцагч нэмээрэй.';
 
   @override
   String get payeesColumnFiled => 'Ангилал';
@@ -5651,7 +5651,7 @@ class WordsMn extends Words {
 
   @override
   String payeesAlreadyListed(String payee, String category) {
-    return '«$payee» жагсаалтад аль хэдийн байна, $category гэж';
+    return '«$payee» жагсаалтад аль хэдийн байна (ангилал: $category)';
   }
 
   @override
@@ -5669,7 +5669,8 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count мөрд энэ үг орсон байна',
+      other:
+          '$count мөрд энэ үг харилцагчийн нэрийн дунд эсвэл тэмдэглэлд байна',
     );
     return '$_temp0';
   }
@@ -5691,6 +5692,10 @@ class WordsMn extends Words {
     );
     return '$_temp0';
   }
+
+  @override
+  String get payeesWhatLinesDo =>
+      'Энд байгаа харилцагчийн нэрээр мөр бичихэд ангилал нь өөрөө бөглөгдөж, банкны файлаас оруулсан мөр ангилагдана. Дэвтэрт аль хэдийн байгаа мөр байрандаа үлдэнэ.';
 
   @override
   String get payeesCategoryGone => 'Устгасан ангилал';
