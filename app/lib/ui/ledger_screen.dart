@@ -5017,9 +5017,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         currency || off.length != e.off.length || !off.containsAll(e.off);
     // A change of currency removes the plan itself.
     final plan = e.plan != (currency ? null : oldPlan);
-    final changes = [renamed, money, plan].where((x) => x);
+    final monthKey = ReadyKeys.leftOut(c.id);
+    final monthWas = data.prefs[monthKey];
+    final month = e.inMonth != inMonthOfExpenses(data, c.id);
+    final changes = [renamed, money, plan, month].where((x) => x);
     if (changes.isEmpty) return;
-    if (changes.length == 1) {
+    if (changes.length == 1 && !month) {
       if (renamed) return _renameCategory(data, c, e.name);
       if (money) return _setCategoryMoney(c, e.currency, e.off);
       return _setCategoryPlan(c, e.plan);
@@ -5066,6 +5069,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (currency) await db.setPreference(fromKey, from);
       }
       if (plan) planChange = await db.changeCategoryPlan(c.id, e.plan, today);
+      if (month) await db.setPreference(monthKey, e.inMonth ? null : 'yes');
     });
 
     if (!await _accountWrite(write, what: 'category')) return;
@@ -5078,6 +5082,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ?returns,
       ].join(' · '),
       undo: () => db.transaction(() async {
+        if (month) await db.setPreference(monthKey, monthWas);
         if (plan) await db.undoPlanChange(c.id, planChange!);
         if (money) {
           await db.restoreCategoryMoney(c.id, moneyBefore);
@@ -5213,6 +5218,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           currency: e.currency,
           off: e.off,
           plan: e.plan,
+          inMonth: e.inMonth,
         ));
       }
       _joinHistory(mark, t.ledgerAdded(existing.name));
@@ -5225,6 +5231,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (e.off.isNotEmpty) {
         await db.setCategoryMoney(id, currency: e.currency, off: e.off);
       }
+      // Said either way: a deleted category's id may come round again.
+      await db.setPreference(ReadyKeys.leftOut(id), e.inMonth ? null : 'yes');
     }
 
     if (!await _accountWrite(
@@ -5245,6 +5253,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (planChange case final change?) {
           await db.undoPlanChange(id, change);
         }
+        await db.setPreference(ReadyKeys.leftOut(id), null);
         _expect(await db.deleteEmptyAccount(id));
       }),
       redo: () => db.transaction(() async {
@@ -5691,18 +5700,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  /// [value] may be worked out from what's stored now: [from].
   Future<void> _setPref(
     String key,
     String? value,
     String label, {
     bool toast = false,
+    String? Function(String? old)? from,
   }) async {
-    // The newest ledger: two quick clicks mustn't both start from the same
-    // old answer.
-    final old = _data?.prefs[key];
-    if (old == value) return;
     final t = context.t;
+    late String? old;
     try {
+      // Read from the file, not the last ledger shown: two quick clicks
+      // mustn't both start from the same old answer (code review,
+      // 2026-10-26).
+      old = await db.preference(key);
+      if (from != null) value = from(old);
+      if (old == value) return;
       await db.setPreference(key, value);
     } catch (e) {
       _showFailure(t.ledgerCouldntSave, error: e);
@@ -6636,12 +6650,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                     },
                                     setAside: (step, aside, label) => _setPref(
                                       ReadyKeys.setAside,
-                                      Readiness.of(
-                                        _data ?? data,
-                                        widget.clock(),
-                                      ).setAsideWith(step, aside),
+                                      null,
                                       label,
                                       toast: true,
+                                      from: (old) => Readiness.setAsideStored(
+                                        old,
+                                        step,
+                                        aside,
+                                      ),
                                     ),
                                   ),
                                 ),

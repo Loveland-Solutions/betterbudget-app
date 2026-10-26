@@ -218,7 +218,7 @@ void main() {
 
     // What isn't assigned in the budget is offered, as much as fills it.
     expect(find.text('Assign ₮2,000,000 to Safety net'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('fund-assign')));
+    await tester.tap(find.byKey(const ValueKey('fund-assign-oneMonth')));
     await settle(tester);
     await settle(tester);
     data = (await tester.runAsync(db.loadLedger))!;
@@ -227,7 +227,7 @@ void main() {
     expect(r.isDone(ReadyStep.oneMonth), isTrue);
     await settle(tester);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('fund-assign')), findsNothing);
+    expect(find.byKey(const ValueKey('fund-assign-oneMonth')), findsNothing);
 
     // Retirement is a quiet answer; ⌘Z takes it back.
     await tester.tap(find.byKey(const ValueKey('answer-retirement-yes')));
@@ -506,6 +506,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('category-edit')), findsOneWidget);
     expect(find.byKey(const ValueKey('category-delete')), findsNothing);
+    // Its Edit doesn't ask about a month of expenses: it's never in one.
+    await tester.tap(find.byKey(const ValueKey('category-edit')));
+    await tester.pumpAndSettle();
+    expect(find.text('In a month of expenses?'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // Another category's Edit does (owner, 2026-10-26): No leaves it out,
+    // and ⌘Z puts it back.
+    final gid = data.categories.firstWhere((c) => c.name == 'Groceries').id;
+    await tester.tap(find.byKey(ValueKey('category-menu-$gid')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-edit')));
+    await tester.pumpAndSettle();
+    expect(find.text('In a month of expenses?'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('plan-in-month-no')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('plan-in-month-no')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('edit-save')));
+    await settle(tester);
+    Future<String?> leftOut() async =>
+        (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.leftOut(gid)];
+    expect(await leftOut(), 'yes');
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('A month of expenses: ₮2,400,000, from your budget'),
+      findsNothing,
+    );
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(await leftOut(), isNull);
+    expect(
+      find.text('A month of expenses: ₮2,400,000, from your budget'),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 
@@ -6520,6 +6564,8 @@ void main() {
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_plan_custom.png'),
       );
+      await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+      await tester.pumpAndSettle();
       await tester.runAsync(() async {
         await tester.tap(find.byKey(const ValueKey('edit-save')));
         await Future<void>.delayed(const Duration(milliseconds: 300));

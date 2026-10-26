@@ -4,6 +4,8 @@
 /// locked, and any step can be set aside. Pure Dart: no database, no Flutter.
 library;
 
+import 'dart:math' show max;
+
 import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
@@ -55,7 +57,17 @@ abstract final class ReadyKeys {
   /// A card's or loan's interest rate, as [DebtRate.value] writes it:
   /// `2 month`, `24 year`. Kept by account id, so a rename keeps it.
   static String rate(int accountId) => 'ready.rate.$accountId';
+
+  /// 'yes': the category is left out of a month of expenses (owner,
+  /// 2026-10-26: "an option on each category where if checked, it counts
+  /// towards the 1 month expense total"). Unset counts, so a ledger from
+  /// before keeps its month. Kept by category id.
+  static String leftOut(int categoryId) => 'ready.out.$categoryId';
 }
+
+/// Whether category [id] counts in a month of expenses ([ReadyKeys.leftOut]).
+bool inMonthOfExpenses(LedgerData data, int id) =>
+    data.prefs[ReadyKeys.leftOut(id)] != 'yes';
 
 /// A card's or loan's interest rate, as the person reads it off the bank:
 /// a month's or a year's (owner, 2026-10-14: "something that works in both
@@ -90,7 +102,9 @@ double? parseRatePercent(String s) {
   final m = RegExp(r'^(\d+(?:[.,]\d+)?)\s*%?$').firstMatch(s.trim());
   if (m == null) return null;
   final v = double.tryParse(m[1]!.replaceAll(',', '.'));
-  return v == null || v < 0 || v.isNaN || v.isInfinite ? null : v;
+  // Past 1000% it isn't a rate anyone is charged: the field says so, and
+  // what it costs a month stays a number that fits.
+  return v == null || v < 0 || v > 1000 || v.isNaN ? null : v;
 }
 
 /// A percent as a person writes it: `2`, `1.4`, `24.99`.
@@ -100,7 +114,9 @@ String ratePercent(double p) {
 }
 
 /// A month's rate this high is most likely a year's typed under "a month".
-bool rateLooksYearly(DebtRate r) => !r.perYear && r.percent > 8;
+/// Pawnshops and some non-bank lenders do charge up to about 10% a month,
+/// so below 15% it isn't questioned (budget review, 2026-10-26).
+bool rateLooksYearly(DebtRate r) => !r.perYear && r.percent > 15;
 
 /// A tugrik debt's year rate this low is most likely a month's.
 bool rateLooksMonthly(DebtRate r, Currency c) =>
@@ -135,12 +151,20 @@ class MonthOfSpending {
     required this.spent,
     this.loanPayments = 0,
     this.fromBudget = false,
+    this.inBudget = 0,
   });
 
   final int amount;
 
   /// [amount] is what the budget holds for this month ([budgeted]).
   final bool fromBudget;
+
+  /// What the budget holds for this month, typed month or not: a typed
+  /// month the budget has outgrown is said (budget review, 2026-10-26).
+  final int inBudget;
+
+  /// A typed month more than a tenth under what the budget now holds.
+  bool get outgrown => typed && inBudget * 10 > amount * 11;
 
   /// Of [spent], paid into a mortgage or student loan: a bill that has to
   /// keep being paid, though it's a transfer and not spending.
@@ -162,9 +186,10 @@ class MonthOfSpending {
   /// spending category in [main] that isn't archived, what its plan asks
   /// for the month or what is assigned to it, whichever is more (a month
   /// half assigned still counts the plan; a category with no plan counts
-  /// what it was given). A card or loan payment budgeted as a category is
+  /// what it was given this month or last, whichever is more). A card or loan payment budgeted as a category is
   /// in it like rent. A category that holds the safety net isn't an
-  /// expense, so it's left out. 0 when nothing is budgeted.
+  /// expense, so it's left out, as is one the person left out
+  /// ([inMonthOfExpenses]). 0 when nothing is budgeted.
   static int budgeted(
     LedgerData data,
     DateTime today,
@@ -172,13 +197,19 @@ class MonthOfSpending {
     Budget? budget,
   }) {
     budget ??= monthBudget(data, today);
+    // A category with no plan is assigned as the month goes: last month's
+    // too, so the month doesn't fall on the 1st, before payday's assigning
+    // (budget review, 2026-10-26).
+    final day = dateOnly(today);
+    final last = monthBudget(data, DateTime(day.year, day.month, 0));
     final fund = fundCategoryIds(data, main);
     var sum = 0;
     for (final MapEntry(key: id, value: line) in budget.lines.entries) {
       if (line.currency != main || data.accounts[id]!.archived) continue;
-      if (fund.contains(id)) continue;
+      if (fund.contains(id) || !inMonthOfExpenses(data, id)) continue;
       final planned = line.plan?.planned ?? 0;
-      final most = planned > line.assigned ? planned : line.assigned;
+      final before = line.plan == null ? last.lines[id]?.assigned ?? 0 : 0;
+      final most = [planned, line.assigned, before].reduce(max);
       if (most > 0) sum += most;
     }
     return sum;
@@ -191,12 +222,13 @@ class MonthOfSpending {
   /// against spending; other transfers, card payments (the card's own
   /// spending already counts) and opening balances don't.
   static MonthOfSpending of(LedgerData data, DateTime today, {Budget? budget}) {
-    final typed = typedMonth(data.prefs[ReadyKeys.month], mainCurrency(data));
+    final main = savingsCurrency(data);
+    final typed = typedMonth(data.prefs[ReadyKeys.month], main);
     final end = dateOnly(today);
-    final main = mainCurrency(data);
     bool spending(EntryData e) =>
         e.currency == main &&
-        data.accounts[e.accountId]?.type == AccountType.expense;
+        data.accounts[e.accountId]?.type == AccountType.expense &&
+        inMonthOfExpenses(data, e.accountId);
     bool loanPayment(TxnData t, EntryData e) {
       final a = data.accounts[e.accountId];
       return a != null &&
@@ -234,6 +266,7 @@ class MonthOfSpending {
       }
     }
     spent += loans;
+    final inBudget = budgeted(data, today, main, budget: budget);
     if (typed != null && typed > 0) {
       return MonthOfSpending(
         amount: typed,
@@ -241,9 +274,9 @@ class MonthOfSpending {
         days: days,
         spent: spent,
         loanPayments: loans,
+        inBudget: inBudget,
       );
     }
-    final inBudget = budgeted(data, today, main, budget: budget);
     if (inBudget > 0) {
       return MonthOfSpending(
         amount: inBudget,
@@ -264,9 +297,12 @@ class MonthOfSpending {
     }
     // A month is 365.25 / 12 = 1461 / 48 days; whole units, rounded up, in
     // integers so an exact month doesn't gain a unit.
-    final per = 48 * days * main.scale;
+    // BigInt: spending in the trillions would overflow spent * 1461.
+    final per = BigInt.from(48 * days * main.scale);
+    final units =
+        (BigInt.from(spent) * BigInt.from(1461) + per - BigInt.one) ~/ per;
     return MonthOfSpending(
-      amount: (spent * 1461 + per - 1) ~/ per * main.scale,
+      amount: units.toInt() * main.scale,
       typed: false,
       days: days,
       spent: spent,
@@ -315,7 +351,17 @@ int? typedMonth(String? stored, Currency main) {
   return int.tryParse(parts.last);
 }
 
-/// The currency Savings counts in: the one most open accounts are in; on
+/// The currency Savings counts in: the Safety net category's, so a new
+/// account in another currency doesn't move the page (budget review,
+/// 2026-10-26); before there is one, [mainCurrency].
+Currency savingsCurrency(LedgerData data) =>
+    data.accounts.values
+        .where((a) => isSafetyNet(a) && !a.archived)
+        .firstOrNull
+        ?.currency ??
+    mainCurrency(data);
+
+/// The currency most open accounts are in; on
 /// a tie, the first in the list (tugrik, then dollars, then by code). Accounts in the other currency aren't in its sums (the page says
 /// so) until the owner decides how Savings treats two currencies.
 Currency mainCurrency(LedgerData data) {
@@ -337,6 +383,8 @@ class Readiness {
     required this.keptIn,
     required this.keptThere,
     required this.notAssigned,
+    required this.overAssigned,
+    required this.billsToAssign,
     required this.fundAssigned,
     required this.held,
     required this.fund,
@@ -348,6 +396,7 @@ class Readiness {
     required this.setAside,
     required this.longMarked,
     required this.carriedSince,
+    required this.looksPaidInFull,
     required this.target,
     required this.rates,
   });
@@ -356,7 +405,7 @@ class Readiness {
     // Archived accounts are out of the picker and the lists, so they're out
     // of the sums too: nothing counts that can't be seen and changed. One
     // currency, never added across (ROADMAP E).
-    final main = mainCurrency(data);
+    final main = savingsCurrency(data);
     final open = [
       for (final a in data.openAccounts)
         if (a.currency == main) a,
@@ -375,6 +424,11 @@ class Readiness {
     );
     final targetId = int.tryParse(data.prefs[ReadyKeys.target] ?? '');
     final budget = monthBudget(data, today);
+    // Not assigned in the currency Savings counts in, whichever the
+    // Budget page began with.
+    final free = budget.pools
+        .where((p) => p.currency == main)
+        .fold(0, (s, p) => s + p.notAssigned);
     // What each spending category holds today; one overspent holds nothing.
     final held = {
       for (final MapEntry(key: id, value: line) in budget.lines.entries)
@@ -405,8 +459,17 @@ class Readiness {
           if (a.isOwed &&
               a.role == AccountRole.paidMonthly &&
               data.balanceOf(a.id) < 0)
-            a.id: _carriedSince(data, a.id, dateOnly(today)),
-      }..removeWhere((_, since) => since == null),
+            if (_paying(data, a.id, dateOnly(today)) case (
+              paid: false,
+              :final since,
+            ))
+              a.id: since,
+      },
+      looksPaidInFull: {
+        for (final d in consumer)
+          if (_paying(data, d.account.id, dateOnly(today))?.paid ?? false)
+            d.account.id,
+      },
       rates: {
         for (final a in open)
           if (a.isOwed) a.id: ?parseDebtRate(data.prefs[ReadyKeys.rate(a.id)]),
@@ -418,9 +481,15 @@ class Readiness {
       fundCategories: fundCategories,
       keptIn: limited ? keptIn : const [],
       keptThere: limited ? there.clamp(0, fund) : 0,
-      notAssigned: budget.currency == main && budget.notAssigned > 0
-          ? budget.notAssigned
-          : 0,
+      notAssigned: free > 0 ? free : 0,
+      overAssigned: free < 0 ? -free : 0,
+      billsToAssign: [
+        for (final line in budget.lines.values)
+          if (line.currency == main &&
+              line.plan?.due != null &&
+              line.plan!.planned > line.assigned)
+            line.plan!.planned - line.assigned,
+      ].fold(0, (s, v) => s + v),
       fundAssigned: fundCategories.length == 1
           ? budget.lines[fundCategories.single.id]?.assigned ?? 0
           : 0,
@@ -461,6 +530,24 @@ class Readiness {
   /// Money in the budget not assigned to any category, when there is some.
   final int notAssigned;
 
+  /// How much more the budget has assigned than there is in cash and bank:
+  /// the safety net's Left may not all be there (owner, 2026-10-26: keep
+  /// the check, and say so).
+  final int overAssigned;
+
+  /// What this month's bills on the Budget page still ask to be assigned:
+  /// the safety net isn't offered their money (budget review, 2026-10-26).
+  final int billsToAssign;
+
+  /// What [step]'s Assign offers the safety net: what's not assigned less
+  /// the bills' share, no more than fills it; 0 while a month isn't known.
+  int offerFor(ReadyStep step) {
+    final toGo = targetOf(step) - fund;
+    if (targetOf(step) == 0 || toGo <= 0) return 0;
+    final spare = notAssigned - billsToAssign;
+    return spare <= 0 ? 0 : (spare < toGo ? spare : toGo);
+  }
+
   /// Assigned to the safety net's category this calendar month.
   final int fundAssigned;
 
@@ -493,38 +580,59 @@ class Readiness {
   /// Some card or loan is marked a mortgage.
   final bool longMarked;
 
-  /// Cards marked paid in full every month that have owed something every
-  /// day for over five weeks: since when. A warning, not a reclassing.
-  final Map<int, DateTime?> carriedSince;
+  /// Cards marked paid in full every month that haven't paid off what they
+  /// owed five weeks ago: since when a balance has carried. A warning, not
+  /// a reclassing.
+  final Map<int, DateTime> carriedSince;
+
+  /// Debts to pay off that have paid off what they owed five weeks ago:
+  /// cards that may be paid in full every month, not yet marked so. Left
+  /// out of "pay only the minimums", which would start interest on them.
+  final Set<int> looksPaidInFull;
 
   /// The consumer debt to pay extra on: the one picked, or the smallest.
   final Debt? target;
 
-  /// Paid in full: a card that owes nothing at the end of some day in the
-  /// last [_carryDays] days. Otherwise the day after it last owed nothing
-  /// (or its first row), which is when the balance started carrying.
+  /// How a card has been paid lately: [_carryDays] days ago it owed
+  /// something, and what has been paid in since covers it (paid in full by
+  /// statement, though new purchases mean it never reads zero) or doesn't.
+  /// Null when it owed nothing then. [since] is the day after it last owed
+  /// nothing (or its first row): when a balance started carrying.
   static const _carryDays = 35;
 
-  static DateTime? _carriedSince(LedgerData data, int id, DateTime today) {
-    final byDay = <DateTime, int>{};
+  static ({bool paid, DateTime since})? _paying(
+    LedgerData data,
+    int id,
+    DateTime today,
+  ) {
+    final rows = <(DateTime, int)>[];
     for (final t in data.txns) {
       if (t.scheduled || t.date.isAfter(today)) continue;
       for (final e in t.entries) {
-        if (e.accountId == id) byDay[t.date] = (byDay[t.date] ?? 0) + e.amount;
+        if (e.accountId == id) rows.add((dateOnly(t.date), e.amount));
       }
     }
-    final days = byDay.keys.toList()..sort();
-    if (days.isEmpty) return null;
-    var balance = 0;
+    if (rows.isEmpty) return null;
+    rows.sort((a, b) => a.$1.compareTo(b.$1));
+    final cut = DateTime(today.year, today.month, today.day - _carryDays);
+    var then = 0, paidSince = 0, balance = 0;
     DateTime? lastClear;
-    for (final d in days) {
-      balance += byDay[d]!;
-      if (balance >= 0) lastClear = d;
+    for (var i = 0; i < rows.length; i++) {
+      final (day, amount) = rows[i];
+      balance += amount;
+      if (day.isAfter(cut)) {
+        if (amount > 0) paidSince += amount;
+      } else {
+        then = balance;
+      }
+      final endOfDay = i == rows.length - 1 || rows[i + 1].$1 != day;
+      if (endOfDay && balance >= 0) lastClear = day;
     }
+    if (then >= 0) return null;
     final since = lastClear == null
-        ? days.first
-        : lastClear.add(const Duration(days: 1));
-    return today.difference(since).inDays > _carryDays ? since : null;
+        ? rows.first.$1
+        : DateTime(lastClear.year, lastClear.month, lastClear.day + 1);
+    return (paid: paidSince >= -then, since: since);
   }
 
   /// Each card's and loan's rate the person gave, by account id.
@@ -604,7 +712,23 @@ class Readiness {
       : ReadyState.later;
 
   /// The set-aside list with [s] added or taken out, for the preference.
-  String? setAsideWith(ReadyStep s, bool aside) {
+  String? setAsideWith(ReadyStep s, bool aside) =>
+      setAsideIn(setAside, s, aside);
+
+  /// [stored] (as [ReadyKeys.setAside] holds it) with [s] added or taken
+  /// out.
+  static String? setAsideStored(String? stored, ReadyStep s, bool aside) =>
+      setAsideIn(
+        {
+          for (final n in (stored ?? '').split(','))
+            for (final x in ReadyStep.values)
+              if (x.name == n) x,
+        },
+        s,
+        aside,
+      );
+
+  static String? setAsideIn(Set<ReadyStep> setAside, ReadyStep s, bool aside) {
     final next = {...setAside};
     aside ? next.add(s) : next.remove(s);
     return next.isEmpty

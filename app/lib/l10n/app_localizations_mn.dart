@@ -1832,8 +1832,12 @@ class WordsMn extends Words {
 
   @override
   String planCarried(String date) {
-    return '$date өдрөөс хойш өдөр бүр өртэй байна: үлдэгдэл дараа сард шилжиж байна. Сар бүр бүрэн төлдөг гэж тэмдэглэсэн учраас л төлж дуусгах өрөнд ороогүй.';
+    return 'Таван долоо хоногийн өмнөх өр нь төлөгдөөгүй: $date өдрөөс хойш үлдэгдэл шилжиж байна. Сар бүр бүрэн төлдөг гэж тэмдэглэсэн учраас л төлж дуусгах өрөнд ороогүй.';
   }
+
+  @override
+  String get planLooksPaidInFull =>
+      'Таван долоо хоногийн өмнөх өр нь төлөгдсөн. Сар бүр бүрэн төлдөг бол «Сар бүр бүрэн төлдөг» гэж тэмдэглээрэй.';
 
   @override
   String get planBringBack => 'Буцааж оруулах';
@@ -3678,6 +3682,16 @@ class WordsMn extends Words {
   }
 
   @override
+  String savingsOtherHeld(String account, String amount) {
+    return '$account $amount';
+  }
+
+  @override
+  String savingsOtherOwed(String account, String amount) {
+    return '$account: $amount өр';
+  }
+
+  @override
   String savingsOnlyOne(String accounts, String currency) {
     return 'Одоогоор энд тооцоогүй: $accounts. Хуримтлал одоогоор зөвхөн нэг валютаар тооцно: $currency.';
   }
@@ -4487,6 +4501,27 @@ class WordsMn extends Words {
 
   @override
   String get planEditName => 'Нэр';
+
+  @override
+  String planFundOverAssigned(String amount) {
+    return 'Төсөвт тань байгаа мөнгөнөөс илүү хуваарилсан дүн: $amount.';
+  }
+
+  @override
+  String planMonthOutgrown(String amount) {
+    return 'Таны төсөв одоо сард $amount болсон байна.';
+  }
+
+  @override
+  String get planInMonthQ => 'Сарын зардалд тооцох уу?';
+
+  @override
+  String get planInMonthYesMeans =>
+      'Хуримтлал хуудсан дээрх нэг сарын зардалд үүнийг тооцно.';
+
+  @override
+  String get planInMonthNoMeans =>
+      'Тооцохгүй, жишээ нь картаар авсан зүйл өөрийн ангилалд орсон бол картын төлбөр.';
 
   @override
   String get planDueDateQ => 'Төлөх өдөр бий юу?';

@@ -2875,7 +2875,11 @@
   "@setupRateHint": {
     "description": "Add account form: under the interest rate line"
   },
-  "planCarried": "Owed every day since {date}: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.",
+  "planCarried": "What it owed five weeks ago isn’t paid off: a balance has carried since {date}. It’s left out of the debt to pay off only because it’s marked paid in full every month.",
+  "planLooksPaidInFull": "What it owed five weeks ago is paid off. If you pay it in full every month, mark it “Paid in full every month”.",
+  "@planLooksPaidInFull": {
+    "description": "Savings, step 2, under a card counted as debt to pay off that has paid off what it owed five weeks ago: it may be a card paid in full every month, not marked so. “Paid in full every month” is planRolePaidMonthly, in the menu on the line"
+  },
   "@planCarried": {
     "description": "Savings page: warning under a card marked paid in full every month; date like 2026.09.16",
     "placeholders": {
@@ -5606,9 +5610,19 @@
       }
     }
   },
+  "savingsOtherHeld": "{account} {amount}",
+  "@savingsOtherHeld": {
+    "description": "Savings page, one item in savingsOnlyOne's list: an account in another currency and what is in it (a minus when overdrawn)",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String", "example": "$1,200"}}
+  },
+  "savingsOtherOwed": "{account} {amount} owed",
+  "@savingsOtherOwed": {
+    "description": "Savings page, one item in savingsOnlyOne's list: a card or loan in another currency and what is owed on it",
+    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String", "example": "$500"}}
+  },
   "savingsOnlyOne": "Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.",
   "@savingsOnlyOne": {
-    "description": "Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.",
+    "description": "Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the Safety net category's, else the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.",
     "placeholders": {
       "accounts": {
         "type": "String"
@@ -6901,6 +6915,28 @@
     "description": "Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same"
   },
   "planEditName": "Name",
+  "planFundOverAssigned": "Your budget has assigned {amount} more than you have.",
+  "@planFundOverAssigned": {
+    "description": "Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)",
+    "placeholders": {"amount": {"type": "String", "example": "₮500,000"}}
+  },
+  "planMonthOutgrown": "Your budget now holds {amount} a month.",
+  "@planMonthOutgrown": {
+    "description": "Savings, step 1, under “A month of expenses: ₮2,000,000, as you typed it” when the Budget page now holds more than a tenth more for this month. The typed figure stays",
+    "placeholders": {"amount": {"type": "String", "example": "₮2,350,000"}}
+  },
+  "planInMonthQ": "In a month of expenses?",
+  "@planInMonthQ": {
+    "description": "Budget page, Edit under a category's row: whether Savings counts this category in a month of expenses (the amount step 1's safety net covers). No and Yes beside it"
+  },
+  "planInMonthYesMeans": "Savings counts it in the month your safety net covers.",
+  "@planInMonthYesMeans": {
+    "description": "Budget page, Edit: note beside In a month of expenses? while Yes is picked"
+  },
+  "planInMonthNoMeans": "Left out, like a card's payment when what's bought on the card is in its own categories.",
+  "@planInMonthNoMeans": {
+    "description": "Budget page, Edit: note beside In a month of expenses? while No is picked; one example of a category to leave out"
+  },
   "planDueDateQ": "Is there a due date?",
   "@planDueDateQ": {
     "description": "Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date"

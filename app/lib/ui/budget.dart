@@ -13,6 +13,8 @@ typedef _CategoryEdit = ({
   Currency currency,
   Set<int> off,
   CategoryPlan? plan,
+  // Counts in Savings' month of expenses ([inMonthOfExpenses]).
+  bool inMonth,
 });
 
 class _BudgetPage extends StatefulWidget {
@@ -239,7 +241,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     // The safety net is money kept, not spent: last, under "Saved" (owner,
     // 2026-10-09: "we should probably create some type of visual
     // separation").
-    final saved = fundCategoryIds(data, mainCurrency(data));
+    final saved = fundCategoryIds(data, savingsCurrency(data));
     final listed = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
@@ -3751,6 +3753,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   set _currency(Currency c) => _p.currency = c;
   Set<int> get _off => _d.off ??= {..._savedOff};
   set _off(Set<int> off) => _d.off = off;
+  bool get _inMonth =>
+      _d.inMonth ??
+      (widget.isNew || inMonthOfExpenses(widget.data, widget.category.id));
+  set _inMonth(bool on) => _d.inMonth = on;
+
+  /// Savings' month of expenses can leave it out: not the Safety net,
+  /// which is never in it.
+  bool get _asksInMonth => !isSafetyNet(widget.category);
 
   /// The category as the panel has it: a new one is in whatever currency
   /// is picked, and called what's typed.
@@ -3920,7 +3930,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       return;
     }
     _done = true;
-    final edit = (name: name, currency: _currency, off: _off, plan: draft);
+    final edit = (
+      name: name,
+      currency: _currency,
+      off: _off,
+      plan: draft,
+      inMonth: _inMonth,
+    );
     final add = widget.onAdd;
     if (add == null) return widget.onSave(edit);
     final made = await add(edit, another: another);
@@ -4612,6 +4628,29 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ];
   }
 
+  /// Whether Savings counts it in a month of expenses (owner, 2026-10-26),
+  /// with what the answer means beside it.
+  Widget _inMonthRow(Words t) => _formRow(
+    t.planInMonthQ,
+    _Segmented(
+      items: [
+        (
+          'plan-in-month-no',
+          t.planNo,
+          !_inMonth,
+          () => setState(() => _inMonth = false),
+        ),
+        (
+          'plan-in-month-yes',
+          t.planYes,
+          _inMonth,
+          () => setState(() => _inMonth = true),
+        ),
+      ],
+    ),
+    aside: _inMonth ? t.planInMonthYesMeans : t.planInMonthNoMeans,
+  );
+
   /// The currency, when there are accounts in more than one: before the
   /// type, whose amount is in it.
   List<Widget> _currencyChoice(Words t) {
@@ -5015,6 +5054,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               ),
                             const SizedBox(height: 22),
                             ..._planFields(t, line: line, draft: draft),
+                            if (_asksInMonth) _inMonthRow(t),
                             // The row, as it will read after Save.
                             const SizedBox(height: 6),
                             Text(
@@ -5292,6 +5332,9 @@ class _EditDraft {
 
   /// The accounts unticked; null until Edit first asks.
   Set<int>? off;
+
+  /// In a month of expenses, as answered; null until it is.
+  bool? inMonth;
 
   /// The answers were filled from the saved plan.
   bool filled = false;
