@@ -7,14 +7,15 @@
 #                                    throws the new submission away
 #
 #   1. stops if a submission is already waiting in Partner Center: msstore
-#      would delete it, even one in certification
+#      would delete it, even one in certification (checked again after step 3)
 #   2. tags main vX.Y.Z (the version in pubspec.yaml) and pushes the tag, which
 #      starts .github/workflows/windows.yml; a tag already pushed is used as is
 #   3. waits for that build and downloads its unsigned .msix
 #   4. checks the package is this version and asks for no network
 #   5. makes a new submission from the last published one, with this package,
 #      set to publish only when the owner clicks Publish now in Partner Center,
-#      and sends it to certification
+#      and, once it is sure the submission holds this package, sends it to
+#      certification
 #
 # Run from a clean commit on main that has been pushed. Needs, once: msstore,
 # signed in to the Partner Center account (msstore reconfigure), and gh.
@@ -34,13 +35,16 @@ json() { python3 -I -c "import json,sys;t=sys.stdin.read();print(json.loads(t[t.
 
 # 1. Partner Center holds one submission at a time, and msstore publish deletes
 # the one waiting. Never let it take one the owner hasn't finished with.
-app=$(msstore apps get $product 2>/dev/null)
-if [ "$(printf %s "$app" | json "['PendingApplicationSubmission'] is not None")" = True ]; then
-  status=$(msstore submission status $product 2>&1 | sed -n 's/.*Submission Status = //p')
-  echo "A submission is already waiting in Partner Center (${status:-status unknown})." >&2
-  echo "Publish or delete it there first; this script would replace it." >&2
-  exit 1
-fi
+nothing_waiting() {
+  app=$(msstore apps get $product 2>/dev/null)
+  if [ "$(printf %s "$app" | json "['PendingApplicationSubmission'] is not None")" = True ]; then
+    status=$(msstore submission status $product 2>&1 | sed -n 's/.*Submission Status = //p')
+    echo "A submission is already waiting in Partner Center (${status:-status unknown})$1." >&2
+    echo "Publish or delete it there first; this script would replace it." >&2
+    exit 1
+  fi
+}
+nothing_waiting ""
 if [ "$(printf %s "$app" | json "['LastPublishedApplicationSubmission'] is None")" = True ]; then
   echo "Nothing is published in the Store yet; the first submission is made in Partner Center." >&2
   exit 1
@@ -112,8 +116,31 @@ fi
 
 # 5. A new submission, a copy of the last published one with this package in it,
 # kept as a draft until it is set to wait for the owner's Publish now.
+# msstore can fail and still exit 0 (#287), so the submission it leaves is
+# checked: it must hold this package. One made in Partner Center while the
+# build ran is the owner's, and stops the script before msstore can touch it.
+nothing_waiting ", made while the build ran"
 msstore publish "$msix" --appId $product --noCommit
 submission=$(msstore submission get $product 2>/dev/null)
+problem=$(printf %s "$submission" | python3 -I -c "
+import json, sys
+t = sys.stdin.read()
+if '{' not in t:
+    print('Partner Center has no new submission')
+    sys.exit()
+s = json.loads(t[t.index('{'):])
+mine = [p for p in s.get('ApplicationPackages') or []
+        if p.get('FileName') == 'BetterBudget-$version.msix'
+        and p.get('Version') == '$version.0'
+        and p.get('FileStatus') != 'PendingDelete']
+if not mine:
+    print('the submission waiting in Partner Center (' + str(s.get('Id')) +
+          ') does not hold BetterBudget-$version.msix')")
+if [ -n "$problem" ]; then
+  echo "msstore couldn't send $version: $problem. Nothing was sent to certification;" >&2
+  echo "msstore's messages above say why. Look in Partner Center before running again." >&2
+  exit 1
+fi
 if [ "$(printf %s "$submission" | json "['TargetPublishMode']")" != Manual ]; then
   updated=$(printf %s "$submission" | python3 -I -c "
 import json, sys

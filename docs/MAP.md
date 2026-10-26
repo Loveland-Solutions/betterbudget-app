@@ -104,8 +104,9 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   the Windows build's unsigned `.msix`, checks it is that version and asks only for
   `runFullTrust`, and sends it to Partner Center with `msstore`, set to publish on the
   owner's Publish now. It stops while a submission is waiting there, since `msstore
-  publish` would delete it; `--check` uses a tag already pushed and throws the
-  submission away.
+  publish` would delete it, and looks again after the build; `msstore` can fail and
+  exit 0, so it sends to certification only a submission that holds this version's
+  `.msix` (#287). `--check` uses a tag already pushed and throws the submission away.
 - **Downloads** (unused since 2026-10-20: stores only, no GitHub downloads; ROADMAP).
   `tool/release_mac.sh` makes the Mac disk image signed with Developer
   ID and notarized (packed by `tool/make_dmg.sh`), tags the commit and puts a draft

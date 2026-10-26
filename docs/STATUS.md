@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-26** · version 0.52.0 · schema v21 · 861 tests pass
+**Last updated: 2026-10-26** · version 0.52.1 · schema v21 · 874 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -79,7 +79,8 @@ Partner Center waits for the owner's Publish now). Later versions go the same wa
 from a clean, pushed commit on main: the script tags main with the version, waits
 for GitHub's Windows build, and sends the package to certification. It refuses while
 a submission waits, since the Store holds one at a time and a new one would delete
-it (#251).
+it (#251), and sends to certification only a submission holding this version's
+package (0.52.1, #287).
 
 **The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
 "Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
