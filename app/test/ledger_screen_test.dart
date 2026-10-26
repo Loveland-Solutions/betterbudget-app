@@ -1261,10 +1261,7 @@ void main() {
       find.text('Changes saved · it was taken out of the opening balance'),
       findsOneWidget,
     );
-    expect(
-      find.text('Make the opening balance ₮12,130,000'),
-      findsOneWidget,
-    );
+    expect(find.text('Make the opening balance ₮12,130,000'), findsOneWidget);
     // Not clicked: the popup goes. Today's balance is over by ₮20,000.
     await tester.pump(const Duration(seconds: 20));
     await tester.pumpAndSettle();
@@ -1346,11 +1343,13 @@ void main() {
       ),
       findsOneWidget,
     );
-    Future<int> balance(String name) => tester.runAsync(() async {
-      final data = await db.loadLedger();
-      final a = data.accounts.values.firstWhere((a) => a.name == name);
-      return data.summaryFor(a.id).working;
-    }).then((v) => v!);
+    Future<int> balance(String name) => tester
+        .runAsync(() async {
+          final data = await db.loadLedger();
+          final a = data.accounts.values.firstWhere((a) => a.name == name);
+          return data.summaryFor(a.id).working;
+        })
+        .then((v) => v!);
     // Today's balances are as before the transfer: the bank's.
     final cash = await balance('Cash wallet');
     expect(await balance('Khan Savings'), 1260000000);
@@ -1455,9 +1454,9 @@ void main() {
     // The card payment: reconciled in TDB Checking, only cleared in Golomt
     // Visa. A new amount changes both sides.
     final before = (await tester.runAsync(
-      () async => checking(
-        await db.loadLedger(),
-      ).posted.firstWhere((r) => r.kind == RowKind.transfer && r.locked),
+      () async =>
+          checking(await db.loadLedger()).posted
+              .firstWhere((r) => r.kind == RowKind.transfer && r.locked),
     ))!;
     final card = find.byKey(ValueKey('row-${before.txnId}'));
     await tester.scrollUntilVisible(
@@ -1480,9 +1479,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('reconcile'), findsWidgets);
     final payment = (await tester.runAsync(
-      () async => checking(
-        await db.loadLedger(),
-      ).posted.firstWhere((r) => r.txnId == before.txnId),
+      () async =>
+          checking(await db.loadLedger()).posted
+              .firstWhere((r) => r.txnId == before.txnId),
     ))!;
     expect(payment.amount, -30000000);
     final visa = await tester.runAsync(() async {
@@ -4110,7 +4109,11 @@ void main() {
           (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
         )
         .last;
-    await tester.scrollUntilVisible(find.text('Taxi 59'), 400, scrollable: list);
+    await tester.scrollUntilVisible(
+      find.text('Taxi 59'),
+      400,
+      scrollable: list,
+    );
     // Out of sight, the row isn't built at all; what was typed is kept.
     expect(find.byType(EntryRow, skipOffstage: false), findsNothing);
     await tester.scrollUntilVisible(
@@ -5335,9 +5338,7 @@ void main() {
       // Whether focus is on, or inside, the widget keyed [k].
       bool focusIn(Key k) {
         var found = false;
-        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
-          e,
-        ) {
+        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
           if (e.widget.key == k) found = true;
           return !found;
         });
@@ -5346,9 +5347,7 @@ void main() {
 
       bool focusInKeyStarting(String prefix) {
         var found = false;
-        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
-          e,
-        ) {
+        FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
           if (e.widget.key case ValueKey<String>(:final value)
               when value.startsWith(prefix)) {
             found = true;
@@ -5450,6 +5449,92 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('period-next')));
         await tester.pumpAndSettle();
         expect(editor, findsOneWidget);
+        await tidy(tester, db);
+      });
+
+      testWidgets('Shift+Tab in Assigned keeps the amount and goes to the '
+          'row before', (tester) async {
+        final db = await pumpLedger(tester);
+        await openBudget(tester);
+        final data = (await tester.runAsync(db.loadLedger))!;
+        final rows = [
+          for (final c in data.categories)
+            if (find.byKey(ValueKey('assigned-${c.id}')).evaluate().isNotEmpty)
+              c,
+        ];
+        rows.sort(
+          (a, b) => tester
+              .getTopLeft(find.byKey(ValueKey('assigned-${a.id}')))
+              .dy
+              .compareTo(
+                tester.getTopLeft(find.byKey(ValueKey('assigned-${b.id}'))).dy,
+              ),
+        );
+        final second = rows[1], first = rows[0];
+        await tester.tap(find.byKey(ValueKey('assigned-${second.id}')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('assign-field')),
+          '7000',
+        );
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        await settle(tester);
+        final field = find.byKey(const ValueKey('assign-field'));
+        expect(field, findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey('assigned-${first.id}')),
+            matching: field,
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey('assigned-${second.id}')),
+            matching: find.textContaining('7,000'),
+          ),
+          findsOneWidget,
+        );
+        await tidy(tester, db);
+      });
+
+      testWidgets('an Edit left open with changes is there, as typed, after '
+          'the Ledger and back', (tester) async {
+        final db = await pumpLedger(tester);
+        await openBudget(tester);
+        await editCategory(tester, 'Groceries');
+        await tester.enterText(find.byKey(const ValueKey('edit-name')), 'Food');
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ledger'));
+        await tester.pumpAndSettle();
+        await openBudget(tester);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('edit-name')),
+            matching: find.text('Food'),
+          ),
+          findsOneWidget,
+        );
+        // Cancel drops it, and the next Edit starts from what's saved.
+        await press(tester, LogicalKeyboardKey.escape);
+        expect(find.byKey(const ValueKey('edit-name')), findsNothing);
+        await tester.tap(find.text('Ledger'));
+        await tester.pumpAndSettle();
+        await openBudget(tester);
+        expect(find.byKey(const ValueKey('edit-name')), findsNothing);
+        await editCategory(tester, 'Groceries');
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('edit-name')),
+            matching: find.text('Groceries'),
+          ),
+          findsOneWidget,
+        );
         await tidy(tester, db);
       });
     });
@@ -6480,7 +6565,9 @@ void main() {
       // One control for the accounts: left checked alone, TDB Checking is
       // where the bill is scheduled.
       expect(
-        find.textContaining('accounts are checked, so this bill isn’t in any forecast'),
+        find.textContaining(
+          'accounts are checked, so this bill isn’t in any forecast',
+        ),
         findsOneWidget,
       );
       await pick('money-accounts');

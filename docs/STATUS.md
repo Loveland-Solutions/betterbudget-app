@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-23** · version 0.46.2 · schema v21 · 804 tests pass
+**Last updated: 2026-10-26** · version 0.48.3 · schema v21 · 841 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -25,18 +25,18 @@ and "Settled in the comb's follow-ups") and the Budget comb (0.48.0–0.48.2; AD
 mouse", "The Budget page's words"). Not assigned is now Cash & bank less what
 categories with money hold, with an Overspent line; a bill is asked for out of the
 pay before it; each currency begins on its own. `Hoverable` is a Tab stop and every
-menu goes through `focusFirstOnKeys` (MAP.md, "Keyboard"). **Left on #163:** Shift+Tab
-while typing Assigned, an Edit with changes closed by leaving the page, and the
-delete window's "Only deleted rows are filed under it". **Known issues the owner
+menu goes through `focusFirstOnKeys` (MAP.md, "Keyboard"). **#163's last three** (0.48.3): Shift+Tab in Assigned goes to the row before;
+an open Edit is kept, as typed, while you're on another page (`_EditKeep`, held by the
+screen); the delete window counts rows from the database and no longer says "Only
+deleted rows". **Known issues the owner
 kept:** #259 (a missed opening-balance popup) and #265 (two computers taking rows
 out of one opening balance), both After beta. Living within their means is #234
 (the owner, 2026-10-24: what they earn matters, not what's in the account).
 
-**Play's Internal testing has 0.45.0 (build 422).** The phone has changed since
-(0.48.2: New category's Paid from note names the account; the Budget words), so the
-next upload carries it. A phone change after it needs a new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload
-by hand (#251). Before offering one, compare this line with `git log` on
-`app/lib/ui/phone/`, and rewrite this line after each upload.
+**Play's Internal testing has 0.48.2 (build 467)**, uploaded 2026-10-26 with
+`app/tool/release_play.sh`. A phone change after it needs a new one. Before offering
+one, compare this line with `git log` on `app/lib/ui/phone/`, and rewrite this line
+after each upload.
 
 **The Microsoft Store has 0.44.0 in certification** (Submission 1, made in Partner
 Center, set to publish on the owner's Publish now). Replace its package with 0.46.2's

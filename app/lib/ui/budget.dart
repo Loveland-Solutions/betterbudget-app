@@ -38,7 +38,12 @@ class _BudgetPage extends StatefulWidget {
     required this.onAssignPlanned,
     required this.onMove,
     required this.onEditOpens,
+    required this.keep,
   });
+
+  /// What's typed in an open Edit, kept by the screen: leaving the page
+  /// and coming back finds Edit open as it was (#163).
+  final _EditKeep keep;
 
   /// A category's Edit opened: the popup in the page's corner would lie
   /// over its Cancel and Save, so it goes (⌘Z still undoes what it said).
@@ -99,6 +104,16 @@ class _BudgetPage extends StatefulWidget {
 
 class _BudgetPageState extends State<_BudgetPage> {
   bool _showArchived = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Back on the page with an Edit left open: it opens again.
+    final id = widget.keep.draft?.id;
+    if (id != null && widget.data.categories.any((c) => c.id == id)) {
+      _open = id;
+    }
+  }
 
   /// Each row's ⋯, by category: an Edit that closes gives focus back to
   /// its row's, not to the top of the window (#163).
@@ -196,6 +211,8 @@ class _BudgetPageState extends State<_BudgetPage> {
     final t = context.t;
     final data = widget.data;
     final by = data.periodSchedule;
+    // Edit closed, or another opened: what was typed in it goes.
+    if (widget.keep.draft?.id != _open) widget.keep.clear();
     // Switching between months and pay periods in Settings starts over at
     // today's period.
     var period = _period ?? _current;
@@ -254,9 +271,11 @@ class _BudgetPageState extends State<_BudgetPage> {
       }
     }
 
-    void editNext(AccountInfo c) {
-      final i = spending.indexWhere((x) => x.id == c.id);
-      edit(i >= 0 && i + 1 < spending.length ? spending[i + 1].id : null);
+    /// Tab goes on to the next row's Assigned, Shift+Tab back to the one
+    /// before (#163).
+    void editNext(AccountInfo c, int by) {
+      final i = spending.indexWhere((x) => x.id == c.id) + by;
+      edit(i >= 0 && i < spending.length ? spending[i].id : null);
     }
 
     // The panel's top row: the two tabs, and over the categories their
@@ -472,11 +491,11 @@ class _BudgetPageState extends State<_BudgetPage> {
         onMove: (from, to, amount) => widget.onMove(period, from, to, amount),
         editing: _editing == c.id,
         onEdit: () => edit(c.id),
-        onAssign: (amount, {required bool next}) {
+        onAssign: (amount, {required int next}) {
           if (amount != null && amount != (line?.assigned ?? 0)) {
             widget.onSetAmount(c, period, amount);
           }
-          next ? editNext(c) : edit(null);
+          next != 0 ? editNext(c, next) : edit(null);
         },
       );
       // Edit opens under the row, which grows like a register row.
@@ -492,6 +511,7 @@ class _BudgetPageState extends State<_BudgetPage> {
             if (_open == c.id)
               _CategoryEditor(
                 key: ValueKey('category-editor-${c.id}'),
+                keep: widget.keep.of(c, widget.today),
                 category: c,
                 data: data,
                 period: period,
@@ -1653,7 +1673,7 @@ class _CategoryRow extends StatefulWidget {
 
   /// Typing Put in ended: the amount (null when nothing valid was typed or
   /// it was cancelled), and whether Tab asked for the next category.
-  final void Function(int? amount, {required bool next}) onAssign;
+  final void Function(int? amount, {required int next}) onAssign;
 
   @override
   State<_CategoryRow> createState() => _CategoryRowState();
@@ -2658,11 +2678,16 @@ class _DeleteCategoryDialog extends StatefulWidget {
   const _DeleteCategoryDialog({
     required this.category,
     required this.usage,
+    required this.rows,
     required this.targets,
     this.into,
   });
   final AccountInfo category;
   final CategoryUsage? usage;
+
+  /// Its rows as the database counts them: more than [usage] says when
+  /// rows came in (another computer's) since the page was drawn.
+  final int rows;
   final List<AccountInfo> targets;
   final AccountInfo? into;
 
@@ -2688,7 +2713,7 @@ class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
     final targets = widget.targets;
     final lines = [
       if (n == 0)
-        merging ? t.planNothingFiled : t.planOnlyDeletedFiled
+        widget.rows == 0 ? t.planNothingFiled : t.planRowsFiled(widget.rows)
       else if (scheduled == 0)
         t.planRowsFiled(n)
       else
@@ -2819,7 +2844,9 @@ class _AssignField extends StatefulWidget {
   final Currency currency;
   final bool editing;
   final VoidCallback onEdit;
-  final void Function(int? amount, {required bool next}) onDone;
+
+  /// [next] is 1 for the row after, -1 for the row before, 0 to stay.
+  final void Function(int? amount, {required int next}) onDone;
 
   @override
   State<_AssignField> createState() => _AssignFieldState();
@@ -2841,7 +2868,7 @@ class _AssignFieldState extends State<_AssignField> {
   void initState() {
     super.initState();
     _focus.addListener(() {
-      if (!_focus.hasFocus && _text != null && !_done) _finish(next: false);
+      if (!_focus.hasFocus && _text != null && !_done) _finish(next: 0);
     });
     if (widget.editing) _open();
   }
@@ -2860,7 +2887,7 @@ class _AssignFieldState extends State<_AssignField> {
         // The old callback: the page may already show another period.
         final done = old.onDone;
         WidgetsBinding.instance.addPostFrameCallback(
-          (_) => done(amount, next: false),
+          (_) => done(amount, next: 0),
         );
       }
       _close();
@@ -2900,7 +2927,7 @@ class _AssignFieldState extends State<_AssignField> {
     if (mounted) _cell.requestFocus();
   });
 
-  void _finish({required bool next, bool back = false}) {
+  void _finish({required int next, bool back = false}) {
     final typed = _text?.text.trim() ?? '';
     // Emptied: nothing goes in.
     final amount = typed.isEmpty ? 0 : parseAmount(typed, widget.currency);
@@ -2917,7 +2944,7 @@ class _AssignFieldState extends State<_AssignField> {
 
   void _cancel() {
     _done = true;
-    widget.onDone(null, next: false);
+    widget.onDone(null, next: 0);
     _focusCell();
   }
 
@@ -2933,7 +2960,9 @@ class _AssignFieldState extends State<_AssignField> {
           bindings: {
             const SingleActivator(LogicalKeyboardKey.escape): _cancel,
             const SingleActivator(LogicalKeyboardKey.tab): () =>
-                _finish(next: true),
+                _finish(next: 1),
+            const SingleActivator(LogicalKeyboardKey.tab, shift: true): () =>
+                _finish(next: -1),
           },
           child: TextField(
             key: const ValueKey('assign-field'),
@@ -2944,7 +2973,7 @@ class _AssignFieldState extends State<_AssignField> {
             onChanged: (_) {
               if (_wrong) setState(() => _wrong = false);
             },
-            onSubmitted: (_) => _finish(next: false, back: true),
+            onSubmitted: (_) => _finish(next: 0, back: true),
             decoration: _fieldDecoration(wrong: _wrong).copyWith(
               prefixText: widget.currency.prefix,
               prefixStyle: onest(13.5, color: Mid.ink3),
@@ -3420,7 +3449,12 @@ class _CategoryEditor extends StatefulWidget {
     this.onAdd,
     this.offerAnother = false,
     this.nameNote,
+    this.keep,
   });
+
+  /// Where what's typed is kept while the page is left; null in the New
+  /// category window, whose answers are its own.
+  final _EditDraft? keep;
 
   /// The category, or for the New category window one not made yet: its
   /// id isn't a real one, and its currency is where the window starts.
@@ -3470,14 +3504,12 @@ class _CategoryEditor extends StatefulWidget {
 }
 
 class _CategoryEditorState extends State<_CategoryEditor> {
-  late final _name = TextEditingController(text: widget.category.name);
+  late final _d = widget.keep ?? _EditDraft(widget.category, widget.today);
+  TextEditingController get _name => _d.name;
 
   /// The plan's answers, and what they add up to: the phone's New
   /// category page asks the same.
-  late final _p = PlanAnswers(
-    today: widget.today,
-    currency: widget.category.currency,
-  );
+  PlanAnswers get _p => _d.p;
   final _nameFocus = FocusNode(debugLabel: 'category-name');
   final _amountFocus = FocusNode(debugLabel: 'plan-amount');
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
@@ -3524,7 +3556,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   Currency get _currency => _p.currency;
   set _currency(Currency c) => _p.currency = c;
-  late Set<int> _off = {..._savedOff};
+  Set<int> get _off => _d.off ??= {..._savedOff};
+  set _off(Set<int> off) => _d.off = off;
 
   /// The category as the panel has it: a new one is in whatever currency
   /// is picked, and called what's typed.
@@ -3578,7 +3611,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   @override
   void initState() {
     super.initState();
-    _showPlan(_savedPlan);
+    // Kept from before the page was left: the answers are already in.
+    if (!_d.filled) _showPlan(_savedPlan);
+    _d.filled = true;
     final atPlan = widget.atPlan;
     final first = atPlan ? _p.amount : _name;
     first.selection = TextSelection(
@@ -3634,8 +3669,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   @override
   void dispose() {
     _reveal?.cancel();
-    _name.dispose();
-    _p.dispose();
+    if (widget.keep == null) _d.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
     _dateFocus.dispose();
@@ -5050,4 +5084,45 @@ class _Segmented extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// A category's Edit as typed: its name, its plan's answers and the
+/// accounts it's paid from.
+class _EditDraft {
+  _EditDraft(AccountInfo c, DateTime today)
+    : id = c.id,
+      name = TextEditingController(text: c.name),
+      p = PlanAnswers(today: today, currency: c.currency);
+  final int id;
+  final TextEditingController name;
+  final PlanAnswers p;
+
+  /// The accounts unticked; null until Edit first asks.
+  Set<int>? off;
+
+  /// The answers were filled from the saved plan.
+  bool filled = false;
+
+  void dispose() {
+    name.dispose();
+    p.dispose();
+  }
+}
+
+/// The open Edit's [_EditDraft], held by the screen across pages.
+class _EditKeep {
+  _EditDraft? draft;
+
+  _EditDraft of(AccountInfo c, DateTime today) {
+    if (draft?.id != c.id) clear();
+    return draft ??= _EditDraft(c, today);
+  }
+
+  /// A frame later: the fields may still be on screen this frame.
+  void clear() {
+    final d = draft;
+    if (d == null) return;
+    draft = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
+  }
 }

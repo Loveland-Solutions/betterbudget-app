@@ -2054,12 +2054,6 @@ abstract class Words {
   /// Delete category dialog: body, followed by a category picker
   ///
   /// In en, this message translates to:
-  /// **'Only deleted rows are filed under it. They move to:'**
-  String get planOnlyDeletedFiled;
-
-  /// Delete category dialog: body, followed by a category picker
-  ///
-  /// In en, this message translates to:
   /// **'{count, plural, =1{1 row is filed under it. It moves to:} other{{count} rows are filed under it. They move to:}}'**
   String planRowsFiled(int count);
 

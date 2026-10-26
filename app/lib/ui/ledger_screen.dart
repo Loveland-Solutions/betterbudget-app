@@ -139,6 +139,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The Budget page, for a key that reaches the screen while it has a
   /// category open in Edit.
   final _budgetKey = GlobalKey<_BudgetPageState>();
+  final _budgetEdit = _EditKeep();
   final _payeesKey = GlobalKey<_PayeesPageState>();
   final _setupKey = GlobalKey<_SetupPageState>();
   int? _accountId;
@@ -1088,6 +1089,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _search.dispose();
     _searchFocus.dispose();
     _registerFocus.dispose();
+    _budgetEdit.draft?.dispose();
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
@@ -5299,8 +5301,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// With no rows at all it just goes. With rows (deleted ones count: undoing
-  /// their delete must find a category), they need a new home: the dialog
+  /// With no rows at all it just goes. With rows, they need a new home: the dialog
   /// asks where, and the delete is a merge. [into] preselects it (a rename
   /// onto another name).
   Future<void> _deleteCategory(
@@ -5326,6 +5327,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         builder: (_) => _DeleteCategoryDialog(
           category: c,
           usage: u,
+          rows: anyRows,
           into: into,
           targets: data.categories.where((t) => t.id != c.id).toList(),
         ),
@@ -5340,7 +5342,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     )) {
       return;
     }
-    final moved = (u?.rows ?? 0) + (u?.scheduled ?? 0);
+    final shown = (u?.rows ?? 0) + (u?.scheduled ?? 0);
+    // Rows the page hadn't drawn yet still moved.
+    final moved = shown == 0 ? anyRows : shown;
     // Its money goes back unless it moves with the merge: Income holds
     // none, and in another currency it would be read as that one's.
     final back =
@@ -6565,6 +6569,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 ),
                                 AppSection.budget => _BudgetPage(
                                   key: _budgetKey,
+                                  keep: _budgetEdit,
                                   data: data,
                                   today: today,
                                   onShowRows: (c, period) =>

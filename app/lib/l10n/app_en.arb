@@ -2219,10 +2219,6 @@
   "@planNothingFiled": {
     "description": "Delete category dialog: body when merging and the category has no transactions"
   },
-  "planOnlyDeletedFiled": "Only deleted rows are filed under it. They move to:",
-  "@planOnlyDeletedFiled": {
-    "description": "Delete category dialog: body, followed by a category picker"
-  },
   "planRowsFiled": "{count, plural, =1{1 row is filed under it. It moves to:} other{{count} rows are filed under it. They move to:}}",
   "@planRowsFiled": {
     "description": "Delete category dialog: body, followed by a category picker",
