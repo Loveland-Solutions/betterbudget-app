@@ -552,6 +552,7 @@ void main() {
       int? nthWeekday,
       DateTime? endDate,
       int? endCount,
+      Map<DateTime, int> once = const {},
     }) => CategoryPlan(
       categoryId: category,
       kind: kind,
@@ -571,6 +572,7 @@ void main() {
       endCount: endCount,
       rollover: rollover,
       upTo: upTo,
+      once: once,
     );
 
     test('any time: the set amount each period', () {
@@ -1235,6 +1237,73 @@ void main() {
         amounts: [put(xmas, sep.start, 30000000)],
       );
       expect(of(d, oct).lines[xmas]!.plan!.planned, 10000000);
+    });
+
+    test('any time, just for one month: that month asks for its own amount, '
+        'and the next goes back to the plan (#100)', () {
+      // ₮900,000 a month, ₮1,200,000 just for December, January skipped.
+      final jan = (start: DateTime(2027, 1, 1), end: DateTime(2027, 1, 31));
+      final feb = (start: DateTime(2027, 2, 1), end: DateTime(2027, 2, 28));
+      final groceries = plan(
+        food,
+        PlanKind.each,
+        90000000,
+        once: {dec.start: 120000000, jan.start: 0},
+      );
+      final d = ledger(plans: [groceries]);
+      final n = of(d, nov).lines[food]!;
+      expect(
+        (n.plan!.each, n.toAssign, n.plan!.once),
+        (90000000, 90000000, false),
+      );
+      final c = of(d, dec).lines[food]!;
+      expect(
+        (c.plan!.each, c.toAssign, c.plan!.once),
+        (120000000, 120000000, true),
+      );
+      final j = of(d, jan).lines[food]!;
+      expect((j.plan!.each, j.toAssign, j.plan!.once), (0, 0, true));
+      expect(of(d, feb).lines[food]!.toAssign, 90000000);
+      // A cap still holds: with ₮1,000,000 in it and room for ₮300,000,
+      // December asks for no more than the room.
+      final capped = ledger(
+        plans: [
+          plan(
+            xmas,
+            PlanKind.each,
+            10000000,
+            upTo: 130000000,
+            once: {dec.start: 120000000},
+          ),
+        ],
+        amounts: [put(xmas, sep.start, 100000000)],
+      );
+      expect(of(capped, dec).lines[xmas]!.plan!.planned, 30000000);
+      // Seen by a pay (the 10th and 25th): December's amount is said as
+      // December's, and the pay's share comes from it (budget review).
+      const pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.twiceMonthly,
+        day1: 10,
+        day2: 25,
+        weekend: PayWeekend.keep,
+        definesPeriod: true,
+      );
+      final byPay = ledger(pay: [pay], plans: [groceries]);
+      final p = of(byPay, (
+        start: DateTime(2026, 12, 10),
+        end: DateTime(2026, 12, 24),
+      )).lines[food]!.plan!;
+      expect((p.once, p.onceFrom, p.each), (true, dec.start, 120000000));
+      expect(p.planned, greaterThan(0));
+      final skipped = of(byPay, (
+        start: DateTime(2027, 1, 10),
+        end: DateTime(2027, 1, 24),
+      )).lines[food]!.plan!;
+      expect((skipped.once, skipped.each, skipped.planned), (true, 0, 0));
     });
 
     test('a bill the bank took a day early counts on its date', () {

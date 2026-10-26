@@ -4889,6 +4889,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// "Clear October's Assigned" (#100): every amount [categories] have in
+  /// [period] goes, back to Not assigned, in one write and one undo. Its
+  /// window said what first.
+  Future<void> _clearAssigned(
+    BudgetSpan period,
+    List<AccountInfo> categories,
+    String done,
+  ) async {
+    if (categories.isEmpty) return;
+    final start = period.start, end = period.end;
+    late Map<int, List<BudgetAmount>> before;
+    Future<void> write() async {
+      before = await db.setBudgetAmounts(
+        {for (final c in categories) c.id: const []},
+        start,
+        end,
+      );
+    }
+
+    if (!await _accountWrite(write, what: 'category')) return;
+    _did(
+      done,
+      undo: () => db.restoreBudgetAmountsOf(before, start, end),
+      redo: write,
+    );
+  }
+
   /// Moves [amount] from [from] to [to] in [period] (#99; ADR 0004 "Move
   /// money between categories"): one's Assigned goes down and the other's
   /// up, in one write and one undo. Null on a side is Not assigned, so only
@@ -5140,9 +5167,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final monthKey = ReadyKeys.leftOut(c.id);
     final monthWas = data.prefs[monthKey];
     final month = e.inMonth != inMonthOfExpenses(data, c.id);
-    final changes = [renamed, money, plan, month].where((x) => x);
+    // Its group and note (#100).
+    final details = e.group != c.budgetGroup || e.note != c.note;
+    final changes = [renamed, money, plan, month, details].where((x) => x);
     if (changes.isEmpty) return;
-    if (changes.length == 1 && !month) {
+    if (changes.length == 1 && !month && !details) {
       if (renamed) return _renameCategory(data, c, e.name);
       if (money) return _setCategoryMoney(c, e.currency, e.off);
       return _setCategoryPlan(c, e.plan);
@@ -5190,6 +5219,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       if (plan) planChange = await db.changeCategoryPlan(c.id, e.plan, today);
       if (month) await db.setPreference(monthKey, e.inMonth ? null : 'yes');
+      if (details) {
+        await db.setCategoryDetails(c.id, group: e.group, note: e.note);
+      }
     });
 
     if (!await _accountWrite(write, what: 'category')) return;
@@ -5202,6 +5234,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ?returns,
       ].join(' · '),
       undo: () => db.transaction(() async {
+        if (details) {
+          await db.setCategoryDetails(c.id, group: c.budgetGroup, note: c.note);
+        }
         if (month) await db.setPreference(monthKey, monthWas);
         if (plan) await db.undoPlanChange(c.id, planChange!);
         if (money) {
@@ -5339,6 +5374,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           off: e.off,
           plan: e.plan,
           inMonth: e.inMonth,
+          // What it had stays unless the window gave it something new.
+          group: e.group ?? existing.budgetGroup,
+          note: e.note ?? existing.note,
         ));
       }
       _joinHistory(mark, t.ledgerAdded(existing.name));
@@ -5353,6 +5391,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       // Said either way: a deleted category's id may come round again.
       await db.setPreference(ReadyKeys.leftOut(id), e.inMonth ? null : 'yes');
+      if (e.group != null || e.note != null) {
+        await db.setCategoryDetails(id, group: e.group, note: e.note);
+      }
     }
 
     if (!await _accountWrite(
@@ -6726,6 +6767,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onBudgetBy: _budgetBy,
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
+                                  onClearAssigned: _clearAssigned,
                                   onMove: _moveBudget,
                                   onKeepStart: () => _setPref(
                                     BudgetKeys.keptStart,

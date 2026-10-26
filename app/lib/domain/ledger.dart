@@ -145,7 +145,16 @@ class AccountInfo {
     this.deleted = false,
     this.role,
     this.currency = Currency.mnt,
+    this.budgetGroup,
+    this.note,
   });
+
+  /// A spending category's group on the Budget page (#100): a heading
+  /// over it. Null: none.
+  final String? budgetGroup;
+
+  /// What the person wrote about a category, under its name on Budget.
+  final String? note;
 
   /// What its money is in. A spending category has one too (rule 28): its
   /// amounts are in it, and the ledger's lists offer it to rows in it.
@@ -916,6 +925,7 @@ class CategoryPlan {
     this.rollover = true,
     this.upTo,
     this.paidFrom,
+    this.once = const {},
   });
 
   final int categoryId;
@@ -1058,6 +1068,17 @@ class CategoryPlan {
   /// bill is kept scheduled there, so that account's forecast counts it.
   final int? paidFrom;
 
+  /// [PlanKind.each]: what one of its own periods asks for in place of
+  /// [amount], by the day that period starts (#100, "Just for December").
+  /// 0 skips it. The plan goes back to [amount] after.
+  final Map<DateTime, int> once;
+
+  /// What its own period starting [start] asks for.
+  int amountIn(DateTime start) => once[start] ?? amount;
+
+  static bool _sameOnce(Map<DateTime, int> a, Map<DateTime, int> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
+
   @override
   bool operator ==(Object other) =>
       other is CategoryPlan &&
@@ -1068,7 +1089,8 @@ class CategoryPlan {
       sameRepeat(other) &&
       other.rollover == rollover &&
       other.upTo == upTo &&
-      other.paidFrom == paidFrom;
+      other.paidFrom == paidFrom &&
+      _sameOnce(other.once, once);
 
   @override
   int get hashCode => Object.hash(
@@ -1158,6 +1180,32 @@ class LedgerData {
         if (p.categoryId != categoryId) p,
       ?plan,
     ],
+  );
+
+  /// This ledger without [categories]' amounts dated [start]–[end]: what
+  /// clearing that period's Assigned would leave (#100), worked out before
+  /// it's done.
+  LedgerData withoutAmounts(
+    Set<int> categories,
+    DateTime start,
+    DateTime end,
+  ) => LedgerData(
+    accounts: accounts.values.toList(),
+    txns: txns,
+    reconciliations: reconciliations,
+    paySchedules: paySchedules,
+    payeeRules: payeeRules,
+    stoppedPaySchedules: stoppedPaySchedules,
+    prefs: prefs,
+    budgetAmounts: [
+      for (final b in budgetAmounts)
+        if (!categories.contains(b.categoryId) ||
+            b.date.isBefore(dateOnly(start)) ||
+            b.date.isAfter(dateOnly(end)))
+          b,
+    ],
+    accountsOff: accountsOff,
+    plans: plans.values.toList(),
   );
 
   /// This ledger with [category] in it: a category not made yet, so the

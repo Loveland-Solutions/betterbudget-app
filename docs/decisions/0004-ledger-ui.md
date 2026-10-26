@@ -4476,3 +4476,79 @@ type's name alone, since the app's own can name an amount
 section 5 names Copy and Copy all. Rejected: a plain file with Show the file (the form
 takes no attachments); no record at all.
 
+
+## More controls on a budget line (2026-10-27)
+
+#100 listed what the owner wanted on a budget line (2026-10-02): order or groups, a
+one-period change or pause for a plan, a note, a cap, clearing a period. The cap was
+already in (**Up to**, rule 27). For the other three the owner was asked, with
+sketches, and took each recommendation:
+
+- **Groups the person names.** Edit has a **Group** dropdown: **New group…** first
+  (a field for its name; a name already there, in any case, is that group), then
+  **No group**, then the groups there are. On Budget each group is a heading, A to Z,
+  under the everyday categories in no group; inside a group, rows go by name. Bills
+  and Saved keep their own headings, so a category with a due date, or the Safety
+  net, isn't offered a group. A group is only a name on its categories
+  (`Accounts.budgetGroup`, v22): it goes when nothing is in it. Rejected: dragging
+  rows into an order of their own (a handle on the hovered row, ⌥↑/⌥↓), and both.
+- **One month of its own, in Edit.** Under **Set aside each month** (or each pay
+  period), **Just for September** takes an amount for the set amount's own period
+  around the one on screen, and **Skip September** beside it puts 0. Beside it, with
+  the real amounts: "Back to ₮50,000 in October." or "Nothing is asked for in
+  September. Back to ₮50,000 in October." The plan asks that amount that period,
+  Assign what's planned uses it, a cap still holds, and the line under the name
+  says it: "₮80,000 in September only, then ₮50,000 a month", "Skipped in
+  September, then ₮50,000 a month". The next period goes back to the plan by
+  itself. Kept in the plan, by the day the period starts (`CategoryPlan.once`,
+  `CategoryPlans.once`, v22), so it saves and undoes with the plan; a plan moved to
+  another pay's periods drops them. A bill has none: its part is worked out from
+  the date, and a missed part already spreads over the rest. Rejected: asking "just
+  for September or change the plan?" when an Assigned different from the plan is
+  typed (it would ask on every part-payment of a month).
+- **Clear September's Assigned.** On the key card's **In categories** row, beside
+  Assign what's planned, while anything is assigned this period: "Clear September's
+  Assigned · ₮150,000". A window says what goes back, from how many categories, and
+  lists the ones that would end the month short, each with its shortfall in red
+  (six, then "and 3 more"); **Clear** and **Cancel**, Enter and Esc, and a click
+  away. What carried over from earlier stays; only this period's amounts go. One
+  undo. Not the Safety net's: it is kept apart, and clearing a month's budget isn't
+  emptying the safety net. Rejected: every Left back to Not assigned, carried-over
+  money included, and a choice between the two each time.
+- **A note.** Edit's last row, **Note**: what they want to remember about the
+  category. Under the name on Budget, after the plan's line, in the quietest ink,
+  one line, the whole of it when pointed at; and in "The row will read"
+  (`Accounts.note`, v22).
+
+Settled in the two reviews:
+
+- **Clear says where the money really goes.** Not assigned counts only what
+  categories hold above zero, so an overspent category's Assigned was covering what
+  it spent and doesn't come back. The window works the period out without the
+  amounts and says both: "₮150,000.00 comes out of 3 categories. Not assigned goes
+  up ₮50,000.00; ₮100,000.00 was covering what was already spent." A category
+  already short reads "−₮176,650.50 → −₮276,650.50". It names bills due before the
+  period ends that lose what was set aside for them, says "The Safety net keeps its
+  ₮200,000." while it has some this period, and on an earlier period says what
+  carried into today's goes too ("its categories end October with ₮900,000 less").
+  Only categories with money put in are cleared: one that Move money took from (its
+  Assigned below zero) is left, or clearing would quietly undo the move. The button
+  is "Clear September's Assigned", with the currency's code at the end when there
+  are two ("… in USD"); the amount is in the window.
+- **One month of its own, seen by a pay**, reads as it does on its month's page
+  ("₮80,000 in September only, then ₮50,000 a month"), and a skipped month asks
+  nothing there either. Edit's row says when **Up to** holds the month down ("Up to
+  ₮100,000 holds February to ₮40,000."), has **Use ₮50,000** to go back to the
+  plan's amount by the mouse, and says nothing about "back to" when the next period
+  has its own amount too. "Skip it" became **Skip this pay period**; "Nothing is
+  asked for" became "Nothing set aside in September".
+- **Kept:** a single pay period's amount is keyed by the day the period starts, so
+  changing that pay's days leaves it matching nothing and the plan asks its usual
+  amount again. Rare; a plan moved to another pay drops them the same way.
+- Groups that differ only in capitals ("Food", "food", from two computers) are one
+  heading, spelt as first written. Bringing an archived category back through New
+  category keeps its note and group unless the window gave new ones. **New group…**
+  has a Cancel back to the dropdown.
+- **The phone** (owner, 2026-10-27, "Yes"): its Budget has the same group headings,
+  after the categories in no group and before Bills, and under a name the one-month
+  line and the note.

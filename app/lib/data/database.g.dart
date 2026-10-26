@@ -139,6 +139,26 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       ).withConverter<AccountRole?>($AccountsTable.$converterrolen);
+  static const VerificationMeta _budgetGroupMeta = const VerificationMeta(
+    'budgetGroup',
+  );
+  @override
+  late final GeneratedColumn<String> budgetGroup = GeneratedColumn<String>(
+    'budget_group',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -153,6 +173,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     deletedAt,
     payday,
     role,
+    budgetGroup,
+    note,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -231,6 +253,21 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         payday.isAcceptableOrUnknown(data['payday']!, _paydayMeta),
       );
     }
+    if (data.containsKey('budget_group')) {
+      context.handle(
+        _budgetGroupMeta,
+        budgetGroup.isAcceptableOrUnknown(
+          data['budget_group']!,
+          _budgetGroupMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     return context;
   }
 
@@ -292,6 +329,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           data['${effectivePrefix}role'],
         ),
       ),
+      budgetGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}budget_group'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
     );
   }
 
@@ -329,6 +374,13 @@ class Account extends DataClass implements Insertable<Account> {
   /// What the account is for on the Savings steps (rule 25): the emergency
   /// fund, or a loan that isn't consumer debt.
   final AccountRole? role;
+
+  /// A spending category's group on the Budget page, a heading over the
+  /// categories in it (v22, #100). Null: under no heading.
+  final String? budgetGroup;
+
+  /// What the person wrote about a category, shown under its name (v22).
+  final String? note;
   const Account({
     required this.id,
     required this.name,
@@ -342,6 +394,8 @@ class Account extends DataClass implements Insertable<Account> {
     this.deletedAt,
     required this.payday,
     this.role,
+    this.budgetGroup,
+    this.note,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -374,6 +428,12 @@ class Account extends DataClass implements Insertable<Account> {
         $AccountsTable.$converterrolen.toSql(role),
       );
     }
+    if (!nullToAbsent || budgetGroup != null) {
+      map['budget_group'] = Variable<String>(budgetGroup);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
     return map;
   }
 
@@ -399,6 +459,10 @@ class Account extends DataClass implements Insertable<Account> {
           : Value(deletedAt),
       payday: Value(payday),
       role: role == null && nullToAbsent ? const Value.absent() : Value(role),
+      budgetGroup: budgetGroup == null && nullToAbsent
+          ? const Value.absent()
+          : Value(budgetGroup),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
     );
   }
 
@@ -424,6 +488,8 @@ class Account extends DataClass implements Insertable<Account> {
       role: $AccountsTable.$converterrolen.fromJson(
         serializer.fromJson<String?>(json['role']),
       ),
+      budgetGroup: serializer.fromJson<String?>(json['budgetGroup']),
+      note: serializer.fromJson<String?>(json['note']),
     );
   }
   @override
@@ -446,6 +512,8 @@ class Account extends DataClass implements Insertable<Account> {
       'role': serializer.toJson<String?>(
         $AccountsTable.$converterrolen.toJson(role),
       ),
+      'budgetGroup': serializer.toJson<String?>(budgetGroup),
+      'note': serializer.toJson<String?>(note),
     };
   }
 
@@ -462,6 +530,8 @@ class Account extends DataClass implements Insertable<Account> {
     Value<int?> deletedAt = const Value.absent(),
     bool? payday,
     Value<AccountRole?> role = const Value.absent(),
+    Value<String?> budgetGroup = const Value.absent(),
+    Value<String?> note = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -475,6 +545,8 @@ class Account extends DataClass implements Insertable<Account> {
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     payday: payday ?? this.payday,
     role: role.present ? role.value : this.role,
+    budgetGroup: budgetGroup.present ? budgetGroup.value : this.budgetGroup,
+    note: note.present ? note.value : this.note,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -496,6 +568,10 @@ class Account extends DataClass implements Insertable<Account> {
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       payday: data.payday.present ? data.payday.value : this.payday,
       role: data.role.present ? data.role.value : this.role,
+      budgetGroup: data.budgetGroup.present
+          ? data.budgetGroup.value
+          : this.budgetGroup,
+      note: data.note.present ? data.note.value : this.note,
     );
   }
 
@@ -513,7 +589,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('archivedAt: $archivedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('payday: $payday, ')
-          ..write('role: $role')
+          ..write('role: $role, ')
+          ..write('budgetGroup: $budgetGroup, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -532,6 +610,8 @@ class Account extends DataClass implements Insertable<Account> {
     deletedAt,
     payday,
     role,
+    budgetGroup,
+    note,
   );
   @override
   bool operator ==(Object other) =>
@@ -548,7 +628,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.archivedAt == this.archivedAt &&
           other.deletedAt == this.deletedAt &&
           other.payday == this.payday &&
-          other.role == this.role);
+          other.role == this.role &&
+          other.budgetGroup == this.budgetGroup &&
+          other.note == this.note);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -564,6 +646,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int?> deletedAt;
   final Value<bool> payday;
   final Value<AccountRole?> role;
+  final Value<String?> budgetGroup;
+  final Value<String?> note;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -577,6 +661,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.deletedAt = const Value.absent(),
     this.payday = const Value.absent(),
     this.role = const Value.absent(),
+    this.budgetGroup = const Value.absent(),
+    this.note = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -591,6 +677,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.deletedAt = const Value.absent(),
     this.payday = const Value.absent(),
     this.role = const Value.absent(),
+    this.budgetGroup = const Value.absent(),
+    this.note = const Value.absent(),
   }) : name = Value(name),
        type = Value(type);
   static Insertable<Account> custom({
@@ -606,6 +694,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? deletedAt,
     Expression<bool>? payday,
     Expression<String>? role,
+    Expression<String>? budgetGroup,
+    Expression<String>? note,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -620,6 +710,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (payday != null) 'payday': payday,
       if (role != null) 'role': role,
+      if (budgetGroup != null) 'budget_group': budgetGroup,
+      if (note != null) 'note': note,
     });
   }
 
@@ -636,6 +728,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int?>? deletedAt,
     Value<bool>? payday,
     Value<AccountRole?>? role,
+    Value<String?>? budgetGroup,
+    Value<String?>? note,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -650,6 +744,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       deletedAt: deletedAt ?? this.deletedAt,
       payday: payday ?? this.payday,
       role: role ?? this.role,
+      budgetGroup: budgetGroup ?? this.budgetGroup,
+      note: note ?? this.note,
     );
   }
 
@@ -696,6 +792,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
         $AccountsTable.$converterrolen.toSql(role.value),
       );
     }
+    if (budgetGroup.present) {
+      map['budget_group'] = Variable<String>(budgetGroup.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     return map;
   }
 
@@ -713,7 +815,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('archivedAt: $archivedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('payday: $payday, ')
-          ..write('role: $role')
+          ..write('role: $role, ')
+          ..write('budgetGroup: $budgetGroup, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -2289,8 +2393,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   /// A bill a category's plan scheduled (rule 27), by the category.
   final int? planCategoryId;
 
-  /// How the row came to be, one of [MadeHow]'s words, and the name of the
-  /// computer it was typed or imported on, as it read then. Both null for
+  /// How the row came to be, one of [MadeHow]'s words, and the id of the
+  /// computer it was typed or imported on, or of the phone. Both null for
   /// a row from before v21, which nobody knows. Never changed afterwards,
   /// and no part of what two computers compare (ADR 0005, "Where a row came
   /// from").
@@ -4414,6 +4518,15 @@ class $CategoryPlansTable extends CategoryPlans
       'REFERENCES accounts (id)',
     ),
   );
+  static const VerificationMeta _onceMeta = const VerificationMeta('once');
+  @override
+  late final GeneratedColumn<String> once = GeneratedColumn<String>(
+    'once',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     categoryId,
@@ -4435,6 +4548,7 @@ class $CategoryPlansTable extends CategoryPlans
     rollover,
     upToMinor,
     paidFromId,
+    once,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4569,6 +4683,12 @@ class $CategoryPlansTable extends CategoryPlans
         ),
       );
     }
+    if (data.containsKey('once')) {
+      context.handle(
+        _onceMeta,
+        once.isAcceptableOrUnknown(data['once']!, _onceMeta),
+      );
+    }
     return context;
   }
 
@@ -4658,6 +4778,10 @@ class $CategoryPlansTable extends CategoryPlans
         DriftSqlType.int,
         data['${effectivePrefix}paid_from_id'],
       ),
+      once: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}once'],
+      ),
     );
   }
 
@@ -4725,6 +4849,10 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
   /// The account a dated plan's bill is paid from: it's kept scheduled
   /// there.
   final int? paidFromId;
+
+  /// A set amount's single periods: `YYYY-MM-DD=amount,…`, by the day each
+  /// starts, what that one asks for instead; 0 skips it (v22, #100).
+  final String? once;
   const CategoryPlanRow({
     required this.categoryId,
     required this.kind,
@@ -4745,6 +4873,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     required this.rollover,
     this.upToMinor,
     this.paidFromId,
+    this.once,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4800,6 +4929,9 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     if (!nullToAbsent || paidFromId != null) {
       map['paid_from_id'] = Variable<int>(paidFromId);
     }
+    if (!nullToAbsent || once != null) {
+      map['once'] = Variable<String>(once);
+    }
     return map;
   }
 
@@ -4844,6 +4976,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       paidFromId: paidFromId == null && nullToAbsent
           ? const Value.absent()
           : Value(paidFromId),
+      once: once == null && nullToAbsent ? const Value.absent() : Value(once),
     );
   }
 
@@ -4876,6 +5009,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       rollover: serializer.fromJson<bool>(json['rollover']),
       upToMinor: serializer.fromJson<int?>(json['upToMinor']),
       paidFromId: serializer.fromJson<int?>(json['paidFromId']),
+      once: serializer.fromJson<String?>(json['once']),
     );
   }
   @override
@@ -4905,6 +5039,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       'rollover': serializer.toJson<bool>(rollover),
       'upToMinor': serializer.toJson<int?>(upToMinor),
       'paidFromId': serializer.toJson<int?>(paidFromId),
+      'once': serializer.toJson<String?>(once),
     };
   }
 
@@ -4928,6 +5063,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     bool? rollover,
     Value<int?> upToMinor = const Value.absent(),
     Value<int?> paidFromId = const Value.absent(),
+    Value<String?> once = const Value.absent(),
   }) => CategoryPlanRow(
     categoryId: categoryId ?? this.categoryId,
     kind: kind ?? this.kind,
@@ -4950,6 +5086,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     rollover: rollover ?? this.rollover,
     upToMinor: upToMinor.present ? upToMinor.value : this.upToMinor,
     paidFromId: paidFromId.present ? paidFromId.value : this.paidFromId,
+    once: once.present ? once.value : this.once,
   );
   CategoryPlanRow copyWithCompanion(CategoryPlansCompanion data) {
     return CategoryPlanRow(
@@ -4986,6 +5123,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       paidFromId: data.paidFromId.present
           ? data.paidFromId.value
           : this.paidFromId,
+      once: data.once.present ? data.once.value : this.once,
     );
   }
 
@@ -5010,7 +5148,8 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
           ..write('upToMinor: $upToMinor, ')
-          ..write('paidFromId: $paidFromId')
+          ..write('paidFromId: $paidFromId, ')
+          ..write('once: $once')
           ..write(')'))
         .toString();
   }
@@ -5036,6 +5175,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     rollover,
     upToMinor,
     paidFromId,
+    once,
   );
   @override
   bool operator ==(Object other) =>
@@ -5059,7 +5199,8 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           other.endCount == this.endCount &&
           other.rollover == this.rollover &&
           other.upToMinor == this.upToMinor &&
-          other.paidFromId == this.paidFromId);
+          other.paidFromId == this.paidFromId &&
+          other.once == this.once);
 }
 
 class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
@@ -5082,6 +5223,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
   final Value<bool> rollover;
   final Value<int?> upToMinor;
   final Value<int?> paidFromId;
+  final Value<String?> once;
   const CategoryPlansCompanion({
     this.categoryId = const Value.absent(),
     this.kind = const Value.absent(),
@@ -5102,6 +5244,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.rollover = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
+    this.once = const Value.absent(),
   });
   CategoryPlansCompanion.insert({
     this.categoryId = const Value.absent(),
@@ -5123,6 +5266,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.rollover = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
+    this.once = const Value.absent(),
   }) : kind = Value(kind),
        amountMinor = Value(amountMinor),
        start = Value(start);
@@ -5146,6 +5290,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Expression<bool>? rollover,
     Expression<int>? upToMinor,
     Expression<int>? paidFromId,
+    Expression<String>? once,
   }) {
     return RawValuesInsertable({
       if (categoryId != null) 'category_id': categoryId,
@@ -5167,6 +5312,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       if (rollover != null) 'rollover': rollover,
       if (upToMinor != null) 'up_to_minor': upToMinor,
       if (paidFromId != null) 'paid_from_id': paidFromId,
+      if (once != null) 'once': once,
     });
   }
 
@@ -5190,6 +5336,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Value<bool>? rollover,
     Value<int?>? upToMinor,
     Value<int?>? paidFromId,
+    Value<String?>? once,
   }) {
     return CategoryPlansCompanion(
       categoryId: categoryId ?? this.categoryId,
@@ -5211,6 +5358,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       rollover: rollover ?? this.rollover,
       upToMinor: upToMinor ?? this.upToMinor,
       paidFromId: paidFromId ?? this.paidFromId,
+      once: once ?? this.once,
     );
   }
 
@@ -5278,6 +5426,9 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     if (paidFromId.present) {
       map['paid_from_id'] = Variable<int>(paidFromId.value);
     }
+    if (once.present) {
+      map['once'] = Variable<String>(once.value);
+    }
     return map;
   }
 
@@ -5302,7 +5453,8 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
           ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
           ..write('upToMinor: $upToMinor, ')
-          ..write('paidFromId: $paidFromId')
+          ..write('paidFromId: $paidFromId, ')
+          ..write('once: $once')
           ..write(')'))
         .toString();
   }
@@ -6848,6 +7000,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int?> deletedAt,
   Value<bool> payday,
   Value<AccountRole?> role,
+  Value<String?> budgetGroup,
+  Value<String?> note,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -6862,6 +7016,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int?> deletedAt,
   Value<bool> payday,
   Value<AccountRole?> role,
+  Value<String?> budgetGroup,
+  Value<String?> note,
 });
 
 final class $$AccountsTableReferences
@@ -7053,6 +7209,16 @@ class $$AccountsTableFilterComposer
         column: $table.role,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get budgetGroup => $composableBuilder(
+    column: $table.budgetGroup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> transactionsRefs(
     Expression<bool> Function($$TransactionsTableFilterComposer f) f,
@@ -7273,6 +7439,16 @@ class $$AccountsTableOrderingComposer
     column: $table.role,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get budgetGroup => $composableBuilder(
+    column: $table.budgetGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -7325,6 +7501,14 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<AccountRole?, String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get budgetGroup => $composableBuilder(
+    column: $table.budgetGroup,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -7525,6 +7709,8 @@ class $$AccountsTableTableManager
                 Value<int?> deletedAt = const Value.absent(),
                 Value<bool> payday = const Value.absent(),
                 Value<AccountRole?> role = const Value.absent(),
+                Value<String?> budgetGroup = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -7538,6 +7724,8 @@ class $$AccountsTableTableManager
                 deletedAt: deletedAt,
                 payday: payday,
                 role: role,
+                budgetGroup: budgetGroup,
+                note: note,
               ),
           createCompanionCallback:
               ({
@@ -7553,6 +7741,8 @@ class $$AccountsTableTableManager
                 Value<int?> deletedAt = const Value.absent(),
                 Value<bool> payday = const Value.absent(),
                 Value<AccountRole?> role = const Value.absent(),
+                Value<String?> budgetGroup = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -7566,6 +7756,8 @@ class $$AccountsTableTableManager
                 deletedAt: deletedAt,
                 payday: payday,
                 role: role,
+                budgetGroup: budgetGroup,
+                note: note,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -11106,6 +11298,7 @@ typedef $$CategoryPlansTableCreateCompanionBuilder =
       Value<bool> rollover,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
+      Value<String?> once,
     });
 typedef $$CategoryPlansTableUpdateCompanionBuilder =
     CategoryPlansCompanion Function({
@@ -11128,6 +11321,7 @@ typedef $$CategoryPlansTableUpdateCompanionBuilder =
       Value<bool> rollover,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
+      Value<String?> once,
     });
 
 final class $$CategoryPlansTableReferences
@@ -11280,6 +11474,11 @@ class $$CategoryPlansTableFilterComposer
 
   ColumnFilters<int> get upToMinor => $composableBuilder(
     column: $table.upToMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get once => $composableBuilder(
+    column: $table.once,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11442,6 +11641,11 @@ class $$CategoryPlansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get once => $composableBuilder(
+    column: $table.once,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$AccountsTableOrderingComposer get categoryId {
     final $$AccountsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -11577,6 +11781,9 @@ class $$CategoryPlansTableAnnotationComposer
   GeneratedColumn<int> get upToMinor =>
       $composableBuilder(column: $table.upToMinor, builder: (column) => column);
 
+  GeneratedColumn<String> get once =>
+      $composableBuilder(column: $table.once, builder: (column) => column);
+
   $$AccountsTableAnnotationComposer get categoryId {
     final $$AccountsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -11698,6 +11905,7 @@ class $$CategoryPlansTableTableManager
                 Value<bool> rollover = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
+                Value<String?> once = const Value.absent(),
               }) => CategoryPlansCompanion(
                 categoryId: categoryId,
                 kind: kind,
@@ -11718,6 +11926,7 @@ class $$CategoryPlansTableTableManager
                 rollover: rollover,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,
+                once: once,
               ),
           createCompanionCallback:
               ({
@@ -11740,6 +11949,7 @@ class $$CategoryPlansTableTableManager
                 Value<bool> rollover = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
+                Value<String?> once = const Value.absent(),
               }) => CategoryPlansCompanion.insert(
                 categoryId: categoryId,
                 kind: kind,
@@ -11760,6 +11970,7 @@ class $$CategoryPlansTableTableManager
                 rollover: rollover,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,
+                once: once,
               ),
           withReferenceMapper: (p0) => p0
               .map(

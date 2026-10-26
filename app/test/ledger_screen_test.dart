@@ -6607,6 +6607,8 @@ void main() {
       expect(data.plans[gifts]!.kind, PlanKind.each);
 
       // Groceries no longer carries over; Esc on another leaves it alone.
+      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-carry-off')));
@@ -6847,6 +6849,216 @@ void main() {
       await reload();
       expect(data.plans[gifts]!.upTo, 20000000);
       expect(find.text('₮50,000 a month · up to ₮200,000'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a budget line: a group, a note, one month of its own, and '
+        'clearing a month, each undone with ⌘Z (#100)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final gifts = id('Gifts'), clothing = id('Clothing');
+      final sep = DateTime(2026, 9);
+      Future<void> reload() async =>
+          data = (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> pick(String key) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> save() async {
+        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('edit-save')));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      // Gifts: ₮50,000 a month, ₮80,000 just for September, in a new
+      // group, with a note.
+      await editCategory(tester, 'Gifts');
+      // Asked only once there's a set amount.
+      expect(find.byKey(const ValueKey('plan-once')), findsNothing);
+      await type('plan-amount', '50000');
+      expect(find.text('Just for September'), findsOneWidget);
+      await type('plan-once', '80000');
+      expect(find.text('Back to ₮50,000 in October.'), findsOneWidget);
+      await pick('category-group');
+      await pick('category-group-new');
+      await type('category-new-group', 'Family');
+      await type('category-note', 'Birthdays and Tsagaan Sar');
+      await tester.ensureVisible(find.byKey(const ValueKey('edit-name')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_line_edit.png'),
+      );
+      await save();
+      await reload();
+      expect(data.plans[gifts]!.amount, 5000000);
+      expect(data.plans[gifts]!.once, {sep: 8000000});
+      expect(data.accounts[gifts]!.budgetGroup, 'Family');
+      expect(data.accounts[gifts]!.note, 'Birthdays and Tsagaan Sar');
+      expect(
+        find.text('₮80,000 in September only, then ₮50,000 a month'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('budget-group-Family')), findsOneWidget);
+      expect(find.byKey(ValueKey('category-note-$gifts')), findsOneWidget);
+      // Clothing joins the group from the list: one heading over both.
+      await editCategory(tester, 'Clothing');
+      await pick('category-group');
+      await pick('category-group-Family');
+      await save();
+      await reload();
+      expect(data.accounts[clothing]!.budgetGroup, 'Family');
+      expect(find.byKey(const ValueKey('budget-group-Family')), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_line_group.png'),
+      );
+      // Under it, after the categories in no group.
+      final heading = tester.getTopLeft(
+        find.byKey(const ValueKey('budget-group-Family')),
+      );
+      expect(tester.getTopLeft(find.text('Gifts')).dy, greaterThan(heading.dy));
+      expect(
+        tester.getTopLeft(find.text('Groceries')).dy,
+        lessThan(heading.dy),
+      );
+      // ⌘Z takes Clothing out of it again.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.accounts[clothing]!.budgetGroup, isNull);
+      // ⌘⇧Z puts it back in.
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      await reload();
+      expect(data.accounts[clothing]!.budgetGroup, 'Family');
+
+      // Skip September instead: nothing asked, the line says what comes
+      // after.
+      await editCategory(tester, 'Gifts');
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('plan-once')))
+            .controller!
+            .text,
+        '80,000',
+      );
+      await pick('plan-once-skip');
+      expect(
+        find.text(
+          'Nothing set aside in September. Back to ₮50,000 in October.',
+        ),
+        findsOneWidget,
+      );
+      // Use ₮50,000 goes back to the plan's by the mouse alone.
+      expect(find.byKey(const ValueKey('plan-once-usual')), findsOneWidget);
+      await save();
+      await reload();
+      expect(data.plans[gifts]!.once, {sep: 0});
+      expect(
+        find.text('Skipped in September, then ₮50,000 a month'),
+        findsOneWidget,
+      );
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(data.plans[gifts]!.once, {sep: 8000000});
+
+      // Clear September's Assigned: the window says how much and which
+      // end short; Cancel leaves it, Clear takes it, ⌘Z puts it back.
+      await tester.runAsync(() async {
+        await db.setBudgetAmount(gifts, sep, DateTime(2026, 9, 30), 3000000);
+        await db.setBudgetAmount(clothing, sep, DateTime(2026, 9, 30), 2000000);
+        // As the first amount typed on the page records it.
+        await db.setPreference(BudgetKeys.began, '2026-09-01');
+        // Groceries spent more than this: cleared, it ends September short.
+        await db.setBudgetAmount(
+          id('Groceries'),
+          sep,
+          DateTime(2026, 9, 30),
+          10000000,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await reload();
+      int assigned() => data.budgetAmounts
+          .where((b) => !b.date.isBefore(sep) && b.date.month == 9)
+          .fold(0, (sum, b) => sum + b.amount);
+      final before = assigned();
+      expect(before, greaterThan(0));
+      final clear = find.byKey(const ValueKey('clear-assigned'));
+      expect(clear, findsOneWidget);
+      await tester.tap(clear);
+      await tester.pumpAndSettle();
+      expect(find.text('Clear September’s Assigned?'), findsOneWidget);
+      // Groceries had spent more than its ₮100,000: that much was
+      // covering its spending, and only ₮50,000 comes back (budget
+      // review).
+      expect(
+        find.text('₮150,000.00 comes out of 3 categories.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Not assigned goes up ₮50,000.00; ₮100,000.00 was covering what '
+          'was already spent.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('176,650.50 → '), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/budget_clear_window.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('clear-assigned-cancel')));
+      await tester.pumpAndSettle();
+      await reload();
+      expect(assigned(), before);
+      await tester.tap(clear);
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('clear-assigned-confirm')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      await reload();
+      expect(assigned(), 0);
+      expect(clear, findsNothing);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      await reload();
+      expect(assigned(), before);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      await reload();
+      expect(assigned(), 0);
       await tidy(tester, db);
     });
 
@@ -7094,6 +7306,9 @@ void main() {
               .text,
           '120',
         );
+        // Edit is taller than the window now: its heading row is above.
+        await tester.ensureVisible(find.byKey(const ValueKey('money-currency')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-currency')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-currency-MNT')));
