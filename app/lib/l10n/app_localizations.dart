@@ -6251,6 +6251,36 @@ abstract class Words {
   /// **'{amount} by {date}'**
   String planBy(String amount, String date);
 
+  /// Budget page: end of the note under a bill's category name, once this period's bill was paid ('₮80,000 due 11.15 · paid 10.15')
+  ///
+  /// In en, this message translates to:
+  /// **'paid {date}'**
+  String planPaidOn(String date);
+
+  /// Budget page: tooltip on the ring before a category's name: how much of what it had this period (carried in plus assigned) is used
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {had} used'**
+  String planUsedOf(String used, String had);
+
+  /// Budget page: tooltip on the full red ring before a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} overspent, with nothing assigned'**
+  String planUsedNone(String amount);
+
+  /// Budget page: tooltip on the full red ring before a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} overspent'**
+  String planUsedOver(String amount);
+
+  /// Budget page: the row under the spending categories that adds up this period's Assigned and Spent
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get planTotal;
+
   /// Budget page: end of the note under a category's name, when a dated plan has this period's part in
   ///
   /// In en, this message translates to:

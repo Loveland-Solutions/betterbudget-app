@@ -507,7 +507,7 @@ String? ownPayName(Words t, LedgerData data, CategoryPlan plan) {
 
 /// What a plan says under its category's name: the plan, then whether a
 /// dated one has what it should ("on track", or "₮200,000 short" in
-/// full ink).
+/// full ink), or that this period's bill was paid ("paid 10.15").
 typedef PlanNote = ({String text, String? state, bool behind});
 
 PlanNote planNote(
@@ -607,6 +607,10 @@ PlanNote planNote(
   final String? state;
   if (line.short > 0) {
     state = t.planShort(money(line.short));
+  } else if (line.paidOn case final paid? when p.plan.kind == PlanKind.byDate) {
+    // This period's bill was paid: the one thing a person asks of a bill's
+    // row (#274). Short still comes first: it's about the next one.
+    state = t.planPaidOn(date(paid));
   } else if (once && p.done) {
     state = t.planSetAsideState;
   } else if (p.plan.kind == PlanKind.each || p.waiting || p.done) {

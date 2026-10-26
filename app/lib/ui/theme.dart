@@ -417,6 +417,92 @@ String shortDate(DateTime d) =>
 /// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
 String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
 
+/// The ring before a budget category's name slides from green through
+/// gold to coral as the category is used up (owner, 2026-10-26: "let's go
+/// from green progressively to red"; ADR 0004 "How used up a category
+/// is"): the one place a shade between the money colours is drawn.
+/// [share] is 0 (nothing used) to 1 (used up or over).
+Color usedColor(double share) {
+  final s = share.clamp(0.0, 1.0);
+  final green = HSLColor.fromColor(Mid.green);
+  final gold = HSLColor.fromColor(Mid.gold);
+  final coral = HSLColor.fromColor(Mid.coral);
+  final hsl = s < 0.5
+      ? HSLColor.lerp(green, gold, s * 2)!
+      : HSLColor.lerp(gold, coral, (s - 0.5) * 2)!;
+  return hsl.toColor();
+}
+
+/// How much of what a category had this period is used (#241; ADR 0004
+/// "How used up a category is", the owner's pick C of three): a ring
+/// filled clockwise from the top, [usedColor] as it fills, full and coral
+/// at zero or below. On the computer's Budget page and the phone's.
+/// [words] is its tooltip ("₮612,300 of ₮900,000 used"), when there are
+/// any.
+class UsedRing extends StatelessWidget {
+  const UsedRing({
+    super.key,
+    required this.share,
+    this.size = 14,
+    this.words,
+  });
+  final double share;
+  final double size;
+  final String? words;
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = CustomPaint(
+      size: Size.square(size),
+      painter: _UsedRingPainter(
+        share,
+        usedColor(share),
+        Mid.ink3.withValues(alpha: 0.3),
+      ),
+    );
+    return switch (words) {
+      null => ring,
+      final words => Tooltip(
+        message: words,
+        waitDuration: const Duration(milliseconds: 500),
+        child: ring,
+      ),
+    };
+  }
+}
+
+class _UsedRingPainter extends CustomPainter {
+  const _UsedRingPainter(this.share, this.color, this.track);
+  final double share;
+  final Color color;
+  final Color track;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width / 5.6;
+    final rect = Rect.fromLTWH(
+      stroke / 2,
+      stroke / 2,
+      size.width - stroke,
+      size.height - stroke,
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = track;
+    canvas.drawArc(rect, 0, 2 * math.pi, false, paint);
+    final filled = share.clamp(0.0, 1.0);
+    if (filled > 0) {
+      paint.color = color;
+      canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * filled, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_UsedRingPainter old) =>
+      old.share != share || old.color != color || old.track != track;
+}
+
 /// The currency the amounts below it are in: an account's page, one row of
 /// All accounts, a dialog about one account. Tugrik when nothing says.
 class CurrencyScope extends InheritedWidget {

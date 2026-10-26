@@ -1635,7 +1635,12 @@ void main() {
             leftMinor: 180000000,
             due: DateTime(2026, 10, 20),
           ),
-          const PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+          const PhoneCategory(
+            id: 'g',
+            name: 'Groceries',
+            leftMinor: 14800000,
+            hadMinor: 90000000,
+          ),
         ],
       ),
     );
@@ -1643,6 +1648,10 @@ void main() {
     // A budget that runs by pay periods says when this one ends.
     expect(find.text('Left until 10.14'), findsOneWidget);
     expect(find.text('Due 10.20'), findsOneWidget);
+    // The ring before Groceries: ₮752,000 of ₮900,000 used; a bill has
+    // none (#241).
+    expect(find.byKey(const ValueKey('used-g')), findsOneWidget);
+    expect(find.byKey(const ValueKey('used-r')), findsNothing);
     final groceries = tester.getTopLeft(find.text('Groceries')).dy;
     final add = tester.getTopLeft(find.text('+ New category')).dy;
     final heading = tester.getTopLeft(find.text('Bills')).dy;

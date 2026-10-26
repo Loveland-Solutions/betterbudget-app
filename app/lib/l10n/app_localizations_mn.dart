@@ -4254,6 +4254,29 @@ class WordsMn extends Words {
   }
 
   @override
+  String planPaidOn(String date) {
+    return 'төлсөн: $date';
+  }
+
+  @override
+  String planUsedOf(String used, String had) {
+    return 'зарцуулсан: $used / $had';
+  }
+
+  @override
+  String planUsedNone(String amount) {
+    return 'Хуваарилаагүй, $amount хэтэрсэн';
+  }
+
+  @override
+  String planUsedOver(String amount) {
+    return '$amount хэтэрсэн';
+  }
+
+  @override
+  String get planTotal => 'Нийт';
+
+  @override
   String get planOnTrack => 'хэвийн явж байна';
 
   @override

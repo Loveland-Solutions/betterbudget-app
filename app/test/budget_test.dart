@@ -280,6 +280,71 @@ void main() {
     expect(o.pools.first.overspent, 450000);
   });
 
+  test('how used up: the ring\'s share is built from Left', () {
+    final d = ledger(
+      amounts: [
+        put(food, oct.start, 90000000),
+        put(xmas, DateTime(2026, 9, 1), 200000000),
+        put(dining, oct.start, 8000000),
+      ],
+      rows: [
+        move(DateTime(2026, 10, 3), checking, food, 27665050),
+        move(DateTime(2026, 10, 5), checking, xmas, 15000000),
+        move(DateTime(2026, 10, 9), checking, dining, 9200000),
+        move(DateTime(2026, 10, 9), checking, coffee, 38000),
+      ],
+    );
+    final o = of(d, oct);
+    // Groceries: ₮276,650.50 of ₮900,000 used.
+    expect(o.lines[food]!.had, 90000000);
+    expect(o.lines[food]!.used, 27665050);
+    expect(o.lines[food]!.usedShare, closeTo(0.307, 0.001));
+    // Christmas: nothing assigned this month, ₮2,000,000 from before and
+    // ₮150,000 spent: a share of what it had, not of nothing.
+    expect(o.lines[xmas]!.had, 200000000);
+    expect(o.lines[xmas]!.used, 15000000);
+    expect(o.lines[xmas]!.usedShare, closeTo(0.075, 0.001));
+    // Over, and spent with nothing assigned: full.
+    expect(o.lines[dining]!.usedShare, 1);
+    expect(o.lines[coffee]!.usedShare, 1);
+    expect(o.lines[coffee]!.used, 38000);
+    // Nothing had and nothing spent: no ring.
+    expect(o.lines[housing]!.usedShare, isNull);
+    // Everything spent: full, at the slide's red end.
+    final gone = ledger(
+      amounts: [put(food, oct.start, 90000000)],
+      rows: [move(DateTime(2026, 10, 3), checking, food, 90000000)],
+    );
+    expect(of(gone, oct).lines[food]!.usedShare, 1);
+  });
+
+  test('how used up, the month the budget began in: from Left, not Spent', () {
+    // Spent shows the whole month's spending; Left counts only what came
+    // after the start, and so does the ring.
+    final d = ledger(
+      amounts: [put(food, oct.start, 90000000)],
+      rows: [
+        move(DateTime(2026, 9, 20), checking, food, 5000000),
+        move(DateTime(2026, 10, 3), checking, food, 2000000),
+        move(DateTime(2026, 10, 20), checking, food, 1000000),
+      ],
+      prefs: {BudgetKeys.began: '2026-10-15'},
+    );
+    final o = of(d, oct).lines[food]!;
+    expect(o.spent, 3000000);
+    expect(o.left, 89000000);
+    expect(o.used, 1000000);
+    expect(o.usedShare, closeTo(0.011, 0.001));
+    // September, before it began: nothing had, so no ring, though it
+    // shows what was spent.
+    final sep = of(d, (
+      start: DateTime(2026, 9, 1),
+      end: DateTime(2026, 9, 30),
+    )).lines[food]!;
+    expect(sep.spent, 5000000);
+    expect(sep.usedShare, isNull);
+  });
+
   test('refunds put money back', () {
     final d = ledger(
       amounts: [put(food, oct.start, 90000000)],
@@ -592,6 +657,53 @@ void main() {
       expect(o.lines[dining]!.plan!.wentBack, 0);
       expect(o.lines[dining]!.left, 11800000);
       expect(o.notAssigned, o.money - 11800000);
+    });
+
+    test('not carried over, by pay, seen by month: the ring leaves out what '
+        'went back', () {
+      // ₮450,000 each pay (the 10th and 25th), not carried over, seen by
+      // the month on 10.20: the 09.25 pay's ₮50,000 went back on 10.09.
+      const pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.twiceMonthly,
+        day1: 10,
+        day2: 25,
+        weekend: PayWeekend.keep,
+      );
+      final d = ledger(
+        pay: [pay],
+        plans: [
+          plan(
+            food,
+            PlanKind.each,
+            45000000,
+            rollover: false,
+            start: DateTime(2026, 9, 25),
+            payScheduleId: 1,
+          ),
+        ],
+        amounts: [
+          put(food, DateTime(2026, 9, 25), 45000000),
+          put(food, DateTime(2026, 10, 10), 45000000),
+          put(food, DateTime(2026, 10, 25), 45000000),
+        ],
+        rows: [
+          move(DateTime(2026, 10, 3), checking, food, 40000000),
+          move(DateTime(2026, 10, 15), checking, food, 20000000),
+        ],
+      );
+      final o = of(d, oct).lines[food]!;
+      expect(o.plan!.wentBack, 5000000);
+      expect(o.left, 70000000);
+      // Used is what was spent, ₮600,000, of what it had less what went
+      // back, ₮1,300,000: not ₮650,000 of ₮1,350,000 (code review).
+      expect(o.counted, 60000000);
+      expect(o.used, 60000000);
+      expect(o.had, 130000000);
+      expect(o.usedShare, closeTo(0.4615, 0.001));
     });
 
     test('carried over: the same category keeps what is left', () {
@@ -1662,6 +1774,104 @@ void main() {
       final o = of(d, oct).lines[xmas]!;
       expect(o.plan!.each, 50000000);
       expect((o.toAssign, o.short), (0, 0));
+    });
+  });
+
+  group('a bill\'s line', () {
+    test('has no ring, and says the day this period\'s bill was paid', () {
+      // Rent on the 1st, from September on.
+      final rent = CategoryPlan(
+        categoryId: housing,
+        kind: PlanKind.byDate,
+        amount: 180000000,
+        start: DateTime(2026, 9, 1),
+        due: DateTime(2026, 9, 1),
+        everyMonths: 1,
+        rollover: true,
+      );
+      final d = ledger(
+        plans: [rent],
+        amounts: [put(housing, oct.start, 180000000)],
+        rows: [
+          move(
+            DateTime(2026, 10, 1),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+        ],
+      );
+      final o = of(d, oct).lines[housing]!;
+      expect(o.usedShare, isNull);
+      expect(o.paidOn, DateTime(2026, 10, 1));
+      // Nothing tied to the bill in November yet.
+      expect(of(d, nov).lines[housing]!.paidOn, isNull);
+      // A row in the category not tied to the bill says nothing.
+      final loose = ledger(
+        plans: [rent],
+        rows: [move(DateTime(2026, 10, 1), checking, housing, 180000000)],
+      );
+      expect(of(loose, oct).lines[housing]!.paidOn, isNull);
+      // Rent for 11.01 paid on 10.30 is November's, as its spending is
+      // counted: November's line says paid 10.30, October's still 10.01.
+      final early = ledger(
+        plans: [rent],
+        rows: [
+          move(
+            DateTime(2026, 10, 1),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+          move(
+            DateTime(2026, 10, 30),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+        ],
+      );
+      expect(of(early, oct).lines[housing]!.paidOn, DateTime(2026, 10, 1));
+      expect(of(early, nov).lines[housing]!.paidOn, DateTime(2026, 10, 30));
+      // And a bill paid a day late: on the bill's month, not the row's.
+      final late = ledger(
+        plans: [rent],
+        rows: [
+          move(
+            DateTime(2026, 11, 2),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+        ],
+      );
+      expect(of(late, oct).lines[housing]!.paidOn, isNull);
+      expect(of(late, nov).lines[housing]!.paidOn, DateTime(2026, 11, 2));
+      // Two payments of one bill: the later day.
+      final twice = ledger(
+        plans: [rent],
+        rows: [
+          move(
+            DateTime(2026, 10, 1),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+          move(
+            DateTime(2026, 10, 3),
+            checking,
+            housing,
+            180000000,
+            plan: housing,
+          ),
+        ],
+      );
+      expect(of(twice, oct).lines[housing]!.paidOn, DateTime(2026, 10, 3));
     });
   });
 

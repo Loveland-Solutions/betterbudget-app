@@ -72,11 +72,48 @@ class EnvelopeLine {
     this.offSpent = 0,
     this.offAccounts = const [],
     this.backing,
+    this.paidOn,
+    this.counted = 0,
   });
+
+  /// This period's spending that counts against it: since the budget
+  /// began, in its currency. [spent] shows the whole period's.
+  final int counted;
 
   /// The currency the category is in (rule 28): its amounts, its plan,
   /// and the only spending that counts against it.
   final Currency currency;
+
+  /// The day the bill that counts in this period was last paid, when it
+  /// has one and a row was tied to it (a scheduled bill confirmed, or a
+  /// payment taken as the bill; ADR 0004 "A bill paid another way"). The
+  /// bill's date places it, as [spent] counts it: rent for 11.01 paid
+  /// 10.30 is November's. Null otherwise. For "paid 10.30" on its line
+  /// (#274).
+  final DateTime? paidOn;
+
+  /// What it had this period to spend: what's left plus what it spent
+  /// that counted, so it agrees with Left however Left was reached (money
+  /// from before, nothing assigned, the period the budget began in, where
+  /// Spent shows the whole period's spending and Left counts only what
+  /// came after). For a category that doesn't carry over, what went back
+  /// to not assigned inside the period is out (code review).
+  int get had => left + counted;
+
+  /// What of that is used: the spending that counted, never below zero.
+  int get used => counted < 0 ? 0 : counted;
+
+  /// How much of what it had is used, 0 to 1, for the ring before its
+  /// name (#241; ADR 0004 "How used up a category is"). 1 at zero or
+  /// below. Null when there's nothing to picture: a category saving for
+  /// a bill (its line says due or paid), or nothing had and nothing
+  /// spent.
+  double? get usedShare {
+    if (plan?.plan.kind == PlanKind.byDate) return null;
+    if (left < 0) return 1;
+    if (had <= 0) return null;
+    return used >= had ? 1 : used / had;
+  }
 
   /// Rows filed under it in another currency since the budget began,
   /// which aren't counted (they stay until they're fixed): how many, what
@@ -417,6 +454,30 @@ class Budget {
           id: parseDateKey(day),
     };
 
+    // By category, the day of the last payment of a bill that counts in
+    // this period, for "paid 10.30" on its line (#274).
+    final paidOn = <int, DateTime>{};
+    // The bill a row tied to [category] paid, dated as its spending is
+    // counted: the bill it was taken as paid for, else the plan's bill
+    // nearest the row.
+    DateTime? billDateOf(TxnData t, int category, DateTime d) =>
+        decodeBillPaid(data.prefs[billPaidKey(t.id)])?.date ??
+        switch (plans[category]) {
+          final p? when p.kind == PlanKind.byDate => billDate(
+            p,
+            d,
+            pay: data.payScheduleById(p.payScheduleId),
+          ),
+          _ => null,
+        };
+    // A bill paid: kept on the line of the period the bill counts in
+    // (rent for 11.01 paid 10.30 is November's), said by the day it was
+    // paid; the latest when there are two.
+    void notePaid(int category, DateTime d, DateTime? bill) {
+      if (bill == null || !within(bill)) return;
+      final was = paidOn[category];
+      if (was == null || d.isAfter(was)) paidOn[category] = d;
+    }
     for (final t in data.txns) {
       if (t.scheduled) continue;
       final d = dateOnly(t.date);
@@ -468,17 +529,10 @@ class Budget {
           // A row taken as a bill paid counts on that bill's date, however
           // late ([billPaidKey]).
           final planned = t.planCategoryId == a.id
-              ? decodeBillPaid(data.prefs[billPaidKey(t.id)])?.date ??
-                    switch (plans[a.id]) {
-                      final p? when p.kind == PlanKind.byDate => billDate(
-                        p,
-                        d,
-                        pay: data.payScheduleById(p.payScheduleId),
-                      ),
-                      _ => null,
-                    }
+              ? billDateOf(t, a.id, d)
               : null;
           spend(a.id, d, x.amount, counted, on: planned);
+          notePaid(a.id, d, planned);
           // Paid from an account it doesn't use: counted all the same.
           final off = data.accountsOff[a.id];
           if (off != null && counted && within(d)) {
@@ -503,6 +557,9 @@ class Budget {
                 !d.isBefore(starts) &&
                 (from == null || !d.isBefore(from)),
           );
+          // The loan's bill paid by it: counted on its own day, so said
+          // on that day's period (code review).
+          if (t.planCategoryId == c) notePaid(c, d, d);
         }
       }
     }
@@ -563,6 +620,8 @@ class Budget {
         left: left,
         fromBefore: fromBefore,
         currency: currency,
+        counted: counted,
+        paidOn: paidOn[id],
         otherRows: otherRows[id] ?? 0,
         otherAmount: otherAmount[id] ?? 0,
         otherCurrency: otherCurrency[id],
@@ -683,6 +742,8 @@ class Budget {
         offSpent: offSpent,
         offAccounts: offAccounts,
         backing: backing,
+        paidOn: l.paidOn,
+        counted: l.counted,
       );
     }
 

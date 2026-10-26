@@ -30,6 +30,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onUnarchive,
     required this.onShowRows,
     required this.onShowAllRows,
+    required this.onShowPeriodRows,
     required this.onSetAmount,
     required this.onBudgetBy,
     required this.onKeysBack,
@@ -83,6 +84,9 @@ class _BudgetPage extends StatefulWidget {
 
   /// The usage in Edit was picked: every row, all time.
   final ValueChanged<AccountInfo> onShowAllRows;
+
+  /// The totals row's Spent was clicked: every row in the period (#273).
+  final ValueChanged<BudgetSpan> onShowPeriodRows;
 
   /// Add in the New category window: the category made with everything
   /// set in it, or the one already called that opened in Edit.
@@ -239,10 +243,19 @@ class _BudgetPageState extends State<_BudgetPage> {
     final listed = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
+    // Everyday categories first; those saving for a bill under their own
+    // heading, Bills, as on the phone (owner, 2026-10-07; #274); the
+    // safety net last, under Saved.
+    bool isBill(AccountInfo c) =>
+        budget.lines[c.id]?.plan?.plan.kind == PlanKind.byDate;
     final spending = [
-      ...listed.where((c) => !saved.contains(c.id)),
+      ...listed.where((c) => !saved.contains(c.id) && !isBill(c)),
+      ...listed.where((c) => !saved.contains(c.id) && isBill(c)),
       ...listed.where((c) => saved.contains(c.id)),
     ];
+    final firstBill = spending.indexWhere(
+      (c) => !saved.contains(c.id) && isBill(c),
+    );
     final firstSaved = spending.indexWhere((c) => saved.contains(c.id));
     final income = data.income;
     final archived = data.archivedCategories;
@@ -420,8 +433,6 @@ class _BudgetPageState extends State<_BudgetPage> {
               (budget.lines[x.id]?.left ?? 0) > 0)
             x,
       ];
-      bool isBill(AccountInfo x) =>
-          budget.lines[x.id]?.plan?.plan.kind == PlanKind.byDate;
       // Money coming in (it's short): the ones with most to give first, so
       // Groceries isn't under three lines at ₮0 (first-time reader).
       if ((line?.left ?? 0) <= 0) {
@@ -446,6 +457,9 @@ class _BudgetPageState extends State<_BudgetPage> {
               heading: i == 0 ? heading : null,
             ),
       ];
+      // The ring: how used up it is (#241); not under Saved, which fills
+      // rather than empties (how far along is the Savings page's, #103).
+      final share = saved.contains(c.id) ? null : line?.usedShare;
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
@@ -483,6 +497,20 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
         onShowRows: () => widget.onShowRows(c, period),
         line: line,
+        usedShare: share,
+        // The ring's words: "₮612,300 of ₮900,000 used"; on a full red
+        // ring with nothing had, what's over (budget review).
+        usedWords: line == null || share == null
+            ? null
+            : line.had > 0
+            ? t.planUsedOf(
+                planMoney(line.used, currency),
+                planMoney(line.had, currency),
+              )
+            : line.assigned > 0
+            ? t.planUsedOver(planMoney(-line.left, currency))
+            : t.planUsedNone(planMoney(-line.left, currency)),
+        bill: isBill(c),
         fromBefore: carries && line != null && line.fromBefore != 0
             ? t.planFromBefore(money(line.fromBefore, currency))
             : null,
@@ -535,6 +563,41 @@ class _BudgetPageState extends State<_BudgetPage> {
           ],
         ),
       );
+    }
+
+    // A heading down the list: Bills, Saved.
+    Widget heading(String text, String key) => Padding(
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
+      child: Text(
+        text,
+        key: ValueKey(key),
+        style: onest(12.5, weight: 600, color: Mid.ink3),
+      ),
+    );
+
+    // Under the everyday categories and the bills: this period's Assigned
+    // and Spent added up, a row per currency, only with two or more rows
+    // to add (#273). Left's total is the key card's In categories.
+    List<Widget> totals() {
+      final sums = <Currency, (int, int, int)>{};
+      for (final c in spending) {
+        if (saved.contains(c.id)) continue;
+        final l = budget.lines[c.id];
+        if (l == null) continue;
+        final (a, s, n) = sums[c.currency] ?? (0, 0, 0);
+        sums[c.currency] = (a + l.assigned, s + l.spent, n + 1);
+      }
+      return [
+        for (final MapEntry(key: c, value: (a, s, n)) in sums.entries)
+          if (n >= 2)
+            _TotalsRow(
+              key: ValueKey('budget-total-${c.code}'),
+              assigned: a,
+              spent: s,
+              currency: c,
+              onShowRows: () => widget.onShowPeriodRows(period),
+            ),
+      ];
     }
 
     // Started partway through a period, with spending in categories
@@ -939,26 +1002,15 @@ class _BudgetPageState extends State<_BudgetPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           for (final (i, c) in spending.indexed) ...[
-                            if (i == firstSaved)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  18,
-                                  12,
-                                  6,
-                                ),
-                                child: Text(
-                                  t.planSaved,
-                                  key: const ValueKey('budget-saved'),
-                                  style: onest(
-                                    12.5,
-                                    weight: 600,
-                                    color: Mid.ink3,
-                                  ),
-                                ),
-                              ),
+                            if (i == firstBill)
+                              heading(t.phoneBills, 'budget-bills'),
+                            if (i == firstSaved) ...[
+                              ...totals(),
+                              heading(t.planSaved, 'budget-saved'),
+                            ],
                             row(c, striped: i.isOdd),
                           ],
+                          if (firstSaved < 0) ...totals(),
                           const SizedBox(height: 14),
                           if (archived.isNotEmpty) ...[
                             Hoverable(
@@ -1076,6 +1128,100 @@ class _ColumnLines extends CustomPainter {
 
   @override
   bool shouldRepaint(_ColumnLines old) => old.color != color;
+}
+
+/// The ring before a category's name, and the gap after it; a row without
+/// a ring leaves the same space, so names line up down the list.
+const double _ringSize = 14;
+const double _ringGap = 8;
+const double _ringIndent = _ringSize + _ringGap;
+
+/// Under the spending categories: this period's Assigned and Spent added
+/// up, one row per currency among them (#273). Left's total is the key
+/// card's In categories, so that column stays empty. Spent opens the
+/// period's rows, as a category's Spent does.
+class _TotalsRow extends StatelessWidget {
+  const _TotalsRow({
+    super.key,
+    required this.assigned,
+    required this.spent,
+    required this.currency,
+    required this.onShowRows,
+  });
+  final int assigned;
+  final int spent;
+  final Currency currency;
+  final VoidCallback onShowRows;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return CustomPaint(
+      foregroundPainter: _ColumnLines(Mid.ink3),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 40),
+        // Set a little apart, so it reads as the list's foot and not as
+        // the bills' own total (budget review).
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Mid.rule)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: _ringIndent),
+                child: Text(
+                  t.planTotal,
+                  style: onest(13, weight: 600, color: Mid.ink2),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _amountWidth,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Money(
+                  assigned,
+                  key: ValueKey('total-assigned-${currency.code}'),
+                  size: 13.5,
+                  weight: 600,
+                  currency: currency,
+                  color: Mid.ink2,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _amountWidth,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Tooltip(
+                  message: t.planShowTheseRows,
+                  waitDuration: const Duration(milliseconds: 500),
+                  child: Hoverable(
+                    key: ValueKey('total-spent-${currency.code}'),
+                    onTap: onShowRows,
+                    builder: (hover) => Money(
+                      spent.abs(),
+                      sign: spent < 0
+                          ? MoneySign.plusForPositive
+                          : MoneySign.none,
+                      size: 13.5,
+                      weight: 600,
+                      currency: currency,
+                      color: hover ? Mid.blue : Mid.ink2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: _leftWidth + 12 + 28),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 enum _BudgetTab { spending, income }
@@ -1621,8 +1767,22 @@ class _CategoryRow extends StatefulWidget {
     this.flags = const [],
     this.moveChoices = const [],
     this.onMove,
+    this.usedShare,
+    this.usedWords,
+    this.bill = false,
   });
   final AccountInfo category;
+
+  /// How much of what it had this period is used, 0 to 1, drawn as the
+  /// ring before its name (#241); null, no ring (a bill, or nothing to
+  /// picture). [usedWords] is the ring's tooltip, "₮612,300 of ₮900,000
+  /// used", when there is something to say.
+  final double? usedShare;
+  final String? usedWords;
+
+  /// Saving for a bill, listed under Bills: its Left is quieter, since
+  /// that money is spoken for (owner, 2026-10-07, on the phone).
+  final bool bill;
 
   /// What the box under Left can move money to or from: Not assigned
   /// first, then the other categories in its currency.
@@ -1753,18 +1913,46 @@ class _CategoryRowState extends State<_CategoryRow> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(c.name, style: onest(13.5)),
+                        Row(
+                          children: [
+                            // The ring: how much of what it had this
+                            // period is used (#241). A row without one
+                            // keeps the space, so names line up.
+                            Padding(
+                              padding: const EdgeInsets.only(right: _ringGap),
+                              child: switch (widget.usedShare) {
+                                null => const SizedBox(
+                                  width: _ringSize,
+                                  height: _ringSize,
+                                ),
+                                final share => UsedRing(
+                                  key: ValueKey('used-${c.id}'),
+                                  share: share,
+                                  size: _ringSize,
+                                  words: widget.usedWords,
+                                ),
+                              },
+                            ),
+                            Expanded(child: Text(c.name, style: onest(13.5))),
+                          ],
+                        ),
                         if (widget.planNote case final note?)
-                          _PlanNoteLine(
-                            id: c.id,
-                            note: note,
-                            assign: widget.assignPlanned,
-                            onAssign: widget.onAssignPlanned,
-                            onPlan: widget.onPlan,
+                          Padding(
+                            padding: const EdgeInsets.only(left: _ringIndent),
+                            child: _PlanNoteLine(
+                              id: c.id,
+                              note: note,
+                              assign: widget.assignPlanned,
+                              onAssign: widget.onAssignPlanned,
+                              onPlan: widget.onPlan,
+                            ),
                           ),
                         for (final (i, f) in widget.flags.indexed)
                           Padding(
-                            padding: const EdgeInsets.only(top: 1),
+                            padding: const EdgeInsets.only(
+                              top: 1,
+                              left: _ringIndent,
+                            ),
                             child: Hoverable(
                               key: ValueKey('line-flag-${c.id}-$i'),
                               onTap: f.onTap,
@@ -1845,11 +2033,16 @@ class _CategoryRowState extends State<_CategoryRow> {
                               line.left,
                               key: ValueKey('left-${c.id}'),
                               size: 13.5,
-                              weight: 600,
+                              // A bill's money is spoken for: quieter.
+                              weight: widget.bill ? 400 : 600,
                               currency: widget.currency,
                               color: line.left < 0
                                   ? Mid.coral
-                                  : (line.left == 0 ? Mid.ink3 : Mid.ink),
+                                  : line.left == 0
+                                  ? Mid.ink3
+                                  : widget.bill
+                                  ? Mid.ink2
+                                  : Mid.ink,
                             ),
                           ),
                           if (widget.fromBefore case final before?)

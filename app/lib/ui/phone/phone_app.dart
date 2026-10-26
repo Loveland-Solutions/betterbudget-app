@@ -734,8 +734,21 @@ class _CategoryRow extends StatelessWidget {
                 // have before the name would be cut short.
                 final room = box.maxWidth - 12 - name.width;
                 name.dispose();
+                // The ring before the name: how much of what it had this
+                // period is used, as on the computer (#241; ADR 0005
+                // "The phone's ring").
+                final share = usedShareNow(category, left);
                 return Row(
                   children: [
+                    if (share != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: UsedRing(
+                          key: ValueKey('used-${category.id}'),
+                          share: share,
+                          size: 16,
+                        ),
+                      ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
