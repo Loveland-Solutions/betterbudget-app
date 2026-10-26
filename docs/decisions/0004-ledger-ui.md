@@ -4299,3 +4299,21 @@ that the owner decided.
     lenders charge up to about 10%. A rate over 1000% isn't taken.
   - "Keeping it in a savings account?…" shows only with two bank accounts (a
     wallet isn't one), and not under a finished step 1.
+
+### The Savings page by keys and mouse (2026-10-26)
+
+From the same comb, along the lines the owner gave for Budget (#163):
+
+- The month of expenses has a **Cancel** beside Save, as the rate does. Either
+  field closes on a click away when nothing was changed, and stays open when
+  something was. A click on its own switch or buttons keeps the cursor in the
+  field, so Enter and Esc still work; Esc also works wherever the last click
+  left focus.
+- What's typed in either is kept by the screen, so another page or ⌘N doesn't
+  lose it. Closing a field puts focus back on the button or link that opened
+  it; an answer, a role or a setting leaves focus on what was pressed.
+- A step's ⋯ and a debt's menu work with the arrow keys and Enter.
+- A wrong amount or rate is said in words under the field ("Type an amount,
+  like 2,000,000."), gone with the next key. The ⓘ's words show in the open
+  rate field, for the keyboard, which can't hover.
+- Esc closes Add account after a click on its Type, currency or switch.

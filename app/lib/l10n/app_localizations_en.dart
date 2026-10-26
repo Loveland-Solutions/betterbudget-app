@@ -4685,6 +4685,12 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planMonthWrong => 'Type an amount, like 2,000,000.';
+
+  @override
+  String get planRateWrong => 'Type a rate, like 2 or 2.5.';
+
+  @override
   String get planInMonthQ => 'In a month of expenses?';
 
   @override

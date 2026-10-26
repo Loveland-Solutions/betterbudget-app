@@ -6586,6 +6586,18 @@ abstract class Words {
   /// **'Your budget now holds {amount} a month.'**
   String planMonthOutgrown(String amount);
 
+  /// Savings, step 1, under the month of expenses field after Save or Enter on something that isn't an amount above zero
+  ///
+  /// In en, this message translates to:
+  /// **'Type an amount, like 2,000,000.'**
+  String get planMonthWrong;
+
+  /// Savings, step 2, beside a debt's interest rate field after Save or Enter on something that isn't a rate (digits with one decimal point, up to 1000)
+  ///
+  /// In en, this message translates to:
+  /// **'Type a rate, like 2 or 2.5.'**
+  String get planRateWrong;
+
   /// Budget page, Edit under a category's row: whether Savings counts this category in a month of expenses (the amount step 1's safety net covers). No and Yes beside it
   ///
   /// In en, this message translates to:

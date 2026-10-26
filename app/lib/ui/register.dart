@@ -1072,6 +1072,7 @@ class BarButton extends StatelessWidget {
     this.trailing,
     this.color,
     this.active = false,
+    this.focusNode,
   });
 
   final String label;
@@ -1081,11 +1082,15 @@ class BarButton extends StatelessWidget {
   final Color? color;
   final bool active;
 
+  /// For a caller that puts focus back on it, as after a field it opened.
+  final FocusNode? focusNode;
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(right: 8),
     child: Hoverable(
       onTap: onTap,
+      focusNode: focusNode,
       builder: (hover) => Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 10),

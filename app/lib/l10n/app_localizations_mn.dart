@@ -4513,6 +4513,13 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planMonthWrong => 'Дүнгээ оруулаарай, жишээ нь 2,000,000.';
+
+  @override
+  String get planRateWrong =>
+      'Хүүгийн хувийг оруулаарай, жишээ нь 2 эсвэл 2.5.';
+
+  @override
   String get planInMonthQ => 'Сарын зардалд тооцох уу?';
 
   @override

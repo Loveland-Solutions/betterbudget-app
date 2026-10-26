@@ -451,6 +451,107 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('savings: the fields by mouse alone and by keys', (tester) async {
+    final db = await pumpLedger(tester);
+    late int visa;
+    await tester.runAsync(() async {
+      visa = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+    });
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    Future<Map<String, String>> prefs() async =>
+        (await tester.runAsync(db.loadLedger))!.prefs;
+    final monthField = find.byKey(const ValueKey('month-field'));
+
+    // Cancel closes the month without saving; focus is back on its button.
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(monthField, '1500000');
+    await tester.tap(find.byKey(const ValueKey('month-cancel')));
+    await settle(tester);
+    expect(monthField, findsNothing);
+    expect((await prefs())[ReadyKeys.month], isNull);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'month-edit');
+
+    // A click away closes it when nothing was typed, and keeps it when
+    // something was.
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(1200, 40));
+    await tester.pumpAndSettle();
+    expect(monthField, findsNothing);
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(monthField, 'abc');
+    await tester.tapAt(const Offset(1200, 40));
+    await tester.pumpAndSettle();
+    expect(monthField, findsOneWidget);
+
+    // A wrong amount is said in words, and the words go with the next key.
+    await tester.tap(find.byKey(const ValueKey('month-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Type an amount, like 2,000,000.'), findsOneWidget);
+    await tester.enterText(monthField, '1500000');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('month-wrong')), findsNothing);
+
+    // What's typed is still there after another page.
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(monthField).controller!.text, '1500000');
+    await tester.tap(find.byKey(const ValueKey('month-save')));
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.month], 'MNT:150000000');
+
+    // On a rate, a click on "a year" keeps the cursor in the field, so
+    // Enter still saves.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('debt-$visa-rate-field')), '24');
+    await tester.tap(find.byKey(const ValueKey('rate-per-year')));
+    await tester.pumpAndSettle();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.rate(visa)], '24 year');
+    // Clicking the link again closes the field once, not twice.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('debt-$visa-rate-field')), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('debt-$visa-rate-field')), findsNothing);
+
+    // Esc closes it after a click on its switch.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('rate-per-year')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('debt-$visa-rate-field')), findsNothing);
+
+    // A step's menu works by keys: Enter opens it, Enter picks.
+    final menu = find.byKey(const ValueKey('step-future-menu'));
+    await tester.ensureVisible(menu);
+    await tester.pumpAndSettle();
+    Focus.of(
+      tester.element(
+        find.descendant(of: menu, matching: find.byType(Container)).first,
+      ),
+    ).requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.setAside], 'future');
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: a month of expenses comes from the budget', (
     tester,
   ) async {
