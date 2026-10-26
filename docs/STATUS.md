@@ -72,13 +72,13 @@ out on the phone against what's left now (ADR 0005 "The phone's ring";
 change after it needs a new one. Before offering one, compare this line with
 `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
 
-**The Microsoft Store has 0.46.2 published and 0.49.0 passed certification**, waiting
-in Partner Center for the owner's Publish now (status "Release", 2026-10-26). 0.52.0
-can't be sent until it's published: `app/tool/release_store.sh` refuses while a
-submission waits, since the Store holds one at a time and a new one would delete it
-(#251). Later versions go out from a clean, pushed commit on main: the script tags
-main with the version, waits for GitHub's Windows build, and sends the package to
-certification.
+**The Microsoft Store has 0.49.0 published and 0.52.0 in certification** (tag
+`v0.52.0`, sent 2026-10-26 with `app/tool/release_store.sh`; when it passes,
+Partner Center waits for the owner's Publish now). Later versions go the same way,
+from a clean, pushed commit on main: the script tags main with the version, waits
+for GitHub's Windows build, and sends the package to certification. It refuses while
+a submission waits, since the Store holds one at a time and a new one would delete
+it (#251).
 
 **The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
 "Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
