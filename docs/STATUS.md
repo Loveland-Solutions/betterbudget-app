@@ -11,42 +11,30 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**The Ledger's fine-tooth comb is under way** (#162; the findings are checkboxes
-there). 0.46.3 to 0.46.5 fixed its money and data, keys and mouse, on-screen and
-words groups; 0.47.0 built the owner's three answers (ADR 0004, "The Ledger's
-fine-tooth comb: three answers"). 0.47.1 finishes the follow-ups (ADR 0004, "Settled
-in the comb's follow-ups"): a transfer before both accounts' opening balances comes
-out of both (#261); a row taken out of an opening balance is kept with it
-with its amount (`opening.taken.<account>`, `openingTook`), and deleting it or
-changing its amount offers to put the balance right (`putBackInOpening`; an
-import's Same purchase does it too, #260); Change the amount… works on a
-reconciled split and a transfer reconciled on one side (#262); Tab reaches the
-register's tabs, a chosen row's buttons and the sidebar (`Hoverable` is focusable;
-rows aren't); the mouse wheel over the popup scrolls the list; a lit row's cents
-read in every scheme; the bill list's money out has its minus; Reconcile's
-adjustment says which way; remembering a payee for another category says what it
-was; confirming looks through every account's rows; a double Delete records one;
-an open row scrolled away keeps its typing (#141, #148). The opening-balance offers live only
-in the popup; a missed one leaves the account off from the bank by that row
-(known issue, #259). **The Budget page's comb is under way** (#163; findings are checkboxes there). 0.48.0
-builds the owner's three answers (ADR 0004, "The Budget page's fine-tooth comb: three
-answers"): overspent categories no longer add to Not assigned, and an Overspent line
-says what they went over (`BudgetPool.overspent`); a bill is asked for out of the pay
-before it (`asked` in `_planLine`); until the first amount, the top card says why rows
-don't add up. Also: each currency begins on its own (`BudgetKeys.beganIn`), an amount
-put before the start moves it back (`_beganBy`), a period holding the start says so,
-typed pay counts as received, and amounts over 15 digits are refused. 0.48.1 is the page by keys
-and mouse (ADR 0004, "The Budget page by keys and mouse"): menus take focus from the
-keys (`focusFirstOnKeys` in `register.dart`), focus comes back where it was, Edit is a
-focus scope, Edit stays open across ‹ ›, and the Move box, delete and top-card fixes.
-Left from the group: Shift+Tab while typing Assigned, and an Edit with changes closed
-by leaving the page. 0.48.2 is the page's words (ADR 0004,
-"The Budget page's words"): no Mongolian endings on placeholders, хуваарилах for money
-set aside, whole sentences for Paid from, one word for the cap. Next: the Savings
-comb (#164). Living within their means is #234.
+**Next: the Savings page's fine-tooth comb (#164)**, the way the Ledger's (#162) and
+the Budget page's (#163) went: four reviews (`code-reviewer`, `budget-app-expert`,
+`ux-writer`, `interaction-designer`) run at once, the page drawn with years of demo
+rows in day, night and Mongolian at 1360 × 760, findings written into the issue as
+checkboxes, the owner asked only about how money is counted or shown (two or three
+at a time, with a screen example), the rest fixed in a PR each for money, keys and
+words. Payees (#165) comes after.
 
-**Play's Internal testing has 0.45.0 (build 422).** A phone change after it needs a
-new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload
+**Done:** the Ledger comb (0.46.3–0.47.1; ADR 0004 "The Ledger's fine-tooth comb"
+and "Settled in the comb's follow-ups") and the Budget comb (0.48.0–0.48.2; ADR 0004
+"The Budget page's fine-tooth comb: three answers", "The Budget page by keys and
+mouse", "The Budget page's words"). Not assigned is now Cash & bank less what
+categories with money hold, with an Overspent line; a bill is asked for out of the
+pay before it; each currency begins on its own. `Hoverable` is a Tab stop and every
+menu goes through `focusFirstOnKeys` (MAP.md, "Keyboard"). **Left on #163:** Shift+Tab
+while typing Assigned, an Edit with changes closed by leaving the page, and the
+delete window's "Only deleted rows are filed under it". **Known issues the owner
+kept:** #259 (a missed opening-balance popup) and #265 (two computers taking rows
+out of one opening balance), both After beta. Living within their means is #234
+(the owner, 2026-10-24: what they earn matters, not what's in the account).
+
+**Play's Internal testing has 0.45.0 (build 422).** The phone has changed since
+(0.48.2: New category's Paid from note names the account; the Budget words), so the
+next upload carries it. A phone change after it needs a new one: `app/tool/release_play.sh "notes"` builds it and puts it there, with no upload
 by hand (#251). Before offering one, compare this line with `git log` on
 `app/lib/ui/phone/`, and rewrite this line after each upload.
 
