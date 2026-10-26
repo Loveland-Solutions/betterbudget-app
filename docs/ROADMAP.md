@@ -19,7 +19,8 @@ picks one, build it, run both reviews, merge.
 - **Budget model: envelopes.** Each category keeps its own balance from period to
   period (STATUS open question 4, closed). Rejected: targets that start fresh every month.
 - **Public repo: [`Loveland-Solutions/betterbudget`](https://github.com/Loveland-Solutions/betterbudget)**
-  (created 2026-09-30, public, README only), holding issues and the privacy policy
+  (created 2026-09-30, public, README only), holding the privacy policy (Issues off
+  since 2026-10-27)
   (no releases since 2026-10-20). The code is in this repo, public too since 2026-10-16. The earlier private Tauri project that had the
   name is now `Loveland-Solutions/betterbudget-tauri-archive`. Its local clone
   (`~/Repositories/BetterBudget`) was repointed, so a push from it can't reach the public repo.
@@ -76,11 +77,13 @@ Open: #90.
 and requests (a bank whose file doesn't import right, an idea) come through the
 contact form on lls.mn, which needs no account, instead of GitHub issues. The
 public repo keeps the privacy policy.
-- [x] Create the public repo (2026-09-30). It holds issues and the privacy policy; the code
+- [x] Create the public repo (2026-09-30). It holds the privacy policy; the code
       is in `betterbudget-app`, public since 2026-10-16.
+- [x] The public repo's README points to Report a problem… and lls.mn's form, and its
+      Issues are off (#93, 2026-10-27).
 - [x] Version numbers in the app (0.1.0, shown in Settings; ADR 0006), 2026-09-30.
 
-Open: #92, #93, #95, #158, #159.
+Open: #95.
 
 ### B2. Free and open source (owner, 2026-10-16)
 "I've decided that I'm going release this as open source." And: "I'm going to just
