@@ -6925,6 +6925,14 @@
     "description": "Savings, step 1, under “A month of expenses: ₮2,000,000, as you typed it” when the Budget page now holds more than a tenth more for this month. The typed figure stays",
     "placeholders": {"amount": {"type": "String", "example": "₮2,350,000"}}
   },
+  "planMonthWrong": "Type an amount, like 2,000,000.",
+  "@planMonthWrong": {
+    "description": "Savings, step 1, under the month of expenses field after Save or Enter on something that isn't an amount above zero"
+  },
+  "planRateWrong": "Type a rate, like 2 or 2.5.",
+  "@planRateWrong": {
+    "description": "Savings, step 2, beside a debt's interest rate field after Save or Enter on something that isn't a rate (digits with one decimal point, up to 1000)"
+  },
   "planInMonthQ": "In a month of expenses?",
   "@planInMonthQ": {
     "description": "Budget page, Edit under a category's row: whether Savings counts this category in a month of expenses (the amount step 1's safety net covers). No and Yes beside it"

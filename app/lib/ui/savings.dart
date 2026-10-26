@@ -6,13 +6,73 @@ part of 'ledger_screen.dart';
 // app works out what it can from the ledger and asks only what it can't know.
 
 /// What the page changes, each recorded for undo by the screen.
+/// What's typed in one open Savings field.
+class _Typed {
+  _Typed(String start, this.perYear)
+    : text = TextEditingController(text: start),
+      _start = start,
+      _startPerYear = perYear;
+  final TextEditingController text;
+  final String _start;
+  final bool _startPerYear;
+  bool perYear;
+
+  /// What was typed doesn't read: said under the field.
+  bool wrong = false;
+
+  /// Something was changed since it opened: a click away keeps it open.
+  bool get changed => text.text != _start || perYear != _startPerYear;
+}
+
+/// The Savings fields open and what's typed in them, held by the screen
+/// so leaving the page or ⌘N doesn't lose it (as Budget keeps its Edit,
+/// #272). Each is `month`, or `rate-<account id>`.
+class _SavingsKeep extends ChangeNotifier {
+  final _open = <String, _Typed>{};
+
+  _Typed? operator [](String what) => _open[what];
+  bool get isEmpty => _open.isEmpty;
+
+  _Typed begin(String what, String start, {bool perYear = false}) {
+    final typed = _open[what] = _Typed(start, perYear);
+    notifyListeners();
+    return typed;
+  }
+
+  void close(String what) {
+    final gone = _open.remove(what);
+    if (gone == null) return;
+    notifyListeners();
+    // A frame later: the field may still be on screen this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) => gone.text.dispose());
+  }
+
+  /// Esc where the last click left focus: the field opened last.
+  void closeLast() {
+    if (_open.isNotEmpty) close(_open.keys.last);
+  }
+
+  void changed() => notifyListeners();
+
+  @override
+  void dispose() {
+    for (final t in _open.values) {
+      t.text.dispose();
+    }
+    super.dispose();
+  }
+}
+
 class _SavingsActions {
   const _SavingsActions({
+    required this.keep,
     required this.setRole,
     required this.setPref,
     required this.setAside,
     required this.assign,
   });
+
+  final _SavingsKeep keep;
 
   /// Sets what is assigned to [category] this calendar month to [total].
   final void Function(AccountInfo category, int total) assign;
@@ -336,7 +396,13 @@ class _StepRow extends StatelessWidget {
           // The fund and the month are set on step 1 only, so they never
           // show twice; step 3 adds how many months.
           if (step == ReadyStep.oneMonth)
-            controls([_MonthField(r: r, actions: actions)]),
+            controls([
+              _MonthField(
+                key: const ValueKey('month-box'),
+                r: r,
+                actions: actions,
+              ),
+            ]),
           // The title says three to six; this says which, and changes it.
           if (step == ReadyStep.moreMonths)
             controls([_MonthsChoice(r: r, actions: actions)]),
@@ -610,7 +676,7 @@ class _Progress extends StatelessWidget {
 
 /// A month of expenses, typed over the average. Empty goes back to it.
 class _MonthField extends StatefulWidget {
-  const _MonthField({required this.r, required this.actions});
+  const _MonthField({super.key, required this.r, required this.actions});
   final Readiness r;
   final _SavingsActions actions;
 
@@ -619,38 +685,52 @@ class _MonthField extends StatefulWidget {
 }
 
 class _MonthFieldState extends State<_MonthField> {
-  TextEditingController? _editing;
   final _focus = FocusNode(debugLabel: 'month-of-expenses');
-  bool _wrong = false;
+
+  /// The button that opens the field: focus goes back to it on close.
+  final _opener = FocusNode(debugLabel: 'month-edit');
+
+  _SavingsKeep get _keep => widget.actions.keep;
+  _Typed? get _typed => _keep['month'];
+  bool get _open => _typed != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // Kept open while the page was left: the cursor goes back into it.
+    if (_open) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _open) _focus.requestFocus();
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _editing?.dispose();
     _focus.dispose();
+    _opener.dispose();
     super.dispose();
   }
 
   void _start() {
     final m = widget.r.month;
-    setState(() {
-      _wrong = false;
-      _editing = TextEditingController(
-        text: m.typed ? _typedText(m.amount, CurrencyScope.of(context)) : '',
-      );
-    });
+    _keep.begin(
+      'month',
+      m.typed ? _typedText(m.amount, CurrencyScope.of(context)) : '',
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
   }
 
   void _close() {
-    // Back to the screen's keys, so ⌘Z works straight after.
-    _focus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
-    final c = _editing;
-    setState(() => _editing = null);
-    WidgetsBinding.instance.addPostFrameCallback((_) => c?.dispose());
+    _keep.close('month');
+    // Back to the button that opened it, for the keyboard's next step.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _opener.requestFocus();
+    });
   }
 
   void _save() {
-    final text = _editing!.text.trim();
+    final text = _typed!.text.text.trim();
     final m = widget.r.month;
     if (text.isEmpty) {
       if (m.typed) {
@@ -664,7 +744,10 @@ class _MonthFieldState extends State<_MonthField> {
       return _close();
     }
     final v = parseAmount(text, CurrencyScope.of(context));
-    if (v == null || v <= 0) return setState(() => _wrong = true);
+    if (v == null || v <= 0) {
+      _typed!.wrong = true;
+      return _keep.changed();
+    }
     widget.actions.setPref(
       ReadyKeys.month,
       // With its currency, so it can't turn into dollars when Savings does.
@@ -676,12 +759,19 @@ class _MonthFieldState extends State<_MonthField> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _keep,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final t = context.t;
     final m = widget.r.month;
-    if (_editing == null) {
+    final typed = _typed;
+    if (typed == null) {
       return BarButton(
         key: const ValueKey('month-edit'),
+        focusNode: _opener,
         label: m.amount == 0
             ? t.planTypeMonth
             : m.typed
@@ -691,45 +781,88 @@ class _MonthFieldState extends State<_MonthField> {
         onTap: _start,
       );
     }
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: CallbackShortcuts(
-        bindings: {const SingleActivator(LogicalKeyboardKey.escape): _close},
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 180,
-              height: 28,
-              child: TextField(
-                key: const ValueKey('month-field'),
-                controller: _editing,
-                focusNode: _focus,
-                style: onest(13, tabular: true),
-                onSubmitted: (_) => _save(),
-                decoration:
-                    _fieldDecoration(
-                      hint: m.amount == 0
-                          ? t.planMonthHint
-                          : formatWhole(m.amount, CurrencyScope.of(context)),
-                      wrong: _wrong,
-                    ).copyWith(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+    // A click away closes it when nothing was changed (ADR 0004); a click
+    // on its own buttons keeps the cursor in the field, so Enter and Esc
+    // still work.
+    return TapRegion(
+      onTapOutside: (_) {
+        if (!typed.changed) _close();
+      },
+      child: TextFieldTapRegion(
+        child: CallbackShortcuts(
+          bindings: {const SingleActivator(LogicalKeyboardKey.escape): _close},
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    height: 28,
+                    child: TextField(
+                      key: const ValueKey('month-field'),
+                      controller: typed.text,
+                      focusNode: _focus,
+                      style: onest(13, tabular: true),
+                      onSubmitted: (_) => _save(),
+                      onChanged: (_) {
+                        if (typed.wrong) {
+                          typed.wrong = false;
+                          _keep.changed();
+                        }
+                      },
+                      decoration:
+                          _fieldDecoration(
+                            hint: m.amount == 0
+                                ? t.planMonthHint
+                                : formatWhole(
+                                    m.amount,
+                                    CurrencyScope.of(context),
+                                  ),
+                            wrong: typed.wrong,
+                          ).copyWith(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  BarButton(
+                    key: const ValueKey('month-cancel'),
+                    label: t.setupCancel,
+                    onTap: _close,
+                  ),
+                  BarButton(
+                    key: const ValueKey('month-save'),
+                    label: t.planSave,
+                    color: Mid.blue,
+                    onTap: _save,
+                  ),
+                  if (m.typed)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Text(
+                        t.planEmptyToAverage,
+                        style: onest(12, color: Mid.ink3),
                       ),
                     ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            BarButton(
-              key: const ValueKey('month-save'),
-              label: t.planSave,
-              onTap: _save,
-            ),
-            if (m.typed)
-              Text(t.planEmptyToAverage, style: onest(12, color: Mid.ink3)),
-          ],
+              if (typed.wrong)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    t.planMonthWrong,
+                    key: const ValueKey('month-wrong'),
+                    style: onest(12.5, color: Mid.coral),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -854,44 +987,64 @@ class _DebtLine extends StatefulWidget {
 }
 
 class _DebtLineState extends State<_DebtLine> {
-  /// The rate being typed, while the field is open.
-  TextEditingController? _rate;
   final _focus = FocusNode(debugLabel: 'debt-rate');
-  var _perYear = false;
-  var _wrong = false;
+
+  /// The link that opens the field: focus goes back to it on close.
+  final _opener = FocusNode(debugLabel: 'debt-rate-link');
+
+  _SavingsKeep get _keep => widget.actions.keep;
+  String get _what => 'rate-${widget.debt.account.id}';
+  _Typed? get _typed => _keep[_what];
+  bool get _open => _typed != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _keep.addListener(_changed);
+    // Kept open while the page was left: the cursor goes back into it.
+    if (_open) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _open) _focus.requestFocus();
+      });
+    }
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
-    _rate?.dispose();
+    _keep.removeListener(_changed);
     _focus.dispose();
+    _opener.dispose();
     super.dispose();
   }
 
   void _start() {
     final had = widget.r.rates[widget.debt.account.id];
-    setState(() {
-      _wrong = false;
-      _perYear = had?.perYear ?? ratePerYearFor(widget.debt.account.currency);
-      _rate = TextEditingController(
-        text: had == null ? '' : ratePercent(had.percent),
-      );
-    });
+    _keep.begin(
+      _what,
+      had == null ? '' : ratePercent(had.percent),
+      perYear: had?.perYear ?? ratePerYearFor(widget.debt.account.currency),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
   }
 
   void _close() {
-    // Back to the screen's keys, so ⌘Z works straight after.
-    _focus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
-    final c = _rate;
-    setState(() => _rate = null);
-    WidgetsBinding.instance.addPostFrameCallback((_) => c?.dispose());
+    _keep.close(_what);
+    // Back to the link that opened it, for the keyboard's next step.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _opener.requestFocus();
+    });
   }
 
   void _save() {
     final t = context.t;
     final a = widget.debt.account;
     final had = widget.r.rates[a.id];
-    final text = _rate!.text.trim();
+    final typed = _typed!;
+    final text = typed.text.text.trim();
     if (text.isEmpty) {
       if (had != null) {
         widget.actions.setPref(
@@ -904,8 +1057,11 @@ class _DebtLineState extends State<_DebtLine> {
       return _close();
     }
     final percent = parseRatePercent(text);
-    if (percent == null) return setState(() => _wrong = true);
-    final DebtRate rate = (percent: percent, perYear: _perYear);
+    if (percent == null) {
+      typed.wrong = true;
+      return _keep.changed();
+    }
+    final DebtRate rate = (percent: percent, perYear: typed.perYear);
     if (had?.value != rate.value) {
       widget.actions.setPref(
         ReadyKeys.rate(a.id),
@@ -954,24 +1110,30 @@ class _DebtLineState extends State<_DebtLine> {
               child: Row(
                 children: [
                   Flexible(
-                    child: Hoverable(
-                      key: ValueKey('debt-${a.id}-rate'),
-                      onTap: _rate == null ? _start : _close,
-                      builder: (hover) => Text(
-                        rate == null ? t.planRateAdd : _rateWords(t, rate),
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            onest(
-                              12.5,
-                              color: rate == null
-                                  ? Mid.blue
-                                  : (hover ? Mid.ink2 : Mid.ink3),
-                              tabular: true,
-                            ).copyWith(
-                              decoration: hover
-                                  ? TextDecoration.underline
-                                  : null,
-                            ),
+                    // One group with the field: clicking it closes the field
+                    // once, not closes and opens again.
+                    child: TapRegion(
+                      groupId: 'rate-${a.id}',
+                      child: Hoverable(
+                        key: ValueKey('debt-${a.id}-rate'),
+                        focusNode: _opener,
+                        onTap: _open ? _close : _start,
+                        builder: (hover) => Text(
+                          rate == null ? t.planRateAdd : _rateWords(t, rate),
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              onest(
+                                12.5,
+                                color: rate == null
+                                    ? Mid.blue
+                                    : (hover ? Mid.ink2 : Mid.ink3),
+                                tabular: true,
+                              ).copyWith(
+                                decoration: hover
+                                    ? TextDecoration.underline
+                                    : null,
+                              ),
+                        ),
                       ),
                     ),
                   ),
@@ -993,7 +1155,7 @@ class _DebtLineState extends State<_DebtLine> {
           Flexible(
             child: MenuAnchor(
               style: _menuStyle,
-              menuChildren: [
+              menuChildren: focusFirstOnKeys([
                 if (consumer && !target)
                   MenuItemButton(
                     key: ValueKey('debt-${a.id}-target'),
@@ -1039,7 +1201,7 @@ class _DebtLineState extends State<_DebtLine> {
                       style: onest(13, color: Mid.ink2),
                     ),
                   ),
-              ],
+              ]),
               builder: (context, menu, _) => Hoverable(
                 key: ValueKey('debt-${a.id}-role'),
                 onTap: () => menu.isOpen ? menu.close() : menu.open(),
@@ -1068,8 +1230,14 @@ class _DebtLineState extends State<_DebtLine> {
         ],
       ),
     );
-    final editing = _rate;
-    if (carried == null && interest == null && editing == null) return line;
+    final typed = _typed;
+    final editing = typed != null;
+    if (carried == null &&
+        interest == null &&
+        !editing &&
+        !r.looksPaidInFull.contains(a.id)) {
+      return line;
+    }
     // Said only when what's shown differs: two that read "about ₮48,000"
     // aren't one costing more.
     final rated = r.ratedByCost;
@@ -1093,48 +1261,72 @@ class _DebtLineState extends State<_DebtLine> {
               style: onest(12.5, color: most ? Mid.ink : Mid.ink3),
             ),
           ),
-        if (editing != null)
+        if (editing)
           Padding(
             padding: const EdgeInsets.only(left: _debtName, top: 6, bottom: 2),
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.escape): _close,
+            // As the month's field: a click away closes it when nothing was
+            // changed, and its switch and buttons keep the cursor in it.
+            child: TapRegion(
+              groupId: _what,
+              onTapOutside: (_) {
+                if (!typed.changed) _close();
               },
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.start,
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _RateInput(
-                    fieldKey: ValueKey('debt-${a.id}-rate-field'),
-                    currency: a.currency,
-                    controller: editing,
-                    focusNode: _focus,
-                    perYear: _perYear,
-                    wrong: _wrong,
-                    onPerYear: (v) => setState(() => _perYear = v),
-                    onEdited: () {
-                      if (_wrong) setState(() => _wrong = false);
-                    },
-                    onSubmitted: _save,
+              child: TextFieldTapRegion(
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape): _close,
+                  },
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _RateInput(
+                        fieldKey: ValueKey('debt-${a.id}-rate-field'),
+                        currency: a.currency,
+                        controller: typed.text,
+                        focusNode: _focus,
+                        perYear: typed.perYear,
+                        wrong: typed.wrong,
+                        onPerYear: (v) {
+                          typed.perYear = v;
+                          _keep.changed();
+                        },
+                        onEdited: () {
+                          if (typed.wrong) {
+                            typed.wrong = false;
+                            _keep.changed();
+                          }
+                        },
+                        onSubmitted: _save,
+                      ),
+                      BarButton(
+                        key: ValueKey('debt-${a.id}-rate-cancel'),
+                        label: t.setupCancel,
+                        onTap: _close,
+                      ),
+                      BarButton(
+                        key: ValueKey('debt-${a.id}-rate-save'),
+                        label: t.planSave,
+                        color: Mid.blue,
+                        onTap: _save,
+                      ),
+                      // The ⓘ's words, for the keyboard, which can't hover.
+                      Text(t.planRateTip, style: onest(12, color: Mid.ink3)),
+                      if (rate != null)
+                        Text(
+                          t.planRateEmptyToRemove,
+                          style: onest(12, color: Mid.ink3),
+                        ),
+                      if (typed.wrong)
+                        Text(
+                          t.planRateWrong,
+                          key: ValueKey('debt-${a.id}-rate-wrong'),
+                          style: onest(12.5, color: Mid.coral),
+                        ),
+                    ],
                   ),
-                  BarButton(
-                    key: ValueKey('debt-${a.id}-rate-cancel'),
-                    label: t.setupCancel,
-                    onTap: _close,
-                  ),
-                  BarButton(
-                    key: ValueKey('debt-${a.id}-rate-save'),
-                    label: t.planSave,
-                    color: Mid.blue,
-                    onTap: _save,
-                  ),
-                  if (rate != null)
-                    Text(
-                      t.planRateEmptyToRemove,
-                      style: onest(12, color: Mid.ink3),
-                    ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1319,7 +1511,9 @@ class _StepMenu extends StatelessWidget {
     if (r.isDone(step)) return const SizedBox(width: 28);
     return MenuAnchor(
       style: _menuStyle,
-      menuChildren: [
+      // Opened with Enter or Space, the item takes focus, so the arrow
+      // keys and Enter reach it (#163).
+      menuChildren: focusFirstOnKeys([
         MenuItemButton(
           key: ValueKey('step-${step.name}-aside'),
           onPressed: () => onSetAside(!aside),
@@ -1332,7 +1526,7 @@ class _StepMenu extends StatelessWidget {
             style: onest(13, color: Mid.ink2),
           ),
         ),
-      ],
+      ]),
       builder: (context, menu, _) => Hoverable(
         key: ValueKey('step-${step.name}-menu'),
         onTap: () => menu.isOpen ? menu.close() : menu.open(),

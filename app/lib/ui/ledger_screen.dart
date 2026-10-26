@@ -140,6 +140,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// category open in Edit.
   final _budgetKey = GlobalKey<_BudgetPageState>();
   final _budgetEdit = _EditKeep();
+
+  /// The Savings field open and what's typed in it, kept across pages.
+  final _savingsKeep = _SavingsKeep();
   final _payeesKey = GlobalKey<_PayeesPageState>();
   final _setupKey = GlobalKey<_SetupPageState>();
   int? _accountId;
@@ -1090,6 +1093,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _searchFocus.dispose();
     _registerFocus.dispose();
     _budgetEdit.draft?.dispose();
+    _savingsKeep.dispose();
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
@@ -1886,6 +1890,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
         !_typing &&
         event.logicalKey == LogicalKeyboardKey.escape &&
         (_budgetKey.currentState?.closeEdit() ?? false)) {
+      return KeyEventResult.handled;
+    }
+    // And a Savings field, the month's or a rate's.
+    if (_section == AppSection.savings &&
+        !_typing &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        !_savingsKeep.isEmpty) {
+      _savingsKeep.closeLast();
+      return KeyEventResult.handled;
+    }
+    // And Add account, after a click on its Type, currency or switch took
+    // focus out of its fields; only with an account to go back to.
+    if (_section == AppSection.ledger &&
+        _newAccount &&
+        !_typing &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        _data?.openAccounts.isNotEmpty == true) {
+      setState(() => _newAccount = false);
       return KeyEventResult.handled;
     }
     // And a payee's Edit on the Payees page.
@@ -5645,7 +5667,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       undo: () => db.setAccountRole(account.id, old),
       redo: () => db.setAccountRole(account.id, role),
     );
-    _keysBack();
+    // Focus stays on what was pressed; if that's gone, [_keepKeys] gives it
+    // to the screen's keys.
   }
 
   /// A click out of a text field drops focus onto the page itself, above
@@ -5728,7 +5751,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       undo: () => db.setPreference(key, old),
       redo: () => db.setPreference(key, value),
     );
-    _keysBack();
+    // Focus stays on what was pressed (code review, 2026-10-26).
   }
 
   Future<void> _rename(AccountInfo account, String name) async {
@@ -6627,6 +6650,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   data: data,
                                   today: dateOnly(widget.clock()),
                                   actions: _SavingsActions(
+                                    keep: _savingsKeep,
                                     setRole: _setRole,
                                     setPref:
                                         (key, value, label, {toast = false}) =>
