@@ -67,17 +67,18 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 out on the phone against what's left now (ADR 0005 "The phone's ring";
 `usedShareNow`); the owner's Pixel needs a new Play build to see it.
 
-**Play's Internal testing has 0.49.0 (build 470)**, uploaded 2026-10-26 by the owner
-with `app/tool/release_play.sh` from the ring's branch (the phone's Budget screen has
-the ring). A phone change after it needs a new one. Before offering one, compare this
-line with `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
+**Play's Internal testing has 0.52.0 (build 489)**, uploaded 2026-10-26 with
+`app/tool/release_play.sh` from main (the phone fills a remembered payee). A phone
+change after it needs a new one. Before offering one, compare this line with
+`git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
 
-**The Microsoft Store has 0.46.2 published and 0.49.0 in certification** (tag
-`v0.49.0`, sent 2026-10-26 by the owner with `app/tool/release_store.sh`; when it
-passes, Partner Center waits for the owner's Publish now). Later versions go the same
-way, from a clean, pushed commit on main: the script tags main with the version,
-waits for GitHub's Windows build, and sends the package to certification. It refuses
-while a submission waits, since the Store holds one at a time (#251).
+**The Microsoft Store has 0.46.2 published and 0.49.0 passed certification**, waiting
+in Partner Center for the owner's Publish now (status "Release", 2026-10-26). 0.52.0
+can't be sent until it's published: `app/tool/release_store.sh` refuses while a
+submission waits, since the Store holds one at a time and a new one would delete it
+(#251). Later versions go out from a clean, pushed commit on main: the script tags
+main with the version, waits for GitHub's Windows build, and sends the package to
+certification.
 
 **The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
 "Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
