@@ -1913,8 +1913,12 @@ class WordsEn extends Words {
 
   @override
   String planCarried(String date) {
-    return 'Owed every day since $date: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.';
+    return 'What it owed five weeks ago isn’t paid off: a balance has carried since $date. It’s left out of the debt to pay off only because it’s marked paid in full every month.';
   }
+
+  @override
+  String get planLooksPaidInFull =>
+      'What it owed five weeks ago is paid off. If you pay it in full every month, mark it “Paid in full every month”.';
 
   @override
   String get planBringBack => 'Bring it back';
@@ -3830,6 +3834,16 @@ class WordsEn extends Words {
   }
 
   @override
+  String savingsOtherHeld(String account, String amount) {
+    return '$account $amount';
+  }
+
+  @override
+  String savingsOtherOwed(String account, String amount) {
+    return '$account $amount owed';
+  }
+
+  @override
   String savingsOnlyOne(String accounts, String currency) {
     return 'Not counted here yet: $accounts. Savings counts one currency for now: $currency.';
   }
@@ -4659,6 +4673,27 @@ class WordsEn extends Words {
 
   @override
   String get planEditName => 'Name';
+
+  @override
+  String planFundOverAssigned(String amount) {
+    return 'Your budget has assigned $amount more than you have.';
+  }
+
+  @override
+  String planMonthOutgrown(String amount) {
+    return 'Your budget now holds $amount a month.';
+  }
+
+  @override
+  String get planInMonthQ => 'In a month of expenses?';
+
+  @override
+  String get planInMonthYesMeans =>
+      'Savings counts it in the month your safety net covers.';
+
+  @override
+  String get planInMonthNoMeans =>
+      'Left out, like a card\'s payment when what\'s bought on the card is in its own categories.';
 
   @override
   String get planDueDateQ => 'Is there a due date?';

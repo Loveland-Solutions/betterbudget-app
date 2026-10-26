@@ -440,12 +440,7 @@ Color usedColor(double share) {
 /// [words] is its tooltip ("₮612,300 of ₮900,000 used"), when there are
 /// any.
 class UsedRing extends StatelessWidget {
-  const UsedRing({
-    super.key,
-    required this.share,
-    this.size = 14,
-    this.words,
-  });
+  const UsedRing({super.key, required this.share, this.size = 14, this.words});
   final double share;
   final double size;
   final String? words;

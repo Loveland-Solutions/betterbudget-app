@@ -2660,8 +2660,14 @@ abstract class Words {
   /// Savings page: warning under a card marked paid in full every month; date like 2026.09.16
   ///
   /// In en, this message translates to:
-  /// **'Owed every day since {date}: a balance is carrying over. It’s left out of the debt to pay off only because it’s marked paid in full.'**
+  /// **'What it owed five weeks ago isn’t paid off: a balance has carried since {date}. It’s left out of the debt to pay off only because it’s marked paid in full every month.'**
   String planCarried(String date);
+
+  /// Savings, step 2, under a card counted as debt to pay off that has paid off what it owed five weeks ago: it may be a card paid in full every month, not marked so. “Paid in full every month” is planRolePaidMonthly, in the menu on the line
+  ///
+  /// In en, this message translates to:
+  /// **'What it owed five weeks ago is paid off. If you pay it in full every month, mark it “Paid in full every month”.'**
+  String get planLooksPaidInFull;
 
   /// Savings page: step ⋯ menu item on a set-aside step
   ///
@@ -5273,7 +5279,19 @@ abstract class Words {
     String one,
   );
 
-  /// Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.
+  /// Savings page, one item in savingsOnlyOne's list: an account in another currency and what is in it (a minus when overdrawn)
+  ///
+  /// In en, this message translates to:
+  /// **'{account} {amount}'**
+  String savingsOtherHeld(String account, String amount);
+
+  /// Savings page, one item in savingsOnlyOne's list: a card or loan in another currency and what is owed on it
+  ///
+  /// In en, this message translates to:
+  /// **'{account} {amount} owed'**
+  String savingsOtherOwed(String account, String amount);
+
+  /// Savings page: under the steps, when some accounts are in another currency than the one Savings counts (the Safety net category's, else the one most accounts are in). accounts is their names; currency is that currency's name, like Mongolian Tugrik.
   ///
   /// In en, this message translates to:
   /// **'Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.'**
@@ -6555,6 +6573,36 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Name'**
   String get planEditName;
+
+  /// Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget has assigned {amount} more than you have.'**
+  String planFundOverAssigned(String amount);
+
+  /// Savings, step 1, under “A month of expenses: ₮2,000,000, as you typed it” when the Budget page now holds more than a tenth more for this month. The typed figure stays
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget now holds {amount} a month.'**
+  String planMonthOutgrown(String amount);
+
+  /// Budget page, Edit under a category's row: whether Savings counts this category in a month of expenses (the amount step 1's safety net covers). No and Yes beside it
+  ///
+  /// In en, this message translates to:
+  /// **'In a month of expenses?'**
+  String get planInMonthQ;
+
+  /// Budget page, Edit: note beside In a month of expenses? while Yes is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Savings counts it in the month your safety net covers.'**
+  String get planInMonthYesMeans;
+
+  /// Budget page, Edit: note beside In a month of expenses? while No is picked; one example of a category to leave out
+  ///
+  /// In en, this message translates to:
+  /// **'Left out, like a card\'s payment when what\'s bought on the card is in its own categories.'**
+  String get planInMonthNoMeans;
 
   /// Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date
   ///

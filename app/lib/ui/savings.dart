@@ -49,11 +49,17 @@ class _SavingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final r = Readiness.of(data, today);
-    final main = mainCurrency(data);
+    final main = savingsCurrency(data);
     final others = [
       for (final a in data.openAccounts)
         if (a.currency != main)
-          '${a.name} ${_money(data.balanceOf(a.id).abs(), a.currency)}',
+          if (data.balanceOf(a.id) case final b when a.isOwed && b < 0)
+            t.savingsOtherOwed(a.name, _money(-b, a.currency))
+          else
+            t.savingsOtherHeld(
+              a.name,
+              _money(data.balanceOf(a.id), a.currency),
+            ),
     ].join(', ');
     return CurrencyScope(
       currency: main,
@@ -304,18 +310,29 @@ class _StepRow extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           if (step == ReadyStep.oneMonth || current) fact(aboutMonth),
+          if (step == ReadyStep.oneMonth && m.outgrown)
+            guide(t.planMonthOutgrown(_here(context, m.inBudget))),
           if (step == ReadyStep.oneMonth) ..._safetyNet(context, t, guide),
           if (current && step == ReadyStep.oneMonth) ...[
             if (r.fund > 0) guide(t.planKeepReachable),
-            if (r.consumerDebts.isNotEmpty)
+            if (r.consumerDebts case final debts
+                when debts.any(
+                  (d) => !r.looksPaidInFull.contains(d.account.id),
+                ))
               guide(
                 t.planMinimumsOn(
-                  _names(t, r.consumerDebts.map((d) => d.account.name)),
+                  _names(t, [
+                    for (final d in debts)
+                      if (!r.looksPaidInFull.contains(d.account.id))
+                        d.account.name,
+                  ]),
                 ),
               ),
           ],
           if (current && step == ReadyStep.moreMonths)
             guide(t.planEnoughForJobLoss),
+          if (current && step == ReadyStep.moreMonths)
+            ..._assignOffer(context, t, guide, step),
           // The fund and the month are set on step 1 only, so they never
           // show twice; step 3 adds how many months.
           if (step == ReadyStep.oneMonth)
@@ -450,14 +467,8 @@ extension on _StepRow {
     Widget Function(String) guide,
   ) {
     if (!r.hasFund) return const [];
-    final target = r.targetOf(ReadyStep.oneMonth);
-    final toGo = target - r.fund;
-    // Only as much as fills it, when a month is known.
-    final offer = target > 0 && toGo < r.notAssigned ? toGo : r.notAssigned;
-    final category = r.fundCategories.length == 1
-        ? r.fundCategories.single
-        : null;
-    final banks = data.openAccounts.where((a) => !a.isOwed).length;
+    // Savings accounts it could be kept in: a wallet isn't one.
+    final banks = data.openAccounts.where((a) => !a.isOwed && !a.isCash).length;
     return [
       // Nothing in it yet: what it is and where to keep it.
       if (r.fund == 0) guide(t.planWhichAccount),
@@ -476,23 +487,56 @@ extension on _StepRow {
             style: onest(13, color: Mid.ink2, tabular: true),
           ),
         ),
-      if (r.keptIn.isEmpty && banks > 1 && r.fund > 0)
-        guide(t.planFundSetPaidFrom),
-      if (category != null && offer > 0 && (target == 0 || toGo > 0)) ...[
-        guide(t.planFundNotAssigned(_here(context, r.notAssigned))),
+      if (r.fund > 0 && r.overAssigned > 0)
         Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: BarButton(
-            key: const ValueKey('fund-assign'),
-            label: t.planAssignUndo(_here(context, offer), category.name),
-            color: Mid.blue,
-            onTap: () => actions.assign(category, r.fundAssigned + offer),
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            t.planFundOverAssigned(_here(context, r.overAssigned)),
+            key: const ValueKey('fund-over'),
+            style: onest(13, color: Mid.coral, tabular: true),
           ),
         ),
-      ],
+      if (r.keptIn.isEmpty &&
+          banks > 1 &&
+          r.fund > 0 &&
+          !r.isDone(ReadyStep.oneMonth))
+        guide(t.planFundSetPaidFrom),
+      ..._assignOffer(context, t, guide, ReadyStep.oneMonth),
+    ];
+  }
+
+  /// What's not assigned in the budget, and a button that assigns as much
+  /// of it as fills [step], leaving this month's bills theirs.
+  List<Widget> _assignOffer(
+    BuildContext context,
+    Words t,
+    Widget Function(String) guide,
+    ReadyStep step,
+  ) {
+    final offer = r.offerFor(step);
+    final category = r.fundCategories.length == 1
+        ? r.fundCategories.single
+        : null;
+    if (category == null || offer <= 0) return const [];
+    return [
+      guide(t.planFundNotAssigned(_here(context, r.notAssigned))),
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: BarButton(
+          key: ValueKey('fund-assign-${step.name}'),
+          label: t.planAssignUndo(_here(context, offer), category.name),
+          color: Mid.blue,
+          onTap: () => actions.assign(category, r.fundAssigned + offer),
+        ),
+      ),
     ];
   }
 }
+
+/// An amount as it's typed back into a field: whole units, and the cents
+/// when it has any, so Enter on it saves what was there.
+String _typedText(int minor, Currency c) =>
+    '${formatWhole(minor, c)}${c.hasCents(minor) ? formatCents(minor, c) : ''}';
 
 String _names(Words t, Iterable<String> names) {
   final l = names.toList();
@@ -591,7 +635,7 @@ class _MonthFieldState extends State<_MonthField> {
     setState(() {
       _wrong = false;
       _editing = TextEditingController(
-        text: m.typed ? formatWhole(m.amount, CurrencyScope.of(context)) : '',
+        text: m.typed ? _typedText(m.amount, CurrencyScope.of(context)) : '',
       );
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
@@ -1101,6 +1145,15 @@ class _DebtLineState extends State<_DebtLine> {
               t.planCarried(sayFullDate(t, carried)),
               key: ValueKey('debt-${a.id}-carried'),
               style: onest(12.5, color: Mid.ink, height: 1.4),
+            ),
+          ),
+        if (consumer && r.looksPaidInFull.contains(a.id))
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              t.planLooksPaidInFull,
+              key: ValueKey('debt-${a.id}-paid-in-full'),
+              style: onest(12.5, color: Mid.ink2, height: 1.4),
             ),
           ),
       ],

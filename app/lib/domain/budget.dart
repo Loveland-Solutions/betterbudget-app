@@ -478,6 +478,7 @@ class Budget {
       final was = paidOn[category];
       if (was == null || d.isAfter(was)) paidOn[category] = d;
     }
+
     for (final t in data.txns) {
       if (t.scheduled) continue;
       final d = dateOnly(t.date);

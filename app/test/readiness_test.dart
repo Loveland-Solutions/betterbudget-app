@@ -590,6 +590,192 @@ void main() {
     expect(r.isDone(ReadyStep.oneMonth), isFalse);
   });
 
+  test('a card paid in full by statement is not flagged as carrying', () {
+    LedgerData withCard(List<TxnData> card, {AccountRole? role}) {
+      final data = ledger(owedOnVisa: 0);
+      return LedgerData(
+        accounts: [
+          for (final a in data.accounts.values)
+            a.id == visa ? acct(visa, 'Visa', AccountType.liability, role) : a,
+        ],
+        txns: [...data.txns, ...card],
+      );
+    }
+
+    DateTime ago(int days) =>
+        DateTime(today.year, today.month, today.day - days);
+    // Used most days; each statement paid in full, so it never reads ₮0.
+    final daily = [
+      for (var d = 70; d > 0; d--) move(ago(d), visa, food, 10000),
+      move(ago(40), checking, visa, 300000),
+      move(ago(10), checking, visa, 300000),
+    ];
+    var r = Readiness.of(withCard(daily, role: AccountRole.paidMonthly), today);
+    expect(r.carriedSince, isEmpty);
+    // Unmarked, it's debt to pay off, said to look paid in full, and left
+    // out of "pay only the minimums".
+    r = Readiness.of(withCard(daily), today);
+    expect(r.consumerDebts.map((d) => d.account.id), contains(visa));
+    expect(r.looksPaidInFull, {visa});
+    // Paid less than it owed five weeks ago: carrying, and not paid in full.
+    final short = [
+      for (var d = 70; d > 0; d--) move(ago(d), visa, food, 10000),
+      move(ago(10), checking, visa, 100000),
+    ];
+    r = Readiness.of(withCard(short, role: AccountRole.paidMonthly), today);
+    expect(r.carriedSince[visa], ago(70));
+    expect(Readiness.of(withCard(short), today).looksPaidInFull, isEmpty);
+  });
+
+  LedgerData budgetedWith({
+    Map<String, String> prefs = const {},
+    List<BudgetAmount> amounts = const [],
+    List<CategoryPlan> plans = const [],
+    List<AccountInfo> more = const [],
+  }) {
+    final data = ledger();
+    return LedgerData(
+      accounts: [...data.accounts.values, ...more],
+      txns: data.txns,
+      prefs: prefs,
+      budgetAmounts: amounts,
+      plans: plans,
+    );
+  }
+
+  test('a category with no plan counts last month\'s assigned too', () {
+    // On 10.01 nothing is assigned to Food yet; September had 900,000.00.
+    final data = budgetedWith(
+      amounts: [
+        BudgetAmount(
+          categoryId: food,
+          date: DateTime(2026, 9),
+          amount: 90000000,
+        ),
+        BudgetAmount(categoryId: rent, date: DateTime(2026, 10), amount: 1000),
+      ],
+    );
+    expect(
+      MonthOfSpending.budgeted(data, DateTime(2026, 10, 1), Currency.mnt),
+      90000000 + 1000,
+    );
+  });
+
+  test('a category left out is not in a month of expenses', () {
+    final amounts = [
+      BudgetAmount(categoryId: food, date: DateTime(2026, 9), amount: 90000000),
+      BudgetAmount(categoryId: rent, date: DateTime(2026, 9), amount: 80000000),
+    ];
+    var m = MonthOfSpending.of(budgetedWith(amounts: amounts), today);
+    expect(m.amount, 170000000);
+    m = MonthOfSpending.of(
+      budgetedWith(amounts: amounts, prefs: {ReadyKeys.leftOut(rent): 'yes'}),
+      today,
+    );
+    expect(m.amount, 90000000);
+    // The average leaves its rows out too.
+    final average = MonthOfSpending.of(
+      ledger(prefs: {ReadyKeys.leftOut(food): 'yes'}),
+      today,
+    );
+    expect(average.spent, 0);
+  });
+
+  test('a typed month the budget has outgrown is said, and kept', () {
+    final amounts = [
+      BudgetAmount(categoryId: food, date: DateTime(2026, 9), amount: 2400000),
+    ];
+    var m = MonthOfSpending.of(
+      budgetedWith(amounts: amounts, prefs: {ReadyKeys.month: 'MNT:2000000'}),
+      today,
+    );
+    expect(m.amount, 2000000);
+    expect(m.outgrown, isTrue);
+    m = MonthOfSpending.of(
+      budgetedWith(amounts: amounts, prefs: {ReadyKeys.month: 'MNT:2200000'}),
+      today,
+    );
+    expect(m.outgrown, isFalse);
+  });
+
+  test('Savings counts in the Safety net\'s currency', () {
+    final data = ledger();
+    final dollars = LedgerData(
+      accounts: [
+        ...data.accounts.values,
+        for (final id in [50, 51, 52, 53, 54])
+          AccountInfo(
+            id: id,
+            name: 'Dollars $id',
+            type: AccountType.asset,
+            currency: Currency.usd,
+          ),
+      ],
+      txns: data.txns,
+      budgetAmounts: data.budgetAmounts,
+    );
+    expect(mainCurrency(dollars), Currency.usd);
+    expect(savingsCurrency(dollars), Currency.mnt);
+    expect(Readiness.of(dollars, today).hasFund, isTrue);
+  });
+
+  test('the Assign offer leaves this month\'s bills their money', () {
+    // A month typed; Rent is a bill due 09.30 with 400,000.00 still to assign.
+    final plans = [
+      CategoryPlan(
+        categoryId: rent,
+        kind: PlanKind.byDate,
+        amount: 40000000,
+        due: DateTime(2026, 9, 30),
+        start: DateTime(2026, 9),
+      ),
+    ];
+    final prefs = {ReadyKeys.month: 'MNT:9999999900'};
+    final r = Readiness.of(budgetedWith(plans: plans, prefs: prefs), today);
+    expect(r.billsToAssign, 40000000);
+    final free = r.notAssigned - r.billsToAssign;
+    expect(r.offerFor(ReadyStep.oneMonth), free > 0 ? free : 0);
+    // No month known: nothing offered.
+    final none = Readiness.of(ledger(days: 10), today);
+    expect(none.offerFor(ReadyStep.oneMonth), 0);
+  });
+
+  test('more assigned than there is is said on step 1', () {
+    final r = Readiness.of(
+      budgetedWith(
+        amounts: [
+          BudgetAmount(
+            categoryId: net,
+            date: DateTime(2026, 9),
+            amount: 900000000000,
+          ),
+        ],
+      ),
+      today,
+    );
+    expect(r.notAssigned, 0);
+    expect(r.overAssigned, greaterThan(0));
+  });
+
+  test('very large figures don\'t overflow', () {
+    expect(parseRatePercent('1' * 22), isNull);
+    expect(parseRatePercent('1000'), 1000);
+    final data = ledger();
+    final huge = LedgerData(
+      accounts: data.accounts.values.toList(),
+      txns: [...data.txns, move(today, checking, food, 99999999999999900)],
+    );
+    expect(MonthOfSpending.of(huge, today).amount, greaterThan(0));
+  });
+
+  test('set aside works from what is stored', () {
+    expect(
+      Readiness.setAsideStored('future', ReadyStep.oneMonth, true),
+      'oneMonth,future',
+    );
+    expect(Readiness.setAsideStored('future', ReadyStep.future, false), isNull);
+  });
+
   group('database', () {
     late AppDatabase db;
     setUp(() => db = AppDatabase(NativeDatabase.memory()));

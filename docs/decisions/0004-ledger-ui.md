@@ -4247,3 +4247,55 @@ owner had fixed:
   does (every row in the period, income and archived categories' rows too: the
   register's period filter, so the rows can add to more than the figure). This is the figure living within their means (#234) needs beside the
   month's Income.
+
+## The Savings page's fine-tooth comb: three answers (2026-10-26)
+
+From the comb of the Savings page (#164), three ways money was counted or shown
+that the owner decided.
+
+- **Each category says whether it counts in a month of expenses.** A card's
+  payment category and the purchases on the card both counted in "A month of
+  expenses, from your budget" (₮900,000 of groceries on the Visa and a Visa
+  payment planned at ₮900,000 made the month ₮900,000 too high). The owner,
+  offered three ways (leave out cards paid in full; leave out every card and
+  loan payment; keep both): "An option on each category where if checked, it
+  counts towards the 1 month expense total", and the person can still type
+  their own month on Savings (Type your own month, already there). Each
+  category's Edit on the Budget page ends with **In a month of expenses? No /
+  Yes**, Yes by default, so a ledger from before keeps its month; the note
+  beside No names the card's payment as the example. Not on the Safety net's
+  Edit: it is never in the month. Kept as `ready.out.<category id>` ("yes"
+  when left out), so no schema change; the average leaves its rows out too.
+  Saved with Edit's one undo; the computer only.
+- **Step 1 keeps its check when the budget is short, and says so.** The safety
+  net is its category's Left (way A stands), so it could read "₮2,000,000 of
+  ₮2,000,000" with a check while the Budget page had assigned more than there is
+  (the hospital bill filed under Medical, the money taken out of Khan Savings).
+  The owner chose to keep the check and add a line under it: "Your budget has
+  assigned ₮500,000 more than you have." in coral, the shortfall colour.
+  Rejected: losing the check while it's short; saying nothing.
+- **Saving for retirement counts the pension taken from pay.** Asked whether the
+  social insurance pension every wage pays counts as "I am", the owner: yes. The
+  question stays as it is. Rejected: asking about saving beyond it.
+- **From the reviews** (decided along the lines above):
+  - Savings counts in the Safety net category's currency, not the one most
+    accounts are in, so opening dollar accounts no longer moves the page, and
+    a Safety net in dollars is counted.
+  - A card marked paid in full every month is said to carry a balance only when
+    what it owed five weeks ago hasn't been paid since; one used daily and paid
+    each statement never reads ₮0 and was flagged wrongly. An unmarked card that
+    pays off what it owed is said to look paid in full ("If you pay it in full
+    every month, mark it…") and is left out of "pay only the minimums", which
+    would start interest on it.
+  - A month from the budget counts, for a category with no plan, the more of
+    this month's and last month's assigned, so it doesn't fall on the 1st
+    before payday's assigning. A typed month that the budget has outgrown by
+    more than a tenth says "Your budget now holds ₮2,350,000 a month." and
+    stays as typed.
+  - The Assign offer leaves this month's bills what they still ask for, and
+    isn't offered while a month isn't known. Step 3, while it's the current
+    step, offers the same.
+  - The rate warning starts above 15% a month, not 8%: pawnshops and non-bank
+    lenders charge up to about 10%. A rate over 1000% isn't taken.
+  - "Keeping it in a savings account?…" shows only with two bank accounts (a
+    wallet isn't one), and not under a finished step 1.
