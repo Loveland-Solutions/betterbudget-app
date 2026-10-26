@@ -18,6 +18,7 @@ import '../data/demo_seed.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
+import '../data/report_problem.dart';
 import '../domain/budget.dart';
 import '../domain/combine.dart' show Ask, AskKind, AskSide, Pick;
 import '../domain/forecast.dart';
@@ -1743,6 +1744,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _closeToast();
     }
     _entryProblemShown = message;
+  }
+
+  /// Report a problem… (#92): the browser opens lls.mn's form, or the popup
+  /// says where it is.
+  Future<void> _reportProblem() async {
+    final opened = await openReportProblem(
+      language: Localizations.localeOf(context).languageCode,
+    );
+    if (!opened && mounted) _showFailure(context.t.reportProblemFailed);
   }
 
   /// Something didn't happen (a failure, a refusal, a nudge): the plain
@@ -6527,6 +6537,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       _Sidebar(
                         data: data,
                         runsOut: _runsOut(data),
+                        onReportProblem: _reportProblem,
                         section: _section,
                         onSection: (sec) {
                           if (!_mayLeave()) return;
@@ -7082,8 +7093,12 @@ class _Sidebar extends StatelessWidget {
     required this.allActive,
     required this.onAll,
     required this.runsOut,
+    required this.onReportProblem,
     this.setup = false,
   });
+
+  /// Opens lls.mn's form in the browser (#92).
+  final VoidCallback onReportProblem;
 
   /// Setup is on the page: the accounts and what they come to, and nothing
   /// to go to, since there is nothing behind the sections yet.
@@ -7299,16 +7314,17 @@ class _Sidebar extends StatelessWidget {
                           ),
                         ),
                       ),
-                    // In setup with no account yet, ₮0.00 would be noise.
-                    if (!setup || data.balanceSheetAccounts.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: Mid.sideRule)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                      decoration: BoxDecoration(
+                        border: Border(top: BorderSide(color: Mid.sideRule)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // In setup with no account yet, ₮0.00 would be noise.
+                          if (!setup ||
+                              data.balanceSheetAccounts.isNotEmpty) ...[
                             Text(
                               t.ledgerNetWorth,
                               style: onest(12, color: Mid.sideInk3),
@@ -7388,9 +7404,15 @@ class _Sidebar extends StatelessWidget {
                                   );
                                 },
                               ),
+                            const SizedBox(height: 8),
                           ],
-                        ),
+                          // A quiet line, so the sidebar's sections stay in
+                          // sight in the smallest window (owner, 2026-10-27);
+                          // setup can go wrong too.
+                          _ReportProblemLink(onTap: onReportProblem),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -7400,6 +7422,26 @@ class _Sidebar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Report a problem…, the last line under Net worth: opens lls.mn's contact
+/// form in the browser (#92). Quiet, like the backup reminder above it.
+class _ReportProblemLink extends StatelessWidget {
+  const _ReportProblemLink({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Hoverable(
+    key: const ValueKey('report-problem'),
+    onTap: onTap,
+    builder: (h) => Text(
+      context.t.reportProblem,
+      style: onest(12, color: h ? Mid.sideInk2 : Mid.sideInk3).copyWith(
+        decoration: h ? TextDecoration.underline : null,
+        decorationColor: Mid.sideInk2,
+      ),
+    ),
+  );
 }
 
 /// Opens Settings, above Net worth. A coral dot says something there needs attention (the

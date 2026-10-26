@@ -749,6 +749,13 @@ class WordsMn extends Words {
   String get ledgerSettings => 'Тохиргоо';
 
   @override
+  String get reportProblem => 'Асуудал мэдэгдэх…';
+
+  @override
+  String get reportProblemFailed =>
+      'Хөтөч нээгдсэнгүй. Маягт lls.mn/mn/contact хаягт байна.';
+
+  @override
   String get ledgerBackupsTitle => 'Нөөц хуулбар';
 
   @override

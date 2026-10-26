@@ -1143,6 +1143,14 @@
   "@ledgerSettings": {
     "description": "Sidebar item and title of the Settings page."
   },
+  "reportProblem": "Report a problem…",
+  "@reportProblem": {
+    "description": "Sidebar item above Settings, and a line at the foot of the phone's Budget screen: opens lls.mn's contact form in the browser, with the app's version and the system filled in."
+  },
+  "reportProblemFailed": "The browser didn’t open. The form is at lls.mn/en/contact.",
+  "@reportProblemFailed": {
+    "description": "Failure popup when Report a problem… couldn't open the browser; says where to find the form instead."
+  },
   "ledgerBackupsTitle": "Backups",
   "@ledgerBackupsTitle": {
     "description": "Settings → Backups card, title."

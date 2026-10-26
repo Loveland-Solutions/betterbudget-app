@@ -4412,3 +4412,27 @@ From the same comb, along the owner's lines:
   were glued, no «уу» on the prompts, no ending glued onto a quoted label.
 - The preview's chip is a picture of the row: no Tab stop, no pointer, no ▾. Two
   lines with the same words keep their order on reload.
+
+## Report a problem: at the foot of the sidebar, and on the phone (2026-10-26)
+
+Bug reports and ideas go through lls.mn's contact form (ROADMAP B). The app opens it
+in the browser with its version, the platform and the system's version in the link,
+and nothing from the ledger; the form shows the person what goes with their message
+(the website's README, "BetterBudget reports"; `PRIVACY.md` section 5).
+
+Three places were drawn. **Chosen (owner): the bottom of the sidebar**, on every page
+and during setup too, since setup can go wrong before there is a Settings. Built first
+as a row like Settings just above it, it pushed Budget out of sight in the smallest
+window (1360 × 760), so the owner chose (2026-10-27) **a quiet line, Report a
+problem…, under Net worth**, over keeping the row and letting the sidebar scroll, or
+an icon beside Settings whose words show only on hover. Even the line costs about 25
+pixels: in that window Budget, like Savings and Payees before it, is a scroll away. Rejected: a button in
+Settings beside the version (recommended, as one place on Mac and Windows beside the
+number it sends), and Help → Report a problem… in the Mac's menu bar with the Settings
+button on Windows, which has no menu bar in this app.
+
+**The phone has it too** (owner, against a recommendation to leave it for later): the
+last line of Budget, after the bills, in quieter ink than New category. If the browser
+doesn't open, a popup says where the form is (lls.mn/en/contact, or /mn/ in
+Mongolian). The page opens in the app's language.
+

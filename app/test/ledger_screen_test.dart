@@ -29,6 +29,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher_platform_interface/link.dart' show LinkDelegate;
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import 'xls_fixture.dart';
 
@@ -173,11 +175,16 @@ void main() {
       await openEntry(tester);
       await tester.tap(find.byKey(const ValueKey('reconcile')));
       await tester.pumpAndSettle();
+      // In the smallest window the sidebar's sections are a scroll away.
+      await tester.ensureVisible(find.text('Budget'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Savings'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Savings'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Settings'));
+      await tester.tap(find.text('Settings').first);
       await tester.pumpAndSettle();
       await tidy(tester, db);
     });
@@ -10262,6 +10269,54 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('Report a problem… opens the form, or says where it is', (
+    tester,
+  ) async {
+    final browser = _FakeBrowser();
+    final before = UrlLauncherPlatform.instance;
+    UrlLauncherPlatform.instance = browser;
+    addTearDown(() => UrlLauncherPlatform.instance = before);
+    final db = await pumpLedger(tester);
+
+    Future<void> report() async {
+      final asked = browser.asked;
+      await tester.tap(find.byKey(const ValueKey('report-problem')));
+      // Until the browser is asked: the version is read first.
+      await tester.runAsync(() async {
+        for (var i = 0; i < 100 && browser.asked == asked; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pumpAndSettle();
+    }
+
+    await report();
+    final link = Uri.parse(browser.opened.single);
+    expect(link.host, 'lls.mn');
+    expect(link.path, '/en/contact/');
+    expect(link.queryParameters['from'], 'betterbudget');
+    expect(link.queryParameters['platform'], Platform.operatingSystem);
+    // Only these: nothing from the ledger goes in the link.
+    expect(link.queryParameters.keys.toSet(), {
+      'from',
+      'version',
+      'platform',
+      'os',
+    });
+    expect(
+      find.text('The browser didn’t open. The form is at lls.mn/en/contact.'),
+      findsNothing,
+    );
+
+    browser.opens = false;
+    await report();
+    expect(
+      find.text('The browser didn’t open. The form is at lls.mn/en/contact.'),
+      findsOneWidget,
+    );
+    await tidy(tester, db);
+  });
+
   // Last in the file: the mock version can't be unset, and every test above
   // relies on the line being hidden when there's no bundle to read.
   testWidgets('Settings shows the version and build number', (tester) async {
@@ -10964,4 +11019,27 @@ void main() {
       await tidy(tester, db);
     });
   });
+}
+
+/// Stands in for the browser: keeps each link it was asked to open.
+class _FakeBrowser extends UrlLauncherPlatform {
+  final opened = <String>[];
+
+  /// Whether the system opens it; false is a browser that wouldn't.
+  bool opens = true;
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  /// How many times it was asked, whether or not it opened.
+  int get asked => opened.length;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    opened.add(url);
+    return opens;
+  }
 }

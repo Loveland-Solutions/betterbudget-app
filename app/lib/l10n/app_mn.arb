@@ -163,6 +163,8 @@
   "ledgerCopiedElsewhereNever": "Хараахан үгүй · “Нөөцлөх…” өөр диск рүү хуулбар хадгална",
   "ledgerDailyCopyFailing": "Өдөр бүрийн хуулбар хийгдэхгүй байна",
   "ledgerSettings": "Тохиргоо",
+  "reportProblem": "Асуудал мэдэгдэх…",
+  "reportProblemFailed": "Хөтөч нээгдсэнгүй. Маягт lls.mn/mn/contact хаягт байна.",
   "ledgerBackupsTitle": "Нөөц хуулбар",
   "ledgerDailyCopy": "Өдрийн хуулбар",
   "ledgerTimeAt": "{day} {time}",

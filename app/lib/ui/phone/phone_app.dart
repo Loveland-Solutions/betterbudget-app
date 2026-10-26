@@ -9,6 +9,7 @@ import 'dart:math';
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 
+import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
@@ -654,9 +655,13 @@ class _BudgetScreen extends StatelessWidget {
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 12),
-                  itemCount: listed.length + 1,
+                  // The last line is Report a problem…, after the bills.
+                  itemCount: listed.length + 2,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
+                    if (i == listed.length + 1) {
+                      return const _ReportProblemLine();
+                    }
                     if (i == newAt) {
                       return Align(
                         alignment: Alignment.centerLeft,
@@ -687,6 +692,51 @@ class _BudgetScreen extends StatelessWidget {
         ),
       );
     },
+  );
+}
+
+/// Report a problem…, the last line of Budget (#92): lls.mn's form in the
+/// phone's browser, with the app's version and Android's filled in.
+class _ReportProblemLine extends StatelessWidget {
+  const _ReportProblemLine();
+
+  Future<void> _open(BuildContext context) async {
+    final t = context.t;
+    final opened = await openReportProblem(
+      language: Localizations.localeOf(context).languageCode,
+    );
+    if (opened || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(t.reportProblemFailed),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(MaterialLocalizations.of(context).okButtonLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: TextButton.icon(
+        key: const ValueKey('report-problem'),
+        onPressed: () => _open(context),
+        icon: const Icon(Icons.feedback_outlined, size: 18),
+        label: Text(context.t.reportProblem),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          foregroundColor: Mid.ink3,
+          textStyle: onest(15),
+        ),
+      ),
+    ),
   );
 }
 
