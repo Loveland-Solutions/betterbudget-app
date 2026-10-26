@@ -3459,11 +3459,11 @@ great." Then: "We should allow them to apply a payee rule to multiple accounts."
   filed under the category (or taken as the pay's paychecks), its own Undo. Rows
   already in a category are never moved (owner: "No, that would be really bad").
 - **Delete means the app stops putting that payee there by itself.** The popup:
-  "Deleted · new rows of this payee stop going to Groceries by themselves". An
-  import with no rule files a payee where it went last, which would put it straight
-  back, so a deleted payee is kept as deleted and that fallback is skipped for its
-  category; a row filed under another category by hand afterwards takes over. Rows
-  already filed stay.
+  "Deleted · new rows of this payee stop going to Groceries by themselves". Rows
+  already filed stay. (Until 2026-10-26 an import with no line filed a payee where
+  it went last, and a deleted line was kept to block that; since the Payees comb
+  only remembered payees are filed, and a deleted line is kept only so another
+  computer's copy combines as deleted.)
 - **On import**, the longest words win, then the one made later (the latest
   decision), then the id; words anywhere look in the payee and the bank's
   description; "at the start" looks only at the payee. The same words twice on one
@@ -4339,3 +4339,39 @@ whole sentences, Mongolian that isn't glued):
   case endings glued onto a quoted button, «дахиад … хэрэгтэй» and «Үлдэх өр» in
   place of other pages' words, «болон» in a list of two. The glossary has
   «аюулгүйн нөөц».
+
+## The Payees page's fine-tooth comb: three answers (2026-10-26)
+
+From the comb of the Payees page (#165), three ways money is filed that the owner
+decided.
+
+- **Only remembered payees are filed.** With no line on the Payees page, an
+  import and the entry row filled a payee's category from where its last row
+  went (a kettle under Household sent the next six Nomin grocery rows there,
+  unseen). The owner chose to fill only payees the person remembered: everything
+  else waits in Not categorized, and the box under a row is how a payee is
+  remembered. Rejected: keeping the fill from the last row.
+- **"File the N still in Not categorized" files this period's rows only**, the ones
+  the Not categorized tab shows; older ones stay, and the Edit's count line says
+  "1 more in Not categorized stays there". Rejected: every row with the dates and
+  the amount said; every row as before.
+- **The phone fills a remembered payee's category** on the account being entered
+  in (a phone change, with its own Play build). Rejected: the phone empty until
+  chosen.
+- **From the reviews** (decided along the lines above):
+  - A pay's line is for money in only, everywhere: a Unitel bill isn't Unitel's
+    paycheck. On a typed row, where whether money comes in isn't known as the
+    payee is typed, a pay's line doesn't fill.
+  - A line's category is one every account's currency takes; an import or File
+    never puts a dollar row in a tugrik category. Unticking an account lets go
+    of a pay or category that no longer fits.
+  - Remember on one account's row doesn't change a line shared with other
+    accounts: this account is taken off it and gets its own line (one undo). A
+    line made by Remember has the same id on every computer, so two make one;
+    Save on a line takes in a twin another computer made.
+  - File and the row's offer file only rows the line would win (a longer line
+    keeps its own), only rows still in Not categorized when clicked.
+  - A line whose category is archived says so; an account all of whose accounts
+    are deleted reads "No account"; accounts are named, never "All accounts"
+    (which read as taking in accounts opened later); an archived account a line
+    holds on is listed so it can be unticked.

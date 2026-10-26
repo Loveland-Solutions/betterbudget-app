@@ -8569,6 +8569,20 @@
       }
     }
   },
+  "payeesCategoryArchived": "{category} (archived: rows wait in Not categorized)",
+  "@payeesCategoryArchived": {
+    "description": "Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized",
+    "placeholders": {"category": {"type": "String", "example": "Groceries"}}
+  },
+  "payeesNoAccount": "No account",
+  "@payeesNoAccount": {
+    "description": "Payees page, a saved line's Accounts column when every account it held on was deleted"
+  },
+  "payeesWaitingStay": "{count, plural, =1{1 more in Not categorized stays there} other{{count} more in Not categorized stay there}}",
+  "@payeesWaitingStay": {
+    "description": "Payees page, Edit's count line: rows of this payee in Not categorized that Save's offer won't file, because they're from an earlier period (owner, 2026-10-26: only this period's) or another line would file them",
+    "placeholders": {"count": {"type": "int"}}
+  },
   "payeesCategoryGone": "A deleted category",
   "@payeesCategoryGone": {
     "description": "Payees page, in place of a category's name once the category was deleted."

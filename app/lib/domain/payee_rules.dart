@@ -46,8 +46,8 @@ class PayeeRuleInfo {
   /// When it was made, in ms; the later of two that fit alike wins.
   final int createdAt;
 
-  /// Deleted by the person: no longer followed, but kept so an import
-  /// doesn't put that payee back where it went last ([deletedBlocks]).
+  /// Deleted by the person: no longer followed, but kept, so another
+  /// computer's copy of the line combines as deleted too.
   final bool deleted;
 
   /// When, in ms; null while not deleted.
@@ -66,16 +66,20 @@ class PayeeRuleInfo {
       accountIds.contains(accountId) && fits(payee, memo);
 
   /// Which of [rules] a row falls under: the longest words win, then the one
-  /// made later, so the latest decision counts. Deleted ones never do.
+  /// made later, so the latest decision counts. Deleted ones never do. A
+  /// pay's line is for money in only: [amount] on the account, above zero
+  /// (budget review, 2026-10-26: a Unitel bill isn't Unitel's paycheck).
   static PayeeRuleInfo? pick(
     Iterable<PayeeRuleInfo> rules,
     int accountId,
     String? payee,
-    String? memo,
-  ) {
+    String? memo, {
+    int? amount,
+  }) {
     PayeeRuleInfo? best;
     for (final r in rules) {
       if (r.deleted || !r.fitsOn(accountId, payee, memo)) continue;
+      if (r.payId != null && (amount == null || amount <= 0)) continue;
       if (best == null ||
           r.words.length > best.words.length ||
           (r.words.length == best.words.length &&
@@ -86,26 +90,6 @@ class PayeeRuleInfo {
     }
     return best;
   }
-
-  /// Whether a rule the person deleted says this payee is not to go to
-  /// [categoryId] by itself any more: an import with no rule files a payee
-  /// where it went last, which would put it straight back. A row the person
-  /// filed there after the Delete ([filedAt], ms) counts again: that was
-  /// their decision, made later.
-  static bool deletedBlocks(
-    Iterable<PayeeRuleInfo> rules,
-    int accountId,
-    String? payee,
-    String? memo,
-    int categoryId, {
-    int? filedAt,
-  }) => rules.any(
-    (r) =>
-        r.deleted &&
-        r.categoryId == categoryId &&
-        (filedAt == null || r.deletedAt == null || filedAt < r.deletedAt!) &&
-        r.fitsOn(accountId, payee, memo),
-  );
 
   PayeeRuleInfo copyWith({
     String? words,
@@ -145,6 +129,16 @@ class PayeeRuleInfo {
   @override
   int get hashCode => Object.hash(id, words, categoryId, deleted);
 }
+
+/// What remembering a payee from a row changed, for undo: the line it
+/// changed ([was] before, [now] after; [was] null when one was made), and
+/// a line it took this account off ([left]): one shared with other
+/// accounts, which the person's choice on this account doesn't change.
+typedef Remembered = ({
+  PayeeRuleInfo? was,
+  PayeeRuleInfo now,
+  ({PayeeRuleInfo was, PayeeRuleInfo now})? left,
+});
 
 /// The id a rule carried over from the setting an older build kept gets:
 /// the same on every computer that upgrades the same setting, so two

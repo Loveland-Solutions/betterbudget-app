@@ -1181,11 +1181,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
         covering.payId == payId;
   }
 
+  /// Undoes [rememberPayee]: the line as it was, or none; a shared line
+  /// gets this account back.
+  Future<void> _forgetRemembered(Remembered r) async {
+    if (r.was case final was?) {
+      await db.putPayeeRule(was);
+    } else {
+      await db.removePayeeRule(r.now.id);
+    }
+    if (r.left case final left?) await db.putPayeeRule(left.was);
+  }
+
+  Future<void> _redoRemembered(Remembered r) async {
+    if (r.left case final left?) await db.putPayeeRule(left.now);
+    await db.putPayeeRule(r.now);
+  }
+
   /// The box under a row was ticked and the row saved: the category is
   /// remembered for the payee in the same write. Undo and redo fold it in
   /// with the row's own.
   ({Future<void> Function() undo, Future<void> Function() redo}) _alsoRemember(
-    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered,
+    Remembered? remembered,
     Future<void> Function() undo,
     Future<void> Function() redo,
   ) => remembered == null
@@ -1193,23 +1209,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
       : (
           undo: () => db.transaction(() async {
             // The rule first: it may name a category the row's undo takes.
-            if (remembered.was case final was?) {
-              await db.putPayeeRule(was);
-            } else {
-              await db.removePayeeRule(remembered.now.id);
-            }
+            await _forgetRemembered(remembered);
             await undo();
           }),
           redo: () => db.transaction(() async {
             await redo();
-            await db.putPayeeRule(remembered.now);
+            await _redoRemembered(remembered);
           }),
         );
 
   /// After a row was saved with its box ticked: the clause for the popup,
   /// and the offer to file the rows of that payee still in Not categorized.
   ({String said, ({String label, VoidCallback onTap})? more}) _rememberedWords(
-    ({PayeeRuleInfo? was, PayeeRuleInfo now}) remembered,
+    Remembered remembered,
   ) {
     final t = context.t;
     final data = _data;
@@ -1219,7 +1231,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         : _ruleLabel(t, data, rule, _payChoices(data));
     final waiting = data == null
         ? const <RegisterRow>[]
-        : _waitingFor(data, rule);
+        : _waitingFor(data, rule, today);
     return (
       said: t.ledgerAlwaysFiled(0, label),
       more: waiting.isEmpty
@@ -1263,7 +1275,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     int? made;
     var lineMade = const <({int id, String name})>[];
     PayTaken? paycheck;
-    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
+    Remembered? remembered;
     try {
       late final int id;
       // One write: a crash between them can't leave an empty category.
@@ -2492,7 +2504,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final int? owedId;
     int? made;
     var lineMade = const <({int id, String name})>[];
-    ({PayeeRuleInfo? was, PayeeRuleInfo now})? remembered;
+    Remembered? remembered;
     // Change the amount… on a reconciled row: the reconciles it takes back,
     // newest first, in the same write as the edit.
     var takenBack = const <ReconcileRecord>[];
@@ -4034,6 +4046,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       r.accountId,
       name,
       r.memo,
+      amount: r.amount,
     );
     if (covering != null &&
         covering.categoryId == c.id &&
@@ -4041,14 +4054,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return null;
     }
     final holding = _uncategorizedId(data);
+    final period = budgetPeriod(today, data.periodSchedule);
+    // As the new line would file them: this period's (owner, 2026-10-26),
+    // not one a longer line wins.
+    final probe = PayeeRuleInfo(
+      id: -1,
+      words: words,
+      name: name,
+      anywhere: false,
+      categoryId: c.id,
+      payId: pay?.id,
+      accountIds: {r.accountId},
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
     final waiting = [
       for (final x in data.registerFor(r.accountId).posted)
         if (x.txnId != r.txnId &&
             holding != null &&
             x.categoryId == holding &&
-            // A paycheck is money in.
-            (pay == null || x.amount > 0) &&
-            payeeWords(x.txnPayee ?? '').startsWith(words))
+            !x.date.isBefore(period.start) &&
+            !x.date.isAfter(period.end) &&
+            PayeeRuleInfo.pick(
+                  [...data.payeeRules, probe],
+                  r.accountId,
+                  x.txnPayee,
+                  x.memo,
+                  amount: x.amount,
+                )?.id ==
+                -1)
           x.txnId,
     ];
     final t = context.t;
@@ -4078,31 +4111,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     required List<int> waiting,
   }) async {
     final t = context.t;
-    final words = payeeWords(payee);
-    final was = _data?.payeeRules
-        .where((x) => x.words == words && x.accountIds.contains(accountId))
-        .firstOrNull;
-    PayeeRuleInfo? rule;
+    Remembered? remembered;
     var previous = <int, int>{};
     var paychecks = <PayTaken>[];
     Future<void> write() async {
-      final made = rule;
-      if (made != null) {
-        await db.putPayeeRule(made);
-      } else if (was != null) {
-        rule = was.copyWith(
-          categoryId: category.id,
-          payId: () => pay?.id,
-          name: payee,
-        );
-        await db.putPayeeRule(rule!);
+      if (remembered case final r?) {
+        await _redoRemembered(r);
       } else {
-        rule = await db.addPayeeRule(
-          name: payee,
-          anywhere: false,
+        remembered = await db.rememberPayee(
+          accountId: accountId,
+          payee: payee,
           categoryId: category.id,
           payId: pay?.id,
-          accountIds: {accountId},
         );
       }
       if (pay == null) {
@@ -4112,6 +4132,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 transactionIds: waiting,
                 accountId: accountId,
                 categoryId: category.id,
+                // Only rows still in Not categorized: one filed by hand
+                // while the popup was up stays (code review, 2026-10-26).
+                onlyFrom: _uncategorizedId(_data!),
               );
         return;
       }
@@ -4138,6 +4161,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final filed = pay == null ? previous.length : paychecks.length;
     // Remembered as something else before: said, not replaced quietly (#148).
     final data = _data;
+    final was = remembered?.was;
     final before = was == null || data == null
         ? null
         : _ruleLabel(t, data, was, _payChoices(data));
@@ -4159,11 +4183,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.undoTakeAsPay(p);
         }
         await db.restoreCategories(previous, accountId);
-        if (was != null) {
-          await db.putPayeeRule(was);
-        } else if (rule case final made?) {
-          await db.removePayeeRule(made.id);
-        }
+        await _forgetRemembered(remembered!);
       },
       redo: write,
     );
@@ -4183,14 +4203,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (data == null) return false;
     final t = context.t;
     // Two payees can't go by one set of words on one account: the Edit
-    // stays open, and the popup names the one that is there.
+    // stays open, and the popup names the one that is there. A twin this
+    // line already had (the same payee remembered on two computers) is
+    // taken into it instead: deleted with this Save, in its one undo.
+    bool overlaps(PayeeRuleInfo x) =>
+        x.id != before?.id &&
+        x.words == after.words &&
+        x.accountIds.intersection(after.accountIds).isNotEmpty;
+    final twins = [
+      for (final x in data.payeeRules)
+        if (overlaps(x) &&
+            before != null &&
+            x.words == before.words &&
+            x.anywhere == before.anywhere)
+          x,
+    ];
     final twin = data.payeeRules
-        .where(
-          (x) =>
-              x.id != before?.id &&
-              x.words == after.words &&
-              x.accountIds.intersection(after.accountIds).isNotEmpty,
-        )
+        .where((x) => overlaps(x) && !twins.contains(x))
         .firstOrNull;
     if (twin != null) {
       _showFailure(
@@ -4213,7 +4242,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         );
       } else {
         saved = after;
-        await db.putPayeeRule(after);
+        await db.transaction(() async {
+          await db.putPayeeRule(after);
+          for (final x in twins) {
+            await db.putPayeeRule(x.copyWith(deleted: true));
+          }
+        });
       }
     } catch (e) {
       debugPrint('Saving a payee failed: $e');
@@ -4222,7 +4256,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (!mounted) return true;
     final label = _ruleLabel(t, data, saved, _payChoices(data));
-    final waiting = _waitingFor(data, saved);
+    final waiting = _waitingFor(data, saved, today);
     _did(
       t.ledgerAlwaysFiled(0, label),
       detail: saved.name,
@@ -4234,8 +4268,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ),
       undo: () => before == null
           ? db.removePayeeRule(saved.id)
-          : db.putPayeeRule(before),
-      redo: () => db.putPayeeRule(saved),
+          : db.transaction(() async {
+              await db.putPayeeRule(before);
+              for (final x in twins) {
+                await db.putPayeeRule(x);
+              }
+            }),
+      redo: () => db.transaction(() async {
+        await db.putPayeeRule(saved);
+        for (final x in twins) {
+          await db.putPayeeRule(x.copyWith(deleted: true));
+        }
+      }),
     );
     return true;
   }
@@ -4305,6 +4349,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
             transactionIds: e.value,
             accountId: e.key,
             categoryId: rule.categoryId,
+            // A row filed by hand while the popup was up stays.
+            onlyFrom: _uncategorizedId(_data!),
           );
         }
       }
@@ -6644,6 +6690,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 AppSection.payees => _PayeesPage(
                                   key: _payeesKey,
                                   data: data,
+                                  today: today,
                                   pays: _payChoices(data),
                                   actions: _PayeesActions(
                                     save: _savePayeeRule,

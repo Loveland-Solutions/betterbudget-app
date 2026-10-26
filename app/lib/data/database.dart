@@ -1414,7 +1414,12 @@ class AppDatabase extends _$AppDatabase {
       if (accountId == null || !await exists('accounts', accountId)) continue;
       for (final rule in PayeeRule.decode(p.read<String>('value'))) {
         final words = payeeWords(rule.starts);
-        if (words.isEmpty || !await exists('accounts', rule.categoryId)) {
+        // One whose category is gone (or deleted) is left behind.
+        if (words.isEmpty ||
+            (await customSelect(
+              'SELECT 1 FROM accounts WHERE id = ? AND deleted_at IS NULL',
+              variables: [Variable.withInt(rule.categoryId)],
+            ).get()).isEmpty) {
           continue;
         }
         var payId = rule.payId;
@@ -2065,66 +2070,16 @@ class AppDatabase extends _$AppDatabase {
           .map((p) => p.name)
           .toList();
 
-  /// [lastCategoryFor], unless a rule the person deleted says that payee is
-  /// not to go there by itself any more (a row they filed there after the
-  /// Delete counts again).
-  Future<int?> _lastUnlessDeleted(
-    List<PayeeRuleInfo> rules,
-    int accountId,
-    String payee,
-    String? memo,
-  ) async {
-    final last = await _lastFiling(payee, accountId);
-    if (last == null) return null;
-    return PayeeRuleInfo.deletedBlocks(
-          rules,
-          accountId,
-          payee,
-          memo,
-          last.categoryId,
-          filedAt: last.at,
-        )
-        ? null
-        : last.categoryId;
-  }
-
   /// The category a row typed with this payee starts in: what the person
-  /// said to remember for it, else where it went last ([lastCategoryFor]),
-  /// unless they deleted that.
+  /// said to remember for it on this account, else none (owner,
+  /// 2026-10-26: only remembered payees are filled, not where a payee went
+  /// last). A pay's line isn't one: whether money comes in isn't known yet.
   Future<int?> suggestedCategory(String payee, int accountId) async {
     final rules = [
-      for (final r in await allPayeeRules(deletedToo: true))
+      for (final r in await allPayeeRules())
         if (r.accountIds.contains(accountId)) r,
     ];
-    return PayeeRuleInfo.pick(rules, accountId, payee, null)?.categoryId ??
-        await _lastUnlessDeleted(rules, accountId, payee, null);
-  }
-
-  /// The category most recently used with this payee on [accountId], so
-  /// entry becomes: payee, Tab, amount, Enter.
-  Future<int?> lastCategoryFor(String payeeName, int accountId) async =>
-      (await _lastFiling(payeeName, accountId))?.categoryId;
-
-  /// The last row of this payee on [accountId] with one other side: its
-  /// category and when the row was last written, in ms.
-  Future<({int categoryId, int at})?> _lastFiling(
-    String payeeName,
-    int accountId,
-  ) async {
-    final row = await customSelect(
-      'SELECT other.account_id AS category_id, t.updated_at AS at '
-      'FROM transactions t '
-      'JOIN payees p ON p.id = t.payee_id '
-      'JOIN entries mine ON mine.transaction_id = t.id AND mine.account_id = ? '
-      'JOIN entries other ON other.transaction_id = t.id AND other.id != mine.id '
-      'WHERE p.name = ? AND t.deleted_at IS NULL '
-      'GROUP BY t.id HAVING COUNT(other.id) = 1 '
-      'ORDER BY t.date DESC, t.id DESC LIMIT 1',
-      variables: [Variable.withInt(accountId), Variable.withString(payeeName)],
-      readsFrom: {transactions, payees, entries},
-    ).getSingleOrNull();
-    if (row == null) return null;
-    return (categoryId: row.read<int>('category_id'), at: row.read<int>('at'));
+    return PayeeRuleInfo.pick(rules, accountId, payee, null)?.categoryId;
   }
 
   // ---------- writes ----------
@@ -2457,10 +2412,12 @@ class AppDatabase extends _$AppDatabase {
   /// Recategorises every simple (one category) transaction in
   /// [transactionIds]; splits and transfers are left alone. Returns each
   /// changed transaction's previous category, for undo.
+  /// With [onlyFrom], only rows still in that category move.
   Future<Map<int, int>> setCategoryMany({
     required Iterable<int> transactionIds,
     required int accountId,
     required int categoryId,
+    int? onlyFrom,
   }) {
     return transaction(() async {
       final categoryIds = {
@@ -2484,6 +2441,7 @@ class AppDatabase extends _$AppDatabase {
         final other = others.single;
         if (!categoryIds.contains(other.accountId)) continue;
         if (other.accountId == categoryId) continue;
+        if (onlyFrom != null && other.accountId != onlyFrom) continue;
         previous[id] = other.accountId;
         await (update(entries)..where((e) => e.id.equals(other.id))).write(
           EntriesCompanion(accountId: Value(categoryId)),
@@ -5791,9 +5749,10 @@ class AppDatabase extends _$AppDatabase {
     required int categoryId,
     int? payId,
     required Set<int> accountIds,
+    int? id,
   }) async {
     final r = PayeeRuleInfo(
-      id: newRowId(),
+      id: id ?? newRowId(),
       words: payeeWords(name),
       name: name.trim(),
       anywhere: anywhere,
@@ -5807,39 +5766,59 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Remembers [categoryId] (and [payId]) for [payee] on [accountId], as the
-  /// popup's offer and the box under a row do: one already going by these
-  /// words on this account is changed, else one is made. What it was and
-  /// what it is, for undo.
-  Future<({PayeeRuleInfo? was, PayeeRuleInfo now})> rememberPayee({
+  /// popup's offer and the box under a row do. A line going by these words
+  /// on this account alone is changed (the one an import would follow, if
+  /// two computers each made one). One shared with other accounts isn't:
+  /// this account is taken off it and gets its own line, since the choice
+  /// was made here (code review, 2026-10-26). One looking anywhere stays,
+  /// and the new line, made later, wins for this payee. A line made here
+  /// has the same id on every computer, so two of them make one.
+  Future<Remembered> rememberPayee({
     required int accountId,
     required String payee,
     required int categoryId,
     int? payId,
-  }) async {
+  }) => transaction(() async {
     final words = payeeWords(payee);
-    final was = (await allPayeeRules())
-        .where((x) => x.words == words && x.accountIds.contains(accountId))
-        .firstOrNull;
-    if (was != null) {
+    final twins =
+        (await allPayeeRules())
+            .where((x) => x.words == words && x.accountIds.contains(accountId))
+            .toList()
+          ..sort(
+            (a, b) => a.createdAt != b.createdAt
+                ? b.createdAt.compareTo(a.createdAt)
+                : b.id.compareTo(a.id),
+          );
+    final was = twins.where((x) => !x.anywhere).firstOrNull;
+    if (was != null && was.accountIds.length == 1) {
       final now = was.copyWith(
         categoryId: categoryId,
         payId: () => payId,
         name: payee.trim(),
       );
       await putPayeeRule(now);
-      return (was: was, now: now);
+      return (was: was, now: now, left: null);
     }
-    return (
-      was: null,
-      now: await addPayeeRule(
-        name: payee,
-        anywhere: false,
-        categoryId: categoryId,
-        payId: payId,
-        accountIds: {accountId},
-      ),
+    final shared = sharedRowId('payee-rule', '$accountId|$words');
+    ({PayeeRuleInfo was, PayeeRuleInfo now})? left;
+    if (was != null) {
+      left = (
+        was: was,
+        now: was.copyWith(accountIds: {...was.accountIds}..remove(accountId)),
+      );
+      await putPayeeRule(left.now);
+    }
+    final now = await addPayeeRule(
+      name: payee,
+      anywhere: false,
+      categoryId: categoryId,
+      payId: payId,
+      accountIds: {accountId},
+      // Not the id of the line just taken off, if this computer made that.
+      id: left?.was.id == shared ? null : shared,
     );
-  }
+    return (was: null, now: now, left: left);
+  });
 
   /// Takes a rule out altogether: the undo of adding it.
   Future<void> removePayeeRule(int id) => transaction(() async {
@@ -6332,6 +6311,11 @@ class AppDatabase extends _$AppDatabase {
             date: start.date,
             balance: start.amount,
           );
+    final here = (await (select(
+      accounts,
+    )..where((a) => a.id.equals(accountId))).getSingle()).currency;
+    // The categories a row on this account can go to: open, and in its
+    // currency (Income and Not categorized take any).
     final categories = {
       for (final a
           in await (select(accounts)..where(
@@ -6344,7 +6328,10 @@ class AppDatabase extends _$AppDatabase {
                     ]),
               ))
               .get())
-        a.id,
+        if (a.type == AccountType.income ||
+            uncategorizedNames.contains(a.name) ||
+            a.currency == here)
+          a.id,
     };
     int? made;
     int? fallback;
@@ -6366,10 +6353,9 @@ class AppDatabase extends _$AppDatabase {
     }
 
     final rules = [
-      for (final r in await allPayeeRules(deletedToo: true))
+      for (final r in await allPayeeRules())
         if (r.accountIds.contains(accountId)) r,
     ];
-    final remembered = <String, int?>{};
     final paid = <PayTaken>[];
     final added = <int, String>{};
     final addedOn = <int, ({DateTime date, int amount})>{};
@@ -6382,17 +6368,20 @@ class AppDatabase extends _$AppDatabase {
         case ImportFate.add:
           final payee = p.row.payee;
           final memo = p.row.memo;
-          final rule = PayeeRuleInfo.pick(rules, accountId, payee, memo);
-          // What the person said goes for this payee, else what it was
-          // filed under last, unless they deleted that very thing.
-          final seen = '$payee\u0000${memo ?? ''}';
-          final last = remembered.containsKey(seen)
-              ? remembered[seen]
-              : remembered[seen] =
-                    rule?.categoryId ??
-                    await _lastUnlessDeleted(rules, accountId, payee, memo);
-          final category = last != null && categories.contains(last)
-              ? last
+          final rule = PayeeRuleInfo.pick(
+            rules,
+            accountId,
+            payee,
+            memo,
+            amount: p.row.amount,
+          );
+          // What the person said goes for this payee, in a category this
+          // account's currency takes; nothing else is guessed (owner,
+          // 2026-10-26).
+          final said = rule?.categoryId;
+          final category =
+              said != null && categories.contains(said)
+              ? said
               : await uncategorized();
           final id = await postTransaction(
             date: dateOnly(p.row.date),

@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/payee_rules.dart';
 import 'package:betterbudget/import/csv.dart';
 import 'package:betterbudget/import/mapping.dart';
@@ -700,7 +701,8 @@ void main() {
       );
       expect(record.added.length, 2);
       expect(record.madeCategory, isNotNull);
-      expect(record.uncategorizedCount, 1);
+      // Emart isn't remembered: where it went last is no reason.
+      expect(record.uncategorizedCount, 2);
 
       var data = await db.loadLedger();
       final bankRows = data.txns
@@ -711,8 +713,12 @@ void main() {
         (t) => t.payee == 'Emart' && t.date.day == 4,
       );
       expect(
-        emart.entries.firstWhere((e) => e.accountId != bank).accountId,
-        groceries,
+        data
+            .accounts[emart.entries
+                .firstWhere((e) => e.accountId != bank)
+                .accountId]!
+            .name,
+        'Not categorized',
       );
       final fee = bankRows.firstWhere((t) => t.payee == 'Fee');
       expect(
@@ -1109,8 +1115,8 @@ void main() {
       expect(by['номин маркет'], groceries);
     });
 
-    test('a deleted payee stops going to its category by itself, and goes '
-        'where it is next filed by hand', () async {
+    test('only a remembered payee is filed; where it went last is no '
+        'reason (owner, 2026-10-26)', () async {
       final phone = await db.createCategory('Phone');
       await db.postSimple(
         accountId: bank,
@@ -1120,55 +1126,110 @@ void main() {
         counterAccountId: groceries,
         amount: -30000,
       );
-      // Amounts no typed row matches, so each comes in as its own row.
+      Future<int> holding() async => (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Not categorized')
+          .id;
+      // Its last row is in Groceries: the next waits in Not categorized.
+      var by = await filed(await bring([row(10, -31000, 'Unitel')]), bank);
+      expect(by['Unitel'], await holding());
+      expect(await db.suggestedCategory('Unitel', bank), isNull);
+      // Remembered: filed, and a typed row starts there.
       final rule = await db.addPayeeRule(
         name: 'Unitel',
         anywhere: false,
-        categoryId: groceries,
-        accountIds: {bank},
-      );
-      await db.putPayeeRule(rule.copyWith(deleted: true));
-      // Its last row is in Groceries; it doesn't go back there.
-      var by = await filed(await bring([row(10, -31000, 'Unitel')]), bank);
-      final holding = (await db.loadLedger()).accounts.values
-          .firstWhere((a) => a.name == 'Not categorized')
-          .id;
-      expect(by['Unitel'], holding);
-      // Filed under Phone by hand: the next one follows that.
-      await db.postSimple(
-        accountId: bank,
-        date: DateTime(2026, 9, 11),
-        today: DateTime(2026, 9, 30),
-        payee: 'Unitel',
-        counterAccountId: phone,
-        amount: -32000,
-      );
-      by = await filed(await bring([row(12, -33000, 'Unitel')]), bank);
-      expect(by['Unitel'], phone);
-      // Filed under Groceries by hand after the Delete: that was decided
-      // later, so it counts again.
-      await db.postSimple(
-        accountId: bank,
-        date: DateTime(2026, 9, 13),
-        today: DateTime(2026, 9, 30),
-        payee: 'Unitel',
-        counterAccountId: groceries,
-        amount: -34000,
-      );
-      by = await filed(await bring([row(14, -35000, 'Unitel')]), bank);
-      expect(by['Unitel'], groceries);
-      // A row typed by hand starts in the remembered category too, and not
-      // in a deleted one.
-      expect(await db.suggestedCategory('Unitel', bank), groceries);
-      final nomin = await db.addPayeeRule(
-        name: 'Номин',
-        anywhere: true,
         categoryId: phone,
         accountIds: {bank},
       );
-      expect(await db.suggestedCategory('POS 123: НОМИН', bank), phone);
-      await db.putPayeeRule(nomin.copyWith(deleted: true));
-      expect(await db.suggestedCategory('POS 123: НОМИН', bank), isNull);
+      by = await filed(await bring([row(12, -33000, 'Unitel')]), bank);
+      expect(by['Unitel'], phone);
+      expect(await db.suggestedCategory('Unitel', bank), phone);
+      // Deleted: waits again.
+      await db.putPayeeRule(rule.copyWith(deleted: true));
+      by = await filed(await bring([row(14, -35000, 'Unitel')]), bank);
+      expect(by['Unitel'], await holding());
+      expect(await db.suggestedCategory('Unitel', bank), isNull);
+    });
+
+    test('a pay\'s line is for money in only', () {
+      const pay = PayeeRuleInfo(
+        id: 1,
+        words: 'unitel llc',
+        name: 'Unitel LLC',
+        anywhere: false,
+        categoryId: 2,
+        payId: 3,
+        accountIds: {4},
+      );
+      const rules = [pay];
+      expect(
+        PayeeRuleInfo.pick(rules, 4, 'Unitel LLC', null, amount: 500000),
+        pay,
+      );
+      // A Unitel bill isn't Unitel's paycheck.
+      expect(
+        PayeeRuleInfo.pick(rules, 4, 'Unitel LLC', null, amount: -45000),
+        isNull,
+      );
+      // On a typed row, whether money comes in isn't known yet.
+      expect(PayeeRuleInfo.pick(rules, 4, 'Unitel LLC', null), isNull);
+    });
+
+    test('a remembered category in another currency isn\'t used', () async {
+      final dollars = await db.createAccount(
+        name: 'Dollar card',
+        type: AccountType.liability,
+        currency: Currency.usd,
+      );
+      await db.addPayeeRule(
+        name: 'Amazon',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {dollars},
+      );
+      final by = await filed(
+        await bring([row(10, -1000, 'Amazon')], into: dollars),
+        dollars,
+      );
+      final holding = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Not categorized')
+          .id;
+      expect(by['Amazon'], holding);
+    });
+
+    test('remembering on one account takes it off a shared line', () async {
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      final household = await db.createCategory('Household');
+      final shared = await db.addPayeeRule(
+        name: 'Nomin',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {bank, card},
+      );
+      final r = await db.rememberPayee(
+        accountId: card,
+        payee: 'Nomin',
+        categoryId: household,
+      );
+      expect(r.was, isNull);
+      expect(r.left!.now.accountIds, {bank});
+      final rules = await db.allPayeeRules();
+      expect(rules.firstWhere((x) => x.id == shared.id).categoryId, groceries);
+      expect(r.now.accountIds, {card});
+      expect(r.now.categoryId, household);
+      // Remembered the same on another computer: one line, by one id.
+      final again = await db.rememberPayee(
+        accountId: card,
+        payee: 'Nomin',
+        categoryId: household,
+      );
+      expect(again.now.id, r.now.id);
+      expect(
+        (await db.allPayeeRules()).where((x) => x.words == 'nomin'),
+        hasLength(2),
+      );
     });
 
     test('a payee on two accounts holds on both and on no other', () async {
