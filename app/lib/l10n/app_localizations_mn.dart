@@ -756,6 +756,12 @@ class WordsMn extends Words {
       'Хөтөч нээгдсэнгүй. Маягт lls.mn/mn/contact хаягт байна.';
 
   @override
+  String get detailsCopy => 'Хуулах';
+
+  @override
+  String get detailsCopied => 'Хуулсан';
+
+  @override
   String get ledgerBackupsTitle => 'Нөөц хуулбар';
 
   @override

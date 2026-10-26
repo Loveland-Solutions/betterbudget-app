@@ -1151,6 +1151,14 @@
   "@reportProblemFailed": {
     "description": "Failure popup when Report a problem… couldn't open the browser; says where to find the form instead."
   },
+  "detailsCopy": "Copy",
+  "@detailsCopy": {
+    "description": "Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Report a problem… form."
+  },
+  "detailsCopied": "Copied",
+  "@detailsCopied": {
+    "description": "The Copy button beside a failure's Details, for two seconds after it copied."
+  },
   "ledgerBackupsTitle": "Backups",
   "@ledgerBackupsTitle": {
     "description": "Settings → Backups card, title."

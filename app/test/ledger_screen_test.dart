@@ -8717,6 +8717,22 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/failure_popup.png'),
     );
+    // Copy puts the line and the reason on the clipboard, for the form.
+    final copied = _catchClipboard(tester);
+    await tester.tap(find.byKey(const ValueKey('copy-details')));
+    await tester.pump();
+    expect(
+      copied.single,
+      startsWith(
+        'Couldn’t read ST_BROKEN.xlsx. The file may be damaged; download it '
+        'from your bank again.\n\n',
+      ),
+    );
+    expect(
+      copied.single.length,
+      greaterThan('Couldn’t read ST_BROKEN.xlsx.'.length + 60),
+    );
+    expect(find.text('Copied'), findsOneWidget);
     // Open, it stays to be read, however long that takes.
     await tester.pump(const Duration(seconds: 30));
     expect(find.byKey(const ValueKey('toast-why-text')), findsOneWidget);
@@ -10534,9 +10550,7 @@ void main() {
       final db = await withRule(tester);
       await tapAndWait(tester, find.byKey(const ValueKey('payee-delete')));
       expect(
-        find.text(
-          'Deleted · Groceries no longer remembered for next time',
-        ),
+        find.text('Deleted · Groceries no longer remembered for next time'),
         findsOneWidget,
       );
       expect(
@@ -11042,4 +11056,26 @@ class _FakeBrowser extends UrlLauncherPlatform {
     opened.add(url);
     return opens;
   }
+}
+
+/// The clipboard, caught: what Copy put there. Only the clipboard's calls
+/// are answered, and only until the test ends.
+List<String> _catchClipboard(WidgetTester tester) {
+  final copied = <String>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied.add((call.arguments as Map)['text'] as String);
+      }
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+  return copied;
 }

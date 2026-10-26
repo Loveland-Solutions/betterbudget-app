@@ -1098,6 +1098,18 @@ abstract class Words {
   /// **'The browser didn’t open. The form is at lls.mn/en/contact.'**
   String get reportProblemFailed;
 
+  /// Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Report a problem… form.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get detailsCopy;
+
+  /// The Copy button beside a failure's Details, for two seconds after it copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get detailsCopied;
+
   /// Settings → Backups card, title.
   ///
   /// In en, this message translates to:

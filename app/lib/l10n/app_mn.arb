@@ -166,6 +166,8 @@
   "reportProblem": "Асуудал мэдэгдэх…",
   "reportProblemFailed": "Хөтөч нээгдсэнгүй. Маягт lls.mn/mn/contact хаягт байна.",
   "ledgerBackupsTitle": "Нөөц хуулбар",
+  "detailsCopy": "Хуулах",
+  "detailsCopied": "Хуулсан",
   "ledgerDailyCopy": "Өдрийн хуулбар",
   "ledgerTimeAt": "{day} {time}",
   "ledgerDailyCopyFailingSince": "Хийгдэхгүй байна · сүүлийн хуулбар: {when}. Дискэнд зай байгаа эсэхийг шалгаад өөр диск рүү нөөцлөнө үү.",

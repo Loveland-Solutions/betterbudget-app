@@ -435,6 +435,19 @@ void main() {
           .data,
       'PlatformException',
     );
+    final copied = _catchClipboard(tester);
+    await tester.tap(find.byKey(const ValueKey('copy-details')));
+    await tester.pump();
+    expect(copied, [
+      'Couldn’t keep the key on this computer\n\nPlatformException',
+    ]);
+    expect(find.text('Copied'), findsOne);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/startup_failed_details.png'),
+    );
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Copy'), findsOne);
 
     storage.refuseWrite = null;
     await tapAndWait(tester, find.byKey(const ValueKey('startup-try-again')));
@@ -677,4 +690,26 @@ void main() {
       expect(await db.backupOfferOpen(), isFalse);
     });
   });
+}
+
+/// The clipboard, caught: what Copy put there. Only the clipboard's calls
+/// are answered, and only until the test ends.
+List<String> _catchClipboard(WidgetTester tester) {
+  final copied = <String>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied.add((call.arguments as Map)['text'] as String);
+      }
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+  return copied;
 }

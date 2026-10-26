@@ -761,6 +761,12 @@ class WordsEn extends Words {
       'The browser didn’t open. The form is at lls.mn/en/contact.';
 
   @override
+  String get detailsCopy => 'Copy';
+
+  @override
+  String get detailsCopied => 'Copied';
+
+  @override
   String get ledgerBackupsTitle => 'Backups';
 
   @override
