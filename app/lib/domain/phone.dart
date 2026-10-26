@@ -7,6 +7,7 @@ import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
+import 'payee_rules.dart';
 import 'readiness.dart' show isSafetyNet;
 
 /// What a phone files money in under when it is the app's one Income (rule
@@ -163,6 +164,20 @@ class PhoneSnapshot {
   final DateTime madeAt;
   final List<PhoneCategory> categories;
   final List<PhoneAccount> accounts;
+
+  /// The category the household remembered for [payee] on [accountId], on
+  /// the Payees page (owner, 2026-10-26: the phone fills it, as the
+  /// computer does; it's their own decision, not a guess). Null when none
+  /// is, or the category isn't one the phone lists.
+  PhoneCategory? rememberedFor(String payee, String? accountId) {
+    final rules = data?.payeeRules;
+    final account = int.tryParse(accountId ?? '');
+    if (rules == null || account == null) return null;
+    final id = PayeeRuleInfo.pick(rules, account, payee, null)?.categoryId;
+    return id == null
+        ? null
+        : categories.where((c) => c.id == '$id').firstOrNull;
+  }
 
   /// The account [e] moved money to, when it is a transfer; otherwise null.
   PhoneAccount? transferTo(PhoneEntry e) {

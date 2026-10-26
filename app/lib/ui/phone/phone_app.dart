@@ -1379,7 +1379,17 @@ class _EntryState extends State<_EntryScreen> {
       ),
     );
     if (typed != null && typed.trim().isNotEmpty && mounted) {
-      _change(() => _draft.payee = typed.trim());
+      _change(() {
+        _draft.payee = typed.trim();
+        // A remembered payee fills the category while none is chosen; one
+        // she chose stays.
+        if (_category == null) {
+          final remembered = snapshot.rememberedFor(typed.trim(), _account?.id);
+          if (remembered != null) {
+            _draft.choose(remembered, snapshot.accounts);
+          }
+        }
+      });
     }
   }
 

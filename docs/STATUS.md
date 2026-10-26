@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-26** · version 0.50.2 · schema v21 · 856 tests pass
+**Last updated: 2026-10-26** · version 0.52.0 · schema v21 · 861 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,12 +11,20 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Next: the Payees page's fine-tooth comb (#165)**, the way the Ledger's, Budget's
-and Savings' went: four reviews (`code-reviewer`, `budget-app-expert`, `ux-writer`,
-`interaction-designer`) run at once, the page drawn with years of demo rows in day,
-night and Mongolian at 1360 × 760, findings written into the issue as checkboxes,
-the owner asked only about how money is counted or shown (two or three at a time,
-with a screen example), the rest fixed in a PR each for money, keys and words.
+**Next: the owner's pick from the board's Next column, Beta milestone.** The four
+combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
+the Report a bug path through lls.mn (#92, #93, #158, #159), the native speaker's
+check of the Mongolian (#90), and the Budget and Savings features (#100–#103).
+
+**The Payees comb is done** (0.51.0–0.52.0, #165; ADR 0004 "The Payees page's
+fine-tooth comb: three answers", "The Payees page by keys and mouse", "The Payees
+page's words"; ADR 0005 "The phone fills a remembered payee"). Only remembered
+payees are filed: the fill from where a payee went last is gone, on import and on
+the entry row. "File the N" files this period's rows only. A pay's line is for
+money in only; a line's category takes every ticked account's currency; Remember
+on one account takes it off a shared line. The Edit is held by the screen
+(`_PayeeKeep`). **The phone fills a remembered payee's category** on the account
+it's entered in (`PhoneSnapshot.rememberedFor`): it needs a new Play build.
 
 **The Savings comb is done** (0.50.0–0.50.2, #164; ADR 0004 "The Savings page's
 fine-tooth comb: three answers", "The Savings page by keys and mouse", "The Savings
