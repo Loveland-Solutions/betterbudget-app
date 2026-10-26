@@ -29,6 +29,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | transaction | гүйлгээ | |
 | payee | харилцагч | who the money went to or came from |
 | category | ангилал | |
+| safety net | аюулгүйн нөөц | Savings step 1 and its built-in category; not яаралтай үеийн нөөц |
 | memo | тэмдэглэл | |
 | amount | дүн | |
 | balance | үлдэгдэл | |
@@ -110,7 +111,7 @@ changes here, change it everywhere in `app/lib/l10n/app_mn.arb`.
 | emergency fund | яаралтай үеийн нөөц | |
 | debt to pay off (Savings step 2) | төлж дуусгах өр | every card and loan but the mortgage; was "consumer debt" |
 | mortgage | орон сууцны зээл | |
-| set aside (a step) | хойшлуулах | |
+| skipped for now (a step) | хойшлуулах | was "set aside" in English until 2026-10-26: that is the word for money |
 | estimate | тооцоолсон дүн | |
 | at least | багадаа | |
 | lowest balance | доод үлдэгдэл | "хамгийн бага ₮X" reads as "at least ₮X" |

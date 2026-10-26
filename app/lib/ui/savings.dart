@@ -74,8 +74,9 @@ class _SavingsActions {
 
   final _SavingsKeep keep;
 
-  /// Sets what is assigned to [category] this calendar month to [total].
-  final void Function(AccountInfo category, int total) assign;
+  /// Sets what is assigned to [category] this calendar month to [total];
+  /// [label] names it for undo.
+  final void Function(AccountInfo category, int total, String label) assign;
 
   /// Sets a step aside or brings it back, from the newest ledger so two
   /// quick clicks both count.
@@ -488,7 +489,7 @@ class _StepRow extends StatelessWidget {
               ),
               _Choice(
                 key: const ValueKey('answer-longLoans-no'),
-                label: t.planNotYet,
+                label: t.planNotPayingExtraYet,
                 on: said == null,
                 onTap: () => answer(null, t.planLoansNotYetUndo),
               ),
@@ -535,9 +536,11 @@ extension on _StepRow {
     if (!r.hasFund) return const [];
     // Savings accounts it could be kept in: a wallet isn't one.
     final banks = data.openAccounts.where((a) => !a.isOwed && !a.isCash).length;
+    // Called what it's called on Budget: it can be renamed.
+    final name = r.fundCategories.first.name;
     return [
       // Nothing in it yet: what it is and where to keep it.
-      if (r.fund == 0) guide(t.planWhichAccount),
+      if (r.fund == 0) guide(t.planWhichAccount(name)),
       if (r.keptIn.isNotEmpty && r.fund > 0)
         Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -566,7 +569,7 @@ extension on _StepRow {
           banks > 1 &&
           r.fund > 0 &&
           !r.isDone(ReadyStep.oneMonth))
-        guide(t.planFundSetPaidFrom),
+        guide(t.planFundSetPaidFrom(name)),
       ..._assignOffer(context, t, guide, ReadyStep.oneMonth),
     ];
   }
@@ -585,14 +588,27 @@ extension on _StepRow {
         : null;
     if (category == null || offer <= 0) return const [];
     return [
-      guide(t.planFundNotAssigned(_here(context, r.notAssigned))),
+      // Whole units, as the page's other figures: the cents say nothing here.
+      guide(
+        t.planFundNotAssigned(
+          _here(
+            context,
+            r.notAssigned - r.notAssigned % CurrencyScope.of(context).scale,
+          ),
+        ),
+      ),
       Padding(
         padding: const EdgeInsets.only(top: 8),
         child: BarButton(
           key: ValueKey('fund-assign-${step.name}'),
-          label: t.planAssignUndo(_here(context, offer), category.name),
+          label: t.planFundAssign(_here(context, offer), category.name),
           color: Mid.blue,
-          onTap: () => actions.assign(category, r.fundAssigned + offer),
+          // Undone as what was added, not the month's new total.
+          onTap: () => actions.assign(
+            category,
+            r.fundAssigned + offer,
+            t.planAssignUndo(_here(context, offer), category.name),
+          ),
         ),
       ),
     ];
@@ -942,6 +958,8 @@ class _Answer extends StatelessWidget {
         key: ValueKey('answer-$stepKey-no'),
         label: context.t.planNotYet,
         active: !yes,
+        // Chosen as the mortgage's answers are: blue.
+        color: yes ? Mid.ink2 : Mid.blue,
         onTap: () => onChanged(false),
       ),
     ],
@@ -1091,10 +1109,19 @@ class _DebtLineState extends State<_DebtLine> {
         children: [
           SizedBox(
             width: _debtName,
-            child: Text(
-              a.name,
-              style: onest(13, color: Mid.ink2),
-              overflow: TextOverflow.ellipsis,
+            // A gap before the amount, and the whole name on hover.
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Tooltip(
+                message: a.name,
+                waitDuration: const Duration(milliseconds: 600),
+                child: Text(
+                  a.name,
+                  style: onest(13, color: Mid.ink2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ),
           SizedBox(
@@ -1102,53 +1129,60 @@ class _DebtLineState extends State<_DebtLine> {
             child: Text(
               debt.owed > 0 ? _here(context, debt.owed) : t.planNothingOwed,
               style: onest(13, color: Mid.ink2, tabular: true),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (consumer)
             SizedBox(
               width: _debtRate,
-              child: Row(
-                children: [
-                  Flexible(
-                    // One group with the field: clicking it closes the field
-                    // once, not closes and opens again.
-                    child: TapRegion(
-                      groupId: 'rate-${a.id}',
-                      child: Hoverable(
-                        key: ValueKey('debt-${a.id}-rate'),
-                        focusNode: _opener,
-                        onTap: _open ? _close : _start,
-                        builder: (hover) => Text(
-                          rate == null ? t.planRateAdd : _rateWords(t, rate),
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              onest(
-                                12.5,
-                                color: rate == null
-                                    ? Mid.blue
-                                    : (hover ? Mid.ink2 : Mid.ink3),
-                                tabular: true,
-                              ).copyWith(
-                                decoration: hover
-                                    ? TextDecoration.underline
-                                    : null,
-                              ),
+              // A gap after the ⓘ, before what it counts as.
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Row(
+                  children: [
+                    Flexible(
+                      // One group with the field: clicking it closes the field
+                      // once, not closes and opens again.
+                      child: TapRegion(
+                        groupId: 'rate-${a.id}',
+                        child: Hoverable(
+                          key: ValueKey('debt-${a.id}-rate'),
+                          focusNode: _opener,
+                          onTap: _open ? _close : _start,
+                          builder: (hover) => Text(
+                            rate == null ? t.planRateAdd : _rateWords(t, rate),
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                onest(
+                                  12.5,
+                                  color: rate == null
+                                      ? Mid.blue
+                                      : (hover ? Mid.ink2 : Mid.ink3),
+                                  tabular: true,
+                                ).copyWith(
+                                  decoration: hover
+                                      ? TextDecoration.underline
+                                      : null,
+                                ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Tooltip(
-                    message: t.planRateTip,
-                    waitDuration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      Icons.info_outline_rounded,
-                      key: ValueKey('debt-${a.id}-rate-tip'),
-                      size: 14,
-                      color: Mid.ink3,
+                    const SizedBox(width: 4),
+                    Tooltip(
+                      message: t.planRateTip,
+                      waitDuration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        key: ValueKey('debt-${a.id}-rate-tip'),
+                        size: 14,
+                        color: Mid.ink3,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           // The last two give way with "…" before the line runs out of room.
@@ -1360,7 +1394,7 @@ const double _reads = 640, _stepWidth = 760;
 /// A debt line's columns: the name, what's owed, the rate. What it counts
 /// as and "Pay extra here" take what's left of [_stepWidth], and give way
 /// with "…" only when even that is too little.
-const double _debtName = 170, _debtOwed = 116, _debtRate = 130;
+const double _debtName = 170, _debtOwed = 136, _debtRate = 130;
 
 /// A rate as said: "2% a month", "24% a year".
 String _rateWords(Words t, DebtRate r) => r.perYear

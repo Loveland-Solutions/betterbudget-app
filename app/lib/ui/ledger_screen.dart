@@ -4687,11 +4687,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )
       : null;
 
+  /// [label] names it for undo when "Assign [amount]" wouldn't say it.
   Future<void> _setBudgetAmount(
     AccountInfo c,
     BudgetSpan period,
-    int amount,
-  ) async {
+    int amount, {
+    String? label,
+  }) async {
     final t = context.t;
     final data = _data!;
     final began = _beganBy(data, period.start, [c.currency]);
@@ -4724,7 +4726,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final moved = _beganMoved(began);
     _did(
-      t.planAssignUndo(formatMoney(amount, currency: c.currency), c.name),
+      label ??
+          t.planAssignUndo(formatMoney(amount, currency: c.currency), c.name),
       // Quiet, unless it moved the day the budget began: that's said.
       toast: moved != null,
       message: moved == null
@@ -5688,8 +5691,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!_typing) _registerFocus.requestFocus();
   }
 
-  /// A Savings answer or setting. Answers are quiet, like clearing a row;
-  /// ⌘Z undoes them.
+  /// The Safety net was looked for this launch.
   bool _safetyNetAsked = false;
 
   /// Safety net is built in (ADR 0004 "Four Savings steps"): a ledger past
@@ -5723,7 +5725,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
-  /// [value] may be worked out from what's stored now: [from].
+  /// A Savings answer or setting. Answers are quiet, like clearing a row;
+  /// ⌘Z undoes them. [value] may be worked out from what's stored now:
+  /// [from].
   Future<void> _setPref(
     String key,
     String? value,
@@ -6660,9 +6664,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                               label,
                                               toast: toast,
                                             ),
-                                    assign: (category, total) {
+                                    assign: (category, total, label) {
                                       final day = dateOnly(widget.clock());
-                                      _setBudgetAmount(category, (
+                                      _setBudgetAmount(label: label, category, (
                                         start: DateTime(day.year, day.month),
                                         end: DateTime(
                                           day.year,

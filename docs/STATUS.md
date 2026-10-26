@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-26** · version 0.49.0 · schema v21 · 846 tests pass
+**Last updated: 2026-10-26** · version 0.50.2 · schema v21 · 856 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,13 +11,24 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Next: the Savings page's fine-tooth comb (#164)**, the way the Ledger's (#162) and
-the Budget page's (#163) went: four reviews (`code-reviewer`, `budget-app-expert`,
-`ux-writer`, `interaction-designer`) run at once, the page drawn with years of demo
-rows in day, night and Mongolian at 1360 × 760, findings written into the issue as
-checkboxes, the owner asked only about how money is counted or shown (two or three
-at a time, with a screen example), the rest fixed in a PR each for money, keys and
-words. Payees (#165) comes after.
+**Next: the Payees page's fine-tooth comb (#165)**, the way the Ledger's, Budget's
+and Savings' went: four reviews (`code-reviewer`, `budget-app-expert`, `ux-writer`,
+`interaction-designer`) run at once, the page drawn with years of demo rows in day,
+night and Mongolian at 1360 × 760, findings written into the issue as checkboxes,
+the owner asked only about how money is counted or shown (two or three at a time,
+with a screen example), the rest fixed in a PR each for money, keys and words.
+
+**The Savings comb is done** (0.50.0–0.50.2, #164; ADR 0004 "The Savings page's
+fine-tooth comb: three answers", "The Savings page by keys and mouse", "The Savings
+page's words"). Each category's Edit asks **In a month of expenses?** (Yes by
+default; `ready.out.<id>`, `inMonthOfExpenses`); step 1 keeps its check and says
+when the budget has assigned more than there is; the pension taken from pay counts
+for retirement. Savings counts in the Safety net's currency (`savingsCurrency`); a
+card is judged paid in full by what it owed five weeks ago; Assign leaves this
+month's bills their money and shows on step 3 too. The month and rate fields are
+held by the screen (`_SavingsKeep`), with Cancel and a click away. A step put off
+reads "Skipped for now". Left on #164 for later: a loan paid by transfer drifting
+to ₮0 while the bank still has it owing.
 
 **Done:** the Ledger comb (0.46.3–0.47.1; ADR 0004 "The Ledger's fine-tooth comb"
 and "Settled in the comb's follow-ups") and the Budget comb (0.48.0–0.48.2; ADR 0004
@@ -456,7 +467,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 | Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row and on the phone, each opening the same questions |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
-| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest, listed most first once two have one), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or set aside. The page fills the window. Counts one currency ("another currency, not counted yet") |
+| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest, listed most first once two have one), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or skipped for now. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |

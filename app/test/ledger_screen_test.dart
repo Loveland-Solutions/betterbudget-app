@@ -266,7 +266,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('step-future-aside')));
     await settle(tester);
     await settle(tester);
-    expect(find.text('Set aside'), findsOneWidget);
+    expect(find.text('Skipped for now'), findsOneWidget);
     // ⌘Z brings it back.
     await tester.runAsync(() async {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -275,7 +275,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('Set aside'), findsNothing);
+    expect(find.text('Skipped for now'), findsNothing);
     expect(
       (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.setAside],
       isNull,
@@ -581,7 +581,7 @@ void main() {
       findsOneWidget,
     );
     // Still theirs to change.
-    expect(find.text('Type your own month'), findsOneWidget);
+    expect(find.text('Type your own amount'), findsOneWidget);
 
     // On Budget it sits apart, under Saved, and can't be deleted.
     final data = (await tester.runAsync(db.loadLedger))!;
