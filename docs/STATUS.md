@@ -67,7 +67,8 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 out on the phone against what's left now (ADR 0005 "The phone's ring";
 `usedShareNow`); the owner's Pixel needs a new Play build to see it.
 
-**Play's Internal testing has 0.52.0 (build 489)**, uploaded 2026-10-26 with
+**Google Play's production track has 0.52.0 (build 489)**, moved there from
+Internal testing by the owner on 2026-10-26; uploaded the same day with
 `app/tool/release_play.sh` from main (the phone fills a remembered payee). A phone
 change after it needs a new one. Before offering one, compare this line with
 `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
