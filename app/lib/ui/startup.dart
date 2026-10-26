@@ -16,6 +16,7 @@ import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/ledger_file.dart';
+import '../data/problem_log.dart';
 import '../data/report_problem.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
 import '../domain/setup.dart' show SetupKeys;
@@ -97,6 +98,7 @@ class BetterBudgetStartup extends StatefulWidget {
     required this.ledgerFile,
     required this.open,
     this.clock = DateTime.now,
+    this.problems,
   });
 
   final KeyStore store;
@@ -108,6 +110,10 @@ class BetterBudgetStartup extends StatefulWidget {
   /// converts its old plain copies.
   final Future<OpenedLedger> Function(Uint8List key) open;
   final DateTime Function() clock;
+
+  /// Recent problems (#294): a failed start goes in it, and Settings shows
+  /// it; null keeps none (tests).
+  final ProblemLog? problems;
 
   @override
   State<BetterBudgetStartup> createState() => _BetterBudgetStartupState();
@@ -129,6 +135,10 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
 
   /// Whether the failure screen is showing the error itself.
   bool _details = false;
+
+  /// The failure last put in the record of problems, so a screen built
+  /// again doesn't put it in twice.
+  _Failed? _recorded;
 
   /// Whether the browser wouldn't open Report a problem…'s form; there is no
   /// popup here, so the screen says where the form is.
@@ -458,6 +468,16 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     if (mounted) setState(() => _reportFailed = !opened);
   }
 
+  /// A failed start goes in the record of problems once, in the words the
+  /// screen shows.
+  _Failed _record(Words t, _Failed f) {
+    if (!identical(f, _recorded)) {
+      _recorded = f;
+      unawaited(widget.problems?.record(_failure(t, f), _failureDetails(t, f)));
+    }
+    return f;
+  }
+
   Widget _failedScreen(Words t, _Failed f) {
     final note = _failureNote(t, f);
     return Scaffold(
@@ -608,7 +628,8 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
       offerRestore: offerBackup,
       startFrom: offerBackup ? _startFrom : null,
       startPath: offerBackup ? _startPath : null,
+      problems: widget.problems,
     ),
-    final _Failed f => _failedScreen(t, f),
+    final _Failed f => _failedScreen(t, _record(t, f)),
   };
 }

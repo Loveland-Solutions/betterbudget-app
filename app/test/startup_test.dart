@@ -9,6 +9,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/keys.dart';
+import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/recovery_key_screen.dart';
@@ -144,6 +145,7 @@ void main() {
   late Directory dir;
   late File file;
   late _FakeSecureStorage storage;
+  late ProblemLog problems;
   final opened = <AppDatabase>[];
 
   setUp(() async {
@@ -151,6 +153,11 @@ void main() {
     file = File('${dir.path}/betterbudget.sqlite');
     storage = _FakeSecureStorage();
     FlutterSecureStoragePlatform.instance = storage;
+    problems = ProblemLog(
+      File('${dir.path}/problems'),
+      now: () => now,
+      version: () async => '0.56.0',
+    );
   });
   tearDown(() async {
     opened.clear();
@@ -229,6 +236,7 @@ void main() {
           ledgerFile: file,
           open: opener ?? open,
           clock: () => now,
+          problems: problems,
         ),
       );
     });
@@ -387,6 +395,15 @@ void main() {
       },
     );
     expect(find.text('Couldn’t open your ledger'), findsOne);
+    // Kept in the record of problems, once, in the screen's words.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    expect(problems.recent.single.message, 'Couldn’t open your ledger');
+    expect(
+      problems.recent.single.reason,
+      "FileSystemException: The disk is busy, path = ''",
+    );
 
     // Report a problem… opens lls.mn's form; a browser that won't open it
     // leaves the address on the screen.

@@ -767,6 +767,41 @@ class WordsEn extends Words {
   String get detailsCopied => 'Copied';
 
   @override
+  String get recentProblemsTitle => 'Recent problems';
+
+  @override
+  String get recentProblemsNote =>
+      'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.';
+
+  @override
+  String get phoneRecentProblemsNote =>
+      'Kept on this phone only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.';
+
+  @override
+  String get recentProblemsCopyAll => 'Copy all';
+
+  @override
+  String recentProblemsMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count earlier problems are in Copy all.',
+      one: '1 earlier problem is in Copy all.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneProblemFolderLost => 'Couldn’t find the folder chosen before';
+
+  @override
+  String get phoneProblemNotWritten =>
+      'Couldn’t write this phone’s entries to the folder. They’re kept on the phone and tried again.';
+
+  @override
+  String get phoneProblemNotKept => 'Couldn’t keep this phone’s entries';
+
+  @override
   String get ledgerBackupsTitle => 'Backups';
 
   @override

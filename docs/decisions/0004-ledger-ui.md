@@ -4451,3 +4451,22 @@ the form themselves. It reads Copied for two seconds; no popup, since popups are
 saved changes. Nothing goes into the link, so `PRIVACY.md` is unchanged. The reason
 can hold a file path with the user's name; they see it before they paste it.
 
+**Recent problems** (#294, owner, 2026-10-27: "Should we log them somewhere we can
+access for troubleshooting?"). Chosen: a **Recent problems** card in Settings, after
+Start over and above the version, only while it holds something: the newest five, each
+with when and the version, the line the person saw and the reason, "N earlier problems
+are in Copy all", and **Copy all** for the form. The phone too (owner, against a
+recommendation to start with the computer): a line above Report a problem… at the foot
+of Budget opens a page with all of them. Kept on the device in a plain file,
+`problems`, beside the app's others, so it can be read when the ledger won't open; the
+newest 100 within 90 days; never sent. What goes in: on the computer every failure
+popup that has Details (a refusal or a nudge without a reason is the person's own
+doing) and the failed-start screen; on the phone what its problem screens show, and a
+failed write of its entries to the folder, once per run of failures. **No amounts go
+in** (owner): a reason is kept by its error's type, the system's errors and the
+database's with their words (the database's without the statement and values after
+it), every other as its type's name alone, since the app's own can name an amount
+("Off by …", a plan's text, a bank file's line). `PRIVACY.md` section 3 says so, and
+section 5 names Copy and Copy all. Rejected: a plain file with Show the file (the form
+takes no attachments); no record at all.
+

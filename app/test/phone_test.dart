@@ -10,6 +10,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
+import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart'
     show AccountType, CategoryPlan, LedgerData, PlanKind, RowKind;
@@ -43,6 +44,7 @@ Future<PhoneStore> _pump(
   WidgetTester tester, {
   PhoneSnapshot? snapshot,
   Size size = const Size(390, 844),
+  ProblemLog? problems,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -50,7 +52,9 @@ Future<PhoneStore> _pump(
   final store = PhoneStore(
     snapshot ?? previewSnapshot(DateTime(2026, 10, 7, 8, 10)),
   );
-  await tester.pumpWidget(PhoneApp(store: store, now: () => _now));
+  await tester.pumpWidget(
+    PhoneApp(store: store, now: () => _now, problems: problems),
+  );
   await tester.pumpAndSettle();
   return store;
 }
@@ -336,6 +340,66 @@ void main() {
     final link = Uri.parse(browser.opened.single);
     expect('${link.host}${link.path}', 'lls.mn/en/contact/');
     expect(link.queryParameters['from'], 'betterbudget');
+  });
+
+  testWidgets('Recent problems sits above Report a problem… while there are '
+      'any, and Copy all copies them', (tester) async {
+    final dir = _phoneDir();
+    final problems = ProblemLog(
+      File('${dir.path}/problems'),
+      now: () => _now,
+      version: () async => '0.56.0',
+    );
+    await _pump(tester, problems: problems);
+    await _toBudget(tester);
+    final report = find.byKey(const ValueKey('report-problem'));
+    await tester.scrollUntilVisible(
+      report,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.byKey(const ValueKey('recent-problems')), findsNothing);
+
+    await tester.runAsync(
+      () => problems.record(
+        'Couldn’t write this phone’s entries to the folder. They’re kept on '
+        'the phone and tried again.',
+        PlatformException(code: 'offline', message: 'No connection'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('recent-problems')));
+    await tester.pumpAndSettle();
+    expect(find.text('Recent problems'), findsOneWidget);
+    expect(
+      find.text('PlatformException(offline, No connection, null, null)'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_recent_problems.png'),
+    );
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('copy-all-problems')));
+    await tester.pump();
+    expect(copied.single, startsWith('${_stamp(_now)} · 0.56.0\n'));
+    expect(find.text('Copied'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('a long name beside a large amount drops the cents', (
@@ -2955,6 +3019,7 @@ void main() {
       Uint8List? opens,
       Directory? dir,
       Map<String, PhoneTaken> Function()? taken,
+      ProblemLog? problems,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -2969,6 +3034,7 @@ void main() {
             folder: f,
             dir: dir ?? _phoneDir(),
             now: () => _now,
+            problems: problems,
             read:
                 (
                   bytes,
@@ -3065,6 +3131,34 @@ void main() {
       expect(find.text('Enter your recovery key'), findsOneWidget);
       // Typing the key is no problem yet.
       expect(find.byKey(const ValueKey('report-problem')), findsNothing);
+    });
+
+    testWidgets('a ledger the kept key no longer opens goes in the record', (
+      tester,
+    ) async {
+      final dir = _phoneDir();
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        opens: deriveDataKey(RecoveryKey.generate()),
+        problems: ProblemLog(
+          File('${dir.path}/problems'),
+          now: () => _now,
+          version: () async => '0.56.0',
+        ),
+      );
+      expect(find.byKey(const ValueKey('report-problem')), findsOneWidget);
+      // Read back from the file, as the next launch would.
+      final kept = ProblemLog(
+        File('${dir.path}/problems'),
+        now: () => _now,
+      ).recent.single;
+      expect(kept.reason, 'WrongKeyException');
+      expect(kept.version, '0.56.0');
     });
 
     testWidgets('a folder with no ledger says so, and another can be picked', (
@@ -3276,4 +3370,11 @@ class _FakeBrowser extends UrlLauncherPlatform {
     opened.add(url);
     return true;
   }
+}
+
+/// A time as Copy all writes it.
+String _stamp(DateTime at) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${at.year}-${two(at.month)}-${two(at.day)} '
+      '${two(at.hour)}:${two(at.minute)}';
 }

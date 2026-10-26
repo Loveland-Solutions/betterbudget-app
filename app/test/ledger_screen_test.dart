@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
@@ -85,6 +86,7 @@ void main() {
   Future<AppDatabase> pumpLedger(
     WidgetTester tester, {
     Size size = const Size(1440, 900),
+    ProblemLog? problems,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -100,6 +102,7 @@ void main() {
             demo: true,
             db: db,
             clock: () => DateTime(2026, 9, 16, 10),
+            problems: problems,
           ),
         ),
       );
@@ -8739,6 +8742,99 @@ void main() {
     await tester.tap(find.byIcon(Icons.close_rounded).last);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('toast-message')), findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a failure with Details goes in Settings’ Recent problems, '
+      'with Copy all', (tester) async {
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-problems'),
+    ))!;
+    final file = '${dir.path}/ST_BROKEN.xlsx';
+    await tester.runAsync(
+      () => File(file).writeAsBytes([0x50, 0x4B, 0x03, 0x04, 1, 2, 3, 4, 5]),
+    );
+    dialogs.openPath = file;
+    final problems = ProblemLog(
+      File('${dir.path}/problems'),
+      now: () => DateTime(2026, 9, 16, 9, 40),
+      version: () async => '0.56.0',
+    );
+    final db = await pumpLedger(tester, problems: problems);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('import')));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await settle(tester);
+    expect(find.byKey(const ValueKey('toast-why')), findsOneWidget);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    expect(problems.recent.single.reason, 'UnreadableFileException');
+
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    final card = find.byKey(const ValueKey('recent-problems'));
+    await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text(
+          'Couldn’t read ST_BROKEN.xlsx. The file may be damaged; download it '
+          'from your bank again.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('Today 09:40 · 0.56.0')),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/settings_recent_problems.png'),
+    );
+    final copied = _catchClipboard(tester);
+    await tester.tap(find.byKey(const ValueKey('copy-all-problems')));
+    await tester.pump();
+    expect(copied, [
+      '2026-09-16 09:40 · 0.56.0\n'
+          'Couldn’t read ST_BROKEN.xlsx. The file may be damaged; download it '
+          'from your bank again.\n'
+          'UnreadableFileException',
+    ]);
+    expect(find.text('Copied'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tidy(tester, db);
+  });
+
+  testWidgets('Settings has no Recent problems while there are none', (
+    tester,
+  ) async {
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-problems'),
+    ))!;
+    final problems = ProblemLog(
+      File('${dir.path}/problems'),
+      now: () => DateTime(2026, 9, 16, 9, 40),
+      version: () async => '0.56.0',
+    );
+    final db = await pumpLedger(tester, problems: problems);
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('recent-problems')), findsNothing);
+    // One arrives while Settings is open: the card comes with it.
+    await tester.runAsync(
+      () => problems.record('Couldn’t save the row', 'Reason'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('recent-problems')), findsOneWidget);
     await tidy(tester, db);
   });
 

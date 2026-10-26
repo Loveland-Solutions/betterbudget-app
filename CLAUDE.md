@@ -27,7 +27,8 @@ into the docs.
   `Loveland-Solutions/betterbudget` (no copy here), copied to
   https://lls.mn/en/betterbudget/privacy/, the address every store's listing gives. It says what the app stores and
   where: on the device, encrypted, a folder the user picks, files the user saves, bank
-  files read on the device, bug reports through lls.mn's contact form. A change that puts data anywhere
+  files read on the device, a plain record of recent problems on the device (no
+  amounts; `data/problem_log.dart`), bug reports through lls.mn's contact form. A change that puts data anywhere
   new, or alters what Report a bug fills in, updates it and its "Last updated" date
   first, and the website's copy with it.
 

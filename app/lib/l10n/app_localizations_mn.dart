@@ -762,6 +762,41 @@ class WordsMn extends Words {
   String get detailsCopied => 'Хуулсан';
 
   @override
+  String get recentProblemsTitle => 'Сүүлийн асуудлууд';
+
+  @override
+  String get recentProblemsNote =>
+      'Зөвхөн энэ компьютерт хадгалагдана. Бидэнд мэдэгдэхийн тулд «Бүгдийг хуулах»-ыг дараад, «Асуудал мэдэгдэх…»-ийн нээх маягтад буулгана уу.';
+
+  @override
+  String get phoneRecentProblemsNote =>
+      'Зөвхөн энэ утсанд хадгалагдана. Бидэнд мэдэгдэхийн тулд «Бүгдийг хуулах»-ыг дараад, «Асуудал мэдэгдэх…»-ийн нээх маягтад буулгана уу.';
+
+  @override
+  String get recentProblemsCopyAll => 'Бүгдийг хуулах';
+
+  @override
+  String recentProblemsMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Өмнөх $count асуудал «Бүгдийг хуулах»-д багтсан.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneProblemFolderLost => 'Өмнө сонгосон хавтсыг олсонгүй';
+
+  @override
+  String get phoneProblemNotWritten =>
+      'Энэ утасны гүйлгээнүүдийг хавтас руу бичиж чадсангүй. Утсанд хадгалагдсан бөгөөд дахин оролдоно.';
+
+  @override
+  String get phoneProblemNotKept =>
+      'Энэ утасны гүйлгээнүүдийг хадгалж чадсангүй';
+
+  @override
   String get ledgerBackupsTitle => 'Нөөц хуулбар';
 
   @override

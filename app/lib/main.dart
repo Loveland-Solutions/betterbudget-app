@@ -9,6 +9,7 @@ import 'data/backup.dart';
 import 'data/database.dart';
 import 'data/keys.dart';
 import 'data/ledger_file.dart';
+import 'data/problem_log.dart';
 import 'data/store_folder.dart';
 import 'ui/appearance.dart';
 import 'ui/language.dart';
@@ -52,6 +53,9 @@ Future<void> main() async {
         child: BetterBudgetStartup(
           store: KeyStore(),
           ledgerFile: ledgerFile,
+          // Beside the ledger, plain, so it's there when the ledger won't
+          // open (#294).
+          problems: ProblemLog(File('${dir.path}/problems')),
           open: (dataKey) async {
             final db = await AppDatabase.openEncrypted(dataKey);
             final backups = Backups(db, dataKey: dataKey);
