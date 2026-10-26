@@ -1964,10 +1964,14 @@ class CategoryChip extends StatelessWidget {
     required this.label,
     required this.open,
     required this.onTap,
+    this.arrow = true,
   });
   final String label;
   final bool open;
   final VoidCallback onTap;
+
+  /// The ▾ on hover: off where a click opens something else than a list.
+  final bool arrow;
 
   @override
   Widget build(BuildContext context) => Hoverable(
@@ -2001,7 +2005,7 @@ class CategoryChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (hover || open) ...[
+          if ((hover && arrow) || open) ...[
             const SizedBox(width: 4),
             Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: Mid.ink2),
           ],
@@ -2022,11 +2026,16 @@ class CategoryMenu extends StatelessWidget {
     this.current,
     this.leading = const [],
     this.controller,
+    this.consumeOutsideTap = false,
   });
 
   /// For a panel that wants to close the list itself (Esc closes a dropdown
   /// before it closes the panel).
   final MenuController? controller;
+
+  /// A click outside closes the list and nothing else: in a panel that a
+  /// click away closes, one click shouldn't close both.
+  final bool consumeOutsideTap;
 
   /// Choices that aren't categories, listed first (a pay, by its name).
   final List<({String label, VoidCallback onTap})> leading;
@@ -2040,6 +2049,7 @@ class CategoryMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return MenuAnchor(
       controller: controller,
+      consumeOutsideTap: consumeOutsideTap,
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(Mid.raised),
         shape: WidgetStatePropertyAll(

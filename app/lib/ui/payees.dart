@@ -9,7 +9,18 @@ part of 'ledger_screen.dart';
 
 /// What the page changes.
 class _PayeesActions {
-  const _PayeesActions({required this.save, required this.delete});
+  const _PayeesActions({
+    required this.save,
+    required this.delete,
+    required this.unsaved,
+    required this.opened,
+  });
+
+  /// An Edit opened.
+  final VoidCallback opened;
+
+  /// Another Edit or a new payee was asked for while one holds typing.
+  final VoidCallback unsaved;
 
   /// A payee saved from its Edit: new ([before] null) or changed. False
   /// when it wasn't saved (the words are another line's): the Edit stays.
@@ -161,9 +172,11 @@ class _PayeesPage extends StatefulWidget {
     required this.today,
     required this.pays,
     required this.actions,
+    required this.keep,
   });
   final LedgerData data;
   final DateTime today;
+  final _PayeeKeep keep;
 
   /// Each pay as a row's dropdown names it.
   final List<({int id, int accountId, String label})> pays;
@@ -174,30 +187,95 @@ class _PayeesPage extends StatefulWidget {
 }
 
 class _PayeesPageState extends State<_PayeesPage> {
-  /// The payee whose Edit is open, or null; [_adding] for a new one.
-  int? _open;
-  bool _adding = false;
+  _PayeeKeep get _keep => widget.keep;
+  int? get _open => _keep.open;
+  bool get _adding => _keep.adding;
 
   /// The open Edit's way to close a dropdown of its own, while it has one.
   bool Function()? _closeEditMenu;
 
+  /// Each line's focus, so it can be given back after its Edit closes.
+  final _lineFocus = <int, FocusNode>{};
+  final _addFocus = FocusNode(debugLabel: 'payee-add');
+
+  FocusNode _focusOf(int id) =>
+      _lineFocus[id] ??= FocusNode(debugLabel: 'payee-line-$id');
+
+  @override
+  void dispose() {
+    for (final f in _lineFocus.values) {
+      f.dispose();
+    }
+    _addFocus.dispose();
+    super.dispose();
+  }
+
+  /// After the frame: the line or button is on screen again by then.
+  void _focusLater(FocusNode Function() which) =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final f = which();
+        if (f.context != null) f.requestFocus();
+      });
+
   /// Esc reached the screen with an Edit open: a dropdown open in it closes
-  /// first, else the Edit, as from inside. False with none open.
+  /// first, else the Edit, as from inside. False with none open. Focus goes
+  /// back to the line it was opened from, or Add a payee.
   bool closeEdit() {
     if (_open == null && !_adding) return false;
     if (_closeEditMenu?.call() ?? false) return true;
-    setState(() {
-      _open = null;
-      _adding = false;
-    });
+    final was = _open;
+    setState(_keep.close);
+    _focusLater(() => was == null ? _addFocus : _focusOf(was));
     return true;
   }
 
-  /// "+ Add a payee", and ⌘N on this page.
-  void addNew() => setState(() {
-    _open = null;
-    _adding = true;
-  });
+  /// "+ Add a payee", and ⌘N on this page. False when an open Edit holds
+  /// typing, which isn't thrown away: the screen says so.
+  bool addNew() {
+    if (_adding) return true;
+    if (_keep.dirty) return false;
+    setState(() {
+      _keep.close();
+      _keep.adding = true;
+    });
+    widget.actions.opened();
+    return true;
+  }
+
+  /// A line clicked: its Edit opens, unless another holds typing.
+  bool _openLine(int id) {
+    if (_keep.dirty && _open != id) return false;
+    setState(() {
+      if (_open != id) _keep.close();
+      _keep.open = id;
+    });
+    widget.actions.opened();
+    return true;
+  }
+
+  /// An undo or redo changed [id]: an Edit open on it is out of date.
+  void changed(int id) {
+    if (_open == id) setState(_keep.close);
+  }
+
+  void _menus(bool Function()? close, bool Function()? gone) {
+    if (close != null) {
+      _closeEditMenu = close;
+    } else if (identical(_closeEditMenu, gone)) {
+      _closeEditMenu = null;
+    }
+  }
+
+  /// Deleted: focus goes to the next line, or Add a payee with none left.
+  void _deleted(List<PayeeRuleInfo> rules, PayeeRuleInfo r) {
+    final i = rules.indexOf(r);
+    final next = i + 1 < rules.length
+        ? rules[i + 1]
+        : (i > 0 ? rules[i - 1] : null);
+    widget.actions.delete(r);
+    _focusLater(() => next == null ? _addFocus : _focusOf(next.id));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -215,8 +293,9 @@ class _PayeesPageState extends State<_PayeesPage> {
             data: data,
             today: widget.today,
             pays: widget.pays,
+            draft: _keep.of(null, data),
             onCancel: closeEdit,
-            menus: (close) => _closeEditMenu = close,
+            menus: _menus,
             onSave: (after) async {
               final saved = await widget.actions.save(null, after);
               if (saved && mounted) closeEdit();
@@ -246,7 +325,10 @@ class _PayeesPageState extends State<_PayeesPage> {
                     key: const ValueKey('payee-add'),
                     label: t.payeesAdd,
                     icon: Icons.add_rounded,
-                    onTap: addNew,
+                    focusNode: _addFocus,
+                    onTap: () {
+                      if (!addNew()) widget.actions.unsaved();
+                    },
                   ),
                 ],
               ),
@@ -308,8 +390,9 @@ class _PayeesPageState extends State<_PayeesPage> {
                                       today: widget.today,
                                       pays: widget.pays,
                                       rule: r,
+                                      draft: _keep.of(r, data),
                                       onCancel: closeEdit,
-                                      menus: (close) => _closeEditMenu = close,
+                                      menus: _menus,
                                       onSave: (after) async {
                                         final saved = await widget.actions.save(
                                           r,
@@ -320,7 +403,7 @@ class _PayeesPageState extends State<_PayeesPage> {
                                       },
                                       onDelete: () {
                                         closeEdit();
-                                        widget.actions.delete(r);
+                                        _deleted(rules, r);
                                       },
                                     )
                                   else
@@ -330,11 +413,13 @@ class _PayeesPageState extends State<_PayeesPage> {
                                       data: data,
                                       pays: widget.pays,
                                       showAccounts: accounts,
-                                      onOpen: () => setState(() {
-                                        _adding = false;
-                                        _open = r.id;
-                                      }),
-                                      onDelete: () => widget.actions.delete(r),
+                                      focusNode: _focusOf(r.id),
+                                      onOpen: () {
+                                        if (!_openLine(r.id)) {
+                                          widget.actions.unsaved();
+                                        }
+                                      },
+                                      onDelete: () => _deleted(rules, r),
                                     ),
                               ],
                             ),
@@ -361,7 +446,9 @@ class _PayeeLine extends StatelessWidget {
     required this.showAccounts,
     required this.onOpen,
     required this.onDelete,
+    this.focusNode,
   });
+  final FocusNode? focusNode;
   final PayeeRuleInfo rule;
   final LedgerData data;
   final List<({int id, int accountId, String label})> pays;
@@ -376,6 +463,7 @@ class _PayeeLine extends StatelessWidget {
     final t = context.t;
     return Hoverable(
       onTap: onOpen,
+      focusNode: focusNode,
       builder: (hover) => Container(
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -409,10 +497,15 @@ class _PayeeLine extends StatelessWidget {
               flex: 4,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: CategoryChip(
-                  label: _ruleLabel(t, data, rule, pays),
-                  open: false,
-                  onTap: onOpen,
+                // Part of the line, which opens the Edit: not a Tab stop of
+                // its own, and no ▾ (it isn't a list).
+                child: ExcludeFocus(
+                  child: CategoryChip(
+                    label: _ruleLabel(t, data, rule, pays),
+                    open: false,
+                    onTap: onOpen,
+                    arrow: false,
+                  ),
                 ),
               ),
             ),
@@ -447,14 +540,18 @@ class _PayeeEditor extends StatefulWidget {
     required this.pays,
     required this.onCancel,
     required this.onSave,
+    required this.draft,
     this.rule,
     this.onDelete,
     this.menus,
   });
 
-  /// Told how to close a dropdown open in the Edit (null once it's gone),
-  /// so Esc from anywhere closes that before the Edit.
-  final void Function(bool Function()? close)? menus;
+  /// Told how to close a dropdown open in the Edit, so Esc from anywhere
+  /// closes that before the Edit; and when that one is gone ([gone]).
+  final void Function(bool Function()? close, bool Function()? gone)? menus;
+
+  /// What's typed, held by the screen so another page or ⌘N doesn't lose it.
+  final _PayeeDraft draft;
   final LedgerData data;
   final DateTime today;
   final List<({int id, int accountId, String label})> pays;
@@ -472,38 +569,44 @@ class _PayeeEditor extends StatefulWidget {
 }
 
 class _PayeeEditorState extends State<_PayeeEditor> {
-  late final _name = TextEditingController(text: widget.rule?.name ?? '');
+  _PayeeDraft get _d => widget.draft;
+  TextEditingController get _name => _d.name;
+  bool get _anywhere => _d.anywhere;
+  set _anywhere(bool v) => _d.anywhere = v;
+  Set<int> get _accounts => _d.accounts;
+  int? get _categoryId => _d.categoryId;
+  set _categoryId(int? v) => _d.categoryId = v;
+  int? get _payId => _d.payId;
+  set _payId(int? v) => _d.payId = v;
+
+  /// Save found the words to be another line's.
+  bool get _clash => _d.clash;
+  set _clash(bool v) => _d.clash = v;
+
+  /// Save was tried: what's missing is said.
+  bool get _tried => _d.tried;
+  set _tried(bool v) => _d.tried = v;
   final _nameFocus = FocusNode(debugLabel: 'payee-words');
   final _panelFocus = FocusNode(debugLabel: 'payee-edit', skipTraversal: true);
   final _accountsMenu = MenuController();
   final _categoryMenu = MenuController();
-  late bool _anywhere = widget.rule?.anywhere ?? false;
-
-  /// Nothing is filled in for them (owner: no autofill); with one account
-  /// there is no choice to make.
-  late final Set<int> _accounts = {
-    // A deleted account isn't kept unseen: it can't be unticked.
-    for (final id in widget.rule?.accountIds ?? const <int>{})
-      if (widget.data.accounts[id] case final a? when !a.deleted) id,
-    if (widget.rule == null && widget.data.openAccounts.length == 1)
-      widget.data.openAccounts.single.id,
-  };
-
-  /// Save found the words to be another line's.
-  bool _clash = false;
-  late int? _categoryId = widget.rule?.categoryId;
-  late int? _payId = widget.rule?.payId;
-
-  /// Save was tried: what's missing is said.
-  bool _tried = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _name.addListener(() => setState(() => _clash = false));
+    _name.addListener(_typed);
+    // Opened low in the list: its Cancel and Save come into view.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 180),
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
     _nameFocus.addListener(_keepKeys);
-    widget.menus?.call(_closeMenu);
+    widget.menus?.call(_closeMenu, null);
   }
 
   /// The field gave the keys up to nothing in particular (a click on a
@@ -540,10 +643,13 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     return false;
   }
 
+  void _typed() => setState(() => _clash = false);
+
   @override
   void dispose() {
-    widget.menus?.call(null);
-    _name.dispose();
+    // Only its own: a new Edit may have told the page its own already.
+    widget.menus?.call(null, _closeMenu);
+    _name.removeListener(_typed);
     _nameFocus.dispose();
     _panelFocus.dispose();
     super.dispose();
@@ -582,6 +688,8 @@ class _PayeeEditorState extends State<_PayeeEditor> {
 
   Future<void> _save() async {
     if (_saving) return;
+    // Nothing changed: nothing to remember again, no popup, no empty undo.
+    if (widget.rule != null && !_d.changed) return widget.onCancel();
     final category = _categoryId;
     if (_words.isEmpty || category == null || _accounts.isEmpty) {
       setState(() => _tried = true);
@@ -684,16 +792,26 @@ class _PayeeEditorState extends State<_PayeeEditor> {
             if (elsewhere > 0) t.payeesElsewhere(elsewhere),
           ].join(' · ');
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () {
-          if (!_closeMenu()) widget.onCancel();
-        },
-        const SingleActivator(LogicalKeyboardKey.enter): () {
-          if (!_closeMenu()) _save();
-        },
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+        SingleActivator(LogicalKeyboardKey.enter): _SaveIntent(),
       },
-      child: Focus(
+      child: Actions(
+        actions: {
+          DismissIntent: CallbackAction<DismissIntent>(
+            onInvoke: (_) {
+              if (!_closeMenu()) widget.onCancel();
+              return null;
+            },
+          ),
+          // With a list open, Enter is its item's (code review, 2026-10-26).
+          _SaveIntent: _WhenNoMenu(
+            () => !_accountsMenu.isOpen && !_categoryMenu.isOpen,
+            _save,
+          ),
+        },
+        child: Focus(
         focusNode: _panelFocus,
         skipTraversal: true,
         // A click in the panel leaves the cursor where it is, and isn't a
@@ -844,6 +962,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                     label: t.payeesColumnFiled,
                     child: CategoryMenu(
                       controller: _categoryMenu,
+                      consumeOutsideTap: true,
                       leading: [
                         for (final p in pays)
                           (
@@ -988,6 +1107,104 @@ class _PayeeEditorState extends State<_PayeeEditor> {
           ),
         ),
       ),
+      ),
     );
+  }
+}
+
+class _SaveIntent extends Intent {
+  const _SaveIntent();
+}
+
+/// [run], but only while [enabled]: otherwise the key goes on, to an open
+/// list's item.
+class _WhenNoMenu extends Action<_SaveIntent> {
+  _WhenNoMenu(this.enabled, this.run);
+  final bool Function() enabled;
+  final VoidCallback run;
+
+  @override
+  bool isEnabled(_SaveIntent intent) => enabled();
+
+  @override
+  Object? invoke(_SaveIntent intent) {
+    run();
+    return null;
+  }
+}
+
+/// What's typed in a payee's Edit: kept by the screen while the page is
+/// left (as Budget keeps its Edit, #272), and compared with how it opened.
+class _PayeeDraft {
+  _PayeeDraft(PayeeRuleInfo? rule, LedgerData data)
+    : id = rule?.id,
+      name = TextEditingController(text: rule?.name ?? ''),
+      anywhere = rule?.anywhere ?? false,
+      // Nothing is filled in for them (owner: no autofill); with one
+      // account there is no choice to make. A deleted account isn't kept
+      // unseen: it couldn't be unticked.
+      accounts = {
+        for (final id in rule?.accountIds ?? const <int>{})
+          if (data.accounts[id] case final a? when !a.deleted) id,
+        if (rule == null && data.openAccounts.length == 1)
+          data.openAccounts.single.id,
+      },
+      categoryId = rule?.categoryId,
+      payId = rule?.payId {
+    _start = _now;
+  }
+
+  /// The payee's id; null for a new one.
+  final int? id;
+  final TextEditingController name;
+  bool anywhere;
+  final Set<int> accounts;
+  int? categoryId;
+  int? payId;
+  bool clash = false;
+  bool tried = false;
+  late final String _start;
+
+  String get _now =>
+      '${name.text}|$anywhere|${(accounts.toList()..sort()).join(',')}|'
+      '$categoryId|$payId';
+
+  /// Something was changed since it opened.
+  bool get changed => _now != _start;
+
+  void dispose() => name.dispose();
+}
+
+/// Which Edit is open on the Payees page and what's typed in it, held by
+/// the screen across pages.
+class _PayeeKeep {
+  /// The payee whose Edit is open, or null; [adding] for a new one.
+  int? open;
+  bool adding = false;
+  _PayeeDraft? draft;
+
+  /// The draft for [rule] (null: a new payee), made when it opens.
+  _PayeeDraft of(PayeeRuleInfo? rule, LedgerData data) {
+    final d = draft;
+    if (d != null && d.id == rule?.id) return d;
+    clear();
+    return draft = _PayeeDraft(rule, data);
+  }
+
+  /// Something typed would be lost by opening another.
+  bool get dirty => draft?.changed ?? false;
+
+  void close() {
+    open = null;
+    adding = false;
+    clear();
+  }
+
+  /// A frame later: the fields may still be on screen this frame.
+  void clear() {
+    final d = draft;
+    if (d == null) return;
+    draft = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
   }
 }

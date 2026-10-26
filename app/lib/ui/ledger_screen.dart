@@ -143,6 +143,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// The Savings field open and what's typed in it, kept across pages.
   final _savingsKeep = _SavingsKeep();
+
+  /// The Payees page's open Edit, kept across pages.
+  final _payeeKeep = _PayeeKeep();
   final _payeesKey = GlobalKey<_PayeesPageState>();
   final _setupKey = GlobalKey<_SetupPageState>();
   int? _accountId;
@@ -1094,6 +1097,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _registerFocus.dispose();
     _budgetEdit.draft?.dispose();
     _savingsKeep.dispose();
+    _payeeKeep.draft?.dispose();
     _hoveredStatus.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
@@ -2106,7 +2110,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     // On the Payees page it adds a payee.
     if (_section == AppSection.payees) {
-      _payeesKey.currentState?.addNew();
+      // An Edit holding typing isn't thrown away for it.
+      if (_payeesKey.currentState?.addNew() == false) {
+        _showFailure(context.t.ledgerSaveOrDiscard);
+      }
       return;
     }
     // One row open for typing at a time: an untouched Edit closes, one
@@ -4269,12 +4276,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
       undo: () => before == null
           ? db.removePayeeRule(saved.id)
           : db.transaction(() async {
+              // An Edit open on it would hold what was undone.
+              _payeesKey.currentState?.changed(saved.id);
               await db.putPayeeRule(before);
               for (final x in twins) {
                 await db.putPayeeRule(x);
               }
             }),
       redo: () => db.transaction(() async {
+        _payeesKey.currentState?.changed(saved.id);
         await db.putPayeeRule(saved);
         for (final x in twins) {
           await db.putPayeeRule(x.copyWith(deleted: true));
@@ -4307,8 +4317,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         _ruleLabel(t, data, rule, _payChoices(data)),
       ),
       detail: rule.name,
-      undo: () => db.putPayeeRule(rule),
-      redo: () => db.putPayeeRule(gone),
+      undo: () {
+        _payeesKey.currentState?.changed(rule.id);
+        return db.putPayeeRule(rule);
+      },
+      redo: () {
+        _payeesKey.currentState?.changed(rule.id);
+        return db.putPayeeRule(gone);
+      },
     );
   }
 
@@ -6692,9 +6708,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   data: data,
                                   today: today,
                                   pays: _payChoices(data),
+                                  keep: _payeeKeep,
                                   actions: _PayeesActions(
                                     save: _savePayeeRule,
                                     delete: _deletePayeeRule,
+                                    unsaved: () => _showFailure(
+                                      context.t.ledgerSaveOrDiscard,
+                                    ),
+                                    // The popup would lie over Cancel and
+                                    // Save; ⌘Z still undoes what it said.
+                                    opened: _closeToast,
                                   ),
                                 ),
                                 AppSection.savings => _SavingsPage(
@@ -8784,10 +8807,12 @@ class _PrimaryButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.tooltip,
+    this.focusNode,
   });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
 
   /// Its shortcut; ⌘N (Ctrl+N) unless given.
   final String? tooltip;
@@ -8800,6 +8825,7 @@ class _PrimaryButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
+        focusNode: focusNode,
         borderRadius: BorderRadius.circular(9),
         hoverColor: Mid.onFill.withValues(alpha: 0.12),
         child: Container(

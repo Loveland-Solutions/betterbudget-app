@@ -10375,6 +10375,78 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('its Edit by keys and mouse: kept across pages, Enter in a '
+        'list picks, an unchanged Save just closes', (tester) async {
+      final db = await withRule(tester);
+      final line = find.text('starts with «Unitel»', findRichText: true);
+      await tester.tap(line);
+      await tester.pumpAndSettle();
+      final words = find.byKey(const ValueKey('payee-words'));
+      await tester.enterText(words, 'Unitel LLC');
+      await tester.pumpAndSettle();
+
+      // Another page and back: still open, as typed.
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Payees'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(words).controller!.text, 'Unitel LLC');
+
+      // ⌘N doesn't throw it away: it says so.
+      await chord(tester, LogicalKeyboardKey.keyN);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(words).controller!.text, 'Unitel LLC');
+      expect(find.byKey(const ValueKey('payee-edit-new')), findsNothing);
+
+      // Enter on an item in Category picks it.
+      await tester.enterText(words, 'Unitel');
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      final phone = find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text('Phone & internet'),
+      );
+      await tester.ensureVisible(phone);
+      await tester.pumpAndSettle();
+      Focus.of(tester.element(phone)).requestFocus();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('payee-category')),
+          matching: find.text('Phone & internet'),
+        ),
+        findsOneWidget,
+      );
+      // A click away from an open list closes the list, not the Edit.
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(1200, 40));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
+
+      // Esc closes it; focus is back on its line.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        startsWith('payee-line-'),
+      );
+
+      // Opened and saved with nothing changed: no popup, no new undo.
+      await tester.tap(line);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(find.text('Groceries remembered for next time'), findsNothing);
+      final rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.categoryId, isNot(0));
+      await tidy(tester, db);
+    });
+
     testWidgets('a remembered payee is a line that reads as a sentence', (
       tester,
     ) async {
