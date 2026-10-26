@@ -16,6 +16,7 @@ import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/ledger_file.dart';
+import '../data/report_problem.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
 import '../domain/setup.dart' show SetupKeys;
 import 'data_words.dart';
@@ -23,6 +24,7 @@ import 'fit_window.dart';
 import 'language.dart';
 import 'ledger_screen.dart';
 import 'recovery_key_screen.dart';
+import 'register.dart' show Hoverable;
 import 'start_choice.dart';
 import 'theme.dart';
 
@@ -126,6 +128,10 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
 
   /// Whether the failure screen is showing the error itself.
   bool _details = false;
+
+  /// Whether the browser wouldn't open Report a problem…'s form; there is no
+  /// popup here, so the screen says where the form is.
+  bool _reportFailed = false;
 
   File get _file => widget.ledgerFile;
 
@@ -437,9 +443,18 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   void _retry(_Failed f) {
     setState(() {
       _details = false;
+      _reportFailed = false;
       _step = _Loading();
     });
     unawaited(f.retry());
+  }
+
+  /// Report a problem… (#292): lls.mn's form in the browser.
+  Future<void> _reportProblem(Words t) async {
+    final opened = await openReportProblem(
+      language: t.localeName.split('_').first,
+    );
+    if (mounted) setState(() => _reportFailed = !opened);
   }
 
   Widget _failedScreen(Words t, _Failed f) {
@@ -497,6 +512,28 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
                     _failureDetails(t, f),
                     key: const ValueKey('startup-details'),
                     style: onest(13, color: Mid.ink3, height: 1.4),
+                  ),
+                ],
+                // The ledger not opening is when it's needed most; quieter
+                // than Show details, like the sidebar's line.
+                const SizedBox(height: 28),
+                Hoverable(
+                  key: const ValueKey('report-problem'),
+                  onTap: () => _reportProblem(t),
+                  builder: (h) => Text(
+                    t.reportProblem,
+                    style: onest(13, color: h ? Mid.ink2 : Mid.ink3).copyWith(
+                      decoration: h ? TextDecoration.underline : null,
+                      decorationColor: Mid.ink2,
+                    ),
+                  ),
+                ),
+                if (_reportFailed) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    t.reportProblemFailed,
+                    key: const ValueKey('report-problem-failed'),
+                    style: onest(13, color: Mid.ink2, height: 1.4),
                   ),
                 ],
               ],
