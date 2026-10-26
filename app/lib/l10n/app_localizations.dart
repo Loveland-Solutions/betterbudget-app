@@ -8062,7 +8062,7 @@ abstract class Words {
   /// **'That key doesn’t open the ledger in {folder}. If the folder is still copying to this computer, try again in a minute.'**
   String startKeyWrongFolder(String folder);
 
-  /// Sidebar section, under Savings, and its page's heading: the payees that are always filed under one category.
+  /// Sidebar section, under Savings, and its page's heading: the payees the app remembers a category for.
   ///
   /// In en, this message translates to:
   /// **'Payees'**
@@ -8089,7 +8089,7 @@ abstract class Words {
   /// Popup card after Delete on the Payees page; the payee is on the line under it. Rows already filed stay. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
-  /// **'Deleted · new rows of this payee stop going to {category} by themselves'**
+  /// **'Deleted · {category} no longer remembered for next time'**
   String payeesDeletedMessage(String category);
 
   /// Payees page, the green button at the top right: opens an empty Edit at the top of the list.
@@ -8107,7 +8107,7 @@ abstract class Words {
   /// Payees page, Edit: label of the line with payeesAtStart and payeesAnywhere.
   ///
   /// In en, this message translates to:
-  /// **'Where'**
+  /// **'Where to look'**
   String get payeesWhere;
 
   /// Payees page, Edit, Where: the payee's name has to begin with the words.
@@ -8119,7 +8119,7 @@ abstract class Words {
   /// Payees page, Edit, Where: the words may be anywhere in the payee or in the memo the bank wrote.
   ///
   /// In en, this message translates to:
-  /// **'Anywhere in the payee or the memo'**
+  /// **'Anywhere in the payee or memo'**
   String get payeesAnywhere;
 
   /// Payees page, a closed line: the payee's words, which a payee's name has to begin with. The «» stay: the words between them are drawn in ink.
@@ -8161,7 +8161,7 @@ abstract class Words {
   /// Payees page, Edit: label over one real row that fits, drawn with the chosen category.
   ///
   /// In en, this message translates to:
-  /// **'How a row will read'**
+  /// **'Rows like this will read'**
   String get payeesHowRowReads;
 
   /// Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty.
@@ -8185,7 +8185,7 @@ abstract class Words {
   /// Payees page with nothing on it. The quoted words are the popup's button (ledgerAlwaysFile with count 0); "add a payee" is the button payeesAdd.
   ///
   /// In en, this message translates to:
-  /// **'Nothing remembered yet. Pick a category on a row in the Ledger and the popup offers “Remember this for next time”, or add a payee here.'**
+  /// **'Nothing remembered yet. When you pick a row\'s category in the Ledger, tick “Remember this category for this payee” under it, or add a payee here.'**
   String get payeesEmpty;
 
   /// Payees page, column heading over each payee's category.
@@ -8206,7 +8206,7 @@ abstract class Words {
   /// **'{count, plural, =1{1 row filed under {category}} other{{count} rows filed under {category}}}'**
   String payeesFiled(int count, String category);
 
-  /// Button on the popup after a payee's beginning is retyped: files the rows it now fits that are still in Not categorized under the payee's category.
+  /// Button on the popup after a payee is saved on the Payees page, or a row is saved with its Remember box ticked: files this period's rows of the payee still in Not categorized under its category.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{File the 1 still in Not categorized} other{File the {count} still in Not categorized}}'**
@@ -8215,7 +8215,7 @@ abstract class Words {
   /// Popup card when Save on the Payees page finds the words are another line's on one of the same accounts: that line's words and category. The Edit stays open.
   ///
   /// In en, this message translates to:
-  /// **'«{payee}» is already in the list, as {category}'**
+  /// **'«{payee}» is already in the list, with {category}'**
   String payeesAlreadyListed(String payee, String category);
 
   /// Payees page, Edit, after the count: how many of the rows that fit are in the chosen category already.
@@ -8227,7 +8227,7 @@ abstract class Words {
   /// Payees page, Edit, after "No row starts with this yet": how many rows would fit with Where set to anywhere.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 has it anywhere} other{{count} have it anywhere}}'**
+  /// **'{count, plural, =1{1 has it elsewhere in the payee or memo} other{{count} have it elsewhere in the payee or memo}}'**
   String payeesAnywhereWould(int count);
 
   /// Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized
@@ -8247,6 +8247,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 more in Not categorized stays there} other{{count} more in Not categorized stay there}}'**
   String payeesWaitingStay(int count);
+
+  /// Payees page, one line above the list: what a remembered payee does and when
+  ///
+  /// In en, this message translates to:
+  /// **'A payee here fills its category when a row is typed with it, and files rows of it brought in from a bank file. Rows already in the ledger stay where they are.'**
+  String get payeesWhatLinesDo;
 
   /// Payees page, in place of a category's name once the category was deleted.
   ///
