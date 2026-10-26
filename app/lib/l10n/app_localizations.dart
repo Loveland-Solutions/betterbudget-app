@@ -1146,17 +1146,23 @@ abstract class Words {
   /// **'Couldn’t find the folder chosen before'**
   String get phoneProblemFolderLost;
 
-  /// Kept in the phone's Recent problems when writing its waiting entries to the shared folder failed (no signal, a full drive); once per run of failures.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn’t write this phone’s entries to the folder. They’re kept on the phone and tried again.'**
-  String get phoneProblemNotWritten;
-
   /// Kept in the phone's Recent problems when saving its waiting entries on the phone itself failed.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t keep this phone’s entries'**
+  /// **'Couldn’t save this phone’s entries on the phone. While the app is open, it tries again every half minute.'**
   String get phoneProblemNotKept;
+
+  /// Kept in Recent problems in place of the Couldn’t undo popup's line, which names the change (a payee, an amount); the record holds no amounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t undo a change'**
+  String get problemCouldntUndo;
+
+  /// Kept in Recent problems in place of the Couldn’t redo popup's line, which names the change; the record holds no amounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t redo a change'**
+  String get problemCouldntRedo;
 
   /// Settings → Backups card, title.
   ///

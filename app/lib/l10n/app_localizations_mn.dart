@@ -789,12 +789,14 @@ class WordsMn extends Words {
   String get phoneProblemFolderLost => 'Өмнө сонгосон хавтсыг олсонгүй';
 
   @override
-  String get phoneProblemNotWritten =>
-      'Энэ утасны гүйлгээнүүдийг хавтас руу бичиж чадсангүй. Утсанд хадгалагдсан бөгөөд дахин оролдоно.';
+  String get phoneProblemNotKept =>
+      'Энэ утасны гүйлгээнүүдийг утсанд хадгалж чадсангүй. Апп нээлттэй байх үед хагас минут тутам дахин оролдоно.';
 
   @override
-  String get phoneProblemNotKept =>
-      'Энэ утасны гүйлгээнүүдийг хадгалж чадсангүй';
+  String get problemCouldntUndo => 'Өөрчлөлтийг буцааж чадсангүй';
+
+  @override
+  String get problemCouldntRedo => 'Өөрчлөлтийг дахин хийж чадсангүй';
 
   @override
   String get ledgerBackupsTitle => 'Нөөц хуулбар';

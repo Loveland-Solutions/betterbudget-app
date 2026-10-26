@@ -833,7 +833,12 @@ class _RecentProblemsPageState extends State<_RecentProblemsPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.log,
+    builder: (context, _) => _page(context),
+  );
+
+  Widget _page(BuildContext context) {
     final t = context.t;
     final problems = widget.log.recent;
     final today = dateOnly(widget.now());
@@ -864,7 +869,7 @@ class _RecentProblemsPageState extends State<_RecentProblemsPage> {
             alignment: Alignment.centerLeft,
             child: FilledButton.tonalIcon(
               key: const ValueKey('copy-all-problems'),
-              onPressed: () => _copyAll(problems),
+              onPressed: () => _copyAll(problemsToCopy(problems)),
               icon: const Icon(Icons.content_copy_rounded, size: 18),
               label: Text(_copied ? t.detailsCopied : t.recentProblemsCopyAll),
               style: FilledButton.styleFrom(

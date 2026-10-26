@@ -4455,17 +4455,23 @@ can hold a file path with the user's name; they see it before they paste it.
 access for troubleshooting?"). Chosen: a **Recent problems** card in Settings, after
 Start over and above the version, only while it holds something: the newest five, each
 with when and the version, the line the person saw and the reason, "N earlier problems
-are in Copy all", and **Copy all** for the form. The phone too (owner, against a
+are in Copy all", and **Copy all** for the form. Copy all takes the newest that fit in
+3,500 characters, since the form's message box takes 5,000 and the person needs room to
+say what they were doing. The phone too (owner, against a
 recommendation to start with the computer): a line above Report a problem… at the foot
 of Budget opens a page with all of them. Kept on the device in a plain file,
 `problems`, beside the app's others, so it can be read when the ledger won't open; the
 newest 100 within 90 days; never sent. What goes in: on the computer every failure
 popup that has Details (a refusal or a nudge without a reason is the person's own
-doing) and the failed-start screen; on the phone what its problem screens show, and a
-failed write of its entries to the folder, once per run of failures. **No amounts go
-in** (owner): a reason is kept by its error's type, the system's errors and the
+doing) and the failed-start screen; on the phone what its problem screens show, and its
+entries failing to save on the phone, once per run of failures. Not a failed write to
+the folder: with no signal that is the phone working as it should, and Budget already
+says what waits for the computer (budget review). **No amounts go in** (owner): Undo
+and Redo, whose lines name the change ("Assign ₮150,000 to Groceries"), keep "Couldn’t
+undo a change" instead (code review); a reason is kept by its error's type, the system's errors and the
 database's with their words (the database's without the statement and values after
-it), every other as its type's name alone, since the app's own can name an amount
+it, and unwrapped from the database's background runner first), every other as its
+type's name alone, since the app's own can name an amount
 ("Off by …", a plan's text, a bank file's line). `PRIVACY.md` section 3 says so, and
 section 5 names Copy and Copy all. Rejected: a plain file with Show the file (the form
 takes no attachments); no record at all.

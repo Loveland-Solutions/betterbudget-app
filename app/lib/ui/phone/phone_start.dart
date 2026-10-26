@@ -83,9 +83,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   late final ProblemLog _problems =
       widget.problems ?? ProblemLog(File('${widget.dir.path}/problems'));
 
-  /// Writing to the folder has failed since it last worked: kept once, not
-  /// at every try.
-  var _writeFailing = false;
+  /// Keeping the entries on the phone has failed since it last worked: put
+  /// in the record once, not at every try (every half minute).
+  var _saveFailing = false;
 
   /// Puts a problem in the record, in the words the phone uses.
   void _record(String Function(Words t) message, Object reason) {
@@ -256,20 +256,21 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     final Uint8List bytes;
     try {
       bytes = outbox.save(inbox);
+      _saveFailing = false;
     } catch (e) {
       debugPrint('Keeping this phone’s entries failed: $e');
-      _record((t) => t.phoneProblemNotKept, e);
+      if (!_saveFailing) _record((t) => t.phoneProblemNotKept, e);
+      _saveFailing = true;
       _sent = null;
       return;
     }
     _keeping = _keeping.then((_) async {
       try {
         await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
-        _writeFailing = false;
       } catch (e) {
+        // Not a problem to keep: with no signal this is the phone working
+        // as it should, and Budget says what waits for the computer.
         debugPrint('Writing this phone’s entries to the folder failed: $e');
-        if (!_writeFailing) _record((t) => t.phoneProblemNotWritten, e);
-        _writeFailing = true;
         if (_sent == saying) _sent = null;
       }
     });

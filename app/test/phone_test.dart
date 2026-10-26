@@ -362,9 +362,9 @@ void main() {
 
     await tester.runAsync(
       () => problems.record(
-        'Couldn’t write this phone’s entries to the folder. They’re kept on '
-        'the phone and tried again.',
-        PlatformException(code: 'offline', message: 'No connection'),
+        'Couldn’t save this phone’s entries on the phone. While the app is '
+        'open, it tries again every half minute.',
+        PlatformException(code: 'full', message: 'No space left'),
       ),
     );
     await tester.pumpAndSettle();
@@ -372,7 +372,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Recent problems'), findsOneWidget);
     expect(
-      find.text('PlatformException(offline, No connection, null, null)'),
+      find.text('PlatformException(full, No space left, null, null)'),
       findsOneWidget,
     );
     await expectLater(
@@ -3290,6 +3290,32 @@ void main() {
       expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
       file.writeAsBytesSync(folder.written[name]!);
       expect(readPhoneInbox(file, keys.kept).entries, isEmpty);
+    });
+
+    testWidgets('entries the phone can’t save go in the record once, '
+        'not at every try', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final dir = _phoneDir();
+      final problems = ProblemLog(
+        File('${dir.path}/problems'),
+        now: () => _now,
+        version: () async => '0.56.0',
+      );
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        problems: problems,
+      );
+      // A folder where the phone's file goes: saving it fails.
+      Directory('${dir.path}/waiting/waiting.$phoneInboxExtension')
+          .createSync(recursive: true);
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      await _spend(tester, 'Transport', '5000', 'ub', pick: 'UB Cab');
+      expect(folder.written, isEmpty);
+      expect(problems.recent.single.message, startsWith('Couldn’t save'));
     });
 
     testWidgets('while an entry waits the folder is asked every half minute, '

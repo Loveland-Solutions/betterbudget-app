@@ -8814,6 +8814,52 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('an undo that fails keeps no payee in Recent problems', (
+    tester,
+  ) async {
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-problems'),
+    ))!;
+    final problems = ProblemLog(
+      File('${dir.path}/problems'),
+      now: () => DateTime(2026, 9, 16, 9, 40),
+      version: () async => '0.56.0',
+    );
+    final db = await pumpLedger(tester, problems: problems);
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text && w.data == 'Sakura Coffee' && w.style?.fontSize == 14.5,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    // The ledger goes away underneath: undoing it fails.
+    await tester.runAsync(db.close);
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+    // The popup names it; the record doesn't.
+    expect(find.textContaining('Sakura Coffee marked'), findsWidgets);
+    expect(problems.recent.single.message, 'Couldn’t undo a change');
+    final file = await tester.runAsync(
+      () => File('${dir.path}/problems').readAsString(),
+    );
+    expect(file, isNot(contains('Sakura')));
+    await tester.runAsync(() async {
+      await tester.pumpWidget(const SizedBox());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+  });
+
   testWidgets('Settings has no Recent problems while there are none', (
     tester,
   ) async {

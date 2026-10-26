@@ -798,6 +798,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               _showFailure(
                 context.t.ledgerCouldntUndo(label),
                 error: _undoError(e),
+                kept: context.t.problemCouldntUndo,
               );
             }
             return;
@@ -1706,6 +1707,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           context.t.ledgerCouldntUndo(a.label),
           detail: a.detail,
           error: _undoError(e),
+          kept: context.t.problemCouldntUndo,
         );
       }
       return;
@@ -1730,6 +1732,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           context.t.ledgerCouldntRedo(a.label),
           detail: a.detail,
           error: _undoError(e),
+          kept: context.t.problemCouldntRedo,
         );
       }
       return;
@@ -1765,8 +1768,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Something didn't happen (a failure, a refusal, a nudge): the plain
   /// popup with coral's mark, not the gold one that reports a saved change. [message] says what in one line; [error], the technical
   /// reason, waits behind Details (owner, 2026-10-10).
-  void _showFailure(String message, {String? detail, Object? error}) =>
-      _showToast(message, detail: detail, failed: true, why: error);
+  /// [kept] is what Recent problems keeps in place of [message], when the
+  /// message names a payee or an amount: the record holds none (#294).
+  void _showFailure(
+    String message, {
+    String? detail,
+    Object? error,
+    String? kept,
+  }) =>
+      _showToast(message, detail: detail, failed: true, why: error, kept: kept);
 
   void _showToast(
     String message, {
@@ -1775,6 +1785,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ({String label, VoidCallback onTap})? more,
     bool failed = false,
     Object? why,
+    String? kept,
   }) {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
@@ -1785,7 +1796,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // A failure with a technical reason is a problem worth keeping; one
     // without (a refusal, a nudge) is the person's own doing.
     if (failed && why != null && whyText!.isNotEmpty) {
-      unawaited(widget.problems?.record(message, why));
+      unawaited(widget.problems?.record(kept ?? message, why));
     }
     setState(
       () => _toast = (
@@ -8002,7 +8013,10 @@ class _RecentProblemsState extends State<_RecentProblems> {
       if (problems.isEmpty) return const SizedBox.shrink();
       final t = context.t;
       final now = widget.now();
-      final more = problems.length - _RecentProblems.shown;
+      // Copy all takes what fits in the form; past the five shown, say
+      // how many more it holds.
+      final copied = problemsToCopy(problems);
+      final more = copied.length - _RecentProblems.shown;
       return Padding(
         padding: const EdgeInsets.only(top: 16),
         child: Container(
@@ -8055,7 +8069,7 @@ class _RecentProblemsState extends State<_RecentProblems> {
                   size: 14,
                   color: Mid.ink3,
                 ),
-                onTap: () => _copyAll(problems),
+                onTap: () => _copyAll(copied),
               ),
             ],
           ),

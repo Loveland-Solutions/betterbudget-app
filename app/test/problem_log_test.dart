@@ -1,12 +1,11 @@
 // Recent problems (#294): kept on the device, plain, with no amounts.
 import 'dart:io';
 
-import 'package:betterbudget/data/database.dart'
-    show ReconcileMismatchException;
+import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/problem_log.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqlite3/common.dart' show SqliteException;
 
 void main() {
   late Directory dir;
@@ -71,6 +70,24 @@ void main() {
       );
     });
 
+    test('the ledger’s database, run apart, is unwrapped', () async {
+      final db = AppDatabase(
+        NativeDatabase.createInBackground(File('${dir.path}/l.sqlite')),
+      );
+      addTearDown(db.close);
+      Object? caught;
+      try {
+        await db.customSelect('SELECT 61900 FROM nowhere').get();
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught.runtimeType.toString(), 'DriftRemoteException');
+      final kept = keptReason(caught!);
+      expect(kept, startsWith('SqliteException(1)'));
+      expect(kept, contains('no such table: nowhere'));
+      expect(kept, isNot(contains('61900')));
+    });
+
     test('a long one is cut', () {
       expect(keptReason('x' * 1000), '${'x' * 400}…');
     });
@@ -116,6 +133,39 @@ void main() {
     await l.record('Today’s', 'Reason');
     expect(file.readAsLinesSync(), hasLength(1));
   });
+
+  test('one older than 90 days goes from the file when it is read', () async {
+    await log().record('Old', 'Reason');
+    now = now.add(const Duration(days: 91));
+    expect(log().recent, isEmpty);
+    expect(file.readAsStringSync(), isEmpty);
+  });
+
+  test(
+    'Copy all takes the newest that fit in the form, at least one',
+    () async {
+      final l = log();
+      for (var i = 0; i < 40; i++) {
+        now = now.add(const Duration(minutes: 1));
+        await l.record('Problem $i', 'x' * 300);
+      }
+      final taken = problemsToCopy(l.recent);
+      expect(taken.first.message, 'Problem 39');
+      expect(taken.length, lessThan(40));
+      expect(problemsReport(taken).length, lessThanOrEqualTo(copyAllRoom));
+      expect(
+        problemsReport([...taken, l.recent[taken.length]]).length,
+        greaterThan(copyAllRoom),
+      );
+      final huge = ProblemLog(
+        File('${dir.path}/other'),
+        now: () => now,
+        version: () async => '',
+      );
+      await huge.record('m' * 5000, 'Reason');
+      expect(problemsToCopy(huge.recent), hasLength(1));
+    },
+  );
 
   test('a line it can’t read is passed over, not the whole record', () async {
     file.writeAsStringSync('not json\n{"at": "nonsense"}\n');

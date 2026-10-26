@@ -1186,13 +1186,17 @@
   "@phoneProblemFolderLost": {
     "description": "Kept in the phone's Recent problems when the folder chosen earlier couldn't be asked for, and the phone asked for the folder again."
   },
-  "phoneProblemNotWritten": "Couldn’t write this phone’s entries to the folder. They’re kept on the phone and tried again.",
-  "@phoneProblemNotWritten": {
-    "description": "Kept in the phone's Recent problems when writing its waiting entries to the shared folder failed (no signal, a full drive); once per run of failures."
-  },
-  "phoneProblemNotKept": "Couldn’t keep this phone’s entries",
+  "phoneProblemNotKept": "Couldn’t save this phone’s entries on the phone. While the app is open, it tries again every half minute.",
   "@phoneProblemNotKept": {
     "description": "Kept in the phone's Recent problems when saving its waiting entries on the phone itself failed."
+  },
+  "problemCouldntUndo": "Couldn’t undo a change",
+  "@problemCouldntUndo": {
+    "description": "Kept in Recent problems in place of the Couldn’t undo popup's line, which names the change (a payee, an amount); the record holds no amounts."
+  },
+  "problemCouldntRedo": "Couldn’t redo a change",
+  "@problemCouldntRedo": {
+    "description": "Kept in Recent problems in place of the Couldn’t redo popup's line, which names the change; the record holds no amounts."
   },
   "ledgerBackupsTitle": "Backups",
   "@ledgerBackupsTitle": {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/isolate.dart' show DriftRemoteException;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
     show MissingPluginException, PlatformException;
@@ -55,6 +56,9 @@ class Problem {
 /// plan's text or a bank file's line. A [String] is a reason the caller has
 /// already made safe (the failed-start screen's).
 String keptReason(Object error) {
+  // The ledger's database runs apart from the screen and hands its errors
+  // back wrapped.
+  if (error is DriftRemoteException) return keptReason(error.remoteCause);
   final text = switch (error) {
     String() ||
     PlatformException() ||
@@ -82,6 +86,12 @@ String keptReason(Object error) {
 class ProblemLog extends ChangeNotifier {
   ProblemLog(this.file, {this.now = DateTime.now, this.version = appVersion}) {
     _all = _read();
+    // One older than [days] goes from the file too, not only from sight.
+    final kept = _kept(_all);
+    if (kept.length < _all.length) {
+      _all = kept;
+      _write();
+    }
   }
 
   static const keep = 100;
@@ -131,35 +141,61 @@ class ProblemLog extends ChangeNotifier {
       reason: keptReason(reason),
       version: await version(),
     );
+    _all = _kept([..._all, problem]);
+    _write();
+    notifyListeners();
+  }
+
+  /// The newest [keep], none older than [days] days, oldest first.
+  List<Problem> _kept(List<Problem> all) {
     final since = now().subtract(const Duration(days: days));
     final kept = [
-      for (final p in _all)
+      for (final p in all)
         if (p.at.isAfter(since)) p,
-      problem,
     ];
-    _all = kept.length > keep ? kept.sublist(kept.length - keep) : kept;
+    return kept.length > keep ? kept.sublist(kept.length - keep) : kept;
+  }
+
+  void _write() {
     try {
       file.parent.createSync(recursive: true);
       file.writeAsStringSync(
         _all.map((p) => '${jsonEncode(p.toJson())}\n').join(),
       );
     } on Object catch (e) {
-      debugPrint('Keeping a problem in the record failed: $e');
+      debugPrint('Keeping the record of problems failed: $e');
     }
-    notifyListeners();
   }
+}
+
+/// How much of lls.mn's form Copy all may fill: the message box takes 5,000
+/// characters, and the person needs room to say what they were doing.
+const copyAllRoom = 3500;
+
+/// The problems Copy all takes: the newest that fit in [copyAllRoom], and
+/// always the newest one.
+List<Problem> problemsToCopy(List<Problem> newestFirst) {
+  final taken = <Problem>[];
+  var used = 0;
+  for (final p in newestFirst) {
+    final size = _one(p).length + 2;
+    if (taken.isNotEmpty && used + size > copyAllRoom) break;
+    taken.add(p);
+    used += size;
+  }
+  return taken;
 }
 
 /// What Copy all puts on the clipboard: each problem, newest first, with its
 /// time and version, a blank line between.
-String problemsReport(List<Problem> problems) => [
-  for (final p in problems)
-    [
-      '${_stamp(p.at)}${p.version.isEmpty ? '' : ' · ${p.version}'}',
-      p.message,
-      if (p.reason.isNotEmpty) p.reason,
-    ].join('\n'),
-].join('\n\n');
+String problemsReport(List<Problem> problems) =>
+    problems.map(_one).join('\n\n');
+
+String _one(Problem p) => [
+  '${_stamp(p.at)}${p.version.isEmpty ? '' : ' · ${p.version}'}',
+  p.message,
+  if (p.reason.isNotEmpty) p.reason,
+].join('\n');
 
 String _stamp(DateTime at) {
   String two(int n) => n.toString().padLeft(2, '0');

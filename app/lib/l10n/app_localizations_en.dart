@@ -795,11 +795,14 @@ class WordsEn extends Words {
   String get phoneProblemFolderLost => 'Couldn’t find the folder chosen before';
 
   @override
-  String get phoneProblemNotWritten =>
-      'Couldn’t write this phone’s entries to the folder. They’re kept on the phone and tried again.';
+  String get phoneProblemNotKept =>
+      'Couldn’t save this phone’s entries on the phone. While the app is open, it tries again every half minute.';
 
   @override
-  String get phoneProblemNotKept => 'Couldn’t keep this phone’s entries';
+  String get problemCouldntUndo => 'Couldn’t undo a change';
+
+  @override
+  String get problemCouldntRedo => 'Couldn’t redo a change';
 
   @override
   String get ledgerBackupsTitle => 'Backups';
