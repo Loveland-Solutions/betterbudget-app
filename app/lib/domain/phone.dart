@@ -7,6 +7,7 @@ import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
+import 'readiness.dart' show isSafetyNet;
 
 /// What a phone files money in under when it is the app's one Income (rule
 /// 30) and not a refund. A word, not the ledger's id for it: the ledger
@@ -38,7 +39,14 @@ class PhoneCategory {
     this.transfer = false,
     this.plan,
     this.off = const {},
+    this.hadMinor,
   });
+
+  /// What it had this period to spend (what it carried in, plus what was
+  /// assigned), for the ring before its name (#241): null when it has no
+  /// ring, a category saving for a bill. The share is worked out here
+  /// against what's left now, so entries typed on this phone count.
+  final int? hadMinor;
 
   /// Made here: the plan its New category page set (its categoryId
   /// means nothing until the computer makes it), which the computer gives it when it comes in.
@@ -322,6 +330,19 @@ class PhoneTaken {
 
 /// What is left in [category] once the [waiting] entries are counted: the
 /// snapshot's figure doesn't know about them yet. A refund puts money back.
+/// How much of what [category] had this period is used, 0 to 1, with
+/// [left] what it has now ([leftNow]): the computer's rule
+/// (`EnvelopeLine.usedShare`). Null when there is no ring: a bill, or
+/// nothing had and nothing spent.
+double? usedShareNow(PhoneCategory category, int left) {
+  final had = category.hadMinor;
+  if (had == null) return null;
+  if (left < 0) return 1;
+  if (had <= 0) return null;
+  final used = had - left;
+  return used <= 0 ? 0 : (used >= had ? 1 : used / had);
+}
+
 int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
   var left = category.leftMinor;
   for (final e in waiting) {
@@ -476,6 +497,16 @@ PhoneSnapshot snapshotOf(
     return plan == null || plan.done || plan.ended ? null : plan.due;
   }
 
+  // What it had this period, for the ring; a bill has none, nor the
+  // safety net, which fills rather than empties, as on the computer
+  // (EnvelopeLine.usedShare; ADR 0004 "Which rows").
+  int? hadOf(int id) {
+    final line = budget.lines[id]!;
+    if (line.plan?.plan.kind == PlanKind.byDate) return null;
+    if (isSafetyNet(data.accounts[id]!)) return null;
+    return line.had;
+  }
+
   return PhoneSnapshot(
     madeAt: madeAt,
     data: data,
@@ -498,6 +529,7 @@ PhoneSnapshot snapshotOf(
                 ?.toString(),
             recentPayees: payees[c.id] ?? const [],
             due: dueOf(c.id),
+            hadMinor: hadOf(c.id),
           ),
     ],
     accounts: [

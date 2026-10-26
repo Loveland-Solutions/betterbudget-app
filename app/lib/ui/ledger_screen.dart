@@ -6576,6 +6576,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       _openAll(category: c.id, period: period),
                                   onShowAllRows: (c) =>
                                       _openAll(category: c.id),
+                                  onShowPeriodRows: (period) =>
+                                      _openAll(period: period),
                                   onSetAmount: _setBudgetAmount,
                                   onBudgetBy: _budgetBy,
                                   onStartLater: _startBudgetLater,

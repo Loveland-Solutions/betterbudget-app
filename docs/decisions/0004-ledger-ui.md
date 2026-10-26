@@ -4178,3 +4178,72 @@ The Budget page's words (comb, 2026-10-24), through the UX writer:
 - **An empty amount** is said once, by the note beside it ("you choose each
   month how much to assign"), not also by a hint in the field.
 - **Add category's tooltip** is its shortcut, ⌘N, not its own label again.
+
+## How used up a category is: a ring before the name (2026-10-26)
+
+The owner asked for it on 2026-10-22 (#241) and again on 2026-10-26: "can we put
+some kind of visual indicator on each category that helps the user to see, at a
+glance, how close to used up that category is?" Three sketches were drawn on
+October's demo rows (<https://claude.ai/artifact/QPVk4yeHEZLBJwtzhVm1pv>): **A**, a
+line under each Left with a tick for today (recommended); **B**, the Spent cell
+filling between the two dotted lines; **C**, a ring before the name. The budget
+review of the same day settled what it measures. The owner chose **C**: "I like the
+rings, but let's go from green progressively to red."
+
+- **What it measures.** What the category spent this period that counted, over
+  what it had: what's left plus that spending. Built around Left, so it agrees with
+  Left in every case: money from before (Vacation, ₮2,000,000 from before and
+  nothing assigned this month), nothing assigned, a category budgeted by a pay seen
+  by month, and the month the budget began in (Spent shows the whole month's
+  spending, Left counts only what came after). For a category that doesn't carry
+  over, seen by a longer period than its own, what went back to not assigned
+  inside the period is out of both (code review: Groceries ₮450,000 each pay, seen
+  by month, reads "₮600,000 of ₮1,300,000 used", not of ₮1,350,000). Full at zero
+  or below. `EnvelopeLine.usedShare`, `had`, `used`, `counted`.
+- **Colour.** The ring slides from green through gold to coral as it fills, the one
+  place a shade between the money colours is drawn (`usedColor`): green with nothing
+  used, gold halfway, red at used up or over. The owner's words set it; red is
+  otherwise kept for a shortfall. A mark for today was A's; a ring has nowhere
+  honest for one, so it has none (asked, the owner left it to the recommendation,
+  "we can roll it back").
+- **Which rows.** Everyday categories (no due date). Not a category saving for a
+  bill: its own line says due, short or paid. Not the safety net under Saved: it
+  fills rather than empties, and how far along is the Savings page's job (#103).
+  Not a row with nothing assigned, nothing carried in and nothing spent: a ring at
+  nothing on six idle rows is noise. A row without a ring keeps the space, so names
+  line up.
+- **Words.** The ring's tooltip says it the way a person would: "₮612,300 of
+  ₮900,000 used"; on a full red ring with nothing assigned, "₮8,000 overspent,
+  with nothing assigned" (budget review: the loudest rings had no words). The
+  review's other option, no ring until something was had, was passed over: a
+  category spent from with nothing assigned is over, and red is what over looks
+  like everywhere on the row.
+- **Rejected:** A (for the tick, and for sitting under the number it pictures); B
+  (no new room in the row, but a fill behind a number that is also a button). The
+  phone's ring comes next (ADR 0005).
+
+From the same review ("Does it have all necessary features?"), the two gaps the
+owner had fixed:
+
+- **Bills under their own heading** (#274). The computer's list drew only a Saved
+  heading, so Rent read "Left ₮1,800,000" in the same bold ink as Groceries, the
+  reading the owner corrected on the phone (2026-10-07). Categories with a due date
+  now sit under **Bills**, below the everyday ones and above Saved, their Left in
+  quieter ink, as the phone and the Move money list already had them.
+- **A paid bill says so.** Once the bill that counts in this period is paid, its
+  line ends "paid 10.20" (the day of the last payment tied to the bill), in the
+  plain ink of "on track"; "₮X short" still comes first, since it's about the next
+  one. The bill's date places it, as Spent counts it: rent for 11.01 paid on 10.30
+  is November's, and says "paid 10.30" there (budget review). A card's or loan's
+  payment, tied to its category's bill, says so on the day it was paid, as its
+  spending counts (code review). Not gold: gold is for
+  the reconciled diamond and the saved popup, and five bills paid after payday
+  would glow five times.
+- **The period's totals** (#273). Under the everyday categories and the bills, a
+  **Total** row adds up this period's Assigned and Spent, one row per currency,
+  only with two or more rows to add, set a little apart so it reads as the list's
+  foot and not the bills' own total. Left's total is the key card's In categories,
+  so that column stays empty. Its Spent opens the period's rows, as a category's
+  does (every row in the period, income and archived categories' rows too: the
+  register's period filter, so the rows can add to more than the figure). This is the figure living within their means (#234) needs beside the
+  month's Income.

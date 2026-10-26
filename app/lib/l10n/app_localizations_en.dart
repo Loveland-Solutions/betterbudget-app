@@ -4422,6 +4422,29 @@ class WordsEn extends Words {
   }
 
   @override
+  String planPaidOn(String date) {
+    return 'paid $date';
+  }
+
+  @override
+  String planUsedOf(String used, String had) {
+    return '$used of $had used';
+  }
+
+  @override
+  String planUsedNone(String amount) {
+    return '$amount overspent, with nothing assigned';
+  }
+
+  @override
+  String planUsedOver(String amount) {
+    return '$amount overspent';
+  }
+
+  @override
+  String get planTotal => 'Total';
+
+  @override
   String get planOnTrack => 'on track';
 
   @override

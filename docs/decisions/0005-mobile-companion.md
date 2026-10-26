@@ -1256,3 +1256,17 @@ source".
   change file and what the others applied of it are under it). A disk cloned to
   another computer still gives both the same id.
 
+
+## The phone's ring (2026-10-26)
+
+The computer's Budget page got a ring before each everyday category's name: how
+much of what it had this period is used, green through gold to red (ADR 0004 "How
+used up a category is: a ring before the name"). The phone's Budget screen has the
+same ring before each category's name, since the phone works the budget out from
+the ledger copy itself (`snapshotOf`): the snapshot carries what each category had
+this period (`PhoneCategory.hadMinor`, null for a category saving for a bill), and
+the share is worked out on the phone against what's left now (`usedShareNow`), so
+an entry typed on the phone moves its ring before the computer has seen it. Nothing
+in the folder's files changes. A category made on the phone and not yet in the
+ledger has no ring (nothing had yet); the categories under Bills have none, as on
+the computer.

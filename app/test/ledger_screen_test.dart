@@ -4623,6 +4623,13 @@ void main() {
       ),
     );
     expect(find.text('Airtime bill paid. Next due 10.20.'), findsOneWidget);
+    // On the Budget page it sits under Bills with no ring, and its line
+    // says the day it was paid (#274, #241).
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('budget-bills')), findsOneWidget);
+    expect(find.byKey(ValueKey('used-${plan.category}')), findsNothing);
+    expect(find.text(' · paid 09.16'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -6353,6 +6360,53 @@ void main() {
       expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
       expect(find.byKey(ValueKey('plan-state-$tuition')), findsOneWidget);
       expect(find.text(' · on track'), findsNWidgets(2));
+      // The ring before a name (#241): Groceries has used ₮276,650.50 of
+      // its ₮900,000; Childcare, with nothing in it and nothing spent,
+      // has none; Tuition and Clothing save for a date, so they sit under
+      // Bills, after the everyday categories, with no ring (#274).
+      expect(find.byKey(ValueKey('used-$groceries')), findsOneWidget);
+      expect(find.byKey(ValueKey('used-${id('Childcare')}')), findsNothing);
+      expect(find.byKey(ValueKey('used-$tuition')), findsNothing);
+      expect(find.byKey(ValueKey('used-$clothing')), findsNothing);
+      // Nor the safety net under Saved: it fills rather than empties.
+      expect(find.byKey(ValueKey('used-${id('Safety net')}')), findsNothing);
+      double top(Key k) => tester.getTopLeft(find.byKey(k)).dy;
+      const bills = ValueKey('budget-bills');
+      expect(top(ValueKey('category-row-$groceries')), lessThan(top(bills)));
+      expect(top(bills), lessThan(top(ValueKey('category-row-$clothing'))));
+      expect(
+        top(ValueKey('category-row-$clothing')),
+        lessThan(top(ValueKey('category-row-$tuition'))),
+      );
+      expect(
+        top(ValueKey('category-row-$tuition')),
+        lessThan(top(const ValueKey('budget-saved'))),
+      );
+      // Under them, the month's totals (#273): what was assigned, and what
+      // every category spent.
+      expect(
+        tester
+            .widget<Money>(find.byKey(const ValueKey('total-assigned-MNT')))
+            .minor,
+        150000000,
+      );
+      final sept = Budget.of(
+        data,
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        today: DateTime(2026, 9, 16),
+      );
+      expect(
+        tester
+            .widget<Money>(
+              find.descendant(
+                of: find.byKey(const ValueKey('total-spent-MNT')),
+                matching: find.byType(Money),
+              ),
+            )
+            .minor,
+        sept.lines.values.fold(0, (s, l) => s + l.spent),
+      );
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_plans_assigned.png'),
@@ -6393,7 +6447,8 @@ void main() {
         find.text('₮900,000 a month · what’s left goes back to not assigned'),
         findsOneWidget,
       );
-      await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
+      // Clothing saves for a date, so it sits under Bills, lower down.
+      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$clothing')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$clothing')));
       await tester.pumpAndSettle();
@@ -7618,6 +7673,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Category: Groceries'), findsOneWidget);
       expect(find.byKey(const ValueKey('period-chip')), findsNothing);
+
+      // The totals row's Spent opens the period's rows, every category's
+      // (#273).
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('total-spent-MNT')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('total-spent-MNT')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('period-chip')), findsOneWidget);
+      expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
+      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('Sakura Coffee'), findsOneWidget);
       await tidy(tester, db);
     });
 

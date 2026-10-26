@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-26** · version 0.48.3 · schema v21 · 841 tests pass
+**Last updated: 2026-10-26** · version 0.49.0 · schema v21 · 846 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -33,17 +33,33 @@ kept:** #259 (a missed opening-balance popup) and #265 (two computers taking row
 out of one opening balance), both After beta. Living within their means is #234
 (the owner, 2026-10-24: what they earn matters, not what's in the account).
 
-**Play's Internal testing has 0.48.2 (build 467)**, uploaded 2026-10-26 with
-`app/tool/release_play.sh`. A phone change after it needs a new one. Before offering
-one, compare this line with `git log` on `app/lib/ui/phone/`, and rewrite this line
-after each upload.
+**The Budget page shows how used up each category is** (0.49.0, closes #241, #273,
+#274; ADR 0004 "How used up a category is: a ring before the name"): a ring before
+each everyday category's name, filled by what the category had this period less its
+Left, sliding from green through gold to red as it fills (the owner's pick C of
+three, and their colour rule: "let's go from green progressively to red"); none on a
+bill, on Saved, or on a row with nothing in it and nothing spent; its tooltip says
+"₮612,300 of ₮900,000 used". From the same budget review: bills sit under their own
+**Bills** heading with a quieter Left and their line says "paid 10.20" once this
+period's bill is paid; a **Total** row under the categories adds up the period's
+Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedColor` in
+`theme.dart`; `_TotalsRow` in `budget.dart`; `EnvelopeLine.usedShare` and `paidOn`.
+**The phone's Budget screen has the same ring** before each category's name, worked
+out on the phone against what's left now (ADR 0005 "The phone's ring";
+`usedShareNow`); the owner's Pixel needs a new Play build to see it.
 
-**The Microsoft Store has 0.44.0 in certification** (Submission 1, made in Partner
-Center, set to publish on the owner's Publish now). Replace its package with 0.46.2's
-(cancel certification, Packages, upload, submit); it asks for no restricted
-capability. Microsoft's upload tool can't touch a submission made on the website.
-Later versions go by `app/tool/release_store.sh` (#251), which can only run once a
-submission is published: the Store holds one at a time.
+**Play's Internal testing has 0.49.0 (build 470)**, uploaded 2026-10-26 by the owner
+with `app/tool/release_play.sh` from the ring's branch (the phone's Budget screen has
+the ring). A phone change after it needs a new one. Before offering one, compare this
+line with `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
+
+**The Microsoft Store has 0.46.2 published** (Submission 1, made in Partner Center;
+checked with `msstore submission status` on 2026-10-26: nothing waiting). Later
+versions go by `app/tool/release_store.sh` (#251), from a clean, pushed commit on
+main: it tags main with the version, waits for GitHub's Windows build, and sends the
+package to certification, set to publish on the owner's Publish now. It refuses
+while a submission waits, since the Store holds one at a time. 0.49.0 hasn't gone
+yet: it waits on PR #275's merge.
 
 **The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
 "Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
@@ -437,7 +453,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 | Header | Cleared + uncleared = working, the working balance as the large number; "Last reconciled on"; Reconcile and Import… buttons; a credit account reads Owed |
 | Forecast | Its span is a dropdown: the pay period, 30, 60 or 90 days, 6 months, a year. It says the lowest point, or "Runs out" or "Below zero now". "N bills · amount through date" opens the list. Late money in is "not counted". Paydays and plan bills are projected past the scheduled ones |
 | Reconcile | Statement date and balance; "Add … adjustment and lock" when they differ; "Undo this reconcile" from a locked row. The database refuses changes to locked rows |
-| Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own |
+| Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own. A ring before each everyday category's name shows how used up it is, green through gold to red; categories with a due date sit under **Bills**, their line saying "paid 10.20" once paid; a **Total** row adds up the period's Assigned and Spent |
 | Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row and on the phone, each opening the same questions |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
