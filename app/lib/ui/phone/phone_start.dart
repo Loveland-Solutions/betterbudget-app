@@ -325,6 +325,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         body: t.phoneFolderBody,
         action: t.phoneFolderChoose,
         onAction: _pickFolder,
+        report: true,
       ),
       _Step.noLedger => _Ask(
         title: t.phoneNoLedger,
@@ -336,6 +337,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         },
         other: t.phoneChooseAnother,
         onOther: _pickFolder,
+        report: true,
       ),
       _Step.wrongKey => _Ask(
         title: t.phoneKeyDoesntOpen,
@@ -343,6 +345,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         onAction: () => _go(_Step.key),
         other: t.phoneChooseAnother,
         onOther: _pickFolder,
+        report: true,
       ),
       _Step.cantRead => _Ask(
         title: t.phoneCantRead,
@@ -354,13 +357,15 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         },
         other: t.phoneChooseAnother,
         onOther: _pickFolder,
+        report: true,
       ),
     };
   }
 }
 
 /// One question on a screen: what is asked, why, an optional box, a button,
-/// and sometimes a second way out under it.
+/// and sometimes a second way out under it. A problem screen ends with
+/// Report a problem… (#292): the ledger not opening is when it's needed most.
 class _Ask extends StatelessWidget {
   const _Ask({
     required this.title,
@@ -370,6 +375,7 @@ class _Ask extends StatelessWidget {
     required this.onAction,
     this.other,
     this.onOther,
+    this.report = false,
   });
   final String title;
   final String? body;
@@ -378,6 +384,7 @@ class _Ask extends StatelessWidget {
   final VoidCallback onAction;
   final String? other;
   final VoidCallback? onOther;
+  final bool report;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -420,6 +427,7 @@ class _Ask extends StatelessWidget {
                 child: Text(other!),
               ),
             ],
+            if (report) const ReportProblemLine(),
           ],
         ),
       ),

@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:url_launcher_platform_interface/link.dart' show LinkDelegate;
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 class _FakeSecureStorage extends FlutterSecureStoragePlatform {
   final values = <String, String>{};
@@ -97,6 +99,24 @@ class _CancelledDialogs extends FileSelectorPlatform {
   }) async {
     opened++;
     return openPath == null ? null : XFile(openPath!);
+  }
+}
+
+/// The browser Report a problem… opens; [opens] false is one that won't.
+class _FakeBrowser extends UrlLauncherPlatform {
+  final opened = <String>[];
+  var opens = true;
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    opened.add(url);
+    return opens;
   }
 }
 
@@ -367,6 +387,24 @@ void main() {
       },
     );
     expect(find.text('Couldn’t open your ledger'), findsOne);
+
+    // Report a problem… opens lls.mn's form; a browser that won't open it
+    // leaves the address on the screen.
+    final browser = _FakeBrowser()..opens = false;
+    final before = UrlLauncherPlatform.instance;
+    UrlLauncherPlatform.instance = browser;
+    addTearDown(() => UrlLauncherPlatform.instance = before);
+    await tester.tap(find.byKey(const ValueKey('report-problem')));
+    await until(tester, () => browser.opened.isNotEmpty);
+    await tester.pump();
+    final link = Uri.parse(browser.opened.single);
+    expect('${link.host}${link.path}', 'lls.mn/en/contact/');
+    expect(link.queryParameters['from'], 'betterbudget');
+    expect(
+      find.text('The browser didn’t open. The form is at lls.mn/en/contact.'),
+      findsOne,
+    );
+
     await tapAndWait(tester, find.byKey(const ValueKey('startup-try-again')));
     await until(tester, () => shown(find.byType(LedgerScreen)));
     expect(tries, 2);

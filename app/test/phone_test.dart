@@ -3059,9 +3059,12 @@ void main() {
         findsOneWidget,
       );
       expect(s.keys.kept, isNull);
+      expect(find.byKey(const ValueKey('report-problem')), findsOneWidget);
       await tester.tap(find.text('Enter the key again'));
       await tester.pumpAndSettle();
       expect(find.text('Enter your recovery key'), findsOneWidget);
+      // Typing the key is no problem yet.
+      expect(find.byKey(const ValueKey('report-problem')), findsNothing);
     });
 
     testWidgets('a folder with no ledger says so, and another can be picked', (
@@ -3082,6 +3085,30 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(folder.forgotten, ['drive:Photos']);
+    });
+
+    testWidgets('a problem screen ends with Report a problem…', (tester) async {
+      final browser = _FakeBrowser();
+      final before = UrlLauncherPlatform.instance;
+      UrlLauncherPlatform.instance = browser;
+      addTearDown(() => UrlLauncherPlatform.instance = before);
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()
+        ..picked = 'drive:Photos'
+        ..ledger = null;
+      await start(tester, keys: keys, folder: folder);
+      expect(find.text('There is no ledger in that folder'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('report-problem')));
+      // Until the browser is asked: the version is read first.
+      await tester.runAsync(() async {
+        for (var i = 0; i < 100 && browser.opened.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pumpAndSettle();
+      final link = Uri.parse(browser.opened.single);
+      expect('${link.host}${link.path}', 'lls.mn/en/contact/');
+      expect(link.queryParameters['from'], 'betterbudget');
     });
 
     testWidgets('a file that won’t open later leaves the figures up', (

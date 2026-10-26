@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.53.0 · schema v21 · 879 tests pass
+**Last updated: 2026-10-27** · version 0.54.0 · schema v21 · 880 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -13,7 +13,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
-the follow-ups to Report a problem… (#292–#294), the native speaker's check of the
+the follow-ups to Report a problem… (#293, #294), the native speaker's check of the
 Mongolian (#90), and the Budget and Savings features (#100–#103).
 
 **Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
@@ -22,7 +22,9 @@ line of the phone's Budget. It opens lls.mn's contact form in the browser with
 `?from=betterbudget&version=…&platform=…&os=…` (`data/report_problem.dart`); the page
 names the report and shows what goes with the message (the website's README,
 "BetterBudget reports"); `PRIVACY.md` section 5 says so. The phone's line needs a new
-Play build. The public repo's README points there too, and its Issues are off
+Play build. It is also on the screens shown when the ledger won't open (0.54.0,
+#292): under Try again on the computer, and under the phone's problem steps. The
+public repo's README points there too, and its Issues are off
 (#93, 2026-10-27).
 
 **The Payees comb is done** (0.51.0–0.52.0, #165; ADR 0004 "The Payees page's

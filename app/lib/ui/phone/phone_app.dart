@@ -660,7 +660,7 @@ class _BudgetScreen extends StatelessWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     if (i == listed.length + 1) {
-                      return const _ReportProblemLine();
+                      return const ReportProblemLine();
                     }
                     if (i == newAt) {
                       return Align(
@@ -695,10 +695,11 @@ class _BudgetScreen extends StatelessWidget {
   );
 }
 
-/// Report a problem…, the last line of Budget (#92): lls.mn's form in the
-/// phone's browser, with the app's version and Android's filled in.
-class _ReportProblemLine extends StatelessWidget {
-  const _ReportProblemLine();
+/// Report a problem…, the last line of Budget (#92) and of the start's
+/// problem screens (#292): lls.mn's form in the phone's browser, with the
+/// app's version and Android's filled in.
+class ReportProblemLine extends StatelessWidget {
+  const ReportProblemLine({super.key});
 
   Future<void> _open(BuildContext context) async {
     final t = context.t;

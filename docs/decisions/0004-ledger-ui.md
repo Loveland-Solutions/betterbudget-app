@@ -4436,3 +4436,11 @@ last line of Budget, after the bills, in quieter ink than New category. If the b
 doesn't open, a popup says where the form is (lls.mn/en/contact, or /mn/ in
 Mongolian). The page opens in the app's language.
 
+**And where the ledger won't open** (#292, owner, 2026-10-27, from the budget-app
+review): the failed-start screen on the computer has the same quiet line under Try
+again, and so do the phone's problem screens (no ledger in the folder, a key that
+doesn't open it, a file it can't read, and choosing the folder), after their buttons.
+The key's own screen hasn't it: typing the key isn't a problem yet. The computer's
+failed screen has no popup, so if the browser doesn't open, the address is written
+under the line.
+
