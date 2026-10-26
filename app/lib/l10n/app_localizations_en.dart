@@ -5874,6 +5874,25 @@ class WordsEn extends Words {
   }
 
   @override
+  String payeesCategoryArchived(String category) {
+    return '$category (archived: rows wait in Not categorized)';
+  }
+
+  @override
+  String get payeesNoAccount => 'No account';
+
+  @override
+  String payeesWaitingStay(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more in Not categorized stay there',
+      one: '1 more in Not categorized stays there',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get payeesCategoryGone => 'A deleted category';
 
   @override

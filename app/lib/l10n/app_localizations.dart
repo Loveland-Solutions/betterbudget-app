@@ -8230,6 +8230,24 @@ abstract class Words {
   /// **'{count, plural, =1{1 has it anywhere} other{{count} have it anywhere}}'**
   String payeesAnywhereWould(int count);
 
+  /// Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized
+  ///
+  /// In en, this message translates to:
+  /// **'{category} (archived: rows wait in Not categorized)'**
+  String payeesCategoryArchived(String category);
+
+  /// Payees page, a saved line's Accounts column when every account it held on was deleted
+  ///
+  /// In en, this message translates to:
+  /// **'No account'**
+  String get payeesNoAccount;
+
+  /// Payees page, Edit's count line: rows of this payee in Not categorized that Save's offer won't file, because they're from an earlier period (owner, 2026-10-26: only this period's) or another line would file them
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more in Not categorized stays there} other{{count} more in Not categorized stay there}}'**
+  String payeesWaitingStay(int count);
+
   /// Payees page, in place of a category's name once the category was deleted.
   ///
   /// In en, this message translates to:

@@ -41,30 +41,55 @@ List<RegisterRow> _fitting(
   ];
 }
 
-/// Of [rows], the ones still in Not categorized, which [rule]'s category
-/// could take now (money in only, for a pay's paycheck).
+/// Of [rows], the ones still in Not categorized that [rule] would file
+/// now: in this period, the ones the Not categorized tab shows (owner,
+/// 2026-10-26); not one a longer line wins, as an import would decide; in
+/// a currency its category takes; money in only, for a pay's paycheck.
 List<RegisterRow> _waitingOf(
   LedgerData data,
   List<RegisterRow> rows,
   PayeeRuleInfo rule,
+  DateTime today,
 ) {
   final holding = data.categories.where(isUncategorized).firstOrNull?.id;
-  if (holding == null) return const [];
+  final category = data.accounts[rule.categoryId];
+  if (holding == null || category == null) return const [];
   final pay = data.payScheduleById(rule.payId);
+  final period = budgetPeriod(today, data.periodSchedule);
+  final rules = [
+    for (final r in data.payeeRules)
+      if (r.id != rule.id) r,
+    rule,
+  ];
   return [
     for (final r in rows)
       if (r.categoryId == holding &&
-          (pay == null || (r.amount > 0 && r.accountId == pay.accountId)))
+          !r.date.isBefore(period.start) &&
+          !r.date.isAfter(period.end) &&
+          categoryTakes(category, r.currency) &&
+          (pay == null || r.accountId == pay.accountId) &&
+          PayeeRuleInfo.pick(
+                rules,
+                r.accountId,
+                r.txnPayee,
+                r.memo,
+                amount: r.amount,
+              )?.id ==
+              rule.id)
         r,
   ];
 }
 
-List<RegisterRow> _waitingFor(LedgerData data, PayeeRuleInfo rule) =>
-    _waitingOf(
-      data,
-      _fitting(data, rule.words, rule.anywhere, rule.accountIds),
-      rule,
-    );
+List<RegisterRow> _waitingFor(
+  LedgerData data,
+  PayeeRuleInfo rule,
+  DateTime today,
+) => _waitingOf(
+  data,
+  _fitting(data, rule.words, rule.anywhere, rule.accountIds),
+  rule,
+  today,
+);
 
 /// The category a payee goes to, as a row's chip names it: a pay by its
 /// name, a category by its own; a deleted one said so.
@@ -76,24 +101,22 @@ String _ruleLabel(
 ) {
   final c = data.accounts[rule.categoryId];
   if (c == null || c.deleted) return t.payeesCategoryGone;
+  // An import doesn't file into an archived one: said, not left to look
+  // as if it works (code review, 2026-10-26).
+  if (c.archived) return t.payeesCategoryArchived(c.name);
   return pays.where((p) => p.id == rule.payId).firstOrNull?.label ?? c.name;
 }
 
-/// The accounts a payee holds on, named: one by its name, all of them as
-/// "All accounts" (only with more than one), a few by their names.
+/// The accounts a payee holds on, by name: never "All accounts", which
+/// would read as taking in an account opened later (budget review,
+/// 2026-10-26).
 String _accountsLabel(Words t, LedgerData data, Set<int> ids) {
-  final open = data.openAccounts;
   // An archived one is named too: it holds there again when it is back.
   final on = [
     for (final a in data.balanceSheetAccounts)
       if (ids.contains(a.id)) a,
   ];
-  if (on.isEmpty) return t.payeesNeedsAccount;
-  if (on.length == open.length &&
-      open.length > 1 &&
-      on.every((a) => !a.archived)) {
-    return t.planAccountsAll;
-  }
+  if (on.isEmpty) return t.payeesNoAccount;
   return on.map((a) => a.name).join(', ');
 }
 
@@ -135,10 +158,12 @@ class _PayeesPage extends StatefulWidget {
   const _PayeesPage({
     super.key,
     required this.data,
+    required this.today,
     required this.pays,
     required this.actions,
   });
   final LedgerData data;
+  final DateTime today;
 
   /// Each pay as a row's dropdown names it.
   final List<({int id, int accountId, String label})> pays;
@@ -188,6 +213,7 @@ class _PayeesPageState extends State<_PayeesPage> {
         ? _PayeeEditor(
             key: const ValueKey('payee-edit-new'),
             data: data,
+            today: widget.today,
             pays: widget.pays,
             onCancel: closeEdit,
             menus: (close) => _closeEditMenu = close,
@@ -279,6 +305,7 @@ class _PayeesPageState extends State<_PayeesPage> {
                                     _PayeeEditor(
                                       key: ValueKey('payee-edit-${r.id}'),
                                       data: data,
+                                      today: widget.today,
                                       pays: widget.pays,
                                       rule: r,
                                       onCancel: closeEdit,
@@ -416,6 +443,7 @@ class _PayeeEditor extends StatefulWidget {
   const _PayeeEditor({
     super.key,
     required this.data,
+    required this.today,
     required this.pays,
     required this.onCancel,
     required this.onSave,
@@ -428,6 +456,7 @@ class _PayeeEditor extends StatefulWidget {
   /// so Esc from anywhere closes that before the Edit.
   final void Function(bool Function()? close)? menus;
   final LedgerData data;
+  final DateTime today;
   final List<({int id, int accountId, String label})> pays;
 
   /// The payee being changed; null for a new one.
@@ -453,7 +482,9 @@ class _PayeeEditorState extends State<_PayeeEditor> {
   /// Nothing is filled in for them (owner: no autofill); with one account
   /// there is no choice to make.
   late final Set<int> _accounts = {
-    ...?widget.rule?.accountIds,
+    // A deleted account isn't kept unseen: it can't be unticked.
+    for (final id in widget.rule?.accountIds ?? const <int>{})
+      if (widget.data.accounts[id] case final a? when !a.deleted) id,
     if (widget.rule == null && widget.data.openAccounts.length == 1)
       widget.data.openAccounts.single.id,
   };
@@ -520,22 +551,34 @@ class _PayeeEditorState extends State<_PayeeEditor> {
 
   String get _words => payeeWords(_name.text);
 
-  /// The categories a payee on these accounts can go to: those in any of
-  /// the accounts' currencies, spending first, Income last.
+  Set<Currency> get _currencies => {
+    for (final a in widget.data.balanceSheetAccounts)
+      if (_accounts.contains(a.id)) a.currency,
+  };
+
+  /// The categories a payee on these accounts can go to: those every
+  /// account's currency takes, so a dollar row never lands in a tugrik
+  /// category (code review, 2026-10-26); spending first, Income last.
   List<AccountInfo> _categories() {
-    final currencies = {
-      for (final a in widget.data.openAccounts)
-        if (_accounts.contains(a.id)) a.currency,
-    };
+    final currencies = _currencies;
     final all = widget.data.categories.where(
-      (c) =>
-          !isUncategorized(c) &&
-          (c.id == _categoryId ||
-              currencies.any((x) => categoryTakes(c, x)) ||
-              currencies.isEmpty),
+      (c) => !isUncategorized(c) && currencies.every((x) => categoryTakes(c, x)),
     );
     return [...all.where((c) => !c.isIncome), ...all.where((c) => c.isIncome)];
   }
+
+  /// An account ticked or not: a pay paid into one no longer ticked, or a
+  /// category the accounts' currencies don't all take, is let go.
+  void _tick(int id) => setState(() {
+    _accounts.contains(id) ? _accounts.remove(id) : _accounts.add(id);
+    final pay = widget.data.payScheduleById(_payId);
+    if (pay != null && !_accounts.contains(pay.accountId)) _payId = null;
+    final c = widget.data.accounts[_categoryId];
+    if (c != null && !_currencies.every((x) => categoryTakes(c, x))) {
+      _categoryId = null;
+      _payId = null;
+    }
+  });
 
   Future<void> _save() async {
     if (_saving) return;
@@ -580,7 +623,8 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final rows = _fitting(data, words, _anywhere, _accounts);
     final holding = data.categories.where(isUncategorized).firstOrNull?.id;
     final probe = PayeeRuleInfo(
-      id: 0,
+      // This line's own id, so it isn't counted as losing to itself.
+      id: widget.rule?.id ?? -1,
       words: words,
       name: words,
       anywhere: _anywhere,
@@ -589,7 +633,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
       accountIds: _accounts,
     );
     // The ones the button after Save would file: money in only, for a pay.
-    final waiting = _waitingOf(data, rows, probe);
+    final waiting = _waitingOf(data, rows, probe, widget.today);
     final already = rows.where((r) => r.categoryId == _categoryId).length;
     final elsewhere = rows
         .where((r) => r.categoryId != holding && r.categoryId != _categoryId)
@@ -629,6 +673,12 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                 : t.payeesFitsStarts(rows.length),
             if (wouldAnywhere > 0) t.payeesAnywhereWould(wouldAnywhere),
             if (waiting.isNotEmpty) t.payeesWaiting(waiting.length),
+            // In Not categorized but not filed by Save's offer: an earlier
+            // period's, or one another line takes.
+            if (rows.where((r) => r.categoryId == holding).length -
+                    waiting.length
+                case final stay when stay > 0)
+              t.payeesWaitingStay(stay),
             if (already > 0 && categoryLabel != null)
               t.payeesAlreadyIn(already, categoryLabel),
             if (elsewhere > 0) t.payeesElsewhere(elsewhere),
@@ -728,15 +778,17 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                           if (mounted) setState(() {});
                         },
                         menuChildren: focusFirstOnKeys([
-                          for (final a in open)
+                          // An archived one it still holds on is listed,
+                          // so it can be unticked.
+                          for (final a in [
+                            ...open,
+                            for (final x in data.balanceSheetAccounts)
+                              if (x.archived && _accounts.contains(x.id)) x,
+                          ])
                             MenuItemButton(
                               key: ValueKey('payee-account-${a.id}'),
                               closeOnActivate: false,
-                              onPressed: () => setState(
-                                () => _accounts.contains(a.id)
-                                    ? _accounts.remove(a.id)
-                                    : _accounts.add(a.id),
-                              ),
+                              onPressed: () => _tick(a.id),
                               style: ButtonStyle(
                                 minimumSize: const WidgetStatePropertyAll(
                                   Size(320, 34),
@@ -776,7 +828,9 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                         ]),
                         child: BarButton(
                           key: const ValueKey('payee-accounts'),
-                          label: _accountsLabel(t, data, _accounts),
+                          label: _accounts.isEmpty
+                              ? t.payeesNeedsAccount
+                              : _accountsLabel(t, data, _accounts),
                           color: _tried && _accounts.isEmpty ? Mid.coral : null,
                           trailing: Icons.expand_more_rounded,
                           active: _accountsMenu.isOpen,

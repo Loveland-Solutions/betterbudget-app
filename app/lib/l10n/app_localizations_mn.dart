@@ -5675,6 +5675,24 @@ class WordsMn extends Words {
   }
 
   @override
+  String payeesCategoryArchived(String category) {
+    return '$category (архивласан: мөрүүд «Ангилаагүй» хэсэгт хүлээнэ)';
+  }
+
+  @override
+  String get payeesNoAccount => 'Данс алга';
+
+  @override
+  String payeesWaitingStay(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '«Ангилаагүй» хэсэгт өөр $count мөр хэвээр үлдэнэ',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get payeesCategoryGone => 'Устгасан ангилал';
 
   @override

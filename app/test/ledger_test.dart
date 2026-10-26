@@ -550,12 +550,9 @@ void main() {
     );
   });
 
-  test('payee remembers its last category', () async {
-    expect(
-      await db.lastCategoryFor('Sakura Coffee', checking),
-      await categoryId('Dining out'),
-    );
-    expect(await db.lastCategoryFor('Nobody', checking), isNull);
+  test('a payee nobody remembered starts in no category', () async {
+    // Its last row was Dining out; that's not a reason (owner, 2026-10-26).
+    expect(await db.suggestedCategory('Sakura Coffee', checking), isNull);
   });
 
   test('bulk cleared skips reconciled and returns what it changed', () async {

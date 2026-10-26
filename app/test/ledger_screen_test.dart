@@ -1959,10 +1959,26 @@ void main() {
       tester,
     ) async {
       final db = await pumpLedger(tester);
+      // Remembered on the Payees page: the only way a category fills.
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        await db.addPayeeRule(
+          name: 'Sakura Coffee',
+          anywhere: false,
+          categoryId: data.categories
+              .firstWhere((c) => c.name == 'Dining out')
+              .id,
+          accountIds: {
+            data.accounts.values.firstWhere((a) => a.name == 'TDB Checking').id,
+          },
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
       await openEntry(tester);
       await tester.enterText(field('₮0.00'), '8000');
       await tester.enterText(field('New transaction — payee'), 'Sakura Coffee');
-      await enter(tester); // category is filled from the payee's last one
+      await enter(tester); // category is filled from the remembered payee
       expect(find.text('Sakura Coffee'), findsNWidgets(2));
       expect(find.text('₮4,174,450.00'), findsWidgets);
       await tidy(tester, db);
@@ -10450,6 +10466,15 @@ void main() {
           counterAccountId: waiting,
           amount: -2500,
         );
+        // Last year's: not this period, so not filed (owner, 2026-10-26).
+        await db.postSimple(
+          accountId: account.id,
+          date: DateTime(2025, 3, 4),
+          today: DateTime(2026, 9, 16),
+          payee: 'UNI SHOP',
+          counterAccountId: waiting,
+          amount: -900,
+        );
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
@@ -10463,16 +10488,20 @@ void main() {
       );
       await tester.enterText(find.byKey(const ValueKey('payee-words')), 'UNI');
       await tester.pumpAndSettle();
+      // Last year's UNI SHOP fits, and stays where it is.
       expect(
-        find.text('1 row starts with this · 1 already in Groceries'),
+        find.text(
+          '2 rows start with this · 1 more in Not categorized stays there · '
+          '1 already in Groceries',
+        ),
         findsOneWidget,
       );
       await tester.tap(find.byKey(const ValueKey('payee-where-anywhere')));
       await tester.pumpAndSettle();
       expect(
         find.text(
-          '3 rows have this · 2 still in Not categorized · 1 already in '
-          'Groceries',
+          '4 rows have this · 2 still in Not categorized · 1 more in Not '
+          'categorized stays there · 1 already in Groceries',
         ),
         findsOneWidget,
       );
@@ -10489,8 +10518,8 @@ void main() {
       // The Unitel row in Groceries is said, and never moved.
       expect(
         find.text(
-          '3 rows have this · 2 still in Not categorized · 1 in another '
-          'category',
+          '4 rows have this · 2 still in Not categorized · 1 more in Not '
+          'categorized stays there · 1 in another category',
         ),
         findsOneWidget,
       );

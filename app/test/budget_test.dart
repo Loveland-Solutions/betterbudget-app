@@ -2036,10 +2036,7 @@ void main() {
           more: [usd],
           amounts: amounts,
           rows: rows,
-          prefs: {
-            ...began,
-            '${BudgetKeys.fromPrefix}$insurance': '2026-10-01',
-          },
+          prefs: {...began, '${BudgetKeys.fromPrefix}$insurance': '2026-10-01'},
         ),
         oct,
       );
