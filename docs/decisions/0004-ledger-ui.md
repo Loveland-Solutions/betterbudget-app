@@ -1114,7 +1114,7 @@ What's known so far:
     **How it works** (decided along those lines):
     - Every step shows. **The current step is the first not done** ("Now",
       outlined in blue); done steps have a green check. Nothing is locked: any
-      step can be **set aside** from its ⋯ and brought back (warn, don't block).
+      step can be **set aside** from its ⋯ and brought back (warn, don't block). (On screen since 2026-10-26: "Skip this step for now", and the step reads "Skipped for now": "set aside" is the app's word for money, so a step set aside looked saved.)
     - **A month is a month of expenses, not pay** (the course's own wording):
       the average of spending categories over the last 3 months (or since the
       ledger began, from 4 weeks), rounded up. Refunds count against it; transfers,
@@ -4317,3 +4317,25 @@ From the same comb, along the lines the owner gave for Budget (#163):
   like 2,000,000."), gone with the next key. The ⓘ's words show in the open
   rate field, for the keyboard, which can't hover.
 - Esc closes Add account after a click on its Type, currency or switch.
+
+### The Savings page's words (2026-10-26)
+
+From the same comb, along the owner's lines (the plain word, the app's own words,
+whole sentences, Mongolian that isn't glued):
+
+- A step put off reads **Skipped for now** ("Skip this step for now"; rule 25's
+  "set aside" is the word for money). The mortgage's third answer is **Not paying
+  extra yet**, since "Not yet" answered "Do you have a mortgage?" as no.
+- Step 1 names the Safety net by its name on Budget, which can be changed. Its
+  button is its own message ("Assign ₮600,000 to Safety net"; in Mongolian the
+  verbal noun, not the past tense), and its undo says what was added, not the
+  month's new total.
+- "Change the amount", "Type your own amount"; the retirement line is a whole
+  question; "isn't assigned to a category yet"; a chosen "Not yet" is blue, as
+  the mortgage's answers are; the figure not assigned is in whole units.
+- A debt's long name stops short of its amount, with the whole name on hover;
+  the amount has room for a billion with cents.
+- Mongolian: «Хүү оруулах», no «хэдэн төгрөгийн» for a dollar debt, no
+  case endings glued onto a quoted button, «дахиад … хэрэгтэй» and «Үлдэх өр» in
+  place of other pages' words, «болон» in a list of two. The glossary has
+  «аюулгүйн нөөц».

@@ -2354,7 +2354,7 @@
   "@planNow": {
     "description": "Savings page: blue tag beside the current step’s title"
   },
-  "planSetAside": "Set aside",
+  "planSetAside": "Skipped for now",
   "@planSetAside": {
     "description": "Savings page: grey tag beside a step the user set aside"
   },
@@ -2362,7 +2362,7 @@
   "@planSetAsideState": {
     "description": "Budget page: end of the note under a category's name, a one-time amount that has all been assigned"
   },
-  "planSetAsideUndo": "“{step}” set aside",
+  "planSetAsideUndo": "“{step}” skipped for now",
   "@planSetAsideUndo": {
     "description": "Savings page: toast and undo label after setting a step aside",
     "placeholders": {
@@ -2384,7 +2384,7 @@
   "@planMonthUnknown": {
     "description": "Savings page, safety net step: nothing budgeted and not enough history to know a month"
   },
-  "planMonthNoSpending": "No spending in the last {days} days to go by. Type a month of your expenses.",
+  "planMonthNoSpending": "There’s no spending in the last {days} days. Type what you spend in a month.",
   "@planMonthNoSpending": {
     "description": "Savings page, emergency fund steps: history but no spending",
     "placeholders": {
@@ -2465,9 +2465,10 @@
       }
     }
   },
-  "planWhichAccount": "Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.",
+  "planWhichAccount": "Your safety net is the {category} category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.",
   "@planWhichAccount": {
-    "description": "Savings page, emergency fund steps: guidance when no account is picked"
+    "description": "Savings page, emergency fund steps: guidance when no account is picked",
+    "placeholders": {"category": {"type": "String", "example": "Safety net"}}
   },
   "planFundCategoryName": "Safety net",
   "@planFundCategoryName": {
@@ -2497,11 +2498,12 @@
       }
     }
   },
-  "planFundSetPaidFrom": "Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.",
+  "planFundSetPaidFrom": "Keeping it in a savings account? On the Budget page, open {category}’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.",
   "@planFundSetPaidFrom": {
-    "description": "Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words"
+    "description": "Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words",
+    "placeholders": {"category": {"type": "String", "example": "Safety net"}}
   },
-  "planFundNotAssigned": "{amount} in your budget is not assigned to anything.",
+  "planFundNotAssigned": "{amount} in your budget isn’t assigned to a category yet.",
   "@planFundNotAssigned": {
     "description": "Savings page, safety net step: money not assigned in the budget, above a button offering to assign it to the safety net",
     "placeholders": {
@@ -2535,7 +2537,7 @@
   "@planRetirementYes": {
     "description": "Savings page, retirement step: answered yes"
   },
-  "planRetirementWhat": "Into a retirement plan, from your pay or on your own",
+  "planRetirementWhat": "Are you putting money into a retirement plan, from your pay or on your own?",
   "@planRetirementWhat": {
     "description": "Savings page, retirement step: what it means, before an answer"
   },
@@ -2598,7 +2600,7 @@
   "@planIHaveNone": {
     "description": "Savings page, mortgage step: answer button"
   },
-  "planPayingExtraOnThem": "Paying extra on it",
+  "planPayingExtraOnThem": "I'm paying extra on it",
   "@planPayingExtraOnThem": {
     "description": "Savings page, mortgage step: answer button"
   },
@@ -2614,7 +2616,7 @@
   "@planPayingExtraUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
-  "planLoansNotYetUndo": "Mortgage: not yet",
+  "planLoansNotYetUndo": "Mortgage: not paying extra yet",
   "@planLoansNotYetUndo": {
     "description": "Savings page, mortgage step: undo label"
   },
@@ -2651,7 +2653,7 @@
       }
     }
   },
-  "planMonthBackToAverage": "A month of expenses: no longer the one you typed",
+  "planMonthBackToAverage": "Your own month of expenses taken off",
   "@planMonthBackToAverage": {
     "description": "Savings page: toast and undo label after clearing the typed month"
   },
@@ -2668,11 +2670,11 @@
   "@planTypeMonth": {
     "description": "Savings page, step 1: gold button when no month is known"
   },
-  "planChangeMonth": "Change the month",
+  "planChangeMonth": "Change the amount",
   "@planChangeMonth": {
     "description": "Savings page, step 1: button when the user typed the month"
   },
-  "planTypeOwnMonth": "Type your own month",
+  "planTypeOwnMonth": "Type your own amount",
   "@planTypeOwnMonth": {
     "description": "Savings page, step 1: button when the month is averaged"
   },
@@ -2684,7 +2686,7 @@
   "@planSave": {
     "description": "Savings page, step 1, beside the month field; and the Budget page, Edit under a category's row: button that keeps what was changed"
   },
-  "planEmptyToAverage": "Empty goes back to your budget or your average",
+  "planEmptyToAverage": "Clear the field to use your budget or your average spending",
   "@planEmptyToAverage": {
     "description": "Savings page, step 1: note beside the month field"
   },
@@ -2892,7 +2894,7 @@
   "@planBringBack": {
     "description": "Savings page: step ⋯ menu item on a set-aside step"
   },
-  "planSetStepAside": "Set this step aside",
+  "planSetStepAside": "Skip this step for now",
   "@planSetStepAside": {
     "description": "Savings page: step ⋯ menu item"
   },
@@ -6932,6 +6934,15 @@
   "planRateWrong": "Type a rate, like 2 or 2.5.",
   "@planRateWrong": {
     "description": "Savings, step 2, beside a debt's interest rate field after Save or Enter on something that isn't a rate (digits with one decimal point, up to 1000)"
+  },
+  "planNotPayingExtraYet": "Not paying extra yet",
+  "@planNotPayingExtraYet": {
+    "description": "Savings, step 4, the third answer under Paying off the mortgage, beside I have none and I'm paying extra on it: there is a mortgage, and nothing extra is paid on it yet"
+  },
+  "planFundAssign": "Assign {amount} to {category}",
+  "@planFundAssign": {
+    "description": "Savings, steps 1 and 3: a button that assigns money not assigned yet to the Safety net category. An action, not something done",
+    "placeholders": {"amount": {"type": "String", "example": "₮600,000"}, "category": {"type": "String", "example": "Safety net"}}
   },
   "planInMonthQ": "In a month of expenses?",
   "@planInMonthQ": {

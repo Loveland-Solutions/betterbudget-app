@@ -1585,14 +1585,14 @@ class WordsEn extends Words {
   String get planNow => 'Now';
 
   @override
-  String get planSetAside => 'Set aside';
+  String get planSetAside => 'Skipped for now';
 
   @override
   String get planSetAsideState => 'set aside';
 
   @override
   String planSetAsideUndo(String step) {
-    return '“$step” set aside';
+    return '“$step” skipped for now';
   }
 
   @override
@@ -1606,7 +1606,7 @@ class WordsEn extends Words {
 
   @override
   String planMonthNoSpending(int days) {
-    return 'No spending in the last $days days to go by. Type a month of your expenses.';
+    return 'There’s no spending in the last $days days. Type what you spend in a month.';
   }
 
   @override
@@ -1648,8 +1648,9 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planWhichAccount =>
-      'Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.';
+  String planWhichAccount(String category) {
+    return 'Your safety net is the $category category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.';
+  }
 
   @override
   String get planFundCategoryName => 'Safety net';
@@ -1665,12 +1666,13 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planFundSetPaidFrom =>
-      'Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.';
+  String planFundSetPaidFrom(String category) {
+    return 'Keeping it in a savings account? On the Budget page, open $category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.';
+  }
 
   @override
   String planFundNotAssigned(String amount) {
-    return '$amount in your budget is not assigned to anything.';
+    return '$amount in your budget isn’t assigned to a category yet.';
   }
 
   @override
@@ -1694,7 +1696,7 @@ class WordsEn extends Words {
 
   @override
   String get planRetirementWhat =>
-      'Into a retirement plan, from your pay or on your own';
+      'Are you putting money into a retirement plan, from your pay or on your own?';
 
   @override
   String get planEmployerMatch =>
@@ -1739,7 +1741,7 @@ class WordsEn extends Words {
   String get planIHaveNone => 'I have none';
 
   @override
-  String get planPayingExtraOnThem => 'Paying extra on it';
+  String get planPayingExtraOnThem => 'I\'m paying extra on it';
 
   @override
   String get planNotYet => 'Not yet';
@@ -1751,7 +1753,7 @@ class WordsEn extends Words {
   String get planPayingExtraUndo => 'Paying extra on the mortgage';
 
   @override
-  String get planLoansNotYetUndo => 'Mortgage: not yet';
+  String get planLoansNotYetUndo => 'Mortgage: not paying extra yet';
 
   @override
   String get planNotPayingExtraUndo => 'Not paying extra on the mortgage';
@@ -1773,8 +1775,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planMonthBackToAverage =>
-      'A month of expenses: no longer the one you typed';
+  String get planMonthBackToAverage => 'Your own month of expenses taken off';
 
   @override
   String planMonthSet(String amount) {
@@ -1785,10 +1786,10 @@ class WordsEn extends Words {
   String get planTypeMonth => 'Type a month of expenses';
 
   @override
-  String get planChangeMonth => 'Change the month';
+  String get planChangeMonth => 'Change the amount';
 
   @override
-  String get planTypeOwnMonth => 'Type your own month';
+  String get planTypeOwnMonth => 'Type your own amount';
 
   @override
   String get planMonthHint => 'A month of expenses';
@@ -1798,7 +1799,7 @@ class WordsEn extends Words {
 
   @override
   String get planEmptyToAverage =>
-      'Empty goes back to your budget or your average';
+      'Clear the field to use your budget or your average spending';
 
   @override
   String planMonthsChoice(int count) {
@@ -1924,7 +1925,7 @@ class WordsEn extends Words {
   String get planBringBack => 'Bring it back';
 
   @override
-  String get planSetStepAside => 'Set this step aside';
+  String get planSetStepAside => 'Skip this step for now';
 
   @override
   String get rowsNothingScheduled => 'Nothing scheduled';
@@ -4689,6 +4690,14 @@ class WordsEn extends Words {
 
   @override
   String get planRateWrong => 'Type a rate, like 2 or 2.5.';
+
+  @override
+  String get planNotPayingExtraYet => 'Not paying extra yet';
+
+  @override
+  String planFundAssign(String amount, String category) {
+    return 'Assign $amount to $category';
+  }
 
   @override
   String get planInMonthQ => 'In a month of expenses?';

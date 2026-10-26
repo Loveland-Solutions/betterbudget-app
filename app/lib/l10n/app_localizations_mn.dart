@@ -1526,7 +1526,7 @@ class WordsMn extends Words {
 
   @override
   String planMonthNoSpending(int days) {
-    return 'Сүүлийн $days хоногт тооцох зарлага алга. Нэг сарын зардлаа оруулаарай.';
+    return 'Сүүлийн $days хоногт зарлага алга. Сард хэдийг зарцуулдгаа оруулаарай.';
   }
 
   @override
@@ -1564,12 +1564,13 @@ class WordsMn extends Words {
 
   @override
   String planFundOfToGo(String fund, String target, String left) {
-    return '$fund / $target · $left дутуу';
+    return '$fund / $target · дахиад $left хэрэгтэй';
   }
 
   @override
-  String get planWhichAccount =>
-      'Аюулгүйн нөөц бол төсөв дэх «Аюулгүйн нөөц» ангилал: түүнд хуваарилаад зарцуулдаггүй мөнгө. Тусдаа хадгаламжийн дансанд байлгах нь хамгийн зөв; ийм данс нээх хүртлээ зарлагын дансандаа байлгаж болно.';
+  String planWhichAccount(String category) {
+    return 'Аюулгүйн нөөц бол төсөв дэх «$category» ангилал: түүнд хуваарилаад зарцуулдаггүй мөнгө. Тусдаа хадгаламжийн дансанд байлгах нь хамгийн зөв; ийм данс нээх хүртлээ өдөр тутам зарцуулдаг дансандаа байлгаж болно.';
+  }
 
   @override
   String get planFundCategoryName => 'Аюулгүйн нөөц';
@@ -1585,12 +1586,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planFundSetPaidFrom =>
-      'Хадгаламжийн дансанд байлгаж байна уу? Төсөв хуудсан дээр ангиллын Засах хэсгийг нээж, Төлөх дансыг тэр данс болгоорой. Тэгвэл энэ алхам тийш хэдийг шилжүүлснийг харуулна.';
+  String planFundSetPaidFrom(String category) {
+    return 'Хадгаламжийн дансанд байлгаж байна уу? Төсөв хуудсан дээр «$category» ангиллын «Засах»-ыг нээж, «Төлөх данс»-ыг тэр данс болгоорой. Тэгвэл энэ алхам тийш хэдийг шилжүүлснийг харуулна.';
+  }
 
   @override
   String planFundNotAssigned(String amount) {
-    return 'Төсөвт тань $amount юунд ч хуваарилагдаагүй байна.';
+    return 'Төсөвт тань ангилалд хуваарилаагүй $amount байна.';
   }
 
   @override
@@ -1613,7 +1615,8 @@ class WordsMn extends Words {
   String get planRetirementYes => 'Та мөнгө хийж байгаа';
 
   @override
-  String get planRetirementWhat => 'Тэтгэврийн санд, цалингаасаа эсвэл өөрөө';
+  String get planRetirementWhat =>
+      'Цалингаасаа эсвэл өөрөө тэтгэврийн санд мөнгө хийж байна уу?';
 
   @override
   String get planEmployerMatch =>
@@ -1642,7 +1645,7 @@ class WordsMn extends Words {
 
   @override
   String get planPayExtraGuide =>
-      'Нэг удаад нэгэнд нь илүү төлөөрэй: хамгийн бага үлдэгдэлтэй эсвэл хамгийн өндөр хүүтэйгээс нь эхэлж болно, аль аль нь зорилгод хүргэнэ. Нэгийг төлж дуусмагц түүний төлбөрийг дараагийнхад нэмээрэй.';
+      'Нэг удаад зөвхөн нэг өрөнд илүү төлөөрэй: хамгийн бага үлдэгдэлтэй эсвэл хамгийн өндөр хүүтэйгээс нь эхэлж болно, аль аль нь зорилгод хүргэнэ. Нэгийг төлж дуусмагц түүний төлбөрийг дараагийнхад нэмээрэй.';
 
   @override
   String get planLongNone => 'Танд байхгүй';
@@ -1670,7 +1673,8 @@ class WordsMn extends Words {
   String get planPayingExtraUndo => 'Орон сууцны зээлдээ илүү төлж байна';
 
   @override
-  String get planLoansNotYetUndo => 'Орон сууцны зээл: одоохондоо үгүй';
+  String get planLoansNotYetUndo =>
+      'Орон сууцны зээл: одоохондоо илүү төлөхгүй';
 
   @override
   String get planNotPayingExtraUndo =>
@@ -1681,7 +1685,7 @@ class WordsMn extends Words {
 
   @override
   String planAmountLeft(String amount) {
-    return '$amount үлдсэн';
+    return 'Үлдэх өр: $amount';
   }
 
   @override
@@ -1689,12 +1693,11 @@ class WordsMn extends Words {
 
   @override
   String planNamesAnd(String first, String last) {
-    return '$first, $last';
+    return '$first болон $last';
   }
 
   @override
-  String get planMonthBackToAverage =>
-      'Нэг сарын зардал: таны оруулсан дүн биш боллоо';
+  String get planMonthBackToAverage => 'Өөрөө оруулсан сарын зардлыг хассан';
 
   @override
   String planMonthSet(String amount) {
@@ -1717,7 +1720,8 @@ class WordsMn extends Words {
   String get planSave => 'Хадгалах';
 
   @override
-  String get planEmptyToAverage => 'Хоосон бол төсөв эсвэл дунджаар тооцно';
+  String get planEmptyToAverage =>
+      'Хоосолбол төсөв эсвэл дундаж зарлагаар тооцно';
 
   @override
   String planMonthsChoice(int count) {
@@ -1768,7 +1772,7 @@ class WordsMn extends Words {
   String get planPayExtraHere => 'Энд илүү төлнө';
 
   @override
-  String get planRateAdd => 'Хүү нэмэх';
+  String get planRateAdd => 'Хүү оруулах';
 
   @override
   String planRateMonthly(String rate) {
@@ -1782,7 +1786,7 @@ class WordsMn extends Words {
 
   @override
   String get planRateTip =>
-      '2-р алхам энэ хүүгээр өр бүр сард ойролцоогоор хэдэн төгрөгийн хүү төлүүлж байгааг харуулна.';
+      'Энэ алхам хүүг ашиглан өр бүр сард ойролцоогоор хэр хэмжээний хүү төлүүлж байгааг харуулна.';
 
   @override
   String get planRatePerMonth => 'сарын';
@@ -1797,7 +1801,7 @@ class WordsMn extends Words {
 
   @override
   String planInterestCostsMost(String amount) {
-    return 'сард ойролцоогоор $amount хүү, өрнүүдээс тань хамгийн их нь';
+    return 'сард ойролцоогоор $amount хүү, таны өрүүдээс хамгийн их';
   }
 
   @override
@@ -1815,12 +1819,12 @@ class WordsMn extends Words {
 
   @override
   String planRateLooksYearly(String rate, String year) {
-    return 'Сарын $rate% нь жилийн $year% болно. Банкны тань $rate% жилийн хүү бол «жилийн»-г сонгоно уу.';
+    return 'Сарын $rate% нь жилийн $year% болно. Банкны тань $rate% жилийн хүү бол «жилийн» гэдгийг сонгоорой.';
   }
 
   @override
   String planRateLooksMonthly(String rate, String month) {
-    return 'Жилийн $rate% нь сарын $month% болно. Банкны тань $rate% сарын хүү бол «сарын»-г сонгоно уу.';
+    return 'Жилийн $rate% нь сарын $month% болно. Банкны тань $rate% сарын хүү бол «сарын» гэдгийг сонгоорой.';
   }
 
   @override
@@ -1828,7 +1832,7 @@ class WordsMn extends Words {
 
   @override
   String get setupRateHint =>
-      'Хуримтлалын 2-р алхам үүгээр энэ өр сард ойролцоогоор хэдэн төгрөгийн хүү төлүүлж байгааг харуулна.';
+      'Хуримтлалын 2-р алхам үүгээр энэ өр сард ойролцоогоор хэр хэмжээний хүү төлүүлж байгааг харуулна.';
 
   @override
   String planCarried(String date) {
@@ -4518,6 +4522,14 @@ class WordsMn extends Words {
   @override
   String get planRateWrong =>
       'Хүүгийн хувийг оруулаарай, жишээ нь 2 эсвэл 2.5.';
+
+  @override
+  String get planNotPayingExtraYet => 'Одоохондоо илүү төлөхгүй';
+
+  @override
+  String planFundAssign(String amount, String category) {
+    return '«$category» ангилалд $amount хуваарилах';
+  }
 
   @override
   String get planInMonthQ => 'Сарын зардалд тооцох уу?';

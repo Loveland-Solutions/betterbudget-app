@@ -2180,7 +2180,7 @@ abstract class Words {
   /// Savings page: grey tag beside a step the user set aside
   ///
   /// In en, this message translates to:
-  /// **'Set aside'**
+  /// **'Skipped for now'**
   String get planSetAside;
 
   /// Budget page: end of the note under a category's name, a one-time amount that has all been assigned
@@ -2192,7 +2192,7 @@ abstract class Words {
   /// Savings page: toast and undo label after setting a step aside
   ///
   /// In en, this message translates to:
-  /// **'“{step}” set aside'**
+  /// **'“{step}” skipped for now'**
   String planSetAsideUndo(String step);
 
   /// Savings page: toast and undo label after bringing a step back
@@ -2210,7 +2210,7 @@ abstract class Words {
   /// Savings page, emergency fund steps: history but no spending
   ///
   /// In en, this message translates to:
-  /// **'No spending in the last {days} days to go by. Type a month of your expenses.'**
+  /// **'There’s no spending in the last {days} days. Type what you spend in a month.'**
   String planMonthNoSpending(int days);
 
   /// Savings page, safety net step: the month is what the budget holds for this month; amount like ₮2,400,000
@@ -2252,8 +2252,8 @@ abstract class Words {
   /// Savings page, emergency fund steps: guidance when no account is picked
   ///
   /// In en, this message translates to:
-  /// **'Your safety net is the Safety net category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.'**
-  String get planWhichAccount;
+  /// **'Your safety net is the {category} category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.'**
+  String planWhichAccount(String category);
 
   /// The name the app gives its built-in Safety net budget category when it makes it
   ///
@@ -2276,13 +2276,13 @@ abstract class Words {
   /// Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words
   ///
   /// In en, this message translates to:
-  /// **'Keeping it in a savings account? On the Budget page, open the category’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.'**
-  String get planFundSetPaidFrom;
+  /// **'Keeping it in a savings account? On the Budget page, open {category}’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.'**
+  String planFundSetPaidFrom(String category);
 
   /// Savings page, safety net step: money not assigned in the budget, above a button offering to assign it to the safety net
   ///
   /// In en, this message translates to:
-  /// **'{amount} in your budget is not assigned to anything.'**
+  /// **'{amount} in your budget isn’t assigned to a category yet.'**
   String planFundNotAssigned(String amount);
 
   /// Budget page: quiet heading above the safety net’s category, under the spending categories
@@ -2318,7 +2318,7 @@ abstract class Words {
   /// Savings page, retirement step: what it means, before an answer
   ///
   /// In en, this message translates to:
-  /// **'Into a retirement plan, from your pay or on your own'**
+  /// **'Are you putting money into a retirement plan, from your pay or on your own?'**
   String get planRetirementWhat;
 
   /// Savings page, retirement step: guidance
@@ -2390,7 +2390,7 @@ abstract class Words {
   /// Savings page, mortgage step: answer button
   ///
   /// In en, this message translates to:
-  /// **'Paying extra on it'**
+  /// **'I\'m paying extra on it'**
   String get planPayingExtraOnThem;
 
   /// Savings page: answer button
@@ -2414,7 +2414,7 @@ abstract class Words {
   /// Savings page, mortgage step: undo label
   ///
   /// In en, this message translates to:
-  /// **'Mortgage: not yet'**
+  /// **'Mortgage: not paying extra yet'**
   String get planLoansNotYetUndo;
 
   /// Savings page, mortgage step: undo label
@@ -2450,7 +2450,7 @@ abstract class Words {
   /// Savings page: toast and undo label after clearing the typed month
   ///
   /// In en, this message translates to:
-  /// **'A month of expenses: no longer the one you typed'**
+  /// **'Your own month of expenses taken off'**
   String get planMonthBackToAverage;
 
   /// Savings page: toast and undo label after typing a month
@@ -2468,13 +2468,13 @@ abstract class Words {
   /// Savings page, step 1: button when the user typed the month
   ///
   /// In en, this message translates to:
-  /// **'Change the month'**
+  /// **'Change the amount'**
   String get planChangeMonth;
 
   /// Savings page, step 1: button when the month is averaged
   ///
   /// In en, this message translates to:
-  /// **'Type your own month'**
+  /// **'Type your own amount'**
   String get planTypeOwnMonth;
 
   /// Savings page, step 1: field hint
@@ -2492,7 +2492,7 @@ abstract class Words {
   /// Savings page, step 1: note beside the month field
   ///
   /// In en, this message translates to:
-  /// **'Empty goes back to your budget or your average'**
+  /// **'Clear the field to use your budget or your average spending'**
   String get planEmptyToAverage;
 
   /// Savings page, step 3: choice of 3 to 6 months
@@ -2678,7 +2678,7 @@ abstract class Words {
   /// Savings page: step ⋯ menu item
   ///
   /// In en, this message translates to:
-  /// **'Set this step aside'**
+  /// **'Skip this step for now'**
   String get planSetStepAside;
 
   /// Register, Scheduled tab, shown when the list is empty
@@ -6597,6 +6597,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Type a rate, like 2 or 2.5.'**
   String get planRateWrong;
+
+  /// Savings, step 4, the third answer under Paying off the mortgage, beside I have none and I'm paying extra on it: there is a mortgage, and nothing extra is paid on it yet
+  ///
+  /// In en, this message translates to:
+  /// **'Not paying extra yet'**
+  String get planNotPayingExtraYet;
+
+  /// Savings, steps 1 and 3: a button that assigns money not assigned yet to the Safety net category. An action, not something done
+  ///
+  /// In en, this message translates to:
+  /// **'Assign {amount} to {category}'**
+  String planFundAssign(String amount, String category);
 
   /// Budget page, Edit under a category's row: whether Savings counts this category in a month of expenses (the amount step 1's safety net covers). No and Yes beside it
   ///

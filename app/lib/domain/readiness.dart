@@ -664,14 +664,14 @@ class Readiness {
     return [...consumerDebts]..sort(compare);
   }
 
-  /// The debt costing the most interest a month, when two or more have a
-  /// rate to compare; otherwise there is nothing to say.
   /// The debts with a rate that costs something, most first.
   List<Debt> get ratedByCost => [
     for (final d in debtsByCost)
       if ((interestOf(d) ?? 0) > 0) d,
   ];
 
+  /// The debt costing the most interest a month, when two or more have a
+  /// rate to compare; otherwise there is nothing to say.
   Debt? get costliest {
     final rated = ratedByCost;
     return rated.length >= 2 ? rated.first : null;
