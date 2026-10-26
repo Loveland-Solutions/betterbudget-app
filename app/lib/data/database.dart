@@ -45,6 +45,13 @@ class Accounts extends Table {
   /// What the account is for on the Savings steps (rule 25): the emergency
   /// fund, or a loan that isn't consumer debt.
   TextColumn get role => textEnum<AccountRole>().nullable()();
+
+  /// A spending category's group on the Budget page, a heading over the
+  /// categories in it (v22, #100). Null: under no heading.
+  TextColumn get budgetGroup => text().nullable()();
+
+  /// What the person wrote about a category, shown under its name (v22).
+  TextColumn get note => text().nullable()();
 }
 
 /// Small settings the user chose, by key. The Savings steps keep their
@@ -242,6 +249,10 @@ class CategoryPlans extends Table {
   /// The account a dated plan's bill is paid from: it's kept scheduled
   /// there.
   IntColumn get paidFromId => integer().nullable().references(Accounts, #id)();
+
+  /// A set amount's single periods: `YYYY-MM-DD=amount,…`, by the day each
+  /// starts, what that one asks for instead; 0 skips it (v22, #100).
+  TextColumn get once => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {categoryId};
@@ -958,7 +969,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1143,6 +1154,13 @@ class AppDatabase extends _$AppDatabase {
           // from"): empty for every row already here.
           await _addColumnOnce(m, transactions, transactions.madeHow);
           await _addColumnOnce(m, transactions, transactions.madeOn);
+        }
+        if (from < 22) {
+          // A category's group and note, and a plan's single periods
+          // (#100): empty for everything already here.
+          await _addColumnOnce(m, accounts, accounts.budgetGroup);
+          await _addColumnOnce(m, accounts, accounts.note);
+          await _addColumnOnce(m, categoryPlans, categoryPlans.once);
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -2015,6 +2033,8 @@ class AppDatabase extends _$AppDatabase {
             deleted: a.deletedAt != null,
             role: a.role,
             currency: Currency.fromCode(a.currency),
+            budgetGroup: a.budgetGroup,
+            note: a.note,
           ),
       ],
       prefs: {for (final p in prefRows) p.key: p.value},
@@ -3345,6 +3365,16 @@ class AppDatabase extends _$AppDatabase {
           rollover: Value(plan.rollover),
           upToMinor: Value(plan.upTo),
           paidFromId: Value(plan.paidFrom),
+          once: Value(
+            plan.once.isEmpty
+                ? null
+                // In date order, so the same periods are the same text on
+                // every computer.
+                : ([
+                    for (final e in plan.once.entries)
+                      '${dateKey(e.key)}=${e.value}',
+                  ]..sort()).join(','),
+          ),
         ),
       );
     }
@@ -3786,6 +3816,26 @@ class AppDatabase extends _$AppDatabase {
     return created;
   });
 
+  /// A category's group on the Budget page and its note (#100); empty
+  /// text is none. Returns what it had, for undo.
+  Future<({String? group, String? note})> setCategoryDetails(
+    int categoryId, {
+    required String? group,
+    required String? note,
+  }) => transaction(() async {
+    final row = await (select(
+      accounts,
+    )..where((a) => a.id.equals(categoryId))).getSingle();
+    String? text(String? v) => v == null || v.trim().isEmpty ? null : v.trim();
+    await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
+      AccountsCompanion(
+        budgetGroup: Value(text(group)),
+        note: Value(text(note)),
+      ),
+    );
+    return (group: row.budgetGroup, note: row.note);
+  });
+
   /// Puts [categoryId] in [currency], using every account in it but
   /// [off]. A change of currency takes back what was assigned to it and
   /// removes its plan: those were amounts in the old currency. Returns
@@ -3895,6 +3945,12 @@ class AppDatabase extends _$AppDatabase {
     rollover: p.rollover,
     upTo: p.upToMinor,
     paidFrom: p.paidFromId,
+    once: {
+      for (final piece in (p.once ?? '').split(','))
+        if (piece.split('=') case [final day, final amount]
+            when int.tryParse(amount) != null)
+          parseDateKey(day): int.parse(amount),
+    },
   );
 
   Expression<bool> _dateIn(

@@ -1179,7 +1179,9 @@
   "@recentProblemsMore": {
     "description": "Settings → Recent problems, under the newest five, when more are kept.",
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "phoneProblemFolderLost": "Couldn’t find the folder chosen before",
@@ -2523,7 +2525,12 @@
   "planWhichAccount": "Your safety net is the {category} category in your budget: money you assign to it and don’t spend. A separate savings account is the best place to keep it; until you have one, it can sit in the account you spend from.",
   "@planWhichAccount": {
     "description": "Savings page, emergency fund steps: guidance when no account is picked",
-    "placeholders": {"category": {"type": "String", "example": "Safety net"}}
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Safety net"
+      }
+    }
   },
   "planFundCategoryName": "Safety net",
   "@planFundCategoryName": {
@@ -2556,7 +2563,12 @@
   "planFundSetPaidFrom": "Keeping it in a savings account? On the Budget page, open {category}’s Edit and set Paid from to that account. This step then shows how much you’ve moved there.",
   "@planFundSetPaidFrom": {
     "description": "Savings page, safety net step: guidance when the category uses every account; Edit and Paid from are the Budget page’s own words",
-    "placeholders": {"category": {"type": "String", "example": "Safety net"}}
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Safety net"
+      }
+    }
   },
   "planFundNotAssigned": "{amount} in your budget isn’t assigned to a category yet.",
   "@planFundNotAssigned": {
@@ -5670,12 +5682,28 @@
   "savingsOtherHeld": "{account} {amount}",
   "@savingsOtherHeld": {
     "description": "Savings page, one item in savingsOnlyOne's list: an account in another currency and what is in it (a minus when overdrawn)",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String", "example": "$1,200"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String",
+        "example": "$1,200"
+      }
+    }
   },
   "savingsOtherOwed": "{account} {amount} owed",
   "@savingsOtherOwed": {
     "description": "Savings page, one item in savingsOnlyOne's list: a card or loan in another currency and what is owed on it",
-    "placeholders": {"account": {"type": "String"}, "amount": {"type": "String", "example": "$500"}}
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String",
+        "example": "$500"
+      }
+    }
   },
   "savingsOnlyOne": "Not counted here yet: {accounts}. Savings counts one currency for now: {currency}.",
   "@savingsOnlyOne": {
@@ -6975,12 +7003,22 @@
   "planFundOverAssigned": "Your budget has assigned {amount} more than you have.",
   "@planFundOverAssigned": {
     "description": "Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)",
-    "placeholders": {"amount": {"type": "String", "example": "₮500,000"}}
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "₮500,000"
+      }
+    }
   },
   "planMonthOutgrown": "Your budget now holds {amount} a month.",
   "@planMonthOutgrown": {
     "description": "Savings, step 1, under “A month of expenses: ₮2,000,000, as you typed it” when the Budget page now holds more than a tenth more for this month. The typed figure stays",
-    "placeholders": {"amount": {"type": "String", "example": "₮2,350,000"}}
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "₮2,350,000"
+      }
+    }
   },
   "planMonthWrong": "Type an amount, like 2,000,000.",
   "@planMonthWrong": {
@@ -6997,7 +7035,16 @@
   "planFundAssign": "Assign {amount} to {category}",
   "@planFundAssign": {
     "description": "Savings, steps 1 and 3: a button that assigns money not assigned yet to the Safety net category. An action, not something done",
-    "placeholders": {"amount": {"type": "String", "example": "₮600,000"}, "category": {"type": "String", "example": "Safety net"}}
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "₮600,000"
+      },
+      "category": {
+        "type": "String",
+        "example": "Safety net"
+      }
+    }
   },
   "planInMonthQ": "In a month of expenses?",
   "@planInMonthQ": {
@@ -8627,7 +8674,12 @@
   "payeesCategoryArchived": "{category} (archived: rows wait in Not categorized)",
   "@payeesCategoryArchived": {
     "description": "Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized",
-    "placeholders": {"category": {"type": "String", "example": "Groceries"}}
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Groceries"
+      }
+    }
   },
   "payeesNoAccount": "No account",
   "@payeesNoAccount": {
@@ -8636,7 +8688,11 @@
   "payeesWaitingStay": "{count, plural, =1{1 more in Not categorized stays there} other{{count} more in Not categorized stay there}}",
   "@payeesWaitingStay": {
     "description": "Payees page, Edit's count line: rows of this payee in Not categorized that Save's offer won't file, because they're from an earlier period (owner, 2026-10-26: only this period's) or another line would file them",
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "payeesWhatLinesDo": "A payee here fills its category when a row is typed with it, and files rows of it brought in from a bank file. Rows already in the ledger stay where they are.",
   "@payeesWhatLinesDo": {
@@ -9415,5 +9471,359 @@
   "planMoveSwapTip": "Move money the other way",
   "@planMoveSwapTip": {
     "description": "Budget page, move box: tooltip on Swap"
+  },
+  "planOnceMonth": "Just for {month}",
+  "@planOnceMonth": {
+    "description": "Category Edit, under Set aside each month: label of the field for one month's own amount. month is a month's name.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planOncePay": "Just for the pay period from {date}",
+  "@planOncePay": {
+    "description": "Category Edit: label of the field for one pay period's own amount. date is the day that pay period starts.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planSkipMonth": "Skip {month}",
+  "@planSkipMonth": {
+    "description": "Category Edit, beside Just for {month}: button; the plan asks for nothing that month.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planSkipPay": "Skip this pay period",
+  "@planSkipPay": {
+    "description": "Category Edit, beside Just for the pay period: button; the plan asks for nothing that pay period."
+  },
+  "planOnceBackMonth": "Back to {amount} in {next}.",
+  "@planOnceBackMonth": {
+    "description": "Category Edit, beside Just for {month}: what the plan asks for again the month after. next is that month's name.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceSkippedMonth": "Nothing set aside in {month}. Back to {amount} in {next}.",
+  "@planOnceSkippedMonth": {
+    "description": "Category Edit, beside Just for {month} when it's skipped.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceBackPay": "Back to {amount} from {date}.",
+  "@planOnceBackPay": {
+    "description": "Category Edit, beside Just for the pay period: what the plan asks for again from the next pay period. date is when it starts.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceSkippedPay": "Nothing set aside that pay period. Back to {amount} from {date}.",
+  "@planOnceSkippedPay": {
+    "description": "Category Edit, beside Just for the pay period when it's skipped.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceMonthLine": "{amount} in {month} only, then {usual} a month",
+  "@planOnceMonthLine": {
+    "description": "Budget page, the line under a category's name: this month has its own amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      },
+      "usual": {
+        "type": "String"
+      }
+    }
+  },
+  "planOncePayLine": "{amount} this pay period only, then {usual} each pay period",
+  "@planOncePayLine": {
+    "description": "Budget page, the line under a category's name: this pay period has its own amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "usual": {
+        "type": "String"
+      }
+    }
+  },
+  "planSkippedMonth": "Skipped in {month}, then {usual} a month",
+  "@planSkippedMonth": {
+    "description": "Budget page, the line under a category's name: this month is skipped.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "usual": {
+        "type": "String"
+      }
+    }
+  },
+  "planSkippedPay": "Skipped this pay period, then {usual} each pay period",
+  "@planSkippedPay": {
+    "description": "Budget page, the line under a category's name: this pay period is skipped.",
+    "placeholders": {
+      "usual": {
+        "type": "String"
+      }
+    }
+  },
+  "planGroup": "Group",
+  "@planGroup": {
+    "description": "Category Edit: label of the dropdown for the heading the category sits under on the Budget page."
+  },
+  "planNewGroup": "New group…",
+  "@planNewGroup": {
+    "description": "Category Edit, Group dropdown: first item; a field to type the new group's name."
+  },
+  "planNoGroup": "No group",
+  "@planNoGroup": {
+    "description": "Category Edit, Group dropdown: the category sits under no heading."
+  },
+  "planGroupName": "Group name",
+  "@planGroupName": {
+    "description": "Category Edit: hint in the field for a new group's name."
+  },
+  "planNote": "Note",
+  "@planNote": {
+    "description": "Category Edit: label of the field for what the person wants to remember about the category; shown under its name on Budget."
+  },
+  "planClearMonth": "Clear {month}’s Assigned",
+  "@planClearMonth": {
+    "description": "Budget page, key card, on the In categories row: button; takes every amount assigned this month back to Not assigned, after a window.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearPay": "Clear this pay period’s Assigned",
+  "@planClearPay": {
+    "description": "Budget page, key card: the same button by pay period."
+  },
+  "planClearMonthTitle": "Clear {month}’s Assigned?",
+  "@planClearMonthTitle": {
+    "description": "Window title before clearing a month's Assigned.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearPayTitle": "Clear this pay period’s Assigned?",
+  "@planClearPayTitle": {
+    "description": "Window title before clearing a pay period's Assigned."
+  },
+  "planClearBody": "{count, plural, =1{{amount} comes out of 1 category.} other{{amount} comes out of {count} categories.}}",
+  "@planClearBody": {
+    "description": "Window before clearing: how much goes back, from how many categories.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planClearShortMonth": "What’s spent stays spent, so these end {month} short:",
+  "@planClearShortMonth": {
+    "description": "Window before clearing a month: over the list of categories that would go below zero, each with its shortfall.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearShortPay": "What’s spent stays spent, so these end this pay period short:",
+  "@planClearShortPay": {
+    "description": "Window before clearing a pay period: over the list of categories that would go below zero."
+  },
+  "planClearMore": "and {count} more",
+  "@planClearMore": {
+    "description": "Window before clearing: after the first six short categories.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planClear": "Clear",
+  "@planClear": {
+    "description": "Window before clearing: the button that does it."
+  },
+  "planClearedMonth": "Cleared {month}’s Assigned · {amount}",
+  "@planClearedMonth": {
+    "description": "Popup and undo label after clearing a month's Assigned.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearedPay": "Cleared this pay period’s Assigned · {amount}",
+  "@planClearedPay": {
+    "description": "Popup and undo label after clearing a pay period's Assigned.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceCappedMonth": "Up to {cap} holds {month} to {amount}.",
+  "@planOnceCappedMonth": {
+    "description": "Category Edit, after the line beside Just for {month}: the cap cuts that month's amount.",
+    "placeholders": {
+      "cap": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceCappedPay": "Up to {cap} holds that pay period to {amount}.",
+  "@planOnceCappedPay": {
+    "description": "Category Edit: the cap cuts that pay period's amount.",
+    "placeholders": {
+      "cap": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnceUsual": "Use {amount}",
+  "@planOnceUsual": {
+    "description": "Category Edit, beside Just for {month}: button; empties it, so the plan's own amount is asked for.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearBack": "It all goes back to Not assigned.",
+  "@planClearBack": {
+    "description": "Window before clearing: none of it was covering spending."
+  },
+  "planClearPart": "Not assigned goes up {freed}; {covering} was covering what was already spent.",
+  "@planClearPart": {
+    "description": "Window before clearing: only part comes back to Not assigned, because overspent categories' Assigned was covering their spending.",
+    "placeholders": {
+      "freed": {
+        "type": "String"
+      },
+      "covering": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearLaterMonth": "What carried into {month} goes too: its categories end {month} with {amount} less.",
+  "@planClearLaterMonth": {
+    "description": "Window before clearing an earlier month: today's month loses what carried into it. month is today's month.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearLaterPay": "What carried into this pay period goes too: its categories end it with {amount} less.",
+  "@planClearLaterPay": {
+    "description": "Window before clearing an earlier pay period.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearFromTo": "{before} → {after}",
+  "@planClearFromTo": {
+    "description": "Window before clearing: a category already short, from what it is now to what it would be.",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearBills": "These bills lose what was set aside for them:",
+  "@planClearBills": {
+    "description": "Window before clearing: over the bills due this period, not paid yet, whose money goes."
+  },
+  "planClearSafetyNet": "The Safety net keeps its {amount}.",
+  "@planClearSafetyNet": {
+    "description": "Window before clearing: the Safety net's Assigned this period isn't cleared.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearMonthIn": "Clear {month}’s Assigned in {code}",
+  "@planClearMonthIn": {
+    "description": "Budget page, key card, with accounts in two currencies: the button for one currency's categories. code is its code, like USD.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "planClearPayIn": "Clear this pay period’s Assigned in {code}",
+  "@planClearPayIn": {
+    "description": "The same by pay period.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
   }
 }

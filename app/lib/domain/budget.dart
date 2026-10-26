@@ -180,9 +180,18 @@ class PlanLine {
     this.approx = false,
     this.shares = const [],
     this.wentBackOn,
+    this.once = false,
+    this.onceFrom,
   });
 
   final CategoryPlan plan;
+
+  /// A set amount seen by its own period, which was given an amount of its
+  /// own ([CategoryPlan.once]): [each] is that one, not the plan's.
+  final bool once;
+
+  /// The day the own period [once] is about starts.
+  final DateTime? onceFrom;
 
   /// [planned] is a share, by days, of what the plan's own period still
   /// wants: the period on screen isn't the plan's (a monthly allowance
@@ -1184,25 +1193,30 @@ class Budget {
       // when that period began: a capped one asks only for the room
       // left, so a repair this period is asked for from the next one on,
       // not twice over.
-      int wanted(int before) {
-        if (cap == null) return plan.amount;
+      // A period given its own amount asks for that one (#100).
+      int wanted(int before, DateTime start) {
+        final amount = plan.amountIn(dateOnly(start));
+        if (cap == null) return amount;
         final room = cap - before;
         return room <= 0
             ? 0
-            : room < plan.amount
+            : room < amount
             ? room
-            : plan.amount;
+            : amount;
       }
 
       // Seen by its own period (the month, or its pay): exact.
       if (pay?.id == by?.id) {
+        final start = dateOnly(p.start);
         return PlanLine(
           plan: plan,
-          each: plan.amount,
-          planned: wanted(left - assigned + spent),
+          each: plan.amountIn(start),
+          planned: wanted(left - assigned + spent, start),
           done: cap != null && left >= cap,
           wentBack: wentBack,
           wentBackOn: wentBackOn,
+          once: plan.once.containsKey(start),
+          onceFrom: start,
         );
       }
       // Seen by another period (owner, 2026-10-05: a monthly allowance by
@@ -1220,7 +1234,8 @@ class Budget {
         final from = own.start.isBefore(p.start) ? p.start : own.start;
         final to = own.end.isBefore(p.end) ? own.end : p.end;
         final need = atLeast0(
-          wanted(heldBefore(own.start)) - assignedIn(own.start, from),
+          wanted(heldBefore(own.start), own.start) -
+              assignedIn(own.start, from),
         );
         final share = _daysThrough(from, to),
             rest = _daysThrough(from, own.end);
@@ -1239,10 +1254,16 @@ class Budget {
         if (!next.start.isAfter(own.start)) break;
         own = next;
       }
+      // A monthly amount seen by a pay: its month's own amount, when it
+      // has one, is said as on the month's page (budget review).
+      final monthStart = budgetPeriod(p.start, pay).start;
+      final monthOnce = pay == null && plan.once.containsKey(monthStart);
       return PlanLine(
         plan: plan,
-        each: plan.amount,
+        each: monthOnce ? plan.amountIn(monthStart) : plan.amount,
         planned: planned,
+        once: monthOnce,
+        onceFrom: monthStart,
         done: cap != null && left >= cap,
         wentBack: wentBack,
         wentBackOn: wentBackOn,

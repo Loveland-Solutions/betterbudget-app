@@ -15,6 +15,9 @@ typedef _CategoryEdit = ({
   CategoryPlan? plan,
   // Counts in Savings' month of expenses ([inMonthOfExpenses]).
   bool inMonth,
+  // Its group on the Budget page and its note (#100): null for none.
+  String? group,
+  String? note,
 });
 
 class _BudgetPage extends StatefulWidget {
@@ -39,6 +42,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onStartLater,
     required this.onKeepStart,
     required this.onAssignPlanned,
+    required this.onClearAssigned,
     required this.onMove,
     required this.onEditOpens,
     required this.keep,
@@ -65,6 +69,12 @@ class _BudgetPage extends StatefulWidget {
 
   /// "Assign what's planned": each category's new Assigned for the period.
   final void Function(BudgetSpan, Map<AccountInfo, int>) onAssignPlanned;
+
+  /// "Clear October's Assigned", after its window: these categories'
+  /// amounts in the period go back to Not assigned (#100). [done] is what
+  /// the popup and undo say.
+  final void Function(BudgetSpan, List<AccountInfo>, String done)
+  onClearAssigned;
 
   /// Move was clicked in the box under a Left: the amount from one side to
   /// the other in the period; null on a side is Not assigned.
@@ -250,11 +260,30 @@ class _BudgetPageState extends State<_BudgetPage> {
     // safety net last, under Saved.
     bool isBill(AccountInfo c) =>
         budget.lines[c.id]?.plan?.plan.kind == PlanKind.byDate;
+    // The everyday ones in no group first, then each group the person
+    // made under its name (#100), A to Z; inside each, by name.
+    final everyday = listed
+        .where((c) => !saved.contains(c.id) && !isBill(c))
+        .toList();
+    // "Food" and "food" (two computers) are one heading, as first spelt.
+    String? groupOf(AccountInfo c) => c.budgetGroup?.toLowerCase();
+    final groups = <String, String>{
+      for (final g in [for (final c in everyday.reversed) ?c.budgetGroup])
+        g.toLowerCase(): g,
+    };
+    final groupKeys = groups.keys.toList()..sort();
     final spending = [
-      ...listed.where((c) => !saved.contains(c.id) && !isBill(c)),
+      ...everyday.where((c) => c.budgetGroup == null),
+      for (final g in groupKeys) ...everyday.where((c) => groupOf(c) == g),
       ...listed.where((c) => !saved.contains(c.id) && isBill(c)),
       ...listed.where((c) => saved.contains(c.id)),
     ];
+    // Where each group's heading goes.
+    final groupAt = {
+      for (final g in groupKeys)
+        spending.indexWhere((c) => everyday.contains(c) && groupOf(c) == g):
+            groups[g]!,
+    };
     final firstBill = spending.indexWhere(
       (c) => !saved.contains(c.id) && isBill(c),
     );
@@ -725,6 +754,69 @@ class _BudgetPageState extends State<_BudgetPage> {
           );
         }
       }
+      // Start the period over (#100): offered while anything in it is
+      // assigned. Not the Safety net's, which is kept apart.
+      final byPay = period.label == payPeriodLabel;
+      final month = monthName(t, period.start.month);
+      for (final p in pools) {
+        final c = p.currency, tag = tagOf(c);
+        // What was put in: a category Move money took from this period
+        // (its Assigned below zero) is left as it is, or clearing would
+        // quietly undo the move (code review).
+        final clears = [
+          for (final x in spending)
+            if (x.currency == c &&
+                !saved.contains(x.id) &&
+                (budget.lines[x.id]?.assigned ?? 0) > 0)
+              x,
+        ];
+        if (clears.isEmpty) continue;
+        final total = clears.fold(
+          0,
+          (sum, x) => sum + budget.lines[x.id]!.assigned,
+        );
+        assignedNotes.add(
+          BarButton(
+            key: ValueKey('clear-assigned$tag'),
+            // The amount is in the window; with two currencies the code
+            // tells the buttons apart, at the end.
+            label: switch ((byPay, pools.length > 1)) {
+              (false, false) => t.planClearMonth(month),
+              (false, true) => t.planClearMonthIn(month, c.code),
+              (true, false) => t.planClearPay,
+              (true, true) => t.planClearPayIn(c.code),
+            },
+            onTap: () async {
+              setState(() => _editing = null);
+              final go = await showDialog<bool>(
+                context: context,
+                builder: (_) => _ClearAssignedWindow(
+                  sums: _clearSums(
+                    t,
+                    data,
+                    period,
+                    clears,
+                    c,
+                    saved,
+                    today: widget.today,
+                  ),
+                  month: byPay ? null : month,
+                  currency: c,
+                ),
+              );
+              if (go != true) return;
+              final amount = formatShort(total, currency: c);
+              widget.onClearAssigned(
+                period,
+                clears,
+                byPay
+                    ? t.planClearedPay(amount)
+                    : t.planClearedMonth(month, amount),
+              );
+            },
+          ),
+        );
+      }
       return Container(
         key: const ValueKey('budget-key'),
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
@@ -1004,6 +1096,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           for (final (i, c) in spending.indexed) ...[
+                            if (groupAt[i] case final g?)
+                              heading(g, 'budget-group-$g'),
                             if (i == firstBill)
                               heading(t.phoneBills, 'budget-bills'),
                             if (i == firstSaved) ...[
@@ -1949,6 +2043,26 @@ class _CategoryRowState extends State<_CategoryRow> {
                               onPlan: widget.onPlan,
                             ),
                           ),
+                        // What they wrote about it (#100): one line, the
+                        // whole of it when pointed at.
+                        if (c.note case final note?)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 1,
+                              left: _ringIndent,
+                            ),
+                            child: Tooltip(
+                              message: note,
+                              waitDuration: const Duration(milliseconds: 600),
+                              child: Text(
+                                note,
+                                key: ValueKey('category-note-${c.id}'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: onest(12, color: Mid.ink3),
+                              ),
+                            ),
+                          ),
                         for (final (i, f) in widget.flags.indexed)
                           Padding(
                             padding: const EdgeInsets.only(
@@ -2869,6 +2983,267 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
 /// Deleting a category with rows: they need somewhere to go, so the dialog
 /// asks where, and says how many move. Opened from a rename onto another
 /// category's name, it's the same merge with that one already picked.
+/// What clearing [clears]' Assigned in [period] would do, worked out on
+/// the ledger without those amounts, so the window says what the page
+/// will (budget review: an overspent category's Assigned was covering
+/// what it spent, and doesn't come back to Not assigned).
+typedef _ClearSums = ({
+  int total,
+  int count,
+  int freed,
+  List<({String name, int before, int after})> short,
+  List<({String name, DateTime due})> bills,
+  ({String period, int amount})? later,
+  int safetyNet,
+});
+
+_ClearSums _clearSums(
+  Words t,
+  LedgerData data,
+  BudgetSpan period,
+  List<AccountInfo> clears,
+  Currency currency,
+  Set<int> saved, {
+  required DateTime today,
+}) {
+  final ids = {for (final c in clears) c.id};
+  final after = data.withoutAmounts(ids, period.start, period.end);
+  Budget of(LedgerData d, BudgetSpan p) =>
+      Budget.of(d, start: p.start, end: p.end, today: today);
+  final b0 = of(data, period), b1 = of(after, period);
+  int free(Budget b) =>
+      b.pools.where((p) => p.currency == currency).firstOrNull?.notAssigned ??
+      0;
+  final short = <({String name, int before, int after})>[];
+  final bills = <({String name, DateTime due})>[];
+  var total = 0;
+  for (final c in clears) {
+    final was = b0.lines[c.id]!, now = b1.lines[c.id]!;
+    total += was.assigned;
+    if (now.left < 0) {
+      short.add((name: c.name, before: was.left, after: now.left));
+    }
+    // A bill due before the period ends, not paid yet, loses what was
+    // set aside for it: "will rent bounce?" (budget review).
+    final plan = was.plan;
+    if (plan != null &&
+        plan.plan.kind == PlanKind.byDate &&
+        was.paidOn == null &&
+        plan.due != null &&
+        !plan.due!.isAfter(period.end) &&
+        now.left < was.left &&
+        now.left >= 0) {
+      bills.add((name: c.name, due: plan.due!));
+    }
+  }
+  // An earlier period: what carried from it into today's goes too.
+  ({String period, int amount})? later;
+  final current = budgetPeriod(today, data.periodSchedule);
+  if (period.end.isBefore(current.start)) {
+    final c0 = of(data, current), c1 = of(after, current);
+    var less = 0;
+    for (final id in ids) {
+      less += (c0.lines[id]?.left ?? 0) - (c1.lines[id]?.left ?? 0);
+    }
+    if (less > 0) {
+      later = (
+        period: current.label == payPeriodLabel
+            ? ''
+            : monthName(t, current.start.month),
+        amount: less,
+      );
+    }
+  }
+  var safetyNet = 0;
+  for (final id in saved) {
+    final l = b0.lines[id];
+    if (l != null && l.currency == currency) safetyNet += l.assigned;
+  }
+  return (
+    total: total,
+    count: clears.length,
+    freed: free(b1) - free(b0),
+    short: short,
+    bills: bills,
+    later: later,
+    safetyNet: safetyNet,
+  );
+}
+
+/// "Clear October's Assigned?" (#100): what comes out, where it goes, and
+/// what that leaves short, in real amounts, before it's done. It has undo.
+class _ClearAssignedWindow extends StatelessWidget {
+  const _ClearAssignedWindow({
+    required this.sums,
+    required this.month,
+    required this.currency,
+  });
+
+  final _ClearSums sums;
+
+  /// The month's name; null for a pay period.
+  final String? month;
+  final Currency currency;
+
+  /// How many short ones are named before "and 3 more".
+  static const _named = 6;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final month = this.month;
+    final s = sums;
+    String money(int v) => formatMoney(v, currency: currency);
+    final covering = s.total - s.freed;
+    Widget line(String text, {Key? key, Color? color}) => Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Text(
+        text,
+        key: key,
+        style: onest(13.5, color: color, tabular: true),
+      ),
+    );
+    Widget item(String name, String amount, {Key? key, Color? color}) =>
+        Padding(
+          padding: const EdgeInsets.only(left: 12, top: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(13.5),
+                ),
+              ),
+              Text(
+                amount,
+                key: key,
+                style: onest(13.5, color: color, tabular: true),
+              ),
+            ],
+          ),
+        );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter): () =>
+            Navigator.of(context).pop(true),
+      },
+      child: Dialog(
+        backgroundColor: Mid.panel,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Mid.rule),
+        ),
+        child: SizedBox(
+          width: 500,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+            child: Focus(
+              autofocus: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    month == null
+                        ? t.planClearPayTitle
+                        : t.planClearMonthTitle(month),
+                    style: onest(17, weight: 600, letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 4),
+                  line(
+                    t.planClearBody(money(s.total), s.count),
+                    key: const ValueKey('clear-assigned-body'),
+                  ),
+                  // Where it goes: all of it to Not assigned, or only part
+                  // when some was covering what was already spent.
+                  if (covering > 0)
+                    line(
+                      t.planClearPart(money(s.freed), money(covering)),
+                      key: const ValueKey('clear-assigned-part'),
+                    )
+                  else
+                    line(t.planClearBack),
+                  if (s.later case final later?)
+                    line(
+                      later.period.isEmpty
+                          ? t.planClearLaterPay(money(later.amount))
+                          : t.planClearLaterMonth(
+                              later.period,
+                              money(later.amount),
+                            ),
+                      key: const ValueKey('clear-assigned-later'),
+                    ),
+                  if (s.short.isNotEmpty) ...[
+                    line(
+                      month == null
+                          ? t.planClearShortPay
+                          : t.planClearShortMonth(month),
+                    ),
+                    // Red for a shortfall, with its minus; one already
+                    // short says from what to what.
+                    for (final x in s.short.take(_named))
+                      item(
+                        x.name,
+                        x.before < 0
+                            ? t.planClearFromTo(money(x.before), money(x.after))
+                            : money(x.after),
+                        key: ValueKey('clear-short-${x.name}'),
+                        color: Mid.coral,
+                      ),
+                    if (s.short.length > _named)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, top: 4),
+                        child: Text(
+                          t.planClearMore(s.short.length - _named),
+                          style: onest(13.5, color: Mid.ink2),
+                        ),
+                      ),
+                  ],
+                  if (s.bills.isNotEmpty) ...[
+                    line(t.planClearBills),
+                    for (final b in s.bills)
+                      item(
+                        b.name,
+                        t.phoneDue(sayDate(t, b.due)),
+                        key: ValueKey('clear-bill-${b.name}'),
+                      ),
+                  ],
+                  if (s.safetyNet != 0)
+                    line(
+                      t.planClearSafetyNet(money(s.safetyNet)),
+                      key: const ValueKey('clear-assigned-safety'),
+                      color: Mid.ink2,
+                    ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      BarButton(
+                        key: const ValueKey('clear-assigned-cancel'),
+                        label: t.planCancel,
+                        onTap: () => Navigator.of(context).pop(),
+                      ),
+                      _PrimaryButton(
+                        key: const ValueKey('clear-assigned-confirm'),
+                        label: t.planClear,
+                        icon: Icons.check_rounded,
+                        tooltip: 'Enter',
+                        onTap: () => Navigator.of(context).pop(true),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DeleteCategoryDialog extends StatefulWidget {
   const _DeleteCategoryDialog({
     required this.category,
@@ -3710,6 +4085,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
   final _upToFocus = FocusNode(debugLabel: 'plan-up-to');
   final _datesFocus = FocusNode(debugLabel: 'plan-dates');
+  final _onceFocus = FocusNode(debugLabel: 'plan-once');
+  final _noteFocus = FocusNode(debugLabel: 'category-note');
+  final _newGroupFocus = FocusNode(debugLabel: 'category-new-group');
+  final _groupMenu = MenuController();
   final _repeatMenu = MenuController();
   final _eachMenu = MenuController();
 
@@ -3731,6 +4110,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _nthWeekdayMenu,
       _accountsMenu,
       _currencyMenu,
+      _groupMenu,
     ]) {
       if (m.isOpen) {
         m.close();
@@ -3811,9 +4191,51 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// its amounts don't, so the plan starts over there.
   CategoryPlan? get _plan => _currency == _cat.currency ? _savedPlan : null;
 
+  /// The set amount's own period around the one on screen: the one "Just
+  /// for December" is about. None in the New category window, where
+  /// there's no plan yet to set it apart from.
+  DateTime? _onceStartFor(int? payId) => widget.isNew
+      ? null
+      : budgetPeriod(
+          widget.period.start,
+          widget.data.payScheduleById(payId),
+        ).start;
+
+  /// The groups the Budget page has, each once whatever its case.
+  List<String> get _groups {
+    final byCase = <String, String>{
+      for (final g in [for (final c in widget.data.categories) ?c.budgetGroup])
+        g.toLowerCase(): g,
+    };
+    final names = byCase.values.toList();
+    names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return names;
+  }
+
+  /// The group as Edit has it: a new one typed takes the spelling of a
+  /// group already there.
+  String? get _groupNow {
+    final typed = _d.newGroup?.text.trim();
+    if (typed == null) return _d.group;
+    if (typed.isEmpty) return null;
+    return _groups
+            .where((g) => g.toLowerCase() == typed.toLowerCase())
+            .firstOrNull ??
+        typed;
+  }
+
   @override
   void initState() {
     super.initState();
+    final saved = _savedPlan;
+    final onceWas = _p.onceStart;
+    _p.onceStart = _onceStartFor(
+      saved?.kind == PlanKind.each
+          ? saved!.payScheduleId
+          : widget.data.periodSchedule?.id,
+    );
+    // Kept typing from another period's Edit: this period's own amount.
+    if (_d.filled && onceWas != _p.onceStart) _p.showOnce(saved);
     // Kept from before the page was left: the answers are already in.
     if (!_d.filled) _showPlan(_savedPlan);
     _d.filled = true;
@@ -3834,6 +4256,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _dateFocus,
       _upToFocus,
       _datesFocus,
+      _onceFocus,
+      _noteFocus,
+      _newGroupFocus,
     ]) {
       f.addListener(_keepKeys);
     }
@@ -3878,6 +4303,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _dateFocus.dispose();
     _upToFocus.dispose();
     _datesFocus.dispose();
+    _onceFocus.dispose();
+    _noteFocus.dispose();
+    _newGroupFocus.dispose();
     _panelFocus.dispose();
     _panelScope.dispose();
     super.dispose();
@@ -3922,7 +4350,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       (_p.typedAmount == null
               ? _amountFocus
               : !_p.hasDate
-              ? _upToFocus
+              ? (_p.missing == PlanMissing.once ? _onceFocus : _upToFocus)
               : _p.repeat == PlanRepeat.dates
               ? _datesFocus
               : _dateFocus)
@@ -3936,6 +4364,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       off: _off,
       plan: draft,
       inMonth: _inMonth,
+      group: _groupNow,
+      note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
     final add = widget.onAdd;
     if (add == null) return widget.onSave(edit);
@@ -4187,6 +4617,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ],
             ),
           ),
+        if (hasAmount && _p.onceStart != null)
+          _onceRow(t, amountField, line: line),
         // Shown whether or not an amount is typed: it answers "do we
         // ever zero it out?" (owner, 2026-10-05).
         ...[
@@ -4630,6 +5062,193 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   /// Whether Savings counts it in a month of expenses (owner, 2026-10-26),
   /// with what the answer means beside it.
+  /// "Just for December" (#100): one of the set amount's own periods
+  /// asks for an amount of its own, or nothing, and the next goes back to
+  /// the plan's. Said beside it with the real amounts.
+  Widget _onceRow(
+    Words t,
+    Widget Function(
+      TextEditingController controller,
+      FocusNode focus, {
+      required String key,
+      required bool wrong,
+      bool autofocus,
+      String? hint,
+    })
+    amountField, {
+    required EnvelopeLine? line,
+  }) {
+    final start = _p.onceStart!;
+    final pay = widget.data.payScheduleById(_p.eachPayId);
+    final next = nextBudgetPeriod(budgetPeriod(start, pay), pay).start;
+    final month = monthName(t, start.month);
+    final usual = switch (_p.typedAmount) {
+      final a? => formatShort(a, currency: _currency),
+      null => null,
+    };
+    final once = _p.typedOnce;
+    // The period after has its own amount too: "back to" would be wrong.
+    final nextOwn = _plan?.once.containsKey(next) ?? false;
+    String? aside;
+    if (once == null || usual == null || _p.wrongOnce || nextOwn) {
+      aside = null;
+    } else if (pay == null) {
+      aside = once == 0
+          ? t.planOnceSkippedMonth(month, usual, monthName(t, next.month))
+          : t.planOnceBackMonth(usual, monthName(t, next.month));
+    } else {
+      aside = once == 0
+          ? t.planOnceSkippedPay(usual, sayDate(t, next))
+          : t.planOnceBackPay(usual, sayDate(t, next));
+    }
+    // Up to holds it down: said, with what it comes to (budget review).
+    final plan = line?.plan;
+    final cap = _p.rollover ? _p.typedUpTo : null;
+    if (aside != null &&
+        plan != null &&
+        plan.once &&
+        cap != null &&
+        once != null &&
+        plan.planned < once) {
+      final held = formatShort(plan.planned, currency: _currency);
+      final capText = formatShort(cap, currency: _currency);
+      aside =
+          '$aside ${pay == null ? t.planOnceCappedMonth(capText, month, held) : t.planOnceCappedPay(capText, held)}';
+    }
+    return _formRow(
+      pay == null ? t.planOnceMonth(month) : t.planOncePay(sayDate(t, start)),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          amountField(
+            _p.onceAmount,
+            _onceFocus,
+            key: 'plan-once',
+            wrong: _tried && _p.wrongOnce,
+          ),
+          // Offered while it isn't skipped already.
+          if (once != 0) ...[
+            const SizedBox(width: 8),
+            BarButton(
+              key: const ValueKey('plan-once-skip'),
+              label: pay == null ? t.planSkipMonth(month) : t.planSkipPay,
+              onTap: () => setState(() => _p.onceAmount.text = '0'),
+            ),
+          ],
+          // Back to the plan's amount by the mouse alone (budget review).
+          if (_p.onceAmount.text.trim().isNotEmpty && usual != null) ...[
+            const SizedBox(width: 8),
+            BarButton(
+              key: const ValueKey('plan-once-usual'),
+              label: t.planOnceUsual(usual),
+              onTap: () => setState(() => _p.onceAmount.clear()),
+            ),
+          ],
+        ],
+      ),
+      aside: aside,
+    );
+  }
+
+  /// Its group on the Budget page (#100): a heading it sits under. New
+  /// group… is first, then none, then the groups there are.
+  Widget _groupRow(Words t) {
+    final typing = _d.newGroup;
+    final Widget control;
+    if (typing != null) {
+      control = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 220,
+            height: 34,
+            child: TextField(
+              key: const ValueKey('category-new-group'),
+              controller: typing,
+              focusNode: _newGroupFocus,
+              style: onest(13.5),
+              onSubmitted: (_) => _save(),
+              decoration: _fieldDecoration(hint: t.planGroupName),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Back to the dropdown by the mouse alone (code review).
+          BarButton(
+            key: const ValueKey('category-new-group-cancel'),
+            label: t.planCancel,
+            onTap: () => setState(() {
+              _d.newGroup?.dispose();
+              _d.newGroup = null;
+            }),
+          ),
+        ],
+      );
+    } else {
+      Widget item(String key, String label, VoidCallback onTap) =>
+          MenuItemButton(
+            key: ValueKey(key),
+            onPressed: onTap,
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(Size(200, 34)),
+              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+            ),
+            child: Text(label, style: onest(13, color: Mid.ink2)),
+          );
+      control = SizedBox(
+        height: 34,
+        child: MenuAnchor(
+          controller: _groupMenu,
+          style: _menuStyle,
+          menuChildren: focusFirstOnKeys([
+            item('category-group-new', t.planNewGroup, () {
+              setState(() => _d.newGroup = TextEditingController());
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _newGroupFocus.requestFocus();
+              });
+            }),
+            item(
+              'category-group-none',
+              t.planNoGroup,
+              () => setState(() => _d.group = null),
+            ),
+            for (final g in _groups)
+              item('category-group-$g', g, () => setState(() => _d.group = g)),
+          ]),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: 1,
+            child: BarButton(
+              key: const ValueKey('category-group'),
+              label: _d.group ?? t.planNoGroup,
+              trailing: Icons.expand_more_rounded,
+              active: _groupMenu.isOpen,
+              onTap: () =>
+                  _groupMenu.isOpen ? _groupMenu.close() : _groupMenu.open(),
+            ),
+          ),
+        ),
+      );
+    }
+    return _formRow(t.planGroup, control);
+  }
+
+  /// What the person wants to remember about it, under its name (#100).
+  Widget _noteRow(Words t) => _formRow(
+    t.planNote,
+    SizedBox(
+      width: 420,
+      height: 34,
+      child: TextField(
+        key: const ValueKey('category-note'),
+        controller: _d.note,
+        focusNode: _noteFocus,
+        style: onest(13.5),
+        onSubmitted: (_) => _save(),
+        decoration: _fieldDecoration(),
+      ),
+    ),
+  );
+
   Widget _inMonthRow(Words t) => _formRow(
     t.planInMonthQ,
     _Segmented(
@@ -4793,7 +5412,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return ListenableBuilder(
       listenable: Listenable.merge([
         _name,
+        _d.note,
+        ?_d.newGroup,
         _p.amount,
+        _p.onceAmount,
         _p.date,
         _p.upTo,
         _p.everyN,
@@ -4803,6 +5425,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         _p.endCount,
       ]),
       builder: (context, _) {
+        // How Often may have moved the set amount to another period.
+        _p.onceStart = _onceStartFor(_p.eachPayId);
         final draft = _draft;
         // What went back in earlier periods returns to the category when
         // it carries over again: said before it's saved.
@@ -5055,6 +5679,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             const SizedBox(height: 22),
                             ..._planFields(t, line: line, draft: draft),
                             if (_asksInMonth) _inMonthRow(t),
+                            // A bill sits under Bills and the Safety net
+                            // under Saved, whatever group they'd have.
+                            if (!_p.hasDate && !isSafetyNet(widget.category))
+                              _groupRow(t),
+                            _noteRow(t),
                             // The row, as it will read after Save.
                             const SizedBox(height: 6),
                             Text(
@@ -5137,6 +5766,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                                   ),
                                               ],
                                             ),
+                                          ),
+                                        if (_d.note.text.trim() case final note
+                                            when note.isNotEmpty)
+                                          Text(
+                                            note,
+                                            key: const ValueKey('note-preview'),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: onest(12, color: Mid.ink3),
                                           ),
                                       ],
                                     ),
@@ -5325,10 +5963,21 @@ class _EditDraft {
   _EditDraft(AccountInfo c, DateTime today)
     : id = c.id,
       name = TextEditingController(text: c.name),
+      note = TextEditingController(text: c.note ?? ''),
+      group = c.budgetGroup,
       p = PlanAnswers(today: today, currency: c.currency);
   final int id;
   final TextEditingController name;
   final PlanAnswers p;
+
+  /// What's written about it, shown under its name (#100).
+  final TextEditingController note;
+
+  /// Its group, as picked; null for none.
+  String? group;
+
+  /// New group… was picked: its name is being typed here.
+  TextEditingController? newGroup;
 
   /// The accounts unticked; null until Edit first asks.
   Set<int>? off;
@@ -5341,6 +5990,8 @@ class _EditDraft {
 
   void dispose() {
     name.dispose();
+    note.dispose();
+    newGroup?.dispose();
     p.dispose();
   }
 }

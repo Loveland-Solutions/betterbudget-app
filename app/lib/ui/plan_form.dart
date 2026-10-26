@@ -41,9 +41,18 @@ class PlanAnswers {
   final endDate = TextEditingController();
   final endCount = TextEditingController(text: '12');
 
+  /// A set amount's one period with an amount of its own (#100, "Just for
+  /// December"): what's typed for it, 0 to skip it, empty for the plan's.
+  final onceAmount = TextEditingController();
+
+  /// The day that period starts, its own period around the one on screen;
+  /// null where it isn't asked (a new category).
+  DateTime? onceStart;
+
   /// Everything typed: a form rebuilds on it.
   Listenable get typing => Listenable.merge([
     amount,
+    onceAmount,
     date,
     upTo,
     everyN,
@@ -56,6 +65,7 @@ class PlanAnswers {
   void dispose() {
     for (final c in [
       amount,
+      onceAmount,
       date,
       upTo,
       everyN,
@@ -154,7 +164,16 @@ class PlanAnswers {
     if (p != null && (p.weekdays != null || p.nth != null)) custom = true;
     rollover = p?.rollover ?? true;
     upTo.text = _amountText(p?.upTo ?? 0);
+    showOnce(p);
   }
+
+  /// [onceAmount] from [p]'s amount for the period at [onceStart].
+  void showOnce(CategoryPlan? p) =>
+      onceAmount.text = switch (p?.once[onceStart]) {
+        null => '',
+        0 => '0',
+        final v => _amountText(v),
+      };
 
   /// One of How often's ready-made choices.
   void preset(int n, PlanUnit u) {
@@ -196,6 +215,18 @@ class PlanAnswers {
 
   /// Something is in the cap's field that isn't an amount.
   bool get wrongUpTo => upTo.text.trim().isNotEmpty && typedUpTo == null;
+
+  /// The one period's amount, when one is typed: 0 skips it.
+  int? get typedOnce => switch (parseAmount(onceAmount.text.trim(), currency)) {
+    final a? when a >= 0 => a,
+    _ => null,
+  };
+
+  /// Something is in the one period's field that isn't an amount.
+  bool get wrongOnce =>
+      onceStart != null &&
+      onceAmount.text.trim().isNotEmpty &&
+      typedOnce == null;
 
   /// A bill or goal is ahead: `03.15` typed in October is next March's,
   /// and a bill that repeats is its next time round (`10.10` typed on
@@ -326,7 +357,13 @@ class PlanAnswers {
     final k = kind;
     if (k == null) return null;
     if (typedAmount == null) return PlanMissing.amount;
-    if (!hasDate) return rollover && wrongUpTo ? PlanMissing.upTo : null;
+    if (!hasDate) {
+      return rollover && wrongUpTo
+          ? PlanMissing.upTo
+          : wrongOnce
+          ? PlanMissing.once
+          : null;
+    }
     switch (repeat) {
       case PlanRepeat.payday:
         return payScheduleId == null ? PlanMissing.date : null;
@@ -405,6 +442,7 @@ class PlanAnswers {
       rollover: carry,
       upTo: cap,
       paidFrom: paidFrom,
+      once: k == PlanKind.each ? _once(old) : const {},
     );
     final fresh = make(today);
     // A dated plan's parts count from the day it was made, and a category
@@ -422,10 +460,25 @@ class PlanAnswers {
             : old.amount == amount && old.sameRepeat(fresh));
     return same ? make(old.start) : fresh;
   }
+
+  /// The set amount's single periods: those [old] had, while its periods
+  /// are still the same ones, with the one on screen as typed.
+  Map<DateTime, int> _once(CategoryPlan? old) {
+    final start = onceStart;
+    final typed = typedOnce;
+    return {
+      if (old != null &&
+          old.kind == PlanKind.each &&
+          old.payScheduleId == eachPayId)
+        for (final e in old.once.entries)
+          if (e.key != start) e.key: e.value,
+      if (start != null && typed != null) start: typed,
+    };
+  }
 }
 
 /// The answer a form asks for again when Add or Save finds it missing.
-enum PlanMissing { amount, upTo, date, dates, everyN, endDate, endCount }
+enum PlanMissing { amount, upTo, once, date, dates, everyN, endDate, endCount }
 
 // ---------- the words both forms use ----------
 
@@ -546,11 +599,28 @@ PlanNote planNote(
   // A dated plan names its part only while it wants one.
   final wants = p.each > 0 && p.planned > 0 && !(once && p.done);
   final cap = p.plan.rollover ? p.plan.upTo : null;
+  // A period given its own amount (#100): said with what comes after it.
+  // Its own period's words: a monthly one seen by a pay names its month.
+  String onceLine() {
+    final usual = money(p.plan.amount);
+    final month = monthName(t, (p.onceFrom ?? period.start).month);
+    if (p.each == 0) {
+      return ownPay
+          ? t.planSkippedPay(usual)
+          : t.planSkippedMonth(month, usual);
+    }
+    return ownPay
+        ? t.planOncePayLine(money(p.each), usual)
+        : t.planOnceMonthLine(money(p.each), month, usual);
+  }
+
   final parts = switch (p.plan.kind) {
     PlanKind.each => [
       // Holding its cap, the line says so in place of the amount.
       if (cap != null && p.done)
         t.planSetAsideAmount(money(cap))
+      else if (p.once)
+        onceLine()
       else
         each(p.each),
       // Seen by another period than its own: its share of this one, by

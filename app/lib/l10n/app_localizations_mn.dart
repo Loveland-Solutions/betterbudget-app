@@ -6172,4 +6172,187 @@ class WordsMn extends Words {
 
   @override
   String get planMoveSwapTip => 'Мөнгийг эсрэг чиглэлд шилжүүлэх';
+
+  @override
+  String planOnceMonth(String month) {
+    return 'Зөвхөн $monthд';
+  }
+
+  @override
+  String planOncePay(String date) {
+    return 'Зөвхөн нэг цалингийн үед · $date';
+  }
+
+  @override
+  String planSkipMonth(String month) {
+    return '$monthд алгасах';
+  }
+
+  @override
+  String get planSkipPay => 'Энэ цалингийн үеийг алгасах';
+
+  @override
+  String planOnceBackMonth(String amount, String next) {
+    return '$nextд дахин $amount болно.';
+  }
+
+  @override
+  String planOnceSkippedMonth(String month, String amount, String next) {
+    return '$monthд юу ч хуваарилахгүй. $nextд дахин $amount болно.';
+  }
+
+  @override
+  String planOnceBackPay(String amount, String date) {
+    return '$date-с дахин $amount болно.';
+  }
+
+  @override
+  String planOnceSkippedPay(String amount, String date) {
+    return 'Тэр цалингийн үед юу ч хуваарилахгүй. $date-с дахин $amount болно.';
+  }
+
+  @override
+  String planOnceMonthLine(String amount, String month, String usual) {
+    return 'зөвхөн $monthд $amount, дараа нь сард $usual';
+  }
+
+  @override
+  String planOncePayLine(String amount, String usual) {
+    return 'зөвхөн энэ цалингийн үед $amount, дараа нь цалингийн үе бүрт $usual';
+  }
+
+  @override
+  String planSkippedMonth(String month, String usual) {
+    return '$monthд алгассан, дараа нь сард $usual';
+  }
+
+  @override
+  String planSkippedPay(String usual) {
+    return 'энэ цалингийн үеийг алгассан, дараа нь цалингийн үе бүрт $usual';
+  }
+
+  @override
+  String get planGroup => 'Бүлэг';
+
+  @override
+  String get planNewGroup => 'Шинэ бүлэг…';
+
+  @override
+  String get planNoGroup => 'Бүлэггүй';
+
+  @override
+  String get planGroupName => 'Бүлгийн нэр';
+
+  @override
+  String get planNote => 'Тэмдэглэл';
+
+  @override
+  String planClearMonth(String month) {
+    return '$monthын хуваарилсныг цэвэрлэх';
+  }
+
+  @override
+  String get planClearPay => 'Энэ цалингийн үеийн хуваарилсныг цэвэрлэх';
+
+  @override
+  String planClearMonthTitle(String month) {
+    return '$monthын хуваарилсныг цэвэрлэх үү?';
+  }
+
+  @override
+  String get planClearPayTitle =>
+      'Энэ цалингийн үеийн хуваарилсныг цэвэрлэх үү?';
+
+  @override
+  String planClearBody(String amount, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ангиллаас $amount гарна.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planClearShortMonth(String month) {
+    return 'Зарцуулсан нь хэвээр тул эдгээр нь $monthыг дутагдалтай дуусгана:';
+  }
+
+  @override
+  String get planClearShortPay =>
+      'Зарцуулсан нь хэвээр тул эдгээр нь энэ цалингийн үеийг дутагдалтай дуусгана:';
+
+  @override
+  String planClearMore(int count) {
+    return 'бас $count';
+  }
+
+  @override
+  String get planClear => 'Цэвэрлэх';
+
+  @override
+  String planClearedMonth(String month, String amount) {
+    return '$monthын хуваарилсныг цэвэрлэлээ · $amount';
+  }
+
+  @override
+  String planClearedPay(String amount) {
+    return 'Энэ цалингийн үеийн хуваарилсныг цэвэрлэлээ · $amount';
+  }
+
+  @override
+  String planOnceCappedMonth(String cap, String month, String amount) {
+    return 'Дээд хэмжээ $cap тул $monthд $amount л хуваарилна.';
+  }
+
+  @override
+  String planOnceCappedPay(String cap, String amount) {
+    return 'Дээд хэмжээ $cap тул тэр цалингийн үед $amount л хуваарилна.';
+  }
+
+  @override
+  String planOnceUsual(String amount) {
+    return '$amount болгох';
+  }
+
+  @override
+  String get planClearBack => 'Бүгд хуваарилаагүй мөнгө рүү буцна.';
+
+  @override
+  String planClearPart(String freed, String covering) {
+    return 'Хуваарилаагүй мөнгө $freed-өөр нэмэгдэнэ; $covering нь аль хэдийн зарцуулсныг нөхөж байсан.';
+  }
+
+  @override
+  String planClearLaterMonth(String month, String amount) {
+    return '$monthд шилжсэн нь мөн хасагдана: ангиллууд $monthыг $amount-өөр бага үлдэгдэлтэй дуусгана.';
+  }
+
+  @override
+  String planClearLaterPay(String amount) {
+    return 'Энэ цалингийн үед шилжсэн нь мөн хасагдана: ангиллууд $amount-өөр бага үлдэгдэлтэй дуусгана.';
+  }
+
+  @override
+  String planClearFromTo(String before, String after) {
+    return '$before → $after';
+  }
+
+  @override
+  String get planClearBills => 'Эдгээр төлбөрт хадгалсан мөнгө хасагдана:';
+
+  @override
+  String planClearSafetyNet(String amount) {
+    return 'Аюулгүйн сан $amount-өө хэвээр үлдээнэ.';
+  }
+
+  @override
+  String planClearMonthIn(String month, String code) {
+    return '$monthын $code хуваарилсныг цэвэрлэх';
+  }
+
+  @override
+  String planClearPayIn(String code) {
+    return 'Энэ цалингийн үеийн $code хуваарилсныг цэвэрлэх';
+  }
 }

@@ -128,6 +128,67 @@ void main() {
     });
   }
 
+  test('upgrades a v21 file: categories and plans stay as they were, and '
+      'take a group, a note and a single month', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    var ledger = await db.loadLedger();
+    final groceries = ledger.categories.firstWhere(
+      (c) => c.name == 'Groceries',
+    );
+    final plan = CategoryPlan(
+      categoryId: groceries.id,
+      kind: PlanKind.each,
+      amount: 90000000,
+      start: today,
+      upTo: 120000000,
+    );
+    await db.changeCategoryPlan(groceries.id, plan, today);
+    final digest = (await db.sealState()).digest;
+    await dropAddedInV22(db);
+    await db.customStatement('PRAGMA user_version = 21');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+
+    await expectAllColumns(db);
+    addTearDown(db.close);
+    // Not a row changed: the new columns are empty.
+    expect((await db.sealState()).digest, digest);
+    ledger = await db.loadLedger();
+    expect(ledger.plans[groceries.id], plan);
+    expect(ledger.plans[groceries.id]!.once, isEmpty);
+    expect(ledger.accounts[groceries.id]!.budgetGroup, isNull);
+    expect(ledger.accounts[groceries.id]!.note, isNull);
+    // And they take what's new and give it back.
+    final december = DateTime(2026, 12);
+    final once = CategoryPlan(
+      categoryId: groceries.id,
+      kind: PlanKind.each,
+      amount: 90000000,
+      start: today,
+      upTo: 120000000,
+      once: {december: 120000000, DateTime(2027): 0},
+    );
+    await db.changeCategoryPlan(groceries.id, once, today);
+    await db.setCategoryDetails(groceries.id, group: 'Food', note: 'Market');
+    ledger = await db.loadLedger();
+    expect(ledger.plans[groceries.id], once);
+    expect(ledger.plans[groceries.id]!.amountIn(december), 120000000);
+    expect(ledger.plans[groceries.id]!.amountIn(DateTime(2027)), 0);
+    expect(ledger.plans[groceries.id]!.amountIn(DateTime(2027, 2)), 90000000);
+    expect(ledger.accounts[groceries.id]!.budgetGroup, 'Food');
+    expect(ledger.accounts[groceries.id]!.note, 'Market');
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v22-from-v21-')),
+    );
+  });
+
   test('upgrades a v19 file: the change log is made, empty, and no ledger '
       'id is invented', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -163,7 +224,7 @@ void main() {
     expect(await db.lastChangeSeq(), 1);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v19-')),
+      contains(startsWith('betterbudget.before-v22-from-v19-')),
     );
     await db.close();
 
@@ -179,13 +240,13 @@ void main() {
     expect(await db.lastChangeSeq(), 2);
     // A newer build's file is refused and left as it is; this build then
     // opens it again with everything in place.
-    await db.customStatement('PRAGMA user_version = 22');
+    await db.customStatement('PRAGMA user_version = 23');
     await db.close();
     db = AppDatabase(NativeDatabase(file));
     await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
     await db.close();
     final raw = sqlite3.open(file.path);
-    raw.execute('PRAGMA user_version = 21');
+    raw.execute('PRAGMA user_version = 22');
     raw.close();
     db = AppDatabase(NativeDatabase(file));
     await expectAllColumns(db);
@@ -241,7 +302,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v18-')),
+      contains(startsWith('betterbudget.before-v22-from-v18-')),
     );
   });
 
@@ -279,7 +340,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v17-')),
+      contains(startsWith('betterbudget.before-v22-from-v17-')),
     );
   });
 
@@ -343,7 +404,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v21-from-v16-')),
+        contains(startsWith('betterbudget.before-v22-from-v16-')),
       );
     },
   );
@@ -403,7 +464,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v15-')),
+      contains(startsWith('betterbudget.before-v22-from-v15-')),
     );
   });
 
@@ -436,7 +497,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v6-')),
+      contains(startsWith('betterbudget.before-v22-from-v6-')),
     );
   });
 
@@ -493,7 +554,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v21-from-v11-')),
+        contains(startsWith('betterbudget.before-v22-from-v11-')),
       );
     });
   }
@@ -577,7 +638,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v21-from-v12-')),
+        contains(startsWith('betterbudget.before-v22-from-v12-')),
       );
     },
   );
@@ -632,7 +693,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v13-')),
+      contains(startsWith('betterbudget.before-v22-from-v13-')),
     );
   });
 
@@ -673,7 +734,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v10-')),
+      contains(startsWith('betterbudget.before-v22-from-v10-')),
     );
   });
 
@@ -709,7 +770,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v21-from-v9-')),
+        contains(startsWith('betterbudget.before-v22-from-v9-')),
       );
     },
   );
@@ -747,7 +808,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v21-from-v8-')),
+      contains(startsWith('betterbudget.before-v22-from-v8-')),
     );
   });
 
@@ -857,7 +918,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v21-from-v5-')),
+        contains(startsWith('betterbudget.before-v22-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -1056,6 +1117,17 @@ Future<void> dropAddedInV5(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN payday');
   await db.customStatement('PRAGMA legacy_alter_table = OFF');
   await db.customStatement('PRAGMA foreign_keys = ON');
+}
+
+/// v22: a category's group and note, and a plan's single periods.
+Future<void> dropAddedInV22(AppDatabase db) async {
+  // The triggers name the columns; the change log itself stays.
+  for (final name in await db.changeTriggersPresent()) {
+    await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+  }
+  await db.customStatement('ALTER TABLE accounts DROP COLUMN budget_group');
+  await db.customStatement('ALTER TABLE accounts DROP COLUMN note');
+  await db.customStatement('ALTER TABLE category_plans DROP COLUMN once');
 }
 
 /// v20: the change log, and this connection's triggers that fill it.

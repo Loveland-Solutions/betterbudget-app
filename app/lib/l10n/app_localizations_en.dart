@@ -6400,4 +6400,187 @@ class WordsEn extends Words {
 
   @override
   String get planMoveSwapTip => 'Move money the other way';
+
+  @override
+  String planOnceMonth(String month) {
+    return 'Just for $month';
+  }
+
+  @override
+  String planOncePay(String date) {
+    return 'Just for the pay period from $date';
+  }
+
+  @override
+  String planSkipMonth(String month) {
+    return 'Skip $month';
+  }
+
+  @override
+  String get planSkipPay => 'Skip this pay period';
+
+  @override
+  String planOnceBackMonth(String amount, String next) {
+    return 'Back to $amount in $next.';
+  }
+
+  @override
+  String planOnceSkippedMonth(String month, String amount, String next) {
+    return 'Nothing set aside in $month. Back to $amount in $next.';
+  }
+
+  @override
+  String planOnceBackPay(String amount, String date) {
+    return 'Back to $amount from $date.';
+  }
+
+  @override
+  String planOnceSkippedPay(String amount, String date) {
+    return 'Nothing set aside that pay period. Back to $amount from $date.';
+  }
+
+  @override
+  String planOnceMonthLine(String amount, String month, String usual) {
+    return '$amount in $month only, then $usual a month';
+  }
+
+  @override
+  String planOncePayLine(String amount, String usual) {
+    return '$amount this pay period only, then $usual each pay period';
+  }
+
+  @override
+  String planSkippedMonth(String month, String usual) {
+    return 'Skipped in $month, then $usual a month';
+  }
+
+  @override
+  String planSkippedPay(String usual) {
+    return 'Skipped this pay period, then $usual each pay period';
+  }
+
+  @override
+  String get planGroup => 'Group';
+
+  @override
+  String get planNewGroup => 'New group…';
+
+  @override
+  String get planNoGroup => 'No group';
+
+  @override
+  String get planGroupName => 'Group name';
+
+  @override
+  String get planNote => 'Note';
+
+  @override
+  String planClearMonth(String month) {
+    return 'Clear $month’s Assigned';
+  }
+
+  @override
+  String get planClearPay => 'Clear this pay period’s Assigned';
+
+  @override
+  String planClearMonthTitle(String month) {
+    return 'Clear $month’s Assigned?';
+  }
+
+  @override
+  String get planClearPayTitle => 'Clear this pay period’s Assigned?';
+
+  @override
+  String planClearBody(String amount, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$amount comes out of $count categories.',
+      one: '$amount comes out of 1 category.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planClearShortMonth(String month) {
+    return 'What’s spent stays spent, so these end $month short:';
+  }
+
+  @override
+  String get planClearShortPay =>
+      'What’s spent stays spent, so these end this pay period short:';
+
+  @override
+  String planClearMore(int count) {
+    return 'and $count more';
+  }
+
+  @override
+  String get planClear => 'Clear';
+
+  @override
+  String planClearedMonth(String month, String amount) {
+    return 'Cleared $month’s Assigned · $amount';
+  }
+
+  @override
+  String planClearedPay(String amount) {
+    return 'Cleared this pay period’s Assigned · $amount';
+  }
+
+  @override
+  String planOnceCappedMonth(String cap, String month, String amount) {
+    return 'Up to $cap holds $month to $amount.';
+  }
+
+  @override
+  String planOnceCappedPay(String cap, String amount) {
+    return 'Up to $cap holds that pay period to $amount.';
+  }
+
+  @override
+  String planOnceUsual(String amount) {
+    return 'Use $amount';
+  }
+
+  @override
+  String get planClearBack => 'It all goes back to Not assigned.';
+
+  @override
+  String planClearPart(String freed, String covering) {
+    return 'Not assigned goes up $freed; $covering was covering what was already spent.';
+  }
+
+  @override
+  String planClearLaterMonth(String month, String amount) {
+    return 'What carried into $month goes too: its categories end $month with $amount less.';
+  }
+
+  @override
+  String planClearLaterPay(String amount) {
+    return 'What carried into this pay period goes too: its categories end it with $amount less.';
+  }
+
+  @override
+  String planClearFromTo(String before, String after) {
+    return '$before → $after';
+  }
+
+  @override
+  String get planClearBills => 'These bills lose what was set aside for them:';
+
+  @override
+  String planClearSafetyNet(String amount) {
+    return 'The Safety net keeps its $amount.';
+  }
+
+  @override
+  String planClearMonthIn(String month, String code) {
+    return 'Clear $month’s Assigned in $code';
+  }
+
+  @override
+  String planClearPayIn(String code) {
+    return 'Clear this pay period’s Assigned in $code';
+  }
 }

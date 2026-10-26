@@ -41,7 +41,23 @@ class PhoneCategory {
     this.plan,
     this.off = const {},
     this.hadMinor,
+    this.group,
+    this.note,
+    this.onceMinor,
+    this.usualMinor,
   });
+
+  /// Its group, a heading on Budget as on the computer (#100); none for
+  /// a bill or the Safety net, which have their own places.
+  final String? group;
+
+  /// What was written about it on the computer, under its name.
+  final String? note;
+
+  /// This period has an amount of its own ("Just for September", #100):
+  /// that amount, 0 when skipped, and the plan's usual one. Null otherwise.
+  final int? onceMinor;
+  final int? usualMinor;
 
   /// What it had this period to spend (what it carried in, plus what was
   /// assigned), for the ring before its name (#241): null when it has no
@@ -545,6 +561,20 @@ PhoneSnapshot snapshotOf(
             recentPayees: payees[c.id] ?? const [],
             due: dueOf(c.id),
             hadMinor: hadOf(c.id),
+            group:
+                budget.lines[c.id]!.plan?.plan.kind == PlanKind.byDate ||
+                    isSafetyNet(c)
+                ? null
+                : c.budgetGroup,
+            note: c.note,
+            onceMinor: switch (budget.lines[c.id]!.plan) {
+              final p? when p.once => p.each,
+              _ => null,
+            },
+            usualMinor: switch (budget.lines[c.id]!.plan) {
+              final p? when p.once => p.plan.amount,
+              _ => null,
+            },
           ),
     ],
     accounts: [

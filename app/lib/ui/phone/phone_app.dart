@@ -398,13 +398,47 @@ class _Draft extends ChangeNotifier {
 /// Money to spend first; then, where null stands for the **Bills** heading,
 /// the categories whose money is waiting for a bill (owner, 2026-10-07:
 /// rent's money read as money to spend).
-List<PhoneCategory?> _spendThenBills(List<PhoneCategory> categories) => [
-  for (final c in categories)
-    if (c.due == null) c,
-  if (categories.any((c) => c.due != null)) null,
-  for (final c in categories)
-    if (c.due != null) c,
-];
+/// Money to spend first: those in no group, then each group under its
+/// name, A to Z, as on the computer (#100); then Bills. A string is a
+/// group's heading, null the Bills heading.
+List<Object?> _spendThenBills(List<PhoneCategory> categories) {
+  final spend = [
+    for (final c in categories)
+      if (c.due == null) c,
+  ];
+  // One heading whatever the case, as first spelt.
+  final groups = <String, String>{
+    for (final g in [for (final c in spend.reversed) ?c.group])
+      g.toLowerCase(): g,
+  };
+  final keys = groups.keys.toList()..sort();
+  return [
+    ...spend.where((c) => c.group == null),
+    for (final g in keys) ...[
+      groups[g]!,
+      ...spend.where((c) => c.group?.toLowerCase() == g),
+    ],
+    if (categories.any((c) => c.due != null)) null,
+    for (final c in categories)
+      if (c.due != null) c,
+  ];
+}
+
+/// A group's name over its categories on Budget (#100).
+class _GroupHeading extends StatelessWidget {
+  const _GroupHeading(this.name);
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+    child: Text(
+      name,
+      key: ValueKey('group-heading-$name'),
+      style: onest(14, weight: 600, color: Mid.ink2),
+    ),
+  );
+}
 
 class _BillsHeading extends StatelessWidget {
   const _BillsHeading();
@@ -699,10 +733,14 @@ class _BudgetScreen extends StatelessWidget {
                         ),
                       );
                     }
-                    final category = listed[i > newAt ? i - 1 : i];
-                    if (category == null) return const _BillsHeading();
+                    final item = listed[i > newAt ? i - 1 : i];
+                    if (item == null) return const _BillsHeading();
+                    if (item is String) return _GroupHeading(item);
+                    final category = item as PhoneCategory;
                     return _CategoryRow(
                       category: category,
+                      byPay: snapshot.periodEnd != null,
+                      month: monthName(t, today.month),
                       left: leftNow(category, store.waiting),
                       onTap: () => onCategory(category),
                     );
@@ -907,20 +945,39 @@ class _CategoryRow extends StatelessWidget {
     required this.category,
     required this.left,
     required this.onTap,
+    this.byPay = false,
+    this.month = '',
   });
   final PhoneCategory category;
   final int left;
   final VoidCallback onTap;
+
+  /// Budget is by pay period, not month: the one-month line says so.
+  final bool byPay;
+
+  /// This month's name, for "₮80,000 in September only".
+  final String month;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     // Its money is spoken for (the bill it is saving for), or it was made
     // on this phone and holds nothing until money is assigned.
+    String money(int v) => formatShort(v, currency: category.currency);
+    final once = category.onceMinor, usual = category.usualMinor;
     final under = category.due != null
         ? t.phoneDue(shortDate(category.due!))
         : category.madeHere
         ? t.phoneNothingAssigned
+        // This period has its own amount, as the computer's line says.
+        : once != null && usual != null
+        ? once == 0
+              ? byPay
+                    ? t.planSkippedPay(money(usual))
+                    : t.planSkippedMonth(month, money(usual))
+              : byPay
+              ? t.planOncePayLine(money(once), money(usual))
+              : t.planOnceMonthLine(money(once), month, money(usual))
         : null;
     return Material(
       color: Mid.card,
@@ -931,7 +988,9 @@ class _CategoryRow extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 64),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            // Room above and below once a line or a note is under the
+            // name; a one-line row is the 64 either way.
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: LayoutBuilder(
               builder: (context, box) {
                 final nameStyle = onest(17, weight: 500);
@@ -976,6 +1035,17 @@ class _CategoryRow extends StatelessWidget {
                               child: Text(
                                 under,
                                 style: onest(12, color: Mid.ink2),
+                              ),
+                            ),
+                          if (category.note case final note?)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                note,
+                                key: ValueKey('note-${category.id}'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: onest(12, color: Mid.ink3),
                               ),
                             ),
                         ],

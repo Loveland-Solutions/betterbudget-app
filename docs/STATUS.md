@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.56.0 · schema v21 · 897 tests pass
+**Last updated: 2026-10-27** · version 0.57.0 · schema v22 · 902 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -14,7 +14,16 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
 the native speaker's check of the
-Mongolian (#90), and the Budget and Savings features (#100–#103).
+Mongolian (#90), and the Savings features (#101–#103).
+
+**More controls on a budget line** (0.57.0, #100; ADR 0004 "More controls on a budget
+line"; schema v22): a category's **Group** (a heading on Budget, A to Z, after the
+everyday categories in no group; not for a bill or the Safety net) and **Note** (under
+its name) in Edit; **Just for September** under a set amount, with **Skip September**
+(`CategoryPlan.once`); **Clear September's Assigned** on the key card, after a window
+that says where the money really goes and what ends short. The cap was already
+Edit's **Up to**. The phone's Budget has the group headings, the one-month line and
+the note; it needs a new Play build.
 
 **Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
 foot of the sidebar, and on the phone"): a quiet line under Net worth, and the last
@@ -478,7 +487,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v21 (a transaction also holds `made_how` and `made_on`, where it came from; the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v21-from-v20-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
+| Storage | Drift/SQLite at schema v22 (a transaction also holds `made_how` and `made_on`, where it came from; a category its group and note, a plan its single periods; the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v22-from-v21-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
 | Sidebar | Sections Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
 | Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
 | Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |

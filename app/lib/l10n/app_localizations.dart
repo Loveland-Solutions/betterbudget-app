@@ -8916,6 +8916,246 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Move money the other way'**
   String get planMoveSwapTip;
+
+  /// Category Edit, under Set aside each month: label of the field for one month's own amount. month is a month's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Just for {month}'**
+  String planOnceMonth(String month);
+
+  /// Category Edit: label of the field for one pay period's own amount. date is the day that pay period starts.
+  ///
+  /// In en, this message translates to:
+  /// **'Just for the pay period from {date}'**
+  String planOncePay(String date);
+
+  /// Category Edit, beside Just for {month}: button; the plan asks for nothing that month.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip {month}'**
+  String planSkipMonth(String month);
+
+  /// Category Edit, beside Just for the pay period: button; the plan asks for nothing that pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this pay period'**
+  String get planSkipPay;
+
+  /// Category Edit, beside Just for {month}: what the plan asks for again the month after. next is that month's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to {amount} in {next}.'**
+  String planOnceBackMonth(String amount, String next);
+
+  /// Category Edit, beside Just for {month} when it's skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing set aside in {month}. Back to {amount} in {next}.'**
+  String planOnceSkippedMonth(String month, String amount, String next);
+
+  /// Category Edit, beside Just for the pay period: what the plan asks for again from the next pay period. date is when it starts.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to {amount} from {date}.'**
+  String planOnceBackPay(String amount, String date);
+
+  /// Category Edit, beside Just for the pay period when it's skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing set aside that pay period. Back to {amount} from {date}.'**
+  String planOnceSkippedPay(String amount, String date);
+
+  /// Budget page, the line under a category's name: this month has its own amount.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} in {month} only, then {usual} a month'**
+  String planOnceMonthLine(String amount, String month, String usual);
+
+  /// Budget page, the line under a category's name: this pay period has its own amount.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this pay period only, then {usual} each pay period'**
+  String planOncePayLine(String amount, String usual);
+
+  /// Budget page, the line under a category's name: this month is skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped in {month}, then {usual} a month'**
+  String planSkippedMonth(String month, String usual);
+
+  /// Budget page, the line under a category's name: this pay period is skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped this pay period, then {usual} each pay period'**
+  String planSkippedPay(String usual);
+
+  /// Category Edit: label of the dropdown for the heading the category sits under on the Budget page.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get planGroup;
+
+  /// Category Edit, Group dropdown: first item; a field to type the new group's name.
+  ///
+  /// In en, this message translates to:
+  /// **'New group…'**
+  String get planNewGroup;
+
+  /// Category Edit, Group dropdown: the category sits under no heading.
+  ///
+  /// In en, this message translates to:
+  /// **'No group'**
+  String get planNoGroup;
+
+  /// Category Edit: hint in the field for a new group's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get planGroupName;
+
+  /// Category Edit: label of the field for what the person wants to remember about the category; shown under its name on Budget.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get planNote;
+
+  /// Budget page, key card, on the In categories row: button; takes every amount assigned this month back to Not assigned, after a window.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear {month}’s Assigned'**
+  String planClearMonth(String month);
+
+  /// Budget page, key card: the same button by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this pay period’s Assigned'**
+  String get planClearPay;
+
+  /// Window title before clearing a month's Assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear {month}’s Assigned?'**
+  String planClearMonthTitle(String month);
+
+  /// Window title before clearing a pay period's Assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this pay period’s Assigned?'**
+  String get planClearPayTitle;
+
+  /// Window before clearing: how much goes back, from how many categories.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{amount} comes out of 1 category.} other{{amount} comes out of {count} categories.}}'**
+  String planClearBody(String amount, int count);
+
+  /// Window before clearing a month: over the list of categories that would go below zero, each with its shortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s spent stays spent, so these end {month} short:'**
+  String planClearShortMonth(String month);
+
+  /// Window before clearing a pay period: over the list of categories that would go below zero.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s spent stays spent, so these end this pay period short:'**
+  String get planClearShortPay;
+
+  /// Window before clearing: after the first six short categories.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more'**
+  String planClearMore(int count);
+
+  /// Window before clearing: the button that does it.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get planClear;
+
+  /// Popup and undo label after clearing a month's Assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {month}’s Assigned · {amount}'**
+  String planClearedMonth(String month, String amount);
+
+  /// Popup and undo label after clearing a pay period's Assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared this pay period’s Assigned · {amount}'**
+  String planClearedPay(String amount);
+
+  /// Category Edit, after the line beside Just for {month}: the cap cuts that month's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {cap} holds {month} to {amount}.'**
+  String planOnceCappedMonth(String cap, String month, String amount);
+
+  /// Category Edit: the cap cuts that pay period's amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {cap} holds that pay period to {amount}.'**
+  String planOnceCappedPay(String cap, String amount);
+
+  /// Category Edit, beside Just for {month}: button; empties it, so the plan's own amount is asked for.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {amount}'**
+  String planOnceUsual(String amount);
+
+  /// Window before clearing: none of it was covering spending.
+  ///
+  /// In en, this message translates to:
+  /// **'It all goes back to Not assigned.'**
+  String get planClearBack;
+
+  /// Window before clearing: only part comes back to Not assigned, because overspent categories' Assigned was covering their spending.
+  ///
+  /// In en, this message translates to:
+  /// **'Not assigned goes up {freed}; {covering} was covering what was already spent.'**
+  String planClearPart(String freed, String covering);
+
+  /// Window before clearing an earlier month: today's month loses what carried into it. month is today's month.
+  ///
+  /// In en, this message translates to:
+  /// **'What carried into {month} goes too: its categories end {month} with {amount} less.'**
+  String planClearLaterMonth(String month, String amount);
+
+  /// Window before clearing an earlier pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'What carried into this pay period goes too: its categories end it with {amount} less.'**
+  String planClearLaterPay(String amount);
+
+  /// Window before clearing: a category already short, from what it is now to what it would be.
+  ///
+  /// In en, this message translates to:
+  /// **'{before} → {after}'**
+  String planClearFromTo(String before, String after);
+
+  /// Window before clearing: over the bills due this period, not paid yet, whose money goes.
+  ///
+  /// In en, this message translates to:
+  /// **'These bills lose what was set aside for them:'**
+  String get planClearBills;
+
+  /// Window before clearing: the Safety net's Assigned this period isn't cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'The Safety net keeps its {amount}.'**
+  String planClearSafetyNet(String amount);
+
+  /// Budget page, key card, with accounts in two currencies: the button for one currency's categories. code is its code, like USD.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear {month}’s Assigned in {code}'**
+  String planClearMonthIn(String month, String code);
+
+  /// The same by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this pay period’s Assigned in {code}'**
+  String planClearPayIn(String code);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

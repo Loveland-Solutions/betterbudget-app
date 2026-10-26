@@ -314,6 +314,78 @@ void main() {
     );
   });
 
+  testWidgets('Budget: a group under its heading, a month of its own, a '
+      'note, as on the computer (#100)', (tester) async {
+    final base = previewSnapshot(DateTime(2026, 10, 7, 8, 10));
+    PhoneCategory grouped(
+      PhoneCategory c, {
+      String? group,
+      String? note,
+      int? once,
+      int? usual,
+    }) => PhoneCategory(
+      id: c.id,
+      name: c.name,
+      leftMinor: c.leftMinor,
+      hadMinor: c.hadMinor,
+      paidFromId: c.paidFromId,
+      recentPayees: c.recentPayees,
+      due: c.due,
+      group: group,
+      note: note,
+      onceMinor: once,
+      usualMinor: usual,
+    );
+    await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: base.madeAt,
+        payees: base.payees,
+        accounts: base.accounts,
+        categories: [
+          for (final c in base.categories)
+            switch (c.id) {
+              'groceries' => grouped(
+                c,
+                group: 'Home',
+                once: 120000000,
+                usual: 90000000,
+              ),
+              'utilities' => grouped(c, group: 'Home'),
+              'clothing' => grouped(
+                c,
+                note: 'School uniforms in August',
+                once: 0,
+                usual: 8000000,
+              ),
+              _ => c,
+            },
+        ],
+      ),
+    );
+    await _toBudget(tester);
+    expect(find.byKey(const ValueKey('group-heading-Home')), findsOneWidget);
+    // The group comes after the categories in no group, before Bills.
+    final heading = tester
+        .getTopLeft(find.byKey(const ValueKey('group-heading-Home')))
+        .dy;
+    expect(tester.getTopLeft(find.text('Groceries')).dy, greaterThan(heading));
+    expect(tester.getTopLeft(find.text('Transport')).dy, lessThan(heading));
+    expect(
+      find.text('₮1,200,000 in October only, then ₮900,000 a month'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Skipped in October, then ₮80,000 a month'),
+      findsOneWidget,
+    );
+    expect(find.text('School uniforms in August'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_budget_groups.png'),
+    );
+  });
+
   testWidgets('Report a problem… ends Budget and opens the form', (
     tester,
   ) async {
@@ -2005,6 +2077,54 @@ void main() {
       final other = data.openAccounts.firstWhere((a) => a.id != checking.id);
       expect(snapshot.rememberedFor('Nomin', '${other.id}'), isNull);
       expect(snapshot.rememberedFor('Emart', '${checking.id}'), isNull);
+    });
+
+    test('a category’s group, note and month of its own reach the phone; '
+        'a bill keeps no group (#100)', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final groceries = id('Groceries'), housing = id('Housing');
+      await db.changeCategoryPlan(
+        groceries,
+        CategoryPlan(
+          categoryId: groceries,
+          kind: PlanKind.each,
+          amount: 90000000,
+          start: today,
+          once: {DateTime(2026, 9): 0},
+        ),
+        today,
+      );
+      await db.changeCategoryPlan(
+        housing,
+        CategoryPlan(
+          categoryId: housing,
+          kind: PlanKind.byDate,
+          amount: 180000000,
+          start: today,
+          due: DateTime(2026, 10, 1),
+          everyMonths: 1,
+        ),
+        today,
+      );
+      await db.setCategoryDetails(groceries, group: 'Home', note: 'Market');
+      await db.setCategoryDetails(housing, group: 'Home', note: null);
+      data = await db.loadLedger();
+      await db.close();
+      final snapshot = snapshotOf(data, today: today, madeAt: today);
+      PhoneCategory of(int id) =>
+          snapshot.categories.firstWhere((c) => c.id == '$id');
+      expect((of(groceries).group, of(groceries).note), ('Home', 'Market'));
+      expect(
+        (of(groceries).onceMinor, of(groceries).usualMinor),
+        (0, 90000000),
+      );
+      // Under Bills, as on the computer.
+      expect(of(housing).group, isNull);
+      expect(of(housing).onceMinor, isNull);
     });
 
     test(
