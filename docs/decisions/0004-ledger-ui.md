@@ -4444,3 +4444,10 @@ The key's own screen hasn't it: typing the key isn't a problem yet. The computer
 failed screen has no popup, so if the browser doesn't open, the address is written
 under the line.
 
+**Copy beside Details** (#293, owner, 2026-10-27, from the same review): once a
+failure's Details are open, on the popup or the failed-start screen, a quiet **Copy**
+puts the line the person saw and the technical reason on the clipboard, to paste into
+the form themselves. It reads Copied for two seconds; no popup, since popups are for
+saved changes. Nothing goes into the link, so `PRIVACY.md` is unchanged. The reason
+can hold a file path with the user's name; they see it before they paste it.
+

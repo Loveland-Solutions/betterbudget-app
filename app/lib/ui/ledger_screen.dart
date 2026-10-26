@@ -46,6 +46,7 @@ import 'appearance.dart';
 import 'schemes.dart';
 import 'language.dart';
 import 'brand.dart';
+import 'copy_details.dart';
 import 'data_words.dart';
 import 'plan_form.dart';
 import 'theme.dart';
@@ -9101,6 +9102,17 @@ class _Toast extends StatelessWidget {
                           child: SelectableText(
                             why,
                             style: onest(12, color: Mid.ink2),
+                          ),
+                        ),
+                      ),
+                    if (toast.why case final why? when whyOpen)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: CopyDetails(
+                            text: failureReport(toast.message, why),
+                            color: ink,
                           ),
                         ),
                       ),

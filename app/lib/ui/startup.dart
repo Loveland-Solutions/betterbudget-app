@@ -19,6 +19,7 @@ import '../data/ledger_file.dart';
 import '../data/report_problem.dart';
 import '../domain/ledger.dart' show dateKey, dateOnly;
 import '../domain/setup.dart' show SetupKeys;
+import 'copy_details.dart';
 import 'data_words.dart';
 import 'fit_window.dart';
 import 'language.dart';
@@ -512,6 +513,18 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
                     _failureDetails(t, f),
                     key: const ValueKey('startup-details'),
                     style: onest(13, color: Mid.ink3, height: 1.4),
+                  ),
+                  const SizedBox(height: 4),
+                  // Its left edge on the text's, as Report a problem… below.
+                  Transform.translate(
+                    offset: const Offset(-10, 0),
+                    child: CopyDetails(
+                      text: failureReport(
+                        _failure(t, f),
+                        _failureDetails(t, f),
+                      ),
+                      color: Mid.ink2,
+                    ),
                   ),
                 ],
                 // The ledger not opening is when it's needed most; quieter
