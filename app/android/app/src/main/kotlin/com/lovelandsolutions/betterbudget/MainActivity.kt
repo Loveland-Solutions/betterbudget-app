@@ -20,6 +20,12 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/folder")
             .setMethodCallHandler { call, result -> handle(call, result) }
+        // Android's version for Report a problem… (lib/data/report_problem.dart).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/system")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "release") result.success(android.os.Build.VERSION.RELEASE)
+                else result.notImplemented()
+            }
     }
 
     private fun handle(call: MethodCall, result: MethodChannel.Result) {

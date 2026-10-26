@@ -27,6 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:url_launcher_platform_interface/link.dart' show LinkDelegate;
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 Future<void> _loadFont(String family, String path) async {
   final bytes = await File(path).readAsBytes();
@@ -306,6 +308,34 @@ void main() {
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_budget.png'),
     );
+  });
+
+  testWidgets('Report a problem… ends Budget and opens the form', (
+    tester,
+  ) async {
+    final browser = _FakeBrowser();
+    final before = UrlLauncherPlatform.instance;
+    UrlLauncherPlatform.instance = browser;
+    addTearDown(() => UrlLauncherPlatform.instance = before);
+    await _pump(tester);
+    await _toBudget(tester);
+    final line = find.byKey(const ValueKey('report-problem'));
+    await tester.scrollUntilVisible(
+      line,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(line);
+    // Until the browser is asked: the version is read first.
+    await tester.runAsync(() async {
+      for (var i = 0; i < 100 && browser.opened.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+    await tester.pumpAndSettle();
+    final link = Uri.parse(browser.opened.single);
+    expect('${link.host}${link.path}', 'lls.mn/en/contact/');
+    expect(link.queryParameters['from'], 'betterbudget');
   });
 
   testWidgets('a long name beside a large amount drops the cents', (
@@ -3202,4 +3232,21 @@ bool _same(Uint8List a, Uint8List b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+/// Stands in for the phone's browser: keeps each link it was asked to open.
+class _FakeBrowser extends UrlLauncherPlatform {
+  final opened = <String>[];
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    opened.add(url);
+    return true;
+  }
 }

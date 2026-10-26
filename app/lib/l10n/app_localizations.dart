@@ -1086,6 +1086,18 @@ abstract class Words {
   /// **'Settings'**
   String get ledgerSettings;
 
+  /// Sidebar item above Settings, and a line at the foot of the phone's Budget screen: opens lls.mn's contact form in the browser, with the app's version and the system filled in.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem…'**
+  String get reportProblem;
+
+  /// Failure popup when Report a problem… couldn't open the browser; says where to find the form instead.
+  ///
+  /// In en, this message translates to:
+  /// **'The browser didn’t open. The form is at lls.mn/en/contact.'**
+  String get reportProblemFailed;
+
   /// Settings → Backups card, title.
   ///
   /// In en, this message translates to:

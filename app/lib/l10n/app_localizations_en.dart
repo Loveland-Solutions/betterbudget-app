@@ -754,6 +754,13 @@ class WordsEn extends Words {
   String get ledgerSettings => 'Settings';
 
   @override
+  String get reportProblem => 'Report a problem…';
+
+  @override
+  String get reportProblemFailed =>
+      'The browser didn’t open. The form is at lls.mn/en/contact.';
+
+  @override
   String get ledgerBackupsTitle => 'Backups';
 
   @override

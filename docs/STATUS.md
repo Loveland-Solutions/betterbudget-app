@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-26** · version 0.52.1 · schema v21 · 874 tests pass
+**Last updated: 2026-10-27** · version 0.53.0 · schema v21 · 879 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -13,16 +13,16 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
-the Report a bug path through lls.mn (#92, then #93), the native speaker's
+the Report a bug path through lls.mn (#93 is left), the native speaker's
 check of the Mongolian (#90), and the Budget and Savings features (#100–#103).
 
-**Report a bug: the website and the policy are ready** (#158, #159). lls.mn's
-contact form takes `?from=betterbudget&version=…&platform=…&os=…`
-(`macos`, `windows`, `linux`, `android`, `ios`; `os` is the system's own version, may be
-empty), shows the person what goes with the message, and marks the email
-"BetterBudget report"; the website's README, "BetterBudget reports", has the
-details. `PRIVACY.md` section 5 names the form (2026-10-26). Next is #92, the
-menu item that opens that link.
+**Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
+foot of the sidebar, and on the phone"): a quiet line under Net worth, and the last
+line of the phone's Budget. It opens lls.mn's contact form in the browser with
+`?from=betterbudget&version=…&platform=…&os=…` (`data/report_problem.dart`); the page
+names the report and shows what goes with the message (the website's README,
+"BetterBudget reports"); `PRIVACY.md` section 5 says so. The phone's line needs a new
+Play build. Next in this group is #93.
 
 **The Payees comb is done** (0.51.0–0.52.0, #165; ADR 0004 "The Payees page's
 fine-tooth comb: three answers", "The Payees page by keys and mouse", "The Payees
