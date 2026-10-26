@@ -1883,6 +1883,36 @@ void main() {
   group('from the ledger', () {
     final today = DateTime(2026, 9, 16, 9, 30);
 
+    test('a payee remembered on the Payees page fills its category on the '
+        'account it holds on (owner, 2026-10-26)', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      final checking = data.accounts.values.firstWhere(
+        (a) => a.name == 'TDB Checking',
+      );
+      final groceries = data.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+      await db.addPayeeRule(
+        name: 'Nomin',
+        anywhere: false,
+        categoryId: groceries.id,
+        accountIds: {checking.id},
+      );
+      data = await db.loadLedger();
+      await db.close();
+      final snapshot = snapshotOf(data, today: today, madeAt: today);
+      expect(
+        snapshot.rememberedFor('Nomin Super', '${checking.id}')?.name,
+        'Groceries',
+      );
+      // Another account, or a payee nobody remembered: nothing filled.
+      final other = data.openAccounts.firstWhere((a) => a.id != checking.id);
+      expect(snapshot.rememberedFor('Nomin', '${other.id}'), isNull);
+      expect(snapshot.rememberedFor('Emart', '${checking.id}'), isNull);
+    });
+
     test(
       'each category holds what the Budget page says, and a card is owed',
       () async {

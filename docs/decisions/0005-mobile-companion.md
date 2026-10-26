@@ -1270,3 +1270,20 @@ an entry typed on the phone moves its ring before the computer has seen it. Noth
 in the folder's files changes. A category made on the phone and not yet in the
 ledger has no ring (nothing had yet); the categories under Bills have none, as on
 the computer.
+
+## The phone fills a remembered payee (2026-10-26)
+
+Asked in the Payees comb (#165) whether the phone should fill the category of a
+payee the household remembered on the Payees page, the owner said yes. It's their
+own decision, made on the computer, not a guess, so the phone's rule of nothing
+filled in until chosen holds for everything else.
+
+- When a payee is typed and no category is chosen yet, the phone looks in the
+  ledger it already reads for a remembered line on the account being entered in
+  (`PhoneSnapshot.rememberedFor`, by the same `PayeeRuleInfo.pick` as the
+  computer). If one fits and its category is one the phone lists, it's filled in.
+  A category she already chose stays.
+- A pay's line doesn't fill: whether money comes in isn't known as the payee is
+  typed, as on the computer.
+- Nothing new travels: the rules are in the ledger the phone copies already. A
+  phone on an older build simply doesn't fill.

@@ -6379,8 +6379,7 @@ class AppDatabase extends _$AppDatabase {
           // account's currency takes; nothing else is guessed (owner,
           // 2026-10-26).
           final said = rule?.categoryId;
-          final category =
-              said != null && categories.contains(said)
+          final category = said != null && categories.contains(said)
               ? said
               : await uncategorized();
           final id = await postTransaction(
