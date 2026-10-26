@@ -1423,10 +1423,6 @@ class WordsMn extends Words {
   String get planNothingFiled => 'Энэ ангилалд одоогоор гүйлгээ алга.';
 
   @override
-  String get planOnlyDeletedFiled =>
-      'Энэ ангилалд зөвхөн устгасан гүйлгээ бий. Тэдгээр нь дараах ангилал руу шилжинэ:';
-
-  @override
   String planRowsFiled(int count) {
     return 'Энэ ангилалд $count гүйлгээ бий. Тэдгээр нь дараах ангилал руу шилжинэ:';
   }

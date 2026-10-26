@@ -1489,10 +1489,6 @@ class WordsEn extends Words {
   String get planNothingFiled => 'Nothing is filed under it yet.';
 
   @override
-  String get planOnlyDeletedFiled =>
-      'Only deleted rows are filed under it. They move to:';
-
-  @override
   String planRowsFiled(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

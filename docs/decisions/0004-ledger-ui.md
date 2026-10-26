@@ -4142,7 +4142,10 @@ The Budget page by keys and mouse (comb, 2026-10-24):
   and buttons. A date's calendar is for the mouse and is out of Tab.
 - **On the Income tab** the hidden Spending rows are out of Tab.
 - **An open Edit stays open** across ‹ ›, Back to today and ⌘N (New category
-  opens over it), with what was typed. Leaving the page still closes it.
+  opens over it), with what was typed, and across a visit to another page
+  (0.48.3): coming back to Budget finds it open as it was.
+- **Shift+Tab in Assigned** keeps the amount and goes to the row before, as
+  Tab goes to the row after.
 - **Move box**: Enter moves wherever focus is in it; Esc closes the list
   first; ↑ ↓ walk the list; Move with nothing chosen says "Choose a
   category", as a missing amount says "Enter an amount"; with nothing to
