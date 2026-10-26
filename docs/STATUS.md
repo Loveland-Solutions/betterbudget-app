@@ -48,10 +48,10 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 out on the phone against what's left now (ADR 0005 "The phone's ring";
 `usedShareNow`); the owner's Pixel needs a new Play build to see it.
 
-**Play's Internal testing has 0.48.2 (build 467)**, uploaded 2026-10-26 with
-`app/tool/release_play.sh`. A phone change after it needs a new one. Before offering
-one, compare this line with `git log` on `app/lib/ui/phone/`, and rewrite this line
-after each upload.
+**Play's Internal testing has 0.49.0 (build 470)**, uploaded 2026-10-26 by the owner
+with `app/tool/release_play.sh` from the ring's branch (the phone's Budget screen has
+the ring). A phone change after it needs a new one. Before offering one, compare this
+line with `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
 
 **The Microsoft Store has 0.44.0 in certification** (Submission 1, made in Partner
 Center, set to publish on the owner's Publish now). Replace its package with 0.46.2's
