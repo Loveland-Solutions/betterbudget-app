@@ -1110,6 +1110,60 @@ abstract class Words {
   /// **'Copied'**
   String get detailsCopied;
 
+  /// Settings on a computer, and a line and page title at the foot of the phone's Budget: the record of problems the app ran into on this device (#294), shown only while it holds something.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent problems'**
+  String get recentProblemsTitle;
+
+  /// Settings → Recent problems, under the title. Copy all is the button below; Report a problem… is the line at the foot of the sidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.'**
+  String get recentProblemsNote;
+
+  /// The phone's Recent problems page, under the title. Copy all is the button below; Report a problem… is the last line of Budget.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on this phone only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.'**
+  String get phoneRecentProblemsNote;
+
+  /// Recent problems: copies every problem kept (time, version, message, reason) to paste into the Report a problem… form. Reads Copied for two seconds after.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all'**
+  String get recentProblemsCopyAll;
+
+  /// Settings → Recent problems, under the newest five, when more are kept.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 earlier problem is in Copy all.} other{{count} earlier problems are in Copy all.}}'**
+  String recentProblemsMore(int count);
+
+  /// Kept in the phone's Recent problems when the folder chosen earlier couldn't be asked for, and the phone asked for the folder again.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t find the folder chosen before'**
+  String get phoneProblemFolderLost;
+
+  /// Kept in the phone's Recent problems when saving its waiting entries on the phone itself failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save this phone’s entries on the phone. While the app is open, it tries again every half minute.'**
+  String get phoneProblemNotKept;
+
+  /// Kept in Recent problems in place of the Couldn’t undo popup's line, which names the change (a payee, an amount); the record holds no amounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t undo a change'**
+  String get problemCouldntUndo;
+
+  /// Kept in Recent problems in place of the Couldn’t redo popup's line, which names the change; the record holds no amounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t redo a change'**
+  String get problemCouldntRedo;
+
   /// Settings → Backups card, title.
   ///
   /// In en, this message translates to:

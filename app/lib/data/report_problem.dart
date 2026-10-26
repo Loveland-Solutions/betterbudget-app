@@ -38,6 +38,16 @@ String systemVersion(String platform, String raw) {
 /// `operatingSystemVersion` there is the Linux kernel's.
 const _system = MethodChannel('betterbudget/system');
 
+/// The app's version (`0.55.0`); empty with no bundle to read (widget tests),
+/// which the website takes as an ordinary message.
+Future<String> appVersion() async {
+  try {
+    return (await PackageInfo.fromPlatform()).version;
+  } on Exception {
+    return '';
+  }
+}
+
 /// Opens the form in the browser. False when the system wouldn't open it.
 Future<bool> openReportProblem({required String language}) async {
   final platform = Platform.operatingSystem;
@@ -49,17 +59,9 @@ Future<bool> openReportProblem({required String language}) async {
   } on Exception {
     raw = '';
   }
-  String version;
-  try {
-    version = (await PackageInfo.fromPlatform()).version;
-  } on Exception {
-    // No bundle to read (widget tests): the website takes the link as an
-    // ordinary message.
-    version = '';
-  }
   final link = reportProblemLink(
     language: language,
-    version: version,
+    version: await appVersion(),
     platform: platform,
     os: systemVersion(platform, raw),
   );

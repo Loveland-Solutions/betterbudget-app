@@ -13,6 +13,7 @@ import '../../data/keys.dart';
 import '../../data/ledger_file.dart';
 import '../../data/phone_inbox.dart';
 import '../../data/phone_ledger.dart';
+import '../../data/problem_log.dart';
 import '../../domain/phone.dart';
 import '../data_words.dart';
 import '../language.dart';
@@ -39,7 +40,11 @@ class PhoneStart extends StatefulWidget {
     this.read = readPhoneLedger,
     this.now = DateTime.now,
     this.every = const Duration(seconds: 30),
+    this.problems,
   });
+
+  /// Recent problems (#294); by default the file `problems` in [dir].
+  final ProblemLog? problems;
 
   /// How often the folder is read again while the app is open: the
   /// computer's answer to an entry arrives without the app being left.
@@ -74,6 +79,19 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   Uint8List? _typedKey;
   final _keyText = TextEditingController();
   String? _keyError;
+
+  late final ProblemLog _problems =
+      widget.problems ?? ProblemLog(File('${widget.dir.path}/problems'));
+
+  /// Keeping the entries on the phone has failed since it last worked: put
+  /// in the record once, not at every try (every half minute).
+  var _saveFailing = false;
+
+  /// Puts a problem in the record, in the words the phone uses.
+  void _record(String Function(Words t) message, Object reason) {
+    if (!mounted) return;
+    unawaited(_problems.record(message(context.t), reason));
+  }
 
   @override
   void initState() {
@@ -130,6 +148,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       folder = await widget.folder.kept();
     } catch (e) {
       debugPrint('Asking for the kept folder failed: $e');
+      _record((t) => t.phoneProblemFolderLost, e);
       return _go(_Step.folder);
     }
     if (folder == null) return _go(_Step.folder);
@@ -194,11 +213,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       }
       _keep();
       setState(() => _step = _Step.ready);
-    } on WrongKeyException {
+    } on WrongKeyException catch (e) {
       if (_typedKey == null) {
         // The key kept here has opened this ledger before, so it is the
         // file that is wrong: half-arrived, or another ledger in the folder.
-        if (_step != _Step.ready) _go(_Step.cantRead);
+        if (_step != _Step.ready) {
+          _record((t) => t.phoneCantRead, e);
+          _go(_Step.cantRead);
+        }
         return;
       }
       _typedKey = null;
@@ -206,8 +228,11 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Reading the ledger from the folder failed: $e');
       // A read that fails once the figures are up leaves them up: they say
-      // how old they are.
-      if (_step != _Step.ready) _go(_Step.cantRead);
+      // how old they are. Only what was shown goes in the record.
+      if (_step != _Step.ready) {
+        _record((t) => t.phoneCantRead, e);
+        _go(_Step.cantRead);
+      }
     }
   }
 
@@ -231,8 +256,11 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     final Uint8List bytes;
     try {
       bytes = outbox.save(inbox);
+      _saveFailing = false;
     } catch (e) {
       debugPrint('Keeping this phone’s entries failed: $e');
+      if (!_saveFailing) _record((t) => t.phoneProblemNotKept, e);
+      _saveFailing = true;
       _sent = null;
       return;
     }
@@ -240,6 +268,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       try {
         await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
       } catch (e) {
+        // Not a problem to keep: with no signal this is the phone working
+        // as it should, and Budget says what waits for the computer.
         debugPrint('Writing this phone’s entries to the folder failed: $e');
         if (_sent == saying) _sent = null;
       }
@@ -292,6 +322,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         store: _store!,
         now: widget.now,
         onRefresh: _load,
+        problems: _problems,
       ),
       _Step.key => _Ask(
         title: t.phoneKeyTitle,

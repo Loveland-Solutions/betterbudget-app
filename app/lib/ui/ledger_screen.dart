@@ -18,6 +18,7 @@ import '../data/demo_seed.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
+import '../data/problem_log.dart';
 import '../data/report_problem.dart';
 import '../domain/budget.dart';
 import '../domain/combine.dart' show Ask, AskKind, AskSide, Pick;
@@ -86,6 +87,7 @@ class LedgerScreen extends StatefulWidget {
     this.startPath,
     this.demo = false,
     this.folderAccess = const FolderAccess(),
+    this.problems,
   });
 
   final AppDatabase db;
@@ -129,6 +131,10 @@ class LedgerScreen extends StatefulWidget {
 
   /// How a picked folder is remembered between launches; faked in tests.
   final FolderAccess folderAccess;
+
+  /// Recent problems (#294): every failure with Details goes in it, and
+  /// Settings shows it; null keeps none (tests).
+  final ProblemLog? problems;
 
   @override
   State<LedgerScreen> createState() => _LedgerScreenState();
@@ -792,6 +798,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               _showFailure(
                 context.t.ledgerCouldntUndo(label),
                 error: _undoError(e),
+                kept: context.t.problemCouldntUndo,
               );
             }
             return;
@@ -1700,6 +1707,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           context.t.ledgerCouldntUndo(a.label),
           detail: a.detail,
           error: _undoError(e),
+          kept: context.t.problemCouldntUndo,
         );
       }
       return;
@@ -1724,6 +1732,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           context.t.ledgerCouldntRedo(a.label),
           detail: a.detail,
           error: _undoError(e),
+          kept: context.t.problemCouldntRedo,
         );
       }
       return;
@@ -1759,8 +1768,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Something didn't happen (a failure, a refusal, a nudge): the plain
   /// popup with coral's mark, not the gold one that reports a saved change. [message] says what in one line; [error], the technical
   /// reason, waits behind Details (owner, 2026-10-10).
-  void _showFailure(String message, {String? detail, Object? error}) =>
-      _showToast(message, detail: detail, failed: true, why: error);
+  /// [kept] is what Recent problems keeps in place of [message], when the
+  /// message names a payee or an amount: the record holds none (#294).
+  void _showFailure(
+    String message, {
+    String? detail,
+    Object? error,
+    String? kept,
+  }) =>
+      _showToast(message, detail: detail, failed: true, why: error, kept: kept);
 
   void _showToast(
     String message, {
@@ -1769,6 +1785,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ({String label, VoidCallback onTap})? more,
     bool failed = false,
     Object? why,
+    String? kept,
   }) {
     _toastTimer?.cancel();
     _toastGrace?.cancel();
@@ -1776,6 +1793,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _toastDue = false;
     _whyOpen = false;
     final whyText = why?.toString().trim();
+    // A failure with a technical reason is a problem worth keeping; one
+    // without (a refusal, a nudge) is the person's own doing.
+    if (failed && why != null && whyText!.isNotEmpty) {
+      unawaited(widget.problems?.record(kept ?? message, why));
+    }
     setState(
       () => _toast = (
         message: message,
@@ -6665,6 +6687,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       onChanged: (l) => _setLanguage(c, l),
                                     ),
                                   },
+                                  problems: switch (widget.problems) {
+                                    null => null,
+                                    final log => _RecentProblems(
+                                      log: log,
+                                      now: widget.clock,
+                                    ),
+                                  },
                                   register: _RegisterSettings(
                                     showSource:
                                         data.prefs[showSourceKey] != '0',
@@ -7538,8 +7567,12 @@ class _SettingsPage extends StatelessWidget {
     this.appearance,
     this.language,
     this.register,
+    this.problems,
   });
   final ValueListenable<BackupHealth> health;
+
+  /// Recent problems, a card of its own while there are any (#294).
+  final Widget? problems;
 
   /// The register's own choices (the Source column, and naming phones).
   final Widget? register;
@@ -7913,6 +7946,7 @@ class _SettingsPage extends StatelessWidget {
                     ],
                   ),
                 ),
+                ?problems,
                 if (version case (final name, final build)) ...[
                   const SizedBox(height: 16),
                   SelectableText(
@@ -7934,6 +7968,115 @@ class _SettingsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Settings → Recent problems (#294), only while the record holds any: the
+/// newest five, each with when, the line the person saw and the reason
+/// behind it, and Copy all for Report a problem…'s form. Next to the
+/// version it is sent with.
+class _RecentProblems extends StatefulWidget {
+  const _RecentProblems({required this.log, required this.now});
+  final ProblemLog log;
+  final DateTime Function() now;
+
+  static const shown = 5;
+
+  @override
+  State<_RecentProblems> createState() => _RecentProblemsState();
+}
+
+class _RecentProblemsState extends State<_RecentProblems> {
+  bool _copied = false;
+  Timer? _back;
+
+  Future<void> _copyAll(List<Problem> problems) async {
+    await Clipboard.setData(ClipboardData(text: problemsReport(problems)));
+    if (!mounted) return;
+    _back?.cancel();
+    setState(() => _copied = true);
+    _back = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _back?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.log,
+    builder: (context, _) {
+      final problems = widget.log.recent;
+      if (problems.isEmpty) return const SizedBox.shrink();
+      final t = context.t;
+      final now = widget.now();
+      // Copy all takes what fits in the form; past the five shown, say
+      // how many more it holds.
+      final copied = problemsToCopy(problems);
+      final more = copied.length - _RecentProblems.shown;
+      return Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Container(
+          key: const ValueKey('recent-problems'),
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+          decoration: BoxDecoration(
+            color: Mid.panel,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Mid.rule),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.recentProblemsTitle, style: onest(16, weight: 600)),
+              const SizedBox(height: 12),
+              Text(
+                t.recentProblemsNote,
+                style: onest(13, color: Mid.ink3, height: 1.4),
+              ),
+              for (final p in problems.take(_RecentProblems.shown)) ...[
+                const SizedBox(height: 14),
+                Text(
+                  p.version.isEmpty
+                      ? _sayWhen(t, p.at, now)
+                      : '${_sayWhen(t, p.at, now)} · ${p.version}',
+                  style: onest(12.5, color: Mid.ink3),
+                ),
+                const SizedBox(height: 2),
+                Text(p.message, style: onest(13.5, height: 1.35)),
+                if (p.reason.isNotEmpty)
+                  SelectableText(
+                    p.reason,
+                    style: onest(12, color: Mid.ink3, height: 1.4),
+                  ),
+              ],
+              if (more > 0) ...[
+                const SizedBox(height: 14),
+                Text(
+                  t.recentProblemsMore(more),
+                  style: onest(13, color: Mid.ink3),
+                ),
+              ],
+              const SizedBox(height: 16),
+              BarButton(
+                key: const ValueKey('copy-all-problems'),
+                label: _copied ? t.detailsCopied : t.recentProblemsCopyAll,
+                leading: Icon(
+                  Icons.content_copy_rounded,
+                  size: 14,
+                  color: Mid.ink3,
+                ),
+                onTap: () => _copyAll(copied),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// Asks before a restore replaces everything, with what the backup holds

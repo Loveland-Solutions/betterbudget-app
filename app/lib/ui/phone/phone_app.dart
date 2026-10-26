@@ -8,7 +8,9 @@ import 'dart:math';
 
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
 import '../../domain/ledger.dart';
@@ -175,15 +177,20 @@ class PhoneFrame extends StatelessWidget {
 /// The phone's screens on a [store] that is already filled: tests, and the
 /// preview on invented figures.
 class PhoneApp extends StatelessWidget {
-  const PhoneApp({super.key, required this.store, this.now});
+  const PhoneApp({super.key, required this.store, this.now, this.problems});
   final PhoneStore store;
 
   /// The clock, so a test can hold it still.
   final DateTime Function()? now;
+  final ProblemLog? problems;
 
   @override
   Widget build(BuildContext context) => PhoneFrame(
-    child: PhoneHome(store: store, now: now ?? DateTime.now),
+    child: PhoneHome(
+      store: store,
+      now: now ?? DateTime.now,
+      problems: problems,
+    ),
   );
 }
 
@@ -422,6 +429,7 @@ class PhoneHome extends StatefulWidget {
     required this.store,
     required this.now,
     this.onRefresh,
+    this.problems,
   });
   final PhoneStore store;
   final DateTime Function() now;
@@ -429,6 +437,10 @@ class PhoneHome extends StatefulWidget {
   /// Reads the ledger from the folder again, on a pull down; null when
   /// there is no folder to read (the preview).
   final Future<void> Function()? onRefresh;
+
+  /// Recent problems (#294), at the foot of Budget while there are any;
+  /// null in the preview.
+  final ProblemLog? problems;
 
   @override
   State<PhoneHome> createState() => _PhoneHomeState();
@@ -483,6 +495,7 @@ class _PhoneHomeState extends State<PhoneHome> {
                       store: widget.store,
                       now: widget.now,
                       onRefresh: widget.onRefresh,
+                      problems: widget.problems,
                       // A category here starts an entry in it; what is
                       // already typed stays.
                       onCategory: (category) {
@@ -583,11 +596,13 @@ class _BudgetScreen extends StatelessWidget {
     required this.now,
     required this.onCategory,
     this.onRefresh,
+    this.problems,
   });
   final PhoneStore store;
   final DateTime Function() now;
   final ValueChanged<PhoneCategory> onCategory;
   final Future<void> Function()? onRefresh;
+  final ProblemLog? problems;
 
   Future<void> _newCategory(BuildContext context) => _openNewCategory(
     context,
@@ -660,7 +675,14 @@ class _BudgetScreen extends StatelessWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     if (i == listed.length + 1) {
-                      return const ReportProblemLine();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (problems case final log?)
+                            _RecentProblemsLine(log: log, now: now),
+                          const ReportProblemLine(),
+                        ],
+                      );
                     }
                     if (i == newAt) {
                       return Align(
@@ -739,6 +761,143 @@ class ReportProblemLine extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Recent problems, just above Report a problem… (#294), only while the
+/// phone's record holds any: opens the page that lists them.
+class _RecentProblemsLine extends StatelessWidget {
+  const _RecentProblemsLine({required this.log, required this.now});
+  final ProblemLog log;
+  final DateTime Function() now;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: log,
+    builder: (context, _) {
+      if (log.recent.isEmpty) return const SizedBox.shrink();
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: TextButton.icon(
+            key: const ValueKey('recent-problems'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => _RecentProblemsPage(log: log, now: now),
+              ),
+            ),
+            icon: const Icon(Icons.history_rounded, size: 18),
+            label: Text(context.t.recentProblemsTitle),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: Mid.ink3,
+              textStyle: onest(15),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// The phone's Recent problems: each with when, the line it showed and the
+/// reason behind it, newest first, and Copy all for Report a problem…'s
+/// form.
+class _RecentProblemsPage extends StatefulWidget {
+  const _RecentProblemsPage({required this.log, required this.now});
+  final ProblemLog log;
+  final DateTime Function() now;
+
+  @override
+  State<_RecentProblemsPage> createState() => _RecentProblemsPageState();
+}
+
+class _RecentProblemsPageState extends State<_RecentProblemsPage> {
+  bool _copied = false;
+  Timer? _back;
+
+  Future<void> _copyAll(List<Problem> problems) async {
+    await Clipboard.setData(ClipboardData(text: problemsReport(problems)));
+    if (!mounted) return;
+    _back?.cancel();
+    setState(() => _copied = true);
+    _back = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _back?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.log,
+    builder: (context, _) => _page(context),
+  );
+
+  Widget _page(BuildContext context) {
+    final t = context.t;
+    final problems = widget.log.recent;
+    final today = dateOnly(widget.now());
+    String when(DateTime at) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      final time = '${two(at.hour)}:${two(at.minute)}';
+      return dateOnly(at) == today ? time : '${shortDate(at)} $time';
+    }
+
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      appBar: AppBar(
+        backgroundColor: Mid.ground,
+        foregroundColor: Mid.ink,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(t.recentProblemsTitle, style: onest(20, weight: 600)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        children: [
+          Text(
+            t.phoneRecentProblemsNote,
+            style: onest(15, color: Mid.ink2, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('copy-all-problems'),
+              onPressed: () => _copyAll(problemsToCopy(problems)),
+              icon: const Icon(Icons.content_copy_rounded, size: 18),
+              label: Text(_copied ? t.detailsCopied : t.recentProblemsCopyAll),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                backgroundColor: Mid.card,
+                foregroundColor: Mid.blue,
+                textStyle: onest(15, weight: 600),
+              ),
+            ),
+          ),
+          for (final p in problems) ...[
+            const SizedBox(height: 16),
+            Text(
+              p.version.isEmpty ? when(p.at) : '${when(p.at)} · ${p.version}',
+              style: onest(13, color: Mid.ink3),
+            ),
+            const SizedBox(height: 2),
+            Text(p.message, style: onest(15, height: 1.35)),
+            if (p.reason.isNotEmpty)
+              SelectableText(
+                p.reason,
+                style: onest(13, color: Mid.ink3, height: 1.4),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// A category and what is left in it: on Budget, and in the list a

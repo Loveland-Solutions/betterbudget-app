@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.55.0 · schema v21 · 880 tests pass
+**Last updated: 2026-10-27** · version 0.56.0 · schema v21 · 897 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -13,7 +13,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
-the last follow-up to Report a problem… (#294), the native speaker's check of the
+the native speaker's check of the
 Mongolian (#90), and the Budget and Savings features (#100–#103).
 
 **Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
@@ -24,7 +24,12 @@ names the report and shows what goes with the message (the website's README,
 "BetterBudget reports"); `PRIVACY.md` section 5 says so. The phone's line needs a new
 Play build. It is also on the screens shown when the ledger won't open (0.54.0,
 #292): under Try again on the computer, and under the phone's problem steps. A failure's opened Details have
-**Copy** (0.55.0, #293; `ui/copy_details.dart`), on the popup and that screen. The
+**Copy** (0.55.0, #293; `ui/copy_details.dart`), on the popup and that screen. **Recent
+problems** (0.56.0, #294; `data/problem_log.dart`; ADR 0004 "Recent problems"): a card in
+Settings while there are any, and a line above Report a problem… on the phone's
+Budget, each with Copy all; a plain file on the device, no amounts. `PRIVACY.md` and
+lls.mn's copy say so (their PRs: Loveland-Solutions/betterbudget#1,
+lovelandsolutions-website#6, to merge first). The phone's part needs a Play build. The
 public repo's README points there too, and its Issues are off
 (#93, 2026-10-27).
 
