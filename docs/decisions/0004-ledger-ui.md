@@ -4810,3 +4810,15 @@ fine. Three were sketched; the owner picked B.
 - Rejected: A, rows of their own in the key card (Income, Planned to spend, Put
   aside, then More than income or Left from income); C, one coral line in the key
   card only when over, with the detail on the Income tab.
+
+### The pay form: no set day, and every pay named (owner, 2026-10-28, #175)
+
+- **No set day.** Asked whether someone paid irregularly should have "No set day" under
+  When, doing what "I don't have regular pay" does: "Sure." It sits after Every few
+  weeks on a new pay; picked, the day and weekend rows go, the line under the form says
+  "With no set day, the forecast doesn't expect it. When pay comes, file it under
+  Income.", and Save pay keeps no schedule, as "I don't have regular pay" does.
+- **Every pay has a name.** Asked whether Name should show only from "Add other pay" on:
+  "No, they should name every paycheck." Name stays first and is needed: with it empty
+  the line under the form says "Give this pay a name, like Jenny or Jeff's job." and Save
+  waits; "(optional)" is gone from its hint. *Rejected:* hiding it until a second pay.

@@ -382,6 +382,7 @@ void main() {
     expect(find.byKey(const ValueKey('pay-none')), findsOneWidget);
     expect(find.byKey(const ValueKey('pay-cancel')), findsNothing);
     expect(find.byKey(const ValueKey('setup-done')), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(
       find.byKey(const ValueKey('pay-amount')),
       '2,100,000',
@@ -425,6 +426,7 @@ void main() {
     await open(tester, db);
     await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
     await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(
       find.byKey(const ValueKey('pay-amount')),
       '2,100,000',
@@ -434,6 +436,7 @@ void main() {
     await press(tester, 'setup-edit-pay-$id');
     // What's typed would be dropped: Open my ledger waits for the form.
     expect(find.byKey(const ValueKey('setup-done')), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(
       find.byKey(const ValueKey('pay-amount')),
       '2,300,000',
@@ -474,11 +477,46 @@ void main() {
       matchesGoldenFile('goldens/setup_pay_none.png'),
     );
     await press(tester, 'setup-add-pay');
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
     await press(tester, 'pay-save');
     final data = await ledger(tester, db);
     expect(data.paySchedules, hasLength(1));
     expect(data.prefs['pay.none'], isNull);
+    await tidy(tester, db);
+  });
+
+  testWidgets('pay with no set day: saved as no regular pay; a pay with no '
+      'name says what is missing (#175)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    // Every paycheck has a name: Save waits, and says so.
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Give this pay a name, like Jenny or Jeff’s job.'),
+      findsOneWidget,
+    );
+    await press(tester, 'pay-save');
+    expect((await ledger(tester, db)).paySchedules, isEmpty);
+    // It varies, and comes when it comes.
+    await press(tester, 'pay-varies');
+    await press(tester, 'pay-no-day');
+    expect(find.byKey(const ValueKey('pay-day1')), findsNothing);
+    expect(
+      find.text(
+        'With no set day, the forecast doesn’t expect it. When pay comes, '
+        'file it under Income.',
+      ),
+      findsOneWidget,
+    );
+    await press(tester, 'pay-save');
+    final data = await ledger(tester, db);
+    expect(data.paySchedules, isEmpty);
+    expect(data.prefs['pay.none'], '1');
+    expect(find.text('No regular pay'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -528,6 +566,7 @@ void main() {
     await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
     await add(tester, 'setup-add-owed', 'Golomt Visa', '640,200');
     await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(
       find.byKey(const ValueKey('pay-amount')),
       '2,100,000',

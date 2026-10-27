@@ -2902,7 +2902,7 @@ class WordsEn extends Words {
   String get setupEmployerHint => 'Employer (optional)';
 
   @override
-  String get setupNameHint => 'Jenny, or Jeff’s job (optional)';
+  String get setupNameHint => 'Jenny, or Jeff’s job';
 
   @override
   String get setupPayIs => 'Pay is';
@@ -3028,6 +3028,17 @@ class WordsEn extends Words {
   ) {
     return 'Next payday $date · $amount or more · about $perMonth a month';
   }
+
+  @override
+  String get setupNameMissing =>
+      'Give this pay a name, like Jenny or Jeff’s job.';
+
+  @override
+  String get setupNoSetDay => 'No set day';
+
+  @override
+  String get setupNoSetDayMeans =>
+      'With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.';
 
   @override
   String get setupNoRegularPay => 'I don’t have regular pay';

@@ -178,6 +178,12 @@ class _PayFormState extends State<_PayForm> {
       v == null ? '' : typedAmount(v, widget.account.currency);
   late bool _varies = widget.existing?.varies ?? false;
   late PayRule _rule = widget.existing?.rule ?? PayRule.monthly;
+
+  /// When: "No set day" (owner, 2026-10-28, #175), for pay that comes when
+  /// it comes. Saving it is "I don't have regular pay": nothing is
+  /// scheduled. Only where that's offered: a new pay.
+  bool _noDay = false;
+  bool get _offersNoDay => widget.existing == null && widget.offerNoPay;
   late final _day1 = TextEditingController(
     text: '${widget.existing?.day1 ?? 25}',
   );
@@ -315,6 +321,10 @@ class _PayFormState extends State<_PayForm> {
   String? get _problem => _problemIn(context.t);
 
   String? _problemIn(Words t) {
+    if (_noDay) return null;
+    // Every paycheck has a name (owner, 2026-10-28: "they should name
+    // every paycheck").
+    if (_name.text.trim().isEmpty) return t.setupNameMissing;
     final a = _amountValue;
     if (a == null || a <= 0) {
       return _splitting ? _amountMissing(t, false) : t.setupAmountMissing;
@@ -380,6 +390,7 @@ class _PayFormState extends State<_PayForm> {
   }
 
   void _save() {
+    if (_noDay) return widget.onResult(const PayNone());
     if (_problem != null) return;
     widget.onResult(
       PaySave((
@@ -687,98 +698,114 @@ class _PayFormState extends State<_PayForm> {
                     children: [
                       choice(
                         t.setupMonthly,
-                        _rule == PayRule.monthly,
+                        !_noDay && _rule == PayRule.monthly,
                         () => setState(() {
                           _oneAmount();
+                          _noDay = false;
                           _rule = PayRule.monthly;
                         }),
                         'pay-monthly',
                       ),
                       choice(
                         t.setupTwiceMonthly,
-                        _rule == PayRule.twiceMonthly,
-                        () => setState(() => _rule = PayRule.twiceMonthly),
+                        !_noDay && _rule == PayRule.twiceMonthly,
+                        () => setState(() {
+                          _noDay = false;
+                          _rule = PayRule.twiceMonthly;
+                        }),
                         'pay-twice',
                       ),
                       choice(
                         t.setupEveryFewWeeks,
-                        _rule == PayRule.everyWeeks,
+                        !_noDay && _rule == PayRule.everyWeeks,
                         () => setState(() {
                           _oneAmount();
+                          _noDay = false;
                           _rule = PayRule.everyWeeks;
                         }),
                         'pay-weeks',
                       ),
+                      if (_offersNoDay)
+                        choice(
+                          t.setupNoSetDay,
+                          _noDay,
+                          () => setState(() => _noDay = true),
+                          'pay-no-day',
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: switch (_rule) {
-                      PayRule.monthly => _withFields(
-                        t.setupOnDayField(_fieldMarks[0]),
-                        [small(_day1, 'pay-day1')],
-                      ),
-                      PayRule.twiceMonthly => _withFields(
-                        t.setupOnDaysField(_fieldMarks[0], _fieldMarks[1]),
-                        [small(_day2, 'pay-day2'), small(_day1, 'pay-day1')],
-                      ),
-                      PayRule.everyWeeks => _withFields(
-                        t.setupEveryWeeksField(
-                          _weeksValue ?? 0,
-                          _fieldMarks[0],
-                          _fieldMarks[1],
+                  if (!_noDay)
+                    Row(
+                      children: switch (_rule) {
+                        PayRule.monthly => _withFields(
+                          t.setupOnDayField(_fieldMarks[0]),
+                          [small(_day1, 'pay-day1')],
                         ),
-                        [
-                          small(_weeks, 'pay-weeks-n', width: 44),
-                          SizedBox(
-                            width: 130,
-                            height: 30,
-                            child: DateField(
-                              key: const ValueKey('pay-anchor'),
-                              controller: _anchor,
-                              focusNode: _anchorFocus,
-                              today: widget.today,
-                              small: true,
-                              onSubmitted: _save,
-                              onPicked: () {},
-                            ),
+                        PayRule.twiceMonthly => _withFields(
+                          t.setupOnDaysField(_fieldMarks[0], _fieldMarks[1]),
+                          [small(_day2, 'pay-day2'), small(_day1, 'pay-day1')],
+                        ),
+                        PayRule.everyWeeks => _withFields(
+                          t.setupEveryWeeksField(
+                            _weeksValue ?? 0,
+                            _fieldMarks[0],
+                            _fieldMarks[1],
                           ),
-                        ],
-                      ),
-                    },
-                  ),
+                          [
+                            small(_weeks, 'pay-weeks-n', width: 44),
+                            SizedBox(
+                              width: 130,
+                              height: 30,
+                              child: DateField(
+                                key: const ValueKey('pay-anchor'),
+                                controller: _anchor,
+                                focusNode: _anchorFocus,
+                                today: widget.today,
+                                small: true,
+                                onSubmitted: _save,
+                                onPicked: () {},
+                              ),
+                            ),
+                          ],
+                        ),
+                      },
+                    ),
                 ],
               ),
             ),
             // Both days past the 28th meet in short months: one
             // payday then, which is worth knowing before it happens.
-            if (_rule == PayRule.twiceMonthly && (_days?.$1 ?? 0) >= 28)
+            if (!_noDay &&
+                _rule == PayRule.twiceMonthly &&
+                (_days?.$1 ?? 0) >= 28)
               hint(
                 t.setupDaysMeet,
                 color: Mid.note,
                 key: const ValueKey('pay-days-meet'),
               ),
-            line(
-              t.setupOnWeekend,
-              Row(
-                children: [
-                  for (final (w, label, key) in [
-                    (PayWeekend.before, t.setupFridayBefore, 'pay-friday'),
-                    (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
-                    (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
-                  ]) ...[
-                    if (w != PayWeekend.before) const SizedBox(width: 8),
-                    choice(
-                      label,
-                      _weekend == w,
-                      () => setState(() => _weekend = w),
-                      key,
-                    ),
+            if (!_noDay)
+              line(
+                t.setupOnWeekend,
+                Row(
+                  children: [
+                    for (final (w, label, key) in [
+                      (PayWeekend.before, t.setupFridayBefore, 'pay-friday'),
+                      (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
+                      (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
+                    ]) ...[
+                      if (w != PayWeekend.before) const SizedBox(width: 8),
+                      choice(
+                        label,
+                        _weekend == w,
+                        () => setState(() => _weekend = w),
+                        key,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (preview != null && preview.perYear > 24)
+            if (!_noDay && preview != null && preview.perYear > 24)
               hint(
                 t.setupPaydaysAYear(preview.perYear),
                 key: const ValueKey('pay-26'),
@@ -787,31 +814,33 @@ class _PayFormState extends State<_PayForm> {
             Padding(
               padding: const EdgeInsets.only(left: 120),
               child: Text(
-                _problem ??
-                    switch ((
-                      _varies,
-                      // A doubled monthly figure shows before saving.
-                      preview!.rule == PayRule.monthly,
-                    )) {
-                      (false, true) => t.setupNextPayday(
-                        sayFullDate(t, next!),
-                        money(preview.amountOn(next)),
-                      ),
-                      (true, true) => t.setupNextPaydayOrMore(
-                        sayFullDate(t, next!),
-                        money(preview.amountOn(next)),
-                      ),
-                      (false, false) => t.setupNextPaydayMonthly(
-                        sayFullDate(t, next!),
-                        money(preview.amountOn(next)),
-                        money(preview.perMonth),
-                      ),
-                      (true, false) => t.setupNextPaydayOrMoreMonthly(
-                        sayFullDate(t, next!),
-                        money(preview.amountOn(next)),
-                        money(preview.perMonth),
-                      ),
-                    },
+                _noDay
+                    ? t.setupNoSetDayMeans
+                    : _problem ??
+                          switch ((
+                            _varies,
+                            // A doubled monthly figure shows before saving.
+                            preview!.rule == PayRule.monthly,
+                          )) {
+                            (false, true) => t.setupNextPayday(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                            ),
+                            (true, true) => t.setupNextPaydayOrMore(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                            ),
+                            (false, false) => t.setupNextPaydayMonthly(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                              money(preview.perMonth),
+                            ),
+                            (true, false) => t.setupNextPaydayOrMoreMonthly(
+                              sayFullDate(t, next!),
+                              money(preview.amountOn(next)),
+                              money(preview.perMonth),
+                            ),
+                          },
                 key: const ValueKey('pay-summary'),
                 style: onest(13, color: _problem == null ? Mid.ink2 : Mid.ink3),
               ),

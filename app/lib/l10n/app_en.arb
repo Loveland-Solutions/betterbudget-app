@@ -4282,7 +4282,7 @@
   "@setupEmployerHint": {
     "description": "Pay setup, hint in the empty employer field."
   },
-  "setupNameHint": "Jenny, or Jeff’s job (optional)",
+  "setupNameHint": "Jenny, or Jeff’s job",
   "@setupNameHint": {
     "description": "Pay setup, hint in the empty name field."
   },
@@ -4496,6 +4496,18 @@
         "type": "String"
       }
     }
+  },
+  "setupNameMissing": "Give this pay a name, like Jenny or Jeff’s job.",
+  "@setupNameMissing": {
+    "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
+  },
+  "setupNoSetDay": "No set day",
+  "@setupNoSetDay": {
+    "description": "Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”."
+  },
+  "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.",
+  "@setupNoSetDayMeans": {
+    "description": "Pay setup, under the form when When is No set day: what saving it does."
   },
   "setupNoRegularPay": "I don’t have regular pay",
   "@setupNoRegularPay": {

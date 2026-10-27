@@ -2810,7 +2810,7 @@ class WordsMn extends Words {
   String get setupEmployerHint => 'Ажил олгогч (заавал биш)';
 
   @override
-  String get setupNameHint => 'Жени, эсвэл Жеффийн ажил (заавал биш)';
+  String get setupNameHint => 'Жени, эсвэл Жеффийн ажил';
 
   @override
   String get setupPayIs => 'Цалин';
@@ -2935,6 +2935,17 @@ class WordsMn extends Words {
   ) {
     return 'Дараагийн цалин $date · багадаа $amount · сард ойролцоогоор $perMonth';
   }
+
+  @override
+  String get setupNameMissing =>
+      'Энэ цалинд нэр өгнө үү, жишээ нь Жени эсвэл Жеффийн ажил.';
+
+  @override
+  String get setupNoSetDay => 'Тогтсон өдөргүй';
+
+  @override
+  String get setupNoSetDayMeans =>
+      'Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Цалин орж ирэхэд Орлого-д ангилна уу.';
 
   @override
   String get setupNoRegularPay => 'Надад тогтмол цалин байхгүй';
