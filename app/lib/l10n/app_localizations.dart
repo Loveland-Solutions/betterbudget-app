@@ -2861,6 +2861,18 @@ abstract class Words {
   /// **'Scheduled'**
   String get rowsTabScheduled;
 
+  /// Popup's second line after a row's category is changed: which row it is, since a bank repeats payees. {date} is like 09.15, {amount} like −₮200 (money out has a minus), {payee} the row's payee.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {amount} · {payee}'**
+  String ledgerRowLine(String date, String amount, String payee);
+
+  /// As ledgerRowLine, for a row with no payee: its date and amount.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {amount}'**
+  String ledgerRowLineNoPayee(String date, String amount);
+
   /// Popup at the bottom, and the undo label, after a row's category is picked from its dropdown. The row's payee is on the line under it. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
@@ -3152,7 +3164,7 @@ abstract class Words {
   /// Entry row, note by Add: the one required field still empty. field is when (the date), account, payee, category or amount
   ///
   /// In en, this message translates to:
-  /// **'{field, select, when{needs date} account{needs account} payee{needs payee} category{needs category} other{needs amount}}'**
+  /// **'{field, select, when{Type a date} account{Choose an account} payee{Type a payee} category{Choose a category} other{Type an amount}}'**
   String rowsNeeds(String field);
 
   /// Popup when Enter is pressed on a row with a required field empty: the first one. field is when (the date), account, payee, category or amount
@@ -3164,7 +3176,7 @@ abstract class Words {
   /// Entry row, note by Add: how many required fields are still empty (2 or more)
   ///
   /// In en, this message translates to:
-  /// **'needs {count} more'**
+  /// **'{count} more to fill in'**
   String rowsNeedsMore(int count);
 
   /// Entry row, button beside Save while editing a transaction: closes the row without saving
@@ -4737,6 +4749,18 @@ abstract class Words {
   /// **'due {days} days ago'**
   String startDueDaysAgo(int days);
 
+  /// Register row, small note on a scheduled bill or income one day past its date: Working leaves scheduled rows out until they are confirmed. Lowercase in English.
+  ///
+  /// In en, this message translates to:
+  /// **'due yesterday · not in Working yet'**
+  String get rowsDueYesterdayNotInWorking;
+
+  /// Register row, small note on a scheduled bill or income past its date, e.g. 'due 7 days ago · not in Working yet': Working leaves scheduled rows out until they are confirmed. The forecast's bill list says only startDueDaysAgo, since the forecast counts it as today.
+  ///
+  /// In en, this message translates to:
+  /// **'due {days} days ago · not in Working yet'**
+  String rowsDueDaysAgoNotInWorking(int days);
+
   /// A day of the month something happens on, inside the pay phrases below: English '25th'. Mongolian puts the dative ending on the number ('25-нд', '2-т'); isTwo is 'yes' when the number ends in 2 (хоёр → хоёрт).
   ///
   /// In en, this message translates to:
@@ -5026,7 +5050,7 @@ abstract class Words {
   /// Import window: the account's cleared balance after importing differs from the file's last balance.
   ///
   /// In en, this message translates to:
-  /// **'After this, the cleared balance is {ours}; the bank’s file ends at {bank}, {diff} apart. Rows from before this file, or ones not cleared, can make the difference.'**
+  /// **'{diff} apart from the bank. After this, the cleared balance is {ours}; the bank’s file ends at {bank}. Rows from before this file, or ones not cleared, can make the difference.'**
   String importClearedDiffers(Object ours, Object bank, Object diff);
 
   /// Import window, an OFX file: the account's cleared balance after importing equals the one balance the file gives. date in words.
@@ -5038,7 +5062,7 @@ abstract class Words {
   /// Import window, an OFX file: the account's cleared balance after importing differs from the one balance the file gives. date in words.
   ///
   /// In en, this message translates to:
-  /// **'After this, the cleared balance is {ours}; the bank’s was {bank} on {date}, {diff} apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.'**
+  /// **'{diff} apart from the bank. After this, the cleared balance is {ours}; the bank’s was {bank} on {date}. Rows after that day, rows from before this file, or ones not cleared, can make the difference.'**
   String importClearedDiffersOn(
     Object ours,
     Object bank,
@@ -7174,11 +7198,11 @@ abstract class Words {
   /// **'Income: {amounts}'**
   String planIncomeLine(String amounts);
 
-  /// Entry row, gold note when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income.
+  /// Entry row, gold line under the row when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income. {category} is the name typed, like “Nomin”.
   ///
   /// In en, this message translates to:
-  /// **'new category · money in counts as a refund to it; for pay, pick Income'**
-  String get rowsNewCategoryRefundNote;
+  /// **'Money in counts as a refund to {category}. For pay, pick Income.'**
+  String rowsNewCategoryRefundNote(String category);
 
   /// Toast after a pay schedule is saved, joined after "Pay saved · next payday …": the user's own scheduled rows for the same pay were taken over.
   ///
@@ -7345,13 +7369,13 @@ abstract class Words {
   /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 of your entries is waiting for your computer} other{{count} of your entries are waiting for your computer}}'**
+  /// **'{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}'**
   String phoneWaiting(int count);
 
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for your computer'**
+  /// **'Not in your ledger yet'**
   String get phoneWaitingTitle;
 
   /// Phone app, Accounts list: a credit card’s or loan’s balance.
@@ -7687,13 +7711,13 @@ abstract class Words {
   /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new category is waiting for your computer} other{{count} new categories are waiting for your computer}}'**
+  /// **'{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}'**
   String phoneWaitingCategories(int count);
 
   /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
   ///
   /// In en, this message translates to:
-  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for your computer'**
+  /// **'{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet'**
   String phoneWaitingBoth(int entries, int categories);
 
   /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.
