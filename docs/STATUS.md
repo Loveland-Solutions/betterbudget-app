@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.60.0 · schema v22 · 940 tests pass
+**Last updated: 2026-10-27** · version 0.60.1 · schema v22 · 941 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -53,7 +53,7 @@ go"), with a bar on the one getting the extra and on step 4's house loan; each d
 monthly payment (typed, or its payment category's monthly plan); "Extra each month";
 and **Smallest first** and **Highest rate first** side by side, each with when it's
 all paid off, the interest and the first debt paid off, the person's pick marked
-(`domain/payoff.dart`, `ui/savings_payoff.dart`). Leftovers: #306.
+(`domain/payoff.dart`, `ui/savings_payoff.dart`). Its leftovers (0.60.1, #306): "Debt to pay off" shows only on the line the pointer is on, and a field left open on a debt that leaves the list is closed.
 
 **More controls on a budget line** (0.57.0, #100; ADR 0004 "More controls on a budget
 line"; schema v22): a category's **Group** (a heading on Budget, A to Z, after the

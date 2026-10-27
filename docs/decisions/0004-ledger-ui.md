@@ -3060,6 +3060,13 @@ C, a timeline for each way), the owner picked **A**.
     one is typed. "Use ₮X" divides by the whole months the debt has had (up to
     three), so a young loan isn't offered a third of its payment.
   - The two settings a card click changes are written together.
+  - Leftovers (#306): "Debt to pay off", every step 2 line's own, shows only on
+    the line the pointer is on (or where Tab is), and opens the menu from there;
+    "Paid in full each month" and "Mortgage or house loan" stay said. A rate or
+    payment field left open on a debt that leaves the list (paid off, or marked
+    otherwise) is closed, so it doesn't come back with the cursor in it. Interest
+    is a year's rate over twelve though banks charge by the day: on ₮5,000,000 at
+    4% a month about ₮6,500 a month, within "about"; left so.
 
 ### Goals on Savings (owner, 2026-10-27, #101 and #102)
 
