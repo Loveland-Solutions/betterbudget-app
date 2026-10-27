@@ -1779,7 +1779,8 @@ PeriodPay periodPay(
 /// bill's share), or, with no plan, what's assigned; and what it spends
 /// past what it held from before, when that's more. So money saved up in
 /// earlier months and spent now isn't counted again, and money already
-/// there that's assigned past a plan isn't counted as this period's.
+/// there that's assigned past a plan isn't counted as this period's. A loan
+/// paid with no category counts as spent too.
 class IncomeFit {
   const IncomeFit({
     required this.currency,
@@ -1871,6 +1872,29 @@ class IncomeFit {
       }
       for (final e in x.entries) {
         if (waiting.contains(e.accountId)) add(spent, e.currency, e.amount);
+      }
+    }
+    // A loan paid from cash or bank with no category, typed as a transfer,
+    // left all the same (owner, 2026-10-27: "Anything that leaves the
+    // checking account should be tracked and budgeted for"). A bill's row
+    // counts in its category, and paying a card isn't counted: the card's
+    // purchases already were.
+    bool loan(int id) => switch (data.accounts[id]?.role) {
+      AccountRole.mortgage || AccountRole.studentLoan => true,
+      _ => false,
+    };
+    for (final x in data.txns) {
+      if (x.scheduled || x.planCategoryId != null) continue;
+      if (x.date.isBefore(start) || x.date.isAfter(end)) continue;
+      final fromMoney = x.entries.any(
+        (e) =>
+            e.amount < 0 &&
+            !loan(e.accountId) &&
+            (data.accounts[e.accountId]?.isBalanceSheet ?? false),
+      );
+      if (!fromMoney) continue;
+      for (final e in x.entries) {
+        if (loan(e.accountId)) add(spent, e.currency, e.amount);
       }
     }
     final came = b.cameIn[data.income?.id] ?? const <Currency, int>{};

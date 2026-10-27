@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.60.0 · schema v22 · 939 tests pass
+**Last updated: 2026-10-27** · version 0.60.0 · schema v22 · 940 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -31,7 +31,8 @@ plans take ₮350,000 more than its income" (coral) or "… fit in its income, w
 ₮150,000 to spare", and a bar of Spent so far, Still to spend and Saved against a
 mark where Income ends. Income is the period's own: what came in, plus pay still
 expected from today on. A category takes its plan (no plan: its Assigned), or what
-it spends past what it held from before; the Safety net and goals count too. Coral
+it spends past what it held from before; the Safety net and goals count too, and
+so does a loan paid from cash or bank with no category (not a card payment). Coral
 only once the income is known (pay set up, or the period over). The card steps
 aside while a category's Edit is open (`IncomeFit`, `periodPay` in
 `domain/budget.dart`; `_IncomeFitCard` in `ui/budget.dart`).

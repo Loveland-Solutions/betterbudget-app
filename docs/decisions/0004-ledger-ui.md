@@ -4755,6 +4755,12 @@ fine. Three were sketched; the owner picked B.
   the bank assigned past a plan isn't this month's. Money out still without a
   category counts; money in waiting there takes nothing off it. Archived
   categories' spending counts.
+- **Everything that leaves cash and bank counts** (owner, 2026-10-27, correcting a
+  review call that left out a loan paid by plain transfer: "Anything that leaves
+  the checking account should be tracked and budgeted for, though"). A payment from
+  cash or bank into a mortgage or student loan with no category counts as spent; a
+  bill's row counts in its category; paying a card doesn't count, its purchases
+  already did.
 - **Money put aside counts against the income** (owner, correcting a sketch that
   left the Safety net and goals out: "of course money set aside should count …
   since we want it to egress the checking account. The checking account is a

@@ -3041,6 +3041,18 @@ void main() {
       expect(f.spent, 120000000 + 10000000 + 5000000);
     });
 
+    test('a loan paid with no category is spent; paying the card is not', () {
+      final f = fit(
+        month(
+          more: [
+            move(DateTime(2026, 10, 16), checking, mortgage, 30000000),
+            move(DateTime(2026, 10, 17), checking, visa, 40000000),
+          ],
+        ),
+      );
+      expect(f.spent, 120000000 + 10000000 + 5000000 + 30000000);
+    });
+
     test(
       'with no pay set up, a shortfall is not sure until the month ends',
       () {
