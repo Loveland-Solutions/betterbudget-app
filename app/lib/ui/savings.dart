@@ -70,6 +70,21 @@ class _SavingsKeep extends ChangeNotifier {
     WidgetsBinding.instance.addPostFrameCallback((_) => gone.text.dispose());
   }
 
+  /// Closes the rate and payment fields of debts not in [listed]: one paid
+  /// off while its field was open doesn't bring it back, cursor in it, the
+  /// day it owes again (#306). Quietly, since those lines aren't built.
+  void onlyDebts(Set<int> listed) {
+    final gone = [
+      for (final what in _open.keys)
+        if (what.startsWith('rate-') || what.startsWith('pay-'))
+          if (!listed.contains(int.tryParse(what.split('-').last))) what,
+    ];
+    for (final what in gone) {
+      final t = _open.remove(what)!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => t.text.dispose());
+    }
+  }
+
   /// Esc where the last click left focus: the field opened last.
   void closeLast() {
     if (_open.isNotEmpty) {
@@ -156,6 +171,7 @@ class _SavingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final r = Readiness.of(data, today);
+    actions.keep.onlyDebts({for (final d in r.consumerDebts) d.account.id});
     final main = savingsCurrency(data);
     final others = [
       for (final a in data.openAccounts)
@@ -1096,6 +1112,9 @@ class _DebtLineState extends State<_DebtLine> {
   /// The link that opens the field: focus goes back to it on close.
   final _opener = FocusNode(debugLabel: 'debt-rate-link');
 
+  /// The pointer is on the line: what it counts as shows.
+  bool _lineHover = false;
+
   _SavingsKeep get _keep => widget.actions.keep;
   String get _what => 'rate-${widget.debt.account.id}';
   _Typed? get _typed => _keep[_what];
@@ -1188,165 +1207,187 @@ class _DebtLineState extends State<_DebtLine> {
     final target = consumer && r.target?.account.id == a.id;
     final carried = r.carriedSince[a.id];
     final rate = r.rates[a.id];
-    final line = Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _debtName,
-            // A gap before the amount, and the whole name on hover.
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Tooltip(
-                message: a.name,
-                waitDuration: const Duration(milliseconds: 600),
-                child: Text(
-                  a.name,
-                  style: onest(13, color: Mid.ink2),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    final line = MouseRegion(
+      onEnter: (_) => setState(() => _lineHover = true),
+      onExit: (_) => setState(() => _lineHover = false),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _debtName,
+              // A gap before the amount, and the whole name on hover.
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Tooltip(
+                  message: a.name,
+                  waitDuration: const Duration(milliseconds: 600),
+                  child: Text(
+                    a.name,
+                    style: onest(13, color: Mid.ink2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(
-            width: _debtOwed,
-            child: Text(
-              debt.owed > 0 ? _here(context, debt.owed) : t.planNothingOwed,
-              style: onest(13, color: Mid.ink2, tabular: true),
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (consumer)
             SizedBox(
-              width: _debtRate,
-              // A gap after the ⓘ, before what it counts as.
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Row(
-                  children: [
-                    Flexible(
-                      // One group with the field: clicking it closes the field
-                      // once, not closes and opens again.
-                      child: TapRegion(
-                        groupId: 'rate-${a.id}',
-                        child: Hoverable(
-                          key: ValueKey('debt-${a.id}-rate'),
-                          focusNode: _opener,
-                          onTap: _open ? _close : _start,
-                          builder: (hover) => Text(
-                            rate == null ? t.planRateAdd : _rateWords(t, rate),
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                onest(
-                                  12.5,
-                                  color: rate == null
-                                      ? Mid.blue
-                                      : (hover ? Mid.ink2 : Mid.ink3),
-                                  tabular: true,
-                                ).copyWith(
-                                  decoration: hover
-                                      ? TextDecoration.underline
-                                      : null,
-                                ),
+              width: _debtOwed,
+              child: Text(
+                debt.owed > 0 ? _here(context, debt.owed) : t.planNothingOwed,
+                style: onest(13, color: Mid.ink2, tabular: true),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (consumer)
+              SizedBox(
+                width: _debtRate,
+                // A gap after the ⓘ, before what it counts as.
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        // One group with the field: clicking it closes the field
+                        // once, not closes and opens again.
+                        child: TapRegion(
+                          groupId: 'rate-${a.id}',
+                          child: Hoverable(
+                            key: ValueKey('debt-${a.id}-rate'),
+                            focusNode: _opener,
+                            onTap: _open ? _close : _start,
+                            builder: (hover) => Text(
+                              rate == null
+                                  ? t.planRateAdd
+                                  : _rateWords(t, rate),
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  onest(
+                                    12.5,
+                                    color: rate == null
+                                        ? Mid.blue
+                                        : (hover ? Mid.ink2 : Mid.ink3),
+                                    tabular: true,
+                                  ).copyWith(
+                                    decoration: hover
+                                        ? TextDecoration.underline
+                                        : null,
+                                  ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Tooltip(
-                      message: t.planRateTip,
-                      waitDuration: const Duration(milliseconds: 300),
-                      child: Icon(
-                        Icons.info_outline_rounded,
-                        key: ValueKey('debt-${a.id}-rate-tip'),
-                        size: 14,
-                        color: Mid.ink3,
+                      const SizedBox(width: 4),
+                      Tooltip(
+                        message: t.planRateTip,
+                        waitDuration: const Duration(milliseconds: 300),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          key: ValueKey('debt-${a.id}-rate-tip'),
+                          size: 14,
+                          color: Mid.ink3,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          // The last two give way with "…" before the line runs out of room.
-          Flexible(
-            child: MenuAnchor(
-              style: _menuStyle,
-              menuChildren: focusFirstOnKeys([
-                if (consumer && !target)
-                  MenuItemButton(
-                    key: ValueKey('debt-${a.id}-target'),
-                    onPressed: () => actions.setPref(
-                      ReadyKeys.target,
-                      '${a.id}',
-                      t.planPayingExtraOn(a.name),
-                      toast: true,
-                    ),
-                    style: ButtonStyle(
-                      minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
-                      overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-                    ),
-                    child: Text(
-                      t.planPayExtraOnThis,
-                      style: onest(13, color: Mid.ink2),
-                    ),
-                  ),
-                for (final role in <AccountRole?>[
-                  null,
-                  AccountRole.paidMonthly,
-                  AccountRole.mortgage,
-                ])
-                  MenuItemButton(
-                    key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
-                    // An account marked a student loan under the six steps is
-                    // debt to pay off already: picking that leaves its mark.
-                    onPressed: () {
-                      if (_sameRole(a.role, role)) return;
-                      actions.setRole(a, role, _countsAs(t, a.name, role));
-                    },
-                    leadingIcon: Icon(
-                      _sameRole(a.role, role) ? Icons.check_rounded : null,
-                      size: 16,
-                      color: Mid.blue,
-                    ),
-                    style: ButtonStyle(
-                      minimumSize: const WidgetStatePropertyAll(Size(240, 34)),
-                      overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-                    ),
-                    child: Text(
-                      _roleWords(t, role),
-                      style: onest(13, color: Mid.ink2),
-                    ),
-                  ),
-              ]),
-              builder: (context, menu, _) => Hoverable(
-                key: ValueKey('debt-${a.id}-role'),
-                onTap: () => menu.isOpen ? menu.close() : menu.open(),
-                builder: (hover) => Text(
-                  _roleWords(t, a.role),
-                  overflow: TextOverflow.ellipsis,
-                  style: onest(12.5, color: hover ? Mid.ink2 : Mid.ink3)
-                      .copyWith(
-                        decoration: hover ? TextDecoration.underline : null,
-                      ),
-                ),
-              ),
-            ),
-          ),
-          if (target) ...[
-            const SizedBox(width: 12),
+            // The last two give way with "…" before the line runs out of room.
             Flexible(
-              child: Text(
-                t.planPayExtraHere,
-                key: ValueKey('debt-${a.id}-is-target'),
-                overflow: TextOverflow.ellipsis,
-                style: onest(12.5, color: Mid.blue),
+              child: MenuAnchor(
+                style: _menuStyle,
+                menuChildren: focusFirstOnKeys([
+                  if (consumer && !target)
+                    MenuItemButton(
+                      key: ValueKey('debt-${a.id}-target'),
+                      onPressed: () => actions.setPref(
+                        ReadyKeys.target,
+                        '${a.id}',
+                        t.planPayingExtraOn(a.name),
+                        toast: true,
+                      ),
+                      style: ButtonStyle(
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size(240, 34),
+                        ),
+                        overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                      ),
+                      child: Text(
+                        t.planPayExtraOnThis,
+                        style: onest(13, color: Mid.ink2),
+                      ),
+                    ),
+                  for (final role in <AccountRole?>[
+                    null,
+                    AccountRole.paidMonthly,
+                    AccountRole.mortgage,
+                  ])
+                    MenuItemButton(
+                      key: ValueKey('debt-${a.id}-${role?.name ?? 'consumer'}'),
+                      // An account marked a student loan under the six steps is
+                      // debt to pay off already: picking that leaves its mark.
+                      onPressed: () {
+                        if (_sameRole(a.role, role)) return;
+                        actions.setRole(a, role, _countsAs(t, a.name, role));
+                      },
+                      leadingIcon: Icon(
+                        _sameRole(a.role, role) ? Icons.check_rounded : null,
+                        size: 16,
+                        color: Mid.blue,
+                      ),
+                      style: ButtonStyle(
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size(240, 34),
+                        ),
+                        overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                      ),
+                      child: Text(
+                        _roleWords(t, role),
+                        style: onest(13, color: Mid.ink2),
+                      ),
+                    ),
+                ]),
+                // Debt to pay off is every line's own until marked otherwise
+                // (#306): said only where the pointer or Tab is, so the menu is
+                // there without the words repeating down the step.
+                builder: (context, menu, _) => Hoverable(
+                  key: ValueKey('debt-${a.id}-role'),
+                  onTap: () => menu.isOpen ? menu.close() : menu.open(),
+                  builder: (hover) => Opacity(
+                    opacity:
+                        hover ||
+                            _lineHover ||
+                            menu.isOpen ||
+                            !_sameRole(a.role, null)
+                        ? 1
+                        : 0,
+                    child: Text(
+                      _roleWords(t, a.role),
+                      overflow: TextOverflow.ellipsis,
+                      style: onest(12.5, color: hover ? Mid.ink2 : Mid.ink3)
+                          .copyWith(
+                            decoration: hover ? TextDecoration.underline : null,
+                          ),
+                    ),
+                  ),
+                ),
               ),
             ),
+            if (target) ...[
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  t.planPayExtraHere,
+                  key: ValueKey('debt-${a.id}-is-target'),
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(12.5, color: Mid.blue),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
     final typed = _typed;

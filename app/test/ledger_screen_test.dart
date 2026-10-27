@@ -462,6 +462,75 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('savings: what a debt counts as, and a field it leaves behind', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    late int visa, loan;
+    await tester.runAsync(() async {
+      visa = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+      loan = await db.createAccount(
+        name: 'Khan loan',
+        type: AccountType.liability,
+      );
+      await db.postOpeningBalance(
+        accountId: loan,
+        date: DateTime(2026, 9, 1),
+        balance: -500000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    double shown(int id) => tester
+        .widget<Opacity>(
+          find.descendant(
+            of: find.byKey(ValueKey('debt-$id-role')),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .opacity;
+
+    // "Debt to pay off" is every line's: said only on the line the pointer
+    // is on, and its menu opens from there.
+    expect(shown(visa), 0);
+    expect(shown(loan), 0);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(
+      tester.getTopLeft(find.byKey(ValueKey('debt-line-$loan'))) +
+          const Offset(20, 14),
+    );
+    await tester.pumpAndSettle();
+    expect(shown(loan), 1);
+    expect(shown(visa), 0);
+
+    // The loan's payment field is open with 7 typed when it's marked paid in
+    // full each month: brought back to debt to pay off, the field is closed.
+    await tester.tap(find.byKey(ValueKey('debt-$loan-pay')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('pay-$loan-field')), '7');
+    await tester.tap(find.byKey(ValueKey('debt-$loan-role')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('debt-$loan-paidMonthly')));
+    await settle(tester);
+    expect(shown(loan), 1); // not the default: said on its line
+    await tester.tap(find.byKey(ValueKey('debt-$loan-role')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('debt-$loan-consumer')));
+    await settle(tester);
+    expect(find.byKey(ValueKey('debt-line-$loan')), findsOneWidget);
+    expect(find.byKey(ValueKey('pay-$loan-field')), findsNothing);
+    expect(
+      (await tester.runAsync(db.loadLedger))!.prefs[ReadyKeys.pay(loan)],
+      isNull,
+    );
+    await mouse.removePointer();
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: two ways to pay off debt, side by side', (
     tester,
   ) async {
