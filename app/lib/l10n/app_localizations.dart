@@ -9156,6 +9156,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Clear this pay period’s Assigned in {code}'**
   String planClearPayIn(String code);
+
+  /// Phone, across the top after the demo key: the figures are invented and nothing typed is kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Made-up figures for a look around. Nothing here is saved.'**
+  String get phoneDemoNote;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

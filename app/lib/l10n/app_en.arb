@@ -9825,5 +9825,9 @@
         "type": "String"
       }
     }
+  },
+  "phoneDemoNote": "Made-up figures for a look around. Nothing here is saved.",
+  "@phoneDemoNote": {
+    "description": "Phone, across the top after the demo key: the figures are invented and nothing typed is kept."
   }
 }

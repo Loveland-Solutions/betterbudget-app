@@ -6583,4 +6583,8 @@ class WordsEn extends Words {
   String planClearPayIn(String code) {
     return 'Clear this pay period’s Assigned in $code';
   }
+
+  @override
+  String get phoneDemoNote =>
+      'Made-up figures for a look around. Nothing here is saved.';
 }
