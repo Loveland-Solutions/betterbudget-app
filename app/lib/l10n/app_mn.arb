@@ -1166,6 +1166,7 @@
   "setupCurrencyNoMatch": "Ийм нэртэй валют алга",
   "ledgerIncome": "Орлого",
   "payStopped": "{name} (зогссон)",
+  "planIncomeUncategorized": "Өөр {amount} орж ирсэн ч Ангилаагүй хэвээр байна: энд тооцохын тулд Орлого-д ангилна уу.",
   "planIncomeLine": "Орлого: {amounts}",
   "rowsNewCategoryRefundNote": "Орсон мөнгө {category} ангилалд буцаалт болж тооцогдоно. Цалин бол Орлого-г сонгоно.",
   "ledgerPayReplaced": "{count, plural, =1{гараар товлосон орлогыг орлууллаа} other{гараар товлосон {count} орлогыг орлууллаа}}",

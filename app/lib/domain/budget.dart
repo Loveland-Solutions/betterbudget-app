@@ -299,6 +299,7 @@ class Budget {
     required this.began,
     required this.lines,
     required this.cameIn,
+    required this.cameInUncategorized,
     required this.pools,
     required this.unassignedSpent,
   });
@@ -321,6 +322,11 @@ class Budget {
 
   /// Each income category: what came in during the period.
   final Map<int, Map<Currency, int>> cameIn;
+
+  /// Money that came in during the period and is still in Not categorized
+  /// (imported pay waits there), by currency: said beside Income, which
+  /// doesn't count it (owner, 2026-10-28, #182).
+  final Map<Currency, int> cameInUncategorized;
 
   /// In [currency]: what the user has, less what the categories with money
   /// hold, as of today, with every amount assigned counted, a later
@@ -456,6 +462,7 @@ class Budget {
     final spent = <int, int>{}, spentCounted = <int, int>{};
     final spentBy = <int, int>{}, spentAll = <int, int>{};
     final cameIn = <int, Map<Currency, int>>{};
+    final cameInUncategorized = <Currency, int>{};
     final otherRows = <int, int>{}, otherAmount = <int, int>{};
     final otherCurrency = <int, Currency>{};
     // [on]: the day the plan counts it, when that isn't [d] (a bill the
@@ -522,7 +529,12 @@ class Budget {
             came[x.currency] = (came[x.currency] ?? 0) - x.amount;
           }
         } else if (uncategorized.contains(a.id)) {
-          // Holds no money: its rows stay in what's not assigned.
+          // Holds no money: its rows stay in what's not assigned. Money in
+          // there is said beside Income.
+          if (within(d) && x.amount < 0) {
+            cameInUncategorized[x.currency] =
+                (cameInUncategorized[x.currency] ?? 0) - x.amount;
+          }
         } else if (envelopes.contains(a.id)) {
           final from = countsFrom[a.id];
           final starts = beganFor(a.currency);
@@ -751,6 +763,7 @@ class Budget {
       began: began,
       lines: lines,
       cameIn: cameIn,
+      cameInUncategorized: cameInUncategorized,
       pools: pools,
       unassignedSpent: (count: unassignedCount, amount: unassignedAmount),
     );

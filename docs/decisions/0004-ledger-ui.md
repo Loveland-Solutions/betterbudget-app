@@ -4923,3 +4923,16 @@ row's category dropdown ("Nomin is always filed here · Delete" once set), with 
 recommendation not to: "Your recommendation is spot on." The popup offers it, and the
 Payees page adds one when the popup went too soon. *Rejected:* a second place for the
 same offer in a list opened all the time.
+
+## Three answers on income and the phone (owner, 2026-10-28)
+
+- **A payday on the day balances are typed** (#175, its first part): "The future is only
+  for forecasting. It shouldn't count on the balance unless it comes with the import." As
+  built: a scheduled payday is only in the forecast, and comes into the balance when it's
+  confirmed or comes in an import. Nothing changes.
+- **Money in still in Not categorized** (#182): "Of course, yes." Under the Income tab's
+  income for the period: "₮2,500,000 more came in and is still in Not categorized: file
+  it under Income to count it here.", one amount per currency; a click shows those rows.
+  Income itself still counts only what's filed under it.
+- **Balances in the phone's Paid from list** (#184): "Yes." Each account shows what it
+  holds now, entries still waiting on the phone counted; a card "Owed ₮640,200.00".

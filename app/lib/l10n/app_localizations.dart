@@ -7156,6 +7156,12 @@ abstract class Words {
   /// **'{name} (stopped)'**
   String payStopped(String name);
 
+  /// Budget page, Income tab, under the period's income: money that came in this period and is still in Not categorized (imported pay waits there), which the income above doesn't count. Clicking it shows those rows. {amount} is one amount per currency, like “₮2,500,000”.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more came in and is still in Not categorized: file it under Income to count it here.'**
+  String planIncomeUncategorized(String amount);
+
   /// Budget page, under the not-assigned lines: this period's income, each currency on its own, like "Income: ₮3,200,000.00 · $120.00". A click shows the rows.
   ///
   /// In en, this message translates to:
